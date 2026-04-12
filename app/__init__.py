@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from flask import Flask
@@ -21,9 +22,14 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.config.update(
         DATABASE=os.getenv("DATABASE_FILE", "payroll.db"),
         DATABASE_URL=os.getenv("DATABASE_URL", "").strip(),
+        REQUIRE_DATABASE_URL=os.getenv("REQUIRE_DATABASE_URL", "false").strip().lower() == "true",
         SECRET_KEY=os.getenv("SECRET_KEY", ""),
         ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD", ""),
+        ADMIN_PASSWORD_HASH=os.getenv("ADMIN_PASSWORD_HASH", ""),
         OWNER_PASSWORD=os.getenv("OWNER_PASSWORD", ""),
+        OWNER_PASSWORD_HASH=os.getenv("OWNER_PASSWORD_HASH", ""),
+        LOGIN_MAX_ATTEMPTS=int(os.getenv("LOGIN_MAX_ATTEMPTS", "5")),
+        LOGIN_LOCK_MINUTES=int(os.getenv("LOGIN_LOCK_MINUTES", "15")),
         COMPANY_NAME="Current Link",
         COMPANY_SUBTITLE="Transport and General Contracting LLC SPC",
         CURRENTLINK_FILE=str(Path.home() / "Downloads" / "Currentlink.xlsm"),
@@ -35,6 +41,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "false").strip().lower() == "true",
         WTF_CSRF_TIME_LIMIT=3600,
+        PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     )
 
     if test_config:
@@ -43,10 +50,12 @@ def create_app(test_config: dict | None = None) -> Flask:
     if not app.config["SECRET_KEY"]:
         raise RuntimeError("SECRET_KEY is missing. Set it in .env or the environment before starting the app.")
     if not app.config.get("TESTING"):
-        if not app.config["ADMIN_PASSWORD"]:
-            raise RuntimeError("ADMIN_PASSWORD is missing. Set it in .env or the environment.")
-        if not app.config["OWNER_PASSWORD"]:
-            raise RuntimeError("OWNER_PASSWORD is missing. Set it in .env or the environment.")
+        if app.config["REQUIRE_DATABASE_URL"] and not app.config["DATABASE_URL"]:
+            raise RuntimeError("DATABASE_URL is required for this deployment.")
+        if not (app.config["ADMIN_PASSWORD"] or app.config["ADMIN_PASSWORD_HASH"]):
+            raise RuntimeError("ADMIN_PASSWORD or ADMIN_PASSWORD_HASH is missing. Set it in .env or the environment.")
+        if not (app.config["OWNER_PASSWORD"] or app.config["OWNER_PASSWORD_HASH"]):
+            raise RuntimeError("OWNER_PASSWORD or OWNER_PASSWORD_HASH is missing. Set it in .env or the environment.")
 
     Path(app.config["DRIVER_FILES_DIR"]).mkdir(parents=True, exist_ok=True)
 

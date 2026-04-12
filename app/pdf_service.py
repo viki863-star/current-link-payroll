@@ -255,6 +255,7 @@ def _draw_title(pdf: canvas.Canvas, title: str, subtitle: str = "") -> None:
 
 
 def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -> None:
+    ot_month = salary_row["ot_month"] if "ot_month" in salary_row.keys() and salary_row["ot_month"] else previous_month_value(salary_row["salary_month"])
     summary_x = 16 * mm
     summary_y = 181 * mm
     summary_w = 116 * mm
@@ -280,6 +281,7 @@ def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -
     right_rows = [
         ("Phone Number", driver["phone_number"] if "phone_number" in driver.keys() else "-"),
         ("Pay Period", format_month_label(salary_row["salary_month"])),
+        ("OT Month", format_month_label(ot_month)),
         ("Shift", driver["shift"]),
         ("Basic Salary", f"AED {format_currency(float(salary_row['basic_salary']))}"),
     ]
@@ -287,12 +289,12 @@ def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -
     row_y = summary_y + summary_h - 15.5 * mm
     for label, value in left_rows:
         _draw_label_value_row(pdf, summary_x + 5 * mm, row_y, 24 * mm, 25 * mm, label, value)
-        row_y -= 7.2 * mm
+        row_y -= 5.8 * mm
 
     row_y = summary_y + summary_h - 15.5 * mm
     for label, value in right_rows:
         _draw_label_value_row(pdf, summary_x + 63 * mm, row_y, 19 * mm, 28 * mm, label, value)
-        row_y -= 7.2 * mm
+        row_y -= 5.8 * mm
 
     metric_x = 138 * mm
     metric_y = 205 * mm
@@ -323,6 +325,7 @@ def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -
 
 
 def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None:
+    ot_month = salary_row["ot_month"] if "ot_month" in salary_row.keys() and salary_row["ot_month"] else previous_month_value(salary_row["salary_month"])
     gross = float(salary_row["net_salary"])
     deduction_amount = float(slip_payload["deduction_amount"])
     available_advance = float(slip_payload["available_advance"])
@@ -360,7 +363,7 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
 
     earnings = [
         ("Basic Salary", float(salary_row["basic_salary"])),
-        ("OT Hours", float(salary_row["ot_hours"])),
+        (f"OT Hours ({format_month_label(ot_month)})", float(salary_row["ot_hours"])),
         ("OT Amount", float(salary_row["ot_amount"])),
         ("Personal / Vehicle", float(salary_row["personal_vehicle"])),
         ("Gross Earnings", gross),
@@ -733,6 +736,18 @@ def format_month_label(value: str) -> str:
         return datetime.strptime(value, "%Y-%m").strftime("%b %Y")
     except ValueError:
         return value
+
+
+def previous_month_value(value: str) -> str:
+    if not value or value == "-":
+        return value
+    try:
+        month_date = datetime.strptime(f"{value}-01", "%Y-%m-%d")
+    except ValueError:
+        return value
+    if month_date.month == 1:
+        return f"{month_date.year - 1}-12"
+    return f"{month_date.year}-{month_date.month - 1:02d}"
 
 
 def format_date_label(value: str | None) -> str:

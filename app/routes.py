@@ -1,7 +1,7 @@
 import base64
 import shutil
 from calendar import monthrange
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 from io import BytesIO
 from pathlib import Path
@@ -78,31 +78,75 @@ def register_routes(app: Flask) -> None:
             driver_pin = request.form.get("driver_pin", "").strip()
             selected_role = role or "admin"
             db = open_db()
+            identifier = _auth_identifier(role, phone_number)
+
+            if role in {"admin", "owner", "driver"}:
+                lock_info = _get_login_lock(db, role, identifier)
+                if lock_info["locked"]:
+                    flash(lock_info["message"], "error")
+                    _audit_log(
+                        db,
+                        "login_blocked",
+                        entity_type="auth",
+                        entity_id=role,
+                        status="blocked",
+                        details=lock_info["message"],
+                    )
+                    db.commit()
+                    return render_template("login.html", selected_role=selected_role)
 
             if role == "admin":
-                if password == app.config["ADMIN_PASSWORD"]:
+                if not password:
+                    flash("Admin password is required.", "error")
+                elif _verify_env_secret(app.config["ADMIN_PASSWORD"], app.config.get("ADMIN_PASSWORD_HASH", ""), password):
+                    _clear_failed_login(db, "admin", identifier)
+                    _audit_log(db, "login_success", entity_type="auth", entity_id="admin", details="Admin login")
+                    db.commit()
                     _set_session("admin", display_name="Admin")
                     flash("Admin login successful.", "success")
                     return redirect(url_for("dashboard"))
-                flash("Admin password is not correct.", "error")
+                else:
+                    _record_failed_login(db, "admin", identifier)
+                    _audit_log(db, "login_failed", entity_type="auth", entity_id="admin", status="failed", details="Admin password mismatch")
+                    db.commit()
+                    flash(_latest_login_error(db, "admin", identifier, "Admin password is not correct."), "error")
             elif role == "owner":
-                if password == app.config["OWNER_PASSWORD"]:
+                if not password:
+                    flash("Owner access code is required.", "error")
+                elif _verify_env_secret(app.config["OWNER_PASSWORD"], app.config.get("OWNER_PASSWORD_HASH", ""), password):
+                    _clear_failed_login(db, "owner", identifier)
+                    _audit_log(db, "login_success", entity_type="auth", entity_id="owner", details="Owner login")
+                    db.commit()
                     _set_session("owner", display_name="Owner")
                     flash("Owner login successful.", "success")
                     return redirect(url_for("owner_fund"))
-                flash("Owner access code is not correct.", "error")
+                else:
+                    _record_failed_login(db, "owner", identifier)
+                    _audit_log(db, "login_failed", entity_type="auth", entity_id="owner", status="failed", details="Owner password mismatch")
+                    db.commit()
+                    flash(_latest_login_error(db, "owner", identifier, "Owner access code is not correct."), "error")
             elif role == "driver":
                 normalized_phone = _normalize_phone(phone_number)
                 driver = _find_driver_by_phone(db, normalized_phone)
                 if driver is None:
+                    if normalized_phone:
+                        _record_failed_login(db, "driver", identifier)
+                        _audit_log(db, "login_failed", entity_type="auth", entity_id="driver", status="failed", details="Unknown driver phone")
+                        db.commit()
                     flash("Driver phone number was not found. Add phone number in driver master first.", "error")
                 elif not driver["pin_hash"]:
                     flash("Driver PIN is not set yet. Ask admin to update the driver profile.", "error")
                 elif not driver_pin:
                     flash("Driver PIN is required.", "error")
                 elif not check_password_hash(driver["pin_hash"], driver_pin):
-                    flash("Driver PIN is not correct.", "error")
+                    _record_failed_login(db, "driver", identifier)
+                    _audit_log(db, "login_failed", entity_type="auth", entity_id=driver["driver_id"], status="failed", details="Driver PIN mismatch")
+                    db.commit()
+                    flash(_latest_login_error(db, "driver", identifier, "Driver PIN is not correct."), "error")
                 else:
+                    _clear_failed_login(db, "driver", identifier)
+                    _audit_log(db, "login_success", entity_type="auth", entity_id=driver["driver_id"], details="Driver login")
+                    db.commit()
                     _set_session("driver", driver_id=driver["driver_id"], display_name=driver["full_name"])
                     flash(f"Welcome {driver['full_name']}.", "success")
                     return redirect(url_for("driver_portal"))
@@ -236,7 +280,9 @@ def register_routes(app: Flask) -> None:
     def owner_fund():
         db = open_db()
         can_edit = _current_role() == "admin"
+        edit_entry_id = request.args.get("edit", "").strip()
         values = {
+            "entry_id": "",
             "owner_name": "",
             "entry_date": date.today().isoformat(),
             "amount": "",
@@ -245,12 +291,33 @@ def register_routes(app: Flask) -> None:
             "details": "",
         }
 
+        if edit_entry_id:
+            existing_entry = db.execute(
+                """
+                SELECT id, owner_name, entry_date, amount, received_by, payment_method, details
+                FROM owner_fund_entries
+                WHERE id = ?
+                """,
+                (edit_entry_id,),
+            ).fetchone()
+            if existing_entry and can_edit:
+                values = {
+                    "entry_id": str(existing_entry["id"]),
+                    "owner_name": existing_entry["owner_name"],
+                    "entry_date": existing_entry["entry_date"],
+                    "amount": f"{float(existing_entry['amount']):.2f}",
+                    "received_by": existing_entry["received_by"] or "",
+                    "payment_method": existing_entry["payment_method"] or "Cash",
+                    "details": existing_entry["details"] or "",
+                }
+
         if request.method == "POST":
             if not can_edit:
                 flash("Owner view is read-only.", "error")
                 return redirect(url_for("owner_fund"))
 
             values = {
+                "entry_id": request.form.get("entry_id", "").strip(),
                 "owner_name": request.form.get("owner_name", "").strip(),
                 "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
                 "amount": request.form.get("amount", "").strip(),
@@ -266,28 +333,62 @@ def register_routes(app: Flask) -> None:
                 if not values["owner_name"]:
                     flash("Owner name is required.", "error")
                 else:
-                    db.execute(
-                        """
-                        INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, details)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            values["owner_name"],
-                            values["entry_date"],
-                            amount,
-                            values["received_by"],
-                            values["payment_method"],
-                            values["details"],
-                        ),
-                    )
+                    if values["entry_id"]:
+                        db.execute(
+                            """
+                            UPDATE owner_fund_entries
+                            SET owner_name = ?, entry_date = ?, amount = ?, received_by = ?, payment_method = ?, details = ?
+                            WHERE id = ?
+                            """,
+                            (
+                                values["owner_name"],
+                                values["entry_date"],
+                                amount,
+                                values["received_by"],
+                                values["payment_method"],
+                                values["details"],
+                                values["entry_id"],
+                            ),
+                        )
+                        _audit_log(
+                            db,
+                            "owner_fund_updated",
+                            entity_type="owner_fund",
+                            entity_id=values["entry_id"],
+                            details=f"{values['owner_name']} / AED {amount:.2f}",
+                        )
+                        message = "Owner fund entry updated."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, details)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                values["owner_name"],
+                                values["entry_date"],
+                                amount,
+                                values["received_by"],
+                                values["payment_method"],
+                                values["details"],
+                            ),
+                        )
+                        _audit_log(
+                            db,
+                            "owner_fund_created",
+                            entity_type="owner_fund",
+                            entity_id=values["owner_name"],
+                            details=f"{values['owner_name']} / AED {amount:.2f}",
+                        )
+                        message = "Owner fund entry saved."
                     db.commit()
-                    flash("Owner fund entry saved.", "success")
+                    flash(message, "success")
                     return redirect(url_for("owner_fund"))
 
         incoming, outgoing, balance = _owner_fund_totals(db)
         entries = db.execute(
             """
-            SELECT owner_name, entry_date, amount, received_by, payment_method, details
+            SELECT id, owner_name, entry_date, amount, received_by, payment_method, details
             FROM owner_fund_entries
             ORDER BY entry_date DESC, id DESC
             LIMIT 20
@@ -307,6 +408,33 @@ def register_routes(app: Flask) -> None:
             can_edit=can_edit,
             pdf_files=pdf_files,
         )
+
+    @app.post("/owner-fund/<int:entry_id>/delete")
+    @_login_required("admin")
+    def delete_owner_fund_entry(entry_id: int):
+        db = open_db()
+        entry = db.execute(
+            """
+            SELECT id, owner_name, amount
+            FROM owner_fund_entries
+            WHERE id = ?
+            """,
+            (entry_id,),
+        ).fetchone()
+        if entry is None:
+            flash("Owner fund entry not found.", "error")
+            return redirect(url_for("owner_fund"))
+        db.execute("DELETE FROM owner_fund_entries WHERE id = ?", (entry_id,))
+        _audit_log(
+            db,
+            "owner_fund_deleted",
+            entity_type="owner_fund",
+            entity_id=str(entry_id),
+            details=f"{entry['owner_name']} / AED {float(entry['amount']):.2f}",
+        )
+        db.commit()
+        flash("Owner fund entry deleted.", "success")
+        return redirect(url_for("owner_fund"))
 
     @app.get("/owner-fund/pdf")
     @_login_required("admin", "owner")
@@ -508,6 +636,13 @@ def register_routes(app: Flask) -> None:
                     """,
                     _driver_insert_values(form, basic_salary, ot_rate, pin_hash, uploaded_photo),
                 )
+                _audit_log(
+                    db,
+                    "driver_created",
+                    entity_type="driver",
+                    entity_id=form["driver_id"],
+                    details=f"{form['full_name']} / {form['vehicle_no']}",
+                )
                 db.commit()
             except Exception:
                 flash("Driver ID must be unique.", "error")
@@ -592,6 +727,13 @@ def register_routes(app: Flask) -> None:
                     driver_id,
                 ),
             )
+            _audit_log(
+                db,
+                "driver_updated",
+                entity_type="driver",
+                entity_id=driver_id,
+                details=f"{form['full_name']} / {form['vehicle_no']}",
+            )
             db.commit()
             flash("Driver updated successfully.", "success")
             return redirect(url_for("driver_list"))
@@ -633,6 +775,13 @@ def register_routes(app: Flask) -> None:
         db.execute("DELETE FROM salary_slips WHERE driver_id = ?", (driver_id,))
         db.execute("DELETE FROM salary_store WHERE driver_id = ?", (driver_id,))
         db.execute("DELETE FROM drivers WHERE driver_id = ?", (driver_id,))
+        _audit_log(
+            db,
+            "driver_deleted",
+            entity_type="driver",
+            entity_id=driver_id,
+            details=driver["full_name"],
+        )
         db.commit()
         _remove_driver_generated_files(app, driver)
         flash(f"{driver['full_name']} deleted successfully.", "success")
@@ -803,6 +952,13 @@ def register_routes(app: Flask) -> None:
                             driver_id,
                         ),
                     )
+                    _audit_log(
+                        db,
+                        "transaction_updated",
+                        entity_type="driver_transaction",
+                        entity_id=form["transaction_id"],
+                        details=f"{driver_id} / AED {amount:.2f}",
+                    )
                     message = "Transaction updated and driver KATA PDF refreshed."
                 else:
                     db.execute(
@@ -819,6 +975,13 @@ def register_routes(app: Flask) -> None:
                             amount,
                             form["details"],
                         ),
+                    )
+                    _audit_log(
+                        db,
+                        "transaction_created",
+                        entity_type="driver_transaction",
+                        entity_id=driver_id,
+                        details=f"{form['txn_type']} / AED {amount:.2f}",
                     )
                     message = "Transaction saved and driver KATA PDF updated."
                 db.commit()
@@ -856,6 +1019,13 @@ def register_routes(app: Flask) -> None:
             flash("Driver not found.", "error")
             return redirect(url_for("dashboard"))
         db.execute("DELETE FROM driver_transactions WHERE id = ? AND driver_id = ?", (transaction_id, driver_id))
+        _audit_log(
+            db,
+            "transaction_deleted",
+            entity_type="driver_transaction",
+            entity_id=str(transaction_id),
+            details=driver_id,
+        )
         db.commit()
         _regenerate_kata_for_driver(app, db, driver)
         flash("Transaction deleted and driver KATA PDF refreshed.", "success")
@@ -896,10 +1066,12 @@ def register_routes(app: Flask) -> None:
             form = {
                 "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
                 "salary_month": _normalize_month(request.form.get("salary_month", selected_month).strip() or selected_month),
+                "ot_month": "",
                 "ot_hours": request.form.get("ot_hours", "0").strip() or "0",
                 "personal_vehicle": request.form.get("personal_vehicle", "0").strip() or "0",
                 "remarks": request.form.get("remarks", "").strip(),
             }
+            form["ot_month"] = _previous_month_value(form["salary_month"])
             existing_row = db.execute(
                 "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
                 (driver_id, form["salary_month"]),
@@ -916,7 +1088,7 @@ def register_routes(app: Flask) -> None:
                     preview=_calculate_salary_preview(driver, _default_salary_form(form["salary_month"])),
                     salary_rows=db.execute(
                         """
-                        SELECT id, entry_date, salary_month, basic_salary, ot_hours, ot_amount, personal_vehicle, net_salary, remarks
+                        SELECT id, entry_date, salary_month, ot_month, basic_salary, ot_hours, ot_amount, personal_vehicle, net_salary, remarks
                         FROM salary_store
                         WHERE driver_id = ?
                         ORDER BY salary_month DESC
@@ -937,11 +1109,12 @@ def register_routes(app: Flask) -> None:
                 db.execute(
                     """
                     INSERT INTO salary_store (
-                        driver_id, entry_date, salary_month, basic_salary, ot_hours, ot_rate,
+                        driver_id, entry_date, salary_month, ot_month, basic_salary, ot_hours, ot_rate,
                         ot_amount, personal_vehicle, net_salary, remarks
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(driver_id, salary_month) DO UPDATE SET
                         entry_date = excluded.entry_date,
+                        ot_month = excluded.ot_month,
                         basic_salary = excluded.basic_salary,
                         ot_hours = excluded.ot_hours,
                         ot_rate = excluded.ot_rate,
@@ -954,6 +1127,7 @@ def register_routes(app: Flask) -> None:
                         driver_id,
                         form["entry_date"],
                         form["salary_month"],
+                        preview["ot_month"],
                         preview["basic_salary"],
                         preview["ot_hours"],
                         preview["ot_rate"],
@@ -962,6 +1136,13 @@ def register_routes(app: Flask) -> None:
                         preview["net_salary"],
                         form["remarks"],
                     ),
+                )
+                _audit_log(
+                    db,
+                    "salary_store_saved",
+                    entity_type="salary_store",
+                    entity_id=f"{driver_id}:{form['salary_month']}",
+                    details=f"OT month {preview['ot_month']} / net AED {preview['net_salary']:.2f}",
                 )
                 db.commit()
                 _regenerate_kata_for_driver(app, db, driver)
@@ -973,7 +1154,7 @@ def register_routes(app: Flask) -> None:
 
         salary_rows = db.execute(
             """
-            SELECT id, entry_date, salary_month, basic_salary, ot_hours, ot_amount, personal_vehicle, net_salary, remarks
+            SELECT id, entry_date, salary_month, ot_month, basic_salary, ot_hours, ot_amount, personal_vehicle, net_salary, remarks
             FROM salary_store
             WHERE driver_id = ?
             ORDER BY salary_month DESC
@@ -1005,6 +1186,13 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("dashboard"))
         db.execute("DELETE FROM salary_store WHERE id = ? AND driver_id = ?", (salary_id, driver_id))
         db.execute("DELETE FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (salary_id, driver_id))
+        _audit_log(
+            db,
+            "salary_store_deleted",
+            entity_type="salary_store",
+            entity_id=str(salary_id),
+            details=driver_id,
+        )
         db.commit()
         _regenerate_kata_for_driver(app, db, driver)
         flash("Salary row deleted.", "success")
@@ -1093,8 +1281,10 @@ def register_routes(app: Flask) -> None:
                     deduction_amount = _parse_decimal(values["deduction_amount"], "Deduction amount", required=False, default=0.0, minimum=0.0)
                 except ValidationError as exc:
                     flash(str(exc), "error")
-                    deduction_amount = 0.0
-                if deduction_amount < 0 or deduction_amount > available_advance + 0.001:
+                    deduction_amount = None
+                if deduction_amount is None:
+                    pass
+                elif deduction_amount < 0 or deduction_amount > available_advance + 0.001:
                     flash(f"Deduction amount must be between 0 and {available_advance:,.2f}.", "error")
                 elif selected_salary is None:
                     flash("Selected salary record was not found.", "error")
@@ -1150,6 +1340,13 @@ def register_routes(app: Flask) -> None:
                                 relative_path,
                             ),
                         )
+                        _audit_log(
+                            db,
+                            "salary_slip_generated",
+                            entity_type="salary_slip",
+                            entity_id=f"{driver_id}:{selected_salary['salary_month']}",
+                            details=f"OT month {selected_salary['ot_month'] or _previous_month_value(selected_salary['salary_month'])} / net AED {net_payable:.2f}",
+                        )
                         db.commit()
                         flash("Salary slip PDF generated and saved inside the driver folder.", "success")
                         return redirect(
@@ -1175,14 +1372,16 @@ def register_routes(app: Flask) -> None:
             try:
                 deduction_amount = _parse_decimal(values["deduction_amount"], "Deduction amount", required=False, default=0.0, minimum=0.0)
             except ValidationError:
-                deduction_amount = 0.0
-            preview = {
-                "gross": float(selected_salary["net_salary"]),
-                "available_advance": available_advance,
-                "deduction_amount": deduction_amount,
-                "remaining_advance": max(available_advance - deduction_amount, 0),
-                "net_payable": float(selected_salary["net_salary"]) - deduction_amount,
-            }
+                deduction_amount = None
+            if deduction_amount is not None:
+                preview = {
+                    "gross": float(selected_salary["net_salary"]),
+                    "available_advance": available_advance,
+                    "deduction_amount": deduction_amount,
+                    "remaining_advance": max(available_advance - deduction_amount, 0),
+                    "net_payable": float(selected_salary["net_salary"]) - deduction_amount,
+                    "ot_month": selected_salary["ot_month"] or _previous_month_value(selected_salary["salary_month"]),
+                }
 
         return render_template(
             "driver_salary_slip.html",
@@ -1303,8 +1502,111 @@ def _login_required(*roles):
     return decorator
 
 
+def _client_ip() -> str:
+    forwarded_for = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+    return forwarded_for or request.remote_addr or "unknown"
+
+
+def _auth_identifier(role: str, phone_number: str = "") -> str:
+    if role == "driver":
+        normalized_phone = _normalize_phone(phone_number)
+        return normalized_phone or _client_ip()
+    return _client_ip()
+
+
+def _verify_env_secret(plain_value: str, hash_value: str, submitted_value: str) -> bool:
+    if hash_value:
+        return check_password_hash(hash_value, submitted_value)
+    return bool(plain_value) and submitted_value == plain_value
+
+
+def _auth_rate_limit_row(db, role: str, identifier: str):
+    return db.execute(
+        """
+        SELECT role, identifier, failures, blocked_until
+        FROM auth_rate_limits
+        WHERE role = ? AND identifier = ?
+        """,
+        (role, identifier),
+    ).fetchone()
+
+
+def _get_login_lock(db, role: str, identifier: str):
+    row = _auth_rate_limit_row(db, role, identifier)
+    blocked_until = row["blocked_until"] if row and row["blocked_until"] else ""
+    if not blocked_until:
+        return {"locked": False, "message": ""}
+    try:
+        blocked_until_dt = datetime.fromisoformat(blocked_until)
+    except ValueError:
+        return {"locked": False, "message": ""}
+    if blocked_until_dt <= datetime.now():
+        db.execute(
+            "UPDATE auth_rate_limits SET failures = 0, blocked_until = NULL, updated_at = ? WHERE role = ? AND identifier = ?",
+            (datetime.now().isoformat(timespec="seconds"), role, identifier),
+        )
+        db.commit()
+        return {"locked": False, "message": ""}
+    remaining_minutes = max(1, int((blocked_until_dt - datetime.now()).total_seconds() // 60) + 1)
+    return {"locked": True, "message": f"Too many login attempts. Try again in {remaining_minutes} minute(s)."}
+
+
+def _record_failed_login(db, role: str, identifier: str) -> None:
+    if not identifier:
+        return
+    row = _auth_rate_limit_row(db, role, identifier)
+    failures = int(row["failures"]) + 1 if row else 1
+    blocked_until = None
+    if failures >= int(current_app.config.get("LOGIN_MAX_ATTEMPTS", 5)):
+        blocked_until = (datetime.now() + timedelta(minutes=int(current_app.config.get("LOGIN_LOCK_MINUTES", 15)))).isoformat(timespec="seconds")
+    if row is None:
+        db.execute(
+            """
+            INSERT INTO auth_rate_limits (role, identifier, failures, blocked_until, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (role, identifier, failures, blocked_until, datetime.now().isoformat(timespec="seconds")),
+        )
+    else:
+        db.execute(
+            """
+            UPDATE auth_rate_limits
+            SET failures = ?, blocked_until = ?, updated_at = ?
+            WHERE role = ? AND identifier = ?
+            """,
+            (failures, blocked_until, datetime.now().isoformat(timespec="seconds"), role, identifier),
+        )
+
+
+def _clear_failed_login(db, role: str, identifier: str) -> None:
+    if not identifier:
+        return
+    db.execute(
+        "DELETE FROM auth_rate_limits WHERE role = ? AND identifier = ?",
+        (role, identifier),
+    )
+
+
+def _latest_login_error(db, role: str, identifier: str, default_message: str) -> str:
+    lock_info = _get_login_lock(db, role, identifier)
+    return lock_info["message"] if lock_info["locked"] else default_message
+
+
+def _audit_log(db, action: str, *, entity_type: str = "", entity_id: str = "", status: str = "success", details: str = "") -> None:
+    actor_role = _current_role() or "public"
+    actor_name = session.get("display_name", "") or actor_role.title()
+    db.execute(
+        """
+        INSERT INTO audit_logs (actor_role, actor_name, action, entity_type, entity_id, status, details, ip_address)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (actor_role, actor_name, action, entity_type, entity_id, status, details, _client_ip()),
+    )
+
+
 def _set_session(role: str, driver_id: str | None = None, display_name: str = "") -> None:
     session.clear()
+    session.permanent = True
     session["role"] = role
     session["display_name"] = display_name
     if driver_id:
@@ -1516,9 +1818,11 @@ def _driver_pin_hash_from_form(form, *, edit_mode: bool, existing_pin_hash: str 
 
 
 def _default_salary_form(salary_month: str):
+    normalized_month = _normalize_month(salary_month)
     return {
         "entry_date": date.today().isoformat(),
-        "salary_month": _normalize_month(salary_month),
+        "salary_month": normalized_month,
+        "ot_month": _previous_month_value(normalized_month),
         "ot_hours": "0",
         "personal_vehicle": "0",
         "remarks": "",
@@ -1529,6 +1833,7 @@ def _salary_form_from_row(row):
     return {
         "entry_date": row["entry_date"],
         "salary_month": row["salary_month"],
+        "ot_month": row["ot_month"] or _previous_month_value(row["salary_month"]),
         "ot_hours": f"{float(row['ot_hours']):.2f}",
         "personal_vehicle": f"{float(row['personal_vehicle']):.2f}",
         "remarks": row["remarks"] or "",
@@ -1536,6 +1841,7 @@ def _salary_form_from_row(row):
 
 
 def _calculate_salary_preview(driver, form):
+    salary_month = _normalize_month(form.get("salary_month", _current_month_value()))
     basic_salary = float(driver["basic_salary"])
     ot_rate = float(driver["ot_rate"])
     ot_hours = _parse_decimal(form.get("ot_hours", "0"), "OT hours", required=False, default=0.0, minimum=0.0)
@@ -1544,7 +1850,8 @@ def _calculate_salary_preview(driver, form):
     net_salary = basic_salary + ot_amount + personal_vehicle
     return {
         "entry_date": form.get("entry_date", date.today().isoformat()),
-        "salary_month": _normalize_month(form.get("salary_month", _current_month_value())),
+        "salary_month": salary_month,
+        "ot_month": form.get("ot_month", "").strip() or _previous_month_value(salary_month),
         "basic_salary": basic_salary,
         "ot_hours": ot_hours,
         "ot_rate": ot_rate,
@@ -1681,6 +1988,14 @@ def _normalize_month(value: str) -> str:
         return datetime.strptime(value, "%Y-%m").strftime("%Y-%m")
     except ValueError:
         return _current_month_value()
+
+
+def _previous_month_value(value: str) -> str:
+    normalized = _normalize_month(value)
+    month_date = datetime.strptime(f"{normalized}-01", "%Y-%m-%d")
+    if month_date.month == 1:
+        return f"{month_date.year - 1}-12"
+    return f"{month_date.year}-{month_date.month - 1:02d}"
 
 
 def _driver_output_dir(app: Flask, driver_id: str, *, driver=None, full_name: str | None = None) -> Path:

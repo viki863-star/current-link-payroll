@@ -27,6 +27,7 @@
         {% if can_edit %}
             <form method="post" class="entry-form two-column-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="entry_id" value="{{ values.entry_id }}">
                 <label>
                     <span>Owner Name</span>
                     <input type="text" name="owner_name" value="{{ values.owner_name }}" required>
@@ -56,7 +57,10 @@
                     <textarea name="details" rows="4">{{ values.details }}</textarea>
                 </label>
                 <div class="form-actions">
-                    <button class="button" type="submit">Save Owner Fund</button>
+                    <button class="button" type="submit">{{ 'Update Owner Fund' if values.entry_id else 'Save Owner Fund' }}</button>
+                    {% if values.entry_id %}
+                        <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Cancel Edit</a>
+                    {% endif %}
                 </div>
             </form>
         {% else %}
@@ -84,6 +88,7 @@
                             <th>Amount</th>
                             <th>Received By</th>
                             <th>Method</th>
+                            {% if can_edit %}<th>Actions</th>{% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -94,6 +99,17 @@
                                 <td>AED {{ "%.2f"|format(item.amount) }}</td>
                                 <td>{{ item.received_by or "-" }}</td>
                                 <td>{{ item.payment_method or "-" }}</td>
+                                {% if can_edit %}
+                                    <td>
+                                        <div class="table-actions">
+                                            <a class="mini-action-link" href="{{ url_for('owner_fund', edit=item.id) }}">Edit</a>
+                                            <form method="post" action="{{ url_for('delete_owner_fund_entry', entry_id=item.id) }}" onsubmit="return confirm('Delete this owner fund entry?');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button class="mini-action-button" type="submit">Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                {% endif %}
                             </tr>
                         {% endfor %}
                     </tbody>

@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS salary_store (
     driver_id TEXT NOT NULL,
     entry_date TEXT NOT NULL,
     salary_month TEXT NOT NULL,
+    ot_month TEXT,
     basic_salary REAL NOT NULL,
     ot_hours REAL NOT NULL DEFAULT 0,
     ot_rate REAL NOT NULL DEFAULT 0,
@@ -103,6 +104,30 @@ CREATE TABLE IF NOT EXISTS import_history (
     imported_count INTEGER NOT NULL DEFAULT 0,
     notes TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor_role TEXT,
+    actor_name TEXT,
+    action TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id TEXT,
+    status TEXT NOT NULL DEFAULT 'success',
+    details TEXT,
+    ip_address TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS auth_rate_limits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role TEXT NOT NULL,
+    identifier TEXT NOT NULL,
+    failures INTEGER NOT NULL DEFAULT 0,
+    blocked_until TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(role, identifier)
 );
 """
 
@@ -157,6 +182,7 @@ CREATE TABLE IF NOT EXISTS salary_store (
     driver_id TEXT NOT NULL,
     entry_date TEXT NOT NULL,
     salary_month TEXT NOT NULL,
+    ot_month TEXT,
     basic_salary DOUBLE PRECISION NOT NULL,
     ot_hours DOUBLE PRECISION NOT NULL DEFAULT 0,
     ot_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -206,6 +232,30 @@ CREATE TABLE IF NOT EXISTS import_history (
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    actor_role TEXT,
+    actor_name TEXT,
+    action TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id TEXT,
+    status TEXT NOT NULL DEFAULT 'success',
+    details TEXT,
+    ip_address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS auth_rate_limits (
+    id BIGSERIAL PRIMARY KEY,
+    role TEXT NOT NULL,
+    identifier TEXT NOT NULL,
+    failures INTEGER NOT NULL DEFAULT 0,
+    blocked_until TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(role, identifier)
+);
 """
 
 
@@ -224,6 +274,9 @@ REQUIRED_COLUMNS = {
         "remaining_advance": "DOUBLE PRECISION NOT NULL DEFAULT 0",
         "payment_source": "TEXT",
         "paid_by": "TEXT",
+    },
+    "salary_store": {
+        "ot_month": "TEXT",
     },
 }
 

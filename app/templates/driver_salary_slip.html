@@ -26,6 +26,7 @@
                 <div><dt>Vehicle No</dt><dd>{{ driver.vehicle_no }}</dd></div>
                 <div><dt>Basic Salary</dt><dd>AED {{ "%.2f"|format(driver.basic_salary) }}</dd></div>
                 <div><dt>OT Rate</dt><dd>{{ "%.2f"|format(driver.ot_rate) }}</dd></div>
+                <div><dt>OT Month</dt><dd>{{ preview.ot_month if preview else (selected_salary.ot_month if selected_salary else '-') }}</dd></div>
                 <div><dt>Available Advance</dt><dd>AED {{ "%.2f"|format(preview.available_advance if preview else 0) }}</dd></div>
             </dl>
             <div class="panel-note">Advance ko poora deduct karna zaroori nahi. Aap jitna chahein utna deduct kar sakte hain.</div>
@@ -97,6 +98,7 @@
         {% if selected_salary and preview %}
             <dl class="detail-grid mini-detail-grid slip-preview-grid">
                 <div><dt>Gross Salary</dt><dd>AED {{ "%.2f"|format(preview.gross) }}</dd></div>
+                <div><dt>OT Month</dt><dd>{{ preview.ot_month }}</dd></div>
                 <div><dt>Available Advance</dt><dd>AED {{ "%.2f"|format(preview.available_advance) }}</dd></div>
                 <div><dt>Deduct This Slip</dt><dd>AED {{ "%.2f"|format(preview.deduction_amount) }}</dd></div>
                 <div><dt>Remaining Advance</dt><dd>AED {{ "%.2f"|format(preview.remaining_advance) }}</dd></div>

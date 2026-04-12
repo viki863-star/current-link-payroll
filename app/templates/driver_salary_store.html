@@ -49,6 +49,10 @@
                 <input type="month" name="salary_month" value="{{ values.salary_month }}" required>
             </label>
             <label>
+                <span>OT Month</span>
+                <input type="text" value="{{ preview.ot_month if preview else values.ot_month }}" readonly>
+            </label>
+            <label>
                 <span>OT Hours</span>
                 <input type="number" name="ot_hours" step="0.01" min="0" value="{{ values.ot_hours }}">
             </label>
@@ -96,30 +100,32 @@
         <div class="table-wrap">
             <table>
                 <thead>
-                    <tr>
-                        <th>Month</th>
-                        <th>Date</th>
-                        <th>OT Hours</th>
-                        <th>OT Amount</th>
-                        <th>Personal / Vehicle</th>
+                        <tr>
+                            <th>Month</th>
+                            <th>OT Month</th>
+                            <th>Date</th>
+                            <th>OT Hours</th>
+                            <th>OT Amount</th>
+                            <th>Personal / Vehicle</th>
                         <th>Final Salary</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in salary_rows %}
-                        <tr>
-                            <td>
-                                <div><a class="table-link" href="{{ url_for('driver_salary_store', driver_id=driver.driver_id, edit=item.id) }}">{{ item.salary_month }}</a></div>
-                                <div class="table-actions">
+                            <tr>
+                                <td>
+                                    <div><a class="table-link" href="{{ url_for('driver_salary_store', driver_id=driver.driver_id, edit=item.id) }}">{{ item.salary_month }}</a></div>
+                                    <div class="table-actions">
                                     <a class="mini-action-link" href="{{ url_for('driver_salary_store', driver_id=driver.driver_id, edit=item.id) }}">Edit</a>
                                     <form method="post" action="{{ url_for('delete_salary_store', driver_id=driver.driver_id, salary_id=item.id) }}">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button class="mini-action-button" type="submit">Delete</button>
                                     </form>
-                                </div>
-                            </td>
-                            <td>{{ item.entry_date }}</td>
-                            <td>{{ "%.2f"|format(item.ot_hours) }}</td>
+                                    </div>
+                                </td>
+                                <td>{{ item.ot_month or '-' }}</td>
+                                <td>{{ item.entry_date }}</td>
+                                <td>{{ "%.2f"|format(item.ot_hours) }}</td>
                             <td>{{ "%.2f"|format(item.ot_amount) }}</td>
                             <td>{{ "%.2f"|format(item.personal_vehicle) }}</td>
                             <td>AED {{ "%.2f"|format(item.net_salary) }}</td>

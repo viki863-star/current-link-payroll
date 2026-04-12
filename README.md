@@ -20,18 +20,23 @@ Create a local `.env` file based on `.env.example`:
 ```text
 SECRET_KEY=replace-with-a-long-random-secret
 ADMIN_PASSWORD=replace-with-admin-password
+ADMIN_PASSWORD_HASH=
 OWNER_PASSWORD=replace-with-owner-password
+OWNER_PASSWORD_HASH=
 DATABASE_FILE=payroll.db
+REQUIRE_DATABASE_URL=false
+LOGIN_MAX_ATTEMPTS=5
+LOGIN_LOCK_MINUTES=15
 SESSION_COOKIE_SECURE=false
 ```
 
 ## Roles
 
 - `Admin`
-  - password comes from `ADMIN_PASSWORD`
+  - password comes from `ADMIN_PASSWORD` or `ADMIN_PASSWORD_HASH`
   - full access to drivers, payroll, transactions, imports, and owner fund
 - `Owner`
-  - access code comes from `OWNER_PASSWORD`
+  - access code comes from `OWNER_PASSWORD` or `OWNER_PASSWORD_HASH`
   - owner fund and owner reporting access
 - `Driver`
   - login with registered phone number and driver PIN
@@ -44,6 +49,8 @@ SESSION_COOKIE_SECURE=false
   - driver PIN
 - Driver PIN is set from the add/edit driver form
 - Driver PIN is stored as a secure password hash
+- Admin and Owner passwords can also be stored as Werkzeug password hashes
+- Login attempts are rate-limited with temporary lockouts after repeated failures
 
 ## Main Features
 
@@ -54,9 +61,11 @@ SESSION_COOKIE_SECURE=false
 - Driver create, edit, active/inactive, and delete
 - Driver transactions with edit/delete
 - Salary store with duplicate-month update protection
+- OT month is saved automatically as previous month of the salary month
 - Salary slip PDF with duplicate generation protection
 - Driver KATA PDF
 - Owner Fund page and Owner Fund PDF
+- Owner Fund create, edit, and delete
 - Driver timesheet entry and timesheet PDF
 - Import from `Currentlink.xlsm`
 - Import from uploaded `Driver.pdf`
@@ -107,9 +116,12 @@ py -m pytest -q
 Current tests cover:
 
 - driver login rules
+- admin login hash and rate-limit rules
 - salary store update rules
+- OT month previous-month rule
 - transaction validation
 - driver delete cleanup
+- owner fund edit and delete
 
 ## Public Deployment Ready
 
@@ -133,7 +145,8 @@ This project includes:
    - Build Command: `pip install -r requirements.txt`
    - Start Command: `python serve.py`
 4. Add Render Postgres and set `DATABASE_URL`
-5. Set `SECRET_KEY`, `ADMIN_PASSWORD`, and `OWNER_PASSWORD` in Render environment variables
+5. Set `SECRET_KEY`, `ADMIN_PASSWORD` or `ADMIN_PASSWORD_HASH`, and `OWNER_PASSWORD` or `OWNER_PASSWORD_HASH`
+6. Set `REQUIRE_DATABASE_URL=true` for public production deployment
 
 ### Railway
 

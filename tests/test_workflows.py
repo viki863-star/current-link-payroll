@@ -82,6 +82,34 @@ def test_driver_login_requires_phone_and_pin(app, client):
     assert b"Driver PIN is not correct." in failed.data
 
 
+def test_admin_login_supports_hash_and_rate_limit(app, client):
+    app.config["ADMIN_PASSWORD"] = ""
+    app.config["ADMIN_PASSWORD_HASH"] = generate_password_hash("admin-pass")
+    app.config["LOGIN_MAX_ATTEMPTS"] = 2
+    app.config["LOGIN_LOCK_MINUTES"] = 1
+
+    first = client.post(
+        "/login",
+        data={"role": "admin", "password": "wrong-pass"},
+        follow_redirects=True,
+    )
+    assert b"Admin password is not correct." in first.data
+
+    second = client.post(
+        "/login",
+        data={"role": "admin", "password": "wrong-pass"},
+        follow_redirects=True,
+    )
+    assert b"Too many login attempts." in second.data
+
+    blocked = client.post(
+        "/login",
+        data={"role": "admin", "password": "admin-pass"},
+        follow_redirects=True,
+    )
+    assert b"Too many login attempts." in blocked.data
+
+
 def test_salary_store_updates_existing_month(app, client):
     create_driver_record(app)
     admin_session(client)
@@ -116,12 +144,13 @@ def test_salary_store_updates_existing_month(app, client):
 
     with app.app_context():
         db = open_db()
-        rows = db.execute("SELECT salary_month, ot_hours, personal_vehicle, net_salary FROM salary_store WHERE driver_id = ?", ("DRV-T1",)).fetchall()
+        rows = db.execute("SELECT salary_month, ot_month, ot_hours, personal_vehicle, net_salary FROM salary_store WHERE driver_id = ?", ("DRV-T1",)).fetchall()
         assert len(rows) == 1
         assert rows[0]["salary_month"] == "2026-04"
         assert float(rows[0]["ot_hours"]) == 7.0
         assert float(rows[0]["personal_vehicle"]) == 100.0
         assert float(rows[0]["net_salary"]) == 3470.0
+        assert rows[0]["ot_month"] == "2026-03"
 
 
 def test_transaction_rejects_invalid_amount(app, client):
@@ -178,3 +207,57 @@ def test_delete_driver_removes_related_records(app, client):
         assert db.execute("SELECT COUNT(*) FROM driver_transactions WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
         assert db.execute("SELECT COUNT(*) FROM driver_timesheets WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
         assert db.execute("SELECT COUNT(*) FROM salary_store WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
+
+
+def test_owner_fund_can_edit_and_delete(app, client):
+    admin_session(client)
+
+    created = client.post(
+        "/owner-fund",
+        data={
+            "entry_id": "",
+            "owner_name": "Nasrullah",
+            "entry_date": "2026-04-12",
+            "amount": "50000",
+            "received_by": "Waqar",
+            "payment_method": "Cash",
+            "details": "seed entry",
+        },
+        follow_redirects=True,
+    )
+    assert b"Owner fund entry saved." in created.data
+
+    with app.app_context():
+        db = open_db()
+        entry = db.execute("SELECT id, amount, details FROM owner_fund_entries ORDER BY id DESC LIMIT 1").fetchone()
+        entry_id = entry["id"]
+        assert float(entry["amount"]) == 50000.0
+
+    updated = client.post(
+        "/owner-fund",
+        data={
+            "entry_id": str(entry_id),
+            "owner_name": "Nasrullah",
+            "entry_date": "2026-04-12",
+            "amount": "45000",
+            "received_by": "Waqar",
+            "payment_method": "Bank",
+            "details": "updated entry",
+        },
+        follow_redirects=True,
+    )
+    assert b"Owner fund entry updated." in updated.data
+
+    with app.app_context():
+        db = open_db()
+        entry = db.execute("SELECT amount, payment_method, details FROM owner_fund_entries WHERE id = ?", (entry_id,)).fetchone()
+        assert float(entry["amount"]) == 45000.0
+        assert entry["payment_method"] == "Bank"
+        assert entry["details"] == "updated entry"
+
+    deleted = client.post(f"/owner-fund/{entry_id}/delete", data={}, follow_redirects=True)
+    assert b"Owner fund entry deleted." in deleted.data
+
+    with app.app_context():
+        db = open_db()
+        assert db.execute("SELECT COUNT(*) FROM owner_fund_entries WHERE id = ?", (entry_id,)).fetchone()[0] == 0
