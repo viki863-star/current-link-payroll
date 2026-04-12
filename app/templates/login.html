@@ -8,9 +8,11 @@
     <article class="card login-page-brand-card">
         <img class="login-page-brand" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} logo">
         <div class="login-page-copy">
-            <p class="eyebrow">Portal Access</p>
-            <h2>Choose your portal and continue.</h2>
-            <p class="lead">Admin, Owner, and Driver can sign in from one clean portal page.</p>
+            <div class="public-page-topline">
+                <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
+            </div>
+            <p class="eyebrow">Portal</p>
+            <h2>Choose your portal.</h2>
         </div>
     </article>
 
@@ -19,7 +21,6 @@
             <div>
                 <p class="eyebrow">Step 1</p>
                 <h2>Select access type</h2>
-                <p class="lead">Pick the correct role, then enter password or phone and PIN.</p>
             </div>
         </div>
 
@@ -28,23 +29,22 @@
                 <div class="login-role-head">
                     <p class="eyebrow">Role</p>
                     <h3>Select Role</h3>
-                    <p class="section-note">The next form changes automatically for the selected portal.</p>
                 </div>
                 <div class="login-role-grid" data-role-grid>
                     <button class="role-tile {% if selected_role == 'admin' %}active{% endif %}" type="button" data-role="admin">
                         <span class="role-icon">A</span>
                         <strong>Admin Portal</strong>
-                        <small>Full control for drivers, payroll, transactions and reports.</small>
+                        <small>Full control</small>
                     </button>
                     <button class="role-tile owner-tile {% if selected_role == 'owner' %}active{% endif %}" type="button" data-role="owner">
                         <span class="role-icon">O</span>
                         <strong>Owner Portal</strong>
-                        <small>Owner fund reporting, entries and visibility.</small>
+                        <small>Owner fund</small>
                     </button>
                     <button class="role-tile driver-tile {% if selected_role == 'driver' %}active{% endif %}" type="button" data-role="driver">
                         <span class="role-icon">D</span>
                         <strong>Driver Portal</strong>
-                        <small>Login with phone number and PIN for self service.</small>
+                        <small>Phone and PIN</small>
                     </button>
                 </div>
             </article>
@@ -53,7 +53,6 @@
                 <div class="login-stage-head">
                     <p class="eyebrow">Step 2</p>
                     <h3>Enter credentials</h3>
-                    <p class="section-note">Use the fields below to open your portal.</p>
                 </div>
 
                 <form method="post" action="{{ url_for('login') }}" class="stage-form">

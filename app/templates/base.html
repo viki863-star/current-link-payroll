@@ -16,30 +16,35 @@
     <div class="brand-shell">
         {% block shell_header %}
             <header class="hero">
+                <div class="hero-aura hero-aura-left"></div>
+                <div class="hero-aura hero-aura-right"></div>
                 <div class="brand-banner-shell">
                     <img class="brand-banner" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} banner">
                 </div>
-                <div class="hero-copy compact-copy">
-                    <p class="eyebrow">{{ config["COMPANY_NAME"] }}</p>
-                    <h1>
-                        {% if is_admin %}
-                            Admin Control
-                        {% elif is_owner %}
-                            Owner Fund Portal
-                        {% elif is_driver %}
-                            Driver Self Service
-                        {% else %}
-                            Current Link Portal
+                <div class="hero-stage">
+                    <div class="hero-copy compact-copy">
+                        <p class="eyebrow">{{ config["COMPANY_NAME"] }}</p>
+                        <h1>
+                            {% if is_admin %}
+                                Admin
+                            {% elif is_owner %}
+                                Owner
+                            {% elif is_driver %}
+                                Driver Portal
+                            {% else %}
+                                Portal
+                            {% endif %}
+                        </h1>
+                    </div>
+                    <div class="topbar-meta">
+                        {% if current_role %}
+                            <span class="user-chip">{{ current_user_name or current_role|title }}</span>
                         {% endif %}
-                    </h1>
+                    </div>
                 </div>
-                <div class="topbar-meta">
+                <nav class="actions-row tight-actions hero-nav">
+                    <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
                     {% if current_role %}
-                        <span class="user-chip">{{ current_user_name or current_role|title }}</span>
-                    {% endif %}
-                </div>
-                {% if current_role %}
-                    <nav class="actions-row tight-actions">
                         {% if is_admin %}
                             <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
                             <a class="button button-secondary" href="{{ url_for('driver_list') }}">Driver List</a>
@@ -47,11 +52,11 @@
                             <a class="button" href="{{ url_for('create_driver') }}">Add Driver</a>
                             <form method="post" action="{{ url_for('import_currentlink') }}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button class="button button-secondary" type="submit">Import</button>
+                                <button class="button button-secondary quiet-button" type="submit">Excel</button>
                             </form>
                             <form method="post" action="{{ url_for('import_driver_pdf') }}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button class="button button-secondary" type="submit">Import Driver PDF</button>
+                                <button class="button button-secondary quiet-button" type="submit">Driver PDF</button>
                             </form>
                         {% elif is_owner %}
                             <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund</a>
@@ -60,8 +65,10 @@
                             <a class="button button-secondary" href="{{ url_for('driver_portal') }}">My Portal</a>
                         {% endif %}
                         <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
-                    </nav>
-                {% endif %}
+                    {% else %}
+                        <a class="button" href="{{ url_for('login') }}">Portal Login</a>
+                    {% endif %}
+                </nav>
             </header>
         {% endblock %}
 
@@ -85,8 +92,7 @@
                     <img src="{{ url_for('static', filename='current-link-footer.png') }}" alt="{{ config['COMPANY_NAME'] }} contact details">
                 </div>
                 <div class="footer-note-bar">
-                    <span>{{ config["COMPANY_NAME"] }} Operations Suite</span>
-                    <span>Driver Management, Salary, KATA and Owner Fund Control</span>
+                    <span>{{ config["COMPANY_NAME"] }}</span>
                 </div>
             </footer>
         {% endblock %}
