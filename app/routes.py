@@ -61,7 +61,9 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/")
     def home():
-        return redirect(url_for(_role_home_endpoint()))
+        if _current_role():
+            return redirect(url_for(_role_home_endpoint()))
+        return render_template("landing.html")
 
     @app.route("/login", methods=["GET", "POST"])
     def login():

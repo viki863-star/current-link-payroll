@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block body_class %}landing-page-body{% endblock %}
+
+{% block shell_header %}{% endblock %}
+
+{% block content %}
+<section class="public-landing-shell">
+    <article class="card public-landing-logo-card">
+        <img class="public-landing-logo" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} logo">
+    </article>
+
+    <article class="card public-landing-hero-card">
+        <div class="public-landing-image"></div>
+        <div class="public-landing-overlay"></div>
+        <div class="public-landing-content">
+            <p class="eyebrow">Current Link</p>
+            <h2>Heavy Transport and Contracting Solutions</h2>
+            <p class="lead">Reliable fleet support, project movement and field-ready service from one trusted company.</p>
+            <div class="actions-row public-landing-actions">
+                <a class="button quote-button" href="{{ url_for('services') }}#quote">Get Quote</a>
+                <a class="button button-secondary" href="{{ url_for('services') }}">Our Services</a>
+                <a class="button portal-launch-button" href="{{ url_for('login') }}">Portal Login</a>
+            </div>
+        </div>
+    </article>
+</section>
+{% endblock %}
+
+{% block shell_footer %}
+<footer class="landing-contact-footer">
+    <div class="landing-contact-wrap">
+        <span>Mussafah M17, Abu Dhabi, UAE</span>
+        <a href="tel:+971501224963">050-1224963</a>
+        <a href="tel:+971501082900">050-1082900</a>
+        <a href="mailto:info@currentlinkgc.com">info@currentlinkgc.com</a>
+        <a href="https://www.currentlinkgc.com" target="_blank" rel="noreferrer">www.currentlinkgc.com</a>
+    </div>
+</footer>
+{% endblock %}

@@ -1,119 +1,111 @@
 {% extends "base.html" %}
 
+{% block body_class %}login-page-body{% endblock %}
+{% block shell_header %}{% endblock %}
+
 {% block content %}
-<section class="landing-stage">
-    <article class="card landing-showcase-card luxury-hero-card">
-        <div class="landing-hero-media"></div>
-        <div class="landing-hero-overlay"></div>
-        <div class="landing-hero-panel">
-            <p class="eyebrow">Current Link</p>
-            <div class="landing-brand-ribbon">
-                <span class="landing-brand-mark">CL</span>
-                <span>Transport and General Contracting LLC SPC</span>
-            </div>
-            <h2>Reliable Heavy Transport and Contracting Solutions.</h2>
-            <p class="lead">Crane services, tanker supply, heavy equipment transport and clean operational control from one premium company portal.</p>
-            <p class="landing-hero-service-line">Crane Services | Tanker Supply | Heavy Equipment Transport | General Contracting</p>
-            <div class="actions-row landing-hero-actions">
-                <a class="button quote-button" href="{{ url_for('services') }}#quote">Get a Quote</a>
-                <a class="button button-secondary" href="{{ url_for('services') }}">Our Services</a>
-                <a class="button portal-launch-button" href="#portal-access">Login Portal</a>
-            </div>
+<section class="login-page-shell">
+    <article class="card login-page-brand-card">
+        <img class="login-page-brand" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} logo">
+        <div class="login-page-copy">
+            <p class="eyebrow">Portal Access</p>
+            <h2>Choose your portal and continue.</h2>
+            <p class="lead">Admin, Owner, and Driver can sign in from this secure access page.</p>
         </div>
     </article>
-</section>
 
-<section class="card portal-section-card" id="portal-access">
-    <div class="portal-section-top">
-        <div>
-            <p class="eyebrow">Portal Access</p>
-            <h2>Choose access type and continue to your portal.</h2>
-            <p class="lead">Admin gets full control, Owner opens the owner fund reporting portal, and Driver signs in with phone number to reach personal timesheet, salary slip and transaction pages.</p>
-        </div>
-        <div class="portal-top-pills">
-            <span>Secure Access</span>
-            <span>Role Based</span>
-            <span>Mobile Ready</span>
-        </div>
-    </div>
-
-    <div class="login-stage-shell">
-        <article class="card login-role-card">
-            <div class="login-role-head">
+    <section class="card portal-section-card">
+        <div class="portal-section-top">
+            <div>
                 <p class="eyebrow">Step 1</p>
-                <h3>Select Role</h3>
-                <p class="section-note">Pick the portal role first, then enter the required password or phone number.</p>
+                <h2>Select access type</h2>
+                <p class="lead">Pick the correct role, then enter password or phone and PIN.</p>
             </div>
-            <div class="login-role-grid" data-role-grid>
-                <button class="role-tile {% if selected_role == 'admin' %}active{% endif %}" type="button" data-role="admin">
-                    <span class="role-icon">A</span>
-                    <strong>Admin Portal</strong>
-                    <small>Full system control, drivers, payroll, transactions and reports.</small>
-                </button>
-                <button class="role-tile owner-tile {% if selected_role == 'owner' %}active{% endif %}" type="button" data-role="owner">
-                    <span class="role-icon">O</span>
-                    <strong>Owner Portal</strong>
-                    <small>Owner fund entries, kata view and financial visibility.</small>
-                </button>
-                <button class="role-tile driver-tile {% if selected_role == 'driver' %}active{% endif %}" type="button" data-role="driver">
-                    <span class="role-icon">D</span>
-                    <strong>Driver Portal</strong>
-                    <small>Phone and PIN login for timesheet, transactions and salary slip view.</small>
-                </button>
+            <div class="portal-top-pills">
+                <span>Secure Access</span>
+                <span>Role Based</span>
+                <span>Mobile Ready</span>
             </div>
-        </article>
+        </div>
 
-        <article class="card login-stage-card">
-            <div class="login-stage-head">
-                <p class="eyebrow">Step 2</p>
-                <h3>Continue to Portal</h3>
-                <p class="section-note">The form changes automatically according to the selected role.</p>
-            </div>
-
-            <form method="post" action="{{ url_for('login') }}" class="stage-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="role" id="selected-role-input" value="{{ selected_role }}">
-
-                <section class="credential-group {% if selected_role == 'admin' %}active{% endif %}" data-credential="admin">
-                    <label>
-                        <span>Admin Password</span>
-                        <input type="password" name="password" autocomplete="current-password" placeholder="Enter admin password" {% if selected_role != 'admin' %}disabled{% endif %}>
-                    </label>
-                </section>
-
-                <section class="credential-group {% if selected_role == 'owner' %}active{% endif %}" data-credential="owner">
-                    <label>
-                        <span>Owner Access Code</span>
-                        <input type="password" name="password" autocomplete="current-password" placeholder="Enter owner access code" {% if selected_role != 'owner' %}disabled{% endif %}>
-                    </label>
-                </section>
-
-                <section class="credential-group {% if selected_role == 'driver' %}active{% endif %}" data-credential="driver">
-                    <label>
-                        <span>Driver Phone Number</span>
-                        <input type="tel" name="phone_number" inputmode="tel" placeholder="Enter registered phone number" {% if selected_role != 'driver' %}disabled{% endif %}>
-                    </label>
-                    <label>
-                        <span>Driver PIN</span>
-                        <input type="password" name="driver_pin" inputmode="numeric" minlength="4" placeholder="Enter driver PIN" {% if selected_role != 'driver' %}disabled{% endif %}>
-                    </label>
-                </section>
-
-                <div class="login-stage-footer">
-                    <div class="login-tip" id="login-tip">
-                        {% if selected_role == 'owner' %}
-                            Owner portal khulne ke liye access code enter karein.
-                        {% elif selected_role == 'driver' %}
-                            Driver apna registered phone number aur PIN likhe aur self-service portal open kare.
-                        {% else %}
-                            Admin password enter karke dashboard aur full control access karein.
-                        {% endif %}
-                    </div>
-                    <button class="button login-submit-button" type="submit">Enter Portal</button>
+        <div class="login-stage-shell">
+            <article class="card login-role-card">
+                <div class="login-role-head">
+                    <p class="eyebrow">Role</p>
+                    <h3>Select Role</h3>
+                    <p class="section-note">The next form changes automatically for the selected portal.</p>
                 </div>
-            </form>
-        </article>
-    </div>
+                <div class="login-role-grid" data-role-grid>
+                    <button class="role-tile {% if selected_role == 'admin' %}active{% endif %}" type="button" data-role="admin">
+                        <span class="role-icon">A</span>
+                        <strong>Admin Portal</strong>
+                        <small>Full control for drivers, payroll, transactions and reports.</small>
+                    </button>
+                    <button class="role-tile owner-tile {% if selected_role == 'owner' %}active{% endif %}" type="button" data-role="owner">
+                        <span class="role-icon">O</span>
+                        <strong>Owner Portal</strong>
+                        <small>Owner fund reporting, entries and visibility.</small>
+                    </button>
+                    <button class="role-tile driver-tile {% if selected_role == 'driver' %}active{% endif %}" type="button" data-role="driver">
+                        <span class="role-icon">D</span>
+                        <strong>Driver Portal</strong>
+                        <small>Login with phone number and PIN for self service.</small>
+                    </button>
+                </div>
+            </article>
+
+            <article class="card login-stage-card">
+                <div class="login-stage-head">
+                    <p class="eyebrow">Step 2</p>
+                    <h3>Enter credentials</h3>
+                    <p class="section-note">Use the fields below to open your portal.</p>
+                </div>
+
+                <form method="post" action="{{ url_for('login') }}" class="stage-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="role" id="selected-role-input" value="{{ selected_role }}">
+
+                    <section class="credential-group {% if selected_role == 'admin' %}active{% endif %}" data-credential="admin">
+                        <label>
+                            <span>Admin Password</span>
+                            <input type="password" name="password" autocomplete="current-password" placeholder="Enter admin password" {% if selected_role != 'admin' %}disabled{% endif %}>
+                        </label>
+                    </section>
+
+                    <section class="credential-group {% if selected_role == 'owner' %}active{% endif %}" data-credential="owner">
+                        <label>
+                            <span>Owner Access Code</span>
+                            <input type="password" name="password" autocomplete="current-password" placeholder="Enter owner access code" {% if selected_role != 'owner' %}disabled{% endif %}>
+                        </label>
+                    </section>
+
+                    <section class="credential-group {% if selected_role == 'driver' %}active{% endif %}" data-credential="driver">
+                        <label>
+                            <span>Driver Phone Number</span>
+                            <input type="tel" name="phone_number" inputmode="tel" placeholder="Enter registered phone number" {% if selected_role != 'driver' %}disabled{% endif %}>
+                        </label>
+                        <label>
+                            <span>Driver PIN</span>
+                            <input type="password" name="driver_pin" inputmode="numeric" minlength="4" placeholder="Enter driver PIN" {% if selected_role != 'driver' %}disabled{% endif %}>
+                        </label>
+                    </section>
+
+                    <div class="login-stage-footer">
+                        <div class="login-tip" id="login-tip">
+                            {% if selected_role == 'owner' %}
+                                Owner portal khulne ke liye access code enter karein.
+                            {% elif selected_role == 'driver' %}
+                                Driver apna registered phone number aur PIN likhe aur self-service portal open kare.
+                            {% else %}
+                                Admin password enter karke dashboard aur full control access karein.
+                            {% endif %}
+                        </div>
+                        <button class="button login-submit-button" type="submit">Enter Portal</button>
+                    </div>
+                </form>
+            </article>
+        </div>
+    </section>
 </section>
 
 <script>
@@ -136,8 +128,7 @@
             credentialGroups.forEach((group) => {
                 const isActive = group.dataset.credential === role;
                 group.classList.toggle("active", isActive);
-                const fields = group.querySelectorAll("input");
-                fields.forEach((field) => {
+                group.querySelectorAll("input").forEach((field) => {
                     field.disabled = !isActive;
                 });
                 if (isActive) {
@@ -149,7 +140,6 @@
             if (roleInput) {
                 roleInput.value = role;
             }
-
             if (tip && tips[role]) {
                 tip.textContent = tips[role];
             }

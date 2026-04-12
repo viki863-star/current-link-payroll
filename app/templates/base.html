@@ -12,54 +12,56 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
     <div class="brand-shell">
-        <header class="hero">
-            <img class="brand-banner" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} banner">
-            <div class="hero-copy compact-copy">
-                <p class="eyebrow">{{ config["COMPANY_NAME"] }}</p>
-                <h1>
-                    {% if is_admin %}
-                        Admin Control
-                    {% elif is_owner %}
-                        Owner Fund Portal
-                    {% elif is_driver %}
-                        Driver Self Service
-                    {% else %}
-                        Current Link Portal
+        {% block shell_header %}
+            <header class="hero">
+                <img class="brand-banner" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} banner">
+                <div class="hero-copy compact-copy">
+                    <p class="eyebrow">{{ config["COMPANY_NAME"] }}</p>
+                    <h1>
+                        {% if is_admin %}
+                            Admin Control
+                        {% elif is_owner %}
+                            Owner Fund Portal
+                        {% elif is_driver %}
+                            Driver Self Service
+                        {% else %}
+                            Current Link Portal
+                        {% endif %}
+                    </h1>
+                </div>
+                <div class="topbar-meta">
+                    {% if current_role %}
+                        <span class="user-chip">{{ current_user_name or current_role|title }}</span>
                     {% endif %}
-                </h1>
-            </div>
-            <div class="topbar-meta">
+                </div>
                 {% if current_role %}
-                    <span class="user-chip">{{ current_user_name or current_role|title }}</span>
+                    <nav class="actions-row tight-actions">
+                        {% if is_admin %}
+                            <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                            <a class="button button-secondary" href="{{ url_for('driver_list') }}">Driver List</a>
+                            <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund</a>
+                            <a class="button" href="{{ url_for('create_driver') }}">Add Driver</a>
+                            <form method="post" action="{{ url_for('import_currentlink') }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="button button-secondary" type="submit">Import</button>
+                            </form>
+                            <form method="post" action="{{ url_for('import_driver_pdf') }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="button button-secondary" type="submit">Import Driver PDF</button>
+                            </form>
+                        {% elif is_owner %}
+                            <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund</a>
+                            <a class="button button-secondary" href="{{ url_for('owner_fund_pdf') }}">Owner Fund PDF</a>
+                        {% elif is_driver %}
+                            <a class="button button-secondary" href="{{ url_for('driver_portal') }}">My Portal</a>
+                        {% endif %}
+                        <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
+                    </nav>
                 {% endif %}
-            </div>
-            {% if current_role %}
-                <nav class="actions-row tight-actions">
-                    {% if is_admin %}
-                        <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                        <a class="button button-secondary" href="{{ url_for('driver_list') }}">Driver List</a>
-                        <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund</a>
-                        <a class="button" href="{{ url_for('create_driver') }}">Add Driver</a>
-                        <form method="post" action="{{ url_for('import_currentlink') }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button class="button button-secondary" type="submit">Import</button>
-                        </form>
-                        <form method="post" action="{{ url_for('import_driver_pdf') }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button class="button button-secondary" type="submit">Import Driver PDF</button>
-                        </form>
-                    {% elif is_owner %}
-                        <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund</a>
-                        <a class="button button-secondary" href="{{ url_for('owner_fund_pdf') }}">Owner Fund PDF</a>
-                    {% elif is_driver %}
-                        <a class="button button-secondary" href="{{ url_for('driver_portal') }}">My Portal</a>
-                    {% endif %}
-                    <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
-                </nav>
-            {% endif %}
-        </header>
+            </header>
+        {% endblock %}
 
         <main class="page">
             {% with messages = get_flashed_messages(with_categories=true) %}
@@ -75,9 +77,11 @@
             {% block content %}{% endblock %}
         </main>
 
-        <footer class="footer-strip">
-            <img src="{{ url_for('static', filename='current-link-footer.png') }}" alt="{{ config['COMPANY_NAME'] }} contact details">
-        </footer>
+        {% block shell_footer %}
+            <footer class="footer-strip">
+                <img src="{{ url_for('static', filename='current-link-footer.png') }}" alt="{{ config['COMPANY_NAME'] }} contact details">
+            </footer>
+        {% endblock %}
     </div>
     <script>
         if ("serviceWorker" in navigator) {
