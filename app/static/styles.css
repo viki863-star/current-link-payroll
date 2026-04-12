@@ -43,22 +43,33 @@ a {
 }
 
 .hero,
-.page,
 .footer-strip {
+    width: 100%;
+}
+
+.page {
     width: min(1180px, calc(100% - 28px));
     margin: 0 auto;
 }
 
 .hero {
-    padding: 18px 0 14px;
+    padding: 0 0 14px;
 }
 
 .brand-banner,
 .footer-strip img {
     width: 100%;
     display: block;
-    border-radius: 18px;
+    border-radius: 0;
     box-shadow: var(--shadow);
+}
+
+.hero-copy,
+.topbar-meta,
+.hero .actions-row {
+    width: min(1180px, calc(100% - 28px));
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .hero-copy {
@@ -971,7 +982,7 @@ html {
 .services-page-hero-media {
     position: absolute;
     inset: 0;
-    background: url("landing-hero.png") center/cover no-repeat;
+    background: url("service-hero-v2.png") center/cover no-repeat;
 }
 
 .landing-hero-overlay,
@@ -2101,7 +2112,7 @@ html {
 .public-landing-image {
     position: absolute;
     inset: 0;
-    background: url("landing-hero-v3.png") center/cover no-repeat;
+    background: url("service-hero-v2.png") center/cover no-repeat;
     transform: scale(1.01);
 }
 
