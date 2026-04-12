@@ -128,11 +128,26 @@
         </div>
         <section class="driver-grid simple-grid">
             {% for driver in drivers %}
+                {% set vehicle_type_value = (driver.vehicle_type or "")|lower %}
                 <a class="driver-card simple-card smart-card animated-driver-card" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">
                     <div class="driver-card-top">
                         <span class="driver-id">{{ driver.driver_id }}</span>
                     </div>
-                    <div class="driver-card-minimal-icon" aria-hidden="true">&#128666;</div>
+                    <div class="driver-card-minimal-icon" aria-hidden="true">
+                        {% if "trailer" in vehicle_type_value %}
+                            &#128667;
+                        {% elif "crane" in vehicle_type_value %}
+                            &#127959;
+                        {% elif "pickup" in vehicle_type_value %}
+                            &#128664;
+                        {% elif "bus" in vehicle_type_value %}
+                            &#128652;
+                        {% elif "tanker" in vehicle_type_value or "water" in vehicle_type_value %}
+                            &#128666;
+                        {% else %}
+                            &#128666;
+                        {% endif %}
+                    </div>
                     <div class="driver-card-minimal-copy">
                         <h3>{{ driver.full_name }}</h3>
                         <p class="driver-card-minimal-meta">Vehicle No {{ driver.vehicle_no }}</p>
