@@ -6,6 +6,7 @@ from pathlib import Path
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
 
@@ -163,26 +164,35 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str) -> None:
     premium_banner = Path(assets_dir) / "current-link-header-premium.png"
     banner = premium_banner if premium_banner.exists() else Path(assets_dir) / "current-link-header.png"
     if banner.exists():
+        image = ImageReader(str(banner))
+        image_width, image_height = image.getSize()
+        target_width = 180 * mm
+        target_height = target_width * (image_height / image_width)
+        banner_x = 15 * mm
+        banner_y = PAGE_HEIGHT - 44 * mm
+
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(15 * mm, PAGE_HEIGHT - 45 * mm, 180 * mm, 39 * mm, 4 * mm, fill=1, stroke=0)
         pdf.drawImage(
-            str(banner),
-            16 * mm,
-            PAGE_HEIGHT - 34 * mm,
-            width=178 * mm,
-            height=24 * mm,
-            preserveAspectRatio=True,
+            image,
+            banner_x,
+            banner_y,
+            width=target_width,
+            height=target_height,
+            preserveAspectRatio=False,
             mask="auto",
         )
     pdf.setFillColor(BLUE)
-    pdf.rect(15 * mm, PAGE_HEIGHT - 40 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
+    pdf.rect(15 * mm, PAGE_HEIGHT - 46 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
 
 
 def _draw_title(pdf: canvas.Canvas, title: str) -> None:
     pdf.setFillColor(BLUE_DARK)
     pdf.setFont("Helvetica-Bold", 17)
-    pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 53 * mm, title)
+    pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 60 * mm, title)
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 8)
-    pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 58.5 * mm, "Payroll summary with earnings, deductions and payment details")
+    pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 65.5 * mm, "Payroll summary with earnings, deductions and payment details")
 
 
 def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -> None:
