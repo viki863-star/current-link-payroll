@@ -169,11 +169,18 @@ a {
     font-size: 0.92rem;
     color: #fff;
     background: linear-gradient(135deg, var(--primary), #2a6ead);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease, background 0.18s ease;
+    box-shadow: 0 10px 24px rgba(28, 86, 139, 0.16);
 }
 
 .button:hover {
     filter: brightness(1.05);
     transform: translateY(-1px);
+}
+
+.button:active {
+    transform: translateY(1px) scale(0.985);
+    box-shadow: 0 6px 12px rgba(28, 86, 139, 0.16);
 }
 
 .button-secondary {
@@ -593,6 +600,7 @@ label span {
 .quick-link-card {
     padding: 18px;
     color: var(--ink);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .quick-link-card strong {
@@ -612,6 +620,27 @@ label span {
 
 .owner-card {
     background: linear-gradient(135deg, #fffaf1, #fff2dd);
+}
+
+.quick-link-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 40px rgba(19, 56, 104, 0.14);
+}
+
+.action-card-form {
+    display: grid;
+    gap: 10px;
+    align-content: start;
+}
+
+.action-card-form .button {
+    justify-self: flex-start;
+}
+
+.upload-card-form input[type="file"] {
+    padding: 12px;
+    border: 1px dashed rgba(21, 51, 93, 0.2);
+    background: rgba(255, 255, 255, 0.72);
 }
 
 .owner-fund-layout,
@@ -798,6 +827,10 @@ thead th {
     position: relative;
 }
 
+.premium-login-shell {
+    gap: 22px;
+}
+
 .login-hero-card,
 .login-card {
     padding: 22px;
@@ -813,6 +846,191 @@ thead th {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 18px;
+}
+
+.unique-login-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 28px;
+    background:
+        radial-gradient(circle at top right, rgba(230, 135, 31, 0.18), transparent 24%),
+        radial-gradient(circle at bottom left, rgba(28, 86, 139, 0.14), transparent 30%),
+        linear-gradient(135deg, #ffffff, #f3f8ff);
+}
+
+.unique-login-hero::after {
+    content: "";
+    position: absolute;
+    inset: auto -80px -80px auto;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(28, 86, 139, 0.08), rgba(230, 135, 31, 0.12));
+    animation: pulseFloat 5s ease-in-out infinite;
+}
+
+.login-hero-copy {
+    position: relative;
+    z-index: 1;
+    max-width: 620px;
+}
+
+.login-hero-copy h2 {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2rem, 4vw, 2.9rem);
+    letter-spacing: -0.04em;
+}
+
+.login-hero-pills {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.login-hero-pills span {
+    padding: 9px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    font-weight: 700;
+    color: var(--primary-dark);
+}
+
+.login-stage-shell {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
+    gap: 18px;
+}
+
+.login-role-card,
+.login-stage-card {
+    padding: 22px;
+}
+
+.login-role-head h3,
+.login-stage-head h3 {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.6rem;
+}
+
+.login-role-grid {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.role-tile {
+    display: grid;
+    gap: 6px;
+    width: 100%;
+    padding: 16px 18px;
+    text-align: left;
+    border: 1px solid rgba(21, 51, 93, 0.12);
+    border-radius: 18px;
+    background: linear-gradient(135deg, #fff, #f4f8ff);
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.role-tile:hover,
+.role-tile.active {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 32px rgba(19, 56, 104, 0.14);
+    border-color: rgba(28, 86, 139, 0.3);
+}
+
+.role-tile.active {
+    background: linear-gradient(135deg, #173f66, #2768a4);
+    color: #fff;
+}
+
+.role-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: rgba(28, 86, 139, 0.12);
+    color: var(--primary-dark);
+    font-weight: 800;
+}
+
+.role-tile.active .role-icon {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+}
+
+.role-tile small {
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.role-tile.active small {
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.owner-tile {
+    background: linear-gradient(135deg, #fffaf1, #fff2dd);
+}
+
+.driver-tile {
+    background: linear-gradient(135deg, #f4faff, #eef5ff);
+}
+
+.login-stage-card {
+    position: relative;
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 255, 0.98));
+}
+
+.login-stage-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 6px;
+    background: linear-gradient(180deg, var(--orange), var(--primary));
+}
+
+.stage-form {
+    margin-top: 16px;
+}
+
+.credential-group {
+    display: none;
+    animation: riseIn 0.24s ease;
+}
+
+.credential-group.active {
+    display: block;
+}
+
+.login-stage-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.login-tip {
+    flex: 1 1 280px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: #f4f8fd;
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    color: var(--muted);
+}
+
+.login-submit-button {
+    min-width: 196px;
 }
 
 .login-card {
@@ -884,6 +1102,15 @@ thead th {
     }
 }
 
+@keyframes pulseFloat {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
 .footer-strip {
     padding: 0 0 28px;
 }
@@ -891,7 +1118,8 @@ thead th {
 @media (max-width: 980px) {
     .action-grid,
     .detail-layout,
-    .smart-facts {
+    .smart-facts,
+    .login-stage-shell {
         grid-template-columns: 1fr;
     }
 
@@ -909,6 +1137,10 @@ thead th {
     .panel-titlebar,
     .table-actions {
         flex-direction: column;
+        align-items: stretch;
+    }
+
+    .login-stage-footer {
         align-items: stretch;
     }
 

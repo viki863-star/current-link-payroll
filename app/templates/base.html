@@ -15,7 +15,7 @@
 <body>
     <div class="brand-shell">
         <header class="hero">
-            <img class="brand-banner" src="{{ url_for('static', filename='current-link-header.png') }}" alt="{{ config['COMPANY_NAME'] }} banner">
+            <img class="brand-banner" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} banner">
             <div class="hero-copy compact-copy">
                 <p class="eyebrow">{{ config["COMPANY_NAME"] }}</p>
                 <h1>
@@ -44,6 +44,9 @@
                         <a class="button" href="{{ url_for('create_driver') }}">Add Driver</a>
                         <form method="post" action="{{ url_for('import_currentlink') }}">
                             <button class="button button-secondary" type="submit">Import</button>
+                        </form>
+                        <form method="post" action="{{ url_for('import_driver_pdf') }}">
+                            <button class="button button-secondary" type="submit">Import Driver PDF</button>
                         </form>
                     {% elif is_owner %}
                         <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund</a>

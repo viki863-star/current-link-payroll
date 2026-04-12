@@ -30,6 +30,7 @@
         <button class="button" type="submit">Search</button>
         <a class="button button-secondary" href="{{ url_for('driver_list') }}">Driver List</a>
         <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund Kata</a>
+        <button class="button button-secondary" type="submit" formaction="{{ url_for('import_driver_pdf') }}" formmethod="post">Import Driver PDF</button>
         {% if query %}
             <a class="button button-secondary" href="{{ url_for('dashboard') }}">Clear</a>
         {% endif %}
@@ -42,6 +43,13 @@
         <strong>Add New Driver</strong>
         <p>Card dashboard par khud ban jayega.</p>
     </a>
+    <form class="card quick-link-card accent-card action-card-form upload-card-form" method="post" action="{{ url_for('import_driver_pdf') }}" enctype="multipart/form-data">
+        <span class="eyebrow">PDF Import</span>
+        <strong>Upload Driver List</strong>
+        <p>Driver.pdf upload karke master list ko system me sync karein.</p>
+        <input type="file" name="driver_pdf" accept=".pdf,application/pdf">
+        <button class="button button-secondary" type="submit">Upload and Import</button>
+    </form>
     <a class="card quick-link-card accent-card" href="{{ url_for('driver_list') }}">
         <span class="eyebrow">Directory</span>
         <strong>Open Driver List</strong>

@@ -19,6 +19,7 @@ from werkzeug.utils import secure_filename
 
 from .database import open_db
 from .excel_import import load_driver_records, upsert_driver_records
+from .pdf_driver_import import load_driver_records_from_pdf, load_driver_records_from_pdf_bytes
 from .pdf_service import (
     format_month_label,
     generate_kata_pdf,
@@ -52,10 +53,12 @@ def register_routes(app: Flask) -> None:
         if _current_role():
             return redirect(url_for(_role_home_endpoint()))
 
+        selected_role = "admin"
         if request.method == "POST":
             role = request.form.get("role", "").strip().lower()
             password = request.form.get("password", "").strip()
             phone_number = request.form.get("phone_number", "").strip()
+            selected_role = role or "admin"
             db = open_db()
 
             if role == "admin":
@@ -82,7 +85,7 @@ def register_routes(app: Flask) -> None:
             else:
                 flash("Select a valid login type.", "error")
 
-        return render_template("login.html")
+        return render_template("login.html", selected_role=selected_role)
 
     @app.get("/logout")
     def logout():
@@ -361,7 +364,7 @@ def register_routes(app: Flask) -> None:
                     current_photo_url=None,
                 )
 
-            uploaded_photo = _save_driver_photo(app, form["driver_id"], request.files.get("photo_file"))
+            uploaded_photo = _save_driver_photo(app, form["driver_id"], form["full_name"], request.files.get("photo_file"))
             if uploaded_photo:
                 form["photo_name"] = uploaded_photo["photo_name"]
 
@@ -412,7 +415,7 @@ def register_routes(app: Flask) -> None:
         if request.method == "POST":
             form = _driver_form_data(request)
             form["driver_id"] = driver_id
-            uploaded_photo = _save_driver_photo(app, driver_id, request.files.get("photo_file"))
+            uploaded_photo = _save_driver_photo(app, driver_id, form["full_name"], request.files.get("photo_file"))
             if uploaded_photo:
                 form["photo_name"] = uploaded_photo["photo_name"]
             elif not form["photo_name"]:
@@ -485,6 +488,28 @@ def register_routes(app: Flask) -> None:
             flash(f"Import failed: {exc}", "error")
             return redirect(url_for("dashboard"))
         flash(f"Imported or updated {imported} drivers from Currentlink.xlsm.", "success")
+        return redirect(url_for("dashboard"))
+
+    @app.post("/drivers/import-driver-pdf")
+    @_login_required("admin")
+    def import_driver_pdf():
+        try:
+            uploaded_pdf = request.files.get("driver_pdf")
+            if uploaded_pdf and uploaded_pdf.filename:
+                records = load_driver_records_from_pdf_bytes(uploaded_pdf.read())
+            else:
+                records = load_driver_records_from_pdf(app.config["DRIVER_PDF_FILE"])
+            db = open_db()
+            imported = upsert_driver_records(db, records)
+            db.commit()
+        except FileNotFoundError:
+            flash("Driver.pdf was not found in Downloads.", "error")
+            return redirect(url_for("dashboard"))
+        except Exception as exc:
+            flash(f"Driver PDF import failed: {exc}", "error")
+            return redirect(url_for("dashboard"))
+
+        flash(f"Imported or updated {imported} drivers from Driver PDF.", "success")
         return redirect(url_for("dashboard"))
 
     @app.route("/drivers/<driver_id>")
@@ -902,7 +927,7 @@ def register_routes(app: Flask) -> None:
                             driver,
                             selected_salary,
                             slip_payload,
-                            str(_driver_output_dir(app, driver_id) / "salary_slips"),
+                            str(_driver_output_dir(app, driver_id, driver=driver) / "salary_slips"),
                             app.config["STATIC_ASSETS_DIR"],
                             app.config["GENERATED_DIR"],
                         )
@@ -1334,12 +1359,37 @@ def _normalize_month(value: str) -> str:
         return _current_month_value()
 
 
-def _driver_output_dir(app: Flask, driver_id: str) -> Path:
-    base_dir = Path(app.config["GENERATED_DIR"]) / "drivers" / driver_id
+def _driver_output_dir(app: Flask, driver_id: str, *, driver=None, full_name: str | None = None) -> Path:
+    drivers_root = Path(app.config["GENERATED_DIR"]) / "drivers"
+    legacy_dir = drivers_root / driver_id
+    existing_named_dir = next(
+        (item for item in drivers_root.glob(f"*__{driver_id.lower()}") if item.is_dir()),
+        None,
+    )
+    if existing_named_dir is not None:
+        base_dir = existing_named_dir
+    elif legacy_dir.exists() and any(legacy_dir.iterdir()):
+        base_dir = legacy_dir
+    else:
+        if driver is not None:
+            full_name = driver["full_name"]
+        elif not full_name:
+            db = open_db()
+            found = _fetch_driver(db, driver_id)
+            full_name = found["full_name"] if found else driver_id
+        base_dir = drivers_root / _driver_folder_name(full_name or driver_id, driver_id)
     (base_dir / "salary_slips").mkdir(parents=True, exist_ok=True)
     (base_dir / "kata_pdfs").mkdir(parents=True, exist_ok=True)
     (base_dir / "profile").mkdir(parents=True, exist_ok=True)
     return base_dir
+
+
+def _driver_folder_name(full_name: str, driver_id: str) -> str:
+    safe = "".join(character if character.isalnum() else "-" for character in full_name.lower()).strip("-")
+    while "--" in safe:
+        safe = safe.replace("--", "-")
+    safe = safe or driver_id.lower()
+    return f"{safe}__{driver_id.lower()}"
 
 
 def _regenerate_kata_for_driver(app: Flask, db, driver):
@@ -1363,18 +1413,18 @@ def _regenerate_kata_for_driver(app: Flask, db, driver):
     ).fetchall()
     if not salary_rows and not transactions:
         return None
-    output_dir = _driver_output_dir(app, driver["driver_id"]) / "kata_pdfs"
+    output_dir = _driver_output_dir(app, driver["driver_id"], driver=driver) / "kata_pdfs"
     return generate_kata_pdf(driver, salary_rows, transactions, str(output_dir), app.config["STATIC_ASSETS_DIR"])
 
 
-def _save_driver_photo(app: Flask, driver_id: str, photo_file):
+def _save_driver_photo(app: Flask, driver_id: str, full_name: str, photo_file):
     if photo_file is None or not photo_file.filename:
         return None
     safe_name = secure_filename(photo_file.filename)
     if not safe_name:
         return None
     extension = Path(safe_name).suffix.lower() or ".jpg"
-    target = _driver_output_dir(app, driver_id) / "profile" / f"photo{extension}"
+    target = _driver_output_dir(app, driver_id, full_name=full_name) / "profile" / f"photo{extension}"
     photo_bytes = photo_file.read()
     if not photo_bytes:
         return None
@@ -1452,7 +1502,7 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         "paid_by": slip["paid_by"] or "",
         "net_payable": float(slip["net_payable"]),
     }
-    output_dir = _driver_output_dir(app, slip["driver_id"]) / "salary_slips"
+    output_dir = _driver_output_dir(app, slip["driver_id"], driver=driver) / "salary_slips"
     return generate_salary_slip_pdf(
         driver,
         salary_row,
@@ -1485,7 +1535,12 @@ def _can_access_generated_file(filename: str) -> bool:
         return filename.startswith("owner_fund/")
     if role == "driver":
         driver_id = _current_driver_id()
-        return filename.startswith(f"drivers/{driver_id}/")
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        prefixes = {f"drivers/{driver_id}/"}
+        if driver is not None:
+            prefixes.add(f"drivers/{_driver_folder_name(driver['full_name'], driver_id)}/")
+        return any(filename.startswith(prefix) for prefix in prefixes)
     return False
 
 

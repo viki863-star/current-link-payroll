@@ -18,6 +18,7 @@ def create_app() -> Flask:
     app.config["COMPANY_NAME"] = "Current Link"
     app.config["COMPANY_SUBTITLE"] = "Transport and General Contracting LLC SPC"
     app.config["CURRENTLINK_FILE"] = str(Path.home() / "Downloads" / "Currentlink.xlsm")
+    app.config["DRIVER_PDF_FILE"] = str(Path.home() / "Downloads" / "Driver.pdf")
     app.config["GENERATED_DIR"] = str(generated_root)
     app.config["DRIVER_FILES_DIR"] = str(generated_root / "drivers")
     app.config["STATIC_ASSETS_DIR"] = str(project_root / "app" / "static")
