@@ -32,7 +32,11 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
     _draw_header(pdf, assets_dir)
-    _draw_title(pdf, f"Salary Slip {format_month_label(salary_row['salary_month'])}")
+    _draw_title(
+        pdf,
+        f"Salary Slip {format_month_label(salary_row['salary_month'])}",
+        "Payroll summary with earnings, deductions and payment details",
+    )
     _draw_salary_summary(pdf, driver, salary_row, slip_payload)
     _draw_salary_breakdown(pdf, salary_row, slip_payload)
     _draw_salary_footer(pdf, driver, slip_payload, assets_dir, generated_dir)
@@ -70,7 +74,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, output_dir: str, assets
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
     _draw_header(pdf, assets_dir)
-    _draw_title(pdf, "Driver KATA Statement")
+    _draw_title(pdf, "Driver KATA Statement", "Running salary and transaction movement for this driver")
 
     pdf.setFillColor(SOFT)
     pdf.roundRect(16 * mm, PAGE_HEIGHT - 110 * mm, 178 * mm, 20 * mm, 4 * mm, fill=1, stroke=0)
@@ -123,7 +127,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
     _draw_header(pdf, assets_dir)
-    _draw_title(pdf, "Owner Fund Kata")
+    _draw_title(pdf, "Owner Fund Kata", "Incoming owner funds, outgoing usage and running balance")
 
     pdf.setFillColor(SOFT)
     pdf.roundRect(16 * mm, PAGE_HEIGHT - 104 * mm, 178 * mm, 18 * mm, 4 * mm, fill=1, stroke=0)
@@ -188,13 +192,14 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str) -> None:
     pdf.rect(15 * mm, PAGE_HEIGHT - 46 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
 
 
-def _draw_title(pdf: canvas.Canvas, title: str) -> None:
+def _draw_title(pdf: canvas.Canvas, title: str, subtitle: str = "") -> None:
     pdf.setFillColor(BLUE_DARK)
     pdf.setFont("Helvetica-Bold", 17)
     pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 60 * mm, title)
-    pdf.setFillColor(MUTED)
-    pdf.setFont("Helvetica", 8)
-    pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 65.5 * mm, "Payroll summary with earnings, deductions and payment details")
+    if subtitle:
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 8)
+        pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 65.5 * mm, subtitle)
 
 
 def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -> None:
