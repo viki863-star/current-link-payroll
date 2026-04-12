@@ -2058,8 +2058,9 @@ html {
 
 .landing-page-body {
     background:
-        radial-gradient(circle at top left, rgba(230, 135, 31, 0.10), transparent 22%),
-        linear-gradient(180deg, #f7f9fd 0%, #eaf0f8 100%);
+        radial-gradient(circle at top left, rgba(243, 150, 31, 0.14), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(20, 61, 112, 0.18), transparent 26%),
+        linear-gradient(180deg, #f7f9fc 0%, #e9eff8 100%);
 }
 
 .public-landing-shell,
@@ -2071,6 +2072,11 @@ html {
 .public-landing-logo-card,
 .login-page-brand-card {
     padding: 18px;
+}
+
+.simple-landing-logo-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 247, 253, 0.98));
+    border: 1px solid rgba(17, 57, 104, 0.10);
 }
 
 .public-landing-logo,
@@ -2087,10 +2093,15 @@ html {
     padding: 0;
 }
 
+.simple-landing-hero-card {
+    border: 1px solid rgba(17, 57, 104, 0.12);
+    box-shadow: 0 24px 52px rgba(16, 49, 91, 0.18);
+}
+
 .public-landing-image {
     position: absolute;
     inset: 0;
-    background: url("landing-hero-v2.png") center/cover no-repeat;
+    background: url("landing-hero-v3.png") center/cover no-repeat;
     transform: scale(1.01);
 }
 
@@ -2098,8 +2109,8 @@ html {
     position: absolute;
     inset: 0;
     background:
-        linear-gradient(180deg, rgba(9, 23, 40, 0.08) 0%, rgba(9, 23, 40, 0.18) 100%),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.48) 34%, rgba(255, 255, 255, 0.05) 70%);
+        linear-gradient(90deg, rgba(10, 31, 57, 0.82) 0%, rgba(10, 31, 57, 0.56) 34%, rgba(10, 31, 57, 0.10) 70%),
+        linear-gradient(180deg, rgba(255, 164, 38, 0.05) 0%, rgba(12, 35, 67, 0.12) 100%);
 }
 
 .public-landing-content {
@@ -2108,7 +2119,7 @@ html {
     display: grid;
     align-content: end;
     min-height: 540px;
-    max-width: 560px;
+    max-width: 500px;
     padding: 34px;
 }
 
@@ -2118,6 +2129,7 @@ html {
     font-size: clamp(2rem, 4.4vw, 3.4rem);
     letter-spacing: -0.04em;
     line-height: 1.04;
+    color: #ffffff;
 }
 
 .public-landing-content .lead {
@@ -2127,12 +2139,33 @@ html {
     font-size: 1rem;
 }
 
+.public-landing-content .eyebrow {
+    color: #ffb24c;
+}
+
 .public-landing-actions {
     margin-top: 22px;
 }
 
 .public-landing-actions .button {
     min-width: 158px;
+    border-radius: 14px;
+}
+
+.public-landing-actions .quote-button {
+    background: linear-gradient(135deg, #f3951f, #f0ab46);
+    box-shadow: 0 14px 28px rgba(243, 149, 31, 0.24);
+}
+
+.public-landing-actions .button-secondary {
+    background: rgba(255, 255, 255, 0.96);
+    color: #123762;
+    border: 1px solid rgba(18, 55, 98, 0.12);
+}
+
+.public-landing-actions .portal-launch-button {
+    background: linear-gradient(135deg, #143c70, #245b97);
+    box-shadow: 0 14px 28px rgba(20, 60, 112, 0.24);
 }
 
 .landing-contact-footer {
@@ -2211,7 +2244,7 @@ html {
 
     .public-landing-overlay {
         background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(255, 255, 255, 0.34) 55%, rgba(9, 23, 40, 0.18) 100%);
+            linear-gradient(180deg, rgba(10, 31, 57, 0.18) 0%, rgba(10, 31, 57, 0.36) 40%, rgba(10, 31, 57, 0.70) 100%);
     }
 
     .small-photo-panel {
@@ -2249,6 +2282,7 @@ html {
     .public-landing-content {
         padding: 24px 20px;
         min-height: 460px;
+        align-content: end;
     }
 
     .public-landing-actions .button {

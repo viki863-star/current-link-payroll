@@ -6,17 +6,16 @@
 
 {% block content %}
 <section class="public-landing-shell">
-    <article class="card public-landing-logo-card">
+    <article class="card public-landing-logo-card simple-landing-logo-card">
         <img class="public-landing-logo" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} logo">
     </article>
 
-    <article class="card public-landing-hero-card">
+    <article class="card public-landing-hero-card simple-landing-hero-card">
         <div class="public-landing-image"></div>
         <div class="public-landing-overlay"></div>
         <div class="public-landing-content">
             <p class="eyebrow">Current Link</p>
-            <h2>Heavy Transport and Contracting Solutions</h2>
-            <p class="lead">Reliable fleet support, project movement and field-ready service from one trusted company.</p>
+            <h2>Heavy Transport Solutions</h2>
             <div class="actions-row public-landing-actions">
                 <a class="button quote-button" href="{{ url_for('services') }}#quote">Get Quote</a>
                 <a class="button button-secondary" href="{{ url_for('services') }}">Our Services</a>
