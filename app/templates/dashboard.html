@@ -131,33 +131,16 @@
                 <a class="driver-card simple-card smart-card animated-driver-card" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">
                     <div class="driver-card-top">
                         <span class="driver-id">{{ driver.driver_id }}</span>
-                        <span class="driver-status {{ driver.status|lower }}">{{ driver.status }}</span>
                     </div>
-                    <div class="driver-card-brand-row">
-                        <span class="driver-card-icon">{{ (driver.full_name[:1] if driver.full_name else "D")|upper }}</span>
-                        <span class="driver-card-line"></span>
-                    </div>
-                    <h3>{{ driver.full_name }}</h3>
-                    <p class="driver-meta">Vehicle {{ driver.vehicle_no }}</p>
-                    <div class="driver-tags">
-                        <span>{{ driver.shift }}</span>
-                        <span>{{ driver.vehicle_type }}</span>
+                    <div class="driver-card-minimal-icon" aria-hidden="true">&#128666;</div>
+                    <div class="driver-card-minimal-copy">
+                        <h3>{{ driver.full_name }}</h3>
+                        <p class="driver-card-minimal-meta">Vehicle No {{ driver.vehicle_no }}</p>
                     </div>
                     <div class="driver-card-bottom">
-                        <span class="driver-card-note">
-                            {% if driver.phone_number %}
-                                {{ driver.phone_number }}
-                            {% else %}
-                                Phone not set
-                            {% endif %}
-                        </span>
+                        <span class="driver-card-note">Open action panel</span>
                         <span class="driver-card-arrow">Open</span>
                     </div>
-                    {% if driver.latest_salary_month %}
-                        <span class="card-subline">Stored {{ driver.latest_salary_month }}</span>
-                    {% else %}
-                        <span class="card-subline muted-white">Salary not stored</span>
-                    {% endif %}
                 </a>
             {% else %}
                 <section class="card empty-state full-width-card">
