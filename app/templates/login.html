@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="landing-stage">
+    <article class="card landing-showcase-card">
+        <div class="landing-showcase-grid">
+            <div class="landing-copy">
+                <p class="eyebrow">Abu Dhabi Operations</p>
+                <h2>Trusted water supply, heavy transport and equipment support for demanding field operations.</h2>
+                <p class="lead">Current Link supports tanker movement, trailer deployment, crane coordination, heavy equipment services, water supply of all kinds and water removal operations across Abu Dhabi with disciplined driver reporting and premium payroll control.</p>
+
+                <div class="landing-pills">
+                    <span>Tanker Fleet</span>
+                    <span>Water Supply</span>
+                    <span>Water Removal</span>
+                    <span>Heavy Equipment Services</span>
+                    <span>Trailers and Crane Support</span>
+                </div>
+
+                <div class="actions-row landing-actions">
+                    <a class="button portal-launch-button" href="#portal-access">Open Portal Access</a>
+                    <a class="button button-secondary" href="#our-services">View Our Services</a>
+                </div>
+
+                <div class="landing-highlights">
+                    <article class="landing-highlight-card">
+                        <strong>24/7 Field Response</strong>
+                        <span>Fast movement for site water delivery, disposal and operational support.</span>
+                    </article>
+                    <article class="landing-highlight-card">
+                        <strong>Driver and Payroll Control</strong>
+                        <span>Structured driver master, transactions, salary store, slips and PDF reporting.</span>
+                    </article>
+                    <article class="landing-highlight-card">
+                        <strong>Abu Dhabi Site Coverage</strong>
+                        <span>Built for remote site work, industrial zones and heavy transport coordination.</span>
+                    </article>
+                </div>
+            </div>
+
+            <div class="landing-visual-zone">
+                <article class="fleet-visual-card">
+                    <div class="fleet-visual-badge">Live Fleet Presence</div>
+                    <div class="fleet-visual-skyline"></div>
+                    <div class="fleet-visual-watermark">CURRENT LINK</div>
+                    <div class="fleet-visual-chips">
+                        <span>Tanker</span>
+                        <span>Trailer</span>
+                        <span>Crane</span>
+                        <span>Heavy Duty</span>
+                    </div>
+                </article>
+
+                <section class="leadership-mini-row">
+                    <article class="card mini-leader-card">
+                        <div class="mini-leader-frame">
+                            <img src="{{ url_for('static', filename='owner-portrait.jpeg') }}" alt="Nasrullah">
+                        </div>
+                        <div>
+                            <strong>Nasrullah</strong>
+                            <small>Owner</small>
+                            <p>Leads owner fund control, company direction and operational investment oversight.</p>
+                        </div>
+                    </article>
+
+                    <article class="card mini-leader-card manager-mini-card">
+                        <div class="mini-leader-frame">
+                            <img src="{{ url_for('static', filename='manager-portrait.jpeg') }}" alt="Eng. Shakir">
+                        </div>
+                        <div>
+                            <strong>Eng. Shakir</strong>
+                            <small>Operations Manager</small>
+                            <p>Supervises fleet readiness, heavy equipment deployment and field execution quality.</p>
+                        </div>
+                    </article>
+                </section>
+            </div>
+        </div>
+    </article>
+</section>
+
+<section class="detail-layout company-showcase-grid premium-company-grid" id="our-services">
+    <article class="card company-story-card premium-story-card">
+        <p class="eyebrow">About Current Link</p>
+        <h3>Specialized transport support built for high-pressure project environments.</h3>
+        <p class="lead">From Abu Dhabi, our company supports industrial, infrastructure and utility operations with disciplined driver management, secure payroll flow, owner reporting and strong site logistics coordination.</p>
+        <div class="company-story-points premium-story-points">
+            <span>Located in Abu Dhabi</span>
+            <span>Transport and General Contracting LLC SPC</span>
+            <span>Driver Self Service Portal</span>
+            <span>Owner Fund Reporting</span>
+            <span>Smart PDF Payroll System</span>
+        </div>
+    </article>
+
+    <article class="card services-story-card">
+        <p class="eyebrow">Our Services</p>
+        <h3>Field-ready transport and utility support.</h3>
+        <div class="services-grid">
+            <article class="service-tile">
+                <strong>Supply of All Kinds of Water</strong>
+                <p>Reliable tanker deployment for construction, industrial and utility site requirements.</p>
+            </article>
+            <article class="service-tile">
+                <strong>Water Removal</strong>
+                <p>Fast response for disposal, dewatering support and water movement coordination.</p>
+            </article>
+            <article class="service-tile">
+                <strong>Heavy Equipment Services</strong>
+                <p>Operational support for cranes, trailers, equipment movement and specialized field transport.</p>
+            </article>
+            <article class="service-tile">
+                <strong>Transport Operations</strong>
+                <p>Driver-controlled reporting, salary tracking, timesheets, transactions and slip generation.</p>
+            </article>
+        </div>
+    </article>
+</section>
+
+<section class="card portal-section-card" id="portal-access">
+    <div class="portal-section-top">
+        <div>
+            <p class="eyebrow">Portal Access</p>
+            <h2>Choose access type and continue to your portal.</h2>
+            <p class="lead">Admin gets full control, Owner opens the owner fund reporting portal, and Driver signs in with phone number to reach personal timesheet, salary slip and transaction pages.</p>
+        </div>
+        <div class="portal-top-pills">
+            <span>Secure Access</span>
+            <span>Role Based</span>
+            <span>Mobile Ready</span>
+        </div>
+    </div>
+
+    <div class="login-stage-shell">
+        <article class="card login-role-card">
+            <div class="login-role-head">
+                <p class="eyebrow">Step 1</p>
+                <h3>Select Role</h3>
+                <p class="section-note">Pick the portal role first, then enter the required password or phone number.</p>
+            </div>
+            <div class="login-role-grid" data-role-grid>
+                <button class="role-tile {% if selected_role == 'admin' %}active{% endif %}" type="button" data-role="admin">
+                    <span class="role-icon">A</span>
+                    <strong>Admin Portal</strong>
+                    <small>Full system control, drivers, payroll, transactions and reports.</small>
+                </button>
+                <button class="role-tile owner-tile {% if selected_role == 'owner' %}active{% endif %}" type="button" data-role="owner">
+                    <span class="role-icon">O</span>
+                    <strong>Owner Portal</strong>
+                    <small>Owner fund entries, kata view and financial visibility.</small>
+                </button>
+                <button class="role-tile driver-tile {% if selected_role == 'driver' %}active{% endif %}" type="button" data-role="driver">
+                    <span class="role-icon">D</span>
+                    <strong>Driver Portal</strong>
+                    <small>Phone login for timesheet, transactions and salary slip view.</small>
+                </button>
+            </div>
+        </article>
+
+        <article class="card login-stage-card">
+            <div class="login-stage-head">
+                <p class="eyebrow">Step 2</p>
+                <h3>Continue to Portal</h3>
+                <p class="section-note">The form changes automatically according to the selected role.</p>
+            </div>
+
+            <form method="post" action="{{ url_for('login') }}" class="stage-form">
+                <input type="hidden" name="role" id="selected-role-input" value="{{ selected_role }}">
+
+                <section class="credential-group {% if selected_role == 'admin' %}active{% endif %}" data-credential="admin">
+                    <label>
+                        <span>Admin Password</span>
+                        <input type="password" name="password" autocomplete="current-password" placeholder="Enter admin password" {% if selected_role != 'admin' %}disabled{% endif %}>
+                    </label>
+                </section>
+
+                <section class="credential-group {% if selected_role == 'owner' %}active{% endif %}" data-credential="owner">
+                    <label>
+                        <span>Owner Access Code</span>
+                        <input type="password" name="password" autocomplete="current-password" placeholder="Enter owner access code" {% if selected_role != 'owner' %}disabled{% endif %}>
+                    </label>
+                </section>
+
+                <section class="credential-group {% if selected_role == 'driver' %}active{% endif %}" data-credential="driver">
+                    <label>
+                        <span>Driver Phone Number</span>
+                        <input type="tel" name="phone_number" inputmode="tel" placeholder="Enter registered phone number" {% if selected_role != 'driver' %}disabled{% endif %}>
+                    </label>
+                </section>
+
+                <div class="login-stage-footer">
+                    <div class="login-tip" id="login-tip">
+                        {% if selected_role == 'owner' %}
+                            Owner portal khulne ke liye access code enter karein.
+                        {% elif selected_role == 'driver' %}
+                            Driver apna registered phone number likhe aur self-service portal open kare.
+                        {% else %}
+                            Admin password enter karke dashboard aur full control access karein.
+                        {% endif %}
+                    </div>
+                    <button class="button login-submit-button" type="submit">Enter Portal</button>
+                </div>
+            </form>
+        </article>
+    </div>
+</section>
+
+<script>
+    (() => {
+        const roleTiles = document.querySelectorAll("[data-role]");
+        const credentialGroups = document.querySelectorAll("[data-credential]");
+        const roleInput = document.getElementById("selected-role-input");
+        const tip = document.getElementById("login-tip");
+        const tips = {
+            admin: "Admin password enter karke dashboard aur full control access karein.",
+            owner: "Owner portal khulne ke liye access code enter karein.",
+            driver: "Driver apna registered phone number likhe aur self-service portal open kare."
+        };
+
+        function activateRole(role) {
+            roleTiles.forEach((tile) => {
+                tile.classList.toggle("active", tile.dataset.role === role);
+            });
+
+            credentialGroups.forEach((group) => {
+                const isActive = group.dataset.credential === role;
+                group.classList.toggle("active", isActive);
+                const field = group.querySelector("input");
+                if (field) {
+                    field.disabled = !isActive;
+                }
+                if (isActive) {
+                    window.setTimeout(() => field && field.focus(), 60);
+                }
+            });
+
+            if (roleInput) {
+                roleInput.value = role;
+            }
+
+            if (tip && tips[role]) {
+                tip.textContent = tips[role];
+            }
+        }
+
+        roleTiles.forEach((tile) => {
+            tile.addEventListener("click", () => activateRole(tile.dataset.role));
+        });
+
+        activateRole(roleInput?.value || "admin");
+    })();
+</script>
+{% endblock %}

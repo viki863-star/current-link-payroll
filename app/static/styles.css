@@ -827,6 +827,10 @@ thead th {
     position: relative;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 .premium-login-shell {
     gap: 22px;
 }
@@ -867,6 +871,342 @@ thead th {
     border-radius: 50%;
     background: linear-gradient(135deg, rgba(28, 86, 139, 0.08), rgba(230, 135, 31, 0.12));
     animation: pulseFloat 5s ease-in-out infinite;
+}
+
+.landing-stage {
+    margin-bottom: 18px;
+}
+
+.landing-showcase-card,
+.portal-section-card {
+    padding: 28px;
+    overflow: hidden;
+}
+
+.landing-showcase-card {
+    position: relative;
+    background:
+        radial-gradient(circle at top right, rgba(230, 135, 31, 0.18), transparent 22%),
+        radial-gradient(circle at bottom left, rgba(28, 86, 139, 0.18), transparent 28%),
+        linear-gradient(135deg, #ffffff, #f4f8ff);
+}
+
+.landing-showcase-card::before,
+.portal-section-card::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(8px);
+    animation: pulseFloat 7s ease-in-out infinite;
+}
+
+.landing-showcase-card::before {
+    width: 240px;
+    height: 240px;
+    top: -100px;
+    right: -80px;
+    background: rgba(28, 86, 139, 0.08);
+}
+
+.portal-section-card::after {
+    width: 180px;
+    height: 180px;
+    bottom: -60px;
+    right: -40px;
+    background: rgba(230, 135, 31, 0.08);
+}
+
+.landing-showcase-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+    gap: 24px;
+    align-items: start;
+    position: relative;
+    z-index: 1;
+}
+
+.landing-copy h2,
+.portal-section-top h2,
+.services-story-card h3 {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    letter-spacing: -0.04em;
+}
+
+.landing-copy h2 {
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    max-width: 760px;
+}
+
+.landing-pills,
+.portal-top-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.landing-pills {
+    margin: 18px 0 0;
+}
+
+.landing-pills span,
+.portal-top-pills span {
+    padding: 9px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid rgba(21, 51, 93, 0.09);
+    font-weight: 700;
+    color: var(--primary-dark);
+}
+
+.landing-actions {
+    margin-top: 20px;
+}
+
+.portal-launch-button {
+    animation: portalGlow 2.8s ease-in-out infinite;
+}
+
+.landing-highlights {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 24px;
+}
+
+.landing-highlight-card {
+    display: grid;
+    gap: 8px;
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    box-shadow: 0 14px 26px rgba(19, 56, 104, 0.08);
+}
+
+.landing-highlight-card strong {
+    font-size: 1rem;
+}
+
+.landing-highlight-card span {
+    color: var(--muted);
+    line-height: 1.5;
+    font-size: 0.92rem;
+}
+
+.landing-visual-zone {
+    display: grid;
+    gap: 18px;
+}
+
+.fleet-visual-card {
+    position: relative;
+    min-height: 380px;
+    padding: 22px;
+    border-radius: 28px;
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(15, 37, 66, 0.1), rgba(15, 37, 66, 0.18)),
+        linear-gradient(135deg, #fdfefe, #ebf4ff);
+    border: 1px solid rgba(21, 51, 93, 0.09);
+    box-shadow: 0 20px 38px rgba(19, 56, 104, 0.12);
+}
+
+.fleet-visual-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
+        url("fleet-backdrop.svg") center/cover no-repeat;
+    opacity: 0.98;
+    transform: scale(1.02);
+}
+
+.fleet-visual-card::after {
+    content: "";
+    position: absolute;
+    inset: auto auto 18px 18px;
+    width: 180px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--orange), transparent);
+}
+
+.fleet-visual-badge,
+.fleet-visual-watermark,
+.fleet-visual-chips {
+    position: relative;
+    z-index: 1;
+}
+
+.fleet-visual-badge {
+    display: inline-flex;
+    min-height: 34px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    font-weight: 800;
+    color: var(--primary-dark);
+}
+
+.fleet-visual-skyline {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.74), transparent 22%),
+        radial-gradient(circle at 20% 24%, rgba(230, 135, 31, 0.12), transparent 18%);
+}
+
+.fleet-visual-watermark {
+    position: absolute;
+    right: 22px;
+    bottom: 68px;
+    font-size: clamp(1.6rem, 4vw, 2.7rem);
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    color: rgba(21, 51, 93, 0.12);
+}
+
+.fleet-visual-chips {
+    position: absolute;
+    left: 22px;
+    right: 22px;
+    bottom: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.fleet-visual-chips span {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(15, 37, 66, 0.74);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    backdrop-filter: blur(8px);
+}
+
+.leadership-mini-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.mini-leader-card {
+    display: grid;
+    grid-template-columns: 76px 1fr;
+    gap: 14px;
+    align-items: center;
+    padding: 14px;
+    background: linear-gradient(145deg, #ffffff, #f8fbff);
+}
+
+.manager-mini-card {
+    background: linear-gradient(145deg, #fffdf8, #f7faff);
+}
+
+.mini-leader-frame {
+    padding: 6px;
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(28, 86, 139, 0.12), rgba(230, 135, 31, 0.16));
+}
+
+.mini-leader-frame img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+    border-radius: 14px;
+}
+
+.mini-leader-card strong {
+    display: block;
+    font-size: 1rem;
+}
+
+.mini-leader-card small {
+    display: block;
+    margin-top: 4px;
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.mini-leader-card p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    line-height: 1.45;
+    font-size: 0.86rem;
+}
+
+.premium-company-grid {
+    margin-bottom: 18px;
+}
+
+.premium-story-card {
+    min-height: 100%;
+}
+
+.services-story-card {
+    padding: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(28, 86, 139, 0.12), transparent 18%),
+        linear-gradient(145deg, #fffefb, #f5f9ff);
+}
+
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.service-tile {
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    box-shadow: 0 14px 28px rgba(19, 56, 104, 0.08);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.service-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 22px 36px rgba(19, 56, 104, 0.12);
+}
+
+.service-tile strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 1rem;
+}
+
+.service-tile p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.portal-section-card {
+    position: relative;
+    background:
+        radial-gradient(circle at top left, rgba(230, 135, 31, 0.14), transparent 18%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 255, 0.98));
+}
+
+.portal-section-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: end;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+.portal-top-pills {
+    justify-content: flex-end;
 }
 
 .login-hero-copy {
@@ -1433,6 +1773,17 @@ thead th {
     }
 }
 
+@keyframes portalGlow {
+    0%, 100% {
+        box-shadow: 0 10px 24px rgba(28, 86, 139, 0.16);
+        transform: translateY(0);
+    }
+    50% {
+        box-shadow: 0 16px 34px rgba(230, 135, 31, 0.18);
+        transform: translateY(-1px);
+    }
+}
+
 .footer-strip {
     padding: 0 0 28px;
 }
@@ -1445,8 +1796,17 @@ thead th {
     .company-showcase-grid,
     .dashboard-layout,
     .chart-layout,
-    .filter-grid {
+    .filter-grid,
+    .landing-showcase-grid,
+    .landing-highlights,
+    .services-grid,
+    .leadership-mini-row {
         grid-template-columns: 1fr;
+    }
+
+    .portal-section-top {
+        align-items: start;
+        flex-direction: column;
     }
 
     .small-photo-panel {
