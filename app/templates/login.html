@@ -2,80 +2,22 @@
 
 {% block content %}
 <section class="landing-stage">
-    <article class="card landing-showcase-card">
-        <div class="landing-showcase-grid">
-            <div class="landing-copy">
-                <p class="eyebrow">Current Link</p>
-                <div class="landing-brand-ribbon">
-                    <span class="landing-brand-mark">CL</span>
-                    <span>Transport and General Contracting LLC SPC</span>
-                </div>
-                <h2><span class="brand-accent-text">Current Link</span> operations suite for drivers, owner fund and payroll control.</h2>
-                <p class="lead">Current Link manages water supply, water removal, heavy equipment support and driver operations in one clean portal.</p>
-
-                <div class="actions-row landing-actions">
-                    <a class="button portal-launch-button" href="#portal-access">Open Portal Access</a>
-                    <a class="button button-secondary" href="#service-strip">View Services</a>
-                </div>
-
-                <div class="landing-signature-row">
-                    <article class="landing-signature-chip">
-                        <strong>Driver Portal</strong>
-                        <small>Timesheet, slips and transactions</small>
-                    </article>
-                    <article class="landing-signature-chip">
-                        <strong>Owner Fund</strong>
-                        <small>Clear funding and usage visibility</small>
-                    </article>
-                    <article class="landing-signature-chip">
-                        <strong>Payroll Control</strong>
-                        <small>Smart salary flow and PDFs</small>
-                    </article>
-                </div>
-
-                <div class="landing-service-strip" id="service-strip">
-                    <span><span class="service-pill-icon">WS</span> Water Supply</span>
-                    <span><span class="service-pill-icon">WR</span> Water Removal</span>
-                    <span><span class="service-pill-icon">HE</span> Heavy Equipment</span>
-                    <span><span class="service-pill-icon">TP</span> Transport Operations</span>
-                </div>
+    <article class="card landing-showcase-card luxury-hero-card">
+        <div class="landing-hero-media"></div>
+        <div class="landing-hero-overlay"></div>
+        <div class="landing-hero-panel">
+            <p class="eyebrow">Current Link</p>
+            <div class="landing-brand-ribbon">
+                <span class="landing-brand-mark">CL</span>
+                <span>Transport and General Contracting LLC SPC</span>
             </div>
-
-            <div class="landing-visual-zone">
-                <article class="fleet-visual-card">
-                    <div class="fleet-visual-badge">Current Link Fleet</div>
-                    <div class="fleet-visual-skyline"></div>
-                    <div class="fleet-visual-watermark">CURRENT LINK</div>
-                    <div class="fleet-visual-luxury-tag">Premium Operations Interface</div>
-                    <div class="fleet-visual-summary">
-                        <strong>Daily Operations</strong>
-                        <span>Drivers, payroll, transactions and reports in one system.</span>
-                    </div>
-                </article>
-
-                <section class="leadership-mini-row">
-                    <article class="card mini-leader-card">
-                        <div class="mini-leader-frame">
-                            <img src="{{ url_for('static', filename='owner-portrait.jpeg') }}" alt="Nasrullah">
-                        </div>
-                        <div>
-                            <strong>Nasrullah</strong>
-                            <small>Owner</small>
-                            <p>Leads owner fund control, company direction and operational investment oversight.</p>
-                        </div>
-                    </article>
-
-                    <article class="card mini-leader-card manager-mini-card">
-                        <div class="mini-leader-frame">
-                            <img src="{{ url_for('static', filename='manager-portrait.jpeg') }}" alt="Eng. Shakir">
-                        </div>
-                        <div>
-                            <strong>Eng. Shakir</strong>
-                            <small>Operations Manager</small>
-                            <p>Supervises fleet readiness, heavy equipment deployment and field execution quality.</p>
-                        </div>
-                    </article>
-                </section>
+            <h2>Reliable Heavy Transport and Contracting Solutions.</h2>
+            <p class="lead">Crane services, tanker supply, heavy equipment transport and clean operational control from one premium company portal.</p>
+            <p class="landing-hero-service-line">Crane Services | Tanker Supply | Heavy Equipment Transport | General Contracting</p>
+            <div class="actions-row landing-hero-actions">
+                <a class="button quote-button" href="{{ url_for('services') }}#quote">Get a Quote</a>
+                <a class="button button-secondary" href="{{ url_for('services') }}">Our Services</a>
+                <a class="button portal-launch-button" href="#portal-access">Login Portal</a>
             </div>
         </div>
     </article>
@@ -116,7 +58,7 @@
                 <button class="role-tile driver-tile {% if selected_role == 'driver' %}active{% endif %}" type="button" data-role="driver">
                     <span class="role-icon">D</span>
                     <strong>Driver Portal</strong>
-                    <small>Phone login for timesheet, transactions and salary slip view.</small>
+                    <small>Phone and PIN login for timesheet, transactions and salary slip view.</small>
                 </button>
             </div>
         </article>
@@ -129,6 +71,7 @@
             </div>
 
             <form method="post" action="{{ url_for('login') }}" class="stage-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="role" id="selected-role-input" value="{{ selected_role }}">
 
                 <section class="credential-group {% if selected_role == 'admin' %}active{% endif %}" data-credential="admin">
@@ -150,6 +93,10 @@
                         <span>Driver Phone Number</span>
                         <input type="tel" name="phone_number" inputmode="tel" placeholder="Enter registered phone number" {% if selected_role != 'driver' %}disabled{% endif %}>
                     </label>
+                    <label>
+                        <span>Driver PIN</span>
+                        <input type="password" name="driver_pin" inputmode="numeric" minlength="4" placeholder="Enter driver PIN" {% if selected_role != 'driver' %}disabled{% endif %}>
+                    </label>
                 </section>
 
                 <div class="login-stage-footer">
@@ -157,7 +104,7 @@
                         {% if selected_role == 'owner' %}
                             Owner portal khulne ke liye access code enter karein.
                         {% elif selected_role == 'driver' %}
-                            Driver apna registered phone number likhe aur self-service portal open kare.
+                            Driver apna registered phone number aur PIN likhe aur self-service portal open kare.
                         {% else %}
                             Admin password enter karke dashboard aur full control access karein.
                         {% endif %}
@@ -178,7 +125,7 @@
         const tips = {
             admin: "Admin password enter karke dashboard aur full control access karein.",
             owner: "Owner portal khulne ke liye access code enter karein.",
-            driver: "Driver apna registered phone number likhe aur self-service portal open kare."
+            driver: "Driver apna registered phone number aur PIN likhe aur self-service portal open kare."
         };
 
         function activateRole(role) {
@@ -189,12 +136,13 @@
             credentialGroups.forEach((group) => {
                 const isActive = group.dataset.credential === role;
                 group.classList.toggle("active", isActive);
-                const field = group.querySelector("input");
-                if (field) {
+                const fields = group.querySelectorAll("input");
+                fields.forEach((field) => {
                     field.disabled = !isActive;
-                }
+                });
                 if (isActive) {
-                    window.setTimeout(() => field && field.focus(), 60);
+                    const firstField = group.querySelector("input");
+                    window.setTimeout(() => firstField && firstField.focus(), 60);
                 }
             });
 

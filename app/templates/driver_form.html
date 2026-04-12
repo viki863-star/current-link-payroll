@@ -10,6 +10,7 @@
     </div>
 
     <form method="post" enctype="multipart/form-data" class="grid-form driver-master-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>
             <span>Driver ID</span>
             <input type="text" name="driver_id" value="{{ values.get('driver_id', '') }}" {% if edit_mode %}readonly{% else %}required{% endif %}>
@@ -21,6 +22,14 @@
         <label>
             <span>Phone Number</span>
             <input type="text" name="phone_number" value="{{ values.get('phone_number', '') }}" required>
+        </label>
+        <label>
+            <span>Driver PIN</span>
+            <input type="password" name="driver_pin" inputmode="numeric" minlength="4" placeholder="{% if edit_mode %}Leave blank to keep current PIN{% else %}At least 4 digits{% endif %}" {% if not edit_mode %}required{% endif %}>
+        </label>
+        <label>
+            <span>Confirm PIN</span>
+            <input type="password" name="confirm_driver_pin" inputmode="numeric" minlength="4" placeholder="{% if edit_mode %}Repeat new PIN if changing{% else %}Repeat driver PIN{% endif %}" {% if not edit_mode %}required{% endif %}>
         </label>
         <label>
             <span>Vehicle No</span>

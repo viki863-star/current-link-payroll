@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS drivers (
     driver_id TEXT NOT NULL UNIQUE,
     full_name TEXT NOT NULL,
     phone_number TEXT,
+    pin_hash TEXT,
     vehicle_no TEXT NOT NULL,
     shift TEXT NOT NULL,
     vehicle_type TEXT NOT NULL,
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS drivers (
     driver_id TEXT NOT NULL UNIQUE,
     full_name TEXT NOT NULL,
     phone_number TEXT,
+    pin_hash TEXT,
     vehicle_no TEXT NOT NULL,
     shift TEXT NOT NULL,
     vehicle_type TEXT NOT NULL,
@@ -210,6 +212,7 @@ CREATE TABLE IF NOT EXISTS import_history (
 REQUIRED_COLUMNS = {
     "drivers": {
         "phone_number": "TEXT",
+        "pin_hash": "TEXT",
         "photo_data": "TEXT",
         "photo_content_type": "TEXT",
     },
@@ -279,8 +282,8 @@ class DatabaseAdapter:
 
 
 def init_db(app: Flask) -> None:
-    database_url = os.getenv("DATABASE_URL", "").strip()
-    database_file = os.getenv("DATABASE_FILE", app.config.get("DATABASE", "payroll.db"))
+    database_url = (app.config.get("DATABASE_URL") or "").strip()
+    database_file = app.config.get("DATABASE", "payroll.db")
 
     if database_url:
         app.config["DATABASE_BACKEND"] = "postgres"
@@ -294,7 +297,9 @@ def init_db(app: Flask) -> None:
         finally:
             db.close()
     else:
-        database_path = Path(app.root_path).parent / database_file
+        database_path = Path(database_file)
+        if not database_path.is_absolute():
+            database_path = Path(app.root_path).parent / database_path
         app.config["DATABASE_BACKEND"] = "sqlite"
         app.config["DATABASE_PATH"] = database_path
         db = DatabaseAdapter(_connect_sqlite(database_path), "sqlite")

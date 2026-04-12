@@ -39,6 +39,7 @@
             <div class="info-box warning-box">This month is already stored. Any save will update the same month instead of creating a second record.</div>
         {% endif %}
         <form method="post" class="entry-form two-column-form salary-form-layout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>
                 <span>Date</span>
                 <input type="date" name="entry_date" value="{{ values.entry_date }}" required>
@@ -112,6 +113,7 @@
                                 <div class="table-actions">
                                     <a class="mini-action-link" href="{{ url_for('driver_salary_store', driver_id=driver.driver_id, edit=item.id) }}">Edit</a>
                                     <form method="post" action="{{ url_for('delete_salary_store', driver_id=driver.driver_id, salary_id=item.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button class="mini-action-button" type="submit">Delete</button>
                                     </form>
                                 </div>

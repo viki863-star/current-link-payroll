@@ -1,90 +1,146 @@
 # Current Link Driver Payroll System
 
-## Main Features
+## Overview
 
-- Admin, Owner, and Driver login
-- Driver phone-number self service
-- Driver timesheet entry
-- Driver transactions
-- Salary store with month update protection
-- Salary slip PDF with duplicate-slip protection
-- Driver KATA PDF
-- Owner Fund Kata page and PDF
-- Mobile-friendly driver portal
-- Import from `Currentlink.xlsm`
+Current Link is a driver-focused payroll and operations system for:
+
+- driver master management
+- transactions and advances
+- salary store and salary slip generation
+- owner fund tracking
+- driver self-service portal
+- PDF output for salary slips, KATA, and timesheets
+
+## Security Setup
+
+This project no longer keeps production secrets inside source code.
+
+Create a local `.env` file based on `.env.example`:
+
+```text
+SECRET_KEY=replace-with-a-long-random-secret
+ADMIN_PASSWORD=replace-with-admin-password
+OWNER_PASSWORD=replace-with-owner-password
+DATABASE_FILE=payroll.db
+SESSION_COOKIE_SECURE=false
+```
 
 ## Roles
 
 - `Admin`
-  - Password: `current2324`
-  - Full access
+  - password comes from `ADMIN_PASSWORD`
+  - full access to drivers, payroll, transactions, imports, and owner fund
 - `Owner`
-  - Access code: `current2324`
-  - Owner Fund page and Owner Fund PDF
+  - access code comes from `OWNER_PASSWORD`
+  - owner fund and owner reporting access
 - `Driver`
-  - Login with phone number saved in driver master
-  - Timesheet, salary slips, transactions
+  - login with registered phone number and driver PIN
+  - access timesheet, salary slips, and transaction history
+
+## Driver Security
+
+- Driver login requires:
+  - registered phone number
+  - driver PIN
+- Driver PIN is set from the add/edit driver form
+- Driver PIN is stored as a secure password hash
+
+## Main Features
+
+- Admin, Owner, and Driver portals
+- Driver phone + PIN self-service login
+- CSRF protection for forms
+- Strict numeric validation for money and hours
+- Driver create, edit, active/inactive, and delete
+- Driver transactions with edit/delete
+- Salary store with duplicate-month update protection
+- Salary slip PDF with duplicate generation protection
+- Driver KATA PDF
+- Owner Fund page and Owner Fund PDF
+- Driver timesheet entry and timesheet PDF
+- Import from `Currentlink.xlsm`
+- Import from uploaded `Driver.pdf`
+- Mobile-friendly driver portal
+- Landing page plus dedicated services page
 
 ## Driver Folders
 
-- `generated/drivers/<DRIVER_ID>/salary_slips`
-- `generated/drivers/<DRIVER_ID>/kata_pdfs`
-- `generated/drivers/<DRIVER_ID>/profile`
+Generated assets are stored inside:
+
+- `generated/drivers/<driver-name>__<driver-id>/salary_slips`
+- `generated/drivers/<driver-name>__<driver-id>/kata_pdfs`
+- `generated/drivers/<driver-name>__<driver-id>/timesheets`
+- `generated/drivers/<driver-name>__<driver-id>/profile`
 
 ## Local Run
 
-1. `py -m pip install -r requirements.txt`
-2. `py serve.py`
-3. Open `http://127.0.0.1:5000`
+1. Install dependencies:
 
-Or double-click:
+```powershell
+py -m pip install -r requirements.txt
+```
+
+2. Start the app:
+
+```powershell
+py serve.py
+```
+
+3. Open:
+
+```text
+http://127.0.0.1:5000
+```
+
+You can also use:
 
 - `start_current_link.bat`
 
+## Tests
+
+Run the basic workflow tests:
+
+```powershell
+py -m pytest -q
+```
+
+Current tests cover:
+
+- driver login rules
+- salary store update rules
+- transaction validation
+- driver delete cleanup
+
 ## Public Deployment Ready
 
-This project now includes:
+This project includes:
 
-- `serve.py` for production-style serving
-- `waitress` in `requirements.txt`
+- `serve.py`
+- `waitress`
 - `Dockerfile`
 - `.dockerignore`
 - `render.yaml`
 - `railway.json`
 - `Procfile`
 
-## Mobile / PWA
-
-- Drivers can use the portal on mobile browser
-- Installable app files are included:
-  - `app/static/manifest.webmanifest`
-  - `app/static/service-worker.js`
-  - `app/static/icon-192.svg`
-  - `app/static/icon-512.svg`
-
-## Deploy Options
+## Deploy Notes
 
 ### Render
 
 1. Push project to GitHub
-2. Create new Web Service on Render
-3. Render can read `render.yaml` automatically
-4. Start command: `python serve.py`
-5. Add a Render Postgres database and set `DATABASE_URL` on the web service
-
-### Data Safety
-
-- Local SQLite is fine for local PC testing
-- For live/public hosting, use `DATABASE_URL` so records stay safe across deploys and restarts
-- Driver photos are now stored in the database as well as local files
-- If a stored salary slip PDF disappears from the server, the app can rebuild it from saved payroll data
+2. Create a new Web Service on Render
+3. Use:
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `python serve.py`
+4. Add Render Postgres and set `DATABASE_URL`
+5. Set `SECRET_KEY`, `ADMIN_PASSWORD`, and `OWNER_PASSWORD` in Render environment variables
 
 ### Railway
 
 1. Push project to GitHub
-2. Create project in Railway
-3. Railway can use `railway.json`
-4. Start command: `python serve.py`
+2. Create a Railway project
+3. Use `railway.json`
+4. Set `DATABASE_URL`, `SECRET_KEY`, `ADMIN_PASSWORD`, and `OWNER_PASSWORD`
 
 ### Docker / VPS
 
@@ -93,6 +149,18 @@ docker build -t current-link-payroll .
 docker run -p 5000:5000 current-link-payroll
 ```
 
+## Data Safety
+
+- Local SQLite is suitable for local/offline use
+- Public hosting should use `DATABASE_URL` with Postgres
+- Driver photos are stored in the database as well as generated files
+- Salary slips can be rebuilt from saved payroll data if the PDF file is missing
+
 ## Important Note
 
-If you want the system to work from `any network` or `any city/site`, the app must be deployed on a public server or cloud VPS with a domain or public IP. Running on a local PC only gives local/LAN access.
+If the system must work from any network or any city/site, deploy it on a public server with:
+
+- public domain or public URL
+- Postgres database
+- environment variables for secrets
+- HTTPS enabled

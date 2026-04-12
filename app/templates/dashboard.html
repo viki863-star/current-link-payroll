@@ -95,6 +95,7 @@
         <p>New driver card, login access and folder flow create ho jayega.</p>
     </a>
     <form class="card quick-link-card accent-card action-card-form upload-card-form" method="post" action="{{ url_for('import_driver_pdf') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <span class="eyebrow">PDF Import</span>
         <strong>Upload Driver List</strong>
         <p>Driver.pdf upload karke driver master ko instant sync karein.</p>
@@ -102,6 +103,7 @@
         <button class="button button-secondary" type="submit">Upload and Import</button>
     </form>
     <form class="card quick-link-card accent-card action-card-form" method="post" action="{{ url_for('import_currentlink') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <span class="eyebrow">Workbook Sync</span>
         <strong>Import Currentlink.xlsm</strong>
         <p>Existing workbook data ko system ke master records ke sath refresh karein.</p>

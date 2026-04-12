@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="landing-stage">
+    <article class="card services-page-hero">
+        <div class="services-page-hero-media"></div>
+        <div class="services-page-hero-overlay"></div>
+        <div class="services-page-hero-copy">
+            <p class="eyebrow">Current Link Services</p>
+            <h2>Heavy transport, tanker support and contracting services with disciplined field execution.</h2>
+            <p class="lead">We support crane services, tanker supply, water removal, heavy equipment transport and general contracting operations with reliable coordination and strong driver management.</p>
+            <div class="actions-row landing-hero-actions">
+                <a class="button quote-button" href="#quote">Get a Quote</a>
+                <a class="button button-secondary" href="{{ url_for('login') }}#portal-access">Login Portal</a>
+            </div>
+        </div>
+    </article>
+</section>
+
+<section class="detail-layout company-showcase-grid premium-company-grid">
+    <article class="card services-story-card">
+        <p class="eyebrow">Our Services</p>
+        <h3>Built for demanding transport and project operations.</h3>
+        <div class="services-grid">
+            <article class="service-tile">
+                <span class="service-icon">CS</span>
+                <strong>Crane Services</strong>
+                <p>Safe lifting support and coordinated site execution for industrial and project work.</p>
+            </article>
+            <article class="service-tile">
+                <span class="service-icon">TS</span>
+                <strong>Tanker Supply</strong>
+                <p>Supply of all kinds of water through dependable tanker operations and route coordination.</p>
+            </article>
+            <article class="service-tile">
+                <span class="service-icon">WR</span>
+                <strong>Water Removal</strong>
+                <p>Fast response for removal, disposal and water movement at sites that need daily operational support.</p>
+            </article>
+            <article class="service-tile">
+                <span class="service-icon">HT</span>
+                <strong>Heavy Equipment Transport</strong>
+                <p>Trailer and transport support for specialized machinery, project cargo and site equipment movement.</p>
+            </article>
+        </div>
+    </article>
+
+    <article class="card leadership-card">
+        <p class="eyebrow">Leadership</p>
+        <h3>Operational leadership with clear accountability.</h3>
+        <div class="leadership-grid">
+            <article class="leader-profile">
+                <div class="leader-frame">
+                    <img src="{{ url_for('static', filename='owner-portrait.jpeg') }}" alt="Nasrullah">
+                </div>
+                <strong>Nasrullah</strong>
+                <small>Owner</small>
+                <small>Strategic company oversight, owner fund control and commercial direction.</small>
+            </article>
+            <article class="leader-profile">
+                <div class="leader-frame manager-frame">
+                    <img src="{{ url_for('static', filename='manager-portrait.jpeg') }}" alt="Eng. Shakir">
+                </div>
+                <strong>Eng. Shakir</strong>
+                <small>Operations Manager</small>
+                <small>Field execution, fleet readiness and heavy transport operational planning.</small>
+            </article>
+        </div>
+    </article>
+</section>
+
+<section class="card quote-panel-card" id="quote">
+    <div class="portal-section-top">
+        <div>
+            <p class="eyebrow">Get a Quote</p>
+            <h2>Ready for project support?</h2>
+            <p class="lead">For service inquiries, rates and operational planning, contact Current Link and share your transport or contracting requirement.</p>
+        </div>
+        <div class="portal-top-pills">
+            <span>Crane Services</span>
+            <span>Tanker Supply</span>
+            <span>Heavy Transport</span>
+        </div>
+    </div>
+    <div class="landing-signature-row">
+        <article class="landing-signature-chip">
+            <strong>Owner Desk</strong>
+            <small>Nasrullah</small>
+        </article>
+        <article class="landing-signature-chip">
+            <strong>Operations Desk</strong>
+            <small>Eng. Shakir</small>
+        </article>
+        <article class="landing-signature-chip">
+            <strong>Portal Access</strong>
+            <small><a class="table-link" href="{{ url_for('login') }}#portal-access">Open login portal</a></small>
+        </article>
+    </div>
+</section>
+{% endblock %}

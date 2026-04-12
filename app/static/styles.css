@@ -918,6 +918,12 @@ html {
     box-shadow: 0 24px 50px rgba(19, 56, 104, 0.14);
 }
 
+.luxury-hero-card {
+    min-height: 560px;
+    display: grid;
+    align-items: end;
+}
+
 .landing-showcase-card::before,
 .portal-section-card::after {
     content: "";
@@ -961,6 +967,33 @@ html {
     z-index: 1;
 }
 
+.landing-hero-media,
+.services-page-hero-media {
+    position: absolute;
+    inset: 0;
+    background: url("landing-hero.png") center/cover no-repeat;
+}
+
+.landing-hero-overlay,
+.services-page-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.88) 34%, rgba(255, 255, 255, 0.08) 72%, rgba(20, 43, 75, 0.06) 100%),
+        radial-gradient(circle at top right, rgba(230, 135, 31, 0.14), transparent 24%);
+}
+
+.landing-hero-panel,
+.services-page-hero-copy {
+    position: relative;
+    z-index: 2;
+    max-width: 620px;
+}
+
+.landing-hero-panel {
+    padding: 42px 32px;
+}
+
 .landing-copy h2,
 .portal-section-top h2,
 .services-story-card h3 {
@@ -972,6 +1005,15 @@ html {
 .landing-copy h2 {
     font-size: clamp(2rem, 4vw, 3.2rem);
     max-width: 760px;
+}
+
+.landing-hero-panel h2,
+.services-page-hero-copy h2 {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    letter-spacing: -0.04em;
+    font-size: clamp(2.3rem, 4.6vw, 4rem);
+    line-height: 1.08;
 }
 
 .landing-brand-ribbon {
@@ -1034,8 +1076,23 @@ html {
     margin-top: 20px;
 }
 
+.landing-hero-actions {
+    margin-top: 24px;
+}
+
 .portal-launch-button {
     animation: portalGlow 2.8s ease-in-out infinite;
+}
+
+.quote-button {
+    background: linear-gradient(135deg, var(--orange), #f0ab49);
+}
+
+.landing-hero-service-line {
+    margin: 18px 0 0;
+    color: var(--primary-dark);
+    font-weight: 700;
+    line-height: 1.55;
 }
 
 .landing-signature-row {
@@ -1101,6 +1158,19 @@ html {
     color: #fff;
     font-size: 0.72rem;
     font-weight: 800;
+}
+
+.service-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #173f66, #f09a2a);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
 }
 
 .landing-visual-zone {
@@ -1217,6 +1287,17 @@ html {
     line-height: 1.45;
 }
 
+.services-page-hero {
+    position: relative;
+    min-height: 420px;
+    overflow: hidden;
+    padding: 0;
+}
+
+.services-page-hero-copy {
+    padding: 38px 30px;
+}
+
 .leadership-mini-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1294,12 +1375,66 @@ html {
     font-weight: 700;
 }
 
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.premium-company-grid {
+    margin-bottom: 18px;
+}
+
+.services-story-card {
+    padding: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(28, 86, 139, 0.12), transparent 18%),
+        linear-gradient(145deg, #fffefb, #f5f9ff);
+}
+
+.service-tile {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    box-shadow: 0 14px 28px rgba(19, 56, 104, 0.08);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.service-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 22px 36px rgba(19, 56, 104, 0.12);
+}
+
+.service-tile strong {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 1rem;
+}
+
+.service-tile p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.quote-panel-card {
+    padding: 24px;
+}
+
 .driver-card-bottom {
     display: flex;
     justify-content: space-between;
     gap: 12px;
     align-items: center;
     margin-top: 12px;
+}
+
+.action-buttons form {
+    margin: 0;
 }
 
 .driver-card-note {
@@ -1932,7 +2067,8 @@ html {
     .filter-grid,
     .landing-showcase-grid,
     .landing-signature-row,
-    .leadership-mini-row {
+    .leadership-mini-row,
+    .services-grid {
         grid-template-columns: 1fr;
     }
 
@@ -1943,6 +2079,12 @@ html {
 
     .small-photo-panel {
         max-width: none;
+    }
+
+    .landing-hero-overlay,
+    .services-page-hero-overlay {
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.86) 54%, rgba(255, 255, 255, 0.40) 100%);
     }
 }
 

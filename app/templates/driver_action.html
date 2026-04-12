@@ -67,6 +67,11 @@
         <a class="button action-button green" href="{{ url_for('driver_salary_slip', driver_id=driver.driver_id) }}">Salary Slip</a>
         <a class="button action-button slate" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id) }}">KATA PDF</a>
         <a class="button action-button navy" href="{{ url_for('driver_timesheet_pdf', driver_id=driver.driver_id) }}" target="_blank">Timesheet PDF</a>
+        <a class="button action-button orange" href="{{ url_for('edit_driver', driver_id=driver.driver_id) }}">Edit Driver</a>
+        <form method="post" action="{{ url_for('delete_driver', driver_id=driver.driver_id) }}" onsubmit="return confirm('Delete this driver and all related records?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="button action-button danger-button" type="submit">Delete Driver</button>
+        </form>
     </div>
 </section>
 

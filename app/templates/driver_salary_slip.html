@@ -38,6 +38,7 @@
             <div class="info-box warning-box">This month already has a salary slip. Duplicate slip is blocked. Open the existing PDF below.</div>
         {% endif %}
         <form method="post" class="entry-form two-column-form premium-slip-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>
                 <span>Salary Month</span>
                 <select name="salary_store_id" required>

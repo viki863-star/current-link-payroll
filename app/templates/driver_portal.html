@@ -73,6 +73,7 @@
             </div>
         </div>
         <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="selected_month" value="{{ selected_month }}">
             <label>
                 <span>Date</span>

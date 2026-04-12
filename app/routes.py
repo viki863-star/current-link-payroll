@@ -1,4 +1,5 @@
 import base64
+import shutil
 from calendar import monthrange
 from datetime import date, datetime
 from functools import wraps
@@ -18,6 +19,8 @@ from flask import (
     url_for,
 )
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash, generate_password_hash
+from flask_wtf.csrf import CSRFError
 
 from .database import open_db
 from .excel_import import load_driver_records, upsert_driver_records
@@ -35,7 +38,16 @@ TRANSACTION_TYPES = ["Petty Cash", "Advance", "Fine", "Fuel", "Other"]
 PAYMENT_SOURCES = ["Owner Fund", "Owner Direct", "Current Link", "Office", "Cash", "Bank", "Other"]
 
 
+class ValidationError(ValueError):
+    pass
+
+
 def register_routes(app: Flask) -> None:
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(error):
+        flash("Your session form expired or the request was not secure. Please try again.", "error")
+        return redirect(request.referrer or url_for(_role_home_endpoint()))
+
     @app.context_processor
     def inject_auth_context():
         return {
@@ -61,6 +73,7 @@ def register_routes(app: Flask) -> None:
             role = request.form.get("role", "").strip().lower()
             password = request.form.get("password", "").strip()
             phone_number = request.form.get("phone_number", "").strip()
+            driver_pin = request.form.get("driver_pin", "").strip()
             selected_role = role or "admin"
             db = open_db()
 
@@ -81,6 +94,12 @@ def register_routes(app: Flask) -> None:
                 driver = _find_driver_by_phone(db, normalized_phone)
                 if driver is None:
                     flash("Driver phone number was not found. Add phone number in driver master first.", "error")
+                elif not driver["pin_hash"]:
+                    flash("Driver PIN is not set yet. Ask admin to update the driver profile.", "error")
+                elif not driver_pin:
+                    flash("Driver PIN is required.", "error")
+                elif not check_password_hash(driver["pin_hash"], driver_pin):
+                    flash("Driver PIN is not correct.", "error")
                 else:
                     _set_session("driver", driver_id=driver["driver_id"], display_name=driver["full_name"])
                     flash(f"Welcome {driver['full_name']}.", "success")
@@ -95,6 +114,10 @@ def register_routes(app: Flask) -> None:
         session.clear()
         flash("You have been signed out.", "success")
         return redirect(url_for("login"))
+
+    @app.get("/services")
+    def services():
+        return render_template("services.html")
 
     @app.route("/dashboard")
     @_login_required("admin")
@@ -233,27 +256,31 @@ def register_routes(app: Flask) -> None:
                 "payment_method": request.form.get("payment_method", "Cash").strip() or "Cash",
                 "details": request.form.get("details", "").strip(),
             }
-            amount = _safe_float(values["amount"])
-            if not values["owner_name"] or amount <= 0:
-                flash("Owner name and amount are required.", "error")
+            try:
+                amount = _parse_decimal(values["amount"], "Amount", minimum=0.01)
+            except ValidationError as exc:
+                flash(str(exc), "error")
             else:
-                db.execute(
-                    """
-                    INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, details)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        values["owner_name"],
-                        values["entry_date"],
-                        amount,
-                        values["received_by"],
-                        values["payment_method"],
-                        values["details"],
-                    ),
-                )
-                db.commit()
-                flash("Owner fund entry saved.", "success")
-                return redirect(url_for("owner_fund"))
+                if not values["owner_name"]:
+                    flash("Owner name is required.", "error")
+                else:
+                    db.execute(
+                        """
+                        INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, details)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            values["owner_name"],
+                            values["entry_date"],
+                            amount,
+                            values["received_by"],
+                            values["payment_method"],
+                            values["details"],
+                        ),
+                    )
+                    db.commit()
+                    flash("Owner fund entry saved.", "success")
+                    return redirect(url_for("owner_fund"))
 
         incoming, outgoing, balance = _owner_fund_totals(db)
         entries = db.execute(
@@ -322,9 +349,10 @@ def register_routes(app: Flask) -> None:
                 "work_hours": request.form.get("work_hours", "").strip(),
                 "remarks": request.form.get("remarks", "").strip(),
             }
-            work_hours = _safe_float(timesheet_values["work_hours"])
-            if work_hours <= 0:
-                flash("Hours must be greater than zero.", "error")
+            try:
+                work_hours = _parse_decimal(timesheet_values["work_hours"], "Hours", minimum=0.01, maximum=24)
+            except ValidationError as exc:
+                flash(str(exc), "error")
             else:
                 db.execute(
                     """
@@ -433,9 +461,9 @@ def register_routes(app: Flask) -> None:
             missing_fields = [
                 name
                 for name, value in form.items()
-                if name not in {"remarks", "photo_name", "duty_start"} and not value
+                if name not in {"remarks", "photo_name", "duty_start", "driver_pin", "confirm_driver_pin"} and not value
             ]
-            if missing_fields:
+            if missing_fields or not form["driver_pin"] or not form["confirm_driver_pin"]:
                 flash("Please fill in all required driver fields.", "error")
                 return render_template(
                     "driver_form.html",
@@ -450,16 +478,33 @@ def register_routes(app: Flask) -> None:
             if uploaded_photo:
                 form["photo_name"] = uploaded_photo["photo_name"]
 
+            try:
+                basic_salary = _parse_decimal(form["basic_salary"], "Basic salary", minimum=0.01)
+                ot_rate = _parse_decimal(form["ot_rate"], "OT rate", minimum=0.0)
+                normalized_phone = _normalize_required_phone(form["phone_number"])
+                pin_hash = _driver_pin_hash_from_form(form, edit_mode=False)
+            except ValidationError as exc:
+                flash(str(exc), "error")
+                return render_template(
+                    "driver_form.html",
+                    values=form,
+                    page_title="Add Driver",
+                    submit_label="Save Driver",
+                    edit_mode=False,
+                    current_photo_url=None,
+                )
+
+            form["phone_number"] = normalized_phone
             db = open_db()
             try:
                 db.execute(
                     """
                     INSERT INTO drivers (
-                        driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
+                        driver_id, full_name, phone_number, pin_hash, vehicle_no, shift, vehicle_type,
                         basic_salary, ot_rate, duty_start, photo_name, photo_data, photo_content_type, status, remarks
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    _driver_insert_values(form, uploaded_photo),
+                    _driver_insert_values(form, basic_salary, ot_rate, pin_hash, uploaded_photo),
                 )
                 db.commit()
             except Exception:
@@ -503,22 +548,39 @@ def register_routes(app: Flask) -> None:
             elif not form["photo_name"]:
                 form["photo_name"] = driver["photo_name"] or ""
 
+            try:
+                basic_salary = _parse_decimal(form["basic_salary"], "Basic salary", minimum=0.01)
+                ot_rate = _parse_decimal(form["ot_rate"], "OT rate", minimum=0.0)
+                normalized_phone = _normalize_required_phone(form["phone_number"])
+                pin_hash = _driver_pin_hash_from_form(form, edit_mode=True, existing_pin_hash=driver["pin_hash"] or "")
+            except ValidationError as exc:
+                flash(str(exc), "error")
+                return render_template(
+                    "driver_form.html",
+                    values=form,
+                    page_title="Edit Driver",
+                    submit_label="Update Driver",
+                    edit_mode=True,
+                    current_photo_url=_driver_photo_url(app, driver),
+                )
+
             db.execute(
                 """
                 UPDATE drivers
-                SET full_name = ?, phone_number = ?, vehicle_no = ?, shift = ?, vehicle_type = ?,
+                SET full_name = ?, phone_number = ?, pin_hash = ?, vehicle_no = ?, shift = ?, vehicle_type = ?,
                     basic_salary = ?, ot_rate = ?, duty_start = ?, photo_name = ?,
                     photo_data = ?, photo_content_type = ?, status = ?, remarks = ?
                 WHERE driver_id = ?
                 """,
                 (
                     form["full_name"],
-                    form["phone_number"],
+                    normalized_phone,
+                    pin_hash,
                     form["vehicle_no"],
                     form["shift"],
                     form["vehicle_type"],
-                    _safe_float(form["basic_salary"]),
-                    _safe_float(form["ot_rate"]),
+                    basic_salary,
+                    ot_rate,
                     form["duty_start"],
                     form["photo_name"],
                     uploaded_photo["photo_data"] if uploaded_photo else (driver["photo_data"] or ""),
@@ -553,6 +615,25 @@ def register_routes(app: Flask) -> None:
         db.execute("UPDATE drivers SET status = ? WHERE driver_id = ?", (next_status, driver_id))
         db.commit()
         flash(f"{driver_id} marked as {next_status}.", "success")
+        return redirect(url_for("driver_list"))
+
+    @app.post("/drivers/<driver_id>/delete")
+    @_login_required("admin")
+    def delete_driver(driver_id: str):
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for("driver_list"))
+
+        db.execute("DELETE FROM driver_timesheets WHERE driver_id = ?", (driver_id,))
+        db.execute("DELETE FROM driver_transactions WHERE driver_id = ?", (driver_id,))
+        db.execute("DELETE FROM salary_slips WHERE driver_id = ?", (driver_id,))
+        db.execute("DELETE FROM salary_store WHERE driver_id = ?", (driver_id,))
+        db.execute("DELETE FROM drivers WHERE driver_id = ?", (driver_id,))
+        db.commit()
+        _remove_driver_generated_files(app, driver)
+        flash(f"{driver['full_name']} deleted successfully.", "success")
         return redirect(url_for("driver_list"))
 
     @app.post("/drivers/import-currentlink")
@@ -697,9 +778,10 @@ def register_routes(app: Flask) -> None:
                 "amount": request.form.get("amount", "").strip(),
                 "details": request.form.get("details", "").strip(),
             }
-            amount = _safe_float(form["amount"])
-            if amount <= 0:
-                flash("Amount must be greater than zero.", "error")
+            try:
+                amount = _parse_decimal(form["amount"], "Amount", minimum=0.01)
+            except ValidationError as exc:
+                flash(str(exc), "error")
             else:
                 if form["transaction_id"]:
                     db.execute(
@@ -820,7 +902,30 @@ def register_routes(app: Flask) -> None:
                 "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
                 (driver_id, form["salary_month"]),
             ).fetchone()
-            preview = _calculate_salary_preview(driver, form)
+            try:
+                preview = _calculate_salary_preview(driver, form)
+            except ValidationError as exc:
+                flash(str(exc), "error")
+                return render_template(
+                    "driver_salary_store.html",
+                    driver=driver,
+                    photo_url=_driver_photo_url(app, driver),
+                    values=form,
+                    preview=_calculate_salary_preview(driver, _default_salary_form(form["salary_month"])),
+                    salary_rows=db.execute(
+                        """
+                        SELECT id, entry_date, salary_month, basic_salary, ot_hours, ot_amount, personal_vehicle, net_salary, remarks
+                        FROM salary_store
+                        WHERE driver_id = ?
+                        ORDER BY salary_month DESC
+                        LIMIT 12
+                        """,
+                        (driver_id,),
+                    ).fetchall(),
+                    selected_month_label=format_month_label(form["salary_month"]),
+                    existing_month=existing_row is not None,
+                    timesheet_hours=_timesheet_total_for_month(db, driver_id, form["salary_month"]),
+                )
             action = request.form.get("action", "calculate")
             existing_month_row = db.execute(
                 "SELECT id FROM salary_store WHERE driver_id = ? AND salary_month = ?",
@@ -982,7 +1087,11 @@ def register_routes(app: Flask) -> None:
                     driver_id,
                     exclude_salary_store_id=int(selected_salary_id),
                 ) + previous_deduction
-                deduction_amount = _safe_float(values["deduction_amount"])
+                try:
+                    deduction_amount = _parse_decimal(values["deduction_amount"], "Deduction amount", required=False, default=0.0, minimum=0.0)
+                except ValidationError as exc:
+                    flash(str(exc), "error")
+                    deduction_amount = 0.0
                 if deduction_amount < 0 or deduction_amount > available_advance + 0.001:
                     flash(f"Deduction amount must be between 0 and {available_advance:,.2f}.", "error")
                 elif selected_salary is None:
@@ -1061,7 +1170,10 @@ def register_routes(app: Flask) -> None:
         ).fetchall()
         preview = None
         if selected_salary is not None:
-            deduction_amount = _safe_float(values["deduction_amount"])
+            try:
+                deduction_amount = _parse_decimal(values["deduction_amount"], "Deduction amount", required=False, default=0.0, minimum=0.0)
+            except ValidationError:
+                deduction_amount = 0.0
             preview = {
                 "gross": float(selected_salary["net_salary"]),
                 "available_advance": available_advance,
@@ -1221,7 +1333,7 @@ def _find_driver_by_phone(db, phone_number: str):
         return None
     drivers = db.execute(
         """
-        SELECT driver_id, full_name, phone_number, status
+        SELECT driver_id, full_name, phone_number, pin_hash, status
         FROM drivers
         WHERE phone_number IS NOT NULL AND TRIM(phone_number) != ''
         ORDER BY full_name ASC
@@ -1243,7 +1355,7 @@ def _fetch_driver(db, driver_id: str):
     return db.execute(
         """
         SELECT driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
-               basic_salary, ot_rate, duty_start, photo_name, photo_data, photo_content_type, status, remarks
+               basic_salary, ot_rate, duty_start, photo_name, photo_data, photo_content_type, pin_hash, status, remarks
         FROM drivers
         WHERE driver_id = ?
         """,
@@ -1323,6 +1435,8 @@ def _driver_form_data(request):
         "driver_id": request.form.get("driver_id", "").strip(),
         "full_name": request.form.get("full_name", "").strip(),
         "phone_number": request.form.get("phone_number", "").strip(),
+        "driver_pin": request.form.get("driver_pin", "").strip(),
+        "confirm_driver_pin": request.form.get("confirm_driver_pin", "").strip(),
         "vehicle_no": request.form.get("vehicle_no", "").strip(),
         "shift": request.form.get("shift", "").strip(),
         "vehicle_type": request.form.get("vehicle_type", "").strip(),
@@ -1335,16 +1449,17 @@ def _driver_form_data(request):
     }
 
 
-def _driver_insert_values(form, uploaded_photo=None):
+def _driver_insert_values(form, basic_salary: float, ot_rate: float, pin_hash: str, uploaded_photo=None):
     return (
         form["driver_id"],
         form["full_name"],
-        form["phone_number"],
+        _normalize_phone(form["phone_number"]),
+        pin_hash,
         form["vehicle_no"],
         form["shift"],
         form["vehicle_type"],
-        _safe_float(form["basic_salary"]),
-        _safe_float(form["ot_rate"]),
+        basic_salary,
+        ot_rate,
         form["duty_start"],
         form["photo_name"],
         uploaded_photo["photo_data"] if uploaded_photo else "",
@@ -1355,10 +1470,47 @@ def _driver_insert_values(form, uploaded_photo=None):
 
 
 def _safe_float(value: str) -> float:
+    return _parse_decimal(value, "Number", required=False, default=0.0)
+
+
+def _parse_decimal(value: str, field_name: str, *, required: bool = True, default=None, minimum=None, maximum=None) -> float:
+    text = (value or "").strip()
+    if not text:
+        if required:
+            raise ValidationError(f"{field_name} is required.")
+        return default
     try:
-        return float(value)
-    except ValueError:
-        return 0.0
+        amount = float(text)
+    except ValueError as exc:
+        raise ValidationError(f"{field_name} must be a valid number.") from exc
+    if minimum is not None and amount < minimum:
+        raise ValidationError(f"{field_name} must be {minimum:g} or greater.")
+    if maximum is not None and amount > maximum:
+        raise ValidationError(f"{field_name} must be {maximum:g} or less.")
+    return amount
+
+
+def _normalize_required_phone(value: str) -> str:
+    normalized = _normalize_phone(value)
+    if len(normalized) < 7:
+        raise ValidationError("Phone number must contain at least 7 digits.")
+    return normalized
+
+
+def _driver_pin_hash_from_form(form, *, edit_mode: bool, existing_pin_hash: str = "") -> str:
+    pin = form.get("driver_pin", "").strip()
+    confirm_pin = form.get("confirm_driver_pin", "").strip()
+
+    if edit_mode and not pin and not confirm_pin:
+        return existing_pin_hash
+
+    if not pin or not confirm_pin:
+        raise ValidationError("Driver PIN and confirm PIN are required.")
+    if pin != confirm_pin:
+        raise ValidationError("Driver PIN and confirm PIN must match.")
+    if not pin.isdigit() or len(pin) < 4:
+        raise ValidationError("Driver PIN must be at least 4 digits.")
+    return generate_password_hash(pin)
 
 
 def _default_salary_form(salary_month: str):
@@ -1384,8 +1536,8 @@ def _salary_form_from_row(row):
 def _calculate_salary_preview(driver, form):
     basic_salary = float(driver["basic_salary"])
     ot_rate = float(driver["ot_rate"])
-    ot_hours = _safe_float(form.get("ot_hours", "0"))
-    personal_vehicle = _safe_float(form.get("personal_vehicle", "0"))
+    ot_hours = _parse_decimal(form.get("ot_hours", "0"), "OT hours", required=False, default=0.0, minimum=0.0)
+    personal_vehicle = _parse_decimal(form.get("personal_vehicle", "0"), "Personal / Vehicle", required=False, default=0.0)
     ot_amount = ot_hours * ot_rate
     net_salary = basic_salary + ot_amount + personal_vehicle
     return {
@@ -1547,7 +1699,7 @@ def _driver_output_dir(app: Flask, driver_id: str, *, driver=None, full_name: st
             db = open_db()
             found = _fetch_driver(db, driver_id)
             full_name = found["full_name"] if found else driver_id
-    base_dir = drivers_root / _driver_folder_name(full_name or driver_id, driver_id)
+        base_dir = drivers_root / _driver_folder_name(full_name or driver_id, driver_id)
     (base_dir / "salary_slips").mkdir(parents=True, exist_ok=True)
     (base_dir / "kata_pdfs").mkdir(parents=True, exist_ok=True)
     (base_dir / "timesheets").mkdir(parents=True, exist_ok=True)
@@ -1605,6 +1757,21 @@ def _save_driver_photo(app: Flask, driver_id: str, full_name: str, photo_file):
         "photo_data": base64.b64encode(photo_bytes).decode("ascii"),
         "photo_content_type": photo_file.mimetype or "image/jpeg",
     }
+
+
+def _remove_driver_generated_files(app: Flask, driver) -> None:
+    drivers_root = Path(app.config["GENERATED_DIR"]) / "drivers"
+    candidates = {drivers_root / driver["driver_id"], drivers_root / _driver_folder_name(driver["full_name"], driver["driver_id"])}
+    candidates.update(folder for folder in drivers_root.glob(f"*__{driver['driver_id'].lower()}") if folder.is_dir())
+
+    for folder in candidates:
+        try:
+            resolved = folder.resolve()
+            root_resolved = drivers_root.resolve()
+        except FileNotFoundError:
+            continue
+        if folder.exists() and root_resolved in resolved.parents:
+            shutil.rmtree(folder, ignore_errors=True)
 
 
 def _driver_photo_url(app: Flask, driver) -> str | None:

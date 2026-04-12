@@ -43,9 +43,11 @@
                         <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund</a>
                         <a class="button" href="{{ url_for('create_driver') }}">Add Driver</a>
                         <form method="post" action="{{ url_for('import_currentlink') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="button button-secondary" type="submit">Import</button>
                         </form>
                         <form method="post" action="{{ url_for('import_driver_pdf') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="button button-secondary" type="submit">Import Driver PDF</button>
                         </form>
                     {% elif is_owner %}

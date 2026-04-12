@@ -26,6 +26,7 @@
         </div>
         {% if can_edit %}
             <form method="post" class="entry-form two-column-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label>
                     <span>Owner Name</span>
                     <input type="text" name="owner_name" value="{{ values.owner_name }}" required>
