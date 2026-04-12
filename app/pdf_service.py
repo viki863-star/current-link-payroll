@@ -15,6 +15,7 @@ BLUE_DARK = colors.HexColor("#15335D")
 BLUE_SOFT = colors.HexColor("#EAF2FB")
 ORANGE = colors.HexColor("#E6871F")
 GREEN = colors.HexColor("#2CB15C")
+RED = colors.HexColor("#D44A3A")
 SLATE = colors.HexColor("#40556E")
 TEXT = colors.HexColor("#1F2937")
 MUTED = colors.HexColor("#667A95")
@@ -31,7 +32,7 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
     _draw_title(pdf, f"Salary Slip {format_month_label(salary_row['salary_month'])}")
     _draw_salary_summary(pdf, driver, salary_row, slip_payload)
     _draw_salary_breakdown(pdf, salary_row, slip_payload)
-    _draw_salary_footer(pdf, driver, assets_dir, generated_dir)
+    _draw_salary_footer(pdf, driver, slip_payload, assets_dir, generated_dir)
     pdf.showPage()
     pdf.save()
     return str(output_path)
@@ -159,80 +160,97 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
 
 
 def _draw_header(pdf: canvas.Canvas, assets_dir: str) -> None:
-    banner = Path(assets_dir) / "current-link-header.png"
+    premium_banner = Path(assets_dir) / "current-link-header-premium.png"
+    banner = premium_banner if premium_banner.exists() else Path(assets_dir) / "current-link-header.png"
     if banner.exists():
         pdf.drawImage(
             str(banner),
-            15 * mm,
+            16 * mm,
             PAGE_HEIGHT - 34 * mm,
-            width=180 * mm,
-            height=22 * mm,
+            width=178 * mm,
+            height=24 * mm,
             preserveAspectRatio=True,
             mask="auto",
         )
     pdf.setFillColor(BLUE)
-    pdf.rect(15 * mm, PAGE_HEIGHT - 39 * mm, 180 * mm, 1.8 * mm, fill=1, stroke=0)
+    pdf.rect(15 * mm, PAGE_HEIGHT - 40 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
 
 
 def _draw_title(pdf: canvas.Canvas, title: str) -> None:
     pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 16)
-    pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 49 * mm, title)
+    pdf.setFont("Helvetica-Bold", 17)
+    pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 53 * mm, title)
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 8)
+    pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 58.5 * mm, "Payroll summary with earnings, deductions and payment details")
 
 
 def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -> None:
-    left_x = 16 * mm
-    top_y = PAGE_HEIGHT - 57 * mm
+    summary_x = 16 * mm
+    summary_y = 181 * mm
+    summary_w = 116 * mm
+    summary_h = 47 * mm
 
     pdf.setFillColor(colors.white)
-    pdf.roundRect(left_x, top_y - 55 * mm, 118 * mm, 51 * mm, 5 * mm, fill=1, stroke=0)
+    pdf.roundRect(summary_x, summary_y, summary_w, summary_h, 5 * mm, fill=1, stroke=0)
     pdf.setStrokeColor(LINE)
-    pdf.roundRect(left_x, top_y - 55 * mm, 118 * mm, 51 * mm, 5 * mm, fill=0, stroke=1)
+    pdf.roundRect(summary_x, summary_y, summary_w, summary_h, 5 * mm, fill=0, stroke=1)
+
+    pdf.setFillColor(BLUE_SOFT)
+    pdf.roundRect(summary_x, summary_y + summary_h - 10 * mm, summary_w, 10 * mm, 5 * mm, fill=1, stroke=0)
     pdf.setFillColor(BLUE_DARK)
     pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(left_x + 5 * mm, top_y - 8 * mm, "DRIVER SUMMARY")
+    pdf.drawString(summary_x + 5 * mm, summary_y + summary_h - 6.2 * mm, "DRIVER SUMMARY")
 
-    rows = [
+    left_rows = [
         ("Driver Name", driver["full_name"]),
         ("Driver ID", driver["driver_id"]),
-        ("Phone Number", driver["phone_number"] if "phone_number" in driver.keys() else "-"),
-        ("Pay Period", format_month_label(salary_row["salary_month"])),
         ("Vehicle Number", driver["vehicle_no"]),
-        ("Shift", driver["shift"]),
         ("Join Date", format_date_label(driver["duty_start"])),
     ]
+    right_rows = [
+        ("Phone Number", driver["phone_number"] if "phone_number" in driver.keys() else "-"),
+        ("Pay Period", format_month_label(salary_row["salary_month"])),
+        ("Shift", driver["shift"]),
+        ("Basic Salary", f"AED {format_currency(float(salary_row['basic_salary']))}"),
+    ]
 
-    y = top_y - 14 * mm
-    for label, value in rows:
-        pdf.setFillColor(MUTED)
-        pdf.setFont("Helvetica", 8.0)
-        pdf.drawString(left_x + 5 * mm, y, label)
-        pdf.setFillColor(TEXT)
-        pdf.setFont("Helvetica-Bold", 8.2)
-        pdf.drawString(left_x + 39 * mm, y, str(value or "-"))
-        y -= 5.1 * mm
+    row_y = summary_y + summary_h - 15.5 * mm
+    for label, value in left_rows:
+        _draw_label_value_row(pdf, summary_x + 5 * mm, row_y, 24 * mm, 25 * mm, label, value)
+        row_y -= 7.2 * mm
 
-    box_x = 140 * mm
-    box_y = top_y - 34 * mm
+    row_y = summary_y + summary_h - 15.5 * mm
+    for label, value in right_rows:
+        _draw_label_value_row(pdf, summary_x + 63 * mm, row_y, 19 * mm, 28 * mm, label, value)
+        row_y -= 7.2 * mm
+
+    metric_x = 138 * mm
+    metric_y = 205 * mm
+    metric_w = 56 * mm
+    metric_h = 23 * mm
     pdf.setFillColor(BLUE)
-    pdf.roundRect(box_x, box_y, 43 * mm, 26 * mm, 5 * mm, fill=1, stroke=0)
+    pdf.roundRect(metric_x, metric_y, metric_w, metric_h, 5 * mm, fill=1, stroke=0)
     pdf.setFillColor(colors.white)
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawCentredString(box_x + 21.5 * mm, box_y + 15 * mm, f"{format_currency(float(slip_payload['net_payable']))} AED")
-    pdf.setFont("Helvetica", 7.5)
-    pdf.drawCentredString(box_x + 21.5 * mm, box_y + 6 * mm, "Total Net Pay")
+    pdf.setFont("Helvetica-Bold", 8.2)
+    pdf.drawCentredString(metric_x + metric_w / 2, metric_y + 16 * mm, "NET PAYABLE")
+    pdf.setFont("Helvetica-Bold", 13.2)
+    pdf.drawCentredString(metric_x + metric_w / 2, metric_y + 9.2 * mm, f"{format_currency(float(slip_payload['net_payable']))} AED")
+    pdf.setFont("Helvetica", 7.2)
+    pdf.drawCentredString(metric_x + metric_w / 2, metric_y + 3.2 * mm, format_month_label(salary_row["salary_month"]))
 
-    info_x = 140 * mm
-    info_y = top_y - 56 * mm
-    pdf.setFillColor(BLUE_SOFT)
-    pdf.roundRect(info_x, info_y, 43 * mm, 20 * mm, 4 * mm, fill=1, stroke=0)
+    info_y = 181 * mm
+    info_h = 20 * mm
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(metric_x, info_y, metric_w, info_h, 5 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(metric_x, info_y, metric_w, info_h, 5 * mm, fill=0, stroke=1)
     pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 7.5)
-    pdf.drawString(info_x + 4 * mm, info_y + 14 * mm, f"Driver ID: {driver['driver_id']}")
-    pdf.drawString(info_x + 4 * mm, info_y + 9 * mm, f"Source: {slip_payload['payment_source']}")
-    paid_by = slip_payload.get("paid_by") or "-"
-    pdf.setFont("Helvetica", 7.3)
-    pdf.drawString(info_x + 4 * mm, info_y + 4 * mm, f"Paid By: {paid_by[:24]}")
+    pdf.setFont("Helvetica-Bold", 8)
+    pdf.drawString(metric_x + 4 * mm, info_y + 14.3 * mm, "PAYMENT DETAILS")
+    _draw_small_meta_row(pdf, metric_x + 4 * mm, info_y + 9.2 * mm, "Source", slip_payload["payment_source"], 33 * mm)
+    _draw_small_meta_row(pdf, metric_x + 4 * mm, info_y + 5.1 * mm, "Paid By", slip_payload.get("paid_by") or "-", 33 * mm)
+    _draw_small_meta_row(pdf, metric_x + 4 * mm, info_y + 1.1 * mm, "Advance Left", f"AED {format_currency(float(slip_payload['remaining_advance']))}", 29 * mm)
 
 
 def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None:
@@ -243,9 +261,16 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
     net_payable = float(slip_payload["net_payable"])
 
     x = 16 * mm
-    y = PAGE_HEIGHT - 138 * mm
+    y = 103 * mm
     w = 179 * mm
-    h = 63 * mm
+    h = 66 * mm
+
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 10.5)
+    pdf.drawString(x, y + h + 6.5 * mm, "SALARY DETAILS")
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 7.4)
+    pdf.drawString(x + 38 * mm, y + h + 6.5 * mm, "Separate earnings and deductions layout for clean printing")
 
     pdf.setFillColor(colors.white)
     pdf.roundRect(x, y, w, h, 5 * mm, fill=1, stroke=0)
@@ -253,16 +278,16 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
     pdf.roundRect(x, y, w, h, 5 * mm, fill=0, stroke=1)
 
     pdf.setFillColor(ORANGE)
-    pdf.rect(x, y + h - 9 * mm, w, 9 * mm, fill=1, stroke=0)
+    pdf.rect(x, y + h - 10 * mm, w, 10 * mm, fill=1, stroke=0)
     pdf.setFillColor(colors.white)
-    pdf.setFont("Helvetica-Bold", 8.7)
-    pdf.drawString(x + 4 * mm, y + h - 5.7 * mm, "EARNINGS")
-    pdf.drawString(x + 60 * mm, y + h - 5.7 * mm, "AMOUNT")
-    pdf.drawString(x + 95 * mm, y + h - 5.7 * mm, "DEDUCTIONS")
-    pdf.drawString(x + 149 * mm, y + h - 5.7 * mm, "AMOUNT")
+    pdf.setFont("Helvetica-Bold", 8.9)
+    pdf.drawString(x + 6 * mm, y + h - 6.2 * mm, "EARNINGS")
+    pdf.drawString(x + 63 * mm, y + h - 6.2 * mm, "AMOUNT")
+    pdf.drawString(x + 95 * mm, y + h - 6.2 * mm, "DEDUCTIONS")
+    pdf.drawString(x + 152 * mm, y + h - 6.2 * mm, "AMOUNT")
 
     pdf.setStrokeColor(LINE)
-    pdf.line(x + 88 * mm, y + 4 * mm, x + 88 * mm, y + h - 4 * mm)
+    pdf.line(x + 89.5 * mm, y + 5 * mm, x + 89.5 * mm, y + h - 5 * mm)
 
     earnings = [
         ("Basic Salary", float(salary_row["basic_salary"])),
@@ -279,61 +304,84 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
         ("Total Deductions", deduction_amount),
     ]
 
-    row_y = y + h - 16 * mm
+    row_y = y + h - 18.5 * mm
     for index in range(5):
+        if index % 2 == 0:
+            pdf.setFillColor(SOFT)
+            pdf.roundRect(x + 3 * mm, row_y - 3.4 * mm, 82 * mm, 6.4 * mm, 1.8 * mm, fill=1, stroke=0)
+            pdf.roundRect(x + 92 * mm, row_y - 3.4 * mm, 82 * mm, 6.4 * mm, 1.8 * mm, fill=1, stroke=0)
         left_label, left_value = earnings[index]
         right_label, right_value = deductions[index]
         pdf.setFillColor(MUTED)
-        pdf.setFont("Helvetica", 8.2)
-        pdf.drawString(x + 4 * mm, row_y, left_label)
-        pdf.drawString(x + 92 * mm, row_y, right_label)
+        pdf.setFont("Helvetica", 8.3)
+        pdf.drawString(x + 6 * mm, row_y, left_label)
+        pdf.drawString(x + 95 * mm, row_y, right_label)
         pdf.setFillColor(TEXT)
-        pdf.setFont("Helvetica-Bold", 8.5)
-        pdf.drawRightString(x + 83 * mm, row_y, format_currency(left_value))
-        pdf.drawRightString(x + 173 * mm, row_y, format_currency(right_value))
-        row_y -= 7.6 * mm
+        pdf.setFont("Helvetica-Bold", 8.7)
+        pdf.drawRightString(x + 82 * mm, row_y, format_currency(left_value))
+        pdf.drawRightString(x + 172 * mm, row_y, format_currency(right_value))
+        row_y -= 8.1 * mm
 
-    total_y = y - 13 * mm
-    pdf.setFillColor(TEXT)
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(x + 1 * mm, total_y, "TOTAL NET PAYABLE")
-    pdf.setFillColor(BLUE_DARK)
-    pdf.drawRightString(x + w - 3 * mm, total_y, format_currency(net_payable))
+    metrics_y = 84 * mm
+    _draw_stat_box(pdf, 16 * mm, metrics_y, 56 * mm, 14 * mm, "GROSS EARNINGS", format_currency(gross))
+    _draw_stat_box(pdf, 77.5 * mm, metrics_y, 56 * mm, 14 * mm, "TOTAL DEDUCTIONS", format_currency(deduction_amount))
+    _draw_stat_box(pdf, 139 * mm, metrics_y, 56 * mm, 14 * mm, "FINAL NET PAY", f"{format_currency(net_payable)} AED", fill_color=BLUE, text_color=colors.white, border_color=BLUE)
 
 
-def _draw_salary_footer(pdf: canvas.Canvas, driver, assets_dir: str, generated_dir: str) -> None:
+def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: str, generated_dir: str) -> None:
     card_x = 16 * mm
-    card_y = 34 * mm
-    card_w = 58 * mm
-    card_h = 34 * mm
+    card_y = 38 * mm
+    card_w = 44 * mm
+    card_h = 33 * mm
     pdf.setFillColor(SOFT)
     pdf.roundRect(card_x, card_y, card_w, card_h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(card_x, card_y, card_w, card_h, 4 * mm, fill=0, stroke=1)
 
     if not _draw_driver_photo(pdf, driver, generated_dir, card_x + 2.5 * mm, card_y + 2.5 * mm, card_w - 5 * mm, card_h - 5 * mm):
         pdf.setFillColor(MUTED)
         pdf.setFont("Helvetica-Bold", 9)
         pdf.drawCentredString(card_x + card_w / 2, card_y + card_h / 2, "NO PHOTO")
 
-    note_x = 82 * mm
-    note_y = 39 * mm
-    pdf.setFillColor(BLUE_SOFT)
-    pdf.roundRect(note_x, note_y, 52 * mm, 24 * mm, 4 * mm, fill=1, stroke=0)
+    status_x = 66 * mm
+    status_y = 38 * mm
+    status_w = 60 * mm
+    status_h = 33 * mm
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(status_x, status_y, status_w, status_h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(status_x, status_y, status_w, status_h, 4 * mm, fill=0, stroke=1)
     pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 8.5)
-    pdf.drawString(note_x + 4 * mm, note_y + 16 * mm, "Payment Status")
+    pdf.setFont("Helvetica-Bold", 8.4)
+    pdf.drawString(status_x + 4 * mm, status_y + 25 * mm, "PAYMENT STATUS")
     pdf.setFillColor(GREEN)
-    pdf.setFont("Helvetica-BoldOblique", 17)
-    pdf.drawString(note_x + 4 * mm, note_y + 6 * mm, "PAID")
+    pdf.setFont("Helvetica-Bold", 13.5)
+    pdf.drawString(status_x + 4 * mm, status_y + 17 * mm, "PAID")
+    _draw_small_meta_row(pdf, status_x + 4 * mm, status_y + 11.2 * mm, "Source", slip_payload["payment_source"], 34 * mm)
+    _draw_small_meta_row(pdf, status_x + 4 * mm, status_y + 6.7 * mm, "Paid By", slip_payload.get("paid_by") or "-", 34 * mm)
+    _draw_small_meta_row(pdf, status_x + 4 * mm, status_y + 2.2 * mm, "Remaining", f"AED {format_currency(float(slip_payload['remaining_advance']))}", 30 * mm)
 
-    sign_x = 146 * mm
-    sign_y = 46 * mm
-    pdf.setFillColor(TEXT)
-    pdf.setFont("Helvetica", 8)
-    pdf.drawString(sign_x, sign_y + 8 * mm, "Driver Sign")
-    pdf.line(sign_x + 22 * mm, sign_y + 8.5 * mm, sign_x + 46 * mm, sign_y + 8.5 * mm)
+    sign_x = 132 * mm
+    sign_y = 38 * mm
+    sign_w = 63 * mm
+    sign_h = 33 * mm
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(sign_x, sign_y, sign_w, sign_h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(sign_x, sign_y, sign_w, sign_h, 4 * mm, fill=0, stroke=1)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 8.4)
+    pdf.drawString(sign_x + 4 * mm, sign_y + 25 * mm, "DRIVER ACKNOWLEDGMENT")
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 7.4)
-    pdf.drawString(82 * mm, 31 * mm, "This is a system-generated salary slip.")
+    pdf.drawString(sign_x + 4 * mm, sign_y + 18.8 * mm, f"Driver ID: {driver['driver_id']}")
+    pdf.drawString(sign_x + 4 * mm, sign_y + 14.2 * mm, "Signature")
+    pdf.setStrokeColor(BLUE_DARK)
+    pdf.line(sign_x + 22 * mm, sign_y + 14.6 * mm, sign_x + 54 * mm, sign_y + 14.6 * mm)
+    _draw_paid_stamp(pdf, sign_x + 40 * mm, sign_y + 7.5 * mm)
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 7.1)
+    pdf.drawString(16 * mm, 33 * mm, "This is a system-generated salary slip for internal payroll records.")
     _draw_footer_banner(pdf, assets_dir)
 
 
@@ -394,6 +442,78 @@ def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str) -> None:
             preserveAspectRatio=True,
             mask="auto",
         )
+
+
+def _draw_label_value_row(pdf: canvas.Canvas, x: float, y: float, label_width: float, value_width: float, label: str, value: str) -> None:
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 7.8)
+    pdf.drawString(x, y, label)
+    pdf.setFillColor(TEXT)
+    text, size = _fit_text(pdf, str(value or "-"), "Helvetica-Bold", 8.2, value_width)
+    pdf.setFont("Helvetica-Bold", size)
+    pdf.drawString(x + label_width, y, text)
+
+
+def _draw_small_meta_row(pdf: canvas.Canvas, x: float, y: float, label: str, value: str, value_width: float) -> None:
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 6.9)
+    pdf.drawString(x, y, f"{label}:")
+    pdf.setFillColor(TEXT)
+    text, size = _fit_text(pdf, str(value or "-"), "Helvetica-Bold", 7.1, value_width)
+    pdf.setFont("Helvetica-Bold", size)
+    pdf.drawRightString(x + 46 * mm, y, text)
+
+
+def _draw_stat_box(
+    pdf: canvas.Canvas,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    label: str,
+    value: str,
+    *,
+    fill_color=colors.white,
+    text_color=TEXT,
+    border_color=LINE,
+) -> None:
+    pdf.setFillColor(fill_color)
+    pdf.roundRect(x, y, w, h, 3.5 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(border_color)
+    pdf.roundRect(x, y, w, h, 3.5 * mm, fill=0, stroke=1)
+    pdf.setFillColor(text_color)
+    pdf.setFont("Helvetica-Bold", 7.1)
+    pdf.drawString(x + 4 * mm, y + 9.2 * mm, label)
+    text, size = _fit_text(pdf, value, "Helvetica-Bold", 9.6, w - 8 * mm)
+    pdf.setFont("Helvetica-Bold", size)
+    pdf.drawString(x + 4 * mm, y + 4.1 * mm, text)
+
+
+def _draw_paid_stamp(pdf: canvas.Canvas, x: float, y: float) -> None:
+    pdf.saveState()
+    pdf.translate(x, y)
+    pdf.rotate(-16)
+    pdf.setStrokeColor(RED)
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(-12 * mm, -4 * mm, 24 * mm, 8 * mm, 3 * mm, fill=1, stroke=1)
+    pdf.setFillColor(RED)
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawCentredString(0, -0.4 * mm, "PAID")
+    pdf.restoreState()
+
+
+def _fit_text(pdf: canvas.Canvas, text: str, font_name: str, font_size: float, max_width: float, min_size: float = 6.4):
+    value = text or "-"
+    size = font_size
+    while size > min_size and pdf.stringWidth(value, font_name, size) > max_width:
+        size -= 0.2
+    if pdf.stringWidth(value, font_name, size) <= max_width:
+        return value, size
+
+    clipped = value
+    while clipped and pdf.stringWidth(f"{clipped}...", font_name, size) > max_width:
+        clipped = clipped[:-1]
+    return (f"{clipped}..." if clipped else "..."), size
 
 
 def format_currency(value: float) -> str:
