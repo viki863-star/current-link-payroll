@@ -1,3 +1,12 @@
+---
+title: Current Link Payroll
+emoji: "🚛"
+colorFrom: blue
+colorTo: yellow
+sdk: docker
+app_port: 7860
+---
+
 # Current Link Driver Payroll System
 
 ## Overview
@@ -134,6 +143,24 @@ This project includes:
 - `render.yaml`
 - `railway.json`
 - `Procfile`
+
+### Hugging Face Spaces
+
+1. Create a new Space on Hugging Face
+2. Choose `Docker` as the Space SDK
+3. Import or push this repository into the Space
+4. In Space `Settings -> Variables and secrets`, set:
+   - `SECRET_KEY`
+   - `ADMIN_PASSWORD` or `ADMIN_PASSWORD_HASH`
+   - `OWNER_PASSWORD` or `OWNER_PASSWORD_HASH`
+   - `SESSION_COOKIE_SECURE=true`
+   - `REQUIRE_DATABASE_URL=false` for demo use
+5. The Space reads the included `Dockerfile` and serves the app on port `7860`
+
+Important:
+
+- Free Spaces do not provide durable local storage for long-term business data
+- For real public use, connect an external Postgres database and store generated files outside local disk
 
 ## Deploy Notes
 

@@ -1,15 +1,22 @@
 FROM python:3.12-slim
 
-WORKDIR /app
+RUN useradd -m -u 1000 user
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+USER user
 
-COPY . .
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH \
+    HOST=0.0.0.0 \
+    PORT=7860
 
-ENV HOST=0.0.0.0
-ENV PORT=5000
+WORKDIR $HOME/app
 
-EXPOSE 5000
+COPY --chown=user requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+COPY --chown=user . .
+
+EXPOSE 7860
 
 CMD ["python", "serve.py"]
