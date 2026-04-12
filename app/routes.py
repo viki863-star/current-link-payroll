@@ -1,21 +1,24 @@
+import base64
 from datetime import date, datetime
 from functools import wraps
+from io import BytesIO
 from pathlib import Path
 
 from flask import (
     Flask,
+    abort,
     flash,
     redirect,
     render_template,
     request,
-    send_from_directory,
+    send_file,
     session,
     url_for,
 )
 from werkzeug.utils import secure_filename
 
 from .database import open_db
-from .excel_import import import_drivers_from_workbook
+from .excel_import import load_driver_records, upsert_driver_records
 from .pdf_service import (
     format_month_label,
     generate_kata_pdf,
@@ -360,7 +363,7 @@ def register_routes(app: Flask) -> None:
 
             uploaded_photo = _save_driver_photo(app, form["driver_id"], request.files.get("photo_file"))
             if uploaded_photo:
-                form["photo_name"] = uploaded_photo
+                form["photo_name"] = uploaded_photo["photo_name"]
 
             db = open_db()
             try:
@@ -368,10 +371,10 @@ def register_routes(app: Flask) -> None:
                     """
                     INSERT INTO drivers (
                         driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
-                        basic_salary, ot_rate, duty_start, photo_name, status, remarks
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        basic_salary, ot_rate, duty_start, photo_name, photo_data, photo_content_type, status, remarks
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    _driver_insert_values(form),
+                    _driver_insert_values(form, uploaded_photo),
                 )
                 db.commit()
             except Exception:
@@ -411,7 +414,7 @@ def register_routes(app: Flask) -> None:
             form["driver_id"] = driver_id
             uploaded_photo = _save_driver_photo(app, driver_id, request.files.get("photo_file"))
             if uploaded_photo:
-                form["photo_name"] = uploaded_photo
+                form["photo_name"] = uploaded_photo["photo_name"]
             elif not form["photo_name"]:
                 form["photo_name"] = driver["photo_name"] or ""
 
@@ -420,7 +423,7 @@ def register_routes(app: Flask) -> None:
                 UPDATE drivers
                 SET full_name = ?, phone_number = ?, vehicle_no = ?, shift = ?, vehicle_type = ?,
                     basic_salary = ?, ot_rate = ?, duty_start = ?, photo_name = ?,
-                    status = ?, remarks = ?
+                    photo_data = ?, photo_content_type = ?, status = ?, remarks = ?
                 WHERE driver_id = ?
                 """,
                 (
@@ -433,6 +436,8 @@ def register_routes(app: Flask) -> None:
                     _safe_float(form["ot_rate"]),
                     form["duty_start"],
                     form["photo_name"],
+                    uploaded_photo["photo_data"] if uploaded_photo else (driver["photo_data"] or ""),
+                    uploaded_photo["photo_content_type"] if uploaded_photo else (driver["photo_content_type"] or ""),
                     form["status"],
                     form["remarks"],
                     driver_id,
@@ -469,10 +474,10 @@ def register_routes(app: Flask) -> None:
     @_login_required("admin")
     def import_currentlink():
         try:
-            imported = import_drivers_from_workbook(
-                str(app.config["DATABASE_PATH"]),
-                app.config["CURRENTLINK_FILE"],
-            )
+            records = load_driver_records(app.config["CURRENTLINK_FILE"])
+            db = open_db()
+            imported = upsert_driver_records(db, records)
+            db.commit()
         except FileNotFoundError:
             flash("Currentlink.xlsm was not found in Downloads.", "error")
             return redirect(url_for("dashboard"))
@@ -983,13 +988,47 @@ def register_routes(app: Flask) -> None:
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
+    @app.get("/drivers/<driver_id>/photo")
+    @_login_required("admin", "driver")
+    def driver_photo(driver_id: str):
+        if _current_role() == "driver" and _current_driver_id() != driver_id:
+            abort(403)
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            abort(404)
+
+        photo_data = driver["photo_data"] or ""
+        if photo_data:
+            content_type = driver["photo_content_type"] or "image/jpeg"
+            try:
+                return send_file(BytesIO(base64.b64decode(photo_data)), mimetype=content_type)
+            except Exception:
+                pass
+
+        photo_name = driver["photo_name"] or ""
+        if photo_name:
+            photo_path = Path(app.config["GENERATED_DIR"]) / photo_name
+            if photo_path.exists():
+                return send_file(photo_path, mimetype=driver["photo_content_type"] or None)
+        abort(404)
+
     @app.get("/generated/<path:filename>")
     @_login_required("admin", "owner", "driver")
     def generated_file(filename: str):
         if not _can_access_generated_file(filename):
             flash("You do not have access to that file.", "error")
             return redirect(url_for(_role_home_endpoint()))
-        return send_from_directory(app.config["GENERATED_DIR"], filename, as_attachment=False)
+        target = Path(app.config["GENERATED_DIR"]) / filename
+        if target.exists():
+            return send_file(target, as_attachment=False)
+
+        restored = _restore_generated_file(app, open_db(), filename)
+        if restored and Path(restored).exists():
+            return send_file(restored, as_attachment=False)
+
+        flash("Requested file is no longer available.", "error")
+        return redirect(url_for(_role_home_endpoint()))
 
 
 def _login_required(*roles):
@@ -1064,7 +1103,7 @@ def _fetch_driver(db, driver_id: str):
     return db.execute(
         """
         SELECT driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
-               basic_salary, ot_rate, duty_start, photo_name, status, remarks
+               basic_salary, ot_rate, duty_start, photo_name, photo_data, photo_content_type, status, remarks
         FROM drivers
         WHERE driver_id = ?
         """,
@@ -1101,7 +1140,7 @@ def _driver_form_data(request):
     }
 
 
-def _driver_insert_values(form):
+def _driver_insert_values(form, uploaded_photo=None):
     return (
         form["driver_id"],
         form["full_name"],
@@ -1113,6 +1152,8 @@ def _driver_insert_values(form):
         _safe_float(form["ot_rate"]),
         form["duty_start"],
         form["photo_name"],
+        uploaded_photo["photo_data"] if uploaded_photo else "",
+        uploaded_photo["photo_content_type"] if uploaded_photo else "",
         form["status"],
         form["remarks"],
     )
@@ -1328,17 +1369,26 @@ def _regenerate_kata_for_driver(app: Flask, db, driver):
 
 def _save_driver_photo(app: Flask, driver_id: str, photo_file):
     if photo_file is None or not photo_file.filename:
-        return ""
+        return None
     safe_name = secure_filename(photo_file.filename)
     if not safe_name:
-        return ""
+        return None
     extension = Path(safe_name).suffix.lower() or ".jpg"
     target = _driver_output_dir(app, driver_id) / "profile" / f"photo{extension}"
-    photo_file.save(target)
-    return target.relative_to(app.config["GENERATED_DIR"]).as_posix()
+    photo_bytes = photo_file.read()
+    if not photo_bytes:
+        return None
+    target.write_bytes(photo_bytes)
+    return {
+        "photo_name": target.relative_to(app.config["GENERATED_DIR"]).as_posix(),
+        "photo_data": base64.b64encode(photo_bytes).decode("ascii"),
+        "photo_content_type": photo_file.mimetype or "image/jpeg",
+    }
 
 
 def _driver_photo_url(app: Flask, driver) -> str | None:
+    if driver and driver.get("photo_data"):
+        return url_for("driver_photo", driver_id=driver["driver_id"])
     photo_name = driver["photo_name"] if driver and driver["photo_name"] else ""
     if not photo_name:
         return None
@@ -1346,6 +1396,71 @@ def _driver_photo_url(app: Flask, driver) -> str | None:
     if photo_path.exists():
         return url_for("generated_file", filename=photo_name)
     return None
+
+
+def _restore_generated_file(app: Flask, db, filename: str) -> str | None:
+    slip = db.execute(
+        """
+        SELECT id, driver_id, salary_store_id, salary_month, total_deductions, available_advance,
+               remaining_advance, payment_source, paid_by, net_payable, pdf_path
+        FROM salary_slips
+        WHERE pdf_path = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (filename,),
+    ).fetchone()
+    if slip is not None:
+        return _rebuild_salary_slip_pdf(app, db, slip)
+
+    if filename.startswith("drivers/") and "/kata_pdfs/" in filename:
+        parts = filename.split("/")
+        if len(parts) >= 2:
+            driver = _fetch_driver(db, parts[1])
+            if driver is not None:
+                return _regenerate_kata_for_driver(app, db, driver)
+
+    if filename.startswith("owner_fund/"):
+        incoming, outgoing, balance = _owner_fund_totals(db)
+        statement = _owner_fund_statement(db, reverse=False)
+        output_dir = Path(app.config["GENERATED_DIR"]) / "owner_fund"
+        return generate_owner_fund_pdf(
+            statement,
+            {"incoming": incoming, "outgoing": outgoing, "balance": balance},
+            str(output_dir),
+            app.config["STATIC_ASSETS_DIR"],
+        )
+
+    return None
+
+
+def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
+    driver = _fetch_driver(db, slip["driver_id"])
+    if driver is None:
+        return None
+    salary_row = db.execute(
+        "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+        (slip["salary_store_id"], slip["driver_id"]),
+    ).fetchone()
+    if salary_row is None:
+        return None
+    slip_payload = {
+        "available_advance": float(slip["available_advance"]),
+        "deduction_amount": float(slip["total_deductions"]),
+        "remaining_advance": float(slip["remaining_advance"]),
+        "payment_source": slip["payment_source"] or PAYMENT_SOURCES[0],
+        "paid_by": slip["paid_by"] or "",
+        "net_payable": float(slip["net_payable"]),
+    }
+    output_dir = _driver_output_dir(app, slip["driver_id"]) / "salary_slips"
+    return generate_salary_slip_pdf(
+        driver,
+        salary_row,
+        slip_payload,
+        str(output_dir),
+        app.config["STATIC_ASSETS_DIR"],
+        app.config["GENERATED_DIR"],
+    )
 
 
 def _timesheet_total_for_month(db, driver_id: str, month_value: str) -> float:

@@ -2,6 +2,7 @@
 
 import sqlite3
 import zipfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -38,55 +39,71 @@ def import_drivers_from_workbook(database_path: str, workbook_path: str) -> int:
         return 0
 
     with sqlite3.connect(database_path) as connection:
-        connection.executemany(
-            """
-            INSERT INTO drivers (
-                driver_id,
-                full_name,
-                phone_number,
-                vehicle_no,
-                shift,
-                vehicle_type,
-                basic_salary,
-                ot_rate,
-                duty_start,
-                photo_name,
-                status,
-                remarks
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(driver_id) DO UPDATE SET
-                full_name=excluded.full_name,
-                phone_number=excluded.phone_number,
-                vehicle_no=excluded.vehicle_no,
-                shift=excluded.shift,
-                vehicle_type=excluded.vehicle_type,
-                basic_salary=excluded.basic_salary,
-                ot_rate=excluded.ot_rate,
-                duty_start=excluded.duty_start,
-                photo_name=excluded.photo_name,
-                status=excluded.status,
-                remarks=excluded.remarks
-            """,
-            [
-                (
-                    record.driver_id,
-                    record.full_name,
-                    record.phone_number,
-                    record.vehicle_no,
-                    record.shift,
-                    record.vehicle_type,
-                    record.basic_salary,
-                    record.ot_rate,
-                    record.duty_start,
-                    record.photo_name,
-                    record.status,
-                    record.remarks,
-                )
-                for record in records
-            ],
-        )
+        upsert_driver_records(connection, records)
 
     return len(records)
+
+
+def load_driver_records(workbook_path: str) -> list[DriverRecord]:
+    workbook = Path(workbook_path)
+    if not workbook.exists():
+        raise FileNotFoundError(f"Workbook not found: {workbook}")
+    return _load_driver_records(workbook)
+
+
+def upsert_driver_records(db, records: Sequence[DriverRecord]) -> int:
+    rows = [
+        (
+            record.driver_id,
+            record.full_name,
+            record.phone_number,
+            record.vehicle_no,
+            record.shift,
+            record.vehicle_type,
+            record.basic_salary,
+            record.ot_rate,
+            record.duty_start,
+            record.photo_name,
+            record.status,
+            record.remarks,
+        )
+        for record in records
+    ]
+    if not rows:
+        return 0
+
+    db.executemany(
+        """
+        INSERT INTO drivers (
+            driver_id,
+            full_name,
+            phone_number,
+            vehicle_no,
+            shift,
+            vehicle_type,
+            basic_salary,
+            ot_rate,
+            duty_start,
+            photo_name,
+            status,
+            remarks
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(driver_id) DO UPDATE SET
+            full_name=excluded.full_name,
+            phone_number=excluded.phone_number,
+            vehicle_no=excluded.vehicle_no,
+            shift=excluded.shift,
+            vehicle_type=excluded.vehicle_type,
+            basic_salary=excluded.basic_salary,
+            ot_rate=excluded.ot_rate,
+            duty_start=excluded.duty_start,
+            photo_name=excluded.photo_name,
+            status=excluded.status,
+            remarks=excluded.remarks
+        """,
+        rows,
+    )
+    return len(rows)
 
 
 

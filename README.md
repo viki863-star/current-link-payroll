@@ -70,6 +70,14 @@ This project now includes:
 2. Create new Web Service on Render
 3. Render can read `render.yaml` automatically
 4. Start command: `python serve.py`
+5. Add a Render Postgres database and set `DATABASE_URL` on the web service
+
+### Data Safety
+
+- Local SQLite is fine for local PC testing
+- For live/public hosting, use `DATABASE_URL` so records stay safe across deploys and restarts
+- Driver photos are now stored in the database as well as local files
+- If a stored salary slip PDF disappears from the server, the app can rebuild it from saved payroll data
 
 ### Railway
 

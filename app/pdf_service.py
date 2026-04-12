@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import base64
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 
 from reportlab.lib import colors
@@ -396,6 +398,15 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
 
 
 def _draw_driver_photo(pdf: canvas.Canvas, driver, generated_dir: str, x: float, y: float, w: float, h: float) -> bool:
+    photo_data = driver["photo_data"] if "photo_data" in driver.keys() and driver["photo_data"] else ""
+    if photo_data:
+        try:
+            image = ImageReader(BytesIO(base64.b64decode(photo_data)))
+            pdf.drawImage(image, x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
+            return True
+        except Exception:
+            pass
+
     photo_name = driver["photo_name"] or ""
     if not photo_name:
         return False
@@ -443,13 +454,22 @@ def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str) -> None:
     pdf.setFillColor(ORANGE)
     pdf.rect(15 * mm, 30 * mm, 180 * mm, 1.2 * mm, fill=1, stroke=0)
     if footer.exists():
+        image = ImageReader(str(footer))
+        image_width, image_height = image.getSize()
+        target_width = 180 * mm
+        target_height = target_width * (image_height / image_width)
+        footer_x = 15 * mm
+        footer_y = 9 * mm
+
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(15 * mm, 8 * mm, 180 * mm, 21 * mm, 4 * mm, fill=1, stroke=0)
         pdf.drawImage(
-            str(footer),
-            18 * mm,
-            12 * mm,
-            width=174 * mm,
-            height=18 * mm,
-            preserveAspectRatio=True,
+            image,
+            footer_x,
+            footer_y,
+            width=target_width,
+            height=target_height,
+            preserveAspectRatio=False,
             mask="auto",
         )
 
