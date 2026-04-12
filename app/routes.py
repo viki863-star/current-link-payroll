@@ -151,6 +151,37 @@ def register_routes(app: Flask) -> None:
             """
         ).fetchall()
         filter_options = _driver_filter_options(db)
+        shift_chart = _chart_rows(
+            db.execute(
+                """
+                SELECT shift AS label, COUNT(*) AS value
+                FROM drivers
+                GROUP BY shift
+                ORDER BY COUNT(*) DESC, shift ASC
+                """
+            ).fetchall()
+        )
+        vehicle_chart = _chart_rows(
+            db.execute(
+                """
+                SELECT vehicle_type AS label, COUNT(*) AS value
+                FROM drivers
+                GROUP BY vehicle_type
+                ORDER BY COUNT(*) DESC, vehicle_type ASC
+                LIMIT 6
+                """
+            ).fetchall()
+        )
+        import_chart = _chart_rows(
+            db.execute(
+                """
+                SELECT source_type AS label, COUNT(*) AS value
+                FROM import_history
+                GROUP BY source_type
+                ORDER BY COUNT(*) DESC, source_type ASC
+                """
+            ).fetchall()
+        )
 
         return render_template(
             "dashboard.html",
@@ -170,6 +201,9 @@ def register_routes(app: Flask) -> None:
             import_history=import_history,
             shifts=filter_options["shifts"],
             vehicle_types=filter_options["vehicle_types"],
+            shift_chart=shift_chart,
+            vehicle_chart=vehicle_chart,
+            import_chart=import_chart,
         )
 
     @app.route("/owner-fund", methods=["GET", "POST"])
@@ -1260,6 +1294,16 @@ def _log_import_history(db, source_type: str, file_name: str, imported_count: in
         """,
         (source_type, file_name, imported_count, notes),
     )
+
+
+def _chart_rows(rows):
+    prepared = [{"label": row["label"], "value": int(row["value"])} for row in rows if row["label"]]
+    if not prepared:
+        return []
+    max_value = max(item["value"] for item in prepared) or 1
+    for item in prepared:
+        item["width"] = max(8, int((item["value"] / max_value) * 100))
+    return prepared
 
 
 def _driver_search_clause(query: str):

@@ -199,4 +199,78 @@
         {% endif %}
     </article>
 </section>
+
+<section class="detail-layout dashboard-layout chart-layout">
+    <article class="card table-card chart-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Charts</p>
+                <h2>Shift Distribution</h2>
+            </div>
+        </div>
+        {% if shift_chart %}
+            <div class="chart-stack">
+                {% for item in shift_chart %}
+                    <div class="chart-row">
+                        <div class="chart-label">{{ item.label }}</div>
+                        <div class="chart-bar-shell">
+                            <div class="chart-bar" style="width: {{ item.width }}%"></div>
+                        </div>
+                        <div class="chart-value">{{ item.value }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted-text">Shift chart data available nahi.</p>
+        {% endif %}
+    </article>
+
+    <article class="card table-card chart-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Charts</p>
+                <h2>Vehicle Mix</h2>
+            </div>
+        </div>
+        {% if vehicle_chart %}
+            <div class="chart-stack">
+                {% for item in vehicle_chart %}
+                    <div class="chart-row">
+                        <div class="chart-label">{{ item.label }}</div>
+                        <div class="chart-bar-shell">
+                            <div class="chart-bar orange-bar" style="width: {{ item.width }}%"></div>
+                        </div>
+                        <div class="chart-value">{{ item.value }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted-text">Vehicle chart data available nahi.</p>
+        {% endif %}
+    </article>
+
+    <article class="card table-card chart-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Charts</p>
+                <h2>Import Sources</h2>
+            </div>
+        </div>
+        {% if import_chart %}
+            <div class="chart-stack">
+                {% for item in import_chart %}
+                    <div class="chart-row">
+                        <div class="chart-label">{{ item.label }}</div>
+                        <div class="chart-bar-shell">
+                            <div class="chart-bar green-bar" style="width: {{ item.width }}%"></div>
+                        </div>
+                        <div class="chart-value">{{ item.value }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted-text">Import source chart data abhi nahi bani.</p>
+        {% endif %}
+    </article>
+</section>
 {% endblock %}
