@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card action-panel form-panel slip-panel">
+    <div class="panel-titlebar">
+        <span>{{ config["COMPANY_NAME"] }}</span>
+        <span>Salary Slip</span>
+    </div>
+
+    <div class="action-grid tight-grid">
+        <div class="photo-panel small-photo-panel">
+            {% if photo_url %}
+                <img class="driver-photo" src="{{ photo_url }}" alt="{{ driver.full_name }}">
+            {% else %}
+                <div class="photo-placeholder">NO PHOTO</div>
+            {% endif %}
+        </div>
+
+        <div class="driver-summary compact-summary slip-summary-box">
+            <h2>{{ driver.full_name }}</h2>
+            <div class="summary-tags smart-tags">
+                <span>ID {{ driver.driver_id }}</span>
+                <span>{{ driver.shift }}</span>
+            </div>
+            <dl class="panel-facts salary-master-grid">
+                <div><dt>Vehicle No</dt><dd>{{ driver.vehicle_no }}</dd></div>
+                <div><dt>Basic Salary</dt><dd>AED {{ "%.2f"|format(driver.basic_salary) }}</dd></div>
+                <div><dt>OT Rate</dt><dd>{{ "%.2f"|format(driver.ot_rate) }}</dd></div>
+                <div><dt>Available Advance</dt><dd>AED {{ "%.2f"|format(preview.available_advance if preview else 0) }}</dd></div>
+            </dl>
+            <div class="panel-note">Advance ko poora deduct karna zaroori nahi. Aap jitna chahein utna deduct kar sakte hain.</div>
+        </div>
+    </div>
+
+    <section class="inner-section">
+        <div class="section-title">Slip Generator</div>
+        {% if existing_slip %}
+            <div class="info-box warning-box">This month already has a salary slip. Duplicate slip is blocked. Open the existing PDF below.</div>
+        {% endif %}
+        <form method="post" class="entry-form two-column-form premium-slip-form">
+            <label>
+                <span>Salary Month</span>
+                <select name="salary_store_id" required>
+                    <option value="">Select stored salary</option>
+                    {% for item in salary_rows %}
+                        <option value="{{ item.id }}" {% if selected_salary_id == item.id|string %}selected{% endif %}>
+                            {{ item.salary_month }} | AED {{ "%.2f"|format(item.net_salary) }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Deduct This Slip</span>
+                <input type="number" name="deduction_amount" step="0.01" min="0" value="{{ values.deduction_amount }}" required>
+            </label>
+            <label>
+                <span>Payment Source</span>
+                <select name="payment_source">
+                    {% for item in payment_sources %}
+                        <option value="{{ item }}" {% if values.payment_source == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Paid By</span>
+                <input type="text" name="paid_by" value="{{ values.paid_by }}" placeholder="Nasrull / Waqar / Office">
+            </label>
+            <div class="full-span split-preview-row">
+                <div class="info-box success-box">
+                    Agar transaction `500` ho aur aap `100` deduct karein, to baqi `400` next slip ke liye save rahega.
+                </div>
+                <div class="info-box">
+                    Driver ke owner fund ya direct payment ka source bhi slip me save hoga.
+                </div>
+            </div>
+            <div class="form-actions triple-actions">
+                <a class="button danger-button" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Close</a>
+                {% if existing_slip %}
+                    <a class="button success-button" href="{{ url_for('generated_file', filename=existing_slip.pdf_path) }}" target="_blank">Open Existing PDF</a>
+                {% else %}
+                    <button class="button success-button" type="submit">Generate Slip PDF</button>
+                {% endif %}
+            </div>
+        </form>
+    </section>
+</section>
+
+<section class="detail-layout compact-detail-layout two-panel-layout">
+    <article class="card info-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Preview</p>
+                <h2>Salary Calculation</h2>
+            </div>
+        </div>
+        {% if selected_salary and preview %}
+            <dl class="detail-grid mini-detail-grid slip-preview-grid">
+                <div><dt>Gross Salary</dt><dd>AED {{ "%.2f"|format(preview.gross) }}</dd></div>
+                <div><dt>Available Advance</dt><dd>AED {{ "%.2f"|format(preview.available_advance) }}</dd></div>
+                <div><dt>Deduct This Slip</dt><dd>AED {{ "%.2f"|format(preview.deduction_amount) }}</dd></div>
+                <div><dt>Remaining Advance</dt><dd>AED {{ "%.2f"|format(preview.remaining_advance) }}</dd></div>
+                <div><dt>Net Payable</dt><dd>AED {{ "%.2f"|format(preview.net_payable) }}</dd></div>
+                <div><dt>Payment Source</dt><dd>{{ values.payment_source }}</dd></div>
+            </dl>
+        {% else %}
+            <p class="muted-text">Pehle salary store select karein.</p>
+        {% endif %}
+    </article>
+
+    <article class="card info-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">History</p>
+                <h2>Generated Slips</h2>
+            </div>
+        </div>
+        {% if slips %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Deduction</th>
+                            <th>Net Pay</th>
+                            <th>Source</th>
+                            <th>PDF</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in slips %}
+                            <tr>
+                                <td>{{ item.salary_month }}</td>
+                                <td>AED {{ "%.2f"|format(item.total_deductions) }}</td>
+                                <td>AED {{ "%.2f"|format(item.net_payable) }}</td>
+                                <td>{{ item.payment_source or "-" }}</td>
+                                <td><a class="table-link" href="{{ url_for('generated_file', filename=item.pdf_path) }}" target="_blank">Open</a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted-text">Abhi tak slip generate nahi hui.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="stats compact-stats">
+    <article class="card stat-card">
+        <span>Incoming</span>
+        <strong>AED {{ "%.2f"|format(incoming) }}</strong>
+    </article>
+    <article class="card stat-card">
+        <span>Used</span>
+        <strong>AED {{ "%.2f"|format(outgoing) }}</strong>
+    </article>
+    <article class="card stat-card">
+        <span>Balance</span>
+        <strong>AED {{ "%.2f"|format(balance) }}</strong>
+    </article>
+</section>
+
+<section class="detail-layout owner-fund-layout">
+    <article class="card form-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Owner Fund</p>
+                <h2>{% if can_edit %}New Entry{% else %}Owner View{% endif %}</h2>
+            </div>
+        </div>
+        {% if can_edit %}
+            <form method="post" class="entry-form two-column-form">
+                <label>
+                    <span>Owner Name</span>
+                    <input type="text" name="owner_name" value="{{ values.owner_name }}" required>
+                </label>
+                <label>
+                    <span>Date</span>
+                    <input type="date" name="entry_date" value="{{ values.entry_date }}" required>
+                </label>
+                <label>
+                    <span>Amount</span>
+                    <input type="number" name="amount" step="0.01" min="0" value="{{ values.amount }}" required>
+                </label>
+                <label>
+                    <span>Received By</span>
+                    <input type="text" name="received_by" value="{{ values.received_by }}" placeholder="Waqar / Office">
+                </label>
+                <label>
+                    <span>Payment Method</span>
+                    <select name="payment_method">
+                        {% for item in ["Cash", "Bank", "Cheque", "Other"] %}
+                            <option value="{{ item }}" {% if values.payment_method == item %}selected{% endif %}>{{ item }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="full-span">
+                    <span>Details</span>
+                    <textarea name="details" rows="4">{{ values.details }}</textarea>
+                </label>
+                <div class="form-actions">
+                    <button class="button" type="submit">Save Owner Fund</button>
+                </div>
+            </form>
+        {% else %}
+            <div class="panel-note">Owner login read-only hai. Yahan se aap owner fund statement aur PDF dekh sakte hain.</div>
+            <div class="form-actions left-actions">
+                <a class="button" href="{{ url_for('owner_fund_pdf') }}">Open Owner Fund PDF</a>
+            </div>
+        {% endif %}
+    </article>
+
+    <article class="card info-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Recent</p>
+                <h2>Incoming Entries</h2>
+            </div>
+        </div>
+        {% if entries %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Owner</th>
+                            <th>Amount</th>
+                            <th>Received By</th>
+                            <th>Method</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in entries %}
+                            <tr>
+                                <td>{{ item.entry_date }}</td>
+                                <td>{{ item.owner_name }}</td>
+                                <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                                <td>{{ item.received_by or "-" }}</td>
+                                <td>{{ item.payment_method or "-" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted-text">Abhi tak owner fund entry nahi bani.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="card table-card">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">PDF Files</p>
+            <h2>Owner Fund Reports</h2>
+        </div>
+        <a class="button button-secondary inline-button" href="{{ url_for('owner_fund_pdf') }}">Generate PDF</a>
+    </div>
+    {% if pdf_files %}
+        <ul class="result-list">
+            {% for file in pdf_files %}
+                <li>
+                    <span>{{ file.split('/')[-1] }}</span>
+                    <a href="{{ url_for('generated_file', filename=file) }}" target="_blank">Open PDF</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="muted-text">Abhi owner fund PDF generate nahi hui.</p>
+    {% endif %}
+</section>
+
+<section class="card table-card">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Statement</p>
+            <h2>Owner Fund Kata</h2>
+        </div>
+    </div>
+    {% if statement %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Party</th>
+                        <th>Details</th>
+                        <th>Incoming</th>
+                        <th>Outgoing</th>
+                        <th>Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in statement %}
+                        <tr>
+                            <td>{{ item.entry_date }}</td>
+                            <td>{{ item.reference }}</td>
+                            <td>{{ item.party }}</td>
+                            <td>{{ item.details }}</td>
+                            <td>AED {{ "%.2f"|format(item.incoming) }}</td>
+                            <td>AED {{ "%.2f"|format(item.outgoing) }}</td>
+                            <td>AED {{ "%.2f"|format(item.balance) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="muted-text">Owner fund statement abhi khali hai.</p>
+    {% endif %}
+</section>
+{% endblock %}

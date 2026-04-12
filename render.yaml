@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: current-link-payroll
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python serve.py
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 5000

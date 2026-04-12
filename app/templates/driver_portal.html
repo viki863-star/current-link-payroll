@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card action-panel compact-action-panel portal-panel">
+    <div class="panel-titlebar">
+        <span>{{ config["COMPANY_NAME"] }}</span>
+        <span>Driver Portal</span>
+    </div>
+
+    <div class="action-grid panel-main-grid">
+        <div class="photo-panel smart-photo-panel">
+            {% if photo_url %}
+                <img class="driver-photo tall-photo" src="{{ photo_url }}" alt="{{ driver.full_name }}">
+            {% else %}
+                <div class="photo-placeholder tall-photo">NO PHOTO</div>
+            {% endif %}
+            <div class="salary-flag stored">Self Service</div>
+        </div>
+
+        <div class="driver-summary smart-summary-box">
+            <h2>{{ driver.full_name }}</h2>
+            <div class="summary-tags smart-tags">
+                <span>ID {{ driver.driver_id }}</span>
+                <span>{{ driver.phone_number or "-" }}</span>
+            </div>
+            <dl class="panel-facts smart-facts">
+                <div><dt>Vehicle No</dt><dd>{{ driver.vehicle_no }}</dd></div>
+                <div><dt>Shift</dt><dd>{{ driver.shift }}</dd></div>
+                <div><dt>Vehicle Type</dt><dd>{{ driver.vehicle_type }}</dd></div>
+                <div><dt>This Month Hours</dt><dd>{{ "%.2f"|format(month_hours) }}</dd></div>
+                <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(outstanding_advance) }}</dd></div>
+                <div><dt>Status</dt><dd>{{ driver.status }}</dd></div>
+            </dl>
+            <div class="panel-note small-note">Yahan se aap hours save kar sakte hain aur apni salary slip aur transactions check kar sakte hain.</div>
+        </div>
+    </div>
+</section>
+
+<section class="stats compact-stats">
+    <article class="card stat-card">
+        <span>Timesheet Hours</span>
+        <strong>{{ "%.2f"|format(month_hours) }}</strong>
+    </article>
+    <article class="card stat-card">
+        <span>Transactions</span>
+        <strong>{{ recent_transactions|length }}</strong>
+    </article>
+    <article class="card stat-card">
+        <span>Salary Slips</span>
+        <strong>{{ salary_slips|length }}</strong>
+    </article>
+</section>
+
+<section class="mobile-shortcuts">
+    <a class="button button-secondary" href="#timesheet-entry">Timesheet</a>
+    <a class="button button-secondary" href="#salary-slips">Salary Slips</a>
+    <a class="button button-secondary" href="#driver-transactions">Transactions</a>
+</section>
+
+<section class="detail-layout owner-fund-layout" id="timesheet-entry">
+    <article class="card form-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">1</p>
+                <h2>Timesheet Entry</h2>
+            </div>
+        </div>
+        <form method="post" class="entry-form two-column-form">
+            <label>
+                <span>Date</span>
+                <input type="date" name="entry_date" value="{{ values.entry_date }}" required>
+            </label>
+            <label>
+                <span>Hours</span>
+                <input type="number" name="work_hours" step="0.01" min="0" value="{{ values.work_hours }}" required>
+            </label>
+            <label class="full-span">
+                <span>Remarks</span>
+                <textarea name="remarks" rows="4">{{ values.remarks }}</textarea>
+            </label>
+            <div class="form-actions">
+                <button class="button" type="submit">Save Timesheet</button>
+            </div>
+        </form>
+    </article>
+
+    <article class="card info-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">2</p>
+                <h2>Recent Hours</h2>
+            </div>
+        </div>
+        {% if recent_timesheets %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Hours</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in recent_timesheets %}
+                            <tr>
+                                <td>{{ item.entry_date }}</td>
+                                <td>{{ "%.2f"|format(item.work_hours) }}</td>
+                                <td>{{ item.remarks or "-" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted-text">Abhi timesheet entry nahi bani.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="detail-layout owner-fund-layout" id="salary-slips">
+    <article class="card info-card" id="driver-transactions">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">3</p>
+                <h2>Salary Slips</h2>
+            </div>
+        </div>
+        {% if salary_slips %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Deduction</th>
+                            <th>Net Pay</th>
+                            <th>PDF</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in salary_slips %}
+                            <tr>
+                                <td>{{ item.salary_month }}</td>
+                                <td>AED {{ "%.2f"|format(item.total_deductions) }}</td>
+                                <td>AED {{ "%.2f"|format(item.net_payable) }}</td>
+                                <td><a class="table-link" href="{{ url_for('generated_file', filename=item.pdf_path) }}" target="_blank">Open</a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted-text">Abhi salary slip available nahi.</p>
+        {% endif %}
+    </article>
+
+    <article class="card info-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">4</p>
+                <h2>Transactions</h2>
+            </div>
+        </div>
+        {% if recent_transactions %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Source</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in recent_transactions %}
+                            <tr>
+                                <td>{{ item.entry_date }}</td>
+                                <td>{{ item.txn_type }}</td>
+                                <td>{{ item.source }}</td>
+                                <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted-text">Abhi transaction history available nahi.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

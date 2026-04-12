@@ -1,0 +1,121 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<section class="card action-panel form-panel">
+    <div class="panel-titlebar">
+        <span>{{ config["COMPANY_NAME"] }}</span>
+        <span>Driver Transactions</span>
+    </div>
+
+    <div class="action-grid tight-grid">
+        <div class="photo-panel small-photo-panel">
+            {% if photo_url %}
+                <img class="driver-photo" src="{{ photo_url }}" alt="{{ driver.full_name }}">
+            {% else %}
+                <div class="photo-placeholder">NO PHOTO</div>
+            {% endif %}
+        </div>
+
+        <div class="driver-summary compact-summary">
+            <h2>{{ driver.full_name }}</h2>
+            <dl class="panel-facts single-column-facts compact-info-list">
+                <div><dt>Driver ID</dt><dd>{{ driver.driver_id }}</dd></div>
+                <div><dt>Vehicle</dt><dd>{{ driver.vehicle_no }}</dd></div>
+                <div><dt>Shift</dt><dd>{{ driver.shift }}</dd></div>
+                <div><dt>Balance</dt><dd>AED {{ "%.2f"|format(balance) }}</dd></div>
+            </dl>
+            <div class="panel-note">Every save refreshes this driver's KATA PDF in the driver folder.</div>
+        </div>
+    </div>
+
+    <section class="inner-section">
+        <div class="section-title">Transaction Entry</div>
+        <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="transaction_id" value="{{ values.transaction_id }}">
+            <label>
+                <span>Date</span>
+                <input type="date" name="entry_date" value="{{ values.entry_date }}" required>
+            </label>
+            <label>
+                <span>Type</span>
+                <select name="txn_type">
+                    {% for item in transaction_types %}
+                        <option value="{{ item }}" {% if item == values.txn_type %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Source</span>
+                <select name="source">
+                    {% for item in payment_sources %}
+                        <option value="{{ item }}" {% if item == values.source %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Given By</span>
+                <input type="text" name="given_by" value="{{ values.given_by }}">
+            </label>
+            <label>
+                <span>Amount</span>
+                <input type="number" name="amount" step="0.01" min="0" value="{{ values.amount }}" required>
+            </label>
+            <label class="full-span">
+                <span>Details</span>
+                <textarea name="details" rows="5">{{ values.details }}</textarea>
+            </label>
+            <div class="form-actions split-actions">
+                <a class="button danger-button" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Close</a>
+                <button class="button success-button" type="submit">{{ 'Update Entry' if values.transaction_id else 'Save Entry' }}</button>
+            </div>
+        </form>
+    </section>
+</section>
+
+<section class="card table-card">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">History</p>
+            <h2>Recent Transactions</h2>
+        </div>
+    </div>
+    {% if transactions %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Source</th>
+                        <th>Given By</th>
+                        <th>Amount</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in transactions %}
+                        <tr>
+                            <td>{{ item.entry_date }}</td>
+                            <td>{{ item.txn_type }}</td>
+                            <td>{{ item.source }}</td>
+                            <td>{{ item.given_by or "-" }}</td>
+                            <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                            <td>
+                                <div>{{ item.details or "-" }}</div>
+                                <div class="table-actions">
+                                    <a class="mini-action-link" href="{{ url_for('driver_transactions', driver_id=driver.driver_id, edit=item.id) }}">Edit</a>
+                                    <form method="post" action="{{ url_for('delete_driver_transaction', driver_id=driver.driver_id, transaction_id=item.id) }}">
+                                        <button class="mini-action-button" type="submit">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="muted-text">No transactions yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

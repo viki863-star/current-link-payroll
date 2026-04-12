@@ -1,0 +1,115 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<section class="card action-panel compact-action-panel">
+    <div class="panel-titlebar">
+        <span>{{ config["COMPANY_NAME"] }}</span>
+        <span>Driver Action Panel</span>
+    </div>
+
+    <div class="action-grid panel-main-grid">
+        <div class="photo-panel smart-photo-panel">
+            {% if photo_url %}
+                <img class="driver-photo tall-photo" src="{{ photo_url }}" alt="{{ driver.full_name }}">
+            {% else %}
+                <div class="photo-placeholder tall-photo">NO PHOTO</div>
+            {% endif %}
+            <div class="salary-flag {{ salary_status|lower|replace(' ', '-') }}">{{ current_month_label }} | {{ salary_status }}</div>
+        </div>
+
+        <div class="driver-summary smart-summary-box">
+            <h2>{{ driver.full_name }}</h2>
+            <div class="summary-tags smart-tags">
+                <span>ID {{ driver.driver_id }}</span>
+                <span>SHIFT {{ driver.shift }}</span>
+            </div>
+            <dl class="panel-facts smart-facts">
+                <div>
+                    <dt>Phone</dt>
+                    <dd>{{ driver.phone_number or "-" }}</dd>
+                </div>
+                <div>
+                    <dt>Vehicle No</dt>
+                    <dd>{{ driver.vehicle_no }}</dd>
+                </div>
+                <div>
+                    <dt>Vehicle Type</dt>
+                    <dd>{{ driver.vehicle_type }}</dd>
+                </div>
+                <div>
+                    <dt>Basic Salary</dt>
+                    <dd>{{ "%.2f"|format(driver.basic_salary) }}</dd>
+                </div>
+                <div>
+                    <dt>OT Rate</dt>
+                    <dd>{{ "%.2f"|format(driver.ot_rate) }}</dd>
+                </div>
+                <div>
+                    <dt>Join Date</dt>
+                    <dd>{{ driver.duty_start or "-" }}</dd>
+                </div>
+                <div>
+                    <dt>Balance</dt>
+                    <dd>AED {{ "%.2f"|format(balance) }}</dd>
+                </div>
+                <div>
+                    <dt>Advance Left</dt>
+                    <dd>AED {{ "%.2f"|format(outstanding_advance) }}</dd>
+                </div>
+            </dl>
+            <div class="panel-note small-note">Choose next action.</div>
+        </div>
+    </div>
+
+    <div class="action-buttons flat-action-buttons">
+        <a class="button action-button navy" href="{{ url_for('driver_transactions', driver_id=driver.driver_id) }}">Transactions</a>
+        <a class="button action-button orange" href="{{ url_for('driver_salary_store', driver_id=driver.driver_id) }}">Salary Store</a>
+        <a class="button action-button green" href="{{ url_for('driver_salary_slip', driver_id=driver.driver_id) }}">Salary Slip</a>
+        <a class="button action-button slate" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id) }}">KATA PDF</a>
+    </div>
+</section>
+
+<section class="detail-layout compact-detail-layout">
+    <article class="card info-card">
+        <dl class="detail-grid mini-detail-grid">
+            <div>
+                <dt>Transactions</dt>
+                <dd>{{ transaction_count }}</dd>
+            </div>
+            <div>
+                <dt>Salary Entries</dt>
+                <dd>{{ salary_count }}</dd>
+            </div>
+            <div>
+                <dt>This Month</dt>
+                <dd>{{ salary_status }}</dd>
+            </div>
+            <div>
+                <dt>Advance Left</dt>
+                <dd>AED {{ "%.2f"|format(outstanding_advance) }}</dd>
+            </div>
+            <div>
+                <dt>Last Transaction</dt>
+                <dd>
+                    {% if recent_transaction %}
+                        {{ recent_transaction.txn_type }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </dd>
+            </div>
+        </dl>
+    </article>
+
+    <article class="card info-card">
+        {% if latest_slip %}
+            <div class="quick-result-row">
+                <span>{{ latest_slip.salary_month }} PDF ready</span>
+                <a class="button button-secondary inline-button" href="{{ url_for('generated_file', filename=latest_slip.pdf_path) }}" target="_blank">Open PDF</a>
+            </div>
+        {% else %}
+            <p class="result-text muted-text">No salary slip yet.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

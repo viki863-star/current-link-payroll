@@ -1,0 +1,86 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<section class="stats compact-stats">
+    <article class="card stat-card">
+        <span>Drivers</span>
+        <strong>{{ total_drivers }}</strong>
+    </article>
+    <article class="card stat-card">
+        <span>Active</span>
+        <strong>{{ active_drivers }}</strong>
+    </article>
+    <article class="card stat-card">
+        <span>{{ current_month_label }}</span>
+        <strong>{{ stored_this_month }}</strong>
+    </article>
+    <article class="card stat-card">
+        <span>Payroll</span>
+        <strong>AED {{ "%.2f"|format(total_payroll) }}</strong>
+    </article>
+    <article class="card stat-card">
+        <span>Owner Fund</span>
+        <strong>AED {{ "%.2f"|format(owner_fund_balance) }}</strong>
+    </article>
+</section>
+
+<section class="card search-panel compact-panel">
+    <form method="get" class="search-row">
+        <input type="search" name="q" value="{{ query }}" placeholder="Search driver, ID, vehicle">
+        <button class="button" type="submit">Search</button>
+        <a class="button button-secondary" href="{{ url_for('driver_list') }}">Driver List</a>
+        <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund Kata</a>
+        {% if query %}
+            <a class="button button-secondary" href="{{ url_for('dashboard') }}">Clear</a>
+        {% endif %}
+    </form>
+</section>
+
+<section class="quick-link-grid">
+    <a class="card quick-link-card" href="{{ url_for('create_driver') }}">
+        <span class="eyebrow">Driver</span>
+        <strong>Add New Driver</strong>
+        <p>Card dashboard par khud ban jayega.</p>
+    </a>
+    <a class="card quick-link-card accent-card" href="{{ url_for('driver_list') }}">
+        <span class="eyebrow">Directory</span>
+        <strong>Open Driver List</strong>
+        <p>Full details, edit, active and inactive control.</p>
+    </a>
+    <a class="card quick-link-card owner-card" href="{{ url_for('owner_fund') }}">
+        <span class="eyebrow">Owner Fund</span>
+        <strong>Open Owner Fund Kata</strong>
+        <p>Cash entry, source tracking aur balance report.</p>
+    </a>
+</section>
+
+<section class="driver-grid simple-grid">
+    {% for driver in drivers %}
+        <a class="driver-card simple-card smart-card" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">
+            <div class="driver-card-top">
+                <span class="driver-id">{{ driver.driver_id }}</span>
+                <span class="driver-status {{ driver.status|lower }}">{{ driver.status }}</span>
+            </div>
+            <h3>{{ driver.full_name }}</h3>
+            <p class="driver-meta">{{ driver.vehicle_no }}</p>
+            <div class="driver-tags">
+                <span>{{ driver.shift }}</span>
+                <span>{{ driver.vehicle_type }}</span>
+            </div>
+            {% if driver.phone_number %}
+                <span class="card-subline">Phone {{ driver.phone_number }}</span>
+            {% endif %}
+            {% if driver.latest_salary_month %}
+                <span class="card-subline">Stored {{ driver.latest_salary_month }}</span>
+            {% else %}
+                <span class="card-subline muted-white">No salary stored</span>
+            {% endif %}
+        </a>
+    {% else %}
+        <section class="card empty-state full-width-card">
+            <h3>No drivers found</h3>
+            <p>Add driver or import data.</p>
+        </section>
+    {% endfor %}
+</section>
+{% endblock %}

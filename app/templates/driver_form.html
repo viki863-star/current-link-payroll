@@ -1,0 +1,80 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<section class="card form-card driver-form-card">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Current Link</p>
+            <h2>{{ page_title }}</h2>
+        </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="grid-form driver-master-form">
+        <label>
+            <span>Driver ID</span>
+            <input type="text" name="driver_id" value="{{ values.get('driver_id', '') }}" {% if edit_mode %}readonly{% else %}required{% endif %}>
+        </label>
+        <label>
+            <span>Driver Name</span>
+            <input type="text" name="full_name" value="{{ values.get('full_name', '') }}" required>
+        </label>
+        <label>
+            <span>Phone Number</span>
+            <input type="text" name="phone_number" value="{{ values.get('phone_number', '') }}" required>
+        </label>
+        <label>
+            <span>Vehicle No</span>
+            <input type="text" name="vehicle_no" value="{{ values.get('vehicle_no', '') }}" required>
+        </label>
+        <label>
+            <span>Shift</span>
+            <input type="text" name="shift" value="{{ values.get('shift', '') }}" required>
+        </label>
+        <label>
+            <span>Vehicle Type</span>
+            <input type="text" name="vehicle_type" value="{{ values.get('vehicle_type', '') }}" required>
+        </label>
+        <label>
+            <span>Basic Salary</span>
+            <input type="number" name="basic_salary" step="0.01" min="0" value="{{ values.get('basic_salary', '') }}" required>
+        </label>
+        <label>
+            <span>OT Rate</span>
+            <input type="number" name="ot_rate" step="0.01" min="0" value="{{ values.get('ot_rate', '') }}" required>
+        </label>
+        <label>
+            <span>Join Date</span>
+            <input type="date" name="duty_start" value="{{ values.get('duty_start', '') }}">
+        </label>
+        <label>
+            <span>Photo Name</span>
+            <input type="text" name="photo_name" value="{{ values.get('photo_name', '') }}">
+        </label>
+        <label>
+            <span>Upload Photo</span>
+            <input type="file" name="photo_file" accept="image/*">
+        </label>
+        <label>
+            <span>Status</span>
+            <select name="status">
+                <option value="Active" {% if values.get('status', 'Active') == 'Active' %}selected{% endif %}>Active</option>
+                <option value="Inactive" {% if values.get('status') == 'Inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </label>
+        {% if current_photo_url %}
+            <div class="full-span form-photo-preview">
+                <span>Current Photo</span>
+                <img class="driver-photo form-preview-photo" src="{{ current_photo_url }}" alt="{{ values.get('full_name', 'Driver photo') }}">
+            </div>
+        {% endif %}
+        <label class="full-span">
+            <span>Remarks</span>
+            <textarea name="remarks" rows="4">{{ values.get('remarks', '') }}</textarea>
+        </label>
+        <div class="form-actions">
+            <a class="button button-secondary" href="{{ url_for('driver_list') }}">Cancel</a>
+            <button class="button" type="submit">{{ submit_label }}</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

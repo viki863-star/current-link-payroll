@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="login-shell">
+    <article class="card login-hero-card">
+        <p class="eyebrow">Current Link</p>
+        <h2>Secure Access</h2>
+    </article>
+
+    <section class="login-grid">
+        <article class="card login-card">
+            <p class="eyebrow">Admin</p>
+            <h3>Admin Access</h3>
+            <form method="post" class="login-form">
+                <input type="hidden" name="role" value="admin">
+                <label>
+                    <span>Password</span>
+                    <input type="password" name="password" placeholder="current2324" required>
+                </label>
+                <button class="button" type="submit">Login as Admin</button>
+            </form>
+        </article>
+
+        <article class="card login-card owner-login-card">
+            <p class="eyebrow">Owner</p>
+            <h3>Owner Access</h3>
+            <form method="post" class="login-form">
+                <input type="hidden" name="role" value="owner">
+                <label>
+                    <span>Access Code</span>
+                    <input type="password" name="password" placeholder="current2324" required>
+                </label>
+                <button class="button" type="submit">Login as Owner</button>
+            </form>
+        </article>
+
+        <article class="card login-card driver-login-card">
+            <p class="eyebrow">Driver</p>
+            <h3>Driver Self Service</h3>
+            <form method="post" class="login-form">
+                <input type="hidden" name="role" value="driver">
+                <label>
+                    <span>Phone Number</span>
+                    <input type="text" name="phone_number" placeholder="0501234567" required>
+                </label>
+                <button class="button" type="submit">Login as Driver</button>
+            </form>
+        </article>
+    </section>
+</section>
+{% endblock %}

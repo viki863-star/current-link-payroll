@@ -1,0 +1,1385 @@
+from datetime import date, datetime
+from functools import wraps
+from pathlib import Path
+
+from flask import (
+    Flask,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
+from werkzeug.utils import secure_filename
+
+from .database import open_db
+from .excel_import import import_drivers_from_workbook
+from .pdf_service import (
+    format_month_label,
+    generate_kata_pdf,
+    generate_owner_fund_pdf,
+    generate_salary_slip_pdf,
+)
+
+
+TRANSACTION_TYPES = ["Petty Cash", "Advance", "Fine", "Fuel", "Other"]
+PAYMENT_SOURCES = ["Owner Fund", "Owner Direct", "Current Link", "Office", "Cash", "Bank", "Other"]
+
+
+def register_routes(app: Flask) -> None:
+    @app.context_processor
+    def inject_auth_context():
+        return {
+            "current_role": _current_role(),
+            "current_driver_id": session.get("driver_id"),
+            "current_user_name": session.get("display_name", ""),
+            "is_admin": _current_role() == "admin",
+            "is_driver": _current_role() == "driver",
+            "is_owner": _current_role() == "owner",
+        }
+
+    @app.route("/")
+    def home():
+        return redirect(url_for(_role_home_endpoint()))
+
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        if _current_role():
+            return redirect(url_for(_role_home_endpoint()))
+
+        if request.method == "POST":
+            role = request.form.get("role", "").strip().lower()
+            password = request.form.get("password", "").strip()
+            phone_number = request.form.get("phone_number", "").strip()
+            db = open_db()
+
+            if role == "admin":
+                if password == app.config["ADMIN_PASSWORD"]:
+                    _set_session("admin", display_name="Admin")
+                    flash("Admin login successful.", "success")
+                    return redirect(url_for("dashboard"))
+                flash("Admin password is not correct.", "error")
+            elif role == "owner":
+                if password == app.config["OWNER_PASSWORD"]:
+                    _set_session("owner", display_name="Owner")
+                    flash("Owner login successful.", "success")
+                    return redirect(url_for("owner_fund"))
+                flash("Owner access code is not correct.", "error")
+            elif role == "driver":
+                normalized_phone = _normalize_phone(phone_number)
+                driver = _find_driver_by_phone(db, normalized_phone)
+                if driver is None:
+                    flash("Driver phone number was not found. Add phone number in driver master first.", "error")
+                else:
+                    _set_session("driver", driver_id=driver["driver_id"], display_name=driver["full_name"])
+                    flash(f"Welcome {driver['full_name']}.", "success")
+                    return redirect(url_for("driver_portal"))
+            else:
+                flash("Select a valid login type.", "error")
+
+        return render_template("login.html")
+
+    @app.get("/logout")
+    def logout():
+        session.clear()
+        flash("You have been signed out.", "success")
+        return redirect(url_for("login"))
+
+    @app.route("/dashboard")
+    @_login_required("admin")
+    def dashboard():
+        db = open_db()
+        query = request.args.get("q", "").strip()
+        where_sql, params = _driver_search_clause(query)
+        current_month = _current_month_value()
+
+        drivers = db.execute(
+            f"""
+            SELECT
+                driver_id,
+                full_name,
+                phone_number,
+                vehicle_no,
+                shift,
+                vehicle_type,
+                basic_salary,
+                ot_rate,
+                duty_start,
+                photo_name,
+                status,
+                (
+                    SELECT salary_month
+                    FROM salary_store
+                    WHERE salary_store.driver_id = drivers.driver_id
+                    ORDER BY salary_month DESC
+                    LIMIT 1
+                ) AS latest_salary_month
+            FROM drivers
+            {where_sql}
+            ORDER BY CASE WHEN status = 'Active' THEN 0 ELSE 1 END, full_name ASC
+            """,
+            params,
+        ).fetchall()
+
+        total_payroll = sum(driver["basic_salary"] for driver in drivers)
+        active_drivers = sum(1 for driver in drivers if (driver["status"] or "").lower() == "active")
+        stored_this_month = db.execute(
+            "SELECT COUNT(*) FROM salary_store WHERE salary_month = ?",
+            (current_month,),
+        ).fetchone()[0]
+        owner_fund_incoming, owner_fund_outgoing, owner_fund_balance = _owner_fund_totals(db)
+
+        return render_template(
+            "dashboard.html",
+            drivers=drivers,
+            total_drivers=len(drivers),
+            active_drivers=active_drivers,
+            total_payroll=total_payroll,
+            stored_this_month=stored_this_month,
+            current_month_label=format_month_label(current_month),
+            query=query,
+            owner_fund_incoming=owner_fund_incoming,
+            owner_fund_outgoing=owner_fund_outgoing,
+            owner_fund_balance=owner_fund_balance,
+        )
+
+    @app.route("/owner-fund", methods=["GET", "POST"])
+    @_login_required("admin", "owner")
+    def owner_fund():
+        db = open_db()
+        can_edit = _current_role() == "admin"
+        values = {
+            "owner_name": "",
+            "entry_date": date.today().isoformat(),
+            "amount": "",
+            "received_by": "",
+            "payment_method": "Cash",
+            "details": "",
+        }
+
+        if request.method == "POST":
+            if not can_edit:
+                flash("Owner view is read-only.", "error")
+                return redirect(url_for("owner_fund"))
+
+            values = {
+                "owner_name": request.form.get("owner_name", "").strip(),
+                "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
+                "amount": request.form.get("amount", "").strip(),
+                "received_by": request.form.get("received_by", "").strip(),
+                "payment_method": request.form.get("payment_method", "Cash").strip() or "Cash",
+                "details": request.form.get("details", "").strip(),
+            }
+            amount = _safe_float(values["amount"])
+            if not values["owner_name"] or amount <= 0:
+                flash("Owner name and amount are required.", "error")
+            else:
+                db.execute(
+                    """
+                    INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, details)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        values["owner_name"],
+                        values["entry_date"],
+                        amount,
+                        values["received_by"],
+                        values["payment_method"],
+                        values["details"],
+                    ),
+                )
+                db.commit()
+                flash("Owner fund entry saved.", "success")
+                return redirect(url_for("owner_fund"))
+
+        incoming, outgoing, balance = _owner_fund_totals(db)
+        entries = db.execute(
+            """
+            SELECT owner_name, entry_date, amount, received_by, payment_method, details
+            FROM owner_fund_entries
+            ORDER BY entry_date DESC, id DESC
+            LIMIT 20
+            """
+        ).fetchall()
+        statement = _owner_fund_statement(db)
+        pdf_files = _recent_generated_files(Path(app.config["GENERATED_DIR"]) / "owner_fund", "owner-fund-kata")
+
+        return render_template(
+            "owner_fund.html",
+            values=values,
+            incoming=incoming,
+            outgoing=outgoing,
+            balance=balance,
+            entries=entries,
+            statement=statement,
+            can_edit=can_edit,
+            pdf_files=pdf_files,
+        )
+
+    @app.get("/owner-fund/pdf")
+    @_login_required("admin", "owner")
+    def owner_fund_pdf():
+        db = open_db()
+        incoming, outgoing, balance = _owner_fund_totals(db)
+        statement = _owner_fund_statement(db, reverse=False)
+        output_dir = Path(app.config["GENERATED_DIR"]) / "owner_fund"
+        pdf_path = generate_owner_fund_pdf(
+            statement,
+            {"incoming": incoming, "outgoing": outgoing, "balance": balance},
+            str(output_dir),
+            app.config["STATIC_ASSETS_DIR"],
+        )
+        relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+        return redirect(url_for("generated_file", filename=relative_path))
+
+    @app.route("/portal/driver", methods=["GET", "POST"])
+    @_login_required("driver")
+    def driver_portal():
+        db = open_db()
+        driver = _fetch_driver(db, _current_driver_id())
+        if driver is None:
+            session.clear()
+            flash("Driver account was not found.", "error")
+            return redirect(url_for("login"))
+
+        timesheet_values = {
+            "entry_date": date.today().isoformat(),
+            "work_hours": "",
+            "remarks": "",
+        }
+
+        if request.method == "POST":
+            timesheet_values = {
+                "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
+                "work_hours": request.form.get("work_hours", "").strip(),
+                "remarks": request.form.get("remarks", "").strip(),
+            }
+            work_hours = _safe_float(timesheet_values["work_hours"])
+            if work_hours <= 0:
+                flash("Hours must be greater than zero.", "error")
+            else:
+                db.execute(
+                    """
+                    INSERT INTO driver_timesheets (driver_id, entry_date, work_hours, remarks)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(driver_id, entry_date) DO UPDATE SET
+                        work_hours = excluded.work_hours,
+                        remarks = excluded.remarks
+                    """,
+                    (driver["driver_id"], timesheet_values["entry_date"], work_hours, timesheet_values["remarks"]),
+                )
+                db.commit()
+                flash("Timesheet saved.", "success")
+                return redirect(url_for("driver_portal"))
+
+        recent_timesheets = db.execute(
+            """
+            SELECT entry_date, work_hours, remarks
+            FROM driver_timesheets
+            WHERE driver_id = ?
+            ORDER BY entry_date DESC, id DESC
+            LIMIT 12
+            """,
+            (driver["driver_id"],),
+        ).fetchall()
+        recent_transactions = db.execute(
+            """
+            SELECT entry_date, txn_type, source, amount, details
+            FROM driver_transactions
+            WHERE driver_id = ?
+            ORDER BY entry_date DESC, id DESC
+            LIMIT 12
+            """,
+            (driver["driver_id"],),
+        ).fetchall()
+        salary_slips = db.execute(
+            """
+            SELECT salary_month, net_payable, total_deductions, pdf_path, payment_source, generated_at
+            FROM salary_slips
+            WHERE driver_id = ?
+            ORDER BY generated_at DESC, id DESC
+            LIMIT 12
+            """,
+            (driver["driver_id"],),
+        ).fetchall()
+        month_hours = _timesheet_total_for_month(db, driver["driver_id"], _current_month_value())
+
+        return render_template(
+            "driver_portal.html",
+            driver=driver,
+            photo_url=_driver_photo_url(app, driver),
+            values=timesheet_values,
+            recent_timesheets=recent_timesheets,
+            recent_transactions=recent_transactions,
+            salary_slips=salary_slips,
+            month_hours=month_hours,
+            outstanding_advance=_outstanding_advance(db, driver["driver_id"]),
+        )
+
+    @app.route("/drivers/list")
+    @_login_required("admin")
+    def driver_list():
+        db = open_db()
+        query = request.args.get("q", "").strip()
+        where_sql, params = _driver_search_clause(query)
+
+        drivers = db.execute(
+            f"""
+            SELECT driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type, basic_salary,
+                   ot_rate, duty_start, photo_name, status, remarks
+            FROM drivers
+            {where_sql}
+            ORDER BY CASE WHEN status = 'Active' THEN 0 ELSE 1 END, full_name ASC
+            """,
+            params,
+        ).fetchall()
+        return render_template("driver_list.html", drivers=drivers, query=query)
+
+    @app.route("/drivers/new", methods=["GET", "POST"])
+    @_login_required("admin")
+    def create_driver():
+        if request.method == "POST":
+            form = _driver_form_data(request)
+            missing_fields = [
+                name
+                for name, value in form.items()
+                if name not in {"remarks", "photo_name", "duty_start"} and not value
+            ]
+            if missing_fields:
+                flash("Please fill in all required driver fields.", "error")
+                return render_template(
+                    "driver_form.html",
+                    values=form,
+                    page_title="Add Driver",
+                    submit_label="Save Driver",
+                    edit_mode=False,
+                    current_photo_url=None,
+                )
+
+            uploaded_photo = _save_driver_photo(app, form["driver_id"], request.files.get("photo_file"))
+            if uploaded_photo:
+                form["photo_name"] = uploaded_photo
+
+            db = open_db()
+            try:
+                db.execute(
+                    """
+                    INSERT INTO drivers (
+                        driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
+                        basic_salary, ot_rate, duty_start, photo_name, status, remarks
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    _driver_insert_values(form),
+                )
+                db.commit()
+            except Exception:
+                flash("Driver ID must be unique.", "error")
+                return render_template(
+                    "driver_form.html",
+                    values=form,
+                    page_title="Add Driver",
+                    submit_label="Save Driver",
+                    edit_mode=False,
+                    current_photo_url=_driver_photo_url(app, form),
+                )
+
+            flash("Driver saved. The new card is ready on the dashboard.", "success")
+            return redirect(url_for("dashboard"))
+
+        return render_template(
+            "driver_form.html",
+            values={},
+            page_title="Add Driver",
+            submit_label="Save Driver",
+            edit_mode=False,
+            current_photo_url=None,
+        )
+
+    @app.route("/drivers/<driver_id>/edit", methods=["GET", "POST"])
+    @_login_required("admin")
+    def edit_driver(driver_id: str):
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for("driver_list"))
+
+        if request.method == "POST":
+            form = _driver_form_data(request)
+            form["driver_id"] = driver_id
+            uploaded_photo = _save_driver_photo(app, driver_id, request.files.get("photo_file"))
+            if uploaded_photo:
+                form["photo_name"] = uploaded_photo
+            elif not form["photo_name"]:
+                form["photo_name"] = driver["photo_name"] or ""
+
+            db.execute(
+                """
+                UPDATE drivers
+                SET full_name = ?, phone_number = ?, vehicle_no = ?, shift = ?, vehicle_type = ?,
+                    basic_salary = ?, ot_rate = ?, duty_start = ?, photo_name = ?,
+                    status = ?, remarks = ?
+                WHERE driver_id = ?
+                """,
+                (
+                    form["full_name"],
+                    form["phone_number"],
+                    form["vehicle_no"],
+                    form["shift"],
+                    form["vehicle_type"],
+                    _safe_float(form["basic_salary"]),
+                    _safe_float(form["ot_rate"]),
+                    form["duty_start"],
+                    form["photo_name"],
+                    form["status"],
+                    form["remarks"],
+                    driver_id,
+                ),
+            )
+            db.commit()
+            flash("Driver updated successfully.", "success")
+            return redirect(url_for("driver_list"))
+
+        return render_template(
+            "driver_form.html",
+            values=dict(driver),
+            page_title="Edit Driver",
+            submit_label="Update Driver",
+            edit_mode=True,
+            current_photo_url=_driver_photo_url(app, driver),
+        )
+
+    @app.post("/drivers/<driver_id>/status")
+    @_login_required("admin")
+    def update_driver_status(driver_id: str):
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for("driver_list"))
+        next_status = request.form.get("status", "Active").strip() or "Active"
+        db.execute("UPDATE drivers SET status = ? WHERE driver_id = ?", (next_status, driver_id))
+        db.commit()
+        flash(f"{driver_id} marked as {next_status}.", "success")
+        return redirect(url_for("driver_list"))
+
+    @app.post("/drivers/import-currentlink")
+    @_login_required("admin")
+    def import_currentlink():
+        try:
+            imported = import_drivers_from_workbook(
+                str(app.config["DATABASE_PATH"]),
+                app.config["CURRENTLINK_FILE"],
+            )
+        except FileNotFoundError:
+            flash("Currentlink.xlsm was not found in Downloads.", "error")
+            return redirect(url_for("dashboard"))
+        except Exception as exc:
+            flash(f"Import failed: {exc}", "error")
+            return redirect(url_for("dashboard"))
+        flash(f"Imported or updated {imported} drivers from Currentlink.xlsm.", "success")
+        return redirect(url_for("dashboard"))
+
+    @app.route("/drivers/<driver_id>")
+    @_login_required("admin")
+    def driver_action(driver_id: str):
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for("dashboard"))
+
+        current_month = _current_month_value()
+        current_salary = db.execute(
+            "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
+            (driver_id, current_month),
+        ).fetchone()
+        latest_slip = db.execute(
+            "SELECT * FROM salary_slips WHERE driver_id = ? ORDER BY generated_at DESC LIMIT 1",
+            (driver_id,),
+        ).fetchone()
+        recent_transaction = db.execute(
+            """
+            SELECT entry_date, txn_type, amount
+            FROM driver_transactions
+            WHERE driver_id = ?
+            ORDER BY entry_date DESC, id DESC
+            LIMIT 1
+            """,
+            (driver_id,),
+        ).fetchone()
+
+        return render_template(
+            "driver_action.html",
+            driver=driver,
+            photo_url=_driver_photo_url(app, driver),
+            salary_status="Stored" if current_salary else "Not Stored",
+            current_month_label=format_month_label(current_month),
+            balance=_driver_balance(db, driver_id),
+            outstanding_advance=_outstanding_advance(db, driver_id),
+            transaction_count=db.execute(
+                "SELECT COUNT(*) FROM driver_transactions WHERE driver_id = ?",
+                (driver_id,),
+            ).fetchone()[0],
+            salary_count=db.execute(
+                "SELECT COUNT(*) FROM salary_store WHERE driver_id = ?",
+                (driver_id,),
+            ).fetchone()[0],
+            latest_slip=latest_slip,
+            recent_transaction=recent_transaction,
+        )
+
+    @app.route("/drivers/<driver_id>/transactions", methods=["GET", "POST"])
+    @_login_required("admin")
+    def driver_transactions(driver_id: str):
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for("dashboard"))
+
+        edit_transaction_id = request.args.get("edit", "").strip()
+        form = {
+            "transaction_id": "",
+            "entry_date": date.today().isoformat(),
+            "txn_type": TRANSACTION_TYPES[0],
+            "source": PAYMENT_SOURCES[0],
+            "given_by": "",
+            "amount": "",
+            "details": "",
+        }
+
+        if edit_transaction_id:
+            existing_transaction = db.execute(
+                """
+                SELECT id, entry_date, txn_type, source, given_by, amount, details
+                FROM driver_transactions
+                WHERE id = ? AND driver_id = ?
+                """,
+                (edit_transaction_id, driver_id),
+            ).fetchone()
+            if existing_transaction:
+                form = {
+                    "transaction_id": str(existing_transaction["id"]),
+                    "entry_date": existing_transaction["entry_date"],
+                    "txn_type": existing_transaction["txn_type"],
+                    "source": existing_transaction["source"],
+                    "given_by": existing_transaction["given_by"] or "",
+                    "amount": f"{float(existing_transaction['amount']):.2f}",
+                    "details": existing_transaction["details"] or "",
+                }
+
+        if request.method == "POST":
+            form = {
+                "transaction_id": request.form.get("transaction_id", "").strip(),
+                "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
+                "txn_type": request.form.get("txn_type", TRANSACTION_TYPES[0]).strip() or TRANSACTION_TYPES[0],
+                "source": request.form.get("source", PAYMENT_SOURCES[0]).strip() or PAYMENT_SOURCES[0],
+                "given_by": request.form.get("given_by", "").strip(),
+                "amount": request.form.get("amount", "").strip(),
+                "details": request.form.get("details", "").strip(),
+            }
+            amount = _safe_float(form["amount"])
+            if amount <= 0:
+                flash("Amount must be greater than zero.", "error")
+            else:
+                if form["transaction_id"]:
+                    db.execute(
+                        """
+                        UPDATE driver_transactions
+                        SET entry_date = ?, txn_type = ?, source = ?, given_by = ?, amount = ?, details = ?
+                        WHERE id = ? AND driver_id = ?
+                        """,
+                        (
+                            form["entry_date"],
+                            form["txn_type"],
+                            form["source"],
+                            form["given_by"],
+                            amount,
+                            form["details"],
+                            form["transaction_id"],
+                            driver_id,
+                        ),
+                    )
+                    message = "Transaction updated and driver KATA PDF refreshed."
+                else:
+                    db.execute(
+                        """
+                        INSERT INTO driver_transactions (driver_id, entry_date, txn_type, source, given_by, amount, details)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            driver_id,
+                            form["entry_date"],
+                            form["txn_type"],
+                            form["source"],
+                            form["given_by"],
+                            amount,
+                            form["details"],
+                        ),
+                    )
+                    message = "Transaction saved and driver KATA PDF updated."
+                db.commit()
+                _regenerate_kata_for_driver(app, db, driver)
+                flash(message, "success")
+                return redirect(url_for("driver_transactions", driver_id=driver_id))
+
+        transactions = db.execute(
+            """
+            SELECT id, entry_date, txn_type, source, given_by, amount, details
+            FROM driver_transactions
+            WHERE driver_id = ?
+            ORDER BY entry_date DESC, id DESC
+            LIMIT 20
+            """,
+            (driver_id,),
+        ).fetchall()
+        return render_template(
+            "driver_transactions.html",
+            driver=driver,
+            photo_url=_driver_photo_url(app, driver),
+            values=form,
+            transactions=transactions,
+            transaction_types=TRANSACTION_TYPES,
+            payment_sources=PAYMENT_SOURCES,
+            balance=_driver_balance(db, driver_id),
+        )
+
+    @app.post("/drivers/<driver_id>/transactions/<int:transaction_id>/delete")
+    @_login_required("admin")
+    def delete_driver_transaction(driver_id: str, transaction_id: int):
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for("dashboard"))
+        db.execute("DELETE FROM driver_transactions WHERE id = ? AND driver_id = ?", (transaction_id, driver_id))
+        db.commit()
+        _regenerate_kata_for_driver(app, db, driver)
+        flash("Transaction deleted and driver KATA PDF refreshed.", "success")
+        return redirect(url_for("driver_transactions", driver_id=driver_id))
+
+    @app.route("/drivers/<driver_id>/salary-store", methods=["GET", "POST"])
+    @_login_required("admin")
+    def driver_salary_store(driver_id: str):
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for("dashboard"))
+
+        edit_salary_id = request.args.get("edit", "").strip()
+        selected_month = request.args.get("month", "").strip() or _current_month_value()
+        existing_row = None
+        if edit_salary_id:
+            existing_row = db.execute(
+                "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+                (edit_salary_id, driver_id),
+            ).fetchone()
+            if existing_row is not None:
+                selected_month = existing_row["salary_month"]
+        else:
+            existing_row = db.execute(
+                "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
+                (driver_id, selected_month),
+            ).fetchone()
+
+        form = _default_salary_form(selected_month)
+        preview = _calculate_salary_preview(driver, form)
+        if existing_row is not None:
+            form = _salary_form_from_row(existing_row)
+            preview = dict(existing_row)
+
+        if request.method == "POST":
+            form = {
+                "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
+                "salary_month": _normalize_month(request.form.get("salary_month", selected_month).strip() or selected_month),
+                "ot_hours": request.form.get("ot_hours", "0").strip() or "0",
+                "personal_vehicle": request.form.get("personal_vehicle", "0").strip() or "0",
+                "remarks": request.form.get("remarks", "").strip(),
+            }
+            existing_row = db.execute(
+                "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
+                (driver_id, form["salary_month"]),
+            ).fetchone()
+            preview = _calculate_salary_preview(driver, form)
+            action = request.form.get("action", "calculate")
+            existing_month_row = db.execute(
+                "SELECT id FROM salary_store WHERE driver_id = ? AND salary_month = ?",
+                (driver_id, form["salary_month"]),
+            ).fetchone()
+            if action == "save":
+                db.execute(
+                    """
+                    INSERT INTO salary_store (
+                        driver_id, entry_date, salary_month, basic_salary, ot_hours, ot_rate,
+                        ot_amount, personal_vehicle, net_salary, remarks
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(driver_id, salary_month) DO UPDATE SET
+                        entry_date = excluded.entry_date,
+                        basic_salary = excluded.basic_salary,
+                        ot_hours = excluded.ot_hours,
+                        ot_rate = excluded.ot_rate,
+                        ot_amount = excluded.ot_amount,
+                        personal_vehicle = excluded.personal_vehicle,
+                        net_salary = excluded.net_salary,
+                        remarks = excluded.remarks
+                    """,
+                    (
+                        driver_id,
+                        form["entry_date"],
+                        form["salary_month"],
+                        preview["basic_salary"],
+                        preview["ot_hours"],
+                        preview["ot_rate"],
+                        preview["ot_amount"],
+                        preview["personal_vehicle"],
+                        preview["net_salary"],
+                        form["remarks"],
+                    ),
+                )
+                db.commit()
+                _regenerate_kata_for_driver(app, db, driver)
+                if existing_month_row:
+                    flash("This month already existed. Existing salary record was updated.", "success")
+                else:
+                    flash("Salary stored successfully.", "success")
+                return redirect(url_for("driver_salary_store", driver_id=driver_id, month=form["salary_month"]))
+
+        salary_rows = db.execute(
+            """
+            SELECT id, entry_date, salary_month, basic_salary, ot_hours, ot_amount, personal_vehicle, net_salary, remarks
+            FROM salary_store
+            WHERE driver_id = ?
+            ORDER BY salary_month DESC
+            LIMIT 12
+            """,
+            (driver_id,),
+        ).fetchall()
+        timesheet_hours = _timesheet_total_for_month(db, driver_id, form["salary_month"])
+
+        return render_template(
+            "driver_salary_store.html",
+            driver=driver,
+            photo_url=_driver_photo_url(app, driver),
+            values=form,
+            preview=preview,
+            salary_rows=salary_rows,
+            selected_month_label=format_month_label(form["salary_month"]),
+            timesheet_hours=timesheet_hours,
+            existing_month=existing_row,
+        )
+
+    @app.post("/drivers/<driver_id>/salary-store/<int:salary_id>/delete")
+    @_login_required("admin")
+    def delete_salary_store(driver_id: str, salary_id: int):
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for("dashboard"))
+        db.execute("DELETE FROM salary_store WHERE id = ? AND driver_id = ?", (salary_id, driver_id))
+        db.execute("DELETE FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (salary_id, driver_id))
+        db.commit()
+        _regenerate_kata_for_driver(app, db, driver)
+        flash("Salary row deleted.", "success")
+        return redirect(url_for("driver_salary_store", driver_id=driver_id))
+
+    @app.route("/drivers/<driver_id>/salary-slip", methods=["GET", "POST"])
+    @_login_required("admin")
+    def driver_salary_slip(driver_id: str):
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for("dashboard"))
+
+        salary_rows = db.execute(
+            "SELECT * FROM salary_store WHERE driver_id = ? ORDER BY salary_month DESC",
+            (driver_id,),
+        ).fetchall()
+        selected_salary_id = request.args.get("salary_store_id", "").strip()
+        if not selected_salary_id and salary_rows:
+            selected_salary_id = str(salary_rows[0]["id"])
+
+        selected_salary = None
+        existing_slip = None
+        available_advance = _outstanding_advance(db, driver_id)
+        values = {"deduction_amount": "0.00", "payment_source": PAYMENT_SOURCES[0], "paid_by": ""}
+
+        if selected_salary_id:
+            selected_salary = db.execute(
+                "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+                (selected_salary_id, driver_id),
+            ).fetchone()
+            if selected_salary is not None:
+                existing_slip = db.execute(
+                    """
+                    SELECT * FROM salary_slips
+                    WHERE salary_store_id = ? AND driver_id = ?
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    (selected_salary_id, driver_id),
+                ).fetchone()
+                previous_deduction = float(existing_slip["total_deductions"]) if existing_slip else 0.0
+                available_advance = _outstanding_advance(
+                    db,
+                    driver_id,
+                    exclude_salary_store_id=int(selected_salary_id),
+                ) + previous_deduction
+                if existing_slip:
+                    values = {
+                        "deduction_amount": f"{float(existing_slip['total_deductions']):.2f}",
+                        "payment_source": existing_slip["payment_source"] or PAYMENT_SOURCES[0],
+                        "paid_by": existing_slip["paid_by"] or "",
+                    }
+
+        if request.method == "POST":
+            selected_salary_id = request.form.get("salary_store_id", "").strip()
+            values = {
+                "deduction_amount": request.form.get("deduction_amount", "0").strip() or "0",
+                "payment_source": request.form.get("payment_source", PAYMENT_SOURCES[0]).strip() or PAYMENT_SOURCES[0],
+                "paid_by": request.form.get("paid_by", "").strip(),
+            }
+            if not selected_salary_id:
+                flash("Select a stored salary month first.", "error")
+            else:
+                selected_salary = db.execute(
+                    "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+                    (selected_salary_id, driver_id),
+                ).fetchone()
+                existing_slip = db.execute(
+                    """
+                    SELECT * FROM salary_slips
+                    WHERE salary_store_id = ? AND driver_id = ?
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    (selected_salary_id, driver_id),
+                ).fetchone()
+                previous_deduction = float(existing_slip["total_deductions"]) if existing_slip else 0.0
+                available_advance = _outstanding_advance(
+                    db,
+                    driver_id,
+                    exclude_salary_store_id=int(selected_salary_id),
+                ) + previous_deduction
+                deduction_amount = _safe_float(values["deduction_amount"])
+                if deduction_amount < 0 or deduction_amount > available_advance + 0.001:
+                    flash(f"Deduction amount must be between 0 and {available_advance:,.2f}.", "error")
+                elif selected_salary is None:
+                    flash("Selected salary record was not found.", "error")
+                elif existing_slip is not None:
+                    flash("Salary slip for this month already exists. Open the existing PDF below.", "error")
+                    return redirect(
+                        url_for(
+                            "driver_salary_slip",
+                            driver_id=driver_id,
+                            salary_store_id=selected_salary_id,
+                        )
+                    )
+                else:
+                    net_payable = float(selected_salary["net_salary"]) - deduction_amount
+                    if net_payable < 0:
+                        flash("Deduction cannot be greater than the salary amount.", "error")
+                    else:
+                        slip_payload = {
+                            "available_advance": available_advance,
+                            "deduction_amount": deduction_amount,
+                            "remaining_advance": max(available_advance - deduction_amount, 0),
+                            "payment_source": values["payment_source"],
+                            "paid_by": values["paid_by"],
+                            "net_payable": net_payable,
+                        }
+                        pdf_path = generate_salary_slip_pdf(
+                            driver,
+                            selected_salary,
+                            slip_payload,
+                            str(_driver_output_dir(app, driver_id) / "salary_slips"),
+                            app.config["STATIC_ASSETS_DIR"],
+                            app.config["GENERATED_DIR"],
+                        )
+                        relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+                        db.execute(
+                            """
+                            INSERT INTO salary_slips (
+                                driver_id, salary_store_id, salary_month, source_filter, total_deductions,
+                                available_advance, remaining_advance, payment_source, paid_by, net_payable, pdf_path
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                driver_id,
+                                selected_salary["id"],
+                                selected_salary["salary_month"],
+                                None,
+                                deduction_amount,
+                                available_advance,
+                                max(available_advance - deduction_amount, 0),
+                                values["payment_source"],
+                                values["paid_by"],
+                                net_payable,
+                                relative_path,
+                            ),
+                        )
+                        db.commit()
+                        flash("Salary slip PDF generated and saved inside the driver folder.", "success")
+                        return redirect(
+                            url_for(
+                                "driver_salary_slip",
+                                driver_id=driver_id,
+                                salary_store_id=selected_salary["id"],
+                            )
+                        )
+
+        slips = db.execute(
+            """
+            SELECT id, salary_month, pdf_path, net_payable, total_deductions, payment_source, generated_at
+            FROM salary_slips
+            WHERE driver_id = ?
+            ORDER BY generated_at DESC
+            LIMIT 8
+            """,
+            (driver_id,),
+        ).fetchall()
+        preview = None
+        if selected_salary is not None:
+            deduction_amount = _safe_float(values["deduction_amount"])
+            preview = {
+                "gross": float(selected_salary["net_salary"]),
+                "available_advance": available_advance,
+                "deduction_amount": deduction_amount,
+                "remaining_advance": max(available_advance - deduction_amount, 0),
+                "net_payable": float(selected_salary["net_salary"]) - deduction_amount,
+            }
+
+        return render_template(
+            "driver_salary_slip.html",
+            driver=driver,
+            photo_url=_driver_photo_url(app, driver),
+            salary_rows=salary_rows,
+            selected_salary=selected_salary,
+            selected_salary_id=selected_salary_id,
+            values=values,
+            preview=preview,
+            payment_sources=PAYMENT_SOURCES,
+            slips=slips,
+            existing_slip=existing_slip,
+        )
+
+    @app.get("/drivers/<driver_id>/kata-pdf")
+    @_login_required("admin")
+    def driver_kata_pdf(driver_id: str):
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for("dashboard"))
+        pdf_path = _regenerate_kata_for_driver(app, db, driver)
+        if pdf_path is None:
+            flash("No salary or transaction data is available for this driver yet.", "error")
+            return redirect(url_for("driver_action", driver_id=driver_id))
+        relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+        return redirect(url_for("generated_file", filename=relative_path))
+
+    @app.get("/generated/<path:filename>")
+    @_login_required("admin", "owner", "driver")
+    def generated_file(filename: str):
+        if not _can_access_generated_file(filename):
+            flash("You do not have access to that file.", "error")
+            return redirect(url_for(_role_home_endpoint()))
+        return send_from_directory(app.config["GENERATED_DIR"], filename, as_attachment=False)
+
+
+def _login_required(*roles):
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            role = _current_role()
+            if not role:
+                flash("Please sign in first.", "error")
+                return redirect(url_for("login"))
+            if roles and role not in roles:
+                flash("You do not have access to that page.", "error")
+                return redirect(url_for(_role_home_endpoint()))
+            return view(*args, **kwargs)
+
+        return wrapped
+
+    return decorator
+
+
+def _set_session(role: str, driver_id: str | None = None, display_name: str = "") -> None:
+    session.clear()
+    session["role"] = role
+    session["display_name"] = display_name
+    if driver_id:
+        session["driver_id"] = driver_id
+
+
+def _current_role() -> str:
+    return session.get("role", "")
+
+
+def _current_driver_id() -> str:
+    return session.get("driver_id", "")
+
+
+def _role_home_endpoint() -> str:
+    role = _current_role()
+    if role == "admin":
+        return "dashboard"
+    if role == "owner":
+        return "owner_fund"
+    if role == "driver":
+        return "driver_portal"
+    return "login"
+
+
+def _find_driver_by_phone(db, phone_number: str):
+    if not phone_number:
+        return None
+    drivers = db.execute(
+        """
+        SELECT driver_id, full_name, phone_number, status
+        FROM drivers
+        WHERE phone_number IS NOT NULL AND TRIM(phone_number) != ''
+        ORDER BY full_name ASC
+        """
+    ).fetchall()
+    for driver in drivers:
+        if (driver["status"] or "").lower() != "active":
+            continue
+        if _normalize_phone(driver["phone_number"]) == phone_number:
+            return driver
+    return None
+
+
+def _normalize_phone(value: str) -> str:
+    return "".join(character for character in value if character.isdigit())
+
+
+def _fetch_driver(db, driver_id: str):
+    return db.execute(
+        """
+        SELECT driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
+               basic_salary, ot_rate, duty_start, photo_name, status, remarks
+        FROM drivers
+        WHERE driver_id = ?
+        """,
+        (driver_id,),
+    ).fetchone()
+
+
+def _driver_search_clause(query: str):
+    if not query:
+        return "", []
+    needle = f"%{query}%"
+    return "WHERE (driver_id LIKE ? OR full_name LIKE ? OR vehicle_no LIKE ? OR phone_number LIKE ?)", [
+        needle,
+        needle,
+        needle,
+        needle,
+    ]
+
+
+def _driver_form_data(request):
+    return {
+        "driver_id": request.form.get("driver_id", "").strip(),
+        "full_name": request.form.get("full_name", "").strip(),
+        "phone_number": request.form.get("phone_number", "").strip(),
+        "vehicle_no": request.form.get("vehicle_no", "").strip(),
+        "shift": request.form.get("shift", "").strip(),
+        "vehicle_type": request.form.get("vehicle_type", "").strip(),
+        "basic_salary": request.form.get("basic_salary", "").strip(),
+        "ot_rate": request.form.get("ot_rate", "").strip(),
+        "duty_start": request.form.get("duty_start", "").strip(),
+        "photo_name": request.form.get("photo_name", "").strip(),
+        "status": request.form.get("status", "Active").strip() or "Active",
+        "remarks": request.form.get("remarks", "").strip(),
+    }
+
+
+def _driver_insert_values(form):
+    return (
+        form["driver_id"],
+        form["full_name"],
+        form["phone_number"],
+        form["vehicle_no"],
+        form["shift"],
+        form["vehicle_type"],
+        _safe_float(form["basic_salary"]),
+        _safe_float(form["ot_rate"]),
+        form["duty_start"],
+        form["photo_name"],
+        form["status"],
+        form["remarks"],
+    )
+
+
+def _safe_float(value: str) -> float:
+    try:
+        return float(value)
+    except ValueError:
+        return 0.0
+
+
+def _default_salary_form(salary_month: str):
+    return {
+        "entry_date": date.today().isoformat(),
+        "salary_month": _normalize_month(salary_month),
+        "ot_hours": "0",
+        "personal_vehicle": "0",
+        "remarks": "",
+    }
+
+
+def _salary_form_from_row(row):
+    return {
+        "entry_date": row["entry_date"],
+        "salary_month": row["salary_month"],
+        "ot_hours": f"{float(row['ot_hours']):.2f}",
+        "personal_vehicle": f"{float(row['personal_vehicle']):.2f}",
+        "remarks": row["remarks"] or "",
+    }
+
+
+def _calculate_salary_preview(driver, form):
+    basic_salary = float(driver["basic_salary"])
+    ot_rate = float(driver["ot_rate"])
+    ot_hours = _safe_float(form.get("ot_hours", "0"))
+    personal_vehicle = _safe_float(form.get("personal_vehicle", "0"))
+    ot_amount = ot_hours * ot_rate
+    net_salary = basic_salary + ot_amount + personal_vehicle
+    return {
+        "entry_date": form.get("entry_date", date.today().isoformat()),
+        "salary_month": _normalize_month(form.get("salary_month", _current_month_value())),
+        "basic_salary": basic_salary,
+        "ot_hours": ot_hours,
+        "ot_rate": ot_rate,
+        "ot_amount": ot_amount,
+        "personal_vehicle": personal_vehicle,
+        "net_salary": net_salary,
+        "remarks": form.get("remarks", ""),
+    }
+
+
+def _driver_balance(db, driver_id: str) -> float:
+    total_salary = db.execute(
+        "SELECT COALESCE(SUM(net_salary), 0) FROM salary_store WHERE driver_id = ?",
+        (driver_id,),
+    ).fetchone()[0]
+    total_transactions = db.execute(
+        "SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE driver_id = ?",
+        (driver_id,),
+    ).fetchone()[0]
+    total_deducted = db.execute(
+        "SELECT COALESCE(SUM(total_deductions), 0) FROM salary_slips WHERE driver_id = ?",
+        (driver_id,),
+    ).fetchone()[0]
+    return float(total_salary) - float(total_transactions) - float(total_deducted)
+
+
+def _outstanding_advance(db, driver_id: str, exclude_salary_store_id: int | None = None) -> float:
+    total_transactions = db.execute(
+        "SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE driver_id = ?",
+        (driver_id,),
+    ).fetchone()[0]
+    if exclude_salary_store_id is None:
+        total_deducted = db.execute(
+            "SELECT COALESCE(SUM(total_deductions), 0) FROM salary_slips WHERE driver_id = ?",
+            (driver_id,),
+        ).fetchone()[0]
+    else:
+        total_deducted = db.execute(
+            """
+            SELECT COALESCE(SUM(total_deductions), 0)
+            FROM salary_slips
+            WHERE driver_id = ? AND salary_store_id != ?
+            """,
+            (driver_id, exclude_salary_store_id),
+        ).fetchone()[0]
+    return max(float(total_transactions) - float(total_deducted), 0.0)
+
+
+def _owner_fund_totals(db):
+    incoming = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM owner_fund_entries").fetchone()[0])
+    outgoing_transactions = float(
+        db.execute("SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE source = 'Owner Fund'").fetchone()[0]
+    )
+    outgoing_salary = float(
+        db.execute("SELECT COALESCE(SUM(net_payable), 0) FROM salary_slips WHERE payment_source = 'Owner Fund'").fetchone()[0]
+    )
+    outgoing = outgoing_transactions + outgoing_salary
+    return incoming, outgoing, incoming - outgoing
+
+
+def _owner_fund_statement(db, reverse: bool = True):
+    rows = []
+    for entry in db.execute(
+        """
+        SELECT owner_name, entry_date, amount, received_by, details
+        FROM owner_fund_entries
+        ORDER BY entry_date ASC, id ASC
+        """
+    ).fetchall():
+        rows.append(
+            {
+                "entry_date": entry["entry_date"],
+                "reference": f"Owner Fund / {entry['owner_name']}",
+                "party": entry["received_by"] or "-",
+                "details": entry["details"] or "-",
+                "incoming": float(entry["amount"]),
+                "outgoing": 0.0,
+            }
+        )
+    for entry in db.execute(
+        """
+        SELECT entry_date, driver_id, given_by, amount, details
+        FROM driver_transactions
+        WHERE source = 'Owner Fund'
+        ORDER BY entry_date ASC, id ASC
+        """
+    ).fetchall():
+        rows.append(
+            {
+                "entry_date": entry["entry_date"],
+                "reference": f"Driver Txn / {entry['driver_id']}",
+                "party": entry["given_by"] or "-",
+                "details": entry["details"] or "-",
+                "incoming": 0.0,
+                "outgoing": float(entry["amount"]),
+            }
+        )
+    for entry in db.execute(
+        """
+        SELECT generated_at, driver_id, paid_by, net_payable, salary_month
+        FROM salary_slips
+        WHERE payment_source = 'Owner Fund'
+        ORDER BY generated_at ASC, id ASC
+        """
+    ).fetchall():
+        rows.append(
+            {
+                "entry_date": entry["generated_at"][:10],
+                "reference": f"Salary Slip / {entry['driver_id']}",
+                "party": entry["paid_by"] or "-",
+                "details": f"Salary {entry['salary_month']}",
+                "incoming": 0.0,
+                "outgoing": float(entry["net_payable"]),
+            }
+        )
+    rows.sort(key=lambda item: item["entry_date"])
+    balance = 0.0
+    for row in rows:
+        balance += row["incoming"] - row["outgoing"]
+        row["balance"] = balance
+    if reverse:
+        rows.reverse()
+    return rows[:60] if reverse else rows
+
+
+def _current_month_value() -> str:
+    return date.today().strftime("%Y-%m")
+
+
+def _normalize_month(value: str) -> str:
+    if not value:
+        return _current_month_value()
+    try:
+        return datetime.strptime(value, "%Y-%m").strftime("%Y-%m")
+    except ValueError:
+        return _current_month_value()
+
+
+def _driver_output_dir(app: Flask, driver_id: str) -> Path:
+    base_dir = Path(app.config["GENERATED_DIR"]) / "drivers" / driver_id
+    (base_dir / "salary_slips").mkdir(parents=True, exist_ok=True)
+    (base_dir / "kata_pdfs").mkdir(parents=True, exist_ok=True)
+    (base_dir / "profile").mkdir(parents=True, exist_ok=True)
+    return base_dir
+
+
+def _regenerate_kata_for_driver(app: Flask, db, driver):
+    salary_rows = db.execute(
+        """
+        SELECT entry_date, salary_month, net_salary
+        FROM salary_store
+        WHERE driver_id = ?
+        ORDER BY entry_date ASC, id ASC
+        """,
+        (driver["driver_id"],),
+    ).fetchall()
+    transactions = db.execute(
+        """
+        SELECT entry_date, txn_type, source, amount
+        FROM driver_transactions
+        WHERE driver_id = ?
+        ORDER BY entry_date ASC, id ASC
+        """,
+        (driver["driver_id"],),
+    ).fetchall()
+    if not salary_rows and not transactions:
+        return None
+    output_dir = _driver_output_dir(app, driver["driver_id"]) / "kata_pdfs"
+    return generate_kata_pdf(driver, salary_rows, transactions, str(output_dir), app.config["STATIC_ASSETS_DIR"])
+
+
+def _save_driver_photo(app: Flask, driver_id: str, photo_file):
+    if photo_file is None or not photo_file.filename:
+        return ""
+    safe_name = secure_filename(photo_file.filename)
+    if not safe_name:
+        return ""
+    extension = Path(safe_name).suffix.lower() or ".jpg"
+    target = _driver_output_dir(app, driver_id) / "profile" / f"photo{extension}"
+    photo_file.save(target)
+    return target.relative_to(app.config["GENERATED_DIR"]).as_posix()
+
+
+def _driver_photo_url(app: Flask, driver) -> str | None:
+    photo_name = driver["photo_name"] if driver and driver["photo_name"] else ""
+    if not photo_name:
+        return None
+    photo_path = Path(app.config["GENERATED_DIR"]) / photo_name
+    if photo_path.exists():
+        return url_for("generated_file", filename=photo_name)
+    return None
+
+
+def _timesheet_total_for_month(db, driver_id: str, month_value: str) -> float:
+    prefix = f"{month_value}-%"
+    return float(
+        db.execute(
+            """
+            SELECT COALESCE(SUM(work_hours), 0)
+            FROM driver_timesheets
+            WHERE driver_id = ? AND entry_date LIKE ?
+            """,
+            (driver_id, prefix),
+        ).fetchone()[0]
+    )
+
+
+def _can_access_generated_file(filename: str) -> bool:
+    role = _current_role()
+    if role == "admin":
+        return True
+    if role == "owner":
+        return filename.startswith("owner_fund/")
+    if role == "driver":
+        driver_id = _current_driver_id()
+        return filename.startswith(f"drivers/{driver_id}/")
+    return False
+
+
+def _recent_generated_files(folder: Path, prefix: str):
+    if not folder.exists():
+        return []
+    files = sorted(
+        [item for item in folder.glob(f"{prefix}*.pdf") if item.is_file()],
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
+    return [f"owner_fund/{item.name}" for item in files[:6]]

@@ -1,0 +1,133 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<section class="card action-panel form-panel salary-panel">
+    <div class="panel-titlebar">
+        <span>{{ config["COMPANY_NAME"] }}</span>
+        <span>Salary Store</span>
+    </div>
+
+    <div class="action-grid tight-grid">
+        <div class="photo-panel small-photo-panel">
+            {% if photo_url %}
+                <img class="driver-photo" src="{{ photo_url }}" alt="{{ driver.full_name }}">
+            {% else %}
+                <div class="photo-placeholder">NO PHOTO</div>
+            {% endif %}
+        </div>
+
+        <div class="driver-summary compact-summary salary-header-box">
+            <h2>{{ driver.full_name }}</h2>
+            <div class="summary-tags smart-tags">
+                <span>ID {{ driver.driver_id }}</span>
+                <span>SHIFT {{ driver.shift }}</span>
+            </div>
+            <dl class="panel-facts salary-master-grid">
+                <div><dt>Vehicle No</dt><dd>{{ driver.vehicle_no }}</dd></div>
+                <div><dt>Join Date</dt><dd>{{ driver.duty_start or "-" }}</dd></div>
+                <div><dt>Basic Salary</dt><dd>{{ "%.2f"|format(driver.basic_salary) }}</dd></div>
+                <div><dt>OT Rate</dt><dd>{{ "%.2f"|format(driver.ot_rate) }}</dd></div>
+                <div><dt>Phone</dt><dd>{{ driver.phone_number or "-" }}</dd></div>
+                <div><dt>Timesheet Hours</dt><dd>{{ "%.2f"|format(timesheet_hours) }}</dd></div>
+            </dl>
+        </div>
+    </div>
+
+    <section class="inner-section">
+        <div class="section-title">Salary Calculation</div>
+        {% if existing_month %}
+            <div class="info-box warning-box">This month is already stored. Any save will update the same month instead of creating a second record.</div>
+        {% endif %}
+        <form method="post" class="entry-form two-column-form salary-form-layout">
+            <label>
+                <span>Date</span>
+                <input type="date" name="entry_date" value="{{ values.entry_date }}" required>
+            </label>
+            <label>
+                <span>Salary Month</span>
+                <input type="month" name="salary_month" value="{{ values.salary_month }}" required>
+            </label>
+            <label>
+                <span>OT Hours</span>
+                <input type="number" name="ot_hours" step="0.01" min="0" value="{{ values.ot_hours }}">
+            </label>
+            <label>
+                <span>Personal / Vehicle</span>
+                <input type="number" name="personal_vehicle" step="0.01" value="{{ values.personal_vehicle }}">
+            </label>
+            <label>
+                <span>Basic Salary</span>
+                <input type="text" value="{{ "%.2f"|format(preview.basic_salary) }}" readonly>
+            </label>
+            <label>
+                <span>OT Rate</span>
+                <input type="text" value="{{ "%.2f"|format(preview.ot_rate) }}" readonly>
+            </label>
+            <label>
+                <span>OT Amount</span>
+                <input type="text" value="{{ "%.2f"|format(preview.ot_amount) }}" readonly>
+            </label>
+            <label>
+                <span>Final Salary</span>
+                <input class="success-field premium-field" type="text" value="{{ "%.2f"|format(preview.net_salary) }}" readonly>
+            </label>
+            <label class="full-span">
+                <span>Remarks</span>
+                <textarea name="remarks" rows="4">{{ values.remarks }}</textarea>
+            </label>
+            <div class="form-actions triple-actions">
+                <button class="button navy" type="submit" name="action" value="calculate">Calculate</button>
+                <button class="button success-button" type="submit" name="action" value="save">{{ 'Update Salary' if existing_month else 'Save Salary' }}</button>
+                <a class="button danger-button" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Close</a>
+            </div>
+        </form>
+    </section>
+</section>
+
+<section class="card table-card">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Stored Salary</p>
+            <h2>Monthly Records</h2>
+        </div>
+    </div>
+    {% if salary_rows %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Date</th>
+                        <th>OT Hours</th>
+                        <th>OT Amount</th>
+                        <th>Personal / Vehicle</th>
+                        <th>Final Salary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in salary_rows %}
+                        <tr>
+                            <td>
+                                <div><a class="table-link" href="{{ url_for('driver_salary_store', driver_id=driver.driver_id, edit=item.id) }}">{{ item.salary_month }}</a></div>
+                                <div class="table-actions">
+                                    <a class="mini-action-link" href="{{ url_for('driver_salary_store', driver_id=driver.driver_id, edit=item.id) }}">Edit</a>
+                                    <form method="post" action="{{ url_for('delete_salary_store', driver_id=driver.driver_id, salary_id=item.id) }}">
+                                        <button class="mini-action-button" type="submit">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                            <td>{{ item.entry_date }}</td>
+                            <td>{{ "%.2f"|format(item.ot_hours) }}</td>
+                            <td>{{ "%.2f"|format(item.ot_amount) }}</td>
+                            <td>{{ "%.2f"|format(item.personal_vehicle) }}</td>
+                            <td>AED {{ "%.2f"|format(item.net_salary) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="muted-text">No salary stored yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

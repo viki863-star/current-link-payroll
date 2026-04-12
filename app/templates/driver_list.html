@@ -1,0 +1,67 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<section class="card search-panel compact-panel">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Drivers</p>
+            <h2>Driver List</h2>
+        </div>
+    </div>
+    <form method="get" class="search-row">
+        <input type="search" name="q" value="{{ query }}" placeholder="Search driver, ID, vehicle">
+        <button class="button" type="submit">Search</button>
+        {% if query %}
+            <a class="button button-secondary" href="{{ url_for('driver_list') }}">Clear</a>
+        {% endif %}
+    </form>
+</section>
+
+<section class="card table-card">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                    <tr>
+                        <th>Driver ID</th>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Vehicle</th>
+                        <th>Shift</th>
+                        <th>Type</th>
+                    <th>Basic Salary</th>
+                    <th>OT Rate</th>
+                    <th>Join Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for driver in drivers %}
+                    <tr>
+                        <td><a class="table-link" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">{{ driver.driver_id }}</a></td>
+                        <td>{{ driver.full_name }}</td>
+                        <td>{{ driver.phone_number or "-" }}</td>
+                        <td>{{ driver.vehicle_no }}</td>
+                        <td>{{ driver.shift }}</td>
+                        <td>{{ driver.vehicle_type }}</td>
+                        <td>AED {{ "%.2f"|format(driver.basic_salary) }}</td>
+                        <td>{{ "%.2f"|format(driver.ot_rate) }}</td>
+                        <td>{{ driver.duty_start or "-" }}</td>
+                        <td><span class="status-chip {{ driver.status|lower }}">{{ driver.status }}</span></td>
+                        <td>
+                            <div class="table-actions">
+                                <a class="mini-action-link" href="{{ url_for('edit_driver', driver_id=driver.driver_id) }}">Edit</a>
+                                <a class="mini-action-link" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Open</a>
+                                <form method="post" action="{{ url_for('update_driver_status', driver_id=driver.driver_id) }}">
+                                    <input type="hidden" name="status" value="{{ 'Inactive' if driver.status == 'Active' else 'Active' }}">
+                                    <button class="mini-action-button" type="submit">{{ 'Set Inactive' if driver.status == 'Active' else 'Set Active' }}</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
