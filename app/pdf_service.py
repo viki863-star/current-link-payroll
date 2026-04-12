@@ -166,6 +166,58 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
     return str(output_path)
 
 
+def generate_timesheet_pdf(driver, month_value: str, calendar_days, summary, output_dir: str, assets_dir: str, generated_dir: str) -> str:
+    output_path = Path(output_dir) / f"{driver['driver_id']}_{month_value}_timesheet.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+    _draw_header(pdf, assets_dir)
+    _draw_title(pdf, f"Driver Timesheet {format_month_label(month_value)}", "Daily attendance, working hours and missing-day review")
+
+    top_x = 16 * mm
+    top_y = 181 * mm
+    top_w = 118 * mm
+    top_h = 43 * mm
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(top_x, top_y, top_w, top_h, 5 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(top_x, top_y, top_w, top_h, 5 * mm, fill=0, stroke=1)
+    pdf.setFillColor(BLUE_SOFT)
+    pdf.roundRect(top_x, top_y + top_h - 10 * mm, top_w, 10 * mm, 5 * mm, fill=1, stroke=0)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(top_x + 5 * mm, top_y + top_h - 6.1 * mm, "DRIVER DETAILS")
+
+    summary_rows = [
+        ("Driver Name", driver["full_name"]),
+        ("Driver ID", driver["driver_id"]),
+        ("Vehicle No", driver["vehicle_no"]),
+        ("Shift", driver["shift"]),
+        ("Phone", driver["phone_number"] if "phone_number" in driver.keys() else "-"),
+        ("Month", format_month_label(month_value)),
+    ]
+    row_y = top_y + top_h - 15.5 * mm
+    for index, (label, value) in enumerate(summary_rows):
+        column_x = top_x + (5 * mm if index % 2 == 0 else 63 * mm)
+        if index and index % 2 == 0:
+            row_y -= 7.2 * mm
+        _draw_label_value_row(pdf, column_x, row_y, 23 * mm, 28 * mm, label, value)
+
+    metric_labels = [
+        ("Entered Days", str(summary["entered_days"])),
+        ("Missing Days", str(summary["missing_days"])),
+        ("Total Hours", format_currency(summary["total_hours"])),
+    ]
+    for index, (label, value) in enumerate(metric_labels):
+        _draw_stat_box(pdf, (138 + index * 0) * mm, (208 - index * 13.5) * mm, 56 * mm, 11 * mm, label, value)
+
+    _draw_timesheet_table(pdf, calendar_days)
+    _draw_timesheet_footer(pdf, driver, summary, assets_dir, generated_dir)
+    pdf.showPage()
+    pdf.save()
+    return str(output_path)
+
+
 def _draw_header(pdf: canvas.Canvas, assets_dir: str) -> None:
     premium_banner = Path(assets_dir) / "current-link-header-premium.png"
     banner = premium_banner if premium_banner.exists() else Path(assets_dir) / "current-link-header.png"
@@ -399,6 +451,125 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 7.1)
     pdf.drawString(16 * mm, 33 * mm, "This is a system-generated salary slip for internal payroll records.")
+    _draw_footer_banner(pdf, assets_dir)
+
+
+def _draw_timesheet_table(pdf: canvas.Canvas, calendar_days) -> None:
+    x = 16 * mm
+    y = 86 * mm
+    w = 179 * mm
+    h = 88 * mm
+
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 10.5)
+    pdf.drawString(x, y + h + 6.5 * mm, "MONTHLY TIMESHEET")
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 7.4)
+    pdf.drawString(x + 38 * mm, y + h + 6.5 * mm, "Missing entries are highlighted for quick review")
+
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(x, y, w, h, 5 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(x, y, w, h, 5 * mm, fill=0, stroke=1)
+
+    half = 89.5 * mm
+    _draw_timesheet_table_header(pdf, x, y + h - 10 * mm, half - 2 * mm)
+    _draw_timesheet_table_header(pdf, x + half, y + h - 10 * mm, half - 2 * mm)
+
+    left_rows = calendar_days[:16]
+    right_rows = calendar_days[16:]
+    row_height = 4.7 * mm
+    start_y = y + h - 15 * mm
+    _draw_timesheet_rows(pdf, x + 3 * mm, start_y, left_rows, row_height, 82 * mm)
+    _draw_timesheet_rows(pdf, x + half + 3 * mm, start_y, right_rows, row_height, 82 * mm)
+    pdf.setStrokeColor(LINE)
+    pdf.line(x + half, y + 4 * mm, x + half, y + h - 4 * mm)
+
+
+def _draw_timesheet_table_header(pdf: canvas.Canvas, x: float, y: float, width: float) -> None:
+    pdf.setFillColor(ORANGE)
+    pdf.roundRect(x, y, width, 8 * mm, 2 * mm, fill=1, stroke=0)
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 7.3)
+    pdf.drawString(x + 3 * mm, y + 2.5 * mm, "DAY")
+    pdf.drawString(x + 15 * mm, y + 2.5 * mm, "STATUS")
+    pdf.drawString(x + 37 * mm, y + 2.5 * mm, "HOURS")
+    pdf.drawString(x + 54 * mm, y + 2.5 * mm, "REMARKS")
+
+
+def _draw_timesheet_rows(pdf: canvas.Canvas, x: float, y: float, rows, row_height: float, width: float) -> None:
+    current_y = y
+    for index, row in enumerate(rows):
+        if index % 2 == 0:
+            pdf.setFillColor(SOFT)
+            pdf.roundRect(x - 1.2 * mm, current_y - 2.6 * mm, width, row_height, 1.4 * mm, fill=1, stroke=0)
+        status_label = "Entered" if row["entered"] else "Missing"
+        status_color = GREEN if row["entered"] else RED
+        pdf.setFillColor(TEXT)
+        pdf.setFont("Helvetica-Bold", 7.2)
+        pdf.drawString(x, current_y, f"{row['day']:02d}")
+        pdf.setFillColor(status_color)
+        pdf.setFont("Helvetica-Bold", 7.2)
+        pdf.drawString(x + 12 * mm, current_y, status_label)
+        pdf.setFillColor(TEXT)
+        pdf.setFont("Helvetica-Bold", 7.2)
+        pdf.drawRightString(x + 34 * mm, current_y, format_currency(row["work_hours"]) if row["entered"] else "0.00")
+        pdf.setFillColor(MUTED if row["entered"] else RED)
+        text, size = _fit_text(pdf, row["remarks"] or ("No entry" if not row["entered"] else "-"), "Helvetica", 6.6, 29 * mm)
+        pdf.setFont("Helvetica", size)
+        pdf.drawString(x + 40 * mm, current_y, text)
+        current_y -= row_height
+
+
+def _draw_timesheet_footer(pdf: canvas.Canvas, driver, summary, assets_dir: str, generated_dir: str) -> None:
+    photo_x = 16 * mm
+    photo_y = 38 * mm
+    photo_w = 36 * mm
+    photo_h = 30 * mm
+    pdf.setFillColor(SOFT)
+    pdf.roundRect(photo_x, photo_y, photo_w, photo_h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(photo_x, photo_y, photo_w, photo_h, 4 * mm, fill=0, stroke=1)
+    if not _draw_driver_photo(pdf, driver, generated_dir, photo_x + 2 * mm, photo_y + 2 * mm, photo_w - 4 * mm, photo_h - 4 * mm):
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica-Bold", 8)
+        pdf.drawCentredString(photo_x + photo_w / 2, photo_y + photo_h / 2, "NO PHOTO")
+
+    note_x = 58 * mm
+    note_y = 38 * mm
+    note_w = 68 * mm
+    note_h = 30 * mm
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(note_x, note_y, note_w, note_h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(note_x, note_y, note_w, note_h, 4 * mm, fill=0, stroke=1)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 8.1)
+    pdf.drawString(note_x + 4 * mm, note_y + 22 * mm, "TIMESHEET STATUS")
+    _draw_small_meta_row(pdf, note_x + 4 * mm, note_y + 15.2 * mm, "Entered", str(summary["entered_days"]), 24 * mm)
+    _draw_small_meta_row(pdf, note_x + 4 * mm, note_y + 10.4 * mm, "Missing", str(summary["missing_days"]), 24 * mm)
+    _draw_small_meta_row(pdf, note_x + 4 * mm, note_y + 5.6 * mm, "Hours", format_currency(summary["total_hours"]), 24 * mm)
+
+    sign_x = 132 * mm
+    sign_y = 38 * mm
+    sign_w = 63 * mm
+    sign_h = 30 * mm
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(sign_x, sign_y, sign_w, sign_h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(sign_x, sign_y, sign_w, sign_h, 4 * mm, fill=0, stroke=1)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 8.2)
+    pdf.drawString(sign_x + 4 * mm, sign_y + 22 * mm, "SUPERVISOR REVIEW")
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 7.2)
+    pdf.drawString(sign_x + 4 * mm, sign_y + 15.5 * mm, "Check missing days before payroll close.")
+    pdf.drawString(sign_x + 4 * mm, sign_y + 10.5 * mm, "Sign")
+    pdf.setStrokeColor(BLUE_DARK)
+    pdf.line(sign_x + 16 * mm, sign_y + 11 * mm, sign_x + 52 * mm, sign_y + 11 * mm)
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 7)
+    pdf.drawString(16 * mm, 33 * mm, "This monthly timesheet is system-generated for operational review.")
     _draw_footer_banner(pdf, assets_dir)
 
 

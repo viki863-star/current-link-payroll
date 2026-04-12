@@ -1,4 +1,5 @@
 import base64
+from calendar import monthrange
 from datetime import date, datetime
 from functools import wraps
 from io import BytesIO
@@ -7,6 +8,7 @@ from pathlib import Path
 from flask import (
     Flask,
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
@@ -25,6 +27,7 @@ from .pdf_service import (
     generate_kata_pdf,
     generate_owner_fund_pdf,
     generate_salary_slip_pdf,
+    generate_timesheet_pdf,
 )
 
 
@@ -98,7 +101,10 @@ def register_routes(app: Flask) -> None:
     def dashboard():
         db = open_db()
         query = request.args.get("q", "").strip()
-        where_sql, params = _driver_search_clause(query)
+        status_filter = request.args.get("status", "").strip()
+        shift_filter = request.args.get("shift", "").strip()
+        vehicle_filter = request.args.get("vehicle_type", "").strip()
+        where_sql, params = _driver_filter_clause(query, status_filter, shift_filter, vehicle_filter)
         current_month = _current_month_value()
 
         drivers = db.execute(
@@ -136,6 +142,15 @@ def register_routes(app: Flask) -> None:
             (current_month,),
         ).fetchone()[0]
         owner_fund_incoming, owner_fund_outgoing, owner_fund_balance = _owner_fund_totals(db)
+        import_history = db.execute(
+            """
+            SELECT source_type, file_name, imported_count, notes, created_at
+            FROM import_history
+            ORDER BY created_at DESC, id DESC
+            LIMIT 8
+            """
+        ).fetchall()
+        filter_options = _driver_filter_options(db)
 
         return render_template(
             "dashboard.html",
@@ -146,9 +161,15 @@ def register_routes(app: Flask) -> None:
             stored_this_month=stored_this_month,
             current_month_label=format_month_label(current_month),
             query=query,
+            status_filter=status_filter,
+            shift_filter=shift_filter,
+            vehicle_filter=vehicle_filter,
             owner_fund_incoming=owner_fund_incoming,
             owner_fund_outgoing=owner_fund_outgoing,
             owner_fund_balance=owner_fund_balance,
+            import_history=import_history,
+            shifts=filter_options["shifts"],
+            vehicle_types=filter_options["vehicle_types"],
         )
 
     @app.route("/owner-fund", methods=["GET", "POST"])
@@ -250,6 +271,11 @@ def register_routes(app: Flask) -> None:
             flash("Driver account was not found.", "error")
             return redirect(url_for("login"))
 
+        selected_month = _normalize_month(
+            request.args.get("month", "").strip()
+            or request.form.get("selected_month", "").strip()
+            or _current_month_value()
+        )
         timesheet_values = {
             "entry_date": date.today().isoformat(),
             "work_hours": "",
@@ -278,7 +304,7 @@ def register_routes(app: Flask) -> None:
                 )
                 db.commit()
                 flash("Timesheet saved.", "success")
-                return redirect(url_for("driver_portal"))
+                return redirect(url_for("driver_portal", month=selected_month))
 
         recent_timesheets = db.execute(
             """
@@ -310,7 +336,9 @@ def register_routes(app: Flask) -> None:
             """,
             (driver["driver_id"],),
         ).fetchall()
-        month_hours = _timesheet_total_for_month(db, driver["driver_id"], _current_month_value())
+        month_hours = _timesheet_total_for_month(db, driver["driver_id"], selected_month)
+        month_calendar = _driver_month_calendar(db, driver["driver_id"], selected_month)
+        timesheet_summary = _timesheet_month_summary(month_calendar)
 
         return render_template(
             "driver_portal.html",
@@ -322,6 +350,10 @@ def register_routes(app: Flask) -> None:
             salary_slips=salary_slips,
             month_hours=month_hours,
             outstanding_advance=_outstanding_advance(db, driver["driver_id"]),
+            selected_month=selected_month,
+            selected_month_label=format_month_label(selected_month),
+            month_calendar=month_calendar,
+            timesheet_summary=timesheet_summary,
         )
 
     @app.route("/drivers/list")
@@ -329,7 +361,10 @@ def register_routes(app: Flask) -> None:
     def driver_list():
         db = open_db()
         query = request.args.get("q", "").strip()
-        where_sql, params = _driver_search_clause(query)
+        status_filter = request.args.get("status", "").strip()
+        shift_filter = request.args.get("shift", "").strip()
+        vehicle_filter = request.args.get("vehicle_type", "").strip()
+        where_sql, params = _driver_filter_clause(query, status_filter, shift_filter, vehicle_filter)
 
         drivers = db.execute(
             f"""
@@ -341,7 +376,20 @@ def register_routes(app: Flask) -> None:
             """,
             params,
         ).fetchall()
-        return render_template("driver_list.html", drivers=drivers, query=query)
+        filter_options = _driver_filter_options(db)
+        return render_template(
+            "driver_list.html",
+            drivers=drivers,
+            query=query,
+            status_filter=status_filter,
+            shift_filter=shift_filter,
+            vehicle_filter=vehicle_filter,
+            shifts=filter_options["shifts"],
+            vehicle_types=filter_options["vehicle_types"],
+            driver_count=len(drivers),
+            active_count=sum(1 for driver in drivers if (driver["status"] or "").lower() == "active"),
+            inactive_count=sum(1 for driver in drivers if (driver["status"] or "").lower() != "active"),
+        )
 
     @app.route("/drivers/new", methods=["GET", "POST"])
     @_login_required("admin")
@@ -480,6 +528,7 @@ def register_routes(app: Flask) -> None:
             records = load_driver_records(app.config["CURRENTLINK_FILE"])
             db = open_db()
             imported = upsert_driver_records(db, records)
+            _log_import_history(db, "Currentlink Workbook", Path(app.config["CURRENTLINK_FILE"]).name, imported)
             db.commit()
         except FileNotFoundError:
             flash("Currentlink.xlsm was not found in Downloads.", "error")
@@ -496,11 +545,14 @@ def register_routes(app: Flask) -> None:
         try:
             uploaded_pdf = request.files.get("driver_pdf")
             if uploaded_pdf and uploaded_pdf.filename:
+                file_name = uploaded_pdf.filename
                 records = load_driver_records_from_pdf_bytes(uploaded_pdf.read())
             else:
+                file_name = Path(app.config["DRIVER_PDF_FILE"]).name
                 records = load_driver_records_from_pdf(app.config["DRIVER_PDF_FILE"])
             db = open_db()
             imported = upsert_driver_records(db, records)
+            _log_import_history(db, "Driver PDF", file_name, imported)
             db.commit()
         except FileNotFoundError:
             flash("Driver.pdf was not found in Downloads.", "error")
@@ -1013,6 +1065,35 @@ def register_routes(app: Flask) -> None:
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
+    @app.get("/drivers/<driver_id>/timesheet-pdf")
+    @_login_required("admin", "driver")
+    def driver_timesheet_pdf(driver_id: str):
+        if _current_role() == "driver" and _current_driver_id() != driver_id:
+            flash("You do not have access to that timesheet.", "error")
+            return redirect(url_for("driver_portal"))
+
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for(_role_home_endpoint()))
+
+        month_value = _normalize_month(request.args.get("month", "").strip() or _current_month_value())
+        month_calendar = _driver_month_calendar(db, driver_id, month_value)
+        summary = _timesheet_month_summary(month_calendar)
+        output_dir = _driver_output_dir(app, driver_id, driver=driver) / "timesheets"
+        pdf_path = generate_timesheet_pdf(
+            driver,
+            month_value,
+            month_calendar,
+            summary,
+            str(output_dir),
+            app.config["STATIC_ASSETS_DIR"],
+            app.config["GENERATED_DIR"],
+        )
+        relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+        return redirect(url_for("generated_file", filename=relative_path))
+
     @app.get("/drivers/<driver_id>/photo")
     @_login_required("admin", "driver")
     def driver_photo(driver_id: str):
@@ -1134,6 +1215,51 @@ def _fetch_driver(db, driver_id: str):
         """,
         (driver_id,),
     ).fetchone()
+
+
+def _driver_filter_clause(query: str, status_filter: str = "", shift_filter: str = "", vehicle_filter: str = ""):
+    filters = []
+    params = []
+    if query:
+        needle = f"%{query}%"
+        filters.append("(driver_id LIKE ? OR full_name LIKE ? OR vehicle_no LIKE ? OR phone_number LIKE ?)")
+        params.extend([needle, needle, needle, needle])
+    if status_filter:
+        filters.append("status = ?")
+        params.append(status_filter)
+    if shift_filter:
+        filters.append("shift = ?")
+        params.append(shift_filter)
+    if vehicle_filter:
+        filters.append("vehicle_type = ?")
+        params.append(vehicle_filter)
+    if not filters:
+        return "", []
+    return "WHERE " + " AND ".join(filters), params
+
+
+def _driver_filter_options(db):
+    shifts = [
+        row["shift"]
+        for row in db.execute("SELECT DISTINCT shift FROM drivers WHERE TRIM(shift) != '' ORDER BY shift ASC").fetchall()
+    ]
+    vehicle_types = [
+        row["vehicle_type"]
+        for row in db.execute(
+            "SELECT DISTINCT vehicle_type FROM drivers WHERE TRIM(vehicle_type) != '' ORDER BY vehicle_type ASC"
+        ).fetchall()
+    ]
+    return {"shifts": shifts, "vehicle_types": vehicle_types}
+
+
+def _log_import_history(db, source_type: str, file_name: str, imported_count: int, notes: str = ""):
+    db.execute(
+        """
+        INSERT INTO import_history (source_type, file_name, imported_count, notes)
+        VALUES (?, ?, ?, ?)
+        """,
+        (source_type, file_name, imported_count, notes),
+    )
 
 
 def _driver_search_clause(query: str):
@@ -1377,9 +1503,10 @@ def _driver_output_dir(app: Flask, driver_id: str, *, driver=None, full_name: st
             db = open_db()
             found = _fetch_driver(db, driver_id)
             full_name = found["full_name"] if found else driver_id
-        base_dir = drivers_root / _driver_folder_name(full_name or driver_id, driver_id)
+    base_dir = drivers_root / _driver_folder_name(full_name or driver_id, driver_id)
     (base_dir / "salary_slips").mkdir(parents=True, exist_ok=True)
     (base_dir / "kata_pdfs").mkdir(parents=True, exist_ok=True)
+    (base_dir / "timesheets").mkdir(parents=True, exist_ok=True)
     (base_dir / "profile").mkdir(parents=True, exist_ok=True)
     return base_dir
 
@@ -1527,6 +1654,46 @@ def _timesheet_total_for_month(db, driver_id: str, month_value: str) -> float:
     )
 
 
+def _driver_month_calendar(db, driver_id: str, month_value: str):
+    year, month = [int(part) for part in month_value.split("-")]
+    total_days = monthrange(year, month)[1]
+    rows = db.execute(
+        """
+        SELECT entry_date, work_hours, remarks
+        FROM driver_timesheets
+        WHERE driver_id = ? AND entry_date LIKE ?
+        ORDER BY entry_date ASC
+        """,
+        (driver_id, f"{month_value}-%"),
+    ).fetchall()
+    by_day = {int(row["entry_date"][-2:]): row for row in rows}
+    calendar_days = []
+    for day in range(1, total_days + 1):
+        iso_date = f"{month_value}-{day:02d}"
+        row = by_day.get(day)
+        work_hours = float(row["work_hours"]) if row else 0.0
+        calendar_days.append(
+            {
+                "day": day,
+                "date": iso_date,
+                "entered": row is not None and work_hours > 0,
+                "work_hours": work_hours,
+                "remarks": (row["remarks"] or "") if row else "",
+            }
+        )
+    return calendar_days
+
+
+def _timesheet_month_summary(calendar_days):
+    entered_days = sum(1 for item in calendar_days if item["entered"])
+    total_hours = sum(item["work_hours"] for item in calendar_days if item["entered"])
+    return {
+        "entered_days": entered_days,
+        "missing_days": len(calendar_days) - entered_days,
+        "total_hours": total_hours,
+    }
+
+
 def _can_access_generated_file(filename: str) -> bool:
     role = _current_role()
     if role == "admin":
@@ -1537,9 +1704,13 @@ def _can_access_generated_file(filename: str) -> bool:
         driver_id = _current_driver_id()
         db = open_db()
         driver = _fetch_driver(db, driver_id)
+        drivers_root = Path(current_app.config["GENERATED_DIR"]) / "drivers"
         prefixes = {f"drivers/{driver_id}/"}
         if driver is not None:
             prefixes.add(f"drivers/{_driver_folder_name(driver['full_name'], driver_id)}/")
+        for folder in drivers_root.glob(f"*__{driver_id.lower()}"):
+            if folder.is_dir():
+                prefixes.add(f"drivers/{folder.name}/")
         return any(filename.startswith(prefix) for prefix in prefixes)
     return False
 

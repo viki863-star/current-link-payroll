@@ -94,6 +94,15 @@ CREATE TABLE IF NOT EXISTS owner_fund_entries (
     details TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS import_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_type TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    imported_count INTEGER NOT NULL DEFAULT 0,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
@@ -184,6 +193,15 @@ CREATE TABLE IF NOT EXISTS owner_fund_entries (
     received_by TEXT,
     payment_method TEXT DEFAULT 'Cash',
     details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS import_history (
+    id BIGSERIAL PRIMARY KEY,
+    source_type TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    imported_count INTEGER NOT NULL DEFAULT 0,
+    notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 """

@@ -1,94 +1,202 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
-<section class="stats compact-stats">
-    <article class="card stat-card">
-        <span>Drivers</span>
-        <strong>{{ total_drivers }}</strong>
-    </article>
-    <article class="card stat-card">
-        <span>Active</span>
-        <strong>{{ active_drivers }}</strong>
-    </article>
-    <article class="card stat-card">
-        <span>{{ current_month_label }}</span>
-        <strong>{{ stored_this_month }}</strong>
-    </article>
-    <article class="card stat-card">
-        <span>Payroll</span>
-        <strong>AED {{ "%.2f"|format(total_payroll) }}</strong>
-    </article>
-    <article class="card stat-card">
-        <span>Owner Fund</span>
-        <strong>AED {{ "%.2f"|format(owner_fund_balance) }}</strong>
+<section class="dashboard-hero">
+    <article class="card dashboard-hero-card">
+        <div>
+            <p class="eyebrow">Operations Hub</p>
+            <h2>Current Link Driver Command Center</h2>
+            <p class="lead">Track drivers, payroll, owner fund activity and imports from one polished control room.</p>
+        </div>
+        <div class="dashboard-hero-pills">
+            <span>Abu Dhabi</span>
+            <span>Tankers</span>
+            <span>Trailers</span>
+            <span>Heavy Equipment</span>
+        </div>
     </article>
 </section>
 
-<section class="card search-panel compact-panel">
-    <form method="get" class="search-row">
-        <input type="search" name="q" value="{{ query }}" placeholder="Search driver, ID, vehicle">
-        <button class="button" type="submit">Search</button>
-        <a class="button button-secondary" href="{{ url_for('driver_list') }}">Driver List</a>
-        <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund Kata</a>
-        <button class="button button-secondary" type="submit" formaction="{{ url_for('import_driver_pdf') }}" formmethod="post">Import Driver PDF</button>
-        {% if query %}
-            <a class="button button-secondary" href="{{ url_for('dashboard') }}">Clear</a>
-        {% endif %}
+<section class="stats premium-stats">
+    <article class="card stat-card premium-stat-card blue-stat">
+        <span>Total Drivers</span>
+        <strong>{{ total_drivers }}</strong>
+        <small>Master list after all imports and manual updates.</small>
+    </article>
+    <article class="card stat-card premium-stat-card green-stat">
+        <span>Active Drivers</span>
+        <strong>{{ active_drivers }}</strong>
+        <small>Ready for payroll, timesheet and portal access.</small>
+    </article>
+    <article class="card stat-card premium-stat-card orange-stat">
+        <span>{{ current_month_label }}</span>
+        <strong>{{ stored_this_month }}</strong>
+        <small>Salary store records completed this month.</small>
+    </article>
+    <article class="card stat-card premium-stat-card navy-stat">
+        <span>Total Payroll</span>
+        <strong>AED {{ "%.2f"|format(total_payroll) }}</strong>
+        <small>Basic salary total for the filtered driver set.</small>
+    </article>
+    <article class="card stat-card premium-stat-card slate-stat">
+        <span>Owner Fund Balance</span>
+        <strong>AED {{ "%.2f"|format(owner_fund_balance) }}</strong>
+        <small>Live owner fund position across salaries and transactions.</small>
+    </article>
+</section>
+
+<section class="card search-panel compact-panel premium-filter-panel">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Filters</p>
+            <h2>Search and Refine</h2>
+        </div>
+    </div>
+    <form method="get" class="filter-grid">
+        <label>
+            <span>Search</span>
+            <input type="search" name="q" value="{{ query }}" placeholder="Search driver, ID, vehicle">
+        </label>
+        <label>
+            <span>Status</span>
+            <select name="status">
+                <option value="">All</option>
+                <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </label>
+        <label>
+            <span>Shift</span>
+            <select name="shift">
+                <option value="">All</option>
+                {% for item in shifts %}
+                    <option value="{{ item }}" {% if shift_filter == item %}selected{% endif %}>{{ item }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span>Vehicle Type</span>
+            <select name="vehicle_type">
+                <option value="">All</option>
+                {% for item in vehicle_types %}
+                    <option value="{{ item }}" {% if vehicle_filter == item %}selected{% endif %}>{{ item }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="form-actions left-actions full-span">
+            <button class="button" type="submit">Apply Filters</button>
+            <a class="button button-secondary" href="{{ url_for('driver_list') }}">Driver List</a>
+            <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund Kata</a>
+            {% if query or status_filter or shift_filter or vehicle_filter %}
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Clear</a>
+            {% endif %}
+        </div>
     </form>
 </section>
 
-<section class="quick-link-grid">
+<section class="quick-link-grid dashboard-quick-grid">
     <a class="card quick-link-card" href="{{ url_for('create_driver') }}">
         <span class="eyebrow">Driver</span>
         <strong>Add New Driver</strong>
-        <p>Card dashboard par khud ban jayega.</p>
+        <p>New driver card, login access and folder flow create ho jayega.</p>
     </a>
     <form class="card quick-link-card accent-card action-card-form upload-card-form" method="post" action="{{ url_for('import_driver_pdf') }}" enctype="multipart/form-data">
         <span class="eyebrow">PDF Import</span>
         <strong>Upload Driver List</strong>
-        <p>Driver.pdf upload karke master list ko system me sync karein.</p>
+        <p>Driver.pdf upload karke driver master ko instant sync karein.</p>
         <input type="file" name="driver_pdf" accept=".pdf,application/pdf">
         <button class="button button-secondary" type="submit">Upload and Import</button>
     </form>
-    <a class="card quick-link-card accent-card" href="{{ url_for('driver_list') }}">
-        <span class="eyebrow">Directory</span>
-        <strong>Open Driver List</strong>
-        <p>Full details, edit, active and inactive control.</p>
-    </a>
+    <form class="card quick-link-card accent-card action-card-form" method="post" action="{{ url_for('import_currentlink') }}">
+        <span class="eyebrow">Workbook Sync</span>
+        <strong>Import Currentlink.xlsm</strong>
+        <p>Existing workbook data ko system ke master records ke sath refresh karein.</p>
+        <button class="button button-secondary" type="submit">Run Workbook Import</button>
+    </form>
     <a class="card quick-link-card owner-card" href="{{ url_for('owner_fund') }}">
         <span class="eyebrow">Owner Fund</span>
         <strong>Open Owner Fund Kata</strong>
-        <p>Cash entry, source tracking aur balance report.</p>
+        <p>Cash entry, source tracking, outgoing usage aur reporting.</p>
+    </a>
+    <a class="card quick-link-card accent-card" href="{{ url_for('driver_list') }}">
+        <span class="eyebrow">Directory</span>
+        <strong>Open Driver List</strong>
+        <p>Premium full details table with edit, status and action access.</p>
     </a>
 </section>
 
-<section class="driver-grid simple-grid">
-    {% for driver in drivers %}
-        <a class="driver-card simple-card smart-card" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">
-            <div class="driver-card-top">
-                <span class="driver-id">{{ driver.driver_id }}</span>
-                <span class="driver-status {{ driver.status|lower }}">{{ driver.status }}</span>
+<section class="detail-layout dashboard-layout">
+    <article class="card table-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Driver Cards</p>
+                <h2>Smart Driver Overview</h2>
             </div>
-            <h3>{{ driver.full_name }}</h3>
-            <p class="driver-meta">{{ driver.vehicle_no }}</p>
-            <div class="driver-tags">
-                <span>{{ driver.shift }}</span>
-                <span>{{ driver.vehicle_type }}</span>
-            </div>
-            {% if driver.phone_number %}
-                <span class="card-subline">Phone {{ driver.phone_number }}</span>
-            {% endif %}
-            {% if driver.latest_salary_month %}
-                <span class="card-subline">Stored {{ driver.latest_salary_month }}</span>
+        </div>
+        <section class="driver-grid simple-grid">
+            {% for driver in drivers %}
+                <a class="driver-card simple-card smart-card animated-driver-card" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">
+                    <div class="driver-card-top">
+                        <span class="driver-id">{{ driver.driver_id }}</span>
+                        <span class="driver-status {{ driver.status|lower }}">{{ driver.status }}</span>
+                    </div>
+                    <h3>{{ driver.full_name }}</h3>
+                    <p class="driver-meta">{{ driver.vehicle_no }}</p>
+                    <div class="driver-tags">
+                        <span>{{ driver.shift }}</span>
+                        <span>{{ driver.vehicle_type }}</span>
+                    </div>
+                    {% if driver.phone_number %}
+                        <span class="card-subline">Phone {{ driver.phone_number }}</span>
+                    {% endif %}
+                    {% if driver.latest_salary_month %}
+                        <span class="card-subline">Stored {{ driver.latest_salary_month }}</span>
+                    {% else %}
+                        <span class="card-subline muted-white">No salary stored</span>
+                    {% endif %}
+                </a>
             {% else %}
-                <span class="card-subline muted-white">No salary stored</span>
-            {% endif %}
-        </a>
-    {% else %}
-        <section class="card empty-state full-width-card">
-            <h3>No drivers found</h3>
-            <p>Add driver or import data.</p>
+                <section class="card empty-state full-width-card">
+                    <h3>No drivers found</h3>
+                    <p>Add driver or import data.</p>
+                </section>
+            {% endfor %}
         </section>
-    {% endfor %}
+    </article>
+
+    <article class="card table-card import-history-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">History</p>
+                <h2>PDF and Import Activity</h2>
+            </div>
+        </div>
+        {% if import_history %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>File</th>
+                            <th>Records</th>
+                            <th>When</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in import_history %}
+                            <tr>
+                                <td>{{ item.source_type }}</td>
+                                <td>{{ item.file_name }}</td>
+                                <td>{{ item.imported_count }}</td>
+                                <td>{{ item.created_at }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted-text">Import history abhi available nahi.</p>
+        {% endif %}
+    </article>
 </section>
 {% endblock %}

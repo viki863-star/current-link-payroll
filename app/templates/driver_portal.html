@@ -14,7 +14,7 @@
             {% else %}
                 <div class="photo-placeholder tall-photo">NO PHOTO</div>
             {% endif %}
-            <div class="salary-flag stored">Self Service</div>
+            <div class="salary-flag stored">{{ selected_month_label }} | Self Service</div>
         </div>
 
         <div class="driver-summary smart-summary-box">
@@ -28,24 +28,30 @@
                 <div><dt>Shift</dt><dd>{{ driver.shift }}</dd></div>
                 <div><dt>Vehicle Type</dt><dd>{{ driver.vehicle_type }}</dd></div>
                 <div><dt>This Month Hours</dt><dd>{{ "%.2f"|format(month_hours) }}</dd></div>
+                <div><dt>Entered Days</dt><dd>{{ timesheet_summary.entered_days }}</dd></div>
+                <div><dt>Missing Days</dt><dd>{{ timesheet_summary.missing_days }}</dd></div>
                 <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(outstanding_advance) }}</dd></div>
                 <div><dt>Status</dt><dd>{{ driver.status }}</dd></div>
             </dl>
-            <div class="panel-note small-note">Yahan se aap hours save kar sakte hain aur apni salary slip aur transactions check kar sakte hain.</div>
+            <div class="panel-note small-note">Yahan se aap hours save kar sakte hain, monthly timesheet dekh sakte hain, PDF download kar sakte hain aur apni salary slip aur transactions check kar sakte hain.</div>
         </div>
     </div>
 </section>
 
-<section class="stats compact-stats">
-    <article class="card stat-card">
+<section class="stats compact-stats premium-stats">
+    <article class="card stat-card premium-stat-card blue-stat">
         <span>Timesheet Hours</span>
         <strong>{{ "%.2f"|format(month_hours) }}</strong>
     </article>
-    <article class="card stat-card">
-        <span>Transactions</span>
-        <strong>{{ recent_transactions|length }}</strong>
+    <article class="card stat-card premium-stat-card green-stat">
+        <span>Entered Days</span>
+        <strong>{{ timesheet_summary.entered_days }}</strong>
     </article>
-    <article class="card stat-card">
+    <article class="card stat-card premium-stat-card orange-stat">
+        <span>Missing Days</span>
+        <strong>{{ timesheet_summary.missing_days }}</strong>
+    </article>
+    <article class="card stat-card premium-stat-card navy-stat">
         <span>Salary Slips</span>
         <strong>{{ salary_slips|length }}</strong>
     </article>
@@ -53,6 +59,7 @@
 
 <section class="mobile-shortcuts">
     <a class="button button-secondary" href="#timesheet-entry">Timesheet</a>
+    <a class="button button-secondary" href="#timesheet-calendar">Month View</a>
     <a class="button button-secondary" href="#salary-slips">Salary Slips</a>
     <a class="button button-secondary" href="#driver-transactions">Transactions</a>
 </section>
@@ -66,6 +73,7 @@
             </div>
         </div>
         <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="selected_month" value="{{ selected_month }}">
             <label>
                 <span>Date</span>
                 <input type="date" name="entry_date" value="{{ values.entry_date }}" required>
@@ -84,10 +92,41 @@
         </form>
     </article>
 
-    <article class="card info-card">
+    <article class="card info-card" id="timesheet-calendar">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">2</p>
+                <h2>Monthly Overview</h2>
+            </div>
+        </div>
+        <form method="get" class="filter-grid compact-filter-grid">
+            <label>
+                <span>Month</span>
+                <input type="month" name="month" value="{{ selected_month }}">
+            </label>
+            <div class="form-actions left-actions full-span">
+                <button class="button" type="submit">Open Month</button>
+                <a class="button button-secondary" href="{{ url_for('driver_timesheet_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank">Download Timesheet PDF</a>
+            </div>
+        </form>
+        <div class="timesheet-calendar-grid">
+            {% for item in month_calendar %}
+                <article class="timesheet-day-card {% if item.entered %}entered{% else %}missing{% endif %}">
+                    <span class="timesheet-day-number">{{ item.day }}</span>
+                    <strong>{{ "Entered" if item.entered else "Missing" }}</strong>
+                    <small>{{ "%.2f"|format(item.work_hours) }} hrs</small>
+                    <small>{{ item.remarks or ("No entry" if not item.entered else "-") }}</small>
+                </article>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+
+<section class="detail-layout owner-fund-layout">
+    <article class="card info-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">3</p>
                 <h2>Recent Hours</h2>
             </div>
         </div>
@@ -116,13 +155,11 @@
             <p class="muted-text">Abhi timesheet entry nahi bani.</p>
         {% endif %}
     </article>
-</section>
 
-<section class="detail-layout owner-fund-layout" id="salary-slips">
-    <article class="card info-card" id="driver-transactions">
+    <article class="card info-card" id="salary-slips">
         <div class="section-heading slim-heading">
             <div>
-                <p class="eyebrow">3</p>
+                <p class="eyebrow">4</p>
                 <h2>Salary Slips</h2>
             </div>
         </div>
@@ -153,11 +190,13 @@
             <p class="muted-text">Abhi salary slip available nahi.</p>
         {% endif %}
     </article>
+</section>
 
+<section class="detail-layout owner-fund-layout" id="driver-transactions">
     <article class="card info-card">
         <div class="section-heading slim-heading">
             <div>
-                <p class="eyebrow">4</p>
+                <p class="eyebrow">5</p>
                 <h2>Transactions</h2>
             </div>
         </div>
@@ -170,6 +209,7 @@
                             <th>Type</th>
                             <th>Source</th>
                             <th>Amount</th>
+                            <th>Details</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -179,6 +219,7 @@
                                 <td>{{ item.txn_type }}</td>
                                 <td>{{ item.source }}</td>
                                 <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                                <td>{{ item.details or "-" }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
