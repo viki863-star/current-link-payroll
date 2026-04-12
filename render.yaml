@@ -6,7 +6,13 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python serve.py
     envVars:
-      - key: HOST
-        value: 0.0.0.0
-      - key: PORT
-        value: 5000
+      - key: SECRET_KEY
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: OWNER_PASSWORD
+        sync: false
+      - key: SESSION_COOKIE_SECURE
+        value: true
+      - key: REQUIRE_DATABASE_URL
+        value: false

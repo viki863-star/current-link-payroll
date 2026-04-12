@@ -17,7 +17,10 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     app = Flask(__name__)
     project_root = Path(app.root_path).parent
-    generated_root = project_root / "generated"
+    generated_root = Path(os.getenv("GENERATED_DIR", str(project_root / "generated"))).expanduser()
+    driver_files_root = Path(
+        os.getenv("DRIVER_FILES_DIR", str(generated_root / "drivers"))
+    ).expanduser()
 
     app.config.update(
         DATABASE=os.getenv("DATABASE_FILE", "payroll.db"),
@@ -35,7 +38,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         CURRENTLINK_FILE=str(Path.home() / "Downloads" / "Currentlink.xlsm"),
         DRIVER_PDF_FILE=str(Path.home() / "Downloads" / "Driver.pdf"),
         GENERATED_DIR=str(generated_root),
-        DRIVER_FILES_DIR=str(generated_root / "drivers"),
+        DRIVER_FILES_DIR=str(driver_files_root),
         STATIC_ASSETS_DIR=str(project_root / "app" / "static"),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
