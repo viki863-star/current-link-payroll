@@ -235,24 +235,47 @@ textarea:focus {
 }
 
 .simple-card {
+    position: relative;
     padding: 16px;
-    border-radius: 18px;
-    background: linear-gradient(160deg, #173f66, #225e95);
-    color: #fff;
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    border-radius: 22px;
+    background: linear-gradient(180deg, #ffffff, #f7fbff);
+    border: 1px solid rgba(21, 51, 93, 0.10);
+    color: var(--ink);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    overflow: hidden;
 }
 
-.smart-card:nth-child(3n+2) {
-    background: linear-gradient(160deg, #184a79, #1f6a8d);
+.simple-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 6px;
+    background: linear-gradient(90deg, #173f66, #f09a2a);
 }
 
-.smart-card:nth-child(3n+3) {
-    background: linear-gradient(160deg, #194260, #24557c);
+.simple-card::after {
+    content: "";
+    position: absolute;
+    width: 140px;
+    height: 140px;
+    right: -48px;
+    top: -48px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(240, 154, 42, 0.16), rgba(240, 154, 42, 0.02));
 }
 
 .simple-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 18px 34px rgba(19, 56, 104, 0.18);
+    box-shadow: 0 18px 34px rgba(19, 56, 104, 0.16);
+    border-color: rgba(240, 154, 42, 0.22);
+}
+
+.smart-card:nth-child(3n+2)::before {
+    background: linear-gradient(90deg, #173f66, #ffb047);
+}
+
+.smart-card:nth-child(3n+3)::before {
+    background: linear-gradient(90deg, #194260, #e6871f);
 }
 
 .driver-card-top {
@@ -275,7 +298,7 @@ textarea:focus {
 
 .driver-meta {
     margin: 8px 0 12px;
-    color: rgba(255, 255, 255, 0.86);
+    color: var(--muted);
 }
 
 .driver-tags,
@@ -296,18 +319,19 @@ textarea:focus {
     border-radius: 9px;
     font-size: 0.78rem;
     font-weight: 700;
-    background: rgba(255, 255, 255, 0.12);
+    background: #eef4fb;
+    color: var(--primary-dark);
 }
 
 .card-subline {
     display: inline-block;
     margin-top: 14px;
     font-size: 0.78rem;
-    color: rgba(255, 255, 255, 0.82);
+    color: var(--muted);
 }
 
 .muted-white {
-    color: rgba(255, 255, 255, 0.64);
+    color: var(--muted);
 }
 
 .driver-status,
@@ -323,8 +347,8 @@ textarea:focus {
 }
 
 .driver-status {
-    background: rgba(255, 255, 255, 0.18);
-    color: #fff;
+    background: #eef4fb;
+    color: var(--primary-dark);
 }
 
 .driver-status.active,
@@ -967,6 +991,25 @@ html {
     animation: portalGlow 2.8s ease-in-out infinite;
 }
 
+.landing-icon-badge,
+.service-icon,
+.driver-card-icon {
+    display: inline-grid;
+    place-items: center;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.landing-icon-badge,
+.service-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #173f66, #f09a2a);
+    color: #fff;
+    box-shadow: 0 14px 26px rgba(19, 56, 104, 0.14);
+}
+
 .landing-highlights {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1163,6 +1206,8 @@ html {
 }
 
 .service-tile {
+    display: grid;
+    gap: 10px;
     padding: 16px;
     border-radius: 18px;
     background: rgba(255, 255, 255, 0.9);
@@ -1186,6 +1231,56 @@ html {
     margin: 0;
     color: var(--muted);
     line-height: 1.5;
+}
+
+.driver-card-brand-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 14px 0 8px;
+}
+
+.driver-card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, #173f66, #f09a2a);
+    color: #fff;
+    box-shadow: 0 12px 22px rgba(19, 56, 104, 0.12);
+}
+
+.driver-card-line {
+    flex: 1;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(240, 154, 42, 0.9), rgba(23, 63, 102, 0.12));
+}
+
+.driver-card-bottom {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.driver-card-note {
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.driver-card-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(23, 63, 102, 0.08);
+    color: var(--primary-dark);
+    font-size: 0.82rem;
+    font-weight: 800;
 }
 
 .portal-section-card {

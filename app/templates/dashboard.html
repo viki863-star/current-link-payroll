@@ -6,13 +6,7 @@
         <div>
             <p class="eyebrow">Operations Hub</p>
             <h2>Current Link Driver Command Center</h2>
-            <p class="lead">Track drivers, payroll, owner fund activity and imports from one polished control room.</p>
-        </div>
-        <div class="dashboard-hero-pills">
-            <span>Abu Dhabi</span>
-            <span>Tankers</span>
-            <span>Trailers</span>
-            <span>Heavy Equipment</span>
+            <p class="lead">Track drivers, payroll, owner fund activity and salary progress from one polished control room.</p>
         </div>
     </article>
 </section>
@@ -125,8 +119,7 @@
     </a>
 </section>
 
-<section class="detail-layout dashboard-layout">
-    <article class="card table-card">
+<section class="card table-card">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Driver Cards</p>
@@ -140,19 +133,30 @@
                         <span class="driver-id">{{ driver.driver_id }}</span>
                         <span class="driver-status {{ driver.status|lower }}">{{ driver.status }}</span>
                     </div>
+                    <div class="driver-card-brand-row">
+                        <span class="driver-card-icon">{{ (driver.full_name[:1] if driver.full_name else "D")|upper }}</span>
+                        <span class="driver-card-line"></span>
+                    </div>
                     <h3>{{ driver.full_name }}</h3>
-                    <p class="driver-meta">{{ driver.vehicle_no }}</p>
+                    <p class="driver-meta">Vehicle {{ driver.vehicle_no }}</p>
                     <div class="driver-tags">
                         <span>{{ driver.shift }}</span>
                         <span>{{ driver.vehicle_type }}</span>
                     </div>
-                    {% if driver.phone_number %}
-                        <span class="card-subline">Phone {{ driver.phone_number }}</span>
-                    {% endif %}
+                    <div class="driver-card-bottom">
+                        <span class="driver-card-note">
+                            {% if driver.phone_number %}
+                                {{ driver.phone_number }}
+                            {% else %}
+                                Phone not set
+                            {% endif %}
+                        </span>
+                        <span class="driver-card-arrow">Open</span>
+                    </div>
                     {% if driver.latest_salary_month %}
                         <span class="card-subline">Stored {{ driver.latest_salary_month }}</span>
                     {% else %}
-                        <span class="card-subline muted-white">No salary stored</span>
+                        <span class="card-subline muted-white">Salary not stored</span>
                     {% endif %}
                 </a>
             {% else %}
@@ -162,42 +166,6 @@
                 </section>
             {% endfor %}
         </section>
-    </article>
-
-    <article class="card table-card import-history-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">History</p>
-                <h2>PDF and Import Activity</h2>
-            </div>
-        </div>
-        {% if import_history %}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Source</th>
-                            <th>File</th>
-                            <th>Records</th>
-                            <th>When</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in import_history %}
-                            <tr>
-                                <td>{{ item.source_type }}</td>
-                                <td>{{ item.file_name }}</td>
-                                <td>{{ item.imported_count }}</td>
-                                <td>{{ item.created_at }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="muted-text">Import history abhi available nahi.</p>
-        {% endif %}
-    </article>
 </section>
 
 <section class="detail-layout dashboard-layout chart-layout">
