@@ -865,7 +865,8 @@ def register_routes(app: Flask) -> None:
             photo_url=_driver_photo_url(app, driver),
             salary_status="Stored" if current_salary else "Not Stored",
             current_month_label=format_month_label(current_month),
-            balance=_driver_balance(db, driver_id),
+            salary_due=_driver_balance(db, driver_id),
+            advance_summary=_advance_summary(db, driver_id),
             outstanding_advance=_outstanding_advance(db, driver_id),
             transaction_count=db.execute(
                 "SELECT COUNT(*) FROM driver_transactions WHERE driver_id = ?",
@@ -1007,7 +1008,8 @@ def register_routes(app: Flask) -> None:
             transactions=transactions,
             transaction_types=TRANSACTION_TYPES,
             payment_sources=PAYMENT_SOURCES,
-            balance=_driver_balance(db, driver_id),
+            salary_due=_driver_balance(db, driver_id),
+            advance_summary=_advance_summary(db, driver_id),
         )
 
     @app.post("/drivers/<driver_id>/transactions/<int:transaction_id>/delete")
@@ -1217,7 +1219,8 @@ def register_routes(app: Flask) -> None:
 
         selected_salary = None
         existing_slip = None
-        available_advance = _outstanding_advance(db, driver_id)
+        advance_summary = _advance_summary(db, driver_id)
+        available_advance = advance_summary["remaining_advance"]
         values = {"deduction_amount": "0.00", "payment_source": PAYMENT_SOURCES[0], "paid_by": ""}
 
         if selected_salary_id:
@@ -1236,11 +1239,11 @@ def register_routes(app: Flask) -> None:
                     (selected_salary_id, driver_id),
                 ).fetchone()
                 previous_deduction = float(existing_slip["total_deductions"]) if existing_slip else 0.0
-                available_advance = _outstanding_advance(
+                available_advance = _advance_summary(
                     db,
                     driver_id,
                     exclude_salary_store_id=int(selected_salary_id),
-                ) + previous_deduction
+                )["remaining_advance"] + previous_deduction
                 if existing_slip:
                     values = {
                         "deduction_amount": f"{float(existing_slip['total_deductions']):.2f}",
@@ -1272,11 +1275,11 @@ def register_routes(app: Flask) -> None:
                     (selected_salary_id, driver_id),
                 ).fetchone()
                 previous_deduction = float(existing_slip["total_deductions"]) if existing_slip else 0.0
-                available_advance = _outstanding_advance(
+                available_advance = _advance_summary(
                     db,
                     driver_id,
                     exclude_salary_store_id=int(selected_salary_id),
-                ) + previous_deduction
+                )["remaining_advance"] + previous_deduction
                 try:
                     deduction_amount = _parse_decimal(values["deduction_amount"], "Deduction amount", required=False, default=0.0, minimum=0.0)
                 except ValidationError as exc:
@@ -1348,7 +1351,8 @@ def register_routes(app: Flask) -> None:
                             details=f"OT month {selected_salary['ot_month'] or _previous_month_value(selected_salary['salary_month'])} / net AED {net_payable:.2f}",
                         )
                         db.commit()
-                        flash("Salary slip PDF generated and saved inside the driver folder.", "success")
+                        _regenerate_kata_for_driver(app, db, driver)
+                        flash("Salary slip PDF generated and KATA updated inside the driver folder.", "success")
                         return redirect(
                             url_for(
                                 "driver_salary_slip",
@@ -1382,6 +1386,10 @@ def register_routes(app: Flask) -> None:
                     "net_payable": float(selected_salary["net_salary"]) - deduction_amount,
                     "ot_month": selected_salary["ot_month"] or _previous_month_value(selected_salary["salary_month"]),
                 }
+        advance_summary = {
+            **advance_summary,
+            "remaining_advance": available_advance,
+        }
 
         return render_template(
             "driver_salary_slip.html",
@@ -1395,6 +1403,7 @@ def register_routes(app: Flask) -> None:
             payment_sources=PAYMENT_SOURCES,
             slips=slips,
             existing_slip=existing_slip,
+            advance_summary=advance_summary,
         )
 
     @app.get("/drivers/<driver_id>/kata-pdf")
@@ -1867,37 +1876,48 @@ def _driver_balance(db, driver_id: str) -> float:
         "SELECT COALESCE(SUM(net_salary), 0) FROM salary_store WHERE driver_id = ?",
         (driver_id,),
     ).fetchone()[0]
-    total_transactions = db.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE driver_id = ?",
-        (driver_id,),
-    ).fetchone()[0]
     total_deducted = db.execute(
         "SELECT COALESCE(SUM(total_deductions), 0) FROM salary_slips WHERE driver_id = ?",
         (driver_id,),
     ).fetchone()[0]
-    return float(total_salary) - float(total_transactions) - float(total_deducted)
+    return max(float(total_salary) - float(total_deducted), 0.0)
+
+
+def _advance_summary(db, driver_id: str, exclude_salary_store_id: int | None = None) -> dict[str, float]:
+    total_advance = float(
+        db.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE driver_id = ?",
+            (driver_id,),
+        ).fetchone()[0]
+    )
+    if exclude_salary_store_id is None:
+        total_deducted = float(
+            db.execute(
+                "SELECT COALESCE(SUM(total_deductions), 0) FROM salary_slips WHERE driver_id = ?",
+                (driver_id,),
+            ).fetchone()[0]
+        )
+    else:
+        total_deducted = float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(total_deductions), 0)
+                FROM salary_slips
+                WHERE driver_id = ? AND salary_store_id != ?
+                """,
+                (driver_id, exclude_salary_store_id),
+            ).fetchone()[0]
+        )
+    remaining_advance = max(total_advance - total_deducted, 0.0)
+    return {
+        "total_advance": total_advance,
+        "total_deducted": total_deducted,
+        "remaining_advance": remaining_advance,
+    }
 
 
 def _outstanding_advance(db, driver_id: str, exclude_salary_store_id: int | None = None) -> float:
-    total_transactions = db.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE driver_id = ?",
-        (driver_id,),
-    ).fetchone()[0]
-    if exclude_salary_store_id is None:
-        total_deducted = db.execute(
-            "SELECT COALESCE(SUM(total_deductions), 0) FROM salary_slips WHERE driver_id = ?",
-            (driver_id,),
-        ).fetchone()[0]
-    else:
-        total_deducted = db.execute(
-            """
-            SELECT COALESCE(SUM(total_deductions), 0)
-            FROM salary_slips
-            WHERE driver_id = ? AND salary_store_id != ?
-            """,
-            (driver_id, exclude_salary_store_id),
-        ).fetchone()[0]
-    return max(float(total_transactions) - float(total_deducted), 0.0)
+    return _advance_summary(db, driver_id, exclude_salary_store_id)["remaining_advance"]
 
 
 def _owner_fund_totals(db):
@@ -2044,17 +2064,26 @@ def _regenerate_kata_for_driver(app: Flask, db, driver):
     ).fetchall()
     transactions = db.execute(
         """
-        SELECT entry_date, txn_type, source, amount
+        SELECT entry_date, txn_type, source, given_by, amount
         FROM driver_transactions
         WHERE driver_id = ?
         ORDER BY entry_date ASC, id ASC
         """,
         (driver["driver_id"],),
     ).fetchall()
-    if not salary_rows and not transactions:
+    salary_slips = db.execute(
+        """
+        SELECT generated_at, salary_month, total_deductions, remaining_advance, net_payable, payment_source, paid_by
+        FROM salary_slips
+        WHERE driver_id = ?
+        ORDER BY generated_at ASC, id ASC
+        """,
+        (driver["driver_id"],),
+    ).fetchall()
+    if not salary_rows and not transactions and not salary_slips:
         return None
     output_dir = _driver_output_dir(app, driver["driver_id"], driver=driver) / "kata_pdfs"
-    return generate_kata_pdf(driver, salary_rows, transactions, str(output_dir), app.config["STATIC_ASSETS_DIR"])
+    return generate_kata_pdf(driver, salary_rows, transactions, salary_slips, str(output_dir), app.config["STATIC_ASSETS_DIR"])
 
 
 def _save_driver_photo(app: Flask, driver_id: str, full_name: str, photo_file):
@@ -2121,7 +2150,9 @@ def _restore_generated_file(app: Flask, db, filename: str) -> str | None:
     if filename.startswith("drivers/") and "/kata_pdfs/" in filename:
         parts = filename.split("/")
         if len(parts) >= 2:
-            driver = _fetch_driver(db, parts[1])
+            folder_name = parts[1]
+            resolved_driver_id = folder_name.rsplit("__", 1)[-1].upper() if "__" in folder_name else folder_name
+            driver = _fetch_driver(db, resolved_driver_id)
             if driver is not None:
                 return _regenerate_kata_for_driver(app, db, driver)
 

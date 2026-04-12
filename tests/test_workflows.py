@@ -178,6 +178,102 @@ def test_transaction_rejects_invalid_amount(app, client):
         assert count == 0
 
 
+def test_partial_advance_deduction_carries_remaining_balance(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    first_txn = client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-12",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Office",
+            "amount": "500",
+            "details": "seed advance",
+        },
+        follow_redirects=True,
+    )
+    assert b"Transaction saved" in first_txn.data
+
+    april_salary = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary stored successfully." in april_salary.data
+
+    april_slip = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Owner Fund",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary slip PDF generated" in april_slip.data
+
+    may_salary = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-05-31",
+            "salary_month": "2026-05",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "May salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary stored successfully." in may_salary.data
+
+    may_slip = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "2",
+            "deduction_amount": "200",
+            "payment_source": "Owner Fund",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary slip PDF generated" in may_slip.data
+
+    with app.app_context():
+        db = open_db()
+        slips = db.execute(
+            """
+            SELECT salary_month, total_deductions, remaining_advance, net_payable
+            FROM salary_slips
+            WHERE driver_id = ?
+            ORDER BY salary_month ASC
+            """,
+            ("DRV-T1",),
+        ).fetchall()
+        assert len(slips) == 2
+        assert slips[0]["salary_month"] == "2026-04"
+        assert float(slips[0]["total_deductions"]) == 100.0
+        assert float(slips[0]["remaining_advance"]) == 400.0
+        assert float(slips[0]["net_payable"]) == 2900.0
+        assert slips[1]["salary_month"] == "2026-05"
+        assert float(slips[1]["total_deductions"]) == 200.0
+        assert float(slips[1]["remaining_advance"]) == 200.0
+        assert float(slips[1]["net_payable"]) == 2800.0
+
+    kata_response = client.get("/drivers/DRV-T1/kata-pdf", follow_redirects=False)
+    assert kata_response.status_code == 302
+    assert "/generated/" in kata_response.headers["Location"]
+
+
 def test_delete_driver_removes_related_records(app, client):
     create_driver_record(app)
     admin_session(client)

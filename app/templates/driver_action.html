@@ -49,15 +49,23 @@
                     <dd>{{ driver.duty_start or "-" }}</dd>
                 </div>
                 <div>
-                    <dt>Balance</dt>
-                    <dd>AED {{ "%.2f"|format(balance) }}</dd>
+                    <dt>Salary After Deductions</dt>
+                    <dd>AED {{ "%.2f"|format(salary_due) }}</dd>
+                </div>
+                <div>
+                    <dt>Total Advance</dt>
+                    <dd>AED {{ "%.2f"|format(advance_summary.total_advance) }}</dd>
+                </div>
+                <div>
+                    <dt>Total Deducted</dt>
+                    <dd>AED {{ "%.2f"|format(advance_summary.total_deducted) }}</dd>
                 </div>
                 <div>
                     <dt>Advance Left</dt>
-                    <dd>AED {{ "%.2f"|format(outstanding_advance) }}</dd>
+                    <dd>AED {{ "%.2f"|format(advance_summary.remaining_advance) }}</dd>
                 </div>
             </dl>
-            <div class="panel-note small-note">Choose next action.</div>
+            <div class="panel-note small-note">Advance deduction har month aap jitna select karein utna hi cut hoga. Baqi amount next month carry rahegi.</div>
         </div>
     </div>
 
@@ -92,7 +100,11 @@
             </div>
             <div>
                 <dt>Advance Left</dt>
-                <dd>AED {{ "%.2f"|format(outstanding_advance) }}</dd>
+                <dd>AED {{ "%.2f"|format(advance_summary.remaining_advance) }}</dd>
+            </div>
+            <div>
+                <dt>Total Deducted</dt>
+                <dd>AED {{ "%.2f"|format(advance_summary.total_deducted) }}</dd>
             </div>
             <div>
                 <dt>Last Transaction</dt>

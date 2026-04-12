@@ -6,9 +6,34 @@
         <div>
             <p class="eyebrow">Operations Hub</p>
             <h2>Current Link Driver Command Center</h2>
-            <p class="lead">Track drivers, payroll, owner fund activity and salary progress from one polished control room.</p>
+            <p class="lead">Driver master, payroll, imports and owner fund activity ko ek clean operations room se control karein.</p>
         </div>
     </article>
+</section>
+
+<section class="card import-focus-board">
+    <div class="import-focus-copy">
+        <p class="eyebrow">Import Center</p>
+        <h2>Driver List and Workbook Sync</h2>
+        <p class="lead">Agar naya driver list ya Excel workbook aata hai, yahin se pura system refresh hota hai. Is section ko humne intentionally front par rakha hai.</p>
+    </div>
+    <div class="import-focus-actions">
+        <form class="card quick-link-card accent-card action-card-form upload-card-form import-spotlight-card" method="post" action="{{ url_for('import_driver_pdf') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <span class="eyebrow">PDF Import</span>
+            <strong>Upload Driver List</strong>
+            <p>Driver PDF se driver master ko update karein aur cards ko fresh rakhein.</p>
+            <input type="file" name="driver_pdf" accept=".pdf,application/pdf">
+            <button class="button" type="submit">Upload and Import</button>
+        </form>
+        <form class="card quick-link-card accent-card action-card-form import-spotlight-card" method="post" action="{{ url_for('import_currentlink') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <span class="eyebrow">Excel Sync</span>
+            <strong>Import Currentlink.xlsm</strong>
+            <p>Workbook data ko driver master aur payroll records ke sath refresh karein.</p>
+            <button class="button button-secondary" type="submit">Run Workbook Import</button>
+        </form>
+    </div>
 </section>
 
 <section class="stats premium-stats">
@@ -94,21 +119,6 @@
         <strong>Add New Driver</strong>
         <p>New driver card, login access and folder flow create ho jayega.</p>
     </a>
-    <form class="card quick-link-card accent-card action-card-form upload-card-form" method="post" action="{{ url_for('import_driver_pdf') }}" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <span class="eyebrow">PDF Import</span>
-        <strong>Upload Driver List</strong>
-        <p>Driver.pdf upload karke driver master ko instant sync karein.</p>
-        <input type="file" name="driver_pdf" accept=".pdf,application/pdf">
-        <button class="button button-secondary" type="submit">Upload and Import</button>
-    </form>
-    <form class="card quick-link-card accent-card action-card-form" method="post" action="{{ url_for('import_currentlink') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <span class="eyebrow">Workbook Sync</span>
-        <strong>Import Currentlink.xlsm</strong>
-        <p>Existing workbook data ko system ke master records ke sath refresh karein.</p>
-        <button class="button button-secondary" type="submit">Run Workbook Import</button>
-    </form>
     <a class="card quick-link-card owner-card" href="{{ url_for('owner_fund') }}">
         <span class="eyebrow">Owner Fund</span>
         <strong>Open Owner Fund Kata</strong>

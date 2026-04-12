@@ -27,7 +27,9 @@
                 <div><dt>Basic Salary</dt><dd>AED {{ "%.2f"|format(driver.basic_salary) }}</dd></div>
                 <div><dt>OT Rate</dt><dd>{{ "%.2f"|format(driver.ot_rate) }}</dd></div>
                 <div><dt>OT Month</dt><dd>{{ preview.ot_month if preview else (selected_salary.ot_month if selected_salary else '-') }}</dd></div>
-                <div><dt>Available Advance</dt><dd>AED {{ "%.2f"|format(preview.available_advance if preview else 0) }}</dd></div>
+                <div><dt>Total Advance</dt><dd>AED {{ "%.2f"|format(advance_summary.total_advance) }}</dd></div>
+                <div><dt>Total Deducted</dt><dd>AED {{ "%.2f"|format(advance_summary.total_deducted) }}</dd></div>
+                <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(preview.remaining_advance if preview else advance_summary.remaining_advance) }}</dd></div>
             </dl>
             <div class="panel-note">Advance ko poora deduct karna zaroori nahi. Aap jitna chahein utna deduct kar sakte hain.</div>
         </div>

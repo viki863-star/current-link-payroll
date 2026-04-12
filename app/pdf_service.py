@@ -45,7 +45,7 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
     return str(output_path)
 
 
-def generate_kata_pdf(driver, salary_rows, transactions, output_dir: str, assets_dir: str) -> str:
+def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_dir: str, assets_dir: str) -> str:
     output_path = Path(output_dir) / f"{driver['driver_id']}_kata-statement.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -54,65 +54,65 @@ def generate_kata_pdf(driver, salary_rows, transactions, output_dir: str, assets
         entries.append(
             {
                 "date": salary["entry_date"],
-                "month": salary["salary_month"],
-                "credit": float(salary["net_salary"]),
-                "debit": 0.0,
-                "details": "Salary Stored",
+                "reference": f"Salary {format_month_label(salary['salary_month'])}",
+                "salary_added": float(salary["net_salary"]),
+                "advance_taken": 0.0,
+                "deducted": 0.0,
+                "net_paid": 0.0,
+                "details": "Salary stored",
             }
         )
     for txn in transactions:
         entries.append(
             {
                 "date": txn["entry_date"],
-                "month": "-",
-                "credit": 0.0,
-                "debit": float(txn["amount"]),
-                "details": f"{txn['txn_type']} / {txn['source']}",
+                "reference": txn["txn_type"],
+                "salary_added": 0.0,
+                "advance_taken": float(txn["amount"]),
+                "deducted": 0.0,
+                "net_paid": 0.0,
+                "details": f"{txn['source']} / {txn.get('given_by', '') or '-'}",
+            }
+        )
+    for slip in salary_slips:
+        entries.append(
+            {
+                "date": slip["generated_at"][:10],
+                "reference": f"Slip {format_month_label(slip['salary_month'])}",
+                "salary_added": 0.0,
+                "advance_taken": 0.0,
+                "deducted": float(slip["total_deductions"]),
+                "net_paid": float(slip["net_payable"]),
+                "details": f"{slip['payment_source'] or '-'} / {slip['paid_by'] or '-'}",
             }
         )
     entries.sort(key=lambda item: item["date"])
 
+    total_salary = sum(float(row["net_salary"]) for row in salary_rows)
+    total_advance = sum(float(item["amount"]) for item in transactions)
+    total_deducted = sum(float(item["total_deductions"]) for item in salary_slips)
+    total_net_paid = sum(float(item["net_payable"]) for item in salary_slips)
+    advance_balance = 0.0
+    for item in entries:
+        advance_balance += item["advance_taken"]
+        advance_balance -= item["deducted"]
+        item["advance_balance"] = max(advance_balance, 0.0)
+
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
     _draw_header(pdf, assets_dir)
-    _draw_title(pdf, "Driver KATA Statement", "Running salary and transaction movement for this driver")
-
-    pdf.setFillColor(SOFT)
-    pdf.roundRect(16 * mm, PAGE_HEIGHT - 110 * mm, 178 * mm, 20 * mm, 4 * mm, fill=1, stroke=0)
-    pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(22 * mm, PAGE_HEIGHT - 98 * mm, driver["full_name"])
-    pdf.setFont("Helvetica", 9)
-    pdf.drawString(22 * mm, PAGE_HEIGHT - 104 * mm, f"Driver ID: {driver['driver_id']}")
-    pdf.drawString(78 * mm, PAGE_HEIGHT - 104 * mm, f"Vehicle: {driver['vehicle_no']}")
-    pdf.drawString(132 * mm, PAGE_HEIGHT - 104 * mm, f"Shift: {driver['shift']}")
-
-    top = PAGE_HEIGHT - 122 * mm
-    _draw_table_header(
+    _draw_title(pdf, "Driver KATA Statement", "Advance taken, deducted amount and remaining balance")
+    _draw_kata_driver_summary(pdf, driver)
+    _draw_kata_stat_row(
         pdf,
-        top,
-        ["Date", "Month", "Salary Added", "Paid / Received", "Details", "Balance"],
-        [18, 44, 74, 106, 136, 184],
+        [
+            ("Salary", format_currency(total_salary)),
+            ("Advance", format_currency(total_advance)),
+            ("Deducted", format_currency(total_deducted)),
+            ("Left", format_currency(max(total_advance - total_deducted, 0.0))),
+            ("Net Paid", format_currency(total_net_paid)),
+        ],
     )
-
-    balance = 0.0
-    y = top - 7 * mm
-    pdf.setFont("Helvetica", 8.5)
-    for item in entries[:24]:
-        balance += item["credit"] - item["debit"]
-        pdf.setFillColor(colors.black)
-        pdf.drawString(18 * mm, y, format_date_label(item["date"]))
-        pdf.drawString(44 * mm, y, format_month_label(item["month"]) if item["month"] != "-" else "-")
-        pdf.drawRightString(100 * mm, y, format_currency(item["credit"]) if item["credit"] else "0.00")
-        pdf.drawRightString(132 * mm, y, format_currency(item["debit"]) if item["debit"] else "0.00")
-        pdf.drawString(136 * mm, y, item["details"][:22])
-        pdf.drawRightString(190 * mm, y, format_currency(balance))
-        y -= 6.5 * mm
-        if y < 54 * mm:
-            break
-
-    total_salary = sum(float(row["net_salary"]) for row in salary_rows)
-    total_paid = sum(float(item["amount"]) for item in transactions)
-    _draw_kata_summary(pdf, total_salary, total_paid, balance)
+    _draw_kata_statement_table(pdf, entries)
     _draw_footer_banner(pdf, assets_dir)
 
     pdf.showPage()
@@ -607,25 +607,79 @@ def _draw_table_header(pdf: canvas.Canvas, top: float, headers, x_positions) -> 
         pdf.drawString(x * mm, top + 2.5 * mm, header)
 
 
-def _draw_kata_summary(pdf: canvas.Canvas, total_salary: float, total_paid: float, balance: float) -> None:
-    left = 16 * mm
-    top = 44 * mm
+def _draw_kata_driver_summary(pdf: canvas.Canvas, driver) -> None:
+    box_x = 16 * mm
+    box_y = PAGE_HEIGHT - 112 * mm
+    box_w = 178 * mm
+    box_h = 19 * mm
+
     pdf.setFillColor(SOFT)
-    pdf.roundRect(left, top, 64 * mm, 24 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.roundRect(box_x, box_y, box_w, box_h, 4 * mm, fill=1, stroke=0)
     pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(left + 4 * mm, top + 17 * mm, "SUMMARY")
-    pdf.setFont("Helvetica", 8.5)
-    rows = [
-        ("Total Salary Added", total_salary),
-        ("Total Paid / Received", total_paid),
-        ("Balance", balance),
-    ]
-    y = top + 11 * mm
-    for label, value in rows:
-        pdf.drawString(left + 4 * mm, y, label)
-        pdf.drawRightString(left + 58 * mm, y, format_currency(value))
-        y -= 6 * mm
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(box_x + 6 * mm, box_y + 12.2 * mm, driver["full_name"])
+    pdf.setFont("Helvetica", 8.8)
+    pdf.drawString(box_x + 6 * mm, box_y + 6 * mm, f"Driver ID: {driver['driver_id']}")
+    pdf.drawString(box_x + 48 * mm, box_y + 6 * mm, f"Vehicle: {driver['vehicle_no']}")
+    pdf.drawString(box_x + 96 * mm, box_y + 6 * mm, f"Shift: {driver['shift']}")
+    pdf.drawString(box_x + 132 * mm, box_y + 6 * mm, f"Phone: {driver['phone_number'] if 'phone_number' in driver.keys() else '-'}")
+
+
+def _draw_kata_stat_row(pdf: canvas.Canvas, items) -> None:
+    start_x = 16 * mm
+    start_y = PAGE_HEIGHT - 137 * mm
+    gap = 4 * mm
+    box_w = (178 * mm - (gap * 4)) / 5
+    box_h = 16 * mm
+
+    for index, (label, value) in enumerate(items):
+        x = start_x + index * (box_w + gap)
+        fill = colors.white if index < 4 else BLUE
+        text_color = TEXT if index < 4 else colors.white
+        border = LINE if index < 4 else BLUE
+        _draw_stat_box(pdf, x, start_y, box_w, box_h, label.upper(), value, fill_color=fill, text_color=text_color, border_color=border)
+
+
+def _draw_kata_statement_table(pdf: canvas.Canvas, entries) -> None:
+    top = PAGE_HEIGHT - 160 * mm
+    _draw_table_header(
+        pdf,
+        top,
+        ["Date", "Reference", "Salary", "Advance", "Deducted", "Net Paid", "Adv Left"],
+        [18, 39, 84, 109, 133, 156, 180],
+    )
+
+    y = top - 7 * mm
+    row_height = 6.5 * mm
+    for index, item in enumerate(entries[:24]):
+        if index % 2 == 0:
+            pdf.setFillColor(SOFT)
+            pdf.roundRect(16 * mm, y - 2.3 * mm, 178 * mm, 5.8 * mm, 1.8 * mm, fill=1, stroke=0)
+        pdf.setFillColor(TEXT)
+        pdf.setFont("Helvetica", 8)
+        pdf.drawString(18 * mm, y, format_date_label(item["date"]))
+
+        reference, ref_size = _fit_text(
+            pdf,
+            f"{item['reference']} | {item['details']}",
+            "Helvetica-Bold",
+            7.7,
+            40 * mm,
+            min_size=6.1,
+        )
+        pdf.setFont("Helvetica-Bold", ref_size)
+        pdf.drawString(39 * mm, y, reference)
+
+        pdf.setFillColor(TEXT)
+        pdf.setFont("Helvetica-Bold", 8)
+        pdf.drawRightString(104 * mm, y, format_currency(item["salary_added"]))
+        pdf.drawRightString(129 * mm, y, format_currency(item["advance_taken"]))
+        pdf.drawRightString(154 * mm, y, format_currency(item["deducted"]))
+        pdf.drawRightString(178 * mm, y, format_currency(item["net_paid"]))
+        pdf.drawRightString(193 * mm, y, format_currency(item["advance_balance"]))
+        y -= row_height
+        if y < 44 * mm:
+            break
 
 
 def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str) -> None:

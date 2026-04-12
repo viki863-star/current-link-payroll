@@ -22,9 +22,12 @@
                 <div><dt>Driver ID</dt><dd>{{ driver.driver_id }}</dd></div>
                 <div><dt>Vehicle</dt><dd>{{ driver.vehicle_no }}</dd></div>
                 <div><dt>Shift</dt><dd>{{ driver.shift }}</dd></div>
-                <div><dt>Balance</dt><dd>AED {{ "%.2f"|format(balance) }}</dd></div>
+                <div><dt>Salary After Deductions</dt><dd>AED {{ "%.2f"|format(salary_due) }}</dd></div>
+                <div><dt>Total Advance</dt><dd>AED {{ "%.2f"|format(advance_summary.total_advance) }}</dd></div>
+                <div><dt>Total Deducted</dt><dd>AED {{ "%.2f"|format(advance_summary.total_deducted) }}</dd></div>
+                <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(advance_summary.remaining_advance) }}</dd></div>
             </dl>
-            <div class="panel-note">Every save refreshes this driver's KATA PDF in the driver folder.</div>
+            <div class="panel-note">Every save refreshes this driver's KATA PDF so the driver can see total advance, deducted amount and remaining balance.</div>
         </div>
     </div>
 
