@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from datetime import date as date_cls
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -53,7 +54,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
     for salary in salary_rows:
         entries.append(
             {
-                "date": salary["entry_date"],
+                "date": _iso_date_value(salary["entry_date"]),
                 "reference": f"Salary {format_month_label(salary['salary_month'])}",
                 "salary_added": float(salary["net_salary"]),
                 "advance_taken": 0.0,
@@ -65,7 +66,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
     for txn in transactions:
         entries.append(
             {
-                "date": txn["entry_date"],
+                "date": _iso_date_value(txn["entry_date"]),
                 "reference": txn["txn_type"],
                 "salary_added": 0.0,
                 "advance_taken": float(txn["amount"]),
@@ -77,7 +78,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
     for slip in salary_slips:
         entries.append(
             {
-                "date": slip["generated_at"][:10],
+                "date": _iso_date_value(slip["generated_at"]),
                 "reference": f"Slip {format_month_label(slip['salary_month'])}",
                 "salary_added": 0.0,
                 "advance_taken": 0.0,
@@ -807,9 +808,24 @@ def previous_month_value(value: str) -> str:
 def format_date_label(value: str | None) -> str:
     if not value:
         return "-"
+    if isinstance(value, datetime):
+        return value.strftime("%d-%b-%Y")
+    if isinstance(value, date_cls):
+        return value.strftime("%d-%b-%Y")
     for pattern in ("%Y-%m-%d", "%Y-%m"):
         try:
-            return datetime.strptime(value, pattern).strftime("%d-%b-%Y")
+            return datetime.strptime(str(value), pattern).strftime("%d-%b-%Y")
         except ValueError:
             continue
-    return value
+    return str(value)
+
+
+def _iso_date_value(value) -> str:
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d")
+    if isinstance(value, date_cls):
+        return value.strftime("%Y-%m-%d")
+    text = str(value or "")
+    if len(text) >= 10:
+        return text[:10]
+    return text or "-"

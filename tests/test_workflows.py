@@ -1,6 +1,10 @@
+from datetime import datetime
+from pathlib import Path
+
 from werkzeug.security import generate_password_hash
 
 from app.database import open_db
+from app.pdf_service import generate_kata_pdf
 
 
 def admin_session(client):
@@ -346,6 +350,44 @@ def test_existing_paid_salary_slip_can_be_updated(app, client):
         assert float(slips[0]["net_payable"]) == 2800.0
         assert slips[0]["payment_source"] == "Office"
         assert slips[0]["paid_by"] == "Admin"
+
+
+def test_kata_pdf_accepts_postgres_datetime_generated_at(app, tmp_path):
+    driver = create_driver_record(app)
+
+    output_path = generate_kata_pdf(
+        driver,
+        [
+            {
+                "entry_date": "2026-04-30",
+                "salary_month": "2026-04",
+                "net_salary": 3000.0,
+            }
+        ],
+        [
+            {
+                "entry_date": "2026-04-12",
+                "txn_type": "Advance",
+                "source": "Owner Fund",
+                "given_by": "Office",
+                "amount": 500.0,
+            }
+        ],
+        [
+            {
+                "generated_at": datetime(2026, 4, 30, 10, 30, 0),
+                "salary_month": "2026-04",
+                "total_deductions": 100.0,
+                "net_payable": 2900.0,
+                "payment_source": "Owner Fund",
+                "paid_by": "Waqar",
+            }
+        ],
+        str(tmp_path),
+        str(Path(app.root_path).parent / "app" / "static"),
+    )
+
+    assert Path(output_path).exists()
 
 
 def test_delete_driver_removes_related_records(app, client):
