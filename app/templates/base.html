@@ -48,6 +48,7 @@
                         {% if is_admin %}
                             <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
                             <a class="button button-secondary" href="{{ url_for('driver_list') }}">Driver List</a>
+                            <a class="button button-secondary" href="{{ url_for('party_list') }}">Parties</a>
                             <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund</a>
                             <a class="button" href="{{ url_for('create_driver') }}">Add Driver</a>
                             <form method="post" action="{{ url_for('import_currentlink') }}">

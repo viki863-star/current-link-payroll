@@ -357,3 +357,85 @@ def test_owner_fund_can_edit_and_delete(app, client):
     with app.app_context():
         db = open_db()
         assert db.execute("SELECT COUNT(*) FROM owner_fund_entries WHERE id = ?", (entry_id,)).fetchone()[0] == 0
+
+
+def test_party_master_create_auto_code_and_keep_driver_data_safe(app, client):
+    create_driver_record(app)
+    admin_session(client)
+
+    response = client.post(
+        "/parties/new",
+        data={
+            "party_code": "",
+            "party_name": "Al Jaber Transport",
+            "party_kind": "Company",
+            "party_roles": ["Supplier", "Customer"],
+            "contact_person": "Waqar",
+            "phone_number": "0501224963",
+            "email": "ops@aljaber.example",
+            "trn_no": "TRN-4455",
+            "trade_license_no": "LIC-2201",
+            "address": "Mussafah",
+            "notes": "First party",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+
+    assert b"Party saved successfully." in response.data
+    assert b"Al Jaber Transport" in response.data
+
+    with app.app_context():
+        db = open_db()
+        party = db.execute(
+            "SELECT party_code, party_roles FROM parties WHERE party_name = ?",
+            ("Al Jaber Transport",),
+        ).fetchone()
+        assert party is not None
+        assert party["party_code"].startswith("PTY-")
+        assert "Supplier" in party["party_roles"]
+        assert "Customer" in party["party_roles"]
+        assert db.execute("SELECT COUNT(*) FROM drivers WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 1
+
+
+def test_party_status_can_be_updated(app, client):
+    admin_session(client)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "PTY-0001",
+                "Norul",
+                "Individual",
+                "Borrower, Partner",
+                "Norul",
+                "0501082900",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "Active",
+            ),
+        )
+        db.commit()
+
+    response = client.post(
+        "/parties/PTY-0001/status",
+        data={"status": "Inactive"},
+        follow_redirects=True,
+    )
+
+    assert b"marked as Inactive" in response.data
+
+    with app.app_context():
+        db = open_db()
+        status = db.execute("SELECT status FROM parties WHERE party_code = ?", ("PTY-0001",)).fetchone()["status"]
+        assert status == "Inactive"

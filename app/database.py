@@ -97,6 +97,23 @@ CREATE TABLE IF NOT EXISTS owner_fund_entries (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS parties (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    party_code TEXT NOT NULL UNIQUE,
+    party_name TEXT NOT NULL,
+    party_kind TEXT NOT NULL DEFAULT 'Company',
+    party_roles TEXT NOT NULL,
+    contact_person TEXT,
+    phone_number TEXT,
+    email TEXT,
+    trn_no TEXT,
+    trade_license_no TEXT,
+    address TEXT,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS import_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source_type TEXT NOT NULL,
@@ -221,6 +238,23 @@ CREATE TABLE IF NOT EXISTS owner_fund_entries (
     received_by TEXT,
     payment_method TEXT DEFAULT 'Cash',
     details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS parties (
+    id BIGSERIAL PRIMARY KEY,
+    party_code TEXT NOT NULL UNIQUE,
+    party_name TEXT NOT NULL,
+    party_kind TEXT NOT NULL DEFAULT 'Company',
+    party_roles TEXT NOT NULL,
+    contact_person TEXT,
+    phone_number TEXT,
+    email TEXT,
+    trn_no TEXT,
+    trade_license_no TEXT,
+    address TEXT,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

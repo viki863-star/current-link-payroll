@@ -36,6 +36,15 @@ from .pdf_service import (
 
 TRANSACTION_TYPES = ["Petty Cash", "Advance", "Fine", "Fuel", "Other"]
 PAYMENT_SOURCES = ["Owner Fund", "Owner Direct", "Current Link", "Office", "Cash", "Bank", "Other"]
+PARTY_KIND_OPTIONS = ["Company", "Individual"]
+PARTY_ROLE_OPTIONS = [
+    "Supplier",
+    "Customer",
+    "Borrower",
+    "Visa Holder",
+    "Vehicle Holder",
+    "Partner",
+]
 
 
 class ValidationError(ValueError):
@@ -274,6 +283,227 @@ def register_routes(app: Flask) -> None:
             vehicle_chart=vehicle_chart,
             import_chart=import_chart,
         )
+
+    @app.route("/parties/list")
+    @_login_required("admin")
+    def party_list():
+        db = open_db()
+        query = request.args.get("q", "").strip()
+        status_filter = request.args.get("status", "").strip()
+        role_filter = request.args.get("role", "").strip()
+        kind_filter = request.args.get("kind", "").strip()
+        where_sql, params = _party_filter_clause(query, status_filter, role_filter, kind_filter)
+
+        parties = db.execute(
+            f"""
+            SELECT
+                party_code,
+                party_name,
+                party_kind,
+                party_roles,
+                contact_person,
+                phone_number,
+                email,
+                trn_no,
+                trade_license_no,
+                status,
+                created_at
+            FROM parties
+            {where_sql}
+            ORDER BY CASE WHEN status = 'Active' THEN 0 ELSE 1 END, party_name ASC
+            """,
+            params,
+        ).fetchall()
+
+        return render_template(
+            "party_list.html",
+            parties=parties,
+            query=query,
+            status_filter=status_filter,
+            role_filter=role_filter,
+            kind_filter=kind_filter,
+            role_options=PARTY_ROLE_OPTIONS,
+            kind_options=PARTY_KIND_OPTIONS,
+            party_count=len(parties),
+            active_count=sum(1 for party in parties if (party["status"] or "").lower() == "active"),
+            inactive_count=sum(1 for party in parties if (party["status"] or "").lower() != "active"),
+        )
+
+    @app.route("/parties/new", methods=["GET", "POST"])
+    @_login_required("admin")
+    def create_party():
+        values = _default_party_form()
+
+        if request.method == "POST":
+            values = _party_form_data(request)
+            db = open_db()
+
+            try:
+                values["party_roles"] = _normalize_party_roles(values["party_roles"])
+                values["phone_number"] = _normalize_optional_phone(values["phone_number"])
+                _validate_optional_email(values["email"])
+                values["party_code"] = values["party_code"] or _next_party_code(db)
+            except ValidationError as exc:
+                flash(str(exc), "error")
+                return render_template(
+                    "party_form.html",
+                    values=values,
+                    page_title="Add Party",
+                    submit_label="Save Party",
+                    edit_mode=False,
+                    role_options=PARTY_ROLE_OPTIONS,
+                    kind_options=PARTY_KIND_OPTIONS,
+                )
+
+            try:
+                db.execute(
+                    """
+                    INSERT INTO parties (
+                        party_code, party_name, party_kind, party_roles, contact_person,
+                        phone_number, email, trn_no, trade_license_no, address, notes, status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        values["party_code"],
+                        values["party_name"],
+                        values["party_kind"],
+                        _serialize_party_roles(values["party_roles"]),
+                        values["contact_person"],
+                        values["phone_number"],
+                        values["email"],
+                        values["trn_no"],
+                        values["trade_license_no"],
+                        values["address"],
+                        values["notes"],
+                        values["status"],
+                    ),
+                )
+                _audit_log(
+                    db,
+                    "party_created",
+                    entity_type="party",
+                    entity_id=values["party_code"],
+                    details=f"{values['party_name']} / {_serialize_party_roles(values['party_roles'])}",
+                )
+                db.commit()
+            except Exception:
+                flash("Party code must be unique.", "error")
+                return render_template(
+                    "party_form.html",
+                    values=values,
+                    page_title="Add Party",
+                    submit_label="Save Party",
+                    edit_mode=False,
+                    role_options=PARTY_ROLE_OPTIONS,
+                    kind_options=PARTY_KIND_OPTIONS,
+                )
+
+            flash("Party saved successfully.", "success")
+            return redirect(url_for("party_list"))
+
+        values["party_code"] = values["party_code"] or _preview_next_party_code()
+        return render_template(
+            "party_form.html",
+            values=values,
+            page_title="Add Party",
+            submit_label="Save Party",
+            edit_mode=False,
+            role_options=PARTY_ROLE_OPTIONS,
+            kind_options=PARTY_KIND_OPTIONS,
+        )
+
+    @app.route("/parties/<party_code>/edit", methods=["GET", "POST"])
+    @_login_required("admin")
+    def edit_party(party_code: str):
+        db = open_db()
+        party = _fetch_party(db, party_code)
+        if party is None:
+            flash("Party not found.", "error")
+            return redirect(url_for("party_list"))
+
+        if request.method == "POST":
+            values = _party_form_data(request)
+            values["party_code"] = party_code
+            try:
+                values["party_roles"] = _normalize_party_roles(values["party_roles"])
+                values["phone_number"] = _normalize_optional_phone(values["phone_number"])
+                _validate_optional_email(values["email"])
+            except ValidationError as exc:
+                flash(str(exc), "error")
+                return render_template(
+                    "party_form.html",
+                    values=values,
+                    page_title="Edit Party",
+                    submit_label="Update Party",
+                    edit_mode=True,
+                    role_options=PARTY_ROLE_OPTIONS,
+                    kind_options=PARTY_KIND_OPTIONS,
+                )
+
+            db.execute(
+                """
+                UPDATE parties
+                SET party_name = ?, party_kind = ?, party_roles = ?, contact_person = ?,
+                    phone_number = ?, email = ?, trn_no = ?, trade_license_no = ?,
+                    address = ?, notes = ?, status = ?
+                WHERE party_code = ?
+                """,
+                (
+                    values["party_name"],
+                    values["party_kind"],
+                    _serialize_party_roles(values["party_roles"]),
+                    values["contact_person"],
+                    values["phone_number"],
+                    values["email"],
+                    values["trn_no"],
+                    values["trade_license_no"],
+                    values["address"],
+                    values["notes"],
+                    values["status"],
+                    party_code,
+                ),
+            )
+            _audit_log(
+                db,
+                "party_updated",
+                entity_type="party",
+                entity_id=party_code,
+                details=f"{values['party_name']} / {_serialize_party_roles(values['party_roles'])}",
+            )
+            db.commit()
+            flash("Party updated successfully.", "success")
+            return redirect(url_for("party_list"))
+
+        return render_template(
+            "party_form.html",
+            values=_party_values_from_record(party),
+            page_title="Edit Party",
+            submit_label="Update Party",
+            edit_mode=True,
+            role_options=PARTY_ROLE_OPTIONS,
+            kind_options=PARTY_KIND_OPTIONS,
+        )
+
+    @app.post("/parties/<party_code>/status")
+    @_login_required("admin")
+    def update_party_status(party_code: str):
+        db = open_db()
+        party = _fetch_party(db, party_code)
+        if party is None:
+            flash("Party not found.", "error")
+            return redirect(url_for("party_list"))
+        next_status = request.form.get("status", "Active").strip() or "Active"
+        db.execute("UPDATE parties SET status = ? WHERE party_code = ?", (next_status, party_code))
+        _audit_log(
+            db,
+            "party_status_updated",
+            entity_type="party",
+            entity_id=party_code,
+            details=f"{party['party_name']} / {next_status}",
+        )
+        db.commit()
+        flash(f"{party['party_name']} marked as {next_status}.", "success")
+        return redirect(url_for("party_list"))
 
     @app.route("/owner-fund", methods=["GET", "POST"])
     @_login_required("admin", "owner")
@@ -1709,6 +1939,135 @@ def _driver_filter_options(db):
         ).fetchall()
     ]
     return {"shifts": shifts, "vehicle_types": vehicle_types}
+
+
+def _party_filter_clause(query: str, status_filter: str = "", role_filter: str = "", kind_filter: str = ""):
+    filters = []
+    params = []
+    if query:
+        needle = f"%{query}%"
+        filters.append(
+            "(party_code LIKE ? OR party_name LIKE ? OR contact_person LIKE ? OR phone_number LIKE ? OR email LIKE ?)"
+        )
+        params.extend([needle, needle, needle, needle, needle])
+    if status_filter:
+        filters.append("status = ?")
+        params.append(status_filter)
+    if role_filter:
+        filters.append("party_roles LIKE ?")
+        params.append(f"%{role_filter}%")
+    if kind_filter:
+        filters.append("party_kind = ?")
+        params.append(kind_filter)
+    if not filters:
+        return "", []
+    return "WHERE " + " AND ".join(filters), params
+
+
+def _default_party_form():
+    return {
+        "party_code": "",
+        "party_name": "",
+        "party_kind": "Company",
+        "party_roles": [],
+        "contact_person": "",
+        "phone_number": "",
+        "email": "",
+        "trn_no": "",
+        "trade_license_no": "",
+        "address": "",
+        "notes": "",
+        "status": "Active",
+    }
+
+
+def _party_form_data(request):
+    return {
+        "party_code": request.form.get("party_code", "").strip().upper(),
+        "party_name": request.form.get("party_name", "").strip(),
+        "party_kind": request.form.get("party_kind", "Company").strip() or "Company",
+        "party_roles": request.form.getlist("party_roles"),
+        "contact_person": request.form.get("contact_person", "").strip(),
+        "phone_number": request.form.get("phone_number", "").strip(),
+        "email": request.form.get("email", "").strip(),
+        "trn_no": request.form.get("trn_no", "").strip(),
+        "trade_license_no": request.form.get("trade_license_no", "").strip(),
+        "address": request.form.get("address", "").strip(),
+        "notes": request.form.get("notes", "").strip(),
+        "status": request.form.get("status", "Active").strip() or "Active",
+    }
+
+
+def _normalize_party_roles(values) -> list[str]:
+    selected = []
+    for role in PARTY_ROLE_OPTIONS:
+        if role in values and role not in selected:
+            selected.append(role)
+    if not selected:
+        raise ValidationError("Select at least one party role.")
+    return selected
+
+
+def _serialize_party_roles(values) -> str:
+    return ", ".join(values)
+
+
+def _deserialize_party_roles(value: str) -> list[str]:
+    return [item.strip() for item in (value or "").split(",") if item.strip()]
+
+
+def _normalize_optional_phone(value: str) -> str:
+    if not (value or "").strip():
+        return ""
+    normalized = _normalize_phone(value)
+    if len(normalized) < 7:
+        raise ValidationError("Phone number must contain at least 7 digits.")
+    return normalized
+
+
+def _validate_optional_email(value: str) -> None:
+    if value and "@" not in value:
+        raise ValidationError("Email address must be valid.")
+
+
+def _fetch_party(db, party_code: str):
+    return db.execute(
+        """
+        SELECT
+            party_code, party_name, party_kind, party_roles, contact_person,
+            phone_number, email, trn_no, trade_license_no, address, notes, status, created_at
+        FROM parties
+        WHERE party_code = ?
+        """,
+        (party_code,),
+    ).fetchone()
+
+
+def _party_values_from_record(record):
+    values = dict(record)
+    values["party_roles"] = _deserialize_party_roles(record["party_roles"] or "")
+    return values
+
+
+def _next_party_code(db) -> str:
+    rows = db.execute("SELECT party_code FROM parties WHERE party_code LIKE ? ORDER BY party_code ASC", ("PTY-%",)).fetchall()
+    max_number = 0
+    for row in rows:
+        code = (row["party_code"] or "").strip().upper()
+        if not code.startswith("PTY-"):
+            continue
+        try:
+            max_number = max(max_number, int(code.split("-", 1)[1]))
+        except (IndexError, ValueError):
+            continue
+    return f"PTY-{max_number + 1:04d}"
+
+
+def _preview_next_party_code() -> str:
+    try:
+        return _next_party_code(open_db())
+    except Exception:
+        return "PTY-0001"
 
 
 def _log_import_history(db, source_type: str, file_name: str, imported_count: int, notes: str = ""):
