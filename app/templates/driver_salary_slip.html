@@ -38,7 +38,7 @@
     <section class="inner-section">
         <div class="section-title">Slip Generator</div>
         {% if existing_slip %}
-            <div class="info-box warning-box">This month already has a salary slip. Duplicate slip is blocked. Open the existing PDF below.</div>
+            <div class="info-box warning-box">This month already has a paid slip. Form is loaded in edit mode, so any save will update the same slip and regenerate the PDF.</div>
         {% endif %}
         <form method="post" class="entry-form two-column-form premium-slip-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -80,7 +80,8 @@
             <div class="form-actions triple-actions">
                 <a class="button danger-button" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Close</a>
                 {% if existing_slip %}
-                    <a class="button success-button" href="{{ url_for('generated_file', filename=existing_slip.pdf_path) }}" target="_blank">Open Existing PDF</a>
+                    <a class="button navy" href="{{ url_for('generated_file', filename=existing_slip.pdf_path) }}" target="_blank">Open Current PDF</a>
+                    <button class="button success-button" type="submit">Update Slip PDF</button>
                 {% else %}
                     <button class="button success-button" type="submit">Generate Slip PDF</button>
                 {% endif %}
@@ -128,7 +129,9 @@
                             <th>Deduction</th>
                             <th>Net Pay</th>
                             <th>Source</th>
+                            <th>Paid By</th>
                             <th>PDF</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -138,7 +141,9 @@
                                 <td>AED {{ "%.2f"|format(item.total_deductions) }}</td>
                                 <td>AED {{ "%.2f"|format(item.net_payable) }}</td>
                                 <td>{{ item.payment_source or "-" }}</td>
+                                <td>{{ item.paid_by or "-" }}</td>
                                 <td><a class="table-link" href="{{ url_for('generated_file', filename=item.pdf_path) }}" target="_blank">Open</a></td>
+                                <td><a class="mini-action-link" href="{{ url_for('driver_salary_slip', driver_id=driver.driver_id, salary_store_id=item.salary_store_id) }}">Edit</a></td>
                             </tr>
                         {% endfor %}
                     </tbody>

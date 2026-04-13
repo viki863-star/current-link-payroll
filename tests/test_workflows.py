@@ -274,6 +274,80 @@ def test_partial_advance_deduction_carries_remaining_balance(app, client):
     assert "/generated/" in kata_response.headers["Location"]
 
 
+def test_existing_paid_salary_slip_can_be_updated(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-12",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Office",
+            "amount": "500",
+            "details": "advance",
+        },
+        follow_redirects=True,
+    )
+
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+
+    first_slip = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Owner Fund",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary slip PDF generated" in first_slip.data
+
+    updated_slip = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "200",
+            "payment_source": "Office",
+            "paid_by": "Admin",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary slip updated" in updated_slip.data
+
+    with app.app_context():
+        db = open_db()
+        slips = db.execute(
+            """
+            SELECT salary_month, total_deductions, remaining_advance, net_payable, payment_source, paid_by
+            FROM salary_slips
+            WHERE driver_id = ?
+            ORDER BY id ASC
+            """,
+            ("DRV-T1",),
+        ).fetchall()
+        assert len(slips) == 1
+        assert slips[0]["salary_month"] == "2026-04"
+        assert float(slips[0]["total_deductions"]) == 200.0
+        assert float(slips[0]["remaining_advance"]) == 300.0
+        assert float(slips[0]["net_payable"]) == 2800.0
+        assert slips[0]["payment_source"] == "Office"
+        assert slips[0]["paid_by"] == "Admin"
+
+
 def test_delete_driver_removes_related_records(app, client):
     create_driver_record(app)
     admin_session(client)
