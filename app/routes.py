@@ -45,6 +45,7 @@ PARTY_ROLE_OPTIONS = [
     "Vehicle Holder",
     "Partner",
 ]
+SALARY_MODE_OPTIONS = [("full", "Full Salary (30-Day Basis)"), ("prorata", "Prorata From Duty Start")]
 
 
 class ValidationError(ValueError):
@@ -1288,17 +1289,19 @@ def register_routes(app: Flask) -> None:
                 (driver_id, selected_month),
             ).fetchone()
 
-        form = _default_salary_form(selected_month)
+        form = _default_salary_form(selected_month, driver.get("duty_start"))
         preview = _calculate_salary_preview(driver, form)
         if existing_row is not None:
             form = _salary_form_from_row(existing_row)
-            preview = dict(existing_row)
+            preview = _salary_preview_from_row(existing_row)
 
         if request.method == "POST":
             form = {
                 "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
                 "salary_month": _normalize_month(request.form.get("salary_month", selected_month).strip() or selected_month),
                 "ot_month": "",
+                "salary_mode": (request.form.get("salary_mode", "full").strip() or "full").lower(),
+                "prorata_start_date": request.form.get("prorata_start_date", "").strip(),
                 "ot_hours": request.form.get("ot_hours", "0").strip() or "0",
                 "personal_vehicle": request.form.get("personal_vehicle", "0").strip() or "0",
                 "remarks": request.form.get("remarks", "").strip(),
@@ -1317,10 +1320,12 @@ def register_routes(app: Flask) -> None:
                     driver=driver,
                     photo_url=_driver_photo_url(app, driver),
                     values=form,
-                    preview=_calculate_salary_preview(driver, _default_salary_form(form["salary_month"])),
+                    preview=_calculate_salary_preview(driver, _default_salary_form(form["salary_month"], driver.get("duty_start"))),
                     salary_rows=db.execute(
                         """
-                        SELECT id, entry_date, salary_month, ot_month, basic_salary, ot_hours, ot_amount, personal_vehicle, net_salary, remarks
+                        SELECT id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date,
+                               salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours,
+                               ot_amount, personal_vehicle, net_salary, remarks
                         FROM salary_store
                         WHERE driver_id = ?
                         ORDER BY salary_month DESC
@@ -1331,6 +1336,7 @@ def register_routes(app: Flask) -> None:
                     selected_month_label=format_month_label(form["salary_month"]),
                     existing_month=existing_row is not None,
                     timesheet_hours=_timesheet_total_for_month(db, driver_id, form["salary_month"]),
+                    salary_mode_options=SALARY_MODE_OPTIONS,
                 )
             action = request.form.get("action", "calculate")
             existing_month_row = db.execute(
@@ -1341,12 +1347,18 @@ def register_routes(app: Flask) -> None:
                 db.execute(
                     """
                     INSERT INTO salary_store (
-                        driver_id, entry_date, salary_month, ot_month, basic_salary, ot_hours, ot_rate,
+                        driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date,
+                        salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate,
                         ot_amount, personal_vehicle, net_salary, remarks
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(driver_id, salary_month) DO UPDATE SET
                         entry_date = excluded.entry_date,
                         ot_month = excluded.ot_month,
+                        salary_mode = excluded.salary_mode,
+                        prorata_start_date = excluded.prorata_start_date,
+                        salary_days = excluded.salary_days,
+                        daily_rate = excluded.daily_rate,
+                        monthly_basic_salary = excluded.monthly_basic_salary,
                         basic_salary = excluded.basic_salary,
                         ot_hours = excluded.ot_hours,
                         ot_rate = excluded.ot_rate,
@@ -1360,6 +1372,11 @@ def register_routes(app: Flask) -> None:
                         form["entry_date"],
                         form["salary_month"],
                         preview["ot_month"],
+                        preview["salary_mode"],
+                        preview["prorata_start_date"] or None,
+                        preview["salary_days"],
+                        preview["daily_rate"],
+                        preview["monthly_basic_salary"],
                         preview["basic_salary"],
                         preview["ot_hours"],
                         preview["ot_rate"],
@@ -1374,7 +1391,7 @@ def register_routes(app: Flask) -> None:
                     "salary_store_saved",
                     entity_type="salary_store",
                     entity_id=f"{driver_id}:{form['salary_month']}",
-                    details=f"OT month {preview['ot_month']} / net AED {preview['net_salary']:.2f}",
+                    details=f"{preview['salary_mode_label']} / OT month {preview['ot_month']} / net AED {preview['net_salary']:.2f}",
                 )
                 db.commit()
                 _regenerate_kata_for_driver(app, db, driver)
@@ -1386,7 +1403,9 @@ def register_routes(app: Flask) -> None:
 
         salary_rows = db.execute(
             """
-            SELECT id, entry_date, salary_month, ot_month, basic_salary, ot_hours, ot_amount, personal_vehicle, net_salary, remarks
+            SELECT id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date,
+                   salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours,
+                   ot_amount, personal_vehicle, net_salary, remarks
             FROM salary_store
             WHERE driver_id = ?
             ORDER BY salary_month DESC
@@ -1406,6 +1425,7 @@ def register_routes(app: Flask) -> None:
             selected_month_label=format_month_label(form["salary_month"]),
             timesheet_hours=timesheet_hours,
             existing_month=existing_row,
+            salary_mode_options=SALARY_MODE_OPTIONS,
         )
 
     @app.post("/drivers/<driver_id>/salary-store/<int:salary_id>/delete")
@@ -2206,12 +2226,14 @@ def _driver_pin_hash_from_form(form, *, edit_mode: bool, existing_pin_hash: str 
     return generate_password_hash(pin)
 
 
-def _default_salary_form(salary_month: str):
+def _default_salary_form(salary_month: str, duty_start: str | None = None):
     normalized_month = _normalize_month(salary_month)
     return {
         "entry_date": date.today().isoformat(),
         "salary_month": normalized_month,
         "ot_month": _previous_month_value(normalized_month),
+        "salary_mode": "full",
+        "prorata_start_date": (duty_start or "").strip(),
         "ot_hours": "0",
         "personal_vehicle": "0",
         "remarks": "",
@@ -2220,27 +2242,85 @@ def _default_salary_form(salary_month: str):
 
 def _salary_form_from_row(row):
     return {
-        "entry_date": row["entry_date"],
+        "entry_date": _date_only_value(row["entry_date"]),
         "salary_month": row["salary_month"],
         "ot_month": row["ot_month"] or _previous_month_value(row["salary_month"]),
+        "salary_mode": (row["salary_mode"] or "full").strip().lower(),
+        "prorata_start_date": _date_only_value(row["prorata_start_date"]) if row["prorata_start_date"] else "",
         "ot_hours": f"{float(row['ot_hours']):.2f}",
         "personal_vehicle": f"{float(row['personal_vehicle']):.2f}",
         "remarks": row["remarks"] or "",
     }
 
 
+def _salary_preview_from_row(row):
+    salary_month = _normalize_month(row["salary_month"])
+    salary_mode = (row["salary_mode"] or "full").strip().lower()
+    if salary_mode not in {"full", "prorata"}:
+        salary_mode = "full"
+    monthly_basic_salary = float(row["monthly_basic_salary"]) if row["monthly_basic_salary"] is not None else float(row["basic_salary"])
+    daily_rate = float(row["daily_rate"]) if row["daily_rate"] is not None else round(monthly_basic_salary / 30.0, 6)
+    return {
+        "entry_date": _date_only_value(row["entry_date"]),
+        "salary_month": salary_month,
+        "ot_month": row["ot_month"] or _previous_month_value(salary_month),
+        "salary_mode": salary_mode,
+        "salary_mode_label": _salary_mode_label(salary_mode),
+        "prorata_start_date": _date_only_value(row["prorata_start_date"]) if row["prorata_start_date"] else "",
+        "salary_days": float(row["salary_days"]) if row["salary_days"] is not None else 30.0,
+        "daily_rate": daily_rate,
+        "monthly_basic_salary": monthly_basic_salary,
+        "basic_salary": float(row["basic_salary"]),
+        "ot_hours": float(row["ot_hours"]),
+        "ot_rate": float(row["ot_rate"]),
+        "ot_amount": float(row["ot_amount"]),
+        "personal_vehicle": float(row["personal_vehicle"]),
+        "net_salary": float(row["net_salary"]),
+        "remarks": row["remarks"] or "",
+        "cutoff_day": _salary_cutoff_day(salary_month),
+    }
+
+
 def _calculate_salary_preview(driver, form):
     salary_month = _normalize_month(form.get("salary_month", _current_month_value()))
-    basic_salary = float(driver["basic_salary"])
+    salary_mode = (form.get("salary_mode", "full") or "full").strip().lower()
+    if salary_mode not in {"full", "prorata"}:
+        salary_mode = "full"
+    monthly_basic_salary = float(driver["basic_salary"])
+    cutoff_day = _salary_cutoff_day(salary_month)
+    daily_rate = round(monthly_basic_salary / 30.0, 6)
+    prorata_start_date = ""
+    salary_days = 30.0
+    basic_salary = monthly_basic_salary
+    if salary_mode == "prorata":
+        prorata_start_date = (form.get("prorata_start_date", "") or "").strip() or (driver.get("duty_start", "") or "").strip()
+        if not prorata_start_date:
+            raise ValidationError("Prorata start date is required when salary mode is prorata.")
+        try:
+            start_date = datetime.strptime(prorata_start_date, "%Y-%m-%d").date()
+        except ValueError as exc:
+            raise ValidationError("Prorata start date is not valid.") from exc
+        if start_date.strftime("%Y-%m") != salary_month:
+            raise ValidationError("Prorata start date must be inside the selected salary month.")
+        if start_date.day > cutoff_day:
+            raise ValidationError(f"Prorata start date must be on or before day {cutoff_day} for this payroll month.")
+        salary_days = float(cutoff_day - start_date.day + 1)
+        basic_salary = round(daily_rate * salary_days, 2)
     ot_rate = float(driver["ot_rate"])
     ot_hours = _parse_decimal(form.get("ot_hours", "0"), "OT hours", required=False, default=0.0, minimum=0.0)
     personal_vehicle = _parse_decimal(form.get("personal_vehicle", "0"), "Personal / Vehicle", required=False, default=0.0)
-    ot_amount = ot_hours * ot_rate
-    net_salary = basic_salary + ot_amount + personal_vehicle
+    ot_amount = round(ot_hours * ot_rate, 2)
+    net_salary = round(basic_salary + ot_amount + personal_vehicle, 2)
     return {
         "entry_date": form.get("entry_date", date.today().isoformat()),
         "salary_month": salary_month,
         "ot_month": form.get("ot_month", "").strip() or _previous_month_value(salary_month),
+        "salary_mode": salary_mode,
+        "salary_mode_label": _salary_mode_label(salary_mode),
+        "prorata_start_date": prorata_start_date,
+        "salary_days": salary_days,
+        "daily_rate": daily_rate,
+        "monthly_basic_salary": monthly_basic_salary,
         "basic_salary": basic_salary,
         "ot_hours": ot_hours,
         "ot_rate": ot_rate,
@@ -2248,6 +2328,7 @@ def _calculate_salary_preview(driver, form):
         "personal_vehicle": personal_vehicle,
         "net_salary": net_salary,
         "remarks": form.get("remarks", ""),
+        "cutoff_day": cutoff_day,
     }
 
 
@@ -2359,7 +2440,7 @@ def _owner_fund_statement(db, reverse: bool = True):
     ).fetchall():
         rows.append(
             {
-                "entry_date": entry["generated_at"][:10],
+                "entry_date": _date_only_value(entry["generated_at"]),
                 "reference": f"Salary Slip / {entry['driver_id']}",
                 "party": entry["paid_by"] or "-",
                 "details": f"Salary {entry['salary_month']}",
@@ -2396,6 +2477,26 @@ def _previous_month_value(value: str) -> str:
     if month_date.month == 1:
         return f"{month_date.year - 1}-12"
     return f"{month_date.year}-{month_date.month - 1:02d}"
+
+
+def _salary_cutoff_day(salary_month: str) -> int:
+    normalized = _normalize_month(salary_month)
+    year, month = [int(part) for part in normalized.split("-")]
+    return min(monthrange(year, month)[1], 30)
+
+
+def _salary_mode_label(value: str) -> str:
+    return "Prorata From Duty Start" if value == "prorata" else "Full Salary (30-Day Basis)"
+
+
+def _date_only_value(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value)[:10]
 
 
 def _driver_output_dir(app: Flask, driver_id: str, *, driver=None, full_name: str | None = None) -> Path:

@@ -38,6 +38,9 @@
         {% if existing_month %}
             <div class="info-box warning-box">This month is already stored. Any save will update the same month instead of creating a second record.</div>
         {% endif %}
+        {% if preview.salary_mode == "prorata" %}
+            <div class="info-box warning-box">Prorata mode is active. Salary is being calculated from {{ preview.prorata_start_date }} to day {{ preview.cutoff_day }} on a 30-day basis.</div>
+        {% endif %}
         <form method="post" class="entry-form two-column-form salary-form-layout">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>
@@ -49,8 +52,20 @@
                 <input type="month" name="salary_month" value="{{ values.salary_month }}" required>
             </label>
             <label>
+                <span>Salary Mode</span>
+                <select name="salary_mode">
+                    {% for mode_value, mode_label in salary_mode_options %}
+                        <option value="{{ mode_value }}" {% if values.salary_mode == mode_value %}selected{% endif %}>{{ mode_label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
                 <span>OT Month</span>
                 <input type="text" value="{{ preview.ot_month if preview else values.ot_month }}" readonly>
+            </label>
+            <label>
+                <span>Prorata Start Date</span>
+                <input type="date" name="prorata_start_date" value="{{ values.prorata_start_date }}">
             </label>
             <label>
                 <span>OT Hours</span>
@@ -61,7 +76,19 @@
                 <input type="number" name="personal_vehicle" step="0.01" value="{{ values.personal_vehicle }}">
             </label>
             <label>
-                <span>Basic Salary</span>
+                <span>Monthly Salary</span>
+                <input type="text" value="{{ "%.2f"|format(preview.monthly_basic_salary) }}" readonly>
+            </label>
+            <label>
+                <span>Daily Rate</span>
+                <input type="text" value="{{ "%.2f"|format(preview.daily_rate) }}" readonly>
+            </label>
+            <label>
+                <span>Salary Days</span>
+                <input type="text" value="{{ "%.2f"|format(preview.salary_days) }}" readonly>
+            </label>
+            <label>
+                <span>Payable Basic Salary</span>
                 <input type="text" value="{{ "%.2f"|format(preview.basic_salary) }}" readonly>
             </label>
             <label>
@@ -102,6 +129,8 @@
                 <thead>
                         <tr>
                             <th>Month</th>
+                            <th>Mode</th>
+                            <th>Days</th>
                             <th>OT Month</th>
                             <th>Date</th>
                             <th>OT Hours</th>
@@ -123,6 +152,13 @@
                                     </form>
                                     </div>
                                 </td>
+                                <td>
+                                    {{ "Prorata" if (item.salary_mode or "full") == "prorata" else "Full" }}
+                                    {% if (item.salary_mode or "full") == "prorata" and item.prorata_start_date %}
+                                        <div class="muted-text">{{ item.prorata_start_date }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>{{ "%.2f"|format(item.salary_days or 30) }}</td>
                                 <td>{{ item.ot_month or '-' }}</td>
                                 <td>{{ item.entry_date }}</td>
                                 <td>{{ "%.2f"|format(item.ot_hours) }}</td>

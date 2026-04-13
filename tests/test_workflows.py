@@ -157,6 +157,49 @@ def test_salary_store_updates_existing_month(app, client):
         assert rows[0]["ot_month"] == "2026-03"
 
 
+def test_salary_store_supports_prorata_from_duty_start(app, client):
+    create_driver_record(app, basic_salary=3000.0, duty_start="2026-04-09")
+    admin_session(client)
+
+    response = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "salary_mode": "prorata",
+            "prorata_start_date": "2026-04-09",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "Joined mid month",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+
+    assert b"Salary stored successfully." in response.data
+    assert b"Prorata mode is active." in response.data
+
+    with app.app_context():
+        db = open_db()
+        row = db.execute(
+            """
+            SELECT salary_mode, prorata_start_date, salary_days, daily_rate,
+                   monthly_basic_salary, basic_salary, net_salary
+            FROM salary_store
+            WHERE driver_id = ? AND salary_month = ?
+            """,
+            ("DRV-T1", "2026-04"),
+        ).fetchone()
+        assert row is not None
+        assert row["salary_mode"] == "prorata"
+        assert row["prorata_start_date"] == "2026-04-09"
+        assert float(row["salary_days"]) == 22.0
+        assert float(row["daily_rate"]) == 100.0
+        assert float(row["monthly_basic_salary"]) == 3000.0
+        assert float(row["basic_salary"]) == 2200.0
+        assert float(row["net_salary"]) == 2200.0
+
+
 def test_transaction_rejects_invalid_amount(app, client):
     create_driver_record(app)
     admin_session(client)
