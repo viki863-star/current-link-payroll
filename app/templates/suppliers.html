@@ -4,133 +4,208 @@
 <section class="dashboard-hero">
     <article class="card dashboard-hero-card">
         <div>
-            <p class="eyebrow">Accounts</p>
-            <h2>Suppliers & Payables Desk</h2>
-            <p class="lead">Vendor profile, hired fleet, purchase invoices and payable follow-up in one place.</p>
+            <p class="eyebrow">Supplier System</p>
+            <h2>Register Supplier, Fleet, and Payables Base</h2>
+            <p class="lead">Start from supplier master, then open each supplier for vehicles, month-end timesheets, vouchers, payment vouchers, and live outstanding balance.</p>
         </div>
     </article>
 </section>
 
 <section class="stats premium-stats">
-    <article class="card stat-card premium-stat-card blue-stat"><span>Suppliers</span><strong>{{ summary.supplier_count }}</strong><small>Parties marked as supplier.</small></article>
-    <article class="card stat-card premium-stat-card orange-stat"><span>Open Bills</span><strong>{{ summary.open_purchase_invoices }}</strong><small>Purchase invoices with balance.</small></article>
-    <article class="card stat-card premium-stat-card navy-stat"><span>Total Payable</span><strong>AED {{ "%.2f"|format(summary.payable_total) }}</strong><small>Live payable outstanding.</small></article>
-    <article class="card stat-card premium-stat-card green-stat"><span>Hire Register</span><strong>AED {{ "%.2f"|format(summary.hire_total) }}</strong><small>Supplier hire value booked.</small></article>
-</section>
-
-<section class="quick-link-grid dashboard-quick-grid">
-    <a class="card quick-link-card accent-card" href="{{ url_for('agreements_lpos') }}">
-        <span class="eyebrow">Contracts</span>
-        <strong>Agreements & LPOs</strong>
-        <p>Register supplier contracts, LPOs and hired assets.</p>
-    </a>
-    <a class="card quick-link-card owner-card" href="{{ url_for('invoice_center') }}">
-        <span class="eyebrow">Bills</span>
-        <strong>Invoice Center</strong>
-        <p>Create purchase invoices and mark payments.</p>
-    </a>
-    <a class="card quick-link-card" href="{{ url_for('party_list') }}">
-        <span class="eyebrow">Master</span>
-        <strong>Party Master</strong>
-        <p>Add or edit supplier contact details.</p>
-    </a>
-</section>
-
-<section class="detail-layout dashboard-layout chart-layout">
-    <article class="card table-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Suppliers</p>
-                <h2>Supplier Directory</h2>
-            </div>
-        </div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Supplier</th><th>Contact</th><th>Status</th><th>Statement</th></tr></thead>
-                <tbody>
-                    {% for item in supplier_parties %}
-                        <tr>
-                            <td><strong>{{ item.party_name }}</strong><div class="muted-text">{{ item.party_code }}</div></td>
-                            <td>{{ item.contact_person or "-" }}<div class="muted-text">{{ item.phone_number or "-" }}</div></td>
-                            <td>{{ item.status }}</td>
-                            <td><a class="table-link" href="{{ url_for('supplier_statement', party_code=item.party_code) }}">Open Statement</a></td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="4">No supplier parties found yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <article class="card stat-card premium-stat-card blue-stat">
+        <span>Suppliers</span>
+        <strong>{{ summary.supplier_count }}</strong>
+        <small>Registered suppliers in the live master.</small>
     </article>
-
-    <article class="card table-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Exposure</p>
-                <h2>Top Supplier Payables</h2>
-            </div>
-        </div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Supplier</th><th>Invoices</th><th>Total</th><th>Outstanding</th></tr></thead>
-                <tbody>
-                    {% for item in top_payables %}
-                        <tr>
-                            <td>{{ item.party_name }}</td>
-                            <td>{{ item.invoice_count }}</td>
-                            <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
-                            <td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="4">No payable rows yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <article class="card stat-card premium-stat-card orange-stat">
+        <span>Fleet Units</span>
+        <strong>{{ summary.asset_count }}</strong>
+        <small>Supplier vehicles and hired assets saved in system.</small>
+    </article>
+    <article class="card stat-card premium-stat-card navy-stat">
+        <span>Unbilled Timesheets</span>
+        <strong>AED {{ "%.2f"|format(summary.unbilled_amount) }}</strong>
+        <small>Operational rows waiting for month-end voucher creation.</small>
+    </article>
+    <article class="card stat-card premium-stat-card green-stat">
+        <span>Paid to Suppliers</span>
+        <strong>AED {{ "%.2f"|format(summary.paid_total) }}</strong>
+        <small>Total supplier payments already posted.</small>
+    </article>
+    <article class="card stat-card premium-stat-card slate-stat">
+        <span>Outstanding</span>
+        <strong>AED {{ "%.2f"|format(summary.outstanding_total) }}</strong>
+        <small>Current live payable balance across supplier vouchers.</small>
     </article>
 </section>
 
 <section class="detail-layout dashboard-layout chart-layout">
-    <article class="card table-card">
+    <article class="card action-panel form-panel">
         <div class="section-heading slim-heading">
             <div>
-                <p class="eyebrow">Hire</p>
-                <h2>Recent Supplier Hire Rows</h2>
+                <p class="eyebrow">Master</p>
+                <h2>{% if values.original_party_code %}Edit Supplier{% else %}Register Supplier{% endif %}</h2>
             </div>
         </div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Date</th><th>Hire No</th><th>Supplier</th><th>Asset</th><th>Total</th><th>Status</th></tr></thead>
-                <tbody>
-                    {% for item in recent_hires %}
-                        <tr><td>{{ item.entry_date }}</td><td>{{ item.hire_no }}</td><td>{{ item.party_name }}</td><td>{{ item.asset_name }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td><td>{{ item.status }}</td></tr>
-                    {% else %}
-                        <tr><td colspan="6">No supplier hire registered yet.</td></tr>
+        <form method="post" class="entry-form two-column-form supplier-entry-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="original_party_code" value="{{ values.original_party_code }}">
+            <label>
+                <span>Supplier Code</span>
+                <input type="text" name="party_code" value="{{ values.party_code }}" placeholder="Auto if left blank" {% if values.original_party_code %}readonly{% endif %}>
+            </label>
+            <label>
+                <span>Supplier Name</span>
+                <input type="text" name="party_name" value="{{ values.party_name }}" required>
+            </label>
+            <label>
+                <span>Kind</span>
+                <select name="party_kind">
+                    <option value="Company" {% if values.party_kind == 'Company' %}selected{% endif %}>Company</option>
+                    <option value="Individual" {% if values.party_kind == 'Individual' %}selected{% endif %}>Individual</option>
+                </select>
+            </label>
+            <label>
+                <span>Contact Person</span>
+                <input type="text" name="contact_person" value="{{ values.contact_person }}">
+            </label>
+            <label>
+                <span>Phone Number</span>
+                <input type="text" name="phone_number" value="{{ values.phone_number }}">
+            </label>
+            <label>
+                <span>Email</span>
+                <input type="email" name="email" value="{{ values.email }}">
+            </label>
+            <label>
+                <span>TRN / VAT No</span>
+                <input type="text" name="trn_no" value="{{ values.trn_no }}">
+            </label>
+            <label>
+                <span>Trade License No</span>
+                <input type="text" name="trade_license_no" value="{{ values.trade_license_no }}">
+            </label>
+            <label class="full-span">
+                <span>Additional Tags</span>
+                <div class="check-grid">
+                    {% for item in role_options %}
+                        <label class="check-tile">
+                            <input type="checkbox" name="party_roles" value="{{ item }}" {% if item in values.party_roles %}checked{% endif %}>
+                            <span>{{ item }}</span>
+                        </label>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                </div>
+                <small class="muted-text">Supplier tag always stays active in this module.</small>
+            </label>
+            <label class="full-span">
+                <span>Address</span>
+                <textarea name="address" rows="3">{{ values.address }}</textarea>
+            </label>
+            <label class="full-span">
+                <span>Notes</span>
+                <textarea name="notes" rows="3">{{ values.notes }}</textarea>
+            </label>
+            <label>
+                <span>Status</span>
+                <select name="status">
+                    <option value="Active" {% if values.status == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Inactive" {% if values.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </label>
+            <div class="form-actions left-actions full-span">
+                <button class="button" type="submit">{% if values.original_party_code %}Update Supplier{% else %}Save Supplier{% endif %}</button>
+                {% if values.original_party_code %}
+                    <a class="button button-secondary" href="{{ url_for('suppliers') }}">Cancel</a>
+                {% endif %}
+            </div>
+        </form>
     </article>
 
     <article class="card table-card">
         <div class="section-heading slim-heading">
             <div>
-                <p class="eyebrow">Bills</p>
-                <h2>Recent Purchase Invoices</h2>
+                <p class="eyebrow">Flow</p>
+                <h2>How This Supplier System Works</h2>
             </div>
         </div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Invoice</th><th>Supplier</th><th>Date</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
-                <tbody>
-                    {% for item in recent_invoices %}
-                        <tr><td>{{ item.invoice_no }}</td><td>{{ item.party_name }}</td><td>{{ item.issue_date }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td><td>AED {{ "%.2f"|format(item.balance_amount) }}</td><td>{{ item.status }}</td></tr>
-                    {% else %}
-                        <tr><td colspan="6">No purchase invoices created yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="supplier-flow-list">
+            <div class="supplier-flow-step"><strong>1. Register Supplier</strong><span>Add Hussain or any supplier with contact and tax details.</span></div>
+            <div class="supplier-flow-step"><strong>2. Add Vehicles</strong><span>Save trailers, tankers, cranes, equipment and their rate basis.</span></div>
+            <div class="supplier-flow-step"><strong>3. Post Month-End Timesheets</strong><span>Enter hours, days, trips or monthly quantity with rate for each asset.</span></div>
+            <div class="supplier-flow-step"><strong>4. Create Voucher</strong><span>System picks open timesheets for that month and makes one payable voucher.</span></div>
+            <div class="supplier-flow-step"><strong>5. Post Payment</strong><span>Record paid amount and print supplier payment voucher when needed.</span></div>
+            <div class="supplier-flow-step"><strong>6. Check Balance</strong><span>Open supplier workspace anytime to see total, paid and outstanding.</span></div>
         </div>
     </article>
+</section>
+
+<section class="card search-panel compact-panel premium-filter-panel">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Supplier Search</p>
+            <h2>Supplier Directory</h2>
+        </div>
+    </div>
+    <form method="get" class="filter-grid compact-filter-grid">
+        <label>
+            <span>Search</span>
+            <input type="search" name="q" value="{{ query }}" placeholder="Search code, supplier, contact, phone">
+        </label>
+        <div class="form-actions left-actions full-span">
+            <button class="button" type="submit">Apply</button>
+            {% if query %}
+                <a class="button button-secondary" href="{{ url_for('suppliers') }}">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+</section>
+
+<section class="card table-card premium-directory-card">
+    <div class="table-wrap">
+        <table class="premium-directory-table">
+            <thead>
+                <tr>
+                    <th>Supplier</th>
+                    <th>Contact</th>
+                    <th>Fleet</th>
+                    <th>Unbilled</th>
+                    <th>Paid</th>
+                    <th>Outstanding</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in suppliers %}
+                    <tr>
+                        <td>
+                            <div class="directory-driver-cell">
+                                <div class="directory-badge">{{ item.party_code }}</div>
+                                <div>
+                                    <strong>{{ item.party_name }}</strong>
+                                    <div class="directory-meta">{{ item.party_kind }} / {{ item.party_roles }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>{{ item.contact_person or '-' }}</div>
+                            <div class="directory-meta">{{ item.phone_number or '-' }}</div>
+                        </td>
+                        <td>{{ item.asset_count }}</td>
+                        <td>AED {{ "%.2f"|format(item.unbilled_amount) }}</td>
+                        <td>AED {{ "%.2f"|format(item.paid_total) }}</td>
+                        <td>AED {{ "%.2f"|format(item.outstanding_total) }}</td>
+                        <td>
+                            <div class="table-actions">
+                                <a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=item.party_code) }}">Open Desk</a>
+                                <a class="mini-action-link" href="{{ url_for('suppliers', edit=item.party_code) }}">Edit</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7" class="muted-text">No suppliers found yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </section>
 {% endblock %}

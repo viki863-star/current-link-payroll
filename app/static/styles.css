@@ -2674,6 +2674,34 @@ html {
     overflow: hidden;
 }
 
+.supplier-flow-list {
+    display: grid;
+    gap: 14px;
+}
+
+.supplier-flow-step {
+    display: grid;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(246, 249, 253, 0.98), rgba(232, 240, 249, 0.96));
+    border: 1px solid rgba(18, 55, 98, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.supplier-flow-step strong {
+    color: #143c70;
+}
+
+.supplier-flow-step span {
+    color: #4e6278;
+    font-size: 0.93rem;
+}
+
+.supplier-mini-stats {
+    margin-bottom: 18px;
+}
+
 @media (max-width: 980px) {
     .action-grid,
     .detail-layout,

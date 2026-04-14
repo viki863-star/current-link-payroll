@@ -182,6 +182,28 @@ Important:
 3. Use `railway.json`
 4. Set `DATABASE_URL`, `SECRET_KEY`, `ADMIN_PASSWORD`, and `OWNER_PASSWORD`
 
+### Railway Durable Setup
+
+To avoid losing live data after redeploys or crashes:
+
+1. Add a Railway PostgreSQL service
+2. In the `web` service, set:
+   - `DATABASE_URL=${{Postgres.DATABASE_URL}}`
+   - `REQUIRE_DATABASE_URL=true`
+   - `GENERATED_DIR=/data/generated`
+   - `DRIVER_FILES_DIR=/data/generated/drivers`
+3. Attach a Railway Volume to the `web` service at:
+   - `/data`
+4. Keep `SECRET_KEY`, `ADMIN_PASSWORD`, and `OWNER_PASSWORD` set in Railway Variables
+
+If you already have good local SQLite data and need to restore it into Railway Postgres, use:
+
+```powershell
+py -3 scripts\migrate_sqlite_to_postgres.py --sqlite payroll.db --database-url "YOUR_RAILWAY_DATABASE_URL"
+```
+
+The migration script preserves IDs and uses safe upserts by default, so rerunning it will not wipe the target.
+
 ### Docker / VPS
 
 ```powershell

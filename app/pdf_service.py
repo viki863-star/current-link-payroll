@@ -219,6 +219,93 @@ def generate_timesheet_pdf(driver, month_value: str, calendar_days, summary, out
     return str(output_path)
 
 
+def generate_supplier_payment_voucher_pdf(party, voucher, payment, output_dir: str, assets_dir: str) -> str:
+    output_path = Path(output_dir) / f"{payment['payment_no']}_payment-voucher.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+    _draw_header(pdf, assets_dir)
+    _draw_title(pdf, "Supplier Payment Voucher", "Month-end payable settlement summary")
+
+    card_x = 16 * mm
+    card_y = PAGE_HEIGHT - 118 * mm
+    card_w = 178 * mm
+    card_h = 34 * mm
+
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(card_x, card_y, card_w, card_h, 5 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(card_x, card_y, card_w, card_h, 5 * mm, fill=0, stroke=1)
+    pdf.setFillColor(BLUE_SOFT)
+    pdf.roundRect(card_x, card_y + card_h - 10 * mm, card_w, 10 * mm, 5 * mm, fill=1, stroke=0)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(card_x + 5 * mm, card_y + card_h - 6.1 * mm, "SUPPLIER DETAILS")
+
+    _draw_label_value_row(pdf, card_x + 5 * mm, card_y + 18 * mm, 22 * mm, 55 * mm, "Supplier", party["party_name"])
+    _draw_label_value_row(pdf, card_x + 92 * mm, card_y + 18 * mm, 20 * mm, 45 * mm, "Code", party["party_code"])
+    _draw_label_value_row(pdf, card_x + 5 * mm, card_y + 10 * mm, 22 * mm, 55 * mm, "Contact", party.get("contact_person") or "-")
+    _draw_label_value_row(pdf, card_x + 92 * mm, card_y + 10 * mm, 20 * mm, 45 * mm, "Phone", party.get("phone_number") or "-")
+
+    summary_top = PAGE_HEIGHT - 160 * mm
+    _draw_stat_box(pdf, 16 * mm, summary_top, 42 * mm, 15 * mm, "Payment", f"AED {format_currency(float(payment['amount']))}", fill_color=BLUE_SOFT, text_color=BLUE_DARK, border_color=BLUE)
+    _draw_stat_box(pdf, 61 * mm, summary_top, 42 * mm, 15 * mm, "Voucher Total", f"AED {format_currency(float(voucher['total_amount']))}", fill_color=SOFT, text_color=TEXT, border_color=LINE)
+    _draw_stat_box(pdf, 106 * mm, summary_top, 42 * mm, 15 * mm, "Paid To Date", f"AED {format_currency(float(voucher['paid_amount']))}", fill_color=SOFT, text_color=TEXT, border_color=LINE)
+    _draw_stat_box(pdf, 151 * mm, summary_top, 42 * mm, 15 * mm, "Outstanding", f"AED {format_currency(float(voucher['balance_amount']))}", fill_color=colors.HexColor("#FFF4E8"), text_color=ORANGE, border_color=ORANGE)
+
+    table_x = 16 * mm
+    table_top = PAGE_HEIGHT - 188 * mm
+    table_w = 178 * mm
+    row_h = 10 * mm
+
+    pdf.setFillColor(BLUE_DARK)
+    pdf.roundRect(table_x, table_top, table_w, row_h, 3 * mm, fill=1, stroke=0)
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 8.5)
+    headers = [("Payment No", 6), ("Voucher No", 44), ("Date", 82), ("Method", 110), ("Reference", 138)]
+    for label, offset in headers:
+        pdf.drawString((table_x + offset * mm), table_top + 3.8 * mm, label)
+
+    data_y = table_top - 10 * mm
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(table_x, data_y, table_w, 24 * mm, 3 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(table_x, data_y, table_w, 24 * mm, 3 * mm, fill=0, stroke=1)
+    pdf.setFillColor(TEXT)
+    pdf.setFont("Helvetica-Bold", 9)
+    pdf.drawString(table_x + 6 * mm, data_y + 16 * mm, payment["payment_no"])
+    pdf.drawString(table_x + 44 * mm, data_y + 16 * mm, voucher["voucher_no"])
+    pdf.drawString(table_x + 82 * mm, data_y + 16 * mm, format_date_label(payment["entry_date"]))
+    pdf.drawString(table_x + 110 * mm, data_y + 16 * mm, payment.get("payment_method") or "-")
+    pdf.drawString(table_x + 138 * mm, data_y + 16 * mm, (payment.get("reference") or "-")[:22])
+
+    pdf.setFont("Helvetica", 8)
+    pdf.setFillColor(MUTED)
+    pdf.drawString(table_x + 6 * mm, data_y + 8 * mm, f"Period: {format_month_label(voucher['period_month'])}")
+    pdf.drawString(table_x + 56 * mm, data_y + 8 * mm, f"Voucher Date: {format_date_label(voucher['issue_date'])}")
+    pdf.drawString(table_x + 114 * mm, data_y + 8 * mm, f"Status: {voucher['status']}")
+
+    notes_y = PAGE_HEIGHT - 228 * mm
+    pdf.setFillColor(SOFT)
+    pdf.roundRect(16 * mm, notes_y, 178 * mm, 26 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(16 * mm, notes_y, 178 * mm, 26 * mm, 4 * mm, fill=0, stroke=1)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 8.5)
+    pdf.drawString(21 * mm, notes_y + 19 * mm, "Voucher Notes")
+    pdf.setFillColor(TEXT)
+    pdf.setFont("Helvetica", 8)
+    pdf.drawString(21 * mm, notes_y + 11 * mm, (voucher.get("notes") or payment.get("notes") or "No notes entered.")[:110])
+
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 7.6)
+    pdf.drawString(16 * mm, 36 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
+    _draw_footer_banner(pdf, assets_dir)
+    pdf.showPage()
+    pdf.save()
+    return str(output_path)
+
+
 def _draw_header(pdf: canvas.Canvas, assets_dir: str) -> None:
     premium_banner = Path(assets_dir) / "current-link-header-premium.png"
     banner = premium_banner if premium_banner.exists() else Path(assets_dir) / "current-link-header.png"

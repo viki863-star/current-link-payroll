@@ -30,6 +30,7 @@ from .pdf_service import (
     generate_kata_pdf,
     generate_owner_fund_pdf,
     generate_salary_slip_pdf,
+    generate_supplier_payment_voucher_pdf,
     generate_timesheet_pdf,
 )
 
@@ -55,6 +56,8 @@ PAYMENT_KIND_OPTIONS = ["Received", "Paid"]
 PAYMENT_METHOD_OPTIONS = ["Bank", "Cash", "Owner Fund", "Cheque", "Transfer", "Other"]
 LOAN_TYPE_OPTIONS = ["Given", "Recovered"]
 FEE_TYPE_OPTIONS = ["Visa", "Vehicle"]
+SUPPLIER_RATE_BASIS_OPTIONS = ["Hours", "Days", "Trips", "Monthly", "Fixed"]
+SUPPLIER_VOUCHER_STATUS_OPTIONS = ["Open", "Partially Paid", "Paid"]
 
 
 class ValidationError(ValueError):
@@ -231,6 +234,8 @@ def register_routes(app: Flask) -> None:
         ).fetchone()[0]
         owner_fund_incoming, owner_fund_outgoing, owner_fund_balance = _owner_fund_totals(db)
         supplier_summary = _supplier_summary(db)
+        supplier_hub_summary = _supplier_hub_summary(db)
+        top_suppliers = _supplier_directory_rows(db, limit=6)
         customer_summary = _customer_summary(db)
         loan_summary = _loan_summary(db)
         annual_fee_summary = _annual_fee_summary(db)
@@ -291,6 +296,8 @@ def register_routes(app: Flask) -> None:
             owner_fund_outgoing=owner_fund_outgoing,
             owner_fund_balance=owner_fund_balance,
             supplier_summary=supplier_summary,
+            supplier_hub_summary=supplier_hub_summary,
+            top_suppliers=top_suppliers,
             customer_summary=customer_summary,
             loan_summary=loan_summary,
             annual_fee_summary=annual_fee_summary,
@@ -523,42 +530,480 @@ def register_routes(app: Flask) -> None:
         flash(f"{party['party_name']} marked as {next_status}.", "success")
         return redirect(url_for("party_list"))
 
-    @app.get("/suppliers")
+    @app.route("/suppliers", methods=["GET", "POST"])
     @_login_required("admin")
     def suppliers():
         db = open_db()
-        supplier_parties = _parties_by_role(db, "Supplier")
-        summary = _supplier_summary(db)
-        top_payables = _party_balance_rows(db, invoice_kind="Purchase", limit=8)
-        recent_hires = _hire_rows(db, direction="Supplier Hire", limit=8)
-        recent_invoices = _invoice_rows(db, invoice_kind="Purchase", limit=8)
+        values = _default_supplier_form()
+        query = request.args.get("q", "").strip()
+        edit_party_code = request.args.get("edit", "").strip().upper()
+        if edit_party_code:
+            existing_party = _fetch_party(db, edit_party_code)
+            if existing_party is not None and "Supplier" in _deserialize_party_roles(existing_party["party_roles"] or ""):
+                values = _supplier_form_from_party(existing_party)
+
+        if request.method == "POST":
+            values = _supplier_form_data(request)
+            try:
+                payload = _prepare_supplier_party_payload(db, values)
+                if values["original_party_code"]:
+                    db.execute(
+                        """
+                        UPDATE parties
+                        SET party_name = ?, party_kind = ?, party_roles = ?, contact_person = ?,
+                            phone_number = ?, email = ?, trn_no = ?, trade_license_no = ?,
+                            address = ?, notes = ?, status = ?
+                        WHERE party_code = ?
+                        """,
+                        payload[1:] + (values["original_party_code"],),
+                    )
+                    _audit_log(
+                        db,
+                        "supplier_updated",
+                        entity_type="supplier",
+                        entity_id=payload[0],
+                        details=f"{payload[1]} / {_serialize_party_roles(_deserialize_party_roles(payload[3]))}",
+                    )
+                    message = "Supplier updated successfully."
+                else:
+                    db.execute(
+                        """
+                        INSERT INTO parties (
+                            party_code, party_name, party_kind, party_roles, contact_person,
+                            phone_number, email, trn_no, trade_license_no, address, notes, status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        payload,
+                    )
+                    _audit_log(
+                        db,
+                        "supplier_created",
+                        entity_type="supplier",
+                        entity_id=payload[0],
+                        details=f"{payload[1]} / {_serialize_party_roles(_deserialize_party_roles(payload[3]))}",
+                    )
+                    message = "Supplier registered successfully."
+                db.commit()
+                flash(message, "success")
+                return redirect(url_for("suppliers"))
+            except ValidationError as exc:
+                flash(str(exc), "error")
+
         return render_template(
             "suppliers.html",
-            supplier_parties=supplier_parties,
-            summary=summary,
-            top_payables=top_payables,
-            recent_hires=recent_hires,
-            recent_invoices=recent_invoices,
+            values=values,
+            query=query,
+            summary=_supplier_hub_summary(db),
+            suppliers=_supplier_directory_rows(db, query=query),
+            rate_basis_options=SUPPLIER_RATE_BASIS_OPTIONS,
+            role_options=[item for item in PARTY_ROLE_OPTIONS if item != "Supplier"],
+        )
+
+    @app.route("/suppliers/<party_code>", methods=["GET", "POST"])
+    @_login_required("admin")
+    def supplier_detail(party_code: str):
+        db = open_db()
+        party = _fetch_supplier_party(db, party_code)
+        if party is None:
+            flash("Supplier was not found.", "error")
+            return redirect(url_for("suppliers"))
+
+        asset_values = _default_supplier_asset_form(db, party_code)
+        timesheet_values = _default_supplier_timesheet_form(db, party_code)
+        voucher_values = _default_supplier_voucher_form(db, party_code)
+        payment_values = _default_supplier_payment_form(db, party_code)
+
+        edit_asset_code = request.args.get("edit_asset", "").strip().upper()
+        edit_timesheet_no = request.args.get("edit_timesheet", "").strip().upper()
+        edit_voucher_no = request.args.get("edit_voucher", "").strip().upper()
+        edit_payment_no = request.args.get("edit_payment", "").strip().upper()
+
+        if edit_asset_code:
+            row = db.execute("SELECT * FROM supplier_assets WHERE asset_code = ? AND party_code = ?", (edit_asset_code, party_code)).fetchone()
+            if row is not None:
+                asset_values = _supplier_asset_form_from_row(row)
+        if edit_timesheet_no:
+            row = db.execute("SELECT * FROM supplier_timesheets WHERE timesheet_no = ? AND party_code = ?", (edit_timesheet_no, party_code)).fetchone()
+            if row is not None:
+                timesheet_values = _supplier_timesheet_form_from_row(row)
+        if edit_voucher_no:
+            row = db.execute("SELECT * FROM supplier_vouchers WHERE voucher_no = ? AND party_code = ?", (edit_voucher_no, party_code)).fetchone()
+            if row is not None:
+                voucher_values = _supplier_voucher_form_from_row(row)
+        if edit_payment_no:
+            row = db.execute("SELECT * FROM supplier_payments WHERE payment_no = ? AND party_code = ?", (edit_payment_no, party_code)).fetchone()
+            if row is not None:
+                payment_values = _supplier_payment_form_from_row(row)
+
+        if request.method == "POST":
+            action = request.form.get("action", "").strip()
+            try:
+                if action == "save_asset":
+                    asset_values = _supplier_asset_form_data(request, party_code)
+                    payload = _prepare_supplier_asset_payload(db, asset_values)
+                    _ensure_reference_available(
+                        db,
+                        "supplier_assets",
+                        "asset_code",
+                        asset_values["asset_code"],
+                        asset_values["original_asset_code"],
+                        "Asset code",
+                    )
+                    if asset_values["original_asset_code"]:
+                        db.execute(
+                            """
+                            UPDATE supplier_assets
+                            SET asset_code = ?, party_code = ?, asset_name = ?, asset_type = ?, vehicle_no = ?,
+                                rate_basis = ?, default_rate = ?, capacity = ?, status = ?, notes = ?
+                            WHERE asset_code = ?
+                            """,
+                            payload + (asset_values["original_asset_code"],),
+                        )
+                        if asset_values["original_asset_code"] != asset_values["asset_code"]:
+                            db.execute(
+                                "UPDATE supplier_timesheets SET asset_code = ? WHERE asset_code = ?",
+                                (asset_values["asset_code"], asset_values["original_asset_code"]),
+                            )
+                        _audit_log(
+                            db,
+                            "supplier_asset_updated",
+                            entity_type="supplier_asset",
+                            entity_id=asset_values["asset_code"],
+                            details=f"{party_code} / {asset_values['asset_name']}",
+                        )
+                        message = "Supplier vehicle updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO supplier_assets (
+                                asset_code, party_code, asset_name, asset_type, vehicle_no,
+                                rate_basis, default_rate, capacity, status, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _audit_log(
+                            db,
+                            "supplier_asset_created",
+                            entity_type="supplier_asset",
+                            entity_id=asset_values["asset_code"],
+                            details=f"{party_code} / {asset_values['asset_name']}",
+                        )
+                        message = "Supplier vehicle saved successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("supplier_detail", party_code=party_code))
+
+                if action == "save_timesheet":
+                    timesheet_values = _supplier_timesheet_form_data(request, party_code)
+                    payload = _prepare_supplier_timesheet_payload(db, timesheet_values)
+                    _ensure_reference_available(
+                        db,
+                        "supplier_timesheets",
+                        "timesheet_no",
+                        timesheet_values["timesheet_no"],
+                        timesheet_values["original_timesheet_no"],
+                        "Timesheet number",
+                    )
+                    if timesheet_values["original_timesheet_no"]:
+                        existing_row = db.execute(
+                            "SELECT voucher_no FROM supplier_timesheets WHERE timesheet_no = ? AND party_code = ?",
+                            (timesheet_values["original_timesheet_no"], party_code),
+                        ).fetchone()
+                        if existing_row and existing_row["voucher_no"]:
+                            raise ValidationError("Billed timesheets cannot be edited until their voucher is deleted.")
+                        db.execute(
+                            """
+                            UPDATE supplier_timesheets
+                            SET timesheet_no = ?, party_code = ?, asset_code = ?, period_month = ?, entry_date = ?,
+                                billing_basis = ?, billable_qty = ?, timesheet_hours = ?, rate = ?, subtotal = ?,
+                                status = ?, notes = ?
+                            WHERE timesheet_no = ?
+                            """,
+                            payload + (timesheet_values["original_timesheet_no"],),
+                        )
+                        _audit_log(
+                            db,
+                            "supplier_timesheet_updated",
+                            entity_type="supplier_timesheet",
+                            entity_id=timesheet_values["timesheet_no"],
+                            details=f"{party_code} / {timesheet_values['period_month']} / AED {timesheet_values['subtotal']}",
+                        )
+                        message = "Supplier timesheet updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO supplier_timesheets (
+                                timesheet_no, party_code, asset_code, period_month, entry_date,
+                                billing_basis, billable_qty, timesheet_hours, rate, subtotal,
+                                status, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _audit_log(
+                            db,
+                            "supplier_timesheet_created",
+                            entity_type="supplier_timesheet",
+                            entity_id=timesheet_values["timesheet_no"],
+                            details=f"{party_code} / {timesheet_values['period_month']} / AED {timesheet_values['subtotal']}",
+                        )
+                        message = "Supplier timesheet saved successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("supplier_detail", party_code=party_code))
+
+                if action == "save_voucher":
+                    voucher_values = _supplier_voucher_form_data(request, party_code)
+                    if voucher_values["original_voucher_no"]:
+                        payload = _prepare_existing_supplier_voucher_payload(db, voucher_values)
+                        _ensure_reference_available(
+                            db,
+                            "supplier_vouchers",
+                            "voucher_no",
+                            voucher_values["voucher_no"],
+                            voucher_values["original_voucher_no"],
+                            "Voucher number",
+                        )
+                        db.execute(
+                            """
+                            UPDATE supplier_vouchers
+                            SET voucher_no = ?, party_code = ?, period_month = ?, issue_date = ?, subtotal = ?,
+                                tax_percent = ?, tax_amount = ?, total_amount = ?, paid_amount = ?, balance_amount = ?,
+                                status = ?, notes = ?
+                            WHERE voucher_no = ?
+                            """,
+                            payload + (voucher_values["original_voucher_no"],),
+                        )
+                        if voucher_values["voucher_no"] != voucher_values["original_voucher_no"]:
+                            db.execute(
+                                "UPDATE supplier_timesheets SET voucher_no = ? WHERE voucher_no = ?",
+                                (voucher_values["voucher_no"], voucher_values["original_voucher_no"]),
+                            )
+                            db.execute(
+                                "UPDATE supplier_payments SET voucher_no = ? WHERE voucher_no = ?",
+                                (voucher_values["voucher_no"], voucher_values["original_voucher_no"]),
+                            )
+                        _supplier_sync_voucher_balance(db, voucher_values["voucher_no"])
+                        _audit_log(
+                            db,
+                            "supplier_voucher_updated",
+                            entity_type="supplier_voucher",
+                            entity_id=voucher_values["voucher_no"],
+                            details=f"{party_code} / {voucher_values['period_month']}",
+                        )
+                        message = "Supplier voucher updated successfully."
+                    else:
+                        payload, linked_timesheets = _prepare_new_supplier_voucher_payload(db, voucher_values)
+                        db.execute(
+                            """
+                            INSERT INTO supplier_vouchers (
+                                voucher_no, party_code, period_month, issue_date, subtotal,
+                                tax_percent, tax_amount, total_amount, paid_amount, balance_amount, status, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        db.executemany(
+                            """
+                            UPDATE supplier_timesheets
+                            SET voucher_no = ?, status = 'Billed'
+                            WHERE timesheet_no = ?
+                            """,
+                            [(voucher_values["voucher_no"], item["timesheet_no"]) for item in linked_timesheets],
+                        )
+                        _audit_log(
+                            db,
+                            "supplier_voucher_created",
+                            entity_type="supplier_voucher",
+                            entity_id=voucher_values["voucher_no"],
+                            details=f"{party_code} / {voucher_values['period_month']} / {len(linked_timesheets)} rows",
+                        )
+                        message = "Supplier voucher created from open timesheets."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("supplier_detail", party_code=party_code))
+
+                if action == "save_payment":
+                    payment_values = _supplier_payment_form_data(request, party_code)
+                    payload = _prepare_supplier_payment_payload(db, payment_values)
+                    _ensure_reference_available(
+                        db,
+                        "supplier_payments",
+                        "payment_no",
+                        payment_values["payment_no"],
+                        payment_values["original_payment_no"],
+                        "Payment number",
+                    )
+                    if payment_values["original_payment_no"]:
+                        existing_payment = db.execute(
+                            "SELECT voucher_no FROM supplier_payments WHERE payment_no = ? AND party_code = ?",
+                            (payment_values["original_payment_no"], party_code),
+                        ).fetchone()
+                        if existing_payment is None:
+                            raise ValidationError("Supplier payment was not found.")
+                        db.execute(
+                            """
+                            UPDATE supplier_payments
+                            SET payment_no = ?, voucher_no = ?, party_code = ?, entry_date = ?,
+                                amount = ?, payment_method = ?, reference = ?, notes = ?
+                            WHERE payment_no = ?
+                            """,
+                            payload + (payment_values["original_payment_no"],),
+                        )
+                        if existing_payment["voucher_no"] != payment_values["voucher_no"]:
+                            _supplier_sync_voucher_balance(db, existing_payment["voucher_no"])
+                        _supplier_sync_voucher_balance(db, payment_values["voucher_no"])
+                        _audit_log(
+                            db,
+                            "supplier_payment_updated",
+                            entity_type="supplier_payment",
+                            entity_id=payment_values["payment_no"],
+                            details=f"{payment_values['voucher_no']} / AED {payment_values['amount']}",
+                        )
+                        message = "Supplier payment updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO supplier_payments (
+                                payment_no, voucher_no, party_code, entry_date,
+                                amount, payment_method, reference, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _supplier_sync_voucher_balance(db, payment_values["voucher_no"])
+                        _audit_log(
+                            db,
+                            "supplier_payment_created",
+                            entity_type="supplier_payment",
+                            entity_id=payment_values["payment_no"],
+                            details=f"{payment_values['voucher_no']} / AED {payment_values['amount']}",
+                        )
+                        message = "Supplier payment saved successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("supplier_detail", party_code=party_code))
+            except ValidationError as exc:
+                flash(str(exc), "error")
+
+        supplier_assets = _supplier_asset_rows(db, party_code)
+        supplier_timesheets = _supplier_timesheet_rows(db, party_code)
+        supplier_vouchers = _supplier_voucher_rows(db, party_code)
+        supplier_payments = _supplier_payment_rows(db, party_code)
+        statement_rows, statement_summary = _supplier_statement_data(db, party_code)
+
+        return render_template(
+            "supplier_detail.html",
+            party=party,
+            asset_values=asset_values,
+            timesheet_values=timesheet_values,
+            voucher_values=voucher_values,
+            payment_values=payment_values,
+            summary=_supplier_detail_summary(db, party_code),
+            statement_rows=statement_rows,
+            statement_summary=statement_summary,
+            assets=supplier_assets,
+            timesheets=supplier_timesheets,
+            vouchers=supplier_vouchers,
+            payments=supplier_payments,
+            rate_basis_options=SUPPLIER_RATE_BASIS_OPTIONS,
+            payment_method_options=PAYMENT_METHOD_OPTIONS,
+            voucher_status_options=SUPPLIER_VOUCHER_STATUS_OPTIONS,
         )
 
     @app.get("/suppliers/<party_code>/statement")
     @_login_required("admin")
     def supplier_statement(party_code: str):
+        return redirect(url_for("supplier_detail", party_code=party_code))
+
+    @app.post("/supplier-assets/<asset_code>/delete")
+    @_login_required("admin")
+    def delete_supplier_asset(asset_code: str):
         db = open_db()
-        party = _fetch_party(db, party_code)
-        if party is None:
-            flash("Supplier was not found.", "error")
+        asset = db.execute("SELECT asset_code, party_code, asset_name FROM supplier_assets WHERE asset_code = ?", (asset_code,)).fetchone()
+        if asset is None:
+            flash("Supplier vehicle was not found.", "error")
             return redirect(url_for("suppliers"))
-        rows, summary = _party_statement(db, party_code, invoice_kind="Purchase", hire_direction="Supplier Hire")
-        return render_template(
-            "party_statement.html",
-            page_title="Supplier Statement",
-            page_eyebrow="Payables Ledger",
-            party=party,
-            rows=rows,
-            summary=summary,
-            back_endpoint="suppliers",
+        count = int(db.execute("SELECT COUNT(*) FROM supplier_timesheets WHERE asset_code = ?", (asset_code,)).fetchone()[0])
+        if count:
+            flash(f"Vehicle cannot be deleted because {count} timesheet row(s) are linked.", "error")
+            return redirect(url_for("supplier_detail", party_code=asset["party_code"]))
+        db.execute("DELETE FROM supplier_assets WHERE asset_code = ?", (asset_code,))
+        _audit_log(db, "supplier_asset_deleted", entity_type="supplier_asset", entity_id=asset_code, details=asset["asset_name"])
+        db.commit()
+        flash("Supplier vehicle deleted successfully.", "success")
+        return redirect(url_for("supplier_detail", party_code=asset["party_code"]))
+
+    @app.post("/supplier-timesheets/<timesheet_no>/delete")
+    @_login_required("admin")
+    def delete_supplier_timesheet(timesheet_no: str):
+        db = open_db()
+        row = db.execute("SELECT timesheet_no, party_code, voucher_no FROM supplier_timesheets WHERE timesheet_no = ?", (timesheet_no,)).fetchone()
+        if row is None:
+            flash("Supplier timesheet was not found.", "error")
+            return redirect(url_for("suppliers"))
+        if row["voucher_no"]:
+            flash("Billed timesheets cannot be deleted until their voucher is removed.", "error")
+            return redirect(url_for("supplier_detail", party_code=row["party_code"]))
+        db.execute("DELETE FROM supplier_timesheets WHERE timesheet_no = ?", (timesheet_no,))
+        _audit_log(db, "supplier_timesheet_deleted", entity_type="supplier_timesheet", entity_id=timesheet_no, details=timesheet_no)
+        db.commit()
+        flash("Supplier timesheet deleted successfully.", "success")
+        return redirect(url_for("supplier_detail", party_code=row["party_code"]))
+
+    @app.post("/supplier-vouchers/<voucher_no>/delete")
+    @_login_required("admin")
+    def delete_supplier_voucher(voucher_no: str):
+        db = open_db()
+        voucher = db.execute("SELECT voucher_no, party_code FROM supplier_vouchers WHERE voucher_no = ?", (voucher_no,)).fetchone()
+        if voucher is None:
+            flash("Supplier voucher was not found.", "error")
+            return redirect(url_for("suppliers"))
+        count = int(db.execute("SELECT COUNT(*) FROM supplier_payments WHERE voucher_no = ?", (voucher_no,)).fetchone()[0])
+        if count:
+            flash(f"Voucher cannot be deleted because {count} payment row(s) are linked.", "error")
+            return redirect(url_for("supplier_detail", party_code=voucher["party_code"]))
+        db.execute("UPDATE supplier_timesheets SET voucher_no = NULL, status = 'Open' WHERE voucher_no = ?", (voucher_no,))
+        db.execute("DELETE FROM supplier_vouchers WHERE voucher_no = ?", (voucher_no,))
+        _audit_log(db, "supplier_voucher_deleted", entity_type="supplier_voucher", entity_id=voucher_no, details=voucher_no)
+        db.commit()
+        flash("Supplier voucher deleted and linked timesheets reopened.", "success")
+        return redirect(url_for("supplier_detail", party_code=voucher["party_code"]))
+
+    @app.post("/supplier-payments/<payment_no>/delete")
+    @_login_required("admin")
+    def delete_supplier_payment(payment_no: str):
+        db = open_db()
+        payment = db.execute("SELECT payment_no, voucher_no, party_code FROM supplier_payments WHERE payment_no = ?", (payment_no,)).fetchone()
+        if payment is None:
+            flash("Supplier payment was not found.", "error")
+            return redirect(url_for("suppliers"))
+        db.execute("DELETE FROM supplier_payments WHERE payment_no = ?", (payment_no,))
+        _supplier_sync_voucher_balance(db, payment["voucher_no"])
+        _audit_log(db, "supplier_payment_deleted", entity_type="supplier_payment", entity_id=payment_no, details=payment["voucher_no"])
+        db.commit()
+        flash("Supplier payment deleted successfully.", "success")
+        return redirect(url_for("supplier_detail", party_code=payment["party_code"]))
+
+    @app.get("/supplier-payments/<payment_no>/voucher")
+    @_login_required("admin")
+    def supplier_payment_voucher(payment_no: str):
+        db = open_db()
+        payment = _supplier_payment_with_context(db, payment_no)
+        if payment is None:
+            flash("Supplier payment voucher was not found.", "error")
+            return redirect(url_for("suppliers"))
+        output_dir = _supplier_output_dir(app, payment["party_code"]) / "payment_vouchers"
+        pdf_path = generate_supplier_payment_voucher_pdf(
+            payment,
+            payment,
+            payment,
+            str(output_dir),
+            app.config["STATIC_ASSETS_DIR"],
         )
+        relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+        return redirect(url_for("generated_file", filename=relative_path))
 
     @app.get("/customers")
     @_login_required("admin")
@@ -3348,6 +3793,799 @@ def _sync_invoice_balance(db, invoice_no: str):
         """,
         (round(paid_amount, 2), balance_amount, status, invoice_no),
     )
+
+
+def _fetch_supplier_party(db, party_code: str):
+    party = _fetch_party(db, party_code)
+    if party is None:
+        return None
+    if "Supplier" not in _deserialize_party_roles(party["party_roles"] or ""):
+        return None
+    return party
+
+
+def _normalize_supplier_roles(values) -> list[str]:
+    selected = ["Supplier"]
+    for role in PARTY_ROLE_OPTIONS:
+        if role == "Supplier":
+            continue
+        if role in values and role not in selected:
+            selected.append(role)
+    return selected
+
+
+def _default_supplier_form():
+    values = _default_party_form()
+    values["original_party_code"] = ""
+    values["party_roles"] = ["Supplier"]
+    return values
+
+
+def _supplier_form_data(request):
+    return {
+        "original_party_code": request.form.get("original_party_code", "").strip().upper(),
+        "party_code": request.form.get("party_code", "").strip().upper(),
+        "party_name": request.form.get("party_name", "").strip(),
+        "party_kind": request.form.get("party_kind", "Company").strip() or "Company",
+        "party_roles": ["Supplier"] + request.form.getlist("party_roles"),
+        "contact_person": request.form.get("contact_person", "").strip(),
+        "phone_number": request.form.get("phone_number", "").strip(),
+        "email": request.form.get("email", "").strip(),
+        "trn_no": request.form.get("trn_no", "").strip(),
+        "trade_license_no": request.form.get("trade_license_no", "").strip(),
+        "address": request.form.get("address", "").strip(),
+        "notes": request.form.get("notes", "").strip(),
+        "status": request.form.get("status", "Active").strip() or "Active",
+    }
+
+
+def _supplier_form_from_party(record):
+    values = _party_values_from_record(record)
+    values["original_party_code"] = record["party_code"]
+    return values
+
+
+def _prepare_supplier_party_payload(db, values):
+    if not values["party_name"]:
+        raise ValidationError("Supplier name is required.")
+    values["party_roles"] = _normalize_supplier_roles(values["party_roles"])
+    values["phone_number"] = _normalize_optional_phone(values["phone_number"])
+    _validate_optional_email(values["email"])
+    values["party_code"] = values["party_code"] or values["original_party_code"] or _next_party_code(db)
+    return (
+        values["party_code"],
+        values["party_name"],
+        values["party_kind"],
+        _serialize_party_roles(values["party_roles"]),
+        values["contact_person"],
+        values["phone_number"],
+        values["email"],
+        values["trn_no"],
+        values["trade_license_no"],
+        values["address"],
+        values["notes"],
+        values["status"],
+    )
+
+
+def _default_supplier_asset_form(db=None, party_code: str = ""):
+    db = db or open_db()
+    return {
+        "original_asset_code": "",
+        "asset_code": _next_reference_code(db, "supplier_assets", "asset_code", "AST"),
+        "party_code": party_code,
+        "asset_name": "",
+        "asset_type": "Trailer",
+        "vehicle_no": "",
+        "rate_basis": SUPPLIER_RATE_BASIS_OPTIONS[0],
+        "default_rate": "",
+        "capacity": "",
+        "status": "Active",
+        "notes": "",
+    }
+
+
+def _default_supplier_timesheet_form(db=None, party_code: str = ""):
+    db = db or open_db()
+    return {
+        "original_timesheet_no": "",
+        "timesheet_no": _next_reference_code(db, "supplier_timesheets", "timesheet_no", "TSH"),
+        "party_code": party_code,
+        "asset_code": "",
+        "period_month": _current_month_value(),
+        "entry_date": date.today().isoformat(),
+        "billing_basis": SUPPLIER_RATE_BASIS_OPTIONS[0],
+        "billable_qty": "",
+        "timesheet_hours": "",
+        "rate": "",
+        "status": "Open",
+        "notes": "",
+    }
+
+
+def _default_supplier_voucher_form(db=None, party_code: str = ""):
+    db = db or open_db()
+    return {
+        "original_voucher_no": "",
+        "voucher_no": _next_reference_code(db, "supplier_vouchers", "voucher_no", "SPV"),
+        "party_code": party_code,
+        "period_month": _current_month_value(),
+        "issue_date": date.today().isoformat(),
+        "tax_percent": "5",
+        "status": SUPPLIER_VOUCHER_STATUS_OPTIONS[0],
+        "notes": "",
+    }
+
+
+def _default_supplier_payment_form(db=None, party_code: str = ""):
+    db = db or open_db()
+    return {
+        "original_payment_no": "",
+        "payment_no": _next_reference_code(db, "supplier_payments", "payment_no", "SPP"),
+        "party_code": party_code,
+        "voucher_no": "",
+        "entry_date": date.today().isoformat(),
+        "amount": "",
+        "payment_method": PAYMENT_METHOD_OPTIONS[0],
+        "reference": "",
+        "notes": "",
+    }
+
+
+def _supplier_asset_form_data(request, party_code: str):
+    return {
+        "original_asset_code": request.form.get("original_asset_code", "").strip().upper(),
+        "asset_code": request.form.get("asset_code", "").strip().upper(),
+        "party_code": party_code,
+        "asset_name": request.form.get("asset_name", "").strip(),
+        "asset_type": request.form.get("asset_type", "Trailer").strip() or "Trailer",
+        "vehicle_no": request.form.get("vehicle_no", "").strip(),
+        "rate_basis": request.form.get("rate_basis", SUPPLIER_RATE_BASIS_OPTIONS[0]).strip() or SUPPLIER_RATE_BASIS_OPTIONS[0],
+        "default_rate": request.form.get("default_rate", "").strip(),
+        "capacity": request.form.get("capacity", "").strip(),
+        "status": request.form.get("status", "Active").strip() or "Active",
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _supplier_timesheet_form_data(request, party_code: str):
+    return {
+        "original_timesheet_no": request.form.get("original_timesheet_no", "").strip().upper(),
+        "timesheet_no": request.form.get("timesheet_no", "").strip().upper(),
+        "party_code": party_code,
+        "asset_code": request.form.get("asset_code", "").strip().upper(),
+        "period_month": _normalize_month(request.form.get("period_month", "").strip()),
+        "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
+        "billing_basis": request.form.get("billing_basis", SUPPLIER_RATE_BASIS_OPTIONS[0]).strip() or SUPPLIER_RATE_BASIS_OPTIONS[0],
+        "billable_qty": request.form.get("billable_qty", "").strip(),
+        "timesheet_hours": request.form.get("timesheet_hours", "0").strip() or "0",
+        "rate": request.form.get("rate", "").strip(),
+        "status": request.form.get("status", "Open").strip() or "Open",
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _supplier_voucher_form_data(request, party_code: str):
+    return {
+        "original_voucher_no": request.form.get("original_voucher_no", "").strip().upper(),
+        "voucher_no": request.form.get("voucher_no", "").strip().upper(),
+        "party_code": party_code,
+        "period_month": _normalize_month(request.form.get("period_month", "").strip()),
+        "issue_date": request.form.get("issue_date", date.today().isoformat()).strip() or date.today().isoformat(),
+        "tax_percent": request.form.get("tax_percent", "5").strip() or "5",
+        "status": request.form.get("status", SUPPLIER_VOUCHER_STATUS_OPTIONS[0]).strip() or SUPPLIER_VOUCHER_STATUS_OPTIONS[0],
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _supplier_payment_form_data(request, party_code: str):
+    return {
+        "original_payment_no": request.form.get("original_payment_no", "").strip().upper(),
+        "payment_no": request.form.get("payment_no", "").strip().upper(),
+        "voucher_no": request.form.get("voucher_no", "").strip().upper(),
+        "party_code": party_code,
+        "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
+        "amount": request.form.get("amount", "").strip(),
+        "payment_method": request.form.get("payment_method", PAYMENT_METHOD_OPTIONS[0]).strip() or PAYMENT_METHOD_OPTIONS[0],
+        "reference": request.form.get("reference", "").strip(),
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _supplier_asset_form_from_row(row):
+    values = _default_supplier_asset_form()
+    values.update(
+        {
+            "original_asset_code": row["asset_code"],
+            "asset_code": row["asset_code"],
+            "party_code": row["party_code"],
+            "asset_name": row["asset_name"] or "",
+            "asset_type": row["asset_type"] or "Trailer",
+            "vehicle_no": row["vehicle_no"] or "",
+            "rate_basis": row["rate_basis"] or SUPPLIER_RATE_BASIS_OPTIONS[0],
+            "default_rate": _display_number(row["default_rate"]),
+            "capacity": row["capacity"] or "",
+            "status": row["status"] or "Active",
+            "notes": row["notes"] or "",
+        }
+    )
+    return values
+
+
+def _supplier_timesheet_form_from_row(row):
+    values = _default_supplier_timesheet_form()
+    values.update(
+        {
+            "original_timesheet_no": row["timesheet_no"],
+            "timesheet_no": row["timesheet_no"],
+            "party_code": row["party_code"],
+            "asset_code": row["asset_code"] or "",
+            "period_month": row["period_month"] or _current_month_value(),
+            "entry_date": row["entry_date"] or date.today().isoformat(),
+            "billing_basis": row["billing_basis"] or SUPPLIER_RATE_BASIS_OPTIONS[0],
+            "billable_qty": _display_number(row["billable_qty"]),
+            "timesheet_hours": _display_number(row["timesheet_hours"]),
+            "rate": _display_number(row["rate"]),
+            "status": row["status"] or "Open",
+            "notes": row["notes"] or "",
+        }
+    )
+    return values
+
+
+def _supplier_voucher_form_from_row(row):
+    values = _default_supplier_voucher_form()
+    values.update(
+        {
+            "original_voucher_no": row["voucher_no"],
+            "voucher_no": row["voucher_no"],
+            "party_code": row["party_code"],
+            "period_month": row["period_month"] or _current_month_value(),
+            "issue_date": row["issue_date"] or date.today().isoformat(),
+            "tax_percent": _display_number(row["tax_percent"]),
+            "status": row["status"] or SUPPLIER_VOUCHER_STATUS_OPTIONS[0],
+            "notes": row["notes"] or "",
+        }
+    )
+    return values
+
+
+def _supplier_payment_form_from_row(row):
+    values = _default_supplier_payment_form()
+    values.update(
+        {
+            "original_payment_no": row["payment_no"],
+            "payment_no": row["payment_no"],
+            "voucher_no": row["voucher_no"] or "",
+            "party_code": row["party_code"],
+            "entry_date": row["entry_date"] or date.today().isoformat(),
+            "amount": _display_number(row["amount"]),
+            "payment_method": row["payment_method"] or PAYMENT_METHOD_OPTIONS[0],
+            "reference": row["reference"] or "",
+            "notes": row["notes"] or "",
+        }
+    )
+    return values
+
+
+def _prepare_supplier_asset_payload(db, values):
+    _validate_party_reference(db, values["party_code"])
+    if not values["asset_code"]:
+        values["asset_code"] = _next_reference_code(db, "supplier_assets", "asset_code", "AST")
+    if not values["asset_name"]:
+        raise ValidationError("Vehicle / asset name is required.")
+    default_rate = _parse_decimal(values["default_rate"], "Default rate", required=False, default=0.0, minimum=0.0)
+    return (
+        values["asset_code"],
+        values["party_code"],
+        values["asset_name"],
+        values["asset_type"],
+        values["vehicle_no"],
+        values["rate_basis"],
+        default_rate,
+        values["capacity"],
+        values["status"],
+        values["notes"],
+    )
+
+
+def _prepare_supplier_timesheet_payload(db, values):
+    _validate_party_reference(db, values["party_code"])
+    asset = db.execute(
+        """
+        SELECT asset_code, party_code, asset_name, rate_basis, default_rate
+        FROM supplier_assets
+        WHERE asset_code = ? AND party_code = ?
+        """,
+        (values["asset_code"], values["party_code"]),
+    ).fetchone()
+    if asset is None:
+        raise ValidationError("Select a valid supplier vehicle first.")
+    if not values["timesheet_no"]:
+        values["timesheet_no"] = _next_reference_code(db, "supplier_timesheets", "timesheet_no", "TSH")
+    entry_date = _validate_date_text(values["entry_date"], "Timesheet date")
+    billable_qty = _parse_decimal(values["billable_qty"], "Billable quantity", required=True, minimum=0.01)
+    timesheet_hours = _parse_decimal(values["timesheet_hours"], "Timesheet hours", required=False, default=0.0, minimum=0.0)
+    rate = _parse_decimal(values["rate"], "Rate", required=False, default=float(asset["default_rate"] or 0.0), minimum=0.0)
+    subtotal = round(billable_qty * rate, 2)
+    values["subtotal"] = subtotal
+    return (
+        values["timesheet_no"],
+        values["party_code"],
+        values["asset_code"],
+        values["period_month"],
+        entry_date,
+        values["billing_basis"] or asset["rate_basis"] or SUPPLIER_RATE_BASIS_OPTIONS[0],
+        billable_qty,
+        timesheet_hours,
+        rate,
+        subtotal,
+        values["status"],
+        values["notes"],
+    )
+
+
+def _prepare_new_supplier_voucher_payload(db, values):
+    _validate_party_reference(db, values["party_code"])
+    if not values["voucher_no"]:
+        values["voucher_no"] = _next_reference_code(db, "supplier_vouchers", "voucher_no", "SPV")
+    issue_date = _validate_date_text(values["issue_date"], "Voucher date")
+    tax_percent = _parse_decimal(values["tax_percent"], "Tax percent", required=False, default=0.0, minimum=0.0)
+    timesheets = db.execute(
+        """
+        SELECT timesheet_no, subtotal
+        FROM supplier_timesheets
+        WHERE party_code = ? AND period_month = ? AND COALESCE(voucher_no, '') = ''
+        ORDER BY entry_date ASC, id ASC
+        """,
+        (values["party_code"], values["period_month"]),
+    ).fetchall()
+    if not timesheets:
+        raise ValidationError("No open timesheet rows found for this month.")
+    subtotal = round(sum(float(item["subtotal"] or 0.0) for item in timesheets), 2)
+    tax_amount = round(subtotal * (tax_percent / 100.0), 2)
+    total_amount = round(subtotal + tax_amount, 2)
+    return (
+        (
+            values["voucher_no"],
+            values["party_code"],
+            values["period_month"],
+            issue_date,
+            subtotal,
+            tax_percent,
+            tax_amount,
+            total_amount,
+            0.0,
+            total_amount,
+            "Open",
+            values["notes"],
+        ),
+        timesheets,
+    )
+
+
+def _prepare_existing_supplier_voucher_payload(db, values):
+    voucher_lookup = values["original_voucher_no"] or values["voucher_no"]
+    voucher = db.execute(
+        "SELECT voucher_no, tax_percent FROM supplier_vouchers WHERE voucher_no = ? AND party_code = ?",
+        (voucher_lookup, values["party_code"]),
+    ).fetchone()
+    if voucher is None:
+        raise ValidationError("Supplier voucher was not found.")
+    if not values["voucher_no"]:
+        values["voucher_no"] = voucher_lookup
+    issue_date = _validate_date_text(values["issue_date"], "Voucher date")
+    tax_percent = _parse_decimal(values["tax_percent"], "Tax percent", required=False, default=float(voucher["tax_percent"] or 0.0), minimum=0.0)
+    subtotal = float(
+        db.execute(
+            "SELECT COALESCE(SUM(subtotal), 0) FROM supplier_timesheets WHERE voucher_no = ?",
+            (voucher_lookup,),
+        ).fetchone()[0]
+        or 0.0
+    )
+    paid_amount = _supplier_voucher_paid_amount(db, voucher_lookup)
+    tax_amount = round(subtotal * (tax_percent / 100.0), 2)
+    total_amount = round(subtotal + tax_amount, 2)
+    if paid_amount - total_amount > 0.001:
+        raise ValidationError("Voucher total cannot be less than already posted payments.")
+    balance_amount = max(round(total_amount - paid_amount, 2), 0.0)
+    status = _supplier_voucher_status(total_amount, paid_amount)
+    return (
+        values["voucher_no"],
+        values["party_code"],
+        values["period_month"],
+        issue_date,
+        subtotal,
+        tax_percent,
+        tax_amount,
+        total_amount,
+        round(paid_amount, 2),
+        balance_amount,
+        status,
+        values["notes"],
+    )
+
+
+def _prepare_supplier_payment_payload(db, values):
+    _validate_party_reference(db, values["party_code"])
+    voucher = db.execute(
+        """
+        SELECT voucher_no, party_code, total_amount
+        FROM supplier_vouchers
+        WHERE voucher_no = ? AND party_code = ?
+        """,
+        (values["voucher_no"], values["party_code"]),
+    ).fetchone()
+    if voucher is None:
+        raise ValidationError("Select a valid supplier voucher first.")
+    if not values["payment_no"]:
+        values["payment_no"] = _next_reference_code(db, "supplier_payments", "payment_no", "SPP")
+    entry_date = _validate_date_text(values["entry_date"], "Payment date")
+    amount = _parse_decimal(values["amount"], "Payment amount", required=True, minimum=0.01)
+    other_paid = _supplier_voucher_paid_amount(db, values["voucher_no"], exclude_payment_no=values["original_payment_no"])
+    remaining = float(voucher["total_amount"] or 0.0) - other_paid
+    if amount - remaining > 0.001:
+        raise ValidationError(f"Payment amount cannot be greater than voucher balance {remaining:,.2f}.")
+    return (
+        values["payment_no"],
+        values["voucher_no"],
+        values["party_code"],
+        entry_date,
+        amount,
+        values["payment_method"],
+        values["reference"],
+        values["notes"],
+    )
+
+
+def _supplier_voucher_paid_amount(db, voucher_no: str, exclude_payment_no: str = "") -> float:
+    if exclude_payment_no:
+        row = db.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM supplier_payments WHERE voucher_no = ? AND payment_no <> ?",
+            (voucher_no, exclude_payment_no),
+        ).fetchone()
+    else:
+        row = db.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM supplier_payments WHERE voucher_no = ?",
+            (voucher_no,),
+        ).fetchone()
+    return float(row[0] or 0.0)
+
+
+def _supplier_voucher_status(total_amount: float, paid_amount: float) -> str:
+    if total_amount <= 0.009 or paid_amount <= 0.009:
+        return "Open"
+    if total_amount - paid_amount <= 0.009:
+        return "Paid"
+    return "Partially Paid"
+
+
+def _supplier_sync_voucher_balance(db, voucher_no: str):
+    voucher = db.execute(
+        "SELECT voucher_no, tax_percent FROM supplier_vouchers WHERE voucher_no = ?",
+        (voucher_no,),
+    ).fetchone()
+    if voucher is None:
+        return
+    subtotal = float(
+        db.execute(
+            "SELECT COALESCE(SUM(subtotal), 0) FROM supplier_timesheets WHERE voucher_no = ?",
+            (voucher_no,),
+        ).fetchone()[0]
+        or 0.0
+    )
+    tax_percent = float(voucher["tax_percent"] or 0.0)
+    tax_amount = round(subtotal * (tax_percent / 100.0), 2)
+    total_amount = round(subtotal + tax_amount, 2)
+    paid_amount = _supplier_voucher_paid_amount(db, voucher_no)
+    if paid_amount - total_amount > 0.001:
+        raise ValidationError(f"Payments already posted are greater than voucher total for {voucher_no}.")
+    balance_amount = max(round(total_amount - paid_amount, 2), 0.0)
+    status = _supplier_voucher_status(total_amount, paid_amount)
+    db.execute(
+        """
+        UPDATE supplier_vouchers
+        SET subtotal = ?, tax_amount = ?, total_amount = ?, paid_amount = ?, balance_amount = ?, status = ?
+        WHERE voucher_no = ?
+        """,
+        (subtotal, tax_amount, total_amount, round(paid_amount, 2), balance_amount, status, voucher_no),
+    )
+
+
+def _supplier_hub_summary(db):
+    return {
+        "supplier_count": int(db.execute("SELECT COUNT(*) FROM parties WHERE party_roles LIKE ?", ("%Supplier%",)).fetchone()[0]),
+        "asset_count": int(db.execute("SELECT COUNT(*) FROM supplier_assets").fetchone()[0]),
+        "unbilled_amount": float(db.execute("SELECT COALESCE(SUM(subtotal), 0) FROM supplier_timesheets WHERE COALESCE(voucher_no, '') = ''").fetchone()[0] or 0.0),
+        "voucher_total": float(db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM supplier_vouchers").fetchone()[0] or 0.0),
+        "paid_total": float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM supplier_payments").fetchone()[0] or 0.0),
+        "outstanding_total": float(db.execute("SELECT COALESCE(SUM(balance_amount), 0) FROM supplier_vouchers").fetchone()[0] or 0.0),
+        "open_vouchers": int(db.execute("SELECT COUNT(*) FROM supplier_vouchers WHERE balance_amount > 0.009").fetchone()[0]),
+    }
+
+
+def _supplier_directory_rows(db, query: str = "", limit: int | None = None):
+    filters = ["p.party_roles LIKE ?"]
+    params = ["%Supplier%"]
+    if query:
+        needle = f"%{query.strip().lower()}%"
+        filters.append(
+            """
+            (
+                LOWER(p.party_code) LIKE ? OR
+                LOWER(p.party_name) LIKE ? OR
+                LOWER(COALESCE(p.contact_person, '')) LIKE ? OR
+                LOWER(COALESCE(p.phone_number, '')) LIKE ?
+            )
+            """
+        )
+        params.extend([needle, needle, needle, needle])
+    limit_sql = f"LIMIT {int(limit)}" if limit else ""
+    return db.execute(
+        f"""
+        SELECT
+            p.party_code,
+            p.party_name,
+            p.party_kind,
+            p.party_roles,
+            p.contact_person,
+            p.phone_number,
+            p.email,
+            p.trn_no,
+            p.trade_license_no,
+            p.status,
+            COALESCE(asset_totals.asset_count, 0) AS asset_count,
+            COALESCE(ts_totals.unbilled_count, 0) AS unbilled_count,
+            COALESCE(ts_totals.unbilled_amount, 0) AS unbilled_amount,
+            COALESCE(voucher_totals.voucher_count, 0) AS voucher_count,
+            COALESCE(voucher_totals.total_amount, 0) AS voucher_total,
+            COALESCE(voucher_totals.balance_amount, 0) AS outstanding_total,
+            COALESCE(payment_totals.paid_amount, 0) AS paid_total
+        FROM parties p
+        LEFT JOIN (
+            SELECT party_code, COUNT(*) AS asset_count
+            FROM supplier_assets
+            GROUP BY party_code
+        ) asset_totals ON asset_totals.party_code = p.party_code
+        LEFT JOIN (
+            SELECT party_code, COUNT(*) AS unbilled_count, COALESCE(SUM(subtotal), 0) AS unbilled_amount
+            FROM supplier_timesheets
+            WHERE COALESCE(voucher_no, '') = ''
+            GROUP BY party_code
+        ) ts_totals ON ts_totals.party_code = p.party_code
+        LEFT JOIN (
+            SELECT party_code, COUNT(*) AS voucher_count, COALESCE(SUM(total_amount), 0) AS total_amount, COALESCE(SUM(balance_amount), 0) AS balance_amount
+            FROM supplier_vouchers
+            GROUP BY party_code
+        ) voucher_totals ON voucher_totals.party_code = p.party_code
+        LEFT JOIN (
+            SELECT party_code, COALESCE(SUM(amount), 0) AS paid_amount
+            FROM supplier_payments
+            GROUP BY party_code
+        ) payment_totals ON payment_totals.party_code = p.party_code
+        WHERE {" AND ".join(filters)}
+        ORDER BY CASE WHEN p.status = 'Active' THEN 0 ELSE 1 END,
+                 COALESCE(voucher_totals.balance_amount, 0) DESC,
+                 p.party_name ASC
+        {limit_sql}
+        """,
+        params,
+    ).fetchall()
+
+
+def _supplier_asset_rows(db, party_code: str, limit: int = 40):
+    return db.execute(
+        f"""
+        SELECT
+            asset_code, party_code, asset_name, asset_type, vehicle_no,
+            rate_basis, default_rate, capacity, status, notes
+        FROM supplier_assets
+        WHERE party_code = ?
+        ORDER BY CASE WHEN status = 'Active' THEN 0 ELSE 1 END, asset_name ASC
+        LIMIT {int(limit)}
+        """,
+        (party_code,),
+    ).fetchall()
+
+
+def _supplier_timesheet_rows(db, party_code: str, limit: int = 40):
+    return db.execute(
+        f"""
+        SELECT
+            t.timesheet_no,
+            t.party_code,
+            t.asset_code,
+            a.asset_name,
+            a.vehicle_no,
+            t.period_month,
+            t.entry_date,
+            t.billing_basis,
+            t.billable_qty,
+            t.timesheet_hours,
+            t.rate,
+            t.subtotal,
+            t.voucher_no,
+            t.status,
+            t.notes
+        FROM supplier_timesheets t
+        LEFT JOIN supplier_assets a ON a.asset_code = t.asset_code
+        WHERE t.party_code = ?
+        ORDER BY t.period_month DESC, t.entry_date DESC, t.id DESC
+        LIMIT {int(limit)}
+        """,
+        (party_code,),
+    ).fetchall()
+
+
+def _supplier_voucher_rows(db, party_code: str, limit: int = 30):
+    return db.execute(
+        f"""
+        SELECT
+            voucher_no, party_code, period_month, issue_date,
+            subtotal, tax_percent, tax_amount, total_amount,
+            paid_amount, balance_amount, status, notes
+        FROM supplier_vouchers
+        WHERE party_code = ?
+        ORDER BY issue_date DESC, id DESC
+        LIMIT {int(limit)}
+        """,
+        (party_code,),
+    ).fetchall()
+
+
+def _supplier_payment_rows(db, party_code: str, limit: int = 30):
+    return db.execute(
+        f"""
+        SELECT
+            p.payment_no,
+            p.voucher_no,
+            p.party_code,
+            p.entry_date,
+            p.amount,
+            p.payment_method,
+            p.reference,
+            p.notes,
+            v.period_month,
+            v.balance_amount
+        FROM supplier_payments p
+        LEFT JOIN supplier_vouchers v ON v.voucher_no = p.voucher_no
+        WHERE p.party_code = ?
+        ORDER BY p.entry_date DESC, p.id DESC
+        LIMIT {int(limit)}
+        """,
+        (party_code,),
+    ).fetchall()
+
+
+def _supplier_detail_summary(db, party_code: str):
+    return {
+        "asset_count": int(db.execute("SELECT COUNT(*) FROM supplier_assets WHERE party_code = ?", (party_code,)).fetchone()[0]),
+        "unbilled_count": int(db.execute("SELECT COUNT(*) FROM supplier_timesheets WHERE party_code = ? AND COALESCE(voucher_no, '') = ''", (party_code,)).fetchone()[0]),
+        "unbilled_amount": float(db.execute("SELECT COALESCE(SUM(subtotal), 0) FROM supplier_timesheets WHERE party_code = ? AND COALESCE(voucher_no, '') = ''", (party_code,)).fetchone()[0] or 0.0),
+        "voucher_total": float(db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM supplier_vouchers WHERE party_code = ?", (party_code,)).fetchone()[0] or 0.0),
+        "paid_total": float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM supplier_payments WHERE party_code = ?", (party_code,)).fetchone()[0] or 0.0),
+        "outstanding_total": float(db.execute("SELECT COALESCE(SUM(balance_amount), 0) FROM supplier_vouchers WHERE party_code = ?", (party_code,)).fetchone()[0] or 0.0),
+        "open_voucher_count": int(db.execute("SELECT COUNT(*) FROM supplier_vouchers WHERE party_code = ? AND balance_amount > 0.009", (party_code,)).fetchone()[0]),
+    }
+
+
+def _supplier_statement_data(db, party_code: str):
+    rows = []
+    timesheets = db.execute(
+        """
+        SELECT t.entry_date, t.period_month, t.timesheet_no, t.subtotal, t.voucher_no, a.asset_name, a.vehicle_no
+        FROM supplier_timesheets t
+        LEFT JOIN supplier_assets a ON a.asset_code = t.asset_code
+        WHERE t.party_code = ?
+        ORDER BY t.entry_date ASC, t.id ASC
+        """,
+        (party_code,),
+    ).fetchall()
+    vouchers = db.execute(
+        """
+        SELECT issue_date, voucher_no, period_month, total_amount, balance_amount, status
+        FROM supplier_vouchers
+        WHERE party_code = ?
+        ORDER BY issue_date ASC, id ASC
+        """,
+        (party_code,),
+    ).fetchall()
+    payments = db.execute(
+        """
+        SELECT entry_date, payment_no, voucher_no, amount, payment_method
+        FROM supplier_payments
+        WHERE party_code = ?
+        ORDER BY entry_date ASC, id ASC
+        """,
+        (party_code,),
+    ).fetchall()
+    for row in timesheets:
+        rows.append(
+            {
+                "entry_date": row["entry_date"],
+                "reference": row["timesheet_no"],
+                "entry_type": "Timesheet",
+                "details": f"{row['asset_name'] or 'Asset'} / {row['vehicle_no'] or '-'} / {format_month_label(row['period_month'])}",
+                "work_amount": float(row["subtotal"] or 0.0),
+                "voucher_amount": 0.0,
+                "payment_amount": 0.0,
+            }
+        )
+    for row in vouchers:
+        rows.append(
+            {
+                "entry_date": row["issue_date"],
+                "reference": row["voucher_no"],
+                "entry_type": "Voucher",
+                "details": f"{format_month_label(row['period_month'])} / {row['status']}",
+                "work_amount": 0.0,
+                "voucher_amount": float(row["total_amount"] or 0.0),
+                "payment_amount": 0.0,
+            }
+        )
+    for row in payments:
+        rows.append(
+            {
+                "entry_date": row["entry_date"],
+                "reference": row["payment_no"],
+                "entry_type": "Payment",
+                "details": f"{row['voucher_no']} / {row['payment_method'] or '-'}",
+                "work_amount": 0.0,
+                "voucher_amount": 0.0,
+                "payment_amount": float(row["amount"] or 0.0),
+            }
+        )
+    sort_order = {"Timesheet": 0, "Voucher": 1, "Payment": 2}
+    rows.sort(key=lambda item: (item["entry_date"], sort_order.get(item["entry_type"], 9), item["reference"]))
+    running_balance = 0.0
+    for item in rows:
+        if item["entry_type"] == "Voucher":
+            running_balance += item["voucher_amount"]
+        elif item["entry_type"] == "Payment":
+            running_balance -= item["payment_amount"]
+        item["running_balance"] = max(round(running_balance, 2), 0.0)
+
+    summary = {
+        "work_logged": sum(item["work_amount"] for item in rows),
+        "total_vouchers": sum(item["voucher_amount"] for item in rows),
+        "total_paid": sum(item["payment_amount"] for item in rows),
+        "outstanding": max(round(sum(item["voucher_amount"] for item in rows) - sum(item["payment_amount"] for item in rows), 2), 0.0),
+    }
+    return rows, summary
+
+
+def _supplier_payment_with_context(db, payment_no: str):
+    return db.execute(
+        """
+        SELECT
+            pay.payment_no,
+            pay.voucher_no,
+            pay.party_code,
+            pay.entry_date,
+            pay.amount,
+            pay.payment_method,
+            pay.reference,
+            pay.notes,
+            party.party_name,
+            party.contact_person,
+            party.phone_number,
+            voucher.period_month,
+            voucher.issue_date,
+            voucher.total_amount,
+            voucher.paid_amount,
+            voucher.balance_amount,
+            voucher.status
+        FROM supplier_payments pay
+        LEFT JOIN parties party ON party.party_code = pay.party_code
+        LEFT JOIN supplier_vouchers voucher ON voucher.voucher_no = pay.voucher_no
+        WHERE pay.payment_no = ?
+        """,
+        (payment_no,),
+    ).fetchone()
+
+
+def _supplier_output_dir(app, party_code: str) -> Path:
+    return Path(app.config["GENERATED_DIR"]) / "suppliers" / party_code
 
 
 def _prepare_agreement_payload(db, values):

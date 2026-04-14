@@ -600,539 +600,607 @@ def test_party_status_can_be_updated(app, client):
         assert status == "Inactive"
 
 
-def test_accounting_stack_flow_keeps_driver_core_safe(app, client):
+def test_supplier_workspace_flow_tracks_balance_and_keeps_driver_data_safe(app, client):
     create_driver_record(app)
     admin_session(client)
 
+    supplier_response = client.post(
+        "/suppliers",
+        data={
+            "original_party_code": "",
+            "party_code": "",
+            "party_name": "Hussain Trailer Supply",
+            "party_kind": "Company",
+            "party_roles": ["Partner"],
+            "contact_person": "Hussain",
+            "phone_number": "0501224963",
+            "email": "hussain@example.com",
+            "trn_no": "TRN-HUS",
+            "trade_license_no": "LIC-HUS",
+            "address": "Mussafah",
+            "notes": "Supplier master",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier registered successfully." in supplier_response.data
+
     with app.app_context():
         db = open_db()
-        db.execute(
-            """
-            INSERT INTO parties (
-                party_code, party_name, party_kind, party_roles, contact_person,
-                phone_number, email, trn_no, trade_license_no, address, notes, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                "PTY-SUP-01",
-                "Al Jaber Supplier",
-                "Company",
-                "Supplier",
-                "Ops",
-                "0501224963",
-                "supplier@example.com",
-                "TRN-SUP",
-                "LIC-SUP",
-                "Abu Dhabi",
-                "Supplier master",
-                "Active",
-            ),
-        )
-        db.execute(
-            """
-            INSERT INTO parties (
-                party_code, party_name, party_kind, party_roles, contact_person,
-                phone_number, email, trn_no, trade_license_no, address, notes, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                "PTY-CUS-01",
-                "Norul Customer",
-                "Company",
-                "Customer, Borrower, Vehicle Holder",
-                "Waqar",
-                "0501082900",
-                "customer@example.com",
-                "TRN-CUS",
-                "LIC-CUS",
-                "Mussafah",
-                "Customer master",
-                "Active",
-            ),
-        )
-        db.commit()
+        supplier = db.execute("SELECT party_code FROM parties WHERE party_name = ?", ("Hussain Trailer Supply",)).fetchone()
+        party_code = supplier["party_code"]
 
-    agreement_customer = client.post(
-        "/agreements-lpos",
+    asset_response = client.post(
+        f"/suppliers/{party_code}",
         data={
-            "action": "save_agreement",
-            "agreement_no": "AGR-C-001",
-            "party_code": "PTY-CUS-01",
-            "agreement_kind": "Customer",
-            "rate_type": "Monthly",
-            "start_date": "2026-04-01",
-            "end_date": "2026-12-31",
-            "amount": "18000",
-            "tax_percent": "5",
-            "scope": "Monthly tanker rental",
-            "notes": "Customer agreement",
-        },
-        follow_redirects=True,
-    )
-    assert b"Agreement saved successfully." in agreement_customer.data
-
-    agreement_supplier = client.post(
-        "/agreements-lpos",
-        data={
-            "action": "save_agreement",
-            "agreement_no": "AGR-S-001",
-            "party_code": "PTY-SUP-01",
-            "agreement_kind": "Supplier",
-            "rate_type": "Daily",
-            "start_date": "2026-04-01",
-            "end_date": "2026-12-31",
-            "amount": "450",
-            "tax_percent": "5",
-            "scope": "Trailer hire",
-            "notes": "Supplier agreement",
-        },
-        follow_redirects=True,
-    )
-    assert b"Agreement saved successfully." in agreement_supplier.data
-
-    lpo_response = client.post(
-        "/agreements-lpos",
-        data={
-            "action": "save_lpo",
-            "lpo_no": "LPO-C-001",
-            "party_code": "PTY-CUS-01",
-            "agreement_no": "AGR-C-001",
-            "issue_date": "2026-04-02",
-            "valid_until": "2026-04-30",
-            "amount": "18000",
-            "tax_percent": "5",
-            "description": "April work order",
-        },
-        follow_redirects=True,
-    )
-    assert b"LPO saved successfully." in lpo_response.data
-
-    hire_customer = client.post(
-        "/agreements-lpos",
-        data={
-            "action": "save_hire",
-            "hire_no": "HIR-C-001",
-            "direction": "Customer Rental",
-            "party_code": "PTY-CUS-01",
-            "agreement_no": "AGR-C-001",
-            "lpo_no": "LPO-C-001",
-            "entry_date": "2026-04-10",
-            "asset_name": "Tanker 52",
-            "asset_type": "Tanker",
-            "unit_type": "Months",
-            "quantity": "1",
-            "rate": "18000",
-            "tax_percent": "5",
-            "notes": "Customer monthly billing",
-        },
-        follow_redirects=True,
-    )
-    assert b"Hire register row saved successfully." in hire_customer.data
-
-    hire_supplier = client.post(
-        "/agreements-lpos",
-        data={
-            "action": "save_hire",
-            "hire_no": "HIR-S-001",
-            "direction": "Supplier Hire",
-            "party_code": "PTY-SUP-01",
-            "agreement_no": "AGR-S-001",
-            "lpo_no": "",
-            "entry_date": "2026-04-11",
-            "asset_name": "Trailer 14",
+            "action": "save_asset",
+            "original_asset_code": "",
+            "asset_code": "",
+            "asset_name": "Trailer Fleet 01",
             "asset_type": "Trailer",
-            "unit_type": "Days",
-            "quantity": "10",
-            "rate": "450",
-            "tax_percent": "5",
-            "notes": "Supplier daily hire",
+            "vehicle_no": "TRL-1001",
+            "rate_basis": "Hours",
+            "default_rate": "80",
+            "capacity": "40ft",
+            "status": "Active",
+            "notes": "Main fleet unit",
         },
         follow_redirects=True,
     )
-    assert b"Hire register row saved successfully." in hire_supplier.data
+    assert b"Supplier vehicle saved successfully." in asset_response.data
 
-    sales_invoice = client.post(
-        "/invoices",
+    with app.app_context():
+        db = open_db()
+        asset_code = db.execute(
+            "SELECT asset_code FROM supplier_assets WHERE party_code = ? ORDER BY id DESC LIMIT 1",
+            (party_code,),
+        ).fetchone()["asset_code"]
+
+    first_timesheet = client.post(
+        f"/suppliers/{party_code}",
         data={
-            "action": "save_invoice",
-            "invoice_no": "INV-S-001",
-            "invoice_kind": "Sales",
-            "party_code": "PTY-CUS-01",
-            "agreement_no": "AGR-C-001",
-            "lpo_no": "LPO-C-001",
-            "hire_no": "HIR-C-001",
-            "issue_date": "2026-04-12",
-            "due_date": "2026-04-30",
-            "subtotal": "18000",
-            "tax_percent": "5",
-            "notes": "Customer April invoice",
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "",
+            "asset_code": asset_code,
+            "period_month": "2026-04",
+            "entry_date": "2026-04-29",
+            "billing_basis": "Hours",
+            "billable_qty": "120",
+            "timesheet_hours": "120",
+            "rate": "80",
+            "status": "Open",
+            "notes": "April hours batch 1",
         },
         follow_redirects=True,
     )
-    assert b"Invoice created successfully." in sales_invoice.data
+    assert b"Supplier timesheet saved successfully." in first_timesheet.data
 
-    purchase_invoice = client.post(
-        "/invoices",
+    second_timesheet = client.post(
+        f"/suppliers/{party_code}",
         data={
-            "action": "save_invoice",
-            "invoice_no": "INV-P-001",
-            "invoice_kind": "Purchase",
-            "party_code": "PTY-SUP-01",
-            "agreement_no": "AGR-S-001",
-            "lpo_no": "",
-            "hire_no": "HIR-S-001",
-            "issue_date": "2026-04-13",
-            "due_date": "2026-04-30",
-            "subtotal": "4500",
-            "tax_percent": "5",
-            "notes": "Supplier April bill",
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "",
+            "asset_code": asset_code,
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "billing_basis": "Hours",
+            "billable_qty": "40",
+            "timesheet_hours": "40",
+            "rate": "80",
+            "status": "Open",
+            "notes": "April hours batch 2",
         },
         follow_redirects=True,
     )
-    assert b"Invoice created successfully." in purchase_invoice.data
+    assert b"Supplier timesheet saved successfully." in second_timesheet.data
 
-    receipt = client.post(
-        "/invoices",
+    voucher_response = client.post(
+        f"/suppliers/{party_code}",
+        data={
+            "action": "save_voucher",
+            "original_voucher_no": "",
+            "voucher_no": "SPV-HUS-001",
+            "period_month": "2026-04",
+            "issue_date": "2026-04-30",
+            "tax_percent": "5",
+            "status": "Open",
+            "notes": "April supplier voucher",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier voucher created from open timesheets." in voucher_response.data
+
+    payment_response = client.post(
+        f"/suppliers/{party_code}",
         data={
             "action": "save_payment",
-            "voucher_no": "PAY-R-001",
-            "invoice_no": "INV-S-001",
-            "entry_date": "2026-04-14",
+            "original_payment_no": "",
+            "payment_no": "SPP-HUS-001",
+            "voucher_no": "SPV-HUS-001",
+            "entry_date": "2026-05-02",
+            "amount": "8000",
             "payment_method": "Bank",
-            "amount": "5000",
-            "reference": "RCPT-1",
-            "notes": "Partial customer receipt",
+            "reference": "BANK-001",
+            "notes": "Part payment",
         },
         follow_redirects=True,
     )
-    assert b"Payment saved and invoice balance updated." in receipt.data
+    assert b"Supplier payment saved successfully." in payment_response.data
 
-    payment_supplier = client.post(
-        "/invoices",
+    pdf_response = client.get("/supplier-payments/SPP-HUS-001/voucher", follow_redirects=False)
+    assert pdf_response.status_code == 302
+    assert "/generated/" in pdf_response.headers["Location"]
+
+    with app.app_context():
+        db = open_db()
+        voucher = db.execute(
+            """
+            SELECT subtotal, total_amount, paid_amount, balance_amount, status
+            FROM supplier_vouchers
+            WHERE voucher_no = ?
+            """,
+            ("SPV-HUS-001",),
+        ).fetchone()
+        linked_rows = db.execute(
+            "SELECT COUNT(*) FROM supplier_timesheets WHERE voucher_no = ?",
+            ("SPV-HUS-001",),
+        ).fetchone()[0]
+        assert voucher is not None
+        assert float(voucher["subtotal"]) == 12800.0
+        assert float(voucher["total_amount"]) == 13440.0
+        assert float(voucher["paid_amount"]) == 8000.0
+        assert float(voucher["balance_amount"]) == 5440.0
+        assert voucher["status"] == "Partially Paid"
+        assert linked_rows == 2
+        assert db.execute("SELECT COUNT(*) FROM drivers WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 1
+
+
+def test_supplier_workspace_flow_keeps_driver_core_safe(app, client):
+    create_driver_record(app)
+    admin_session(client)
+
+    supplier_create = client.post(
+        "/suppliers",
+        data={
+            "party_code": "PTY-SUP-01",
+            "party_name": "Hussain Logistics",
+            "party_kind": "Individual",
+            "party_roles": ["Supplier", "Vehicle Holder"],
+            "contact_person": "Hussain",
+            "phone_number": "0501224963",
+            "email": "hussain@example.com",
+            "trn_no": "TRN-HUS",
+            "trade_license_no": "LIC-HUS",
+            "address": "Mussafah, Abu Dhabi",
+            "notes": "Provides 50 trailers every month",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert supplier_create.status_code == 200
+
+    with app.app_context():
+        db = open_db()
+        supplier_row = db.execute(
+            "SELECT party_code, party_name, party_roles FROM parties WHERE party_code = ?",
+            ("PTY-SUP-01",),
+        ).fetchone()
+        assert supplier_row is not None
+        assert supplier_row["party_name"] == "Hussain Logistics"
+        assert "Supplier" in supplier_row["party_roles"]
+
+    supplier_page = client.get("/suppliers", follow_redirects=True)
+    assert supplier_page.status_code == 200
+    assert b"Hussain Logistics" in supplier_page.data
+
+    asset_one = client.post(
+        "/suppliers/PTY-SUP-01",
+        data={
+            "action": "save_asset",
+            "original_asset_code": "",
+            "asset_code": "AST-HUS-01",
+            "asset_name": "Trailer 01",
+            "asset_type": "Trailer",
+            "vehicle_no": "TR-001",
+            "rate_basis": "Hours",
+            "default_rate": "120",
+            "capacity": "40 FT",
+            "status": "Active",
+            "notes": "Primary fleet unit",
+        },
+        follow_redirects=True,
+    )
+    assert asset_one.status_code == 200
+
+    asset_two = client.post(
+        "/suppliers/PTY-SUP-01",
+        data={
+            "action": "save_asset",
+            "original_asset_code": "",
+            "asset_code": "AST-HUS-02",
+            "asset_name": "Trailer 02",
+            "asset_type": "Trailer",
+            "vehicle_no": "TR-002",
+            "rate_basis": "Hours",
+            "default_rate": "115",
+            "capacity": "40 FT",
+            "status": "Active",
+            "notes": "Secondary fleet unit",
+        },
+        follow_redirects=True,
+    )
+    assert asset_two.status_code == 200
+
+    timesheet_one = client.post(
+        "/suppliers/PTY-SUP-01",
+        data={
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "TSH-HUS-01",
+            "asset_code": "AST-HUS-01",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-29",
+            "billing_basis": "Hours",
+            "billable_qty": "120",
+            "timesheet_hours": "120",
+            "rate": "120",
+            "status": "Open",
+            "notes": "April month-end hours",
+        },
+        follow_redirects=True,
+    )
+    assert timesheet_one.status_code == 200
+
+    timesheet_two = client.post(
+        "/suppliers/PTY-SUP-01",
+        data={
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "TSH-HUS-02",
+            "asset_code": "AST-HUS-02",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "billing_basis": "Hours",
+            "billable_qty": "100",
+            "timesheet_hours": "100",
+            "rate": "115",
+            "status": "Open",
+            "notes": "Second trailer April hours",
+        },
+        follow_redirects=True,
+    )
+    assert timesheet_two.status_code == 200
+
+    voucher = client.post(
+        "/suppliers/PTY-SUP-01",
+        data={
+            "action": "save_voucher",
+            "original_voucher_no": "",
+            "voucher_no": "SPV-HUS-01",
+            "period_month": "2026-04",
+            "issue_date": "2026-04-30",
+            "tax_percent": "5",
+            "status": "Open",
+            "notes": "April supplier payable voucher",
+        },
+        follow_redirects=True,
+    )
+    assert voucher.status_code == 200
+
+    payment = client.post(
+        "/suppliers/PTY-SUP-01",
         data={
             "action": "save_payment",
-            "voucher_no": "PAY-P-001",
-            "invoice_no": "INV-P-001",
-            "entry_date": "2026-04-15",
-            "payment_method": "Owner Fund",
-            "amount": "1000",
-            "reference": "PMT-1",
-            "notes": "Advance to supplier",
+            "original_payment_no": "",
+            "payment_no": "SPP-HUS-01",
+            "voucher_no": "SPV-HUS-01",
+            "entry_date": "2026-05-02",
+            "amount": "10000",
+            "payment_method": "Bank",
+            "reference": "PV-100",
+            "notes": "Part payment to Hussain",
         },
         follow_redirects=True,
     )
-    assert b"Payment saved and invoice balance updated." in payment_supplier.data
+    assert payment.status_code == 200
 
-    loan_response = client.post(
-        "/loans",
-        data={
-            "loan_no": "LOAN-001",
-            "party_code": "PTY-CUS-01",
-            "entry_date": "2026-04-16",
-            "loan_type": "Given",
-            "amount": "2000",
-            "payment_method": "Cash",
-            "reference": "Loan note",
-            "notes": "Recover later",
-        },
-        follow_redirects=True,
-    )
-    assert b"Loan entry saved successfully." in loan_response.data
+    supplier_detail = client.get("/suppliers/PTY-SUP-01", follow_redirects=True)
+    assert supplier_detail.status_code == 200
+    assert b"Hussain Logistics" in supplier_detail.data
+    assert b"SPV-HUS-01" in supplier_detail.data
+    assert b"SPP-HUS-01" in supplier_detail.data
+    assert b"Outstanding" in supplier_detail.data
 
-    fee_response = client.post(
-        "/annual-fees",
-        data={
-            "fee_no": "FEE-001",
-            "party_code": "PTY-CUS-01",
-            "fee_type": "Vehicle",
-            "description": "Vehicle sponsorship annual fee",
-            "vehicle_no": "AUH-54221",
-            "due_date": "2026-12-31",
-            "annual_amount": "3600",
-            "received_amount": "1200",
-            "notes": "Annual collection",
-        },
-        follow_redirects=True,
-    )
-    assert b"Annual fee row saved successfully." in fee_response.data
-
-    assert client.get("/suppliers").status_code == 200
-    assert client.get("/customers").status_code == 200
-    assert client.get("/agreements-lpos").status_code == 200
-    assert client.get("/invoices").status_code == 200
-    assert client.get("/loans").status_code == 200
-    assert client.get("/annual-fees").status_code == 200
-
-    supplier_statement = client.get("/suppliers/PTY-SUP-01/statement")
-    assert supplier_statement.status_code == 200
-    assert b"Supplier Statement" in supplier_statement.data
-
-    customer_statement = client.get("/customers/PTY-CUS-01/statement")
-    assert customer_statement.status_code == 200
-    assert b"Customer Statement" in customer_statement.data
-
-    tax_page = client.get("/tax")
-    assert tax_page.status_code == 200
-    assert b"AED 900.00" in tax_page.data
-    assert b"AED 225.00" in tax_page.data
-    assert b"AED 675.00" in tax_page.data
-
-    reports_page = client.get("/reports")
-    assert reports_page.status_code == 200
-    assert b"Management Reporting Deck" in reports_page.data
-    assert b"AED 13900.00" in reports_page.data
-    assert b"AED 3725.00" in reports_page.data
+    payment_voucher = client.get("/supplier-payments/SPP-HUS-01/voucher", follow_redirects=False)
+    assert payment_voucher.status_code == 302
+    assert "/generated/" in payment_voucher.headers["Location"]
 
     with app.app_context():
         db = open_db()
         assert db.execute("SELECT COUNT(*) FROM drivers WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 1
-        sales = db.execute(
-            "SELECT balance_amount, status FROM account_invoices WHERE invoice_no = ?",
-            ("INV-S-001",),
+        voucher_row = db.execute(
+            """
+            SELECT subtotal, tax_amount, total_amount, paid_amount, balance_amount, status
+            FROM supplier_vouchers
+            WHERE voucher_no = ?
+            """,
+            ("SPV-HUS-01",),
         ).fetchone()
-        purchase = db.execute(
-            "SELECT balance_amount, status FROM account_invoices WHERE invoice_no = ?",
-            ("INV-P-001",),
-        ).fetchone()
-        assert float(sales["balance_amount"]) == 13900.0
-        assert sales["status"] == "Partially Paid"
-        assert float(purchase["balance_amount"]) == 3725.0
-        assert purchase["status"] == "Partially Paid"
+        assert voucher_row is not None
+        assert float(voucher_row["subtotal"]) == 25900.0
+        assert float(voucher_row["tax_amount"]) == 1295.0
+        assert float(voucher_row["total_amount"]) == 27195.0
+        assert float(voucher_row["paid_amount"]) == 10000.0
+        assert float(voucher_row["balance_amount"]) == 17195.0
+        assert voucher_row["status"] == "Partially Paid"
+        linked = db.execute(
+            "SELECT COUNT(*) FROM supplier_timesheets WHERE voucher_no = ?",
+            ("SPV-HUS-01",),
+        ).fetchone()[0]
+        assert linked == 2
 
 
-def test_accounting_records_support_edit_delete_and_invoice_resync(app, client):
+def test_supplier_workspace_records_support_edit_delete_and_balance_resync(app, client):
     admin_session(client)
+
+    client.post(
+        "/suppliers",
+        data={
+            "party_code": "PTY-SUP-02",
+            "party_name": "Edit Supplier",
+            "party_kind": "Company",
+            "party_roles": ["Supplier"],
+            "contact_person": "Ops",
+            "phone_number": "0500000001",
+            "email": "edit.supplier@example.com",
+            "trn_no": "",
+            "trade_license_no": "",
+            "address": "Abu Dhabi",
+            "notes": "",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+
+    client.post(
+        "/suppliers/PTY-SUP-02",
+        data={
+            "action": "save_asset",
+            "original_asset_code": "",
+            "asset_code": "AST-EDIT-01",
+            "asset_name": "Trailer Alpha",
+            "asset_type": "Trailer",
+            "vehicle_no": "EA-100",
+            "rate_basis": "Days",
+            "default_rate": "450",
+            "capacity": "Flatbed",
+            "status": "Active",
+            "notes": "Original asset",
+        },
+        follow_redirects=True,
+    )
+
+    asset_update = client.post(
+        "/suppliers/PTY-SUP-02",
+        data={
+            "action": "save_asset",
+            "original_asset_code": "AST-EDIT-01",
+            "asset_code": "AST-EDIT-01",
+            "asset_name": "Trailer Alpha Updated",
+            "asset_type": "Trailer",
+            "vehicle_no": "EA-101",
+            "rate_basis": "Days",
+            "default_rate": "500",
+            "capacity": "Flatbed",
+            "status": "Active",
+            "notes": "Updated asset",
+        },
+        follow_redirects=True,
+    )
+    assert asset_update.status_code == 200
 
     with app.app_context():
         db = open_db()
-        db.execute(
-            """
-            INSERT INTO parties (
-                party_code, party_name, party_kind, party_roles, contact_person,
-                phone_number, email, trn_no, trade_license_no, address, notes, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                "PTY-CUS-02",
-                "Edit Customer",
-                "Company",
-                "Customer, Borrower, Vehicle Holder",
-                "Ops",
-                "0500000001",
-                "edit@example.com",
-                "",
-                "",
-                "Abu Dhabi",
-                "",
-                "Active",
-            ),
-        )
-        db.commit()
+        asset_row = db.execute(
+            "SELECT asset_name, vehicle_no, default_rate FROM supplier_assets WHERE asset_code = ?",
+            ("AST-EDIT-01",),
+        ).fetchone()
+        assert asset_row is not None
+        assert asset_row["asset_name"] == "Trailer Alpha Updated"
+        assert asset_row["vehicle_no"] == "EA-101"
+        assert float(asset_row["default_rate"]) == 500.0
 
-    agreement = client.post(
-        "/agreements-lpos",
+    client.post(
+        "/suppliers/PTY-SUP-02",
         data={
-            "action": "save_agreement",
-            "agreement_no": "AGR-E-001",
-            "party_code": "PTY-CUS-02",
-            "agreement_kind": "Customer",
-            "rate_type": "Monthly",
-            "start_date": "2026-05-01",
-            "end_date": "2026-12-31",
-            "amount": "20000",
-            "tax_percent": "5",
-            "scope": "Original scope",
-            "notes": "Original agreement",
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "TSH-EDIT-01",
+            "asset_code": "AST-EDIT-01",
+            "period_month": "2026-05",
+            "entry_date": "2026-05-30",
+            "billing_basis": "Days",
+            "billable_qty": "10",
+            "timesheet_hours": "0",
+            "rate": "500",
+            "status": "Open",
+            "notes": "Original timesheet",
         },
         follow_redirects=True,
     )
-    assert b"Agreement saved successfully." in agreement.data
 
-    agreement_update = client.post(
-        "/agreements-lpos",
+    timesheet_update = client.post(
+        "/suppliers/PTY-SUP-02",
         data={
-            "action": "save_agreement",
-            "original_agreement_no": "AGR-E-001",
-            "agreement_no": "AGR-E-001",
-            "party_code": "PTY-CUS-02",
-            "agreement_kind": "Customer",
-            "rate_type": "Monthly",
-            "start_date": "2026-05-01",
-            "end_date": "2026-12-31",
-            "amount": "21000",
-            "tax_percent": "5",
-            "scope": "Updated scope",
-            "notes": "Updated agreement",
+            "action": "save_timesheet",
+            "original_timesheet_no": "TSH-EDIT-01",
+            "timesheet_no": "TSH-EDIT-01",
+            "asset_code": "AST-EDIT-01",
+            "period_month": "2026-05",
+            "entry_date": "2026-05-31",
+            "billing_basis": "Days",
+            "billable_qty": "12",
+            "timesheet_hours": "0",
+            "rate": "500",
+            "status": "Open",
+            "notes": "Updated timesheet",
         },
         follow_redirects=True,
     )
-    assert b"Agreement updated successfully." in agreement_update.data
+    assert timesheet_update.status_code == 200
 
-    invoice = client.post(
-        "/invoices",
+    with app.app_context():
+        db = open_db()
+        timesheet_row = db.execute(
+            "SELECT billable_qty, subtotal, notes FROM supplier_timesheets WHERE timesheet_no = ?",
+            ("TSH-EDIT-01",),
+        ).fetchone()
+        assert timesheet_row is not None
+        assert float(timesheet_row["billable_qty"]) == 12.0
+        assert float(timesheet_row["subtotal"]) == 6000.0
+        assert timesheet_row["notes"] == "Updated timesheet"
+
+    client.post(
+        "/suppliers/PTY-SUP-02",
         data={
-            "action": "save_invoice",
-            "invoice_no": "INV-E-001",
-            "invoice_kind": "Sales",
-            "party_code": "PTY-CUS-02",
-            "agreement_no": "AGR-E-001",
-            "lpo_no": "",
-            "hire_no": "",
-            "issue_date": "2026-05-10",
-            "due_date": "2026-05-31",
-            "subtotal": "1000",
+            "action": "save_voucher",
+            "original_voucher_no": "",
+            "voucher_no": "SPV-EDIT-01",
+            "period_month": "2026-05",
+            "issue_date": "2026-05-31",
             "tax_percent": "5",
-            "notes": "Editable invoice",
+            "status": "Open",
+            "notes": "Original voucher",
         },
         follow_redirects=True,
     )
-    assert b"Invoice created successfully." in invoice.data
 
-    payment = client.post(
-        "/invoices",
+    voucher_update = client.post(
+        "/suppliers/PTY-SUP-02",
+        data={
+            "action": "save_voucher",
+            "original_voucher_no": "SPV-EDIT-01",
+            "voucher_no": "SPV-EDIT-01",
+            "period_month": "2026-05",
+            "issue_date": "2026-05-31",
+            "tax_percent": "10",
+            "status": "Open",
+            "notes": "Updated voucher tax",
+        },
+        follow_redirects=True,
+    )
+    assert voucher_update.status_code == 200
+
+    with app.app_context():
+        db = open_db()
+        voucher_row = db.execute(
+            "SELECT tax_percent, total_amount, balance_amount FROM supplier_vouchers WHERE voucher_no = ?",
+            ("SPV-EDIT-01",),
+        ).fetchone()
+        assert voucher_row is not None
+        assert float(voucher_row["tax_percent"]) == 10.0
+        assert float(voucher_row["total_amount"]) == 6600.0
+        assert float(voucher_row["balance_amount"]) == 6600.0
+
+    client.post(
+        "/suppliers/PTY-SUP-02",
         data={
             "action": "save_payment",
-            "voucher_no": "PAY-E-001",
-            "invoice_no": "INV-E-001",
-            "entry_date": "2026-05-11",
-            "payment_method": "Bank",
-            "amount": "300",
-            "reference": "R-1",
+            "original_payment_no": "",
+            "payment_no": "SPP-EDIT-01",
+            "voucher_no": "SPV-EDIT-01",
+            "entry_date": "2026-06-01",
+            "amount": "2000",
+            "payment_method": "Cash",
+            "reference": "PV-1",
             "notes": "Original payment",
         },
         follow_redirects=True,
     )
-    assert b"Payment saved and invoice balance updated." in payment.data
 
     payment_update = client.post(
-        "/invoices",
+        "/suppliers/PTY-SUP-02",
         data={
             "action": "save_payment",
-            "original_voucher_no": "PAY-E-001",
-            "voucher_no": "PAY-E-001",
-            "invoice_no": "INV-E-001",
-            "entry_date": "2026-05-11",
+            "original_payment_no": "SPP-EDIT-01",
+            "payment_no": "SPP-EDIT-01",
+            "voucher_no": "SPV-EDIT-01",
+            "entry_date": "2026-06-02",
+            "amount": "2500",
             "payment_method": "Bank",
-            "amount": "500",
-            "reference": "R-2",
+            "reference": "PV-2",
             "notes": "Updated payment",
         },
         follow_redirects=True,
     )
-    assert b"Payment updated successfully." in payment_update.data
+    assert payment_update.status_code == 200
 
     with app.app_context():
         db = open_db()
-        invoice_row = db.execute(
-            "SELECT paid_amount, balance_amount, status FROM account_invoices WHERE invoice_no = ?",
-            ("INV-E-001",),
+        payment_row = db.execute(
+            "SELECT amount, payment_method, reference FROM supplier_payments WHERE payment_no = ?",
+            ("SPP-EDIT-01",),
         ).fetchone()
-        agreement_row = db.execute(
-            "SELECT amount, scope, notes FROM agreements WHERE agreement_no = ?",
-            ("AGR-E-001",),
+        voucher_row = db.execute(
+            "SELECT paid_amount, balance_amount, status FROM supplier_vouchers WHERE voucher_no = ?",
+            ("SPV-EDIT-01",),
         ).fetchone()
-        assert float(invoice_row["paid_amount"]) == 500.0
-        assert float(invoice_row["balance_amount"]) == 550.0
-        assert invoice_row["status"] == "Partially Paid"
-        assert float(agreement_row["amount"]) == 21000.0
-        assert agreement_row["scope"] == "Updated scope"
+        assert payment_row is not None
+        assert float(payment_row["amount"]) == 2500.0
+        assert payment_row["payment_method"] == "Bank"
+        assert payment_row["reference"] == "PV-2"
+        assert float(voucher_row["paid_amount"]) == 2500.0
+        assert float(voucher_row["balance_amount"]) == 4100.0
+        assert voucher_row["status"] == "Partially Paid"
 
-    deleted_payment = client.post("/payments/PAY-E-001/delete", data={}, follow_redirects=True)
-    assert b"Payment deleted successfully." in deleted_payment.data
+    payment_voucher = client.get("/supplier-payments/SPP-EDIT-01/voucher", follow_redirects=False)
+    assert payment_voucher.status_code == 302
+    assert "/generated/" in payment_voucher.headers["Location"]
+
+    blocked_delete = client.post("/supplier-vouchers/SPV-EDIT-01/delete", data={}, follow_redirects=True)
+    assert blocked_delete.status_code == 200
 
     with app.app_context():
         db = open_db()
-        invoice_row = db.execute(
-            "SELECT paid_amount, balance_amount, status FROM account_invoices WHERE invoice_no = ?",
-            ("INV-E-001",),
-        ).fetchone()
-        assert float(invoice_row["paid_amount"]) == 0.0
-        assert float(invoice_row["balance_amount"]) == 1050.0
-        assert invoice_row["status"] == "Open"
+        assert db.execute(
+            "SELECT COUNT(*) FROM supplier_vouchers WHERE voucher_no = ?",
+            ("SPV-EDIT-01",),
+        ).fetchone()[0] == 1
 
-    loan = client.post(
-        "/loans",
-        data={
-            "loan_no": "LOAN-E-001",
-            "party_code": "PTY-CUS-02",
-            "entry_date": "2026-05-12",
-            "loan_type": "Given",
-            "amount": "2000",
-            "payment_method": "Cash",
-            "reference": "Loan",
-            "notes": "Original loan",
-        },
-        follow_redirects=True,
-    )
-    assert b"Loan entry saved successfully." in loan.data
+    deleted_payment = client.post("/supplier-payments/SPP-EDIT-01/delete", data={}, follow_redirects=True)
+    assert deleted_payment.status_code == 200
 
-    loan_update = client.post(
-        "/loans",
-        data={
-            "original_loan_no": "LOAN-E-001",
-            "loan_no": "LOAN-E-001",
-            "party_code": "PTY-CUS-02",
-            "entry_date": "2026-05-12",
-            "loan_type": "Given",
-            "amount": "2500",
-            "payment_method": "Cash",
-            "reference": "Loan-2",
-            "notes": "Updated loan",
-        },
-        follow_redirects=True,
-    )
-    assert b"Loan entry updated successfully." in loan_update.data
+    deleted_voucher = client.post("/supplier-vouchers/SPV-EDIT-01/delete", data={}, follow_redirects=True)
+    assert deleted_voucher.status_code == 200
 
-    fee = client.post(
-        "/annual-fees",
-        data={
-            "fee_no": "FEE-E-001",
-            "party_code": "PTY-CUS-02",
-            "fee_type": "Vehicle",
-            "description": "Vehicle fee",
-            "vehicle_no": "AUH-100",
-            "due_date": "2026-12-31",
-            "annual_amount": "3000",
-            "received_amount": "1000",
-            "notes": "Original fee",
-        },
-        follow_redirects=True,
-    )
-    assert b"Annual fee row saved successfully." in fee.data
+    deleted_timesheet = client.post("/supplier-timesheets/TSH-EDIT-01/delete", data={}, follow_redirects=True)
+    assert deleted_timesheet.status_code == 200
 
-    fee_update = client.post(
-        "/annual-fees",
-        data={
-            "original_fee_no": "FEE-E-001",
-            "fee_no": "FEE-E-001",
-            "party_code": "PTY-CUS-02",
-            "fee_type": "Vehicle",
-            "description": "Vehicle fee updated",
-            "vehicle_no": "AUH-100",
-            "due_date": "2026-12-31",
-            "annual_amount": "4000",
-            "received_amount": "1500",
-            "notes": "Updated fee",
-        },
-        follow_redirects=True,
-    )
-    assert b"Annual fee row updated successfully." in fee_update.data
-
-    deleted_invoice = client.post("/invoices/INV-E-001/delete", data={}, follow_redirects=True)
-    assert b"Invoice deleted successfully." in deleted_invoice.data
-
-    deleted_fee = client.post("/annual-fees/FEE-E-001/delete", data={}, follow_redirects=True)
-    assert b"Annual fee row deleted successfully." in deleted_fee.data
-
-    deleted_loan = client.post("/loans/LOAN-E-001/delete", data={}, follow_redirects=True)
-    assert b"Loan entry deleted successfully." in deleted_loan.data
-
-    deleted_agreement = client.post("/agreements/AGR-E-001/delete", data={}, follow_redirects=True)
-    assert b"Agreement deleted successfully." in deleted_agreement.data
+    deleted_asset = client.post("/supplier-assets/AST-EDIT-01/delete", data={}, follow_redirects=True)
+    assert deleted_asset.status_code == 200
 
     with app.app_context():
         db = open_db()
-        assert db.execute("SELECT COUNT(*) FROM account_invoices WHERE invoice_no = ?", ("INV-E-001",)).fetchone()[0] == 0
-        assert db.execute("SELECT COUNT(*) FROM annual_fee_entries WHERE fee_no = ?", ("FEE-E-001",)).fetchone()[0] == 0
-        assert db.execute("SELECT COUNT(*) FROM loan_entries WHERE loan_no = ?", ("LOAN-E-001",)).fetchone()[0] == 0
-        assert db.execute("SELECT COUNT(*) FROM agreements WHERE agreement_no = ?", ("AGR-E-001",)).fetchone()[0] == 0
+        asset_row = db.execute(
+            "SELECT COUNT(*) FROM supplier_assets WHERE asset_code = ?",
+            ("AST-EDIT-01",),
+        ).fetchone()[0]
+        timesheet_row = db.execute(
+            "SELECT COUNT(*) FROM supplier_timesheets WHERE timesheet_no = ?",
+            ("TSH-EDIT-01",),
+        ).fetchone()[0]
+        voucher_row = db.execute(
+            "SELECT COUNT(*) FROM supplier_vouchers WHERE voucher_no = ?",
+            ("SPV-EDIT-01",),
+        ).fetchone()[0]
+        payment_row = db.execute(
+            "SELECT COUNT(*) FROM supplier_payments WHERE payment_no = ?",
+            ("SPP-EDIT-01",),
+        ).fetchone()[0]
+        assert asset_row == 0
+        assert timesheet_row == 0
+        assert voucher_row == 0
+        assert payment_row == 0
+

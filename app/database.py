@@ -119,6 +119,75 @@ CREATE TABLE IF NOT EXISTS parties (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS supplier_assets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_code TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    asset_name TEXT NOT NULL,
+    asset_type TEXT NOT NULL DEFAULT 'Trailer',
+    vehicle_no TEXT,
+    rate_basis TEXT NOT NULL DEFAULT 'Hours',
+    default_rate REAL NOT NULL DEFAULT 0,
+    capacity TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_timesheets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timesheet_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    asset_code TEXT NOT NULL,
+    period_month TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    billing_basis TEXT NOT NULL DEFAULT 'Hours',
+    billable_qty REAL NOT NULL DEFAULT 0,
+    timesheet_hours REAL NOT NULL DEFAULT 0,
+    rate REAL NOT NULL DEFAULT 0,
+    subtotal REAL NOT NULL DEFAULT 0,
+    voucher_no TEXT,
+    status TEXT NOT NULL DEFAULT 'Open',
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code),
+    FOREIGN KEY(asset_code) REFERENCES supplier_assets(asset_code)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_vouchers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    voucher_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    period_month TEXT NOT NULL,
+    issue_date TEXT NOT NULL,
+    subtotal REAL NOT NULL DEFAULT 0,
+    tax_percent REAL NOT NULL DEFAULT 0,
+    tax_amount REAL NOT NULL DEFAULT 0,
+    total_amount REAL NOT NULL DEFAULT 0,
+    paid_amount REAL NOT NULL DEFAULT 0,
+    balance_amount REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Open',
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payment_no TEXT NOT NULL UNIQUE,
+    voucher_no TEXT NOT NULL,
+    party_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    amount REAL NOT NULL DEFAULT 0,
+    payment_method TEXT NOT NULL DEFAULT 'Bank',
+    reference TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(voucher_no) REFERENCES supplier_vouchers(voucher_no),
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS agreements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     agreement_no TEXT NOT NULL UNIQUE,
@@ -389,6 +458,75 @@ CREATE TABLE IF NOT EXISTS parties (
     notes TEXT,
     status TEXT NOT NULL DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS supplier_assets (
+    id BIGSERIAL PRIMARY KEY,
+    asset_code TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    asset_name TEXT NOT NULL,
+    asset_type TEXT NOT NULL DEFAULT 'Trailer',
+    vehicle_no TEXT,
+    rate_basis TEXT NOT NULL DEFAULT 'Hours',
+    default_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
+    capacity TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_timesheets (
+    id BIGSERIAL PRIMARY KEY,
+    timesheet_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    asset_code TEXT NOT NULL,
+    period_month TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    billing_basis TEXT NOT NULL DEFAULT 'Hours',
+    billable_qty DOUBLE PRECISION NOT NULL DEFAULT 0,
+    timesheet_hours DOUBLE PRECISION NOT NULL DEFAULT 0,
+    rate DOUBLE PRECISION NOT NULL DEFAULT 0,
+    subtotal DOUBLE PRECISION NOT NULL DEFAULT 0,
+    voucher_no TEXT,
+    status TEXT NOT NULL DEFAULT 'Open',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code),
+    FOREIGN KEY(asset_code) REFERENCES supplier_assets(asset_code)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_vouchers (
+    id BIGSERIAL PRIMARY KEY,
+    voucher_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    period_month TEXT NOT NULL,
+    issue_date TEXT NOT NULL,
+    subtotal DOUBLE PRECISION NOT NULL DEFAULT 0,
+    tax_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+    tax_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    total_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    balance_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Open',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_payments (
+    id BIGSERIAL PRIMARY KEY,
+    payment_no TEXT NOT NULL UNIQUE,
+    voucher_no TEXT NOT NULL,
+    party_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    payment_method TEXT NOT NULL DEFAULT 'Bank',
+    reference TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(voucher_no) REFERENCES supplier_vouchers(voucher_no),
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
 
 CREATE TABLE IF NOT EXISTS agreements (
