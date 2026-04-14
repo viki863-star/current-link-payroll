@@ -111,6 +111,77 @@
     </a>
 </section>
 
+<section class="stats premium-stats">
+    <article class="card stat-card premium-stat-card blue-stat">
+        <span>Suppliers</span>
+        <strong>{{ supplier_summary.supplier_count }}</strong>
+        <small>Vendor master ready for agreements and payables.</small>
+    </article>
+    <article class="card stat-card premium-stat-card orange-stat">
+        <span>Customers</span>
+        <strong>{{ customer_summary.customer_count }}</strong>
+        <small>Receivable-side parties ready for billing.</small>
+    </article>
+    <article class="card stat-card premium-stat-card navy-stat">
+        <span>Total Receivable</span>
+        <strong>AED {{ "%.2f"|format(customer_summary.receivable_total) }}</strong>
+        <small>Open sales invoice balance.</small>
+    </article>
+    <article class="card stat-card premium-stat-card green-stat">
+        <span>Total Payable</span>
+        <strong>AED {{ "%.2f"|format(supplier_summary.payable_total) }}</strong>
+        <small>Open supplier invoice balance.</small>
+    </article>
+    <article class="card stat-card premium-stat-card slate-stat">
+        <span>Loan Outstanding</span>
+        <strong>AED {{ "%.2f"|format(loan_summary.outstanding) }}</strong>
+        <small>Recoveries still pending.</small>
+    </article>
+</section>
+
+<section class="quick-link-grid dashboard-quick-grid">
+    <a class="card quick-link-card accent-card" href="{{ url_for('suppliers') }}">
+        <span class="eyebrow">Payables</span>
+        <strong>Suppliers Desk</strong>
+        <p>Vendor profiles, hire rows, bills and statements.</p>
+    </a>
+    <a class="card quick-link-card accent-card" href="{{ url_for('customers') }}">
+        <span class="eyebrow">Receivables</span>
+        <strong>Customers Desk</strong>
+        <p>Rental clients, invoices, receipts and statements.</p>
+    </a>
+    <a class="card quick-link-card owner-card" href="{{ url_for('agreements_lpos') }}">
+        <span class="eyebrow">Contracts</span>
+        <strong>Agreements & LPOs</strong>
+        <p>Operational contract stack before invoice creation.</p>
+    </a>
+    <a class="card quick-link-card" href="{{ url_for('invoice_center') }}">
+        <span class="eyebrow">Finance</span>
+        <strong>Invoice Center</strong>
+        <p>Sales, purchase, receipts and payment control.</p>
+    </a>
+    <a class="card quick-link-card accent-card" href="{{ url_for('loans_center') }}">
+        <span class="eyebrow">Recovery</span>
+        <strong>Loans</strong>
+        <p>Given amount, recovered amount and balance flow.</p>
+    </a>
+    <a class="card quick-link-card" href="{{ url_for('annual_fees') }}">
+        <span class="eyebrow">Recurring</span>
+        <strong>Annual Fees</strong>
+        <p>Visa and vehicle yearly collection tracker.</p>
+    </a>
+    <a class="card quick-link-card accent-card" href="{{ url_for('tax_center') }}">
+        <span class="eyebrow">VAT</span>
+        <strong>Tax Board</strong>
+        <p>Output VAT, input VAT and net position.</p>
+    </a>
+    <a class="card quick-link-card" href="{{ url_for('reports_center') }}">
+        <span class="eyebrow">Reports</span>
+        <strong>Reporting Deck</strong>
+        <p>Leadership summary across all account modules.</p>
+    </a>
+</section>
+
 <section class="card dashboard-utility-card">
     <div class="section-heading slim-heading">
         <div>

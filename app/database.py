@@ -119,6 +119,129 @@ CREATE TABLE IF NOT EXISTS parties (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS agreements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agreement_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    agreement_kind TEXT NOT NULL DEFAULT 'Customer',
+    start_date TEXT NOT NULL,
+    end_date TEXT,
+    rate_type TEXT,
+    amount REAL NOT NULL DEFAULT 0,
+    tax_percent REAL NOT NULL DEFAULT 0,
+    scope TEXT,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS lpos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lpo_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    agreement_no TEXT,
+    issue_date TEXT NOT NULL,
+    valid_until TEXT,
+    amount REAL NOT NULL DEFAULT 0,
+    tax_percent REAL NOT NULL DEFAULT 0,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'Open',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS hire_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hire_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    agreement_no TEXT,
+    lpo_no TEXT,
+    entry_date TEXT NOT NULL,
+    direction TEXT NOT NULL DEFAULT 'Supplier Hire',
+    asset_name TEXT NOT NULL,
+    asset_type TEXT,
+    unit_type TEXT NOT NULL DEFAULT 'Days',
+    quantity REAL NOT NULL DEFAULT 1,
+    rate REAL NOT NULL DEFAULT 0,
+    subtotal REAL NOT NULL DEFAULT 0,
+    tax_percent REAL NOT NULL DEFAULT 0,
+    tax_amount REAL NOT NULL DEFAULT 0,
+    total_amount REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Open',
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS account_invoices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoice_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    agreement_no TEXT,
+    lpo_no TEXT,
+    hire_no TEXT,
+    invoice_kind TEXT NOT NULL DEFAULT 'Sales',
+    issue_date TEXT NOT NULL,
+    due_date TEXT,
+    subtotal REAL NOT NULL DEFAULT 0,
+    tax_percent REAL NOT NULL DEFAULT 0,
+    tax_amount REAL NOT NULL DEFAULT 0,
+    total_amount REAL NOT NULL DEFAULT 0,
+    paid_amount REAL NOT NULL DEFAULT 0,
+    balance_amount REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Open',
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS account_payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    voucher_no TEXT NOT NULL UNIQUE,
+    invoice_no TEXT,
+    party_code TEXT NOT NULL,
+    payment_kind TEXT NOT NULL DEFAULT 'Received',
+    entry_date TEXT NOT NULL,
+    amount REAL NOT NULL DEFAULT 0,
+    payment_method TEXT NOT NULL DEFAULT 'Bank',
+    reference TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS loan_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    loan_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    loan_type TEXT NOT NULL DEFAULT 'Given',
+    amount REAL NOT NULL DEFAULT 0,
+    payment_method TEXT NOT NULL DEFAULT 'Cash',
+    reference TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS annual_fee_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fee_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    fee_type TEXT NOT NULL DEFAULT 'Visa',
+    description TEXT,
+    vehicle_no TEXT,
+    due_date TEXT NOT NULL,
+    annual_amount REAL NOT NULL DEFAULT 0,
+    received_amount REAL NOT NULL DEFAULT 0,
+    balance_amount REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Due',
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS import_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source_type TEXT NOT NULL,
@@ -266,6 +389,129 @@ CREATE TABLE IF NOT EXISTS parties (
     notes TEXT,
     status TEXT NOT NULL DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS agreements (
+    id BIGSERIAL PRIMARY KEY,
+    agreement_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    agreement_kind TEXT NOT NULL DEFAULT 'Customer',
+    start_date TEXT NOT NULL,
+    end_date TEXT,
+    rate_type TEXT,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    tax_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+    scope TEXT,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS lpos (
+    id BIGSERIAL PRIMARY KEY,
+    lpo_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    agreement_no TEXT,
+    issue_date TEXT NOT NULL,
+    valid_until TEXT,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    tax_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'Open',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS hire_records (
+    id BIGSERIAL PRIMARY KEY,
+    hire_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    agreement_no TEXT,
+    lpo_no TEXT,
+    entry_date TEXT NOT NULL,
+    direction TEXT NOT NULL DEFAULT 'Supplier Hire',
+    asset_name TEXT NOT NULL,
+    asset_type TEXT,
+    unit_type TEXT NOT NULL DEFAULT 'Days',
+    quantity DOUBLE PRECISION NOT NULL DEFAULT 1,
+    rate DOUBLE PRECISION NOT NULL DEFAULT 0,
+    subtotal DOUBLE PRECISION NOT NULL DEFAULT 0,
+    tax_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+    tax_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    total_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Open',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS account_invoices (
+    id BIGSERIAL PRIMARY KEY,
+    invoice_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    agreement_no TEXT,
+    lpo_no TEXT,
+    hire_no TEXT,
+    invoice_kind TEXT NOT NULL DEFAULT 'Sales',
+    issue_date TEXT NOT NULL,
+    due_date TEXT,
+    subtotal DOUBLE PRECISION NOT NULL DEFAULT 0,
+    tax_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+    tax_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    total_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    balance_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Open',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS account_payments (
+    id BIGSERIAL PRIMARY KEY,
+    voucher_no TEXT NOT NULL UNIQUE,
+    invoice_no TEXT,
+    party_code TEXT NOT NULL,
+    payment_kind TEXT NOT NULL DEFAULT 'Received',
+    entry_date TEXT NOT NULL,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    payment_method TEXT NOT NULL DEFAULT 'Bank',
+    reference TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS loan_entries (
+    id BIGSERIAL PRIMARY KEY,
+    loan_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    loan_type TEXT NOT NULL DEFAULT 'Given',
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    payment_method TEXT NOT NULL DEFAULT 'Cash',
+    reference TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS annual_fee_entries (
+    id BIGSERIAL PRIMARY KEY,
+    fee_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    fee_type TEXT NOT NULL DEFAULT 'Visa',
+    description TEXT,
+    vehicle_no TEXT,
+    due_date TEXT NOT NULL,
+    annual_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    received_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    balance_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Due',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
 
 CREATE TABLE IF NOT EXISTS import_history (

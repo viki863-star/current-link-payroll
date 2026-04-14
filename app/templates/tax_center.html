@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <article class="card dashboard-hero-card">
+        <div>
+            <p class="eyebrow">VAT</p>
+            <h2>Tax Control Board</h2>
+            <p class="lead">Simple UAE-ready VAT view inspired by sales invoices, purchase bills and net VAT position.</p>
+        </div>
+    </article>
+</section>
+
+<section class="stats premium-stats">
+    <article class="card stat-card premium-stat-card blue-stat"><span>Taxable Sales</span><strong>AED {{ "%.2f"|format(summary.taxable_sales) }}</strong><small>Sales subtotal before VAT.</small></article>
+    <article class="card stat-card premium-stat-card green-stat"><span>Output VAT</span><strong>AED {{ "%.2f"|format(summary.output_vat) }}</strong><small>VAT charged on sales.</small></article>
+    <article class="card stat-card premium-stat-card orange-stat"><span>Input VAT</span><strong>AED {{ "%.2f"|format(summary.input_vat) }}</strong><small>VAT paid on purchases.</small></article>
+    <article class="card stat-card premium-stat-card navy-stat"><span>Net VAT</span><strong>AED {{ "%.2f"|format(summary.net_vat) }}</strong><small>Output VAT minus input VAT.</small></article>
+</section>
+
+<section class="card table-card">
+    <div class="section-heading slim-heading"><div><p class="eyebrow">Audit Trail</p><h2>Recent Taxable Documents</h2></div></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Invoice</th><th>Kind</th><th>Party</th><th>Date</th><th>Subtotal</th><th>VAT</th><th>Total</th></tr></thead>
+            <tbody>
+                {% for item in invoices %}
+                    <tr><td>{{ item.invoice_no }}</td><td>{{ item.invoice_kind }}</td><td>{{ item.party_name }}</td><td>{{ item.issue_date }}</td><td>AED {{ "%.2f"|format(item.subtotal) }}</td><td>AED {{ "%.2f"|format(item.tax_amount) }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td></tr>
+                {% else %}
+                    <tr><td colspan="7">No invoices available for VAT summary yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <article class="card dashboard-hero-card">
+        <div>
+            <p class="eyebrow">Contracts</p>
+            <h2>Agreements, LPOs & Hire Register</h2>
+            <p class="lead">This follows the UAE flow: party, agreement, LPO, hire register, then invoice.</p>
+        </div>
+    </article>
+</section>
+
+<section class="detail-layout dashboard-layout chart-layout">
+    <article class="card action-panel form-panel">
+        <div class="section-heading slim-heading"><div><p class="eyebrow">Agreement</p><h2>{% if agreement_values.original_agreement_no %}Edit Agreement{% else %}Create Agreement{% endif %}</h2></div></div>
+        <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_agreement">
+            <input type="hidden" name="original_agreement_no" value="{{ agreement_values.original_agreement_no }}">
+            <label><span>Agreement No</span><input type="text" name="agreement_no" value="{{ agreement_values.agreement_no }}"></label>
+            <label><span>Party</span><select name="party_code"><option value="">Select</option>{% for party in parties %}<option value="{{ party.party_code }}" {% if agreement_values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }} ({{ party.party_code }})</option>{% endfor %}</select></label>
+            <label><span>Type</span><select name="agreement_kind">{% for item in agreement_kind_options %}<option value="{{ item }}" {% if agreement_values.agreement_kind == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+            <label><span>Rate Type</span><select name="rate_type">{% for item in rate_type_options %}<option value="{{ item }}" {% if agreement_values.rate_type == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+            <label><span>Start Date</span><input type="date" name="start_date" value="{{ agreement_values.start_date }}"></label>
+            <label><span>End Date</span><input type="date" name="end_date" value="{{ agreement_values.end_date }}"></label>
+            <label><span>Base Amount</span><input type="number" step="0.01" name="amount" value="{{ agreement_values.amount }}"></label>
+            <label><span>Tax %</span><input type="number" step="0.01" name="tax_percent" value="{{ agreement_values.tax_percent }}"></label>
+            <label class="full-span"><span>Scope / Terms</span><textarea name="scope" rows="3">{{ agreement_values.scope }}</textarea></label>
+            <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ agreement_values.notes }}</textarea></label>
+            <div class="form-actions left-actions full-span"><button class="button" type="submit">{% if agreement_values.original_agreement_no %}Update Agreement{% else %}Save Agreement{% endif %}</button>{% if agreement_values.original_agreement_no %}<a class="button button-secondary" href="{{ url_for('agreements_lpos') }}">Cancel</a>{% endif %}</div>
+        </form>
+    </article>
+
+    <article class="card action-panel form-panel">
+        <div class="section-heading slim-heading"><div><p class="eyebrow">LPO</p><h2>{% if lpo_values.original_lpo_no %}Edit LPO{% else %}Create LPO{% endif %}</h2></div></div>
+        <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_lpo">
+            <input type="hidden" name="original_lpo_no" value="{{ lpo_values.original_lpo_no }}">
+            <label><span>LPO No</span><input type="text" name="lpo_no" value="{{ lpo_values.lpo_no }}"></label>
+            <label><span>Party</span><select name="party_code"><option value="">Select</option>{% for party in parties %}<option value="{{ party.party_code }}" {% if lpo_values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }}</option>{% endfor %}</select></label>
+            <label><span>Agreement</span><select name="agreement_no"><option value="">Optional</option>{% for item in agreements %}<option value="{{ item.agreement_no }}" {% if lpo_values.agreement_no == item.agreement_no %}selected{% endif %}>{{ item.agreement_no }} - {{ item.party_name }}</option>{% endfor %}</select></label>
+            <label><span>Issue Date</span><input type="date" name="issue_date" value="{{ lpo_values.issue_date }}"></label>
+            <label><span>Valid Until</span><input type="date" name="valid_until" value="{{ lpo_values.valid_until }}"></label>
+            <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ lpo_values.amount }}"></label>
+            <label><span>Tax %</span><input type="number" step="0.01" name="tax_percent" value="{{ lpo_values.tax_percent }}"></label>
+            <label class="full-span"><span>Description</span><textarea name="description" rows="4">{{ lpo_values.description }}</textarea></label>
+            <div class="form-actions left-actions full-span"><button class="button" type="submit">{% if lpo_values.original_lpo_no %}Update LPO{% else %}Save LPO{% endif %}</button>{% if lpo_values.original_lpo_no %}<a class="button button-secondary" href="{{ url_for('agreements_lpos') }}">Cancel</a>{% endif %}</div>
+        </form>
+    </article>
+</section>
+
+<section class="card action-panel form-panel">
+    <div class="section-heading slim-heading"><div><p class="eyebrow">Hire Register</p><h2>{% if hire_values.original_hire_no %}Edit Hire / Rental Row{% else %}Create Hire / Rental Row{% endif %}</h2></div></div>
+    <form method="post" class="entry-form two-column-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="save_hire">
+        <input type="hidden" name="original_hire_no" value="{{ hire_values.original_hire_no }}">
+        <label><span>Hire No</span><input type="text" name="hire_no" value="{{ hire_values.hire_no }}"></label>
+        <label><span>Direction</span><select name="direction">{% for item in hire_direction_options %}<option value="{{ item }}" {% if hire_values.direction == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label><span>Party</span><select name="party_code"><option value="">Select</option>{% for party in parties %}<option value="{{ party.party_code }}" {% if hire_values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }}</option>{% endfor %}</select></label>
+        <label><span>Agreement</span><select name="agreement_no"><option value="">Optional</option>{% for item in agreements %}<option value="{{ item.agreement_no }}" {% if hire_values.agreement_no == item.agreement_no %}selected{% endif %}>{{ item.agreement_no }}</option>{% endfor %}</select></label>
+        <label><span>LPO</span><select name="lpo_no"><option value="">Optional</option>{% for item in lpos %}<option value="{{ item.lpo_no }}" {% if hire_values.lpo_no == item.lpo_no %}selected{% endif %}>{{ item.lpo_no }}</option>{% endfor %}</select></label>
+        <label><span>Date</span><input type="date" name="entry_date" value="{{ hire_values.entry_date }}"></label>
+        <label><span>Asset Name</span><input type="text" name="asset_name" value="{{ hire_values.asset_name }}" placeholder="Tanker 52 / Trailer 14"></label>
+        <label><span>Asset Type</span><input type="text" name="asset_type" value="{{ hire_values.asset_type }}" placeholder="Tanker / Trailer / Crane"></label>
+        <label><span>Unit Type</span><select name="unit_type">{% for item in unit_type_options %}<option value="{{ item }}" {% if hire_values.unit_type == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label><span>Quantity</span><input type="number" step="0.01" name="quantity" value="{{ hire_values.quantity }}"></label>
+        <label><span>Rate</span><input type="number" step="0.01" name="rate" value="{{ hire_values.rate }}"></label>
+        <label><span>Tax %</span><input type="number" step="0.01" name="tax_percent" value="{{ hire_values.tax_percent }}"></label>
+        <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ hire_values.notes }}</textarea></label>
+        <div class="form-actions left-actions full-span"><button class="button" type="submit">{% if hire_values.original_hire_no %}Update Hire Row{% else %}Save Hire Row{% endif %}</button>{% if hire_values.original_hire_no %}<a class="button button-secondary" href="{{ url_for('agreements_lpos') }}">Cancel</a>{% endif %}</div>
+    </form>
+</section>
+
+<section class="detail-layout dashboard-layout chart-layout">
+    <article class="card table-card">
+        <div class="section-heading slim-heading"><div><p class="eyebrow">Register</p><h2>Agreements</h2></div></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>No</th><th>Party</th><th>Type</th><th>Start</th><th>Rate</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for item in agreements %}
+                        <tr><td>{{ item.agreement_no }}</td><td>{{ item.party_name }}</td><td>{{ item.agreement_kind }}</td><td>{{ item.start_date }}</td><td>{{ item.rate_type }}</td><td>AED {{ "%.2f"|format(item.amount) }}</td><td>{{ item.status }}</td><td><div class="form-actions left-actions"><a class="button button-secondary" href="{{ url_for('agreements_lpos', edit_agreement=item.agreement_no) }}">Edit</a><form method="post" action="{{ url_for('delete_agreement', agreement_no=item.agreement_no) }}" onsubmit="return confirm('Delete this agreement?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button danger-button" type="submit">Delete</button></form></div></td></tr>
+                    {% else %}
+                        <tr><td colspan="8">No agreements yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="card table-card">
+        <div class="section-heading slim-heading"><div><p class="eyebrow">Register</p><h2>LPOs</h2></div></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>No</th><th>Party</th><th>Agreement</th><th>Issue</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for item in lpos %}
+                        <tr><td>{{ item.lpo_no }}</td><td>{{ item.party_name }}</td><td>{{ item.agreement_no or "-" }}</td><td>{{ item.issue_date }}</td><td>AED {{ "%.2f"|format(item.amount) }}</td><td>{{ item.status }}</td><td><div class="form-actions left-actions"><a class="button button-secondary" href="{{ url_for('agreements_lpos', edit_lpo=item.lpo_no) }}">Edit</a><form method="post" action="{{ url_for('delete_lpo', lpo_no=item.lpo_no) }}" onsubmit="return confirm('Delete this LPO?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button danger-button" type="submit">Delete</button></form></div></td></tr>
+                    {% else %}
+                        <tr><td colspan="7">No LPOs yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+
+<section class="card table-card">
+    <div class="section-heading slim-heading"><div><p class="eyebrow">Register</p><h2>Recent Hire Rows</h2></div></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Date</th><th>Hire No</th><th>Direction</th><th>Party</th><th>Asset</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for item in hires %}
+                    <tr><td>{{ item.entry_date }}</td><td>{{ item.hire_no }}</td><td>{{ item.direction }}</td><td>{{ item.party_name }}</td><td>{{ item.asset_name }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td><td>{{ item.status }}</td><td><div class="form-actions left-actions"><a class="button button-secondary" href="{{ url_for('agreements_lpos', edit_hire=item.hire_no) }}">Edit</a><form method="post" action="{{ url_for('delete_hire', hire_no=item.hire_no) }}" onsubmit="return confirm('Delete this hire row?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button danger-button" type="submit">Delete</button></form></div></td></tr>
+                {% else %}
+                    <tr><td colspan="8">No hire rows yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

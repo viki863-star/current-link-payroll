@@ -46,6 +46,15 @@ PARTY_ROLE_OPTIONS = [
     "Partner",
 ]
 SALARY_MODE_OPTIONS = [("full", "Full Salary (30-Day Basis)"), ("prorata", "Prorata From Duty Start")]
+AGREEMENT_KIND_OPTIONS = ["Customer", "Supplier", "Mixed"]
+RATE_TYPE_OPTIONS = ["Monthly", "Daily", "Trip", "Hourly", "Fixed"]
+HIRE_DIRECTION_OPTIONS = ["Supplier Hire", "Customer Rental"]
+UNIT_TYPE_OPTIONS = ["Days", "Trips", "Hours", "Months", "Units"]
+INVOICE_KIND_OPTIONS = ["Sales", "Purchase"]
+PAYMENT_KIND_OPTIONS = ["Received", "Paid"]
+PAYMENT_METHOD_OPTIONS = ["Bank", "Cash", "Owner Fund", "Cheque", "Transfer", "Other"]
+LOAN_TYPE_OPTIONS = ["Given", "Recovered"]
+FEE_TYPE_OPTIONS = ["Visa", "Vehicle"]
 
 
 class ValidationError(ValueError):
@@ -221,6 +230,10 @@ def register_routes(app: Flask) -> None:
             (current_month,),
         ).fetchone()[0]
         owner_fund_incoming, owner_fund_outgoing, owner_fund_balance = _owner_fund_totals(db)
+        supplier_summary = _supplier_summary(db)
+        customer_summary = _customer_summary(db)
+        loan_summary = _loan_summary(db)
+        annual_fee_summary = _annual_fee_summary(db)
         import_history = db.execute(
             """
             SELECT source_type, file_name, imported_count, notes, created_at
@@ -277,6 +290,10 @@ def register_routes(app: Flask) -> None:
             owner_fund_incoming=owner_fund_incoming,
             owner_fund_outgoing=owner_fund_outgoing,
             owner_fund_balance=owner_fund_balance,
+            supplier_summary=supplier_summary,
+            customer_summary=customer_summary,
+            loan_summary=loan_summary,
+            annual_fee_summary=annual_fee_summary,
             import_history=import_history,
             shifts=filter_options["shifts"],
             vehicle_types=filter_options["vehicle_types"],
@@ -505,6 +522,727 @@ def register_routes(app: Flask) -> None:
         db.commit()
         flash(f"{party['party_name']} marked as {next_status}.", "success")
         return redirect(url_for("party_list"))
+
+    @app.get("/suppliers")
+    @_login_required("admin")
+    def suppliers():
+        db = open_db()
+        supplier_parties = _parties_by_role(db, "Supplier")
+        summary = _supplier_summary(db)
+        top_payables = _party_balance_rows(db, invoice_kind="Purchase", limit=8)
+        recent_hires = _hire_rows(db, direction="Supplier Hire", limit=8)
+        recent_invoices = _invoice_rows(db, invoice_kind="Purchase", limit=8)
+        return render_template(
+            "suppliers.html",
+            supplier_parties=supplier_parties,
+            summary=summary,
+            top_payables=top_payables,
+            recent_hires=recent_hires,
+            recent_invoices=recent_invoices,
+        )
+
+    @app.get("/suppliers/<party_code>/statement")
+    @_login_required("admin")
+    def supplier_statement(party_code: str):
+        db = open_db()
+        party = _fetch_party(db, party_code)
+        if party is None:
+            flash("Supplier was not found.", "error")
+            return redirect(url_for("suppliers"))
+        rows, summary = _party_statement(db, party_code, invoice_kind="Purchase", hire_direction="Supplier Hire")
+        return render_template(
+            "party_statement.html",
+            page_title="Supplier Statement",
+            page_eyebrow="Payables Ledger",
+            party=party,
+            rows=rows,
+            summary=summary,
+            back_endpoint="suppliers",
+        )
+
+    @app.get("/customers")
+    @_login_required("admin")
+    def customers():
+        db = open_db()
+        customer_parties = _parties_by_role(db, "Customer")
+        summary = _customer_summary(db)
+        top_receivables = _party_balance_rows(db, invoice_kind="Sales", limit=8)
+        recent_hires = _hire_rows(db, direction="Customer Rental", limit=8)
+        recent_invoices = _invoice_rows(db, invoice_kind="Sales", limit=8)
+        return render_template(
+            "customers.html",
+            customer_parties=customer_parties,
+            summary=summary,
+            top_receivables=top_receivables,
+            recent_hires=recent_hires,
+            recent_invoices=recent_invoices,
+        )
+
+    @app.get("/customers/<party_code>/statement")
+    @_login_required("admin")
+    def customer_statement(party_code: str):
+        db = open_db()
+        party = _fetch_party(db, party_code)
+        if party is None:
+            flash("Customer was not found.", "error")
+            return redirect(url_for("customers"))
+        rows, summary = _party_statement(db, party_code, invoice_kind="Sales", hire_direction="Customer Rental")
+        return render_template(
+            "party_statement.html",
+            page_title="Customer Statement",
+            page_eyebrow="Receivables Ledger",
+            party=party,
+            rows=rows,
+            summary=summary,
+            back_endpoint="customers",
+        )
+
+    @app.route("/agreements-lpos", methods=["GET", "POST"])
+    @_login_required("admin")
+    def agreements_lpos():
+        db = open_db()
+        agreement_values = _default_agreement_form()
+        lpo_values = _default_lpo_form()
+        hire_values = _default_hire_form()
+
+        edit_agreement_no = request.args.get("edit_agreement", "").strip().upper()
+        edit_lpo_no = request.args.get("edit_lpo", "").strip().upper()
+        edit_hire_no = request.args.get("edit_hire", "").strip().upper()
+
+        if edit_agreement_no:
+            agreement_row = db.execute("SELECT * FROM agreements WHERE agreement_no = ?", (edit_agreement_no,)).fetchone()
+            if agreement_row is not None:
+                agreement_values = _agreement_form_from_row(agreement_row)
+        if edit_lpo_no:
+            lpo_row = db.execute("SELECT * FROM lpos WHERE lpo_no = ?", (edit_lpo_no,)).fetchone()
+            if lpo_row is not None:
+                lpo_values = _lpo_form_from_row(lpo_row)
+        if edit_hire_no:
+            hire_row = db.execute("SELECT * FROM hire_records WHERE hire_no = ?", (edit_hire_no,)).fetchone()
+            if hire_row is not None:
+                hire_values = _hire_form_from_row(hire_row)
+
+        if request.method == "POST":
+            action = request.form.get("action", "").strip()
+            try:
+                if action == "save_agreement":
+                    agreement_values = _agreement_form_data(request)
+                    payload = _prepare_agreement_payload(db, agreement_values)
+                    _ensure_reference_available(
+                        db,
+                        "agreements",
+                        "agreement_no",
+                        agreement_values["agreement_no"],
+                        agreement_values["original_agreement_no"],
+                        "Agreement number",
+                    )
+                    if agreement_values["original_agreement_no"]:
+                        db.execute(
+                            """
+                            UPDATE agreements
+                            SET agreement_no = ?, party_code = ?, agreement_kind = ?, start_date = ?, end_date = ?,
+                                rate_type = ?, amount = ?, tax_percent = ?, scope = ?, notes = ?, status = ?
+                            WHERE agreement_no = ?
+                            """,
+                            payload + (agreement_values["original_agreement_no"],),
+                        )
+                        if agreement_values["agreement_no"] != agreement_values["original_agreement_no"]:
+                            db.execute("UPDATE lpos SET agreement_no = ? WHERE agreement_no = ?", (agreement_values["agreement_no"], agreement_values["original_agreement_no"]))
+                            db.execute("UPDATE hire_records SET agreement_no = ? WHERE agreement_no = ?", (agreement_values["agreement_no"], agreement_values["original_agreement_no"]))
+                            db.execute("UPDATE account_invoices SET agreement_no = ? WHERE agreement_no = ?", (agreement_values["agreement_no"], agreement_values["original_agreement_no"]))
+                        _audit_log(
+                            db,
+                            "agreement_updated",
+                            entity_type="agreement",
+                            entity_id=agreement_values["agreement_no"],
+                            details=f"{agreement_values['party_code']} / AED {agreement_values['amount']}",
+                        )
+                        message = "Agreement updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO agreements (
+                                agreement_no, party_code, agreement_kind, start_date, end_date,
+                                rate_type, amount, tax_percent, scope, notes, status
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _audit_log(
+                            db,
+                            "agreement_created",
+                            entity_type="agreement",
+                            entity_id=agreement_values["agreement_no"],
+                            details=f"{agreement_values['party_code']} / AED {agreement_values['amount']}",
+                        )
+                        message = "Agreement saved successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("agreements_lpos"))
+
+                if action == "save_lpo":
+                    lpo_values = _lpo_form_data(request)
+                    payload = _prepare_lpo_payload(db, lpo_values)
+                    _ensure_reference_available(db, "lpos", "lpo_no", lpo_values["lpo_no"], lpo_values["original_lpo_no"], "LPO number")
+                    if lpo_values["original_lpo_no"]:
+                        db.execute(
+                            """
+                            UPDATE lpos
+                            SET lpo_no = ?, party_code = ?, agreement_no = ?, issue_date = ?, valid_until = ?,
+                                amount = ?, tax_percent = ?, description = ?, status = ?
+                            WHERE lpo_no = ?
+                            """,
+                            payload + (lpo_values["original_lpo_no"],),
+                        )
+                        if lpo_values["lpo_no"] != lpo_values["original_lpo_no"]:
+                            db.execute("UPDATE hire_records SET lpo_no = ? WHERE lpo_no = ?", (lpo_values["lpo_no"], lpo_values["original_lpo_no"]))
+                            db.execute("UPDATE account_invoices SET lpo_no = ? WHERE lpo_no = ?", (lpo_values["lpo_no"], lpo_values["original_lpo_no"]))
+                        _audit_log(
+                            db,
+                            "lpo_updated",
+                            entity_type="lpo",
+                            entity_id=lpo_values["lpo_no"],
+                            details=f"{lpo_values['party_code']} / AED {lpo_values['amount']}",
+                        )
+                        message = "LPO updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO lpos (
+                                lpo_no, party_code, agreement_no, issue_date, valid_until,
+                                amount, tax_percent, description, status
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _audit_log(
+                            db,
+                            "lpo_created",
+                            entity_type="lpo",
+                            entity_id=lpo_values["lpo_no"],
+                            details=f"{lpo_values['party_code']} / AED {lpo_values['amount']}",
+                        )
+                        message = "LPO saved successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("agreements_lpos"))
+
+                if action == "save_hire":
+                    hire_values = _hire_form_data(request)
+                    payload = _prepare_hire_payload(db, hire_values)
+                    _ensure_reference_available(db, "hire_records", "hire_no", hire_values["hire_no"], hire_values["original_hire_no"], "Hire number")
+                    if hire_values["original_hire_no"]:
+                        db.execute(
+                            """
+                            UPDATE hire_records
+                            SET hire_no = ?, party_code = ?, agreement_no = ?, lpo_no = ?, entry_date = ?, direction = ?,
+                                asset_name = ?, asset_type = ?, unit_type = ?, quantity = ?, rate = ?, subtotal = ?,
+                                tax_percent = ?, tax_amount = ?, total_amount = ?, status = ?, notes = ?
+                            WHERE hire_no = ?
+                            """,
+                            payload + (hire_values["original_hire_no"],),
+                        )
+                        if hire_values["hire_no"] != hire_values["original_hire_no"]:
+                            db.execute("UPDATE account_invoices SET hire_no = ? WHERE hire_no = ?", (hire_values["hire_no"], hire_values["original_hire_no"]))
+                        _audit_log(
+                            db,
+                            "hire_record_updated",
+                            entity_type="hire_record",
+                            entity_id=hire_values["hire_no"],
+                            details=f"{hire_values['direction']} / {hire_values['party_code']} / AED {hire_values['total_amount']}",
+                        )
+                        message = "Hire register row updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO hire_records (
+                                hire_no, party_code, agreement_no, lpo_no, entry_date, direction,
+                                asset_name, asset_type, unit_type, quantity, rate, subtotal,
+                                tax_percent, tax_amount, total_amount, status, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _audit_log(
+                            db,
+                            "hire_record_created",
+                            entity_type="hire_record",
+                            entity_id=hire_values["hire_no"],
+                            details=f"{hire_values['direction']} / {hire_values['party_code']} / AED {hire_values['total_amount']}",
+                        )
+                        message = "Hire register row saved successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("agreements_lpos"))
+            except ValidationError as exc:
+                flash(str(exc), "error")
+
+        return render_template(
+            "agreements_lpos.html",
+            agreement_values=agreement_values,
+            lpo_values=lpo_values,
+            hire_values=hire_values,
+            agreement_kind_options=AGREEMENT_KIND_OPTIONS,
+            rate_type_options=RATE_TYPE_OPTIONS,
+            hire_direction_options=HIRE_DIRECTION_OPTIONS,
+            unit_type_options=UNIT_TYPE_OPTIONS,
+            parties=_contract_parties(db),
+            agreements=_agreement_rows(db),
+            lpos=_lpo_rows(db),
+            hires=_hire_rows(db, limit=12),
+        )
+
+    @app.post("/agreements/<agreement_no>/delete")
+    @_login_required("admin")
+    def delete_agreement(agreement_no: str):
+        db = open_db()
+        for table_name, field_name, label in [
+            ("lpos", "agreement_no", "LPO"),
+            ("hire_records", "agreement_no", "hire row"),
+            ("account_invoices", "agreement_no", "invoice"),
+        ]:
+            count = int(db.execute(f"SELECT COUNT(*) FROM {table_name} WHERE {field_name} = ?", (agreement_no,)).fetchone()[0])
+            if count:
+                flash(f"Agreement cannot be deleted because {count} {label} record(s) are linked.", "error")
+                return redirect(url_for("agreements_lpos"))
+        db.execute("DELETE FROM agreements WHERE agreement_no = ?", (agreement_no,))
+        _audit_log(db, "agreement_deleted", entity_type="agreement", entity_id=agreement_no, details=agreement_no)
+        db.commit()
+        flash("Agreement deleted successfully.", "success")
+        return redirect(url_for("agreements_lpos"))
+
+    @app.post("/lpos/<lpo_no>/delete")
+    @_login_required("admin")
+    def delete_lpo(lpo_no: str):
+        db = open_db()
+        for table_name, field_name, label in [
+            ("hire_records", "lpo_no", "hire row"),
+            ("account_invoices", "lpo_no", "invoice"),
+        ]:
+            count = int(db.execute(f"SELECT COUNT(*) FROM {table_name} WHERE {field_name} = ?", (lpo_no,)).fetchone()[0])
+            if count:
+                flash(f"LPO cannot be deleted because {count} {label} record(s) are linked.", "error")
+                return redirect(url_for("agreements_lpos"))
+        db.execute("DELETE FROM lpos WHERE lpo_no = ?", (lpo_no,))
+        _audit_log(db, "lpo_deleted", entity_type="lpo", entity_id=lpo_no, details=lpo_no)
+        db.commit()
+        flash("LPO deleted successfully.", "success")
+        return redirect(url_for("agreements_lpos"))
+
+    @app.post("/hires/<hire_no>/delete")
+    @_login_required("admin")
+    def delete_hire(hire_no: str):
+        db = open_db()
+        count = int(db.execute("SELECT COUNT(*) FROM account_invoices WHERE hire_no = ?", (hire_no,)).fetchone()[0])
+        if count:
+            flash(f"Hire row cannot be deleted because {count} invoice record(s) are linked.", "error")
+            return redirect(url_for("agreements_lpos"))
+        db.execute("DELETE FROM hire_records WHERE hire_no = ?", (hire_no,))
+        _audit_log(db, "hire_record_deleted", entity_type="hire_record", entity_id=hire_no, details=hire_no)
+        db.commit()
+        flash("Hire row deleted successfully.", "success")
+        return redirect(url_for("agreements_lpos"))
+
+    @app.route("/invoice-center", methods=["GET", "POST"])
+    @app.route("/invoices", methods=["GET", "POST"])
+    @_login_required("admin")
+    def invoice_center():
+        db = open_db()
+        invoice_values = _default_invoice_form()
+        payment_values = _default_payment_form()
+
+        edit_invoice_no = request.args.get("edit_invoice", "").strip().upper()
+        edit_voucher_no = request.args.get("edit_payment", "").strip().upper()
+        if edit_invoice_no:
+            invoice_row = db.execute("SELECT * FROM account_invoices WHERE invoice_no = ?", (edit_invoice_no,)).fetchone()
+            if invoice_row is not None:
+                invoice_values = _invoice_form_from_row(invoice_row)
+        if edit_voucher_no:
+            payment_row = db.execute("SELECT * FROM account_payments WHERE voucher_no = ?", (edit_voucher_no,)).fetchone()
+            if payment_row is not None:
+                payment_values = _payment_form_from_row(payment_row)
+
+        if request.method == "POST":
+            action = request.form.get("action", "").strip()
+            try:
+                if action == "save_invoice":
+                    invoice_values = _invoice_form_data(request)
+                    payload = _prepare_invoice_payload(db, invoice_values)
+                    _ensure_reference_available(
+                        db,
+                        "account_invoices",
+                        "invoice_no",
+                        invoice_values["invoice_no"],
+                        invoice_values["original_invoice_no"],
+                        "Invoice number",
+                    )
+                    if invoice_values["original_invoice_no"]:
+                        already_paid = _invoice_paid_amount_excluding(db, invoice_values["original_invoice_no"])
+                        if already_paid - float(invoice_values["total_amount"]) > 0.001:
+                            raise ValidationError("Invoice total cannot be less than already posted payments.")
+                        db.execute(
+                            """
+                            UPDATE account_invoices
+                            SET invoice_no = ?, party_code = ?, agreement_no = ?, lpo_no = ?, hire_no = ?, invoice_kind = ?,
+                                issue_date = ?, due_date = ?, subtotal = ?, tax_percent = ?, tax_amount = ?,
+                                total_amount = ?, notes = ?
+                            WHERE invoice_no = ?
+                            """,
+                            (
+                                payload[0], payload[1], payload[2], payload[3], payload[4], payload[5],
+                                payload[6], payload[7], payload[8], payload[9], payload[10], payload[11], payload[15],
+                                invoice_values["original_invoice_no"],
+                            ),
+                        )
+                        if invoice_values["invoice_no"] != invoice_values["original_invoice_no"]:
+                            db.execute(
+                                "UPDATE account_payments SET invoice_no = ? WHERE invoice_no = ?",
+                                (invoice_values["invoice_no"], invoice_values["original_invoice_no"]),
+                            )
+                        _sync_invoice_balance(db, invoice_values["invoice_no"])
+                        _audit_log(
+                            db,
+                            "account_invoice_updated",
+                            entity_type="invoice",
+                            entity_id=invoice_values["invoice_no"],
+                            details=f"{invoice_values['invoice_kind']} / {invoice_values['party_code']} / AED {invoice_values['total_amount']}",
+                        )
+                        message = "Invoice updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO account_invoices (
+                                invoice_no, party_code, agreement_no, lpo_no, hire_no, invoice_kind,
+                                issue_date, due_date, subtotal, tax_percent, tax_amount,
+                                total_amount, paid_amount, balance_amount, status, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _audit_log(
+                            db,
+                            "account_invoice_created",
+                            entity_type="invoice",
+                            entity_id=invoice_values["invoice_no"],
+                            details=f"{invoice_values['invoice_kind']} / {invoice_values['party_code']} / AED {invoice_values['total_amount']}",
+                        )
+                        message = "Invoice created successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("invoice_center"))
+
+                if action == "save_payment":
+                    payment_values = _payment_form_data(request)
+                    original_voucher_no = payment_values["original_voucher_no"]
+                    invoice = db.execute(
+                        """
+                        SELECT invoice_no, party_code, invoice_kind, total_amount, paid_amount, balance_amount
+                        FROM account_invoices
+                        WHERE invoice_no = ?
+                        """,
+                        (payment_values["invoice_no"],),
+                    ).fetchone()
+                    if invoice is None:
+                        raise ValidationError("Select a valid invoice before saving payment.")
+                    _ensure_reference_available(
+                        db,
+                        "account_payments",
+                        "voucher_no",
+                        payment_values["voucher_no"],
+                        original_voucher_no,
+                        "Voucher number",
+                    )
+                    entry_date = _validate_date_text(payment_values["entry_date"], "Payment date")
+                    amount = _parse_decimal(payment_values["amount"], "Payment amount", required=True, minimum=0.01)
+                    other_paid = _invoice_paid_amount_excluding(db, invoice["invoice_no"], original_voucher_no)
+                    remaining_balance = float(invoice["total_amount"]) - other_paid
+                    if amount - remaining_balance > 0.001:
+                        raise ValidationError(f"Payment amount cannot be greater than invoice balance {remaining_balance:,.2f}.")
+                    payment_kind = "Received" if (invoice["invoice_kind"] or "Sales") == "Sales" else "Paid"
+                    payment_payload = (
+                        payment_values["voucher_no"],
+                        invoice["invoice_no"],
+                        invoice["party_code"],
+                        payment_kind,
+                        entry_date,
+                        amount,
+                        payment_values["payment_method"],
+                        payment_values["reference"],
+                        payment_values["notes"],
+                    )
+                    if original_voucher_no:
+                        existing_payment = db.execute("SELECT invoice_no FROM account_payments WHERE voucher_no = ?", (original_voucher_no,)).fetchone()
+                        if existing_payment is None:
+                            raise ValidationError("Payment voucher was not found.")
+                        db.execute(
+                            """
+                            UPDATE account_payments
+                            SET voucher_no = ?, invoice_no = ?, party_code = ?, payment_kind = ?, entry_date = ?,
+                                amount = ?, payment_method = ?, reference = ?, notes = ?
+                            WHERE voucher_no = ?
+                            """,
+                            payment_payload + (original_voucher_no,),
+                        )
+                        if existing_payment["invoice_no"] and existing_payment["invoice_no"] != invoice["invoice_no"]:
+                            _sync_invoice_balance(db, existing_payment["invoice_no"])
+                        _sync_invoice_balance(db, invoice["invoice_no"])
+                        _audit_log(
+                            db,
+                            "account_payment_updated",
+                            entity_type="payment",
+                            entity_id=payment_values["voucher_no"],
+                            details=f"{payment_kind} / {invoice['invoice_no']} / AED {amount}",
+                        )
+                        message = "Payment updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO account_payments (
+                                voucher_no, invoice_no, party_code, payment_kind, entry_date,
+                                amount, payment_method, reference, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payment_payload,
+                        )
+                        _sync_invoice_balance(db, invoice["invoice_no"])
+                        _audit_log(
+                            db,
+                            "account_payment_created",
+                            entity_type="payment",
+                            entity_id=payment_values["voucher_no"],
+                            details=f"{payment_kind} / {invoice['invoice_no']} / AED {amount}",
+                        )
+                        message = "Payment saved and invoice balance updated."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("invoice_center"))
+            except ValidationError as exc:
+                flash(str(exc), "error")
+
+        return render_template(
+            "invoice_center.html",
+            invoice_values=invoice_values,
+            payment_values=payment_values,
+            invoice_kind_options=INVOICE_KIND_OPTIONS,
+            payment_method_options=PAYMENT_METHOD_OPTIONS,
+            parties=_contract_parties(db),
+            agreements=_agreement_rows(db, limit=40),
+            lpos=_lpo_rows(db, limit=40),
+            hires=_hire_rows(db, limit=40),
+            open_invoices=_open_invoice_rows(db),
+            invoices=_invoice_rows(db, limit=12),
+            payments=_payment_rows(db, limit=12),
+            summary=_invoice_center_summary(db),
+        )
+
+    @app.post("/invoices/<invoice_no>/delete")
+    @_login_required("admin")
+    def delete_invoice(invoice_no: str):
+        db = open_db()
+        payment_count = int(db.execute("SELECT COUNT(*) FROM account_payments WHERE invoice_no = ?", (invoice_no,)).fetchone()[0])
+        if payment_count:
+            flash("Invoice cannot be deleted while payments are linked to it.", "error")
+            return redirect(url_for("invoice_center"))
+        db.execute("DELETE FROM account_invoices WHERE invoice_no = ?", (invoice_no,))
+        _audit_log(db, "account_invoice_deleted", entity_type="invoice", entity_id=invoice_no, details=invoice_no)
+        db.commit()
+        flash("Invoice deleted successfully.", "success")
+        return redirect(url_for("invoice_center"))
+
+    @app.post("/payments/<voucher_no>/delete")
+    @_login_required("admin")
+    def delete_payment(voucher_no: str):
+        db = open_db()
+        payment = db.execute("SELECT invoice_no FROM account_payments WHERE voucher_no = ?", (voucher_no,)).fetchone()
+        if payment is None:
+            flash("Payment voucher not found.", "error")
+            return redirect(url_for("invoice_center"))
+        db.execute("DELETE FROM account_payments WHERE voucher_no = ?", (voucher_no,))
+        if payment["invoice_no"]:
+            _sync_invoice_balance(db, payment["invoice_no"])
+        _audit_log(db, "account_payment_deleted", entity_type="payment", entity_id=voucher_no, details=voucher_no)
+        db.commit()
+        flash("Payment deleted successfully.", "success")
+        return redirect(url_for("invoice_center"))
+
+    @app.route("/loans", methods=["GET", "POST"])
+    @_login_required("admin")
+    def loans_center():
+        db = open_db()
+        values = _default_loan_form()
+        edit_loan_no = request.args.get("edit_loan", "").strip().upper()
+        if edit_loan_no:
+            row = db.execute("SELECT * FROM loan_entries WHERE loan_no = ?", (edit_loan_no,)).fetchone()
+            if row is not None:
+                values = _loan_form_from_row(row)
+        if request.method == "POST":
+            values = _loan_form_data(request)
+            try:
+                payload = _prepare_loan_payload(db, values)
+                _ensure_reference_available(db, "loan_entries", "loan_no", values["loan_no"], values["original_loan_no"], "Loan number")
+                if values["original_loan_no"]:
+                    db.execute(
+                        """
+                        UPDATE loan_entries
+                        SET loan_no = ?, party_code = ?, entry_date = ?, loan_type = ?, amount = ?, payment_method = ?, reference = ?, notes = ?
+                        WHERE loan_no = ?
+                        """,
+                        payload + (values["original_loan_no"],),
+                    )
+                    _audit_log(
+                        db,
+                        "loan_entry_updated",
+                        entity_type="loan",
+                        entity_id=values["loan_no"],
+                        details=f"{values['loan_type']} / {values['party_code']} / AED {values['amount']}",
+                    )
+                    message = "Loan entry updated successfully."
+                else:
+                    db.execute(
+                        """
+                        INSERT INTO loan_entries (
+                            loan_no, party_code, entry_date, loan_type, amount, payment_method, reference, notes
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        payload,
+                    )
+                    _audit_log(
+                        db,
+                        "loan_entry_created",
+                        entity_type="loan",
+                        entity_id=values["loan_no"],
+                        details=f"{values['loan_type']} / {values['party_code']} / AED {values['amount']}",
+                    )
+                    message = "Loan entry saved successfully."
+                db.commit()
+                flash(message, "success")
+                return redirect(url_for("loans_center"))
+            except ValidationError as exc:
+                flash(str(exc), "error")
+
+        return render_template(
+            "loans.html",
+            values=values,
+            loan_type_options=LOAN_TYPE_OPTIONS,
+            payment_method_options=PAYMENT_METHOD_OPTIONS,
+            parties=_contract_parties(db),
+            rows=_loan_rows(db),
+            summary=_loan_summary(db),
+        )
+
+    @app.post("/loans/<loan_no>/delete")
+    @_login_required("admin")
+    def delete_loan_entry(loan_no: str):
+        db = open_db()
+        db.execute("DELETE FROM loan_entries WHERE loan_no = ?", (loan_no,))
+        _audit_log(db, "loan_entry_deleted", entity_type="loan", entity_id=loan_no, details=loan_no)
+        db.commit()
+        flash("Loan entry deleted successfully.", "success")
+        return redirect(url_for("loans_center"))
+
+    @app.route("/annual-fees", methods=["GET", "POST"])
+    @_login_required("admin")
+    def annual_fees():
+        db = open_db()
+        values = _default_fee_form()
+        edit_fee_no = request.args.get("edit_fee", "").strip().upper()
+        if edit_fee_no:
+            row = db.execute("SELECT * FROM annual_fee_entries WHERE fee_no = ?", (edit_fee_no,)).fetchone()
+            if row is not None:
+                values = _fee_form_from_row(row)
+        if request.method == "POST":
+            values = _fee_form_data(request)
+            try:
+                payload = _prepare_fee_payload(db, values)
+                _ensure_reference_available(db, "annual_fee_entries", "fee_no", values["fee_no"], values["original_fee_no"], "Fee number")
+                if values["original_fee_no"]:
+                    db.execute(
+                        """
+                        UPDATE annual_fee_entries
+                        SET fee_no = ?, party_code = ?, fee_type = ?, description = ?, vehicle_no = ?, due_date = ?,
+                            annual_amount = ?, received_amount = ?, balance_amount = ?, status = ?, notes = ?
+                        WHERE fee_no = ?
+                        """,
+                        payload + (values["original_fee_no"],),
+                    )
+                    _audit_log(
+                        db,
+                        "annual_fee_updated",
+                        entity_type="annual_fee",
+                        entity_id=values["fee_no"],
+                        details=f"{values['fee_type']} / {values['party_code']} / AED {values['annual_amount']}",
+                    )
+                    message = "Annual fee row updated successfully."
+                else:
+                    db.execute(
+                        """
+                        INSERT INTO annual_fee_entries (
+                            fee_no, party_code, fee_type, description, vehicle_no, due_date,
+                            annual_amount, received_amount, balance_amount, status, notes
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        payload,
+                    )
+                    _audit_log(
+                        db,
+                        "annual_fee_created",
+                        entity_type="annual_fee",
+                        entity_id=values["fee_no"],
+                        details=f"{values['fee_type']} / {values['party_code']} / AED {values['annual_amount']}",
+                    )
+                    message = "Annual fee row saved successfully."
+                db.commit()
+                flash(message, "success")
+                return redirect(url_for("annual_fees"))
+            except ValidationError as exc:
+                flash(str(exc), "error")
+
+        return render_template(
+            "annual_fees.html",
+            values=values,
+            fee_type_options=FEE_TYPE_OPTIONS,
+            parties=_contract_parties(db),
+            rows=_annual_fee_rows(db),
+            summary=_annual_fee_summary(db),
+        )
+
+    @app.post("/annual-fees/<fee_no>/delete")
+    @_login_required("admin")
+    def delete_annual_fee(fee_no: str):
+        db = open_db()
+        db.execute("DELETE FROM annual_fee_entries WHERE fee_no = ?", (fee_no,))
+        _audit_log(db, "annual_fee_deleted", entity_type="annual_fee", entity_id=fee_no, details=fee_no)
+        db.commit()
+        flash("Annual fee row deleted successfully.", "success")
+        return redirect(url_for("annual_fees"))
+
+    @app.get("/tax")
+    @_login_required("admin")
+    def tax_center():
+        db = open_db()
+        return render_template(
+            "tax_center.html",
+            summary=_tax_summary(db),
+            invoices=_invoice_rows(db, limit=10),
+        )
+
+    @app.get("/reports")
+    @_login_required("admin")
+    def reports_center():
+        db = open_db()
+        return render_template(
+            "reports_center.html",
+            supplier_summary=_supplier_summary(db),
+            customer_summary=_customer_summary(db),
+            invoice_summary=_invoice_center_summary(db),
+            loan_summary=_loan_summary(db),
+            annual_fee_summary=_annual_fee_summary(db),
+            tax_summary=_tax_summary(db),
+            top_receivables=_party_balance_rows(db, invoice_kind="Sales", limit=6),
+            top_payables=_party_balance_rows(db, invoice_kind="Purchase", limit=6),
+            due_fees=_annual_fee_rows(db, limit=6, due_only=True),
+            recent_loans=_loan_rows(db, limit=6),
+        )
 
     @app.route("/owner-fund", methods=["GET", "POST"])
     @_login_required("admin", "owner")
@@ -2111,6 +2849,713 @@ def _preview_next_party_code() -> str:
         return "PTY-0001"
 
 
+
+def _parties_by_role(db, role: str):
+    return db.execute(
+        """
+        SELECT
+            party_code, party_name, party_kind, party_roles, contact_person,
+            phone_number, email, trn_no, trade_license_no, address, notes, status, created_at
+        FROM parties
+        WHERE party_roles LIKE ?
+        ORDER BY CASE WHEN status = 'Active' THEN 0 ELSE 1 END, party_name ASC
+        """,
+        (f"%{role}%",),
+    ).fetchall()
+
+
+def _contract_parties(db):
+    return db.execute(
+        """
+        SELECT
+            party_code, party_name, party_kind, party_roles, contact_person,
+            phone_number, email, trn_no, trade_license_no, address, notes, status, created_at
+        FROM parties
+        WHERE party_roles LIKE ? OR party_roles LIKE ?
+        ORDER BY CASE WHEN status = 'Active' THEN 0 ELSE 1 END, party_name ASC
+        """,
+        ("%Supplier%", "%Customer%"),
+    ).fetchall()
+
+
+def _next_reference_code(db, table_name: str, field_name: str, prefix: str) -> str:
+    rows = db.execute(f"SELECT {field_name} FROM {table_name} WHERE {field_name} LIKE ? ORDER BY {field_name} ASC", (f"{prefix}-%",)).fetchall()
+    max_number = 0
+    for row in rows:
+        code = (row[field_name] or "").strip().upper()
+        if not code.startswith(f"{prefix}-"):
+            continue
+        try:
+            max_number = max(max_number, int(code.split("-", 1)[1]))
+        except (IndexError, ValueError):
+            continue
+    return f"{prefix}-{max_number + 1:04d}"
+
+
+def _default_agreement_form(db=None):
+    db = db or open_db()
+    return {
+        "original_agreement_no": "",
+        "agreement_no": _next_reference_code(db, "agreements", "agreement_no", "AGR"),
+        "party_code": "",
+        "agreement_kind": AGREEMENT_KIND_OPTIONS[0],
+        "start_date": date.today().isoformat(),
+        "end_date": "",
+        "rate_type": RATE_TYPE_OPTIONS[0],
+        "amount": "",
+        "tax_percent": "5",
+        "scope": "",
+        "notes": "",
+        "status": "Active",
+    }
+
+
+def _default_lpo_form(db=None):
+    db = db or open_db()
+    return {
+        "original_lpo_no": "",
+        "lpo_no": _next_reference_code(db, "lpos", "lpo_no", "LPO"),
+        "party_code": "",
+        "agreement_no": "",
+        "issue_date": date.today().isoformat(),
+        "valid_until": "",
+        "amount": "",
+        "tax_percent": "5",
+        "description": "",
+        "status": "Open",
+    }
+
+
+def _default_hire_form(db=None):
+    db = db or open_db()
+    return {
+        "original_hire_no": "",
+        "hire_no": _next_reference_code(db, "hire_records", "hire_no", "HIR"),
+        "party_code": "",
+        "agreement_no": "",
+        "lpo_no": "",
+        "entry_date": date.today().isoformat(),
+        "direction": HIRE_DIRECTION_OPTIONS[0],
+        "asset_name": "",
+        "asset_type": "",
+        "unit_type": UNIT_TYPE_OPTIONS[0],
+        "quantity": "1",
+        "rate": "",
+        "tax_percent": "5",
+        "status": "Open",
+        "notes": "",
+    }
+
+
+def _default_invoice_form(db=None):
+    db = db or open_db()
+    return {
+        "original_invoice_no": "",
+        "invoice_no": _next_reference_code(db, "account_invoices", "invoice_no", "INV"),
+        "party_code": "",
+        "agreement_no": "",
+        "lpo_no": "",
+        "hire_no": "",
+        "invoice_kind": INVOICE_KIND_OPTIONS[0],
+        "issue_date": date.today().isoformat(),
+        "due_date": "",
+        "subtotal": "",
+        "tax_percent": "5",
+        "notes": "",
+    }
+
+
+def _default_payment_form(db=None):
+    db = db or open_db()
+    return {
+        "original_voucher_no": "",
+        "voucher_no": _next_reference_code(db, "account_payments", "voucher_no", "PAY"),
+        "invoice_no": "",
+        "entry_date": date.today().isoformat(),
+        "amount": "",
+        "payment_method": PAYMENT_METHOD_OPTIONS[0],
+        "reference": "",
+        "notes": "",
+    }
+
+
+def _default_loan_form(db=None):
+    db = db or open_db()
+    return {
+        "original_loan_no": "",
+        "loan_no": _next_reference_code(db, "loan_entries", "loan_no", "LOAN"),
+        "party_code": "",
+        "entry_date": date.today().isoformat(),
+        "loan_type": LOAN_TYPE_OPTIONS[0],
+        "amount": "",
+        "payment_method": PAYMENT_METHOD_OPTIONS[1],
+        "reference": "",
+        "notes": "",
+    }
+
+
+def _default_fee_form(db=None):
+    db = db or open_db()
+    return {
+        "original_fee_no": "",
+        "fee_no": _next_reference_code(db, "annual_fee_entries", "fee_no", "FEE"),
+        "party_code": "",
+        "fee_type": FEE_TYPE_OPTIONS[0],
+        "description": "",
+        "vehicle_no": "",
+        "due_date": date.today().isoformat(),
+        "annual_amount": "",
+        "received_amount": "0",
+        "status": "Due",
+        "notes": "",
+    }
+
+
+def _agreement_form_data(request):
+    return {
+        "original_agreement_no": request.form.get("original_agreement_no", "").strip().upper(),
+        "agreement_no": request.form.get("agreement_no", "").strip().upper(),
+        "party_code": request.form.get("party_code", "").strip().upper(),
+        "agreement_kind": request.form.get("agreement_kind", AGREEMENT_KIND_OPTIONS[0]).strip() or AGREEMENT_KIND_OPTIONS[0],
+        "start_date": request.form.get("start_date", "").strip(),
+        "end_date": request.form.get("end_date", "").strip(),
+        "rate_type": request.form.get("rate_type", RATE_TYPE_OPTIONS[0]).strip() or RATE_TYPE_OPTIONS[0],
+        "amount": request.form.get("amount", "").strip(),
+        "tax_percent": request.form.get("tax_percent", "0").strip() or "0",
+        "scope": request.form.get("scope", "").strip(),
+        "notes": request.form.get("notes", "").strip(),
+        "status": request.form.get("status", "Active").strip() or "Active",
+    }
+
+
+def _lpo_form_data(request):
+    return {
+        "original_lpo_no": request.form.get("original_lpo_no", "").strip().upper(),
+        "lpo_no": request.form.get("lpo_no", "").strip().upper(),
+        "party_code": request.form.get("party_code", "").strip().upper(),
+        "agreement_no": request.form.get("agreement_no", "").strip().upper(),
+        "issue_date": request.form.get("issue_date", "").strip(),
+        "valid_until": request.form.get("valid_until", "").strip(),
+        "amount": request.form.get("amount", "").strip(),
+        "tax_percent": request.form.get("tax_percent", "0").strip() or "0",
+        "description": request.form.get("description", "").strip(),
+        "status": request.form.get("status", "Open").strip() or "Open",
+    }
+
+
+def _hire_form_data(request):
+    return {
+        "original_hire_no": request.form.get("original_hire_no", "").strip().upper(),
+        "hire_no": request.form.get("hire_no", "").strip().upper(),
+        "party_code": request.form.get("party_code", "").strip().upper(),
+        "agreement_no": request.form.get("agreement_no", "").strip().upper(),
+        "lpo_no": request.form.get("lpo_no", "").strip().upper(),
+        "entry_date": request.form.get("entry_date", "").strip(),
+        "direction": request.form.get("direction", HIRE_DIRECTION_OPTIONS[0]).strip() or HIRE_DIRECTION_OPTIONS[0],
+        "asset_name": request.form.get("asset_name", "").strip(),
+        "asset_type": request.form.get("asset_type", "").strip(),
+        "unit_type": request.form.get("unit_type", UNIT_TYPE_OPTIONS[0]).strip() or UNIT_TYPE_OPTIONS[0],
+        "quantity": request.form.get("quantity", "1").strip() or "1",
+        "rate": request.form.get("rate", "").strip(),
+        "tax_percent": request.form.get("tax_percent", "0").strip() or "0",
+        "status": request.form.get("status", "Open").strip() or "Open",
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _invoice_form_data(request):
+    return {
+        "original_invoice_no": request.form.get("original_invoice_no", "").strip().upper(),
+        "invoice_no": request.form.get("invoice_no", "").strip().upper(),
+        "party_code": request.form.get("party_code", "").strip().upper(),
+        "agreement_no": request.form.get("agreement_no", "").strip().upper(),
+        "lpo_no": request.form.get("lpo_no", "").strip().upper(),
+        "hire_no": request.form.get("hire_no", "").strip().upper(),
+        "invoice_kind": request.form.get("invoice_kind", INVOICE_KIND_OPTIONS[0]).strip() or INVOICE_KIND_OPTIONS[0],
+        "issue_date": request.form.get("issue_date", "").strip(),
+        "due_date": request.form.get("due_date", "").strip(),
+        "subtotal": request.form.get("subtotal", "").strip(),
+        "tax_percent": request.form.get("tax_percent", "0").strip() or "0",
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _payment_form_data(request):
+    return {
+        "original_voucher_no": request.form.get("original_voucher_no", "").strip().upper(),
+        "voucher_no": request.form.get("voucher_no", "").strip().upper(),
+        "invoice_no": request.form.get("invoice_no", "").strip().upper(),
+        "entry_date": request.form.get("entry_date", "").strip(),
+        "amount": request.form.get("amount", "").strip(),
+        "payment_method": request.form.get("payment_method", PAYMENT_METHOD_OPTIONS[0]).strip() or PAYMENT_METHOD_OPTIONS[0],
+        "reference": request.form.get("reference", "").strip(),
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _loan_form_data(request):
+    return {
+        "original_loan_no": request.form.get("original_loan_no", "").strip().upper(),
+        "loan_no": request.form.get("loan_no", "").strip().upper(),
+        "party_code": request.form.get("party_code", "").strip().upper(),
+        "entry_date": request.form.get("entry_date", "").strip(),
+        "loan_type": request.form.get("loan_type", LOAN_TYPE_OPTIONS[0]).strip() or LOAN_TYPE_OPTIONS[0],
+        "amount": request.form.get("amount", "").strip(),
+        "payment_method": request.form.get("payment_method", PAYMENT_METHOD_OPTIONS[1]).strip() or PAYMENT_METHOD_OPTIONS[1],
+        "reference": request.form.get("reference", "").strip(),
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _fee_form_data(request):
+    return {
+        "original_fee_no": request.form.get("original_fee_no", "").strip().upper(),
+        "fee_no": request.form.get("fee_no", "").strip().upper(),
+        "party_code": request.form.get("party_code", "").strip().upper(),
+        "fee_type": request.form.get("fee_type", FEE_TYPE_OPTIONS[0]).strip() or FEE_TYPE_OPTIONS[0],
+        "description": request.form.get("description", "").strip(),
+        "vehicle_no": request.form.get("vehicle_no", "").strip(),
+        "due_date": request.form.get("due_date", "").strip(),
+        "annual_amount": request.form.get("annual_amount", "").strip(),
+        "received_amount": request.form.get("received_amount", "0").strip() or "0",
+        "status": request.form.get("status", "Due").strip() or "Due",
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _validate_date_text(value: str, field_name: str, *, required: bool = True) -> str:
+    text = (value or "").strip()
+    if not text:
+        if required:
+            raise ValidationError(f"{field_name} is required.")
+        return ""
+    try:
+        return datetime.strptime(text, "%Y-%m-%d").date().isoformat()
+    except ValueError as exc:
+        raise ValidationError(f"{field_name} must be a valid date.") from exc
+
+
+def _validate_party_reference(db, party_code: str):
+    if not party_code:
+        raise ValidationError("Select a party first.")
+    party = _fetch_party(db, party_code)
+    if party is None:
+        raise ValidationError("Selected party was not found.")
+    return party
+
+
+def _optional_reference_exists(db, table_name: str, field_name: str, value: str, label: str) -> str:
+    code = (value or "").strip().upper()
+    if not code:
+        return ""
+    row = db.execute(f"SELECT {field_name} FROM {table_name} WHERE {field_name} = ?", (code,)).fetchone()
+    if row is None:
+        raise ValidationError(f"{label} was not found.")
+    return code
+
+
+def _display_number(value) -> str:
+    if value in (None, ""):
+        return ""
+    try:
+        return f"{float(value):.2f}".rstrip("0").rstrip(".")
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _agreement_form_from_row(row):
+    values = _default_agreement_form()
+    values.update(
+        {
+            "original_agreement_no": row["agreement_no"],
+            "agreement_no": row["agreement_no"],
+            "party_code": row["party_code"] or "",
+            "agreement_kind": row["agreement_kind"] or AGREEMENT_KIND_OPTIONS[0],
+            "start_date": row["start_date"] or "",
+            "end_date": row["end_date"] or "",
+            "rate_type": row["rate_type"] or RATE_TYPE_OPTIONS[0],
+            "amount": _display_number(row["amount"]),
+            "tax_percent": _display_number(row["tax_percent"]),
+            "scope": row["scope"] or "",
+            "notes": row["notes"] or "",
+            "status": row["status"] or "Active",
+        }
+    )
+    return values
+
+
+def _lpo_form_from_row(row):
+    values = _default_lpo_form()
+    values.update(
+        {
+            "original_lpo_no": row["lpo_no"],
+            "lpo_no": row["lpo_no"],
+            "party_code": row["party_code"] or "",
+            "agreement_no": row["agreement_no"] or "",
+            "issue_date": row["issue_date"] or "",
+            "valid_until": row["valid_until"] or "",
+            "amount": _display_number(row["amount"]),
+            "tax_percent": _display_number(row["tax_percent"]),
+            "description": row["description"] or "",
+            "status": row["status"] or "Open",
+        }
+    )
+    return values
+
+
+def _hire_form_from_row(row):
+    values = _default_hire_form()
+    values.update(
+        {
+            "original_hire_no": row["hire_no"],
+            "hire_no": row["hire_no"],
+            "party_code": row["party_code"] or "",
+            "agreement_no": row["agreement_no"] or "",
+            "lpo_no": row["lpo_no"] or "",
+            "entry_date": row["entry_date"] or "",
+            "direction": row["direction"] or HIRE_DIRECTION_OPTIONS[0],
+            "asset_name": row["asset_name"] or "",
+            "asset_type": row["asset_type"] or "",
+            "unit_type": row["unit_type"] or UNIT_TYPE_OPTIONS[0],
+            "quantity": _display_number(row["quantity"]),
+            "rate": _display_number(row["rate"]),
+            "tax_percent": _display_number(row["tax_percent"]),
+            "status": row["status"] or "Open",
+            "notes": row["notes"] or "",
+        }
+    )
+    return values
+
+
+def _invoice_form_from_row(row):
+    values = _default_invoice_form()
+    values.update(
+        {
+            "original_invoice_no": row["invoice_no"],
+            "invoice_no": row["invoice_no"],
+            "party_code": row["party_code"] or "",
+            "agreement_no": row["agreement_no"] or "",
+            "lpo_no": row["lpo_no"] or "",
+            "hire_no": row["hire_no"] or "",
+            "invoice_kind": row["invoice_kind"] or INVOICE_KIND_OPTIONS[0],
+            "issue_date": row["issue_date"] or "",
+            "due_date": row["due_date"] or "",
+            "subtotal": _display_number(row["subtotal"]),
+            "tax_percent": _display_number(row["tax_percent"]),
+            "notes": row["notes"] or "",
+        }
+    )
+    return values
+
+
+def _payment_form_from_row(row):
+    values = _default_payment_form()
+    values.update(
+        {
+            "original_voucher_no": row["voucher_no"],
+            "voucher_no": row["voucher_no"],
+            "invoice_no": row["invoice_no"] or "",
+            "entry_date": row["entry_date"] or "",
+            "amount": _display_number(row["amount"]),
+            "payment_method": row["payment_method"] or PAYMENT_METHOD_OPTIONS[0],
+            "reference": row["reference"] or "",
+            "notes": row["notes"] or "",
+        }
+    )
+    return values
+
+
+def _loan_form_from_row(row):
+    values = _default_loan_form()
+    values.update(
+        {
+            "original_loan_no": row["loan_no"],
+            "loan_no": row["loan_no"],
+            "party_code": row["party_code"] or "",
+            "entry_date": row["entry_date"] or "",
+            "loan_type": row["loan_type"] or LOAN_TYPE_OPTIONS[0],
+            "amount": _display_number(row["amount"]),
+            "payment_method": row["payment_method"] or PAYMENT_METHOD_OPTIONS[1],
+            "reference": row["reference"] or "",
+            "notes": row["notes"] or "",
+        }
+    )
+    return values
+
+
+def _fee_form_from_row(row):
+    values = _default_fee_form()
+    values.update(
+        {
+            "original_fee_no": row["fee_no"],
+            "fee_no": row["fee_no"],
+            "party_code": row["party_code"] or "",
+            "fee_type": row["fee_type"] or FEE_TYPE_OPTIONS[0],
+            "description": row["description"] or "",
+            "vehicle_no": row["vehicle_no"] or "",
+            "due_date": row["due_date"] or "",
+            "annual_amount": _display_number(row["annual_amount"]),
+            "received_amount": _display_number(row["received_amount"]),
+            "status": row["status"] or "Due",
+            "notes": row["notes"] or "",
+        }
+    )
+    return values
+
+
+def _ensure_reference_available(db, table_name: str, field_name: str, new_value: str, original_value: str, label: str):
+    new_code = (new_value or "").strip().upper()
+    original_code = (original_value or "").strip().upper()
+    if not new_code or new_code == original_code:
+        return
+    existing = db.execute(f"SELECT {field_name} FROM {table_name} WHERE {field_name} = ?", (new_code,)).fetchone()
+    if existing is not None:
+        raise ValidationError(f"{label} already exists.")
+
+
+def _invoice_paid_amount_excluding(db, invoice_no: str, exclude_voucher_no: str = "") -> float:
+    if exclude_voucher_no:
+        row = db.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM account_payments WHERE invoice_no = ? AND voucher_no <> ?",
+            (invoice_no, exclude_voucher_no),
+        ).fetchone()
+    else:
+        row = db.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM account_payments WHERE invoice_no = ?",
+            (invoice_no,),
+        ).fetchone()
+    return float(row[0] or 0.0)
+
+
+def _sync_invoice_balance(db, invoice_no: str):
+    invoice = db.execute(
+        "SELECT invoice_no, total_amount FROM account_invoices WHERE invoice_no = ?",
+        (invoice_no,),
+    ).fetchone()
+    if invoice is None:
+        return
+    total_amount = float(invoice["total_amount"] or 0.0)
+    paid_amount = _invoice_paid_amount_excluding(db, invoice_no)
+    if paid_amount - total_amount > 0.001:
+        raise ValidationError(f"Payments already posted are greater than invoice total for {invoice_no}.")
+    balance_amount = max(round(total_amount - paid_amount, 2), 0.0)
+    status = "Paid" if balance_amount <= 0.009 else ("Partially Paid" if paid_amount > 0 else "Open")
+    db.execute(
+        """
+        UPDATE account_invoices
+        SET paid_amount = ?, balance_amount = ?, status = ?
+        WHERE invoice_no = ?
+        """,
+        (round(paid_amount, 2), balance_amount, status, invoice_no),
+    )
+
+
+def _prepare_agreement_payload(db, values):
+    if not values["agreement_no"]:
+        values["agreement_no"] = _next_reference_code(db, "agreements", "agreement_no", "AGR")
+    _validate_party_reference(db, values["party_code"])
+    start_date = _validate_date_text(values["start_date"], "Agreement start date")
+    end_date = _validate_date_text(values["end_date"], "Agreement end date", required=False)
+    amount = _parse_decimal(values["amount"], "Agreement amount", required=False, default=0.0, minimum=0.0)
+    tax_percent = _parse_decimal(values["tax_percent"], "Agreement tax percent", required=False, default=0.0, minimum=0.0)
+    return (
+        values["agreement_no"], values["party_code"], values["agreement_kind"], start_date, end_date or None,
+        values["rate_type"], amount, tax_percent, values["scope"], values["notes"], values["status"],
+    )
+
+
+def _prepare_lpo_payload(db, values):
+    if not values["lpo_no"]:
+        values["lpo_no"] = _next_reference_code(db, "lpos", "lpo_no", "LPO")
+    _validate_party_reference(db, values["party_code"])
+    agreement_no = _optional_reference_exists(db, "agreements", "agreement_no", values["agreement_no"], "Agreement")
+    issue_date = _validate_date_text(values["issue_date"], "LPO issue date")
+    valid_until = _validate_date_text(values["valid_until"], "LPO valid until", required=False)
+    amount = _parse_decimal(values["amount"], "LPO amount", required=False, default=0.0, minimum=0.0)
+    tax_percent = _parse_decimal(values["tax_percent"], "LPO tax percent", required=False, default=0.0, minimum=0.0)
+    return (values["lpo_no"], values["party_code"], agreement_no or None, issue_date, valid_until or None, amount, tax_percent, values["description"], values["status"])
+
+
+def _prepare_hire_payload(db, values):
+    if not values["hire_no"]:
+        values["hire_no"] = _next_reference_code(db, "hire_records", "hire_no", "HIR")
+    _validate_party_reference(db, values["party_code"])
+    agreement_no = _optional_reference_exists(db, "agreements", "agreement_no", values["agreement_no"], "Agreement")
+    lpo_no = _optional_reference_exists(db, "lpos", "lpo_no", values["lpo_no"], "LPO")
+    entry_date = _validate_date_text(values["entry_date"], "Hire date")
+    quantity = _parse_decimal(values["quantity"], "Hire quantity", required=False, default=1.0, minimum=0.01)
+    rate = _parse_decimal(values["rate"], "Hire rate", required=True, minimum=0.0)
+    tax_percent = _parse_decimal(values["tax_percent"], "Hire tax percent", required=False, default=0.0, minimum=0.0)
+    if not values["asset_name"]:
+        raise ValidationError("Asset / vehicle name is required.")
+    subtotal = round(quantity * rate, 2)
+    tax_amount = round(subtotal * (tax_percent / 100.0), 2)
+    total_amount = round(subtotal + tax_amount, 2)
+    values["total_amount"] = total_amount
+    return (values["hire_no"], values["party_code"], agreement_no or None, lpo_no or None, entry_date, values["direction"], values["asset_name"], values["asset_type"], values["unit_type"], quantity, rate, subtotal, tax_percent, tax_amount, total_amount, values["status"], values["notes"])
+
+
+def _prepare_invoice_payload(db, values):
+    if not values["invoice_no"]:
+        values["invoice_no"] = _next_reference_code(db, "account_invoices", "invoice_no", "INV")
+    _validate_party_reference(db, values["party_code"])
+    agreement_no = _optional_reference_exists(db, "agreements", "agreement_no", values["agreement_no"], "Agreement")
+    lpo_no = _optional_reference_exists(db, "lpos", "lpo_no", values["lpo_no"], "LPO")
+    hire_no = _optional_reference_exists(db, "hire_records", "hire_no", values["hire_no"], "Hire register")
+    issue_date = _validate_date_text(values["issue_date"], "Invoice date")
+    due_date = _validate_date_text(values["due_date"], "Invoice due date", required=False)
+    subtotal = _parse_decimal(values["subtotal"], "Invoice subtotal", required=True, minimum=0.0)
+    tax_percent = _parse_decimal(values["tax_percent"], "Invoice tax percent", required=False, default=0.0, minimum=0.0)
+    tax_amount = round(subtotal * (tax_percent / 100.0), 2)
+    total_amount = round(subtotal + tax_amount, 2)
+    values["total_amount"] = total_amount
+    return (values["invoice_no"], values["party_code"], agreement_no or None, lpo_no or None, hire_no or None, values["invoice_kind"], issue_date, due_date or None, subtotal, tax_percent, tax_amount, total_amount, 0.0, total_amount, "Open", values["notes"])
+
+
+def _prepare_payment_payload(invoice, values):
+    db = open_db()
+    if not values["voucher_no"]:
+        values["voucher_no"] = _next_reference_code(db, "account_payments", "voucher_no", "PAY")
+    entry_date = _validate_date_text(values["entry_date"], "Payment date")
+    amount = _parse_decimal(values["amount"], "Payment amount", required=True, minimum=0.01)
+    current_balance = float(invoice["balance_amount"])
+    if amount - current_balance > 0.001:
+        raise ValidationError(f"Payment amount cannot be greater than invoice balance {current_balance:,.2f}.")
+    payment_kind = "Received" if (invoice["invoice_kind"] or "Sales") == "Sales" else "Paid"
+    new_paid_amount = round(float(invoice["paid_amount"]) + amount, 2)
+    new_balance = round(float(invoice["total_amount"]) - new_paid_amount, 2)
+    status = "Paid" if new_balance <= 0.009 else "Partially Paid"
+    return ((values["voucher_no"], invoice["invoice_no"], invoice["party_code"], payment_kind, entry_date, amount, values["payment_method"], values["reference"], values["notes"]), (new_paid_amount, max(new_balance, 0.0), status, invoice["invoice_no"]))
+
+
+def _prepare_loan_payload(db, values):
+    if not values["loan_no"]:
+        values["loan_no"] = _next_reference_code(db, "loan_entries", "loan_no", "LOAN")
+    _validate_party_reference(db, values["party_code"])
+    entry_date = _validate_date_text(values["entry_date"], "Loan date")
+    amount = _parse_decimal(values["amount"], "Loan amount", required=True, minimum=0.01)
+    return (values["loan_no"], values["party_code"], entry_date, values["loan_type"], amount, values["payment_method"], values["reference"], values["notes"])
+
+
+def _prepare_fee_payload(db, values):
+    if not values["fee_no"]:
+        values["fee_no"] = _next_reference_code(db, "annual_fee_entries", "fee_no", "FEE")
+    _validate_party_reference(db, values["party_code"])
+    due_date = _validate_date_text(values["due_date"], "Fee due date")
+    annual_amount = _parse_decimal(values["annual_amount"], "Annual amount", required=True, minimum=0.0)
+    received_amount = _parse_decimal(values["received_amount"], "Received amount", required=False, default=0.0, minimum=0.0)
+    if received_amount - annual_amount > 0.001:
+        raise ValidationError("Received amount cannot be greater than annual amount.")
+    balance_amount = round(annual_amount - received_amount, 2)
+    status = "Closed" if balance_amount <= 0.009 else values["status"]
+    return (values["fee_no"], values["party_code"], values["fee_type"], values["description"], values["vehicle_no"], due_date, annual_amount, received_amount, max(balance_amount, 0.0), status, values["notes"])
+
+
+def _agreement_rows(db, limit: int = 12):
+    return db.execute(f"SELECT a.agreement_no, a.party_code, p.party_name, a.agreement_kind, a.start_date, a.end_date, a.rate_type, a.amount, a.tax_percent, a.status, a.scope FROM agreements a LEFT JOIN parties p ON p.party_code = a.party_code ORDER BY a.start_date DESC, a.id DESC LIMIT {int(limit)}").fetchall()
+
+
+def _lpo_rows(db, limit: int = 12):
+    return db.execute(f"SELECT l.lpo_no, l.party_code, p.party_name, l.agreement_no, l.issue_date, l.valid_until, l.amount, l.tax_percent, l.status, l.description FROM lpos l LEFT JOIN parties p ON p.party_code = l.party_code ORDER BY l.issue_date DESC, l.id DESC LIMIT {int(limit)}").fetchall()
+
+
+def _hire_rows(db, direction: str | None = None, limit: int = 12):
+    params = []
+    where_sql = ""
+    if direction:
+        where_sql = "WHERE h.direction = ?"
+        params.append(direction)
+    return db.execute(f"SELECT h.hire_no, h.party_code, p.party_name, h.agreement_no, h.lpo_no, h.entry_date, h.direction, h.asset_name, h.asset_type, h.unit_type, h.quantity, h.rate, h.subtotal, h.tax_percent, h.tax_amount, h.total_amount, h.status, h.notes FROM hire_records h LEFT JOIN parties p ON p.party_code = h.party_code {where_sql} ORDER BY h.entry_date DESC, h.id DESC LIMIT {int(limit)}", params).fetchall()
+
+
+def _invoice_rows(db, invoice_kind: str | None = None, limit: int = 12):
+    params = []
+    where_sql = ""
+    if invoice_kind:
+        where_sql = "WHERE i.invoice_kind = ?"
+        params.append(invoice_kind)
+    return db.execute(f"SELECT i.invoice_no, i.party_code, p.party_name, i.agreement_no, i.lpo_no, i.hire_no, i.invoice_kind, i.issue_date, i.due_date, i.subtotal, i.tax_percent, i.tax_amount, i.total_amount, i.paid_amount, i.balance_amount, i.status, i.notes FROM account_invoices i LEFT JOIN parties p ON p.party_code = i.party_code {where_sql} ORDER BY i.issue_date DESC, i.id DESC LIMIT {int(limit)}", params).fetchall()
+
+
+def _payment_rows(db, limit: int = 12):
+    return db.execute(f"SELECT p.voucher_no, p.invoice_no, p.party_code, party.party_name, p.payment_kind, p.entry_date, p.amount, p.payment_method, p.reference, p.notes FROM account_payments p LEFT JOIN parties party ON party.party_code = p.party_code ORDER BY p.entry_date DESC, p.id DESC LIMIT {int(limit)}").fetchall()
+
+
+def _open_invoice_rows(db):
+    return db.execute("SELECT i.invoice_no, i.invoice_kind, i.party_code, p.party_name, i.issue_date, i.balance_amount FROM account_invoices i LEFT JOIN parties p ON p.party_code = i.party_code WHERE i.balance_amount > 0.009 ORDER BY i.issue_date DESC, i.id DESC").fetchall()
+
+
+def _loan_rows(db, limit: int = 12):
+    return db.execute(f"SELECT l.loan_no, l.party_code, p.party_name, l.entry_date, l.loan_type, l.amount, l.payment_method, l.reference, l.notes FROM loan_entries l LEFT JOIN parties p ON p.party_code = l.party_code ORDER BY l.entry_date DESC, l.id DESC LIMIT {int(limit)}").fetchall()
+
+
+def _annual_fee_rows(db, limit: int = 12, due_only: bool = False):
+    where_sql = "WHERE f.balance_amount > 0.009" if due_only else ""
+    return db.execute(f"SELECT f.fee_no, f.party_code, p.party_name, f.fee_type, f.description, f.vehicle_no, f.due_date, f.annual_amount, f.received_amount, f.balance_amount, f.status, f.notes FROM annual_fee_entries f LEFT JOIN parties p ON p.party_code = f.party_code {where_sql} ORDER BY f.due_date ASC, f.id DESC LIMIT {int(limit)}").fetchall()
+
+
+def _supplier_summary(db):
+    return {"supplier_count": len(_parties_by_role(db, "Supplier")), "open_purchase_invoices": int(db.execute("SELECT COUNT(*) FROM account_invoices WHERE invoice_kind = 'Purchase' AND balance_amount > 0.009").fetchone()[0]), "payable_total": float(db.execute("SELECT COALESCE(SUM(balance_amount), 0) FROM account_invoices WHERE invoice_kind = 'Purchase'").fetchone()[0]), "hire_total": float(db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM hire_records WHERE direction = 'Supplier Hire'").fetchone()[0])}
+
+
+def _customer_summary(db):
+    return {"customer_count": len(_parties_by_role(db, "Customer")), "open_sales_invoices": int(db.execute("SELECT COUNT(*) FROM account_invoices WHERE invoice_kind = 'Sales' AND balance_amount > 0.009").fetchone()[0]), "receivable_total": float(db.execute("SELECT COALESCE(SUM(balance_amount), 0) FROM account_invoices WHERE invoice_kind = 'Sales'").fetchone()[0]), "rental_total": float(db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM hire_records WHERE direction = 'Customer Rental'").fetchone()[0])}
+
+
+def _invoice_center_summary(db):
+    return {"sales_total": float(db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM account_invoices WHERE invoice_kind = 'Sales'").fetchone()[0]), "purchase_total": float(db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM account_invoices WHERE invoice_kind = 'Purchase'").fetchone()[0]), "received_total": float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM account_payments WHERE payment_kind = 'Received'").fetchone()[0]), "paid_total": float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM account_payments WHERE payment_kind = 'Paid'").fetchone()[0]), "open_invoice_count": int(db.execute("SELECT COUNT(*) FROM account_invoices WHERE balance_amount > 0.009").fetchone()[0])}
+
+
+def _loan_summary(db):
+    total_given = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM loan_entries WHERE loan_type = 'Given'").fetchone()[0])
+    total_recovered = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM loan_entries WHERE loan_type = 'Recovered'").fetchone()[0])
+    return {"total_given": total_given, "total_recovered": total_recovered, "outstanding": max(total_given - total_recovered, 0.0)}
+
+
+def _annual_fee_summary(db):
+    total_annual = float(db.execute("SELECT COALESCE(SUM(annual_amount), 0) FROM annual_fee_entries").fetchone()[0])
+    total_received = float(db.execute("SELECT COALESCE(SUM(received_amount), 0) FROM annual_fee_entries").fetchone()[0])
+    total_balance = float(db.execute("SELECT COALESCE(SUM(balance_amount), 0) FROM annual_fee_entries").fetchone()[0])
+    due_count = int(db.execute("SELECT COUNT(*) FROM annual_fee_entries WHERE balance_amount > 0.009").fetchone()[0])
+    return {"total_annual": total_annual, "total_received": total_received, "total_balance": total_balance, "due_count": due_count}
+
+
+def _tax_summary(db):
+    output_sales = float(db.execute("SELECT COALESCE(SUM(subtotal), 0) FROM account_invoices WHERE invoice_kind = 'Sales'").fetchone()[0])
+    output_vat = float(db.execute("SELECT COALESCE(SUM(tax_amount), 0) FROM account_invoices WHERE invoice_kind = 'Sales'").fetchone()[0])
+    input_purchase = float(db.execute("SELECT COALESCE(SUM(subtotal), 0) FROM account_invoices WHERE invoice_kind = 'Purchase'").fetchone()[0])
+    input_vat = float(db.execute("SELECT COALESCE(SUM(tax_amount), 0) FROM account_invoices WHERE invoice_kind = 'Purchase'").fetchone()[0])
+    return {"taxable_sales": output_sales, "output_vat": output_vat, "taxable_purchases": input_purchase, "input_vat": input_vat, "net_vat": output_vat - input_vat}
+
+
+def _party_balance_rows(db, invoice_kind: str, limit: int = 8):
+    return db.execute(f"SELECT i.party_code, p.party_name, COUNT(*) AS invoice_count, COALESCE(SUM(i.total_amount), 0) AS total_amount, COALESCE(SUM(i.balance_amount), 0) AS balance_amount FROM account_invoices i LEFT JOIN parties p ON p.party_code = i.party_code WHERE i.invoice_kind = ? GROUP BY i.party_code, p.party_name HAVING COALESCE(SUM(i.total_amount), 0) > 0 ORDER BY COALESCE(SUM(i.balance_amount), 0) DESC, p.party_name ASC LIMIT {int(limit)}", (invoice_kind,)).fetchall()
+
+
+def _party_statement(db, party_code: str, *, invoice_kind: str, hire_direction: str):
+    rows = []
+    invoices = db.execute("SELECT issue_date, invoice_no, total_amount, balance_amount, status FROM account_invoices WHERE party_code = ? AND invoice_kind = ? ORDER BY issue_date ASC, id ASC", (party_code, invoice_kind)).fetchall()
+    payments = db.execute("SELECT entry_date, voucher_no, amount, payment_kind, payment_method FROM account_payments WHERE party_code = ? ORDER BY entry_date ASC, id ASC", (party_code,)).fetchall()
+    hires = db.execute("SELECT entry_date, hire_no, asset_name, total_amount, status FROM hire_records WHERE party_code = ? AND direction = ? ORDER BY entry_date ASC, id ASC", (party_code, hire_direction)).fetchall()
+    for row in hires:
+        rows.append({"entry_date": row["entry_date"], "reference": row["hire_no"], "entry_type": "Hire", "details": f"{row['asset_name']} / {row['status']}", "invoice_amount": 0.0, "payment_amount": 0.0, "note_amount": float(row["total_amount"])})
+    for row in invoices:
+        rows.append({"entry_date": row["issue_date"], "reference": row["invoice_no"], "entry_type": "Invoice", "details": row["status"] or "-", "invoice_amount": float(row["total_amount"]), "payment_amount": 0.0, "note_amount": float(row["balance_amount"])})
+    payment_kind = "Received" if invoice_kind == "Sales" else "Paid"
+    for row in payments:
+        if (row["payment_kind"] or payment_kind) != payment_kind:
+            continue
+        rows.append({"entry_date": row["entry_date"], "reference": row["voucher_no"], "entry_type": "Payment", "details": row["payment_method"] or "-", "invoice_amount": 0.0, "payment_amount": float(row["amount"]), "note_amount": 0.0})
+    rows.sort(key=lambda item: (item["entry_date"], item["reference"]))
+    running_balance = 0.0
+    for row in rows:
+        running_balance = round(running_balance + row["invoice_amount"] - row["payment_amount"], 2)
+        row["running_balance"] = running_balance
+    total_invoiced = sum(row["invoice_amount"] for row in rows)
+    total_paid = sum(row["payment_amount"] for row in rows)
+    total_hires = sum(row["note_amount"] for row in rows if row["entry_type"] == "Hire")
+    summary = {"total_hires": total_hires, "total_invoiced": total_invoiced, "total_paid": total_paid, "outstanding": max(total_invoiced - total_paid, 0.0)}
+    return rows, summary
 def _log_import_history(db, source_type: str, file_name: str, imported_count: int, notes: str = ""):
     db.execute(
         """
@@ -2764,3 +4209,4 @@ def _recent_generated_files(folder: Path, prefix: str):
         reverse=True,
     )
     return [f"owner_fund/{item.name}" for item in files[:6]]
+

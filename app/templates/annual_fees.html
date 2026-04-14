@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <article class="card dashboard-hero-card">
+        <div>
+            <p class="eyebrow">Recurring</p>
+            <h2>Annual Fees Desk</h2>
+            <p class="lead">Manage visa fees, vehicle registration fees and yearly collections due from external parties.</p>
+        </div>
+    </article>
+</section>
+
+<section class="stats premium-stats">
+    <article class="card stat-card premium-stat-card blue-stat"><span>Annual Amount</span><strong>AED {{ "%.2f"|format(summary.total_annual) }}</strong><small>Total yearly charges booked.</small></article>
+    <article class="card stat-card premium-stat-card green-stat"><span>Received</span><strong>AED {{ "%.2f"|format(summary.total_received) }}</strong><small>Total fees collected so far.</small></article>
+    <article class="card stat-card premium-stat-card orange-stat"><span>Outstanding</span><strong>AED {{ "%.2f"|format(summary.total_balance) }}</strong><small>Still due from parties.</small></article>
+    <article class="card stat-card premium-stat-card navy-stat"><span>Due Rows</span><strong>{{ summary.due_count }}</strong><small>Items still open.</small></article>
+</section>
+
+<section class="card action-panel form-panel">
+    <div class="section-heading slim-heading"><div><p class="eyebrow">Fee Entry</p><h2>{% if values.original_fee_no %}Edit Annual Fee Row{% else %}Create Annual Fee Row{% endif %}</h2></div></div>
+    <form method="post" class="entry-form two-column-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="original_fee_no" value="{{ values.original_fee_no }}">
+        <label><span>Fee No</span><input type="text" name="fee_no" value="{{ values.fee_no }}"></label>
+        <label><span>Party</span><select name="party_code"><option value="">Select</option>{% for party in parties %}<option value="{{ party.party_code }}" {% if values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }}</option>{% endfor %}</select></label>
+        <label><span>Fee Type</span><select name="fee_type">{% for item in fee_type_options %}<option value="{{ item }}" {% if values.fee_type == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label><span>Due Date</span><input type="date" name="due_date" value="{{ values.due_date }}"></label>
+        <label><span>Annual Amount</span><input type="number" step="0.01" name="annual_amount" value="{{ values.annual_amount }}"></label>
+        <label><span>Received Amount</span><input type="number" step="0.01" name="received_amount" value="{{ values.received_amount }}"></label>
+        <label><span>Vehicle No</span><input type="text" name="vehicle_no" value="{{ values.vehicle_no }}"></label>
+        <label><span>Description</span><input type="text" name="description" value="{{ values.description }}" placeholder="Visa renewal / Vehicle under company"></label>
+        <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ values.notes }}</textarea></label>
+        <div class="form-actions left-actions full-span"><button class="button" type="submit">{% if values.original_fee_no %}Update Annual Fee{% else %}Save Annual Fee{% endif %}</button>{% if values.original_fee_no %}<a class="button button-secondary" href="{{ url_for('annual_fees') }}">Cancel</a>{% endif %}</div>
+    </form>
+</section>
+
+<section class="card table-card">
+    <div class="section-heading slim-heading"><div><p class="eyebrow">Tracker</p><h2>Annual Fee Register</h2></div></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>No</th><th>Party</th><th>Type</th><th>Due</th><th>Annual</th><th>Received</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for item in rows %}
+                    <tr><td>{{ item.fee_no }}</td><td>{{ item.party_name }}</td><td>{{ item.fee_type }}</td><td>{{ item.due_date }}</td><td>AED {{ "%.2f"|format(item.annual_amount) }}</td><td>AED {{ "%.2f"|format(item.received_amount) }}</td><td>AED {{ "%.2f"|format(item.balance_amount) }}</td><td>{{ item.status }}</td><td><div class="form-actions left-actions"><a class="button button-secondary" href="{{ url_for('annual_fees', edit_fee=item.fee_no) }}">Edit</a><form method="post" action="{{ url_for('delete_annual_fee', fee_no=item.fee_no) }}" onsubmit="return confirm('Delete this annual fee row?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button danger-button" type="submit">Delete</button></form></div></td></tr>
+                {% else %}
+                    <tr><td colspan="9">No annual fee rows yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

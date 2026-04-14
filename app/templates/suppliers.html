@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <article class="card dashboard-hero-card">
+        <div>
+            <p class="eyebrow">Accounts</p>
+            <h2>Suppliers & Payables Desk</h2>
+            <p class="lead">Vendor profile, hired fleet, purchase invoices and payable follow-up in one place.</p>
+        </div>
+    </article>
+</section>
+
+<section class="stats premium-stats">
+    <article class="card stat-card premium-stat-card blue-stat"><span>Suppliers</span><strong>{{ summary.supplier_count }}</strong><small>Parties marked as supplier.</small></article>
+    <article class="card stat-card premium-stat-card orange-stat"><span>Open Bills</span><strong>{{ summary.open_purchase_invoices }}</strong><small>Purchase invoices with balance.</small></article>
+    <article class="card stat-card premium-stat-card navy-stat"><span>Total Payable</span><strong>AED {{ "%.2f"|format(summary.payable_total) }}</strong><small>Live payable outstanding.</small></article>
+    <article class="card stat-card premium-stat-card green-stat"><span>Hire Register</span><strong>AED {{ "%.2f"|format(summary.hire_total) }}</strong><small>Supplier hire value booked.</small></article>
+</section>
+
+<section class="quick-link-grid dashboard-quick-grid">
+    <a class="card quick-link-card accent-card" href="{{ url_for('agreements_lpos') }}">
+        <span class="eyebrow">Contracts</span>
+        <strong>Agreements & LPOs</strong>
+        <p>Register supplier contracts, LPOs and hired assets.</p>
+    </a>
+    <a class="card quick-link-card owner-card" href="{{ url_for('invoice_center') }}">
+        <span class="eyebrow">Bills</span>
+        <strong>Invoice Center</strong>
+        <p>Create purchase invoices and mark payments.</p>
+    </a>
+    <a class="card quick-link-card" href="{{ url_for('party_list') }}">
+        <span class="eyebrow">Master</span>
+        <strong>Party Master</strong>
+        <p>Add or edit supplier contact details.</p>
+    </a>
+</section>
+
+<section class="detail-layout dashboard-layout chart-layout">
+    <article class="card table-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Suppliers</p>
+                <h2>Supplier Directory</h2>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Supplier</th><th>Contact</th><th>Status</th><th>Statement</th></tr></thead>
+                <tbody>
+                    {% for item in supplier_parties %}
+                        <tr>
+                            <td><strong>{{ item.party_name }}</strong><div class="muted-text">{{ item.party_code }}</div></td>
+                            <td>{{ item.contact_person or "-" }}<div class="muted-text">{{ item.phone_number or "-" }}</div></td>
+                            <td>{{ item.status }}</td>
+                            <td><a class="table-link" href="{{ url_for('supplier_statement', party_code=item.party_code) }}">Open Statement</a></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="4">No supplier parties found yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="card table-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Exposure</p>
+                <h2>Top Supplier Payables</h2>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Supplier</th><th>Invoices</th><th>Total</th><th>Outstanding</th></tr></thead>
+                <tbody>
+                    {% for item in top_payables %}
+                        <tr>
+                            <td>{{ item.party_name }}</td>
+                            <td>{{ item.invoice_count }}</td>
+                            <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                            <td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="4">No payable rows yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+
+<section class="detail-layout dashboard-layout chart-layout">
+    <article class="card table-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Hire</p>
+                <h2>Recent Supplier Hire Rows</h2>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Date</th><th>Hire No</th><th>Supplier</th><th>Asset</th><th>Total</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for item in recent_hires %}
+                        <tr><td>{{ item.entry_date }}</td><td>{{ item.hire_no }}</td><td>{{ item.party_name }}</td><td>{{ item.asset_name }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td><td>{{ item.status }}</td></tr>
+                    {% else %}
+                        <tr><td colspan="6">No supplier hire registered yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="card table-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Bills</p>
+                <h2>Recent Purchase Invoices</h2>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Invoice</th><th>Supplier</th><th>Date</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for item in recent_invoices %}
+                        <tr><td>{{ item.invoice_no }}</td><td>{{ item.party_name }}</td><td>{{ item.issue_date }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td><td>AED {{ "%.2f"|format(item.balance_amount) }}</td><td>{{ item.status }}</td></tr>
+                    {% else %}
+                        <tr><td colspan="6">No purchase invoices created yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+{% endblock %}

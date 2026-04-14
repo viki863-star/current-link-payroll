@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <article class="card dashboard-hero-card">
+        <div>
+            <p class="eyebrow">Finance</p>
+            <h2>Invoice & Payment Center</h2>
+            <p class="lead">Create sales or purchase invoices, then post receipts or payments against them.</p>
+        </div>
+    </article>
+</section>
+
+<section class="stats premium-stats">
+    <article class="card stat-card premium-stat-card blue-stat"><span>Sales Invoices</span><strong>AED {{ "%.2f"|format(summary.sales_total) }}</strong><small>Total billed to customers.</small></article>
+    <article class="card stat-card premium-stat-card orange-stat"><span>Purchase Bills</span><strong>AED {{ "%.2f"|format(summary.purchase_total) }}</strong><small>Total vendor invoices recorded.</small></article>
+    <article class="card stat-card premium-stat-card green-stat"><span>Receipts</span><strong>AED {{ "%.2f"|format(summary.received_total) }}</strong><small>Collected against sales invoices.</small></article>
+    <article class="card stat-card premium-stat-card navy-stat"><span>Open Invoices</span><strong>{{ summary.open_invoice_count }}</strong><small>Invoices still carrying balance.</small></article>
+</section>
+
+<section class="detail-layout dashboard-layout chart-layout">
+    <article class="card action-panel form-panel">
+        <div class="section-heading slim-heading"><div><p class="eyebrow">Invoice</p><h2>{% if invoice_values.original_invoice_no %}Edit Invoice{% else %}Create Invoice{% endif %}</h2></div></div>
+        <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_invoice">
+            <input type="hidden" name="original_invoice_no" value="{{ invoice_values.original_invoice_no }}">
+            <label><span>Invoice No</span><input type="text" name="invoice_no" value="{{ invoice_values.invoice_no }}"></label>
+            <label><span>Kind</span><select name="invoice_kind">{% for item in invoice_kind_options %}<option value="{{ item }}" {% if invoice_values.invoice_kind == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+            <label><span>Party</span><select name="party_code"><option value="">Select</option>{% for party in parties %}<option value="{{ party.party_code }}" {% if invoice_values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }}</option>{% endfor %}</select></label>
+            <label><span>Agreement</span><select name="agreement_no"><option value="">Optional</option>{% for item in agreements %}<option value="{{ item.agreement_no }}" {% if invoice_values.agreement_no == item.agreement_no %}selected{% endif %}>{{ item.agreement_no }}</option>{% endfor %}</select></label>
+            <label><span>LPO</span><select name="lpo_no"><option value="">Optional</option>{% for item in lpos %}<option value="{{ item.lpo_no }}" {% if invoice_values.lpo_no == item.lpo_no %}selected{% endif %}>{{ item.lpo_no }}</option>{% endfor %}</select></label>
+            <label><span>Hire No</span><select name="hire_no"><option value="">Optional</option>{% for item in hires %}<option value="{{ item.hire_no }}" {% if invoice_values.hire_no == item.hire_no %}selected{% endif %}>{{ item.hire_no }} - {{ item.asset_name }}</option>{% endfor %}</select></label>
+            <label><span>Issue Date</span><input type="date" name="issue_date" value="{{ invoice_values.issue_date }}"></label>
+            <label><span>Due Date</span><input type="date" name="due_date" value="{{ invoice_values.due_date }}"></label>
+            <label><span>Subtotal</span><input type="number" step="0.01" name="subtotal" value="{{ invoice_values.subtotal }}"></label>
+            <label><span>Tax %</span><input type="number" step="0.01" name="tax_percent" value="{{ invoice_values.tax_percent }}"></label>
+            <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ invoice_values.notes }}</textarea></label>
+            <div class="form-actions left-actions full-span"><button class="button" type="submit">{% if invoice_values.original_invoice_no %}Update Invoice{% else %}Create Invoice{% endif %}</button>{% if invoice_values.original_invoice_no %}<a class="button button-secondary" href="{{ url_for('invoice_center') }}">Cancel</a>{% endif %}</div>
+        </form>
+    </article>
+
+    <article class="card action-panel form-panel">
+        <div class="section-heading slim-heading"><div><p class="eyebrow">Payment</p><h2>{% if payment_values.original_voucher_no %}Edit Receipt / Payment{% else %}Post Receipt / Payment{% endif %}</h2></div></div>
+        <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_payment">
+            <input type="hidden" name="original_voucher_no" value="{{ payment_values.original_voucher_no }}">
+            <label><span>Voucher No</span><input type="text" name="voucher_no" value="{{ payment_values.voucher_no }}"></label>
+            <label><span>Invoice</span><select name="invoice_no"><option value="">Select open invoice</option>{% for item in open_invoices %}<option value="{{ item.invoice_no }}" {% if payment_values.invoice_no == item.invoice_no %}selected{% endif %}>{{ item.invoice_no }} / {{ item.party_name }} / AED {{ "%.2f"|format(item.balance_amount) }}</option>{% endfor %}</select></label>
+            <label><span>Payment Date</span><input type="date" name="entry_date" value="{{ payment_values.entry_date }}"></label>
+            <label><span>Method</span><select name="payment_method">{% for item in payment_method_options %}<option value="{{ item }}" {% if payment_values.payment_method == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+            <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ payment_values.amount }}"></label>
+            <label><span>Reference</span><input type="text" name="reference" value="{{ payment_values.reference }}"></label>
+            <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ payment_values.notes }}</textarea></label>
+            <div class="form-actions left-actions full-span"><button class="button success-button" type="submit">{% if payment_values.original_voucher_no %}Update Payment{% else %}Post Payment{% endif %}</button>{% if payment_values.original_voucher_no %}<a class="button button-secondary" href="{{ url_for('invoice_center') }}">Cancel</a>{% endif %}</div>
+        </form>
+    </article>
+</section>
+
+<section class="detail-layout dashboard-layout chart-layout">
+    <article class="card table-card">
+        <div class="section-heading slim-heading"><div><p class="eyebrow">Invoices</p><h2>Recent Invoices</h2></div></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>No</th><th>Kind</th><th>Party</th><th>Date</th><th>Total</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for item in invoices %}
+                        <tr><td>{{ item.invoice_no }}</td><td>{{ item.invoice_kind }}</td><td>{{ item.party_name }}</td><td>{{ item.issue_date }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td><td>AED {{ "%.2f"|format(item.balance_amount) }}</td><td>{{ item.status }}</td><td><div class="form-actions left-actions"><a class="button button-secondary" href="{{ url_for('invoice_center', edit_invoice=item.invoice_no) }}">Edit</a><form method="post" action="{{ url_for('delete_invoice', invoice_no=item.invoice_no) }}" onsubmit="return confirm('Delete this invoice?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button danger-button" type="submit">Delete</button></form></div></td></tr>
+                    {% else %}
+                        <tr><td colspan="8">No invoices yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="card table-card">
+        <div class="section-heading slim-heading"><div><p class="eyebrow">Payments</p><h2>Recent Receipts & Payments</h2></div></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Voucher</th><th>Invoice</th><th>Party</th><th>Type</th><th>Date</th><th>Amount</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for item in payments %}
+                        <tr><td>{{ item.voucher_no }}</td><td>{{ item.invoice_no }}</td><td>{{ item.party_name }}</td><td>{{ item.payment_kind }}</td><td>{{ item.entry_date }}</td><td>AED {{ "%.2f"|format(item.amount) }}</td><td><div class="form-actions left-actions"><a class="button button-secondary" href="{{ url_for('invoice_center', edit_payment=item.voucher_no) }}">Edit</a><form method="post" action="{{ url_for('delete_payment', voucher_no=item.voucher_no) }}" onsubmit="return confirm('Delete this payment?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button danger-button" type="submit">Delete</button></form></div></td></tr>
+                    {% else %}
+                        <tr><td colspan="7">No payments posted yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+{% endblock %}

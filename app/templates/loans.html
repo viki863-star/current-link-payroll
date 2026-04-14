@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <article class="card dashboard-hero-card">
+        <div>
+            <p class="eyebrow">Recovery</p>
+            <h2>Loans & Recoveries</h2>
+            <p class="lead">Track money given out, recoveries received back and outstanding loan exposure.</p>
+        </div>
+    </article>
+</section>
+
+<section class="stats premium-stats">
+    <article class="card stat-card premium-stat-card blue-stat"><span>Loans Given</span><strong>AED {{ "%.2f"|format(summary.total_given) }}</strong><small>Total amount given out.</small></article>
+    <article class="card stat-card premium-stat-card green-stat"><span>Recovered</span><strong>AED {{ "%.2f"|format(summary.total_recovered) }}</strong><small>Total amount recovered.</small></article>
+    <article class="card stat-card premium-stat-card orange-stat"><span>Outstanding</span><strong>AED {{ "%.2f"|format(summary.outstanding) }}</strong><small>Still to be collected.</small></article>
+</section>
+
+<section class="card action-panel form-panel">
+    <div class="section-heading slim-heading"><div><p class="eyebrow">Loan Entry</p><h2>{% if values.original_loan_no %}Edit Loan / Recovery{% else %}Create Loan / Recovery{% endif %}</h2></div></div>
+    <form method="post" class="entry-form two-column-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="original_loan_no" value="{{ values.original_loan_no }}">
+        <label><span>Loan No</span><input type="text" name="loan_no" value="{{ values.loan_no }}"></label>
+        <label><span>Party</span><select name="party_code"><option value="">Select</option>{% for party in parties %}<option value="{{ party.party_code }}" {% if values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }}</option>{% endfor %}</select></label>
+        <label><span>Type</span><select name="loan_type">{% for item in loan_type_options %}<option value="{{ item }}" {% if values.loan_type == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label><span>Date</span><input type="date" name="entry_date" value="{{ values.entry_date }}"></label>
+        <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ values.amount }}"></label>
+        <label><span>Method</span><select name="payment_method">{% for item in payment_method_options %}<option value="{{ item }}" {% if values.payment_method == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label><span>Reference</span><input type="text" name="reference" value="{{ values.reference }}"></label>
+        <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ values.notes }}</textarea></label>
+        <div class="form-actions left-actions full-span"><button class="button" type="submit">{% if values.original_loan_no %}Update Loan Entry{% else %}Save Loan Entry{% endif %}</button>{% if values.original_loan_no %}<a class="button button-secondary" href="{{ url_for('loans_center') }}">Cancel</a>{% endif %}</div>
+    </form>
+</section>
+
+<section class="card table-card">
+    <div class="section-heading slim-heading"><div><p class="eyebrow">Ledger</p><h2>Loan Movement</h2></div></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>No</th><th>Party</th><th>Date</th><th>Type</th><th>Method</th><th>Amount</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for item in rows %}
+                    <tr><td>{{ item.loan_no }}</td><td>{{ item.party_name }}</td><td>{{ item.entry_date }}</td><td>{{ item.loan_type }}</td><td>{{ item.payment_method }}</td><td>AED {{ "%.2f"|format(item.amount) }}</td><td><div class="form-actions left-actions"><a class="button button-secondary" href="{{ url_for('loans_center', edit_loan=item.loan_no) }}">Edit</a><form method="post" action="{{ url_for('delete_loan_entry', loan_no=item.loan_no) }}" onsubmit="return confirm('Delete this loan entry?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button danger-button" type="submit">Delete</button></form></div></td></tr>
+                {% else %}
+                    <tr><td colspan="7">No loan rows yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
