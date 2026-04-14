@@ -1011,8 +1011,9 @@ label span {
     overflow: hidden;
     min-height: 250px;
     padding: 28px;
-    display: grid;
-    align-content: space-between;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     gap: 18px;
     border-radius: 28px;
     border: 1px solid rgba(21, 51, 93, 0.08);
@@ -1061,6 +1062,13 @@ label span {
     font-weight: 600;
 }
 
+.desk-card-copy {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 10px;
+}
+
 .desk-kicker {
     position: relative;
     z-index: 1;
@@ -1079,15 +1087,16 @@ label span {
 }
 
 .desk-metrics {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+    position: relative;
+    z-index: 1;
 }
 
 .desk-metrics span {
     display: grid;
     gap: 3px;
-    min-width: 120px;
     padding: 12px 14px;
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.76);
@@ -1127,6 +1136,150 @@ label span {
     background:
         radial-gradient(circle at top right, rgba(86, 84, 196, 0.16), transparent 24%),
         linear-gradient(145deg, #f8f7ff, #ecebfb);
+}
+
+.driver-desk-shell {
+    display: grid;
+    gap: 18px;
+}
+
+.driver-desk-toolbar {
+    padding: 22px;
+    background:
+        radial-gradient(circle at top right, rgba(28, 86, 139, 0.10), transparent 18%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.985), rgba(244, 248, 255, 0.98));
+}
+
+.driver-desk-filter-form {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    align-items: end;
+}
+
+.driver-desk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.driver-desk-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.driver-desk-stats span {
+    display: grid;
+    gap: 4px;
+    min-width: 108px;
+    padding: 10px 14px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    box-shadow: 0 10px 22px rgba(19, 56, 104, 0.05);
+}
+
+.driver-desk-stats strong {
+    font-size: 1.02rem;
+    color: var(--primary-dark);
+}
+
+.driver-desk-stats small {
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.driver-desk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+    gap: 16px;
+}
+
+.driver-desk-card {
+    display: grid;
+    gap: 16px;
+    padding: 20px;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(28, 86, 139, 0.14), transparent 24%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.99), rgba(241, 247, 255, 0.98));
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    box-shadow: 0 18px 34px rgba(19, 56, 104, 0.10);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.driver-desk-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 24px 42px rgba(19, 56, 104, 0.14);
+}
+
+.driver-desk-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+}
+
+.driver-desk-id {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 6px 11px;
+    border-radius: 999px;
+    background: rgba(21, 51, 93, 0.07);
+    color: var(--primary-dark);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.driver-desk-body {
+    display: grid;
+    gap: 8px;
+}
+
+.driver-desk-body h2 {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.55rem;
+    letter-spacing: -0.03em;
+}
+
+.driver-desk-line {
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.driver-desk-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.driver-desk-meta span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    color: var(--primary-dark);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.driver-desk-empty {
+    padding: 26px;
+    text-align: center;
+}
+
+.driver-desk-empty h2 {
+    margin: 0 0 8px;
+    font-family: Georgia, "Times New Roman", serif;
 }
 
 .quick-link-card {
@@ -3213,6 +3366,10 @@ html {
         grid-template-columns: 1fr;
     }
 
+    .driver-desk-filter-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .supplier-workspace-form {
         grid-template-columns: 1fr;
     }
@@ -3315,6 +3472,17 @@ html {
     .desk-card {
         min-height: 220px;
         padding: 22px;
+    }
+
+    .desk-metrics,
+    .driver-desk-filter-form {
+        grid-template-columns: 1fr;
+    }
+
+    .driver-desk-actions,
+    .driver-desk-stats {
+        flex-direction: column;
+        align-items: stretch;
     }
 
     .brand-banner-shell {

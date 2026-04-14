@@ -4,9 +4,11 @@
 <section class="desk-dashboard-shell">
     <div class="desk-grid">
         <a class="card desk-card desk-driver" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">
-            <span class="desk-kicker">Drivers</span>
-            <h2>Driver Desk</h2>
-            <p>Payroll and driver control.</p>
+            <div class="desk-card-copy">
+                <span class="desk-kicker">Drivers</span>
+                <h2>Driver Desk</h2>
+                <p>Payroll and control.</p>
+            </div>
             <div class="desk-metrics">
                 <span><strong>{{ total_drivers }}</strong><small>Total</small></span>
                 <span><strong>{{ active_drivers }}</strong><small>Active</small></span>
@@ -14,9 +16,11 @@
         </a>
 
         <a class="card desk-card desk-supplier" href="{{ url_for('switch_workspace', workspace_key='suppliers') }}">
-            <span class="desk-kicker">Suppliers</span>
-            <h2>Supplier Desk</h2>
-            <p>Fleet, timesheets and payments.</p>
+            <div class="desk-card-copy">
+                <span class="desk-kicker">Suppliers</span>
+                <h2>Supplier Desk</h2>
+                <p>Fleet and payments.</p>
+            </div>
             <div class="desk-metrics">
                 <span><strong>{{ supplier_hub_summary.supplier_count }}</strong><small>Suppliers</small></span>
                 <span><strong>AED {{ "%.0f"|format(supplier_hub_summary.outstanding_total) }}</strong><small>Due</small></span>
@@ -24,9 +28,11 @@
         </a>
 
         <a class="card desk-card desk-customer" href="{{ url_for('switch_workspace', workspace_key='customers') }}">
-            <span class="desk-kicker">Customers</span>
-            <h2>Customer Desk</h2>
-            <p>Invoices and statements.</p>
+            <div class="desk-card-copy">
+                <span class="desk-kicker">Customers</span>
+                <h2>Customer Desk</h2>
+                <p>Invoices and statements.</p>
+            </div>
             <div class="desk-metrics">
                 <span><strong>{{ customer_summary.customer_count }}</strong><small>Customers</small></span>
                 <span><strong>AED {{ "%.0f"|format(customer_summary.receivable_total) }}</strong><small>Open</small></span>
@@ -34,9 +40,11 @@
         </a>
 
         <a class="card desk-card desk-accounts" href="{{ url_for('switch_workspace', workspace_key='accounts') }}">
-            <span class="desk-kicker">Accounts</span>
-            <h2>Accounts Desk</h2>
-            <p>Fund, tax and reports.</p>
+            <div class="desk-card-copy">
+                <span class="desk-kicker">Accounts</span>
+                <h2>Accounts Desk</h2>
+                <p>Fund, tax and reports.</p>
+            </div>
             <div class="desk-metrics">
                 <span><strong>{{ invoice_summary.open_invoice_count }}</strong><small>Open</small></span>
                 <span><strong>AED {{ "%.0f"|format(owner_fund_balance) }}</strong><small>Fund</small></span>

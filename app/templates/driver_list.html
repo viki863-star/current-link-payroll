@@ -1,133 +1,78 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="stats compact-stats">
-    <article class="card stat-card premium-stat-card blue-stat">
-        <span>Visible Drivers</span>
-        <strong>{{ driver_count }}</strong>
-    </article>
-    <article class="card stat-card premium-stat-card green-stat">
-        <span>Active</span>
-        <strong>{{ active_count }}</strong>
-    </article>
-    <article class="card stat-card premium-stat-card slate-stat">
-        <span>Inactive</span>
-        <strong>{{ inactive_count }}</strong>
-    </article>
-</section>
-
-<section class="card search-panel compact-panel premium-filter-panel">
-    <div class="section-heading slim-heading">
-        <div>
-            <p class="eyebrow">Directory</p>
-            <h2>Premium Driver List</h2>
+<section class="driver-desk-shell">
+    <article class="card driver-desk-toolbar">
+        <form method="get" class="driver-desk-filter-form">
+            <label>
+                <span>Search</span>
+                <input type="search" name="q" value="{{ query }}" placeholder="Driver, ID, phone, vehicle">
+            </label>
+            <label>
+                <span>Status</span>
+                <select name="status">
+                    <option value="">All</option>
+                    <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </label>
+            <label>
+                <span>Shift</span>
+                <select name="shift">
+                    <option value="">All</option>
+                    {% for item in shifts %}
+                        <option value="{{ item }}" {% if shift_filter == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Vehicle</span>
+                <select name="vehicle_type">
+                    <option value="">All</option>
+                    {% for item in vehicle_types %}
+                        <option value="{{ item }}" {% if vehicle_filter == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <div class="driver-desk-actions">
+                <button class="button" type="submit">Search</button>
+                <a class="button button-secondary" href="{{ url_for('create_driver') }}">Add Driver</a>
+                {% if query or status_filter or shift_filter or vehicle_filter %}
+                    <a class="button button-secondary" href="{{ url_for('driver_list') }}">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+        <div class="driver-desk-stats">
+            <span><strong>{{ driver_count }}</strong><small>Total</small></span>
+            <span><strong>{{ active_count }}</strong><small>Active</small></span>
+            <span><strong>{{ inactive_count }}</strong><small>Inactive</small></span>
         </div>
-    </div>
-    <form method="get" class="filter-grid">
-        <label>
-            <span>Search</span>
-            <input type="search" name="q" value="{{ query }}" placeholder="Search driver, ID, vehicle">
-        </label>
-        <label>
-            <span>Status</span>
-            <select name="status">
-                <option value="">All</option>
-                <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
-                <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
-            </select>
-        </label>
-        <label>
-            <span>Shift</span>
-            <select name="shift">
-                <option value="">All</option>
-                {% for item in shifts %}
-                    <option value="{{ item }}" {% if shift_filter == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>
-            <span>Vehicle Type</span>
-            <select name="vehicle_type">
-                <option value="">All</option>
-                {% for item in vehicle_types %}
-                    <option value="{{ item }}" {% if vehicle_filter == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <div class="form-actions left-actions full-span">
-            <button class="button" type="submit">Apply Filters</button>
-            <a class="button button-secondary" href="{{ url_for('create_driver') }}">Add Driver</a>
-            <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-            {% if query or status_filter or shift_filter or vehicle_filter %}
-                <a class="button button-secondary" href="{{ url_for('driver_list') }}">Clear</a>
-            {% endif %}
-        </div>
-    </form>
-</section>
+    </article>
 
-<section class="card table-card premium-directory-card">
-    <div class="table-wrap">
-        <table class="premium-directory-table">
-            <thead>
-                <tr>
-                    <th>Driver</th>
-                    <th>Contact</th>
-                    <th>Vehicle</th>
-                    <th>Salary</th>
-                    <th>Join Date</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for driver in drivers %}
-                    <tr>
-                        <td>
-                            <div class="directory-driver-cell">
-                                <div class="directory-badge">{{ driver.driver_id }}</div>
-                                <div>
-                                    <strong>{{ driver.full_name }}</strong>
-                                    <div class="directory-meta">{{ driver.shift }} | {{ driver.vehicle_type }}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <div>{{ driver.phone_number or "-" }}</div>
-                            <div class="directory-meta">Vehicle {{ driver.vehicle_no }}</div>
-                        </td>
-                        <td>
-                            <div>{{ driver.vehicle_no }}</div>
-                            <div class="directory-meta">{{ driver.vehicle_type }}</div>
-                        </td>
-                        <td>
-                            <div>AED {{ "%.2f"|format(driver.basic_salary) }}</div>
-                            <div class="directory-meta">OT {{ "%.2f"|format(driver.ot_rate) }}</div>
-                        </td>
-                        <td>{{ driver.duty_start or "-" }}</td>
-                        <td><span class="status-chip {{ driver.status|lower }}">{{ driver.status }}</span></td>
-                        <td>
-                            <div class="table-actions">
-                                <a class="mini-action-link" href="{{ url_for('edit_driver', driver_id=driver.driver_id) }}">Edit</a>
-                                <a class="mini-action-link" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Open</a>
-                                <form method="post" action="{{ url_for('update_driver_status', driver_id=driver.driver_id) }}">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="status" value="{{ 'Inactive' if driver.status == 'Active' else 'Active' }}">
-                                    <button class="mini-action-button" type="submit">{{ 'Set Inactive' if driver.status == 'Active' else 'Set Active' }}</button>
-                                </form>
-                                <form method="post" action="{{ url_for('delete_driver', driver_id=driver.driver_id) }}" onsubmit="return confirm('Delete this driver and all related records?');">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button class="mini-action-button" type="submit">Delete</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                {% else %}
-                    <tr>
-                        <td colspan="7" class="muted-text">No drivers found for the current filters.</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <section class="driver-desk-grid">
+        {% for driver in drivers %}
+            <a class="card driver-desk-card" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">
+                <div class="driver-desk-head">
+                    <span class="driver-desk-id">{{ driver.driver_id }}</span>
+                    <span class="status-chip {{ driver.status|lower }}">{{ driver.status }}</span>
+                </div>
+                <div class="driver-desk-body">
+                    <h2>{{ driver.full_name }}</h2>
+                    <div class="driver-desk-line">{{ driver.phone_number or "No phone" }}</div>
+                    <div class="driver-desk-line">{{ driver.vehicle_no or "-" }}{% if driver.vehicle_type %} | {{ driver.vehicle_type }}{% endif %}</div>
+                    <div class="driver-desk-line">{{ driver.shift or "Shift -" }}</div>
+                </div>
+                <div class="driver-desk-meta">
+                    <span>AED {{ "%.0f"|format(driver.basic_salary) }}</span>
+                    <span>{{ driver.duty_start or "-" }}</span>
+                </div>
+            </a>
+        {% else %}
+            <article class="card driver-desk-empty">
+                <h2>No Driver Found</h2>
+                <p>Change search or add a new driver.</p>
+            </article>
+        {% endfor %}
+    </section>
 </section>
 {% endblock %}
