@@ -309,6 +309,7 @@ CREATE TABLE IF NOT EXISTS account_invoices (
     lpo_no TEXT,
     hire_no TEXT,
     invoice_kind TEXT NOT NULL DEFAULT 'Sales',
+    document_type TEXT NOT NULL DEFAULT 'Tax Invoice',
     issue_date TEXT NOT NULL,
     due_date TEXT,
     subtotal REAL NOT NULL DEFAULT 0,
@@ -318,9 +319,23 @@ CREATE TABLE IF NOT EXISTS account_invoices (
     paid_amount REAL NOT NULL DEFAULT 0,
     balance_amount REAL NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'Open',
+    pdf_path TEXT,
     notes TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS account_invoice_lines (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoice_no TEXT NOT NULL,
+    line_no INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    quantity REAL NOT NULL DEFAULT 1,
+    unit_label TEXT,
+    rate REAL NOT NULL DEFAULT 0,
+    subtotal REAL NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(invoice_no) REFERENCES account_invoices(invoice_no)
 );
 
 CREATE TABLE IF NOT EXISTS account_payments (
@@ -708,6 +723,7 @@ CREATE TABLE IF NOT EXISTS account_invoices (
     lpo_no TEXT,
     hire_no TEXT,
     invoice_kind TEXT NOT NULL DEFAULT 'Sales',
+    document_type TEXT NOT NULL DEFAULT 'Tax Invoice',
     issue_date TEXT NOT NULL,
     due_date TEXT,
     subtotal DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -717,9 +733,23 @@ CREATE TABLE IF NOT EXISTS account_invoices (
     paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     balance_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'Open',
+    pdf_path TEXT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS account_invoice_lines (
+    id BIGSERIAL PRIMARY KEY,
+    invoice_no TEXT NOT NULL,
+    line_no INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    quantity DOUBLE PRECISION NOT NULL DEFAULT 1,
+    unit_label TEXT,
+    rate DOUBLE PRECISION NOT NULL DEFAULT 0,
+    subtotal DOUBLE PRECISION NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(invoice_no) REFERENCES account_invoices(invoice_no)
 );
 
 CREATE TABLE IF NOT EXISTS account_payments (
@@ -826,6 +856,10 @@ REQUIRED_COLUMNS = {
         "salary_days": "DOUBLE PRECISION NOT NULL DEFAULT 30",
         "daily_rate": "DOUBLE PRECISION NOT NULL DEFAULT 0",
         "monthly_basic_salary": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+    },
+    "account_invoices": {
+        "document_type": "TEXT NOT NULL DEFAULT 'Tax Invoice'",
+        "pdf_path": "TEXT",
     },
 }
 

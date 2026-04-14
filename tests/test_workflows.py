@@ -1358,3 +1358,122 @@ def test_supplier_workspace_records_support_edit_delete_and_balance_resync(app, 
         assert voucher_row == 0
         assert payment_row == 0
 
+
+def test_invoice_center_generates_tax_invoice_pdf_with_line_items(app, client):
+    admin_session(client)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO company_profile (
+                company_name, legal_name, trade_license_no, trn_no, vat_status, address,
+                phone_number, email, invoice_terms, base_currency
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "Current Link",
+                "Current Link Transport and General Contracting LLC SPC",
+                "CN-12345",
+                "100123456700003",
+                "Registered",
+                "Mussafah M17, Abu Dhabi",
+                "0501224963",
+                "info@currentlinkgc.com",
+                "30 Days",
+                "AED",
+            ),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person, phone_number,
+                email, trn_no, address, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "PTY-CUST-01",
+                "Al Noor Projects",
+                "Company",
+                "Customer",
+                "Naeem",
+                "0501002003",
+                "accounts@alnoor.example.com",
+                "100987654300003",
+                "Dubai Industrial City",
+                "Active",
+            ),
+        )
+        db.commit()
+
+    response = client.post(
+        "/invoices",
+        data={
+            "action": "save_invoice",
+            "original_invoice_no": "",
+            "invoice_no": "INV-CUST-01",
+            "invoice_kind": "Sales",
+            "document_type": "Tax Invoice",
+            "party_code": "PTY-CUST-01",
+            "agreement_no": "",
+            "lpo_no": "",
+            "hire_no": "",
+            "issue_date": "2026-05-01",
+            "due_date": "2026-05-31",
+            "subtotal": "",
+            "tax_percent": "5",
+            "notes": "April transport and trailer support",
+            "line_description_1": "Trailer monthly deployment",
+            "line_unit_1": "Month",
+            "line_quantity_1": "1",
+            "line_rate_1": "12000",
+            "line_subtotal_1": "",
+            "line_description_2": "Extra standby trips",
+            "line_unit_2": "Trips",
+            "line_quantity_2": "4",
+            "line_rate_2": "250",
+            "line_subtotal_2": "",
+            "line_description_3": "",
+            "line_unit_3": "",
+            "line_quantity_3": "",
+            "line_rate_3": "",
+            "line_subtotal_3": "",
+            "line_description_4": "",
+            "line_unit_4": "",
+            "line_quantity_4": "",
+            "line_rate_4": "",
+            "line_subtotal_4": "",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"Invoice created successfully." in response.data
+
+    pdf_response = client.get("/invoices/INV-CUST-01/pdf", follow_redirects=False)
+    assert pdf_response.status_code == 302
+    assert "/generated/" in pdf_response.headers["Location"]
+
+    with app.app_context():
+        db = open_db()
+        invoice_row = db.execute(
+            """
+            SELECT document_type, subtotal, tax_amount, total_amount, pdf_path
+            FROM account_invoices
+            WHERE invoice_no = ?
+            """,
+            ("INV-CUST-01",),
+        ).fetchone()
+        line_count = db.execute(
+            "SELECT COUNT(*) FROM account_invoice_lines WHERE invoice_no = ?",
+            ("INV-CUST-01",),
+        ).fetchone()[0]
+
+        assert invoice_row is not None
+        assert invoice_row["document_type"] == "Tax Invoice"
+        assert float(invoice_row["subtotal"]) == 13000.0
+        assert float(invoice_row["tax_amount"]) == 650.0
+        assert float(invoice_row["total_amount"]) == 13650.0
+        assert line_count == 2
+        assert invoice_row["pdf_path"].startswith("invoices/")
+        assert (Path(app.config["GENERATED_DIR"]) / invoice_row["pdf_path"]).exists()
+

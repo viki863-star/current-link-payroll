@@ -306,6 +306,156 @@ def generate_supplier_payment_voucher_pdf(party, voucher, payment, output_dir: s
     return str(output_path)
 
 
+def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output_dir: str, assets_dir: str) -> str:
+    safe_invoice_no = str(invoice["invoice_no"]).replace("/", "-")
+    output_path = Path(output_dir) / f"{safe_invoice_no}_tax-invoice.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    subtotal = float(invoice["subtotal"] or 0.0)
+    tax_percent = float(invoice["tax_percent"] or 0.0)
+    tax_amount = float(invoice["tax_amount"] or 0.0)
+    total_amount = float(invoice["total_amount"] or 0.0)
+    paid_amount = float(invoice["paid_amount"] or 0.0)
+    balance_amount = float(invoice["balance_amount"] or 0.0)
+    currency = company_profile.get("base_currency") or "AED"
+    title = invoice.get("document_type") or ("Tax Invoice" if (invoice.get("invoice_kind") or "Sales") == "Sales" else "Supplier Bill")
+
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+    _draw_header(pdf, assets_dir)
+    _draw_title(pdf, title, "VAT-ready invoice with line items, references and running balance")
+
+    seller_x = 16 * mm
+    seller_y = PAGE_HEIGHT - 108 * mm
+    seller_w = 86 * mm
+    seller_h = 33 * mm
+    buyer_x = 108 * mm
+    buyer_y = seller_y
+    buyer_w = 86 * mm
+    buyer_h = seller_h
+
+    for box_x, box_y, box_w, box_h, heading in (
+        (seller_x, seller_y, seller_w, seller_h, "SELLER"),
+        (buyer_x, buyer_y, buyer_w, buyer_h, "BILL TO"),
+    ):
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(box_x, box_y, box_w, box_h, 4 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(box_x, box_y, box_w, box_h, 4 * mm, fill=0, stroke=1)
+        pdf.setFillColor(BLUE_SOFT)
+        pdf.roundRect(box_x, box_y + box_h - 8 * mm, box_w, 8 * mm, 4 * mm, fill=1, stroke=0)
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont("Helvetica-Bold", 8.5)
+        pdf.drawString(box_x + 4 * mm, box_y + box_h - 5.2 * mm, heading)
+
+    pdf.setFillColor(TEXT)
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(seller_x + 4 * mm, seller_y + 19.5 * mm, (company_profile.get("company_name") or "Current Link")[:34])
+    pdf.setFont("Helvetica", 7.6)
+    pdf.drawString(seller_x + 4 * mm, seller_y + 14 * mm, (company_profile.get("legal_name") or company_profile.get("company_name") or "-")[:40])
+    pdf.drawString(seller_x + 4 * mm, seller_y + 9 * mm, f"TRN: {company_profile.get('trn_no') or '-'}")
+    seller_contact = " | ".join(item for item in [company_profile.get("phone_number"), company_profile.get("email")] if item) or "-"
+    pdf.drawString(seller_x + 4 * mm, seller_y + 4 * mm, seller_contact[:42])
+    seller_address, seller_address_size = _fit_text(pdf, company_profile.get("address") or "-", "Helvetica", 7.1, 76 * mm, min_size=6.1)
+    pdf.setFont("Helvetica", seller_address_size)
+    pdf.drawString(seller_x + 4 * mm, seller_y + 24.2 * mm, seller_address)
+
+    pdf.setFillColor(TEXT)
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(buyer_x + 4 * mm, buyer_y + 19.5 * mm, (party.get("party_name") or "-")[:34])
+    pdf.setFont("Helvetica", 7.6)
+    pdf.drawString(buyer_x + 4 * mm, buyer_y + 14 * mm, (party.get("contact_person") or party.get("party_kind") or "-")[:38])
+    pdf.drawString(buyer_x + 4 * mm, buyer_y + 9 * mm, f"TRN: {party.get('trn_no') or '-'}")
+    buyer_contact = " | ".join(item for item in [party.get("phone_number"), party.get("email")] if item) or "-"
+    pdf.drawString(buyer_x + 4 * mm, buyer_y + 4 * mm, buyer_contact[:42])
+    buyer_address, buyer_address_size = _fit_text(pdf, party.get("address") or "-", "Helvetica", 7.1, 76 * mm, min_size=6.1)
+    pdf.setFont("Helvetica", buyer_address_size)
+    pdf.drawString(buyer_x + 4 * mm, buyer_y + 24.2 * mm, buyer_address)
+
+    meta_y = PAGE_HEIGHT - 149 * mm
+    _draw_stat_box(pdf, 16 * mm, meta_y, 40 * mm, 14 * mm, "INVOICE NO", str(invoice["invoice_no"]))
+    _draw_stat_box(pdf, 60 * mm, meta_y, 38 * mm, 14 * mm, "ISSUE DATE", format_date_label(invoice.get("issue_date")))
+    _draw_stat_box(pdf, 102 * mm, meta_y, 38 * mm, 14 * mm, "DUE DATE", format_date_label(invoice.get("due_date")))
+    _draw_stat_box(pdf, 144 * mm, meta_y, 50 * mm, 14 * mm, "STATUS", invoice.get("status") or "Open")
+
+    ref_y = PAGE_HEIGHT - 167 * mm
+    pdf.setFillColor(SOFT)
+    pdf.roundRect(16 * mm, ref_y, 178 * mm, 12 * mm, 3 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(16 * mm, ref_y, 178 * mm, 12 * mm, 3 * mm, fill=0, stroke=1)
+    _draw_small_meta_row(pdf, 21 * mm, ref_y + 6.5 * mm, "Kind", invoice.get("invoice_kind") or "-", 30 * mm)
+    _draw_small_meta_row(pdf, 59 * mm, ref_y + 6.5 * mm, "Agreement", invoice.get("agreement_no") or "-", 33 * mm)
+    _draw_small_meta_row(pdf, 104 * mm, ref_y + 6.5 * mm, "LPO", invoice.get("lpo_no") or "-", 26 * mm)
+    _draw_small_meta_row(pdf, 142 * mm, ref_y + 6.5 * mm, "Hire", invoice.get("hire_no") or "-", 26 * mm)
+
+    table_top = PAGE_HEIGHT - 186 * mm
+    _draw_table_header(
+        pdf,
+        table_top,
+        ["#", "Description", "Unit", "Qty", "Rate", "Amount"],
+        [18, 28, 124, 145, 162, 190],
+    )
+
+    y = table_top - 7 * mm
+    row_height = 7.2 * mm
+    pdf.setFont("Helvetica", 8)
+    for index, line in enumerate(line_items[:8], start=1):
+        if (index - 1) % 2 == 0:
+            pdf.setFillColor(SOFT)
+            pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.1 * mm, 1.8 * mm, fill=1, stroke=0)
+        pdf.setFillColor(TEXT)
+        pdf.setFont("Helvetica-Bold", 8)
+        pdf.drawString(18 * mm, y, str(index))
+        description, desc_size = _fit_text(pdf, line.get("description") or "-", "Helvetica-Bold", 7.8, 90 * mm, min_size=6.2)
+        pdf.setFont("Helvetica-Bold", desc_size)
+        pdf.drawString(28 * mm, y, description)
+        pdf.setFont("Helvetica", 7.8)
+        pdf.drawString(124 * mm, y, (line.get("unit_label") or "-")[:10])
+        pdf.drawRightString(156 * mm, y, format_currency(float(line.get("quantity") or 0)))
+        pdf.drawRightString(179 * mm, y, format_currency(float(line.get("rate") or 0)))
+        pdf.drawRightString(193 * mm, y, format_currency(float(line.get("subtotal") or 0)))
+        y -= row_height
+
+    min_rows = 8
+    while len(line_items) < min_rows and y >= 65 * mm:
+        if len(line_items) % 2 == 0:
+            pdf.setFillColor(colors.white)
+            pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.1 * mm, 1.8 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.line(16 * mm, y - 2.2 * mm, 194 * mm, y - 2.2 * mm)
+        y -= row_height
+        line_items.append({})
+
+    summary_y = 49 * mm
+    _draw_stat_box(pdf, 112 * mm, summary_y + 28 * mm, 82 * mm, 12 * mm, "SUBTOTAL", f"{currency} {format_currency(subtotal)}")
+    _draw_stat_box(pdf, 112 * mm, summary_y + 14 * mm, 82 * mm, 12 * mm, "VAT", f"{tax_percent:.2f}% / {currency} {format_currency(tax_amount)}", fill_color=SOFT)
+    _draw_stat_box(pdf, 112 * mm, summary_y, 82 * mm, 12 * mm, "TOTAL", f"{currency} {format_currency(total_amount)}", fill_color=BLUE, text_color=colors.white, border_color=BLUE)
+
+    notes_y = 38 * mm
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(16 * mm, notes_y, 90 * mm, 24 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(16 * mm, notes_y, 90 * mm, 24 * mm, 4 * mm, fill=0, stroke=1)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 8.2)
+    pdf.drawString(20 * mm, notes_y + 17 * mm, "NOTES")
+    pdf.setFillColor(TEXT)
+    note_text, note_size = _fit_text(pdf, invoice.get("notes") or company_profile.get("invoice_terms") or "No notes entered.", "Helvetica", 7.2, 80 * mm, min_size=6.0)
+    pdf.setFont("Helvetica", note_size)
+    pdf.drawString(20 * mm, notes_y + 10 * mm, note_text)
+
+    _draw_small_meta_row(pdf, 20 * mm, notes_y + 4.2 * mm, "Terms", company_profile.get("invoice_terms") or "-", 46 * mm)
+
+    payment_y = 38 * mm
+    _draw_stat_box(pdf, 112 * mm, payment_y + 12 * mm, 39 * mm, 12 * mm, "PAID", f"{currency} {format_currency(paid_amount)}", fill_color=SOFT)
+    _draw_stat_box(pdf, 155 * mm, payment_y + 12 * mm, 39 * mm, 12 * mm, "BALANCE", f"{currency} {format_currency(balance_amount)}", fill_color=colors.HexColor("#FFF4E8"), text_color=ORANGE, border_color=ORANGE)
+    _draw_small_meta_row(pdf, 116 * mm, payment_y + 6.3 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 52 * mm)
+
+    _draw_footer_banner(pdf, assets_dir)
+    pdf.showPage()
+    pdf.save()
+    return str(output_path)
+
+
 def _draw_header(pdf: canvas.Canvas, assets_dir: str) -> None:
     premium_banner = Path(assets_dir) / "current-link-header-premium.png"
     banner = premium_banner if premium_banner.exists() else Path(assets_dir) / "current-link-header.png"
