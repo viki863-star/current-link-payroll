@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <article class="card dashboard-hero-card">
+        <div>
+            <p class="eyebrow">Foundation</p>
+            <h2>Company Setup</h2>
+            <p class="lead">Set the legal company base first, then branch, currency, and financial year controls for the rest of the accounting system.</p>
+        </div>
+    </article>
+</section>
+
+<section class="stats premium-stats">
+    <article class="card stat-card premium-stat-card blue-stat">
+        <span>Company Profile</span>
+        <strong>{{ "Ready" if summary.company_ready else "Pending" }}</strong>
+        <small>Main legal and banking profile used by invoices and reporting.</small>
+    </article>
+    <article class="card stat-card premium-stat-card green-stat">
+        <span>Branches</span>
+        <strong>{{ summary.branch_count }}</strong>
+        <small>Operational locations and company branches.</small>
+    </article>
+    <article class="card stat-card premium-stat-card orange-stat">
+        <span>Currencies</span>
+        <strong>{{ summary.currency_count }}</strong>
+        <small>Base and supported currencies for invoicing and reports.</small>
+    </article>
+    <article class="card stat-card premium-stat-card navy-stat">
+        <span>Financial Years</span>
+        <strong>{{ summary.financial_year_count }}</strong>
+        <small>Active and closed periods for month-end and annual reporting.</small>
+    </article>
+</section>
+
+<section class="detail-layout dashboard-layout chart-layout">
+    <article class="card action-panel form-panel">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Legal Profile</p>
+                <h2>Company Master Setup</h2>
+            </div>
+        </div>
+        <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_company_profile">
+            <label>
+                <span>Company Name</span>
+                <input type="text" name="company_name" value="{{ profile_values.company_name }}" required>
+            </label>
+            <label>
+                <span>Legal Name</span>
+                <input type="text" name="legal_name" value="{{ profile_values.legal_name }}">
+            </label>
+            <label>
+                <span>Trade License No</span>
+                <input type="text" name="trade_license_no" value="{{ profile_values.trade_license_no }}">
+            </label>
+            <label>
+                <span>Trade License Expiry</span>
+                <input type="date" name="trade_license_expiry" value="{{ profile_values.trade_license_expiry }}">
+            </label>
+            <label>
+                <span>TRN</span>
+                <input type="text" name="trn_no" value="{{ profile_values.trn_no }}">
+            </label>
+            <label>
+                <span>VAT Status</span>
+                <select name="vat_status">
+                    {% for item in vat_status_options %}
+                        <option value="{{ item }}" {% if profile_values.vat_status == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Phone</span>
+                <input type="text" name="phone_number" value="{{ profile_values.phone_number }}">
+            </label>
+            <label>
+                <span>Email</span>
+                <input type="email" name="email" value="{{ profile_values.email }}">
+            </label>
+            <label class="full-span">
+                <span>Address</span>
+                <textarea name="address" rows="3">{{ profile_values.address }}</textarea>
+            </label>
+            <label>
+                <span>Bank Name</span>
+                <input type="text" name="bank_name" value="{{ profile_values.bank_name }}">
+            </label>
+            <label>
+                <span>Bank Account Name</span>
+                <input type="text" name="bank_account_name" value="{{ profile_values.bank_account_name }}">
+            </label>
+            <label>
+                <span>Bank Account Number</span>
+                <input type="text" name="bank_account_number" value="{{ profile_values.bank_account_number }}">
+            </label>
+            <label>
+                <span>IBAN</span>
+                <input type="text" name="iban" value="{{ profile_values.iban }}">
+            </label>
+            <label>
+                <span>SWIFT Code</span>
+                <input type="text" name="swift_code" value="{{ profile_values.swift_code }}">
+            </label>
+            <label>
+                <span>Invoice Terms</span>
+                <input type="text" name="invoice_terms" value="{{ profile_values.invoice_terms }}" placeholder="30 Days / Immediate">
+            </label>
+            <label>
+                <span>Base Currency</span>
+                <input type="text" name="base_currency" value="{{ profile_values.base_currency or 'AED' }}">
+            </label>
+            <label>
+                <span>Financial Year Label</span>
+                <input type="text" name="financial_year_label" value="{{ profile_values.financial_year_label }}" placeholder="FY 2026">
+            </label>
+            <label>
+                <span>Financial Year Start</span>
+                <input type="date" name="financial_year_start" value="{{ profile_values.financial_year_start }}">
+            </label>
+            <label>
+                <span>Financial Year End</span>
+                <input type="date" name="financial_year_end" value="{{ profile_values.financial_year_end }}">
+            </label>
+            <div class="form-actions left-actions full-span">
+                <button class="button" type="submit">Save Company Setup</button>
+            </div>
+        </form>
+    </article>
+
+    <article class="card table-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Build Order</p>
+                <h2>Why This Comes First</h2>
+            </div>
+        </div>
+        <div class="supplier-flow-list">
+            <div class="supplier-flow-step"><strong>1. Company Setup</strong><span>Invoices, vouchers, VAT and reports all need one legal company profile first.</span></div>
+            <div class="supplier-flow-step"><strong>2. Users & Roles</strong><span>After this, we can safely move to admin, accountant, manager and view-only access.</span></div>
+            <div class="supplier-flow-step"><strong>3. Customer & Supplier Masters</strong><span>Then all parties can be expanded on the same legal and financial base.</span></div>
+            <div class="supplier-flow-step"><strong>4. Accounts & VAT</strong><span>Chart of accounts, invoices, bills, cash, bank and reporting fit cleanly after setup.</span></div>
+        </div>
+    </article>
+</section>
+
+<section class="detail-layout dashboard-layout chart-layout">
+    <article class="card action-panel form-panel">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Branch</p>
+                <h2>{% if branch_values.original_branch_code %}Edit Branch{% else %}Add Branch{% endif %}</h2>
+            </div>
+        </div>
+        <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_branch">
+            <input type="hidden" name="original_branch_code" value="{{ branch_values.original_branch_code }}">
+            <label>
+                <span>Branch Code</span>
+                <input type="text" name="branch_code" value="{{ branch_values.branch_code }}" {% if branch_values.original_branch_code %}readonly{% endif %}>
+            </label>
+            <label>
+                <span>Branch Name</span>
+                <input type="text" name="branch_name" value="{{ branch_values.branch_name }}" required>
+            </label>
+            <label>
+                <span>Contact Person</span>
+                <input type="text" name="contact_person" value="{{ branch_values.contact_person }}">
+            </label>
+            <label>
+                <span>Phone</span>
+                <input type="text" name="phone_number" value="{{ branch_values.phone_number }}">
+            </label>
+            <label>
+                <span>Email</span>
+                <input type="email" name="email" value="{{ branch_values.email }}">
+            </label>
+            <label>
+                <span>Status</span>
+                <select name="status">
+                    {% for item in branch_status_options %}
+                        <option value="{{ item }}" {% if branch_values.status == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="full-span">
+                <span>Address</span>
+                <textarea name="address" rows="3">{{ branch_values.address }}</textarea>
+            </label>
+            <div class="form-actions left-actions full-span">
+                <button class="button" type="submit">{% if branch_values.original_branch_code %}Update Branch{% else %}Save Branch{% endif %}</button>
+                {% if branch_values.original_branch_code %}
+                    <a class="button button-secondary" href="{{ url_for('company_setup') }}">Cancel</a>
+                {% endif %}
+            </div>
+        </form>
+    </article>
+
+    <article class="card table-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Branch Register</p>
+                <h2>Current Branches</h2>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Branch</th>
+                        <th>Contact</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in branches %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.branch_name }}</strong>
+                                <div class="muted-text">{{ item.branch_code }}</div>
+                            </td>
+                            <td>
+                                <div>{{ item.contact_person or '-' }}</div>
+                                <div class="muted-text">{{ item.phone_number or '-' }}</div>
+                            </td>
+                            <td>{{ item.status }}</td>
+                            <td><a class="table-link" href="{{ url_for('company_setup', edit_branch=item.branch_code) }}">Edit</a></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="4" class="muted-text">No branches saved yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+
+<section class="detail-layout dashboard-layout chart-layout">
+    <article class="card action-panel form-panel">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Currency</p>
+                <h2>{% if currency_values.original_currency_code %}Edit Currency{% else %}Add Currency{% endif %}</h2>
+            </div>
+        </div>
+        <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_currency">
+            <input type="hidden" name="original_currency_code" value="{{ currency_values.original_currency_code }}">
+            <label>
+                <span>Currency Code</span>
+                <input type="text" name="currency_code" value="{{ currency_values.currency_code }}" {% if currency_values.original_currency_code %}readonly{% endif %} placeholder="AED">
+            </label>
+            <label>
+                <span>Currency Name</span>
+                <input type="text" name="currency_name" value="{{ currency_values.currency_name }}" required>
+            </label>
+            <label>
+                <span>Symbol</span>
+                <input type="text" name="symbol" value="{{ currency_values.symbol }}" placeholder="AED / $">
+            </label>
+            <label>
+                <span>Exchange Rate</span>
+                <input type="number" step="0.000001" name="exchange_rate" value="{{ currency_values.exchange_rate }}">
+            </label>
+            <label>
+                <span>Status</span>
+                <select name="status">
+                    {% for item in branch_status_options %}
+                        <option value="{{ item }}" {% if currency_values.status == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="check-tile">
+                <input type="checkbox" name="is_base" value="1" {% if currency_values.is_base %}checked{% endif %}>
+                <span>Base Currency</span>
+            </label>
+            <div class="form-actions left-actions full-span">
+                <button class="button" type="submit">{% if currency_values.original_currency_code %}Update Currency{% else %}Save Currency{% endif %}</button>
+                {% if currency_values.original_currency_code %}
+                    <a class="button button-secondary" href="{{ url_for('company_setup') }}">Cancel</a>
+                {% endif %}
+            </div>
+        </form>
+    </article>
+
+    <article class="card table-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Currency Register</p>
+                <h2>Available Currencies</h2>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Currency</th>
+                        <th>Rate</th>
+                        <th>Base</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in currencies %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.currency_code }}</strong>
+                                <div class="muted-text">{{ item.currency_name }}</div>
+                            </td>
+                            <td>{{ "%.6f"|format(item.exchange_rate) }}</td>
+                            <td>{{ "Yes" if item.is_base else "No" }}</td>
+                            <td>{{ item.status }}</td>
+                            <td><a class="table-link" href="{{ url_for('company_setup', edit_currency=item.currency_code) }}">Edit</a></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5" class="muted-text">No currencies saved yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+
+<section class="detail-layout dashboard-layout chart-layout">
+    <article class="card action-panel form-panel">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Period</p>
+                <h2>{% if year_values.original_year_code %}Edit Financial Year{% else %}Add Financial Year{% endif %}</h2>
+            </div>
+        </div>
+        <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_financial_year">
+            <input type="hidden" name="original_year_code" value="{{ year_values.original_year_code }}">
+            <label>
+                <span>Year Code</span>
+                <input type="text" name="year_code" value="{{ year_values.year_code }}" {% if year_values.original_year_code %}readonly{% endif %}>
+            </label>
+            <label>
+                <span>Year Label</span>
+                <input type="text" name="year_label" value="{{ year_values.year_label }}" placeholder="FY 2026" required>
+            </label>
+            <label>
+                <span>Start Date</span>
+                <input type="date" name="start_date" value="{{ year_values.start_date }}" required>
+            </label>
+            <label>
+                <span>End Date</span>
+                <input type="date" name="end_date" value="{{ year_values.end_date }}" required>
+            </label>
+            <label>
+                <span>Status</span>
+                <select name="status">
+                    {% for item in financial_year_status_options %}
+                        <option value="{{ item }}" {% if year_values.status == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="check-tile">
+                <input type="checkbox" name="is_current" value="1" {% if year_values.is_current %}checked{% endif %}>
+                <span>Current Financial Year</span>
+            </label>
+            <div class="form-actions left-actions full-span">
+                <button class="button" type="submit">{% if year_values.original_year_code %}Update Financial Year{% else %}Save Financial Year{% endif %}</button>
+                {% if year_values.original_year_code %}
+                    <a class="button button-secondary" href="{{ url_for('company_setup') }}">Cancel</a>
+                {% endif %}
+            </div>
+        </form>
+    </article>
+
+    <article class="card table-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Financial Years</p>
+                <h2>Period Control</h2>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Year</th>
+                        <th>Period</th>
+                        <th>Current</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in financial_years %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.year_label }}</strong>
+                                <div class="muted-text">{{ item.year_code }}</div>
+                            </td>
+                            <td>{{ item.start_date }} to {{ item.end_date }}</td>
+                            <td>{{ "Yes" if item.is_current else "No" }}</td>
+                            <td>{{ item.status }}</td>
+                            <td><a class="table-link" href="{{ url_for('company_setup', edit_year=item.year_code) }}">Edit</a></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5" class="muted-text">No financial years saved yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+{% endblock %}

@@ -46,6 +46,7 @@ PARTY_ROLE_OPTIONS = [
     "Vehicle Holder",
     "Partner",
 ]
+VAT_STATUS_OPTIONS = ["Registered", "Not Registered", "Exempt"]
 SALARY_MODE_OPTIONS = [("full", "Full Salary (30-Day Basis)"), ("prorata", "Prorata From Duty Start")]
 AGREEMENT_KIND_OPTIONS = ["Customer", "Supplier", "Mixed"]
 RATE_TYPE_OPTIONS = ["Monthly", "Daily", "Trip", "Hourly", "Fixed"]
@@ -58,6 +59,8 @@ LOAN_TYPE_OPTIONS = ["Given", "Recovered"]
 FEE_TYPE_OPTIONS = ["Visa", "Vehicle"]
 SUPPLIER_RATE_BASIS_OPTIONS = ["Hours", "Days", "Trips", "Monthly", "Fixed"]
 SUPPLIER_VOUCHER_STATUS_OPTIONS = ["Open", "Partially Paid", "Paid"]
+BRANCH_STATUS_OPTIONS = ["Active", "Inactive"]
+FINANCIAL_YEAR_STATUS_OPTIONS = ["Open", "Closed", "Archived"]
 
 
 class ValidationError(ValueError):
@@ -307,6 +310,184 @@ def register_routes(app: Flask) -> None:
             shift_chart=shift_chart,
             vehicle_chart=vehicle_chart,
             import_chart=import_chart,
+        )
+
+    @app.route("/company-setup", methods=["GET", "POST"])
+    @_login_required("admin")
+    def company_setup():
+        db = open_db()
+        profile_values = _company_profile_values(db)
+        branch_values = _default_branch_form(db)
+        currency_values = _default_currency_form(db)
+        year_values = _default_financial_year_form(db)
+
+        edit_branch_code = request.args.get("edit_branch", "").strip().upper()
+        edit_currency_code = request.args.get("edit_currency", "").strip().upper()
+        edit_year_code = request.args.get("edit_year", "").strip().upper()
+
+        if edit_branch_code:
+            row = db.execute("SELECT * FROM branches WHERE branch_code = ?", (edit_branch_code,)).fetchone()
+            if row is not None:
+                branch_values = _branch_form_from_row(row)
+        if edit_currency_code:
+            row = db.execute("SELECT * FROM company_currencies WHERE currency_code = ?", (edit_currency_code,)).fetchone()
+            if row is not None:
+                currency_values = _currency_form_from_row(row)
+        if edit_year_code:
+            row = db.execute("SELECT * FROM financial_years WHERE year_code = ?", (edit_year_code,)).fetchone()
+            if row is not None:
+                year_values = _financial_year_form_from_row(row)
+
+        if request.method == "POST":
+            action = request.form.get("action", "").strip()
+            try:
+                if action == "save_company_profile":
+                    profile_values = _company_profile_form_data(request)
+                    payload = _prepare_company_profile_payload(profile_values)
+                    existing = db.execute("SELECT id FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+                    if existing is None:
+                        db.execute(
+                            """
+                            INSERT INTO company_profile (
+                                company_name, legal_name, trade_license_no, trade_license_expiry, trn_no,
+                                vat_status, address, phone_number, email, bank_name, bank_account_name,
+                                bank_account_number, iban, swift_code, invoice_terms, base_currency,
+                                financial_year_label, financial_year_start, financial_year_end
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _audit_log(db, "company_profile_created", entity_type="company_profile", entity_id="MAIN", details=profile_values["company_name"])
+                        message = "Company setup saved successfully."
+                    else:
+                        db.execute(
+                            """
+                            UPDATE company_profile
+                            SET company_name = ?, legal_name = ?, trade_license_no = ?, trade_license_expiry = ?,
+                                trn_no = ?, vat_status = ?, address = ?, phone_number = ?, email = ?,
+                                bank_name = ?, bank_account_name = ?, bank_account_number = ?, iban = ?,
+                                swift_code = ?, invoice_terms = ?, base_currency = ?, financial_year_label = ?,
+                                financial_year_start = ?, financial_year_end = ?
+                            WHERE id = ?
+                            """,
+                            payload + (existing["id"],),
+                        )
+                        _audit_log(db, "company_profile_updated", entity_type="company_profile", entity_id="MAIN", details=profile_values["company_name"])
+                        message = "Company setup updated successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("company_setup"))
+
+                if action == "save_branch":
+                    branch_values = _branch_form_data(request)
+                    payload = _prepare_branch_payload(db, branch_values)
+                    _ensure_reference_available(db, "branches", "branch_code", branch_values["branch_code"], branch_values["original_branch_code"], "Branch code")
+                    if branch_values["original_branch_code"]:
+                        db.execute(
+                            """
+                            UPDATE branches
+                            SET branch_code = ?, branch_name = ?, address = ?, contact_person = ?,
+                                phone_number = ?, email = ?, status = ?
+                            WHERE branch_code = ?
+                            """,
+                            payload + (branch_values["original_branch_code"],),
+                        )
+                        _audit_log(db, "branch_updated", entity_type="branch", entity_id=branch_values["branch_code"], details=branch_values["branch_name"])
+                        message = "Branch updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO branches (
+                                branch_code, branch_name, address, contact_person, phone_number, email, status
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _audit_log(db, "branch_created", entity_type="branch", entity_id=branch_values["branch_code"], details=branch_values["branch_name"])
+                        message = "Branch saved successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("company_setup"))
+
+                if action == "save_currency":
+                    currency_values = _currency_form_data(request)
+                    payload = _prepare_currency_payload(db, currency_values)
+                    _ensure_reference_available(db, "company_currencies", "currency_code", currency_values["currency_code"], currency_values["original_currency_code"], "Currency code")
+                    if payload[4]:
+                        db.execute("UPDATE company_currencies SET is_base = 0")
+                    if currency_values["original_currency_code"]:
+                        db.execute(
+                            """
+                            UPDATE company_currencies
+                            SET currency_code = ?, currency_name = ?, symbol = ?, exchange_rate = ?, is_base = ?, status = ?
+                            WHERE currency_code = ?
+                            """,
+                            payload + (currency_values["original_currency_code"],),
+                        )
+                        _audit_log(db, "currency_updated", entity_type="currency", entity_id=currency_values["currency_code"], details=currency_values["currency_name"])
+                        message = "Currency updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO company_currencies (
+                                currency_code, currency_name, symbol, exchange_rate, is_base, status
+                            ) VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _audit_log(db, "currency_created", entity_type="currency", entity_id=currency_values["currency_code"], details=currency_values["currency_name"])
+                        message = "Currency saved successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("company_setup"))
+
+                if action == "save_financial_year":
+                    year_values = _financial_year_form_data(request)
+                    payload = _prepare_financial_year_payload(db, year_values)
+                    _ensure_reference_available(db, "financial_years", "year_code", year_values["year_code"], year_values["original_year_code"], "Financial year code")
+                    if payload[4]:
+                        db.execute("UPDATE financial_years SET is_current = 0")
+                    if year_values["original_year_code"]:
+                        db.execute(
+                            """
+                            UPDATE financial_years
+                            SET year_code = ?, year_label = ?, start_date = ?, end_date = ?, is_current = ?, status = ?
+                            WHERE year_code = ?
+                            """,
+                            payload + (year_values["original_year_code"],),
+                        )
+                        _audit_log(db, "financial_year_updated", entity_type="financial_year", entity_id=year_values["year_code"], details=year_values["year_label"])
+                        message = "Financial year updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO financial_years (
+                                year_code, year_label, start_date, end_date, is_current, status
+                            ) VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _audit_log(db, "financial_year_created", entity_type="financial_year", entity_id=year_values["year_code"], details=year_values["year_label"])
+                        message = "Financial year saved successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("company_setup"))
+            except ValidationError as exc:
+                flash(str(exc), "error")
+
+        return render_template(
+            "company_setup.html",
+            profile_values=profile_values,
+            branch_values=branch_values,
+            currency_values=currency_values,
+            year_values=year_values,
+            branches=_branch_rows(db),
+            currencies=_currency_rows(db),
+            financial_years=_financial_year_rows(db),
+            summary=_company_setup_summary(db),
+            vat_status_options=VAT_STATUS_OPTIONS,
+            branch_status_options=BRANCH_STATUS_OPTIONS,
+            financial_year_status_options=FINANCIAL_YEAR_STATUS_OPTIONS,
         )
 
     @app.route("/parties/list")
@@ -3335,6 +3516,301 @@ def _next_reference_code(db, table_name: str, field_name: str, prefix: str) -> s
         except (IndexError, ValueError):
             continue
     return f"{prefix}-{max_number + 1:04d}"
+
+
+def _company_profile_row(db):
+    return db.execute(
+        """
+        SELECT
+            company_name, legal_name, trade_license_no, trade_license_expiry, trn_no,
+            vat_status, address, phone_number, email, bank_name, bank_account_name,
+            bank_account_number, iban, swift_code, invoice_terms, base_currency,
+            financial_year_label, financial_year_start, financial_year_end
+        FROM company_profile
+        ORDER BY id ASC
+        LIMIT 1
+        """
+    ).fetchone()
+
+
+def _default_company_profile():
+    return {
+        "company_name": "",
+        "legal_name": "",
+        "trade_license_no": "",
+        "trade_license_expiry": "",
+        "trn_no": "",
+        "vat_status": VAT_STATUS_OPTIONS[0],
+        "address": "",
+        "phone_number": "",
+        "email": "",
+        "bank_name": "",
+        "bank_account_name": "",
+        "bank_account_number": "",
+        "iban": "",
+        "swift_code": "",
+        "invoice_terms": "30 Days",
+        "base_currency": "AED",
+        "financial_year_label": "",
+        "financial_year_start": "",
+        "financial_year_end": "",
+    }
+
+
+def _company_profile_values(db):
+    row = _company_profile_row(db)
+    if row is None:
+        return _default_company_profile()
+    values = _default_company_profile()
+    values.update(dict(row))
+    return values
+
+
+def _company_profile_form_data(request):
+    return {
+        "company_name": request.form.get("company_name", "").strip(),
+        "legal_name": request.form.get("legal_name", "").strip(),
+        "trade_license_no": request.form.get("trade_license_no", "").strip(),
+        "trade_license_expiry": request.form.get("trade_license_expiry", "").strip(),
+        "trn_no": request.form.get("trn_no", "").strip(),
+        "vat_status": request.form.get("vat_status", VAT_STATUS_OPTIONS[0]).strip() or VAT_STATUS_OPTIONS[0],
+        "address": request.form.get("address", "").strip(),
+        "phone_number": request.form.get("phone_number", "").strip(),
+        "email": request.form.get("email", "").strip(),
+        "bank_name": request.form.get("bank_name", "").strip(),
+        "bank_account_name": request.form.get("bank_account_name", "").strip(),
+        "bank_account_number": request.form.get("bank_account_number", "").strip(),
+        "iban": request.form.get("iban", "").strip(),
+        "swift_code": request.form.get("swift_code", "").strip(),
+        "invoice_terms": request.form.get("invoice_terms", "").strip(),
+        "base_currency": request.form.get("base_currency", "AED").strip().upper() or "AED",
+        "financial_year_label": request.form.get("financial_year_label", "").strip(),
+        "financial_year_start": request.form.get("financial_year_start", "").strip(),
+        "financial_year_end": request.form.get("financial_year_end", "").strip(),
+    }
+
+
+def _prepare_company_profile_payload(values):
+    if not values["company_name"]:
+        raise ValidationError("Company name is required.")
+    values["phone_number"] = _normalize_optional_phone(values["phone_number"])
+    _validate_optional_email(values["email"])
+    values["trade_license_expiry"] = _validate_date_text(values["trade_license_expiry"], "Trade license expiry", required=False)
+    values["financial_year_start"] = _validate_date_text(values["financial_year_start"], "Financial year start", required=False)
+    values["financial_year_end"] = _validate_date_text(values["financial_year_end"], "Financial year end", required=False)
+    if values["financial_year_start"] and values["financial_year_end"] and values["financial_year_start"] > values["financial_year_end"]:
+        raise ValidationError("Financial year end must be after the start date.")
+    return (
+        values["company_name"],
+        values["legal_name"],
+        values["trade_license_no"],
+        values["trade_license_expiry"] or None,
+        values["trn_no"],
+        values["vat_status"],
+        values["address"],
+        values["phone_number"],
+        values["email"],
+        values["bank_name"],
+        values["bank_account_name"],
+        values["bank_account_number"],
+        values["iban"],
+        values["swift_code"],
+        values["invoice_terms"],
+        values["base_currency"],
+        values["financial_year_label"],
+        values["financial_year_start"] or None,
+        values["financial_year_end"] or None,
+    )
+
+
+def _default_branch_form(db=None):
+    db = db or open_db()
+    return {
+        "original_branch_code": "",
+        "branch_code": _next_reference_code(db, "branches", "branch_code", "BR"),
+        "branch_name": "",
+        "address": "",
+        "contact_person": "",
+        "phone_number": "",
+        "email": "",
+        "status": BRANCH_STATUS_OPTIONS[0],
+    }
+
+
+def _branch_form_data(request):
+    return {
+        "original_branch_code": request.form.get("original_branch_code", "").strip().upper(),
+        "branch_code": request.form.get("branch_code", "").strip().upper(),
+        "branch_name": request.form.get("branch_name", "").strip(),
+        "address": request.form.get("address", "").strip(),
+        "contact_person": request.form.get("contact_person", "").strip(),
+        "phone_number": request.form.get("phone_number", "").strip(),
+        "email": request.form.get("email", "").strip(),
+        "status": request.form.get("status", BRANCH_STATUS_OPTIONS[0]).strip() or BRANCH_STATUS_OPTIONS[0],
+    }
+
+
+def _branch_form_from_row(row):
+    values = dict(row)
+    values["original_branch_code"] = row["branch_code"]
+    return values
+
+
+def _prepare_branch_payload(db, values):
+    if not values["branch_code"]:
+        values["branch_code"] = _next_reference_code(db, "branches", "branch_code", "BR")
+    if not values["branch_name"]:
+        raise ValidationError("Branch name is required.")
+    values["phone_number"] = _normalize_optional_phone(values["phone_number"])
+    _validate_optional_email(values["email"])
+    return (
+        values["branch_code"],
+        values["branch_name"],
+        values["address"],
+        values["contact_person"],
+        values["phone_number"],
+        values["email"],
+        values["status"],
+    )
+
+
+def _default_currency_form(db=None):
+    return {
+        "original_currency_code": "",
+        "currency_code": "",
+        "currency_name": "",
+        "symbol": "",
+        "exchange_rate": "1",
+        "is_base": True,
+        "status": BRANCH_STATUS_OPTIONS[0],
+    }
+
+
+def _currency_form_data(request):
+    return {
+        "original_currency_code": request.form.get("original_currency_code", "").strip().upper(),
+        "currency_code": request.form.get("currency_code", "").strip().upper(),
+        "currency_name": request.form.get("currency_name", "").strip(),
+        "symbol": request.form.get("symbol", "").strip(),
+        "exchange_rate": request.form.get("exchange_rate", "").strip(),
+        "is_base": request.form.get("is_base", "") == "1",
+        "status": request.form.get("status", BRANCH_STATUS_OPTIONS[0]).strip() or BRANCH_STATUS_OPTIONS[0],
+    }
+
+
+def _currency_form_from_row(row):
+    values = dict(row)
+    values["original_currency_code"] = row["currency_code"]
+    values["exchange_rate"] = str(row["exchange_rate"])
+    values["is_base"] = bool(row["is_base"])
+    return values
+
+
+def _prepare_currency_payload(db, values):
+    if not values["currency_code"]:
+        raise ValidationError("Currency code is required.")
+    if not values["currency_name"]:
+        raise ValidationError("Currency name is required.")
+    exchange_rate = _parse_decimal(values["exchange_rate"], "Exchange rate", required=False, default=1.0, minimum=0.000001)
+    return (
+        values["currency_code"],
+        values["currency_name"],
+        values["symbol"],
+        exchange_rate,
+        1 if values["is_base"] else 0,
+        values["status"],
+    )
+
+
+def _default_financial_year_form(db=None):
+    db = db or open_db()
+    return {
+        "original_year_code": "",
+        "year_code": _next_reference_code(db, "financial_years", "year_code", "FY"),
+        "year_label": "",
+        "start_date": "",
+        "end_date": "",
+        "is_current": True,
+        "status": FINANCIAL_YEAR_STATUS_OPTIONS[0],
+    }
+
+
+def _financial_year_form_data(request):
+    return {
+        "original_year_code": request.form.get("original_year_code", "").strip().upper(),
+        "year_code": request.form.get("year_code", "").strip().upper(),
+        "year_label": request.form.get("year_label", "").strip(),
+        "start_date": request.form.get("start_date", "").strip(),
+        "end_date": request.form.get("end_date", "").strip(),
+        "is_current": request.form.get("is_current", "") == "1",
+        "status": request.form.get("status", FINANCIAL_YEAR_STATUS_OPTIONS[0]).strip() or FINANCIAL_YEAR_STATUS_OPTIONS[0],
+    }
+
+
+def _financial_year_form_from_row(row):
+    values = dict(row)
+    values["original_year_code"] = row["year_code"]
+    values["is_current"] = bool(row["is_current"])
+    return values
+
+
+def _prepare_financial_year_payload(db, values):
+    if not values["year_code"]:
+        values["year_code"] = _next_reference_code(db, "financial_years", "year_code", "FY")
+    if not values["year_label"]:
+        raise ValidationError("Financial year label is required.")
+    start_date = _validate_date_text(values["start_date"], "Financial year start")
+    end_date = _validate_date_text(values["end_date"], "Financial year end")
+    if start_date > end_date:
+        raise ValidationError("Financial year end must be after the start date.")
+    return (
+        values["year_code"],
+        values["year_label"],
+        start_date,
+        end_date,
+        1 if values["is_current"] else 0,
+        values["status"],
+    )
+
+
+def _branch_rows(db):
+    return db.execute(
+        """
+        SELECT branch_code, branch_name, address, contact_person, phone_number, email, status, created_at
+        FROM branches
+        ORDER BY CASE WHEN status = 'Active' THEN 0 ELSE 1 END, branch_name ASC
+        """
+    ).fetchall()
+
+
+def _currency_rows(db):
+    return db.execute(
+        """
+        SELECT currency_code, currency_name, symbol, exchange_rate, is_base, status, created_at
+        FROM company_currencies
+        ORDER BY is_base DESC, currency_code ASC
+        """
+    ).fetchall()
+
+
+def _financial_year_rows(db):
+    return db.execute(
+        """
+        SELECT year_code, year_label, start_date, end_date, is_current, status, created_at
+        FROM financial_years
+        ORDER BY is_current DESC, start_date DESC, year_label ASC
+        """
+    ).fetchall()
+
+
+def _company_setup_summary(db):
+    profile = _company_profile_row(db)
+    return {
+        "company_ready": 1 if profile is not None else 0,
+        "branch_count": int(db.execute("SELECT COUNT(*) FROM branches").fetchone()[0]),
+        "currency_count": int(db.execute("SELECT COUNT(*) FROM company_currencies").fetchone()[0]),
+        "financial_year_count": int(db.execute("SELECT COUNT(*) FROM financial_years").fetchone()[0]),
+    }
 
 
 def _default_agreement_form(db=None):

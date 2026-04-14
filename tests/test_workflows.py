@@ -600,6 +600,160 @@ def test_party_status_can_be_updated(app, client):
         assert status == "Inactive"
 
 
+def test_company_setup_supports_profile_branch_currency_and_financial_year(app, client):
+    admin_session(client)
+
+    profile = client.post(
+        "/company-setup",
+        data={
+            "action": "save_company_profile",
+            "company_name": "Current Link GC",
+            "legal_name": "Current Link Transport and General Contracting LLC SPC",
+            "trade_license_no": "CN-12345",
+            "trade_license_expiry": "2027-04-14",
+            "trn_no": "100123456700003",
+            "vat_status": "Registered",
+            "address": "Mussafah M17, Abu Dhabi",
+            "phone_number": "0552885561",
+            "email": "info@currentlinkgc.com",
+            "bank_name": "ADCB",
+            "bank_account_name": "Current Link",
+            "bank_account_number": "1234567890",
+            "iban": "AE070331234567890",
+            "swift_code": "ADCBAEAAXXX",
+            "invoice_terms": "30 Days",
+            "base_currency": "AED",
+            "financial_year_label": "FY 2026",
+            "financial_year_start": "2026-01-01",
+            "financial_year_end": "2026-12-31",
+        },
+        follow_redirects=True,
+    )
+    assert profile.status_code == 200
+
+    branch = client.post(
+        "/company-setup",
+        data={
+            "action": "save_branch",
+            "original_branch_code": "",
+            "branch_code": "BR-0001",
+            "branch_name": "Mussafah Yard",
+            "address": "M17 Abu Dhabi",
+            "contact_person": "Waqar",
+            "phone_number": "0501224963",
+            "email": "yard@currentlinkgc.com",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert branch.status_code == 200
+
+    currency_base = client.post(
+        "/company-setup",
+        data={
+            "action": "save_currency",
+            "original_currency_code": "",
+            "currency_code": "AED",
+            "currency_name": "UAE Dirham",
+            "symbol": "AED",
+            "exchange_rate": "1",
+            "is_base": "1",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert currency_base.status_code == 200
+
+    currency_second = client.post(
+        "/company-setup",
+        data={
+            "action": "save_currency",
+            "original_currency_code": "",
+            "currency_code": "USD",
+            "currency_name": "US Dollar",
+            "symbol": "$",
+            "exchange_rate": "3.6725",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert currency_second.status_code == 200
+
+    financial_year = client.post(
+        "/company-setup",
+        data={
+            "action": "save_financial_year",
+            "original_year_code": "",
+            "year_code": "FY-2026",
+            "year_label": "FY 2026",
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-31",
+            "is_current": "1",
+            "status": "Open",
+        },
+        follow_redirects=True,
+    )
+    assert financial_year.status_code == 200
+
+    branch_update = client.post(
+        "/company-setup",
+        data={
+            "action": "save_branch",
+            "original_branch_code": "BR-0001",
+            "branch_code": "BR-0001",
+            "branch_name": "Mussafah Main Yard",
+            "address": "M17 Abu Dhabi",
+            "contact_person": "Waqar Hussain",
+            "phone_number": "0501224963",
+            "email": "mainyard@currentlinkgc.com",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert branch_update.status_code == 200
+
+    settings_page = client.get("/company-setup", follow_redirects=True)
+    assert settings_page.status_code == 200
+    assert b"Company Setup" in settings_page.data
+    assert b"Mussafah Main Yard" in settings_page.data
+    assert b"FY 2026" in settings_page.data
+
+    with app.app_context():
+        db = open_db()
+        profile_row = db.execute(
+            "SELECT company_name, trn_no, base_currency, financial_year_label FROM company_profile ORDER BY id ASC LIMIT 1"
+        ).fetchone()
+        branch_row = db.execute(
+            "SELECT branch_name, contact_person FROM branches WHERE branch_code = ?",
+            ("BR-0001",),
+        ).fetchone()
+        aed_row = db.execute(
+            "SELECT currency_name, is_base FROM company_currencies WHERE currency_code = ?",
+            ("AED",),
+        ).fetchone()
+        usd_row = db.execute(
+            "SELECT exchange_rate, is_base FROM company_currencies WHERE currency_code = ?",
+            ("USD",),
+        ).fetchone()
+        year_row = db.execute(
+            "SELECT year_label, is_current, status FROM financial_years WHERE year_code = ?",
+            ("FY-2026",),
+        ).fetchone()
+        assert profile_row["company_name"] == "Current Link GC"
+        assert profile_row["trn_no"] == "100123456700003"
+        assert profile_row["base_currency"] == "AED"
+        assert profile_row["financial_year_label"] == "FY 2026"
+        assert branch_row["branch_name"] == "Mussafah Main Yard"
+        assert branch_row["contact_person"] == "Waqar Hussain"
+        assert aed_row["currency_name"] == "UAE Dirham"
+        assert int(aed_row["is_base"]) == 1
+        assert float(usd_row["exchange_rate"]) == 3.6725
+        assert int(usd_row["is_base"]) == 0
+        assert year_row["year_label"] == "FY 2026"
+        assert int(year_row["is_current"]) == 1
+        assert year_row["status"] == "Open"
+
+
 def test_supplier_workspace_flow_tracks_balance_and_keeps_driver_data_safe(app, client):
     create_driver_record(app)
     admin_session(client)

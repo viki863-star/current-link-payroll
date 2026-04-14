@@ -47,6 +47,7 @@
                     {% if current_role %}
                         {% if is_admin %}
                             <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                            <a class="button button-secondary" href="{{ url_for('company_setup') }}">Company Setup</a>
                             <a class="button button-secondary" href="{{ url_for('driver_list') }}">Drivers</a>
                             <a class="button button-secondary" href="{{ url_for('party_list') }}">Parties</a>
                             <a class="button button-secondary" href="{{ url_for('suppliers') }}">Suppliers</a>

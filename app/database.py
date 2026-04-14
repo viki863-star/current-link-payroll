@@ -102,6 +102,64 @@ CREATE TABLE IF NOT EXISTS owner_fund_entries (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS company_profile (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_name TEXT NOT NULL,
+    legal_name TEXT,
+    trade_license_no TEXT,
+    trade_license_expiry TEXT,
+    trn_no TEXT,
+    vat_status TEXT NOT NULL DEFAULT 'Registered',
+    address TEXT,
+    phone_number TEXT,
+    email TEXT,
+    bank_name TEXT,
+    bank_account_name TEXT,
+    bank_account_number TEXT,
+    iban TEXT,
+    swift_code TEXT,
+    invoice_terms TEXT,
+    base_currency TEXT NOT NULL DEFAULT 'AED',
+    financial_year_label TEXT,
+    financial_year_start TEXT,
+    financial_year_end TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS branches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    branch_code TEXT NOT NULL UNIQUE,
+    branch_name TEXT NOT NULL,
+    address TEXT,
+    contact_person TEXT,
+    phone_number TEXT,
+    email TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS company_currencies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    currency_code TEXT NOT NULL UNIQUE,
+    currency_name TEXT NOT NULL,
+    symbol TEXT,
+    exchange_rate REAL NOT NULL DEFAULT 1,
+    is_base INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Active',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS financial_years (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    year_code TEXT NOT NULL UNIQUE,
+    year_label TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Open',
+    is_current INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS parties (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     party_code TEXT NOT NULL UNIQUE,
@@ -440,6 +498,64 @@ CREATE TABLE IF NOT EXISTS owner_fund_entries (
     received_by TEXT,
     payment_method TEXT DEFAULT 'Cash',
     details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS company_profile (
+    id BIGSERIAL PRIMARY KEY,
+    company_name TEXT NOT NULL,
+    legal_name TEXT,
+    trade_license_no TEXT,
+    trade_license_expiry TEXT,
+    trn_no TEXT,
+    vat_status TEXT NOT NULL DEFAULT 'Registered',
+    address TEXT,
+    phone_number TEXT,
+    email TEXT,
+    bank_name TEXT,
+    bank_account_name TEXT,
+    bank_account_number TEXT,
+    iban TEXT,
+    swift_code TEXT,
+    invoice_terms TEXT,
+    base_currency TEXT NOT NULL DEFAULT 'AED',
+    financial_year_label TEXT,
+    financial_year_start TEXT,
+    financial_year_end TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS branches (
+    id BIGSERIAL PRIMARY KEY,
+    branch_code TEXT NOT NULL UNIQUE,
+    branch_name TEXT NOT NULL,
+    address TEXT,
+    contact_person TEXT,
+    phone_number TEXT,
+    email TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS company_currencies (
+    id BIGSERIAL PRIMARY KEY,
+    currency_code TEXT NOT NULL UNIQUE,
+    currency_name TEXT NOT NULL,
+    symbol TEXT,
+    exchange_rate DOUBLE PRECISION NOT NULL DEFAULT 1,
+    is_base INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS financial_years (
+    id BIGSERIAL PRIMARY KEY,
+    year_code TEXT NOT NULL UNIQUE,
+    year_label TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Open',
+    is_current INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
