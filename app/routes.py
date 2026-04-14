@@ -68,33 +68,33 @@ ADMIN_WORKSPACE_ORDER = ["universal", "drivers", "suppliers", "customers", "acco
 ADMIN_WORKSPACE_META = {
     "universal": {
         "label": "Universal",
-        "eyebrow": "Universal Workspace",
-        "title": "Universal Control Tower",
-        "summary": "One clear executive view across payroll, suppliers, customers, owner fund, tax and reporting.",
+        "eyebrow": "Dashboard",
+        "title": "Main Dashboard",
+        "summary": "Choose a desk.",
     },
     "drivers": {
         "label": "Drivers",
-        "eyebrow": "Driver Workspace",
-        "title": "Driver Payroll Desk",
-        "summary": "Focused payroll, slips, transactions, timesheets and driver master without supplier or invoice noise.",
+        "eyebrow": "Driver Desk",
+        "title": "Driver Desk",
+        "summary": "Payroll and driver control.",
     },
     "suppliers": {
         "label": "Suppliers",
-        "eyebrow": "Supplier Workspace",
-        "title": "Supplier Hire Desk",
-        "summary": "Register suppliers, fleet, month-end rows, vouchers, payments and outstanding balances from one clean desk.",
+        "eyebrow": "Supplier Desk",
+        "title": "Supplier Desk",
+        "summary": "Fleet, timesheets, vouchers and payments.",
     },
     "customers": {
         "label": "Customers",
-        "eyebrow": "Customer Workspace",
-        "title": "Customer Billing Desk",
-        "summary": "Contracts, LPOs, customer rental jobs, invoices, receipts and statements in one focused flow.",
+        "eyebrow": "Customer Desk",
+        "title": "Customer Desk",
+        "summary": "Invoices, contracts and statements.",
     },
     "accounts": {
         "label": "Accounts",
-        "eyebrow": "Accounts Workspace",
-        "title": "Accounts & Compliance Desk",
-        "summary": "Owner fund, VAT, annual fees, loans, invoice control and management reports in one finance-ready workspace.",
+        "eyebrow": "Accounts Desk",
+        "title": "Accounts Desk",
+        "summary": "Fund, tax, fees, loans and reports.",
     },
 }
 
@@ -3445,17 +3445,10 @@ def _admin_workspace_links():
 def _admin_module_links(workspace: str):
     workspace_key = workspace or "universal"
     module_map = {
-        "universal": [
-            {"label": "Dashboard", "endpoint": "dashboard"},
-            {"label": "Drivers", "endpoint": "driver_list"},
-            {"label": "Suppliers", "endpoint": "suppliers"},
-            {"label": "Customers", "endpoint": "customers"},
-            {"label": "Accounts", "endpoint": "reports_center"},
-        ],
+        "universal": [],
         "drivers": [
             {"label": "Driver List", "endpoint": "driver_list"},
             {"label": "Add Driver", "endpoint": "create_driver", "primary": True},
-            {"label": "Universal", "endpoint": "dashboard"},
         ],
         "suppliers": [
             {"label": "Supplier Desk", "endpoint": "suppliers"},
@@ -3466,7 +3459,6 @@ def _admin_module_links(workspace: str):
             {"label": "Customer Desk", "endpoint": "customers"},
             {"label": "Agreements", "endpoint": "agreements_lpos"},
             {"label": "Invoices", "endpoint": "invoice_center"},
-            {"label": "Party Master", "endpoint": "party_list"},
         ],
         "accounts": [
             {"label": "Reports", "endpoint": "reports_center"},

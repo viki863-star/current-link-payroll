@@ -1,360 +1,47 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="dashboard-hero">
-    <article class="card dashboard-hero-card">
-        <div>
-            <p class="eyebrow">Universal Workspace</p>
-            <h2>Universal Control Tower</h2>
-            <p class="lead">Open the right desk without changing login. Payroll, supplier hire, customer billing and finance controls now stay separated so your work feels cleaner and faster.</p>
-        </div>
-        <div class="dashboard-hero-pills">
-            <span>One Admin Login</span>
-            <span>Focused Workspaces</span>
-            <span>Live Business View</span>
-        </div>
-    </article>
-</section>
+<section class="desk-dashboard-shell">
+    <div class="desk-grid">
+        <a class="card desk-card desk-driver" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">
+            <span class="desk-kicker">Drivers</span>
+            <h2>Driver Desk</h2>
+            <p>Payroll and driver control.</p>
+            <div class="desk-metrics">
+                <span><strong>{{ total_drivers }}</strong><small>Total</small></span>
+                <span><strong>{{ active_drivers }}</strong><small>Active</small></span>
+            </div>
+        </a>
 
-<section class="workspace-launch-grid">
-    <a class="card workspace-launch-card workspace-drivers" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">
-        <span class="eyebrow">Driver Desk</span>
-        <strong>Payroll & Driver Control</strong>
-        <p>Open driver master, salary store, deductions, slips and portal workflows without supplier clutter.</p>
-        <div class="workspace-launch-metrics">
-            <span>{{ total_drivers }} drivers</span>
-            <span>{{ active_drivers }} active</span>
-        </div>
-    </a>
-    <a class="card workspace-launch-card workspace-suppliers" href="{{ url_for('switch_workspace', workspace_key='suppliers') }}">
-        <span class="eyebrow">Supplier Desk</span>
-        <strong>Hire Fleet & Payments</strong>
-        <p>Manage supplier register, vehicles, month-end rows, vouchers, payments and outstanding balances.</p>
-        <div class="workspace-launch-metrics">
-            <span>{{ supplier_hub_summary.supplier_count }} suppliers</span>
-            <span>AED {{ "%.0f"|format(supplier_hub_summary.outstanding_total) }} due</span>
-        </div>
-    </a>
-    <a class="card workspace-launch-card workspace-customers" href="{{ url_for('switch_workspace', workspace_key='customers') }}">
-        <span class="eyebrow">Customer Desk</span>
-        <strong>Invoices & Statements</strong>
-        <p>Open agreements, LPOs, rentals, customer invoices, receipts and receivable statements in one desk.</p>
-        <div class="workspace-launch-metrics">
-            <span>{{ customer_summary.customer_count }} customers</span>
-            <span>AED {{ "%.0f"|format(customer_summary.receivable_total) }} receivable</span>
-        </div>
-    </a>
-    <a class="card workspace-launch-card workspace-accounts" href="{{ url_for('switch_workspace', workspace_key='accounts') }}">
-        <span class="eyebrow">Accounts Desk</span>
-        <strong>Tax, Fund & Reports</strong>
-        <p>Track owner fund, VAT, collections, annual fees, loans and reports from one finance-focused screen.</p>
-        <div class="workspace-launch-metrics">
-            <span>{{ invoice_summary.open_invoice_count }} open invoices</span>
-            <span>AED {{ "%.0f"|format(owner_fund_balance) }} fund</span>
-        </div>
-    </a>
-</section>
+        <a class="card desk-card desk-supplier" href="{{ url_for('switch_workspace', workspace_key='suppliers') }}">
+            <span class="desk-kicker">Suppliers</span>
+            <h2>Supplier Desk</h2>
+            <p>Fleet, timesheets and payments.</p>
+            <div class="desk-metrics">
+                <span><strong>{{ supplier_hub_summary.supplier_count }}</strong><small>Suppliers</small></span>
+                <span><strong>AED {{ "%.0f"|format(supplier_hub_summary.outstanding_total) }}</strong><small>Due</small></span>
+            </div>
+        </a>
 
-<section class="stats premium-stats">
-    <article class="card stat-card premium-stat-card blue-stat">
-        <span>Total Drivers</span>
-        <strong>{{ total_drivers }}</strong>
-        <small>Current driver master after imports and manual updates.</small>
-    </article>
-    <article class="card stat-card premium-stat-card green-stat">
-        <span>Active Drivers</span>
-        <strong>{{ active_drivers }}</strong>
-        <small>Ready for salary, timesheet and portal access.</small>
-    </article>
-    <article class="card stat-card premium-stat-card orange-stat">
-        <span>{{ current_month_label }}</span>
-        <strong>{{ stored_this_month }}</strong>
-        <small>Salary rows stored this month.</small>
-    </article>
-    <article class="card stat-card premium-stat-card navy-stat">
-        <span>Total Payroll</span>
-        <strong>AED {{ "%.2f"|format(total_payroll) }}</strong>
-        <small>Basic salary total for filtered drivers.</small>
-    </article>
-    <article class="card stat-card premium-stat-card slate-stat">
-        <span>Owner Fund Balance</span>
-        <strong>AED {{ "%.2f"|format(owner_fund_balance) }}</strong>
-        <small>Live owner fund position across salary and transaction flows.</small>
-    </article>
-</section>
+        <a class="card desk-card desk-customer" href="{{ url_for('switch_workspace', workspace_key='customers') }}">
+            <span class="desk-kicker">Customers</span>
+            <h2>Customer Desk</h2>
+            <p>Invoices and statements.</p>
+            <div class="desk-metrics">
+                <span><strong>{{ customer_summary.customer_count }}</strong><small>Customers</small></span>
+                <span><strong>AED {{ "%.0f"|format(customer_summary.receivable_total) }}</strong><small>Open</small></span>
+            </div>
+        </a>
 
-<section class="card search-panel compact-panel premium-filter-panel">
-    <div class="section-heading slim-heading">
-        <div>
-            <p class="eyebrow">Filters</p>
-            <h2>Search Driver Master</h2>
-        </div>
+        <a class="card desk-card desk-accounts" href="{{ url_for('switch_workspace', workspace_key='accounts') }}">
+            <span class="desk-kicker">Accounts</span>
+            <h2>Accounts Desk</h2>
+            <p>Fund, tax and reports.</p>
+            <div class="desk-metrics">
+                <span><strong>{{ invoice_summary.open_invoice_count }}</strong><small>Open</small></span>
+                <span><strong>AED {{ "%.0f"|format(owner_fund_balance) }}</strong><small>Fund</small></span>
+            </div>
+        </a>
     </div>
-    <form method="get" class="filter-grid">
-        <label>
-            <span>Search</span>
-            <input type="search" name="q" value="{{ query }}" placeholder="Search driver, ID, vehicle">
-        </label>
-        <label>
-            <span>Status</span>
-            <select name="status">
-                <option value="">All</option>
-                <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
-                <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
-            </select>
-        </label>
-        <label>
-            <span>Shift</span>
-            <select name="shift">
-                <option value="">All</option>
-                {% for item in shifts %}
-                    <option value="{{ item }}" {% if shift_filter == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>
-            <span>Vehicle Type</span>
-            <select name="vehicle_type">
-                <option value="">All</option>
-                {% for item in vehicle_types %}
-                    <option value="{{ item }}" {% if vehicle_filter == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <div class="form-actions left-actions full-span">
-            <button class="button" type="submit">Apply Filters</button>
-            <a class="button button-secondary" href="{{ url_for('driver_list') }}">Driver List</a>
-            <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund Kata</a>
-            {% if query or status_filter or shift_filter or vehicle_filter %}
-                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Clear</a>
-            {% endif %}
-        </div>
-    </form>
-</section>
-
-<section class="quick-link-grid dashboard-quick-grid">
-    <a class="card quick-link-card accent-card" href="{{ url_for('company_setup') }}">
-        <span class="eyebrow">Foundation</span>
-        <strong>Company Setup</strong>
-        <p>Legal profile, branches, currencies and financial year base for accounts.</p>
-    </a>
-    <a class="card quick-link-card" href="{{ url_for('create_driver') }}">
-        <span class="eyebrow">Driver</span>
-        <strong>Add New Driver</strong>
-        <p>Driver card, portal access and payroll-ready profile.</p>
-    </a>
-    <a class="card quick-link-card accent-card" href="{{ url_for('driver_list') }}">
-        <span class="eyebrow">Directory</span>
-        <strong>Open Driver List</strong>
-        <p>Edit driver, open action panel and manage salary flow.</p>
-    </a>
-    <a class="card quick-link-card owner-card" href="{{ url_for('suppliers') }}">
-        <span class="eyebrow">Supplier Desk</span>
-        <strong>Open Supplier System</strong>
-        <p>Register supplier, add vehicles, post timesheets and create payment vouchers.</p>
-    </a>
-    <a class="card quick-link-card accent-card" href="{{ url_for('party_list') }}">
-        <span class="eyebrow">Master</span>
-        <strong>Party Master</strong>
-        <p>Shared directory for suppliers and future business parties.</p>
-    </a>
-    <a class="card quick-link-card" href="{{ url_for('customers') }}">
-        <span class="eyebrow">Customer Desk</span>
-        <strong>Open Customers</strong>
-        <p>Statements, receivable visibility and recent rental billing.</p>
-    </a>
-    <a class="card quick-link-card accent-card" href="{{ url_for('reports_center') }}">
-        <span class="eyebrow">Accounts</span>
-        <strong>Management Reports</strong>
-        <p>Open finance and tax reporting without switching login.</p>
-    </a>
-</section>
-
-<section class="stats premium-stats">
-    <article class="card stat-card premium-stat-card blue-stat">
-        <span>Suppliers</span>
-        <strong>{{ supplier_hub_summary.supplier_count }}</strong>
-        <small>Registered supplier parties ready for fleet and billing.</small>
-    </article>
-    <article class="card stat-card premium-stat-card orange-stat">
-        <span>Fleet Units</span>
-        <strong>{{ supplier_hub_summary.asset_count }}</strong>
-        <small>Supplier vehicles and hired assets stored in master.</small>
-    </article>
-    <article class="card stat-card premium-stat-card navy-stat">
-        <span>Unbilled Work</span>
-        <strong>AED {{ "%.2f"|format(supplier_hub_summary.unbilled_amount) }}</strong>
-        <small>Month-end timesheet value not yet converted into vouchers.</small>
-    </article>
-    <article class="card stat-card premium-stat-card green-stat">
-        <span>Paid to Suppliers</span>
-        <strong>AED {{ "%.2f"|format(supplier_hub_summary.paid_total) }}</strong>
-        <small>Total supplier payments posted through the new desk.</small>
-    </article>
-    <article class="card stat-card premium-stat-card slate-stat">
-        <span>Outstanding</span>
-        <strong>AED {{ "%.2f"|format(supplier_hub_summary.outstanding_total) }}</strong>
-        <small>Current supplier balance still payable.</small>
-    </article>
-</section>
-
-<section class="detail-layout dashboard-layout chart-layout">
-    <article class="card table-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Supplier Focus</p>
-                <h2>Top Supplier Exposure</h2>
-            </div>
-            <div class="form-actions left-actions">
-                <a class="button button-secondary" href="{{ url_for('suppliers') }}">Open Supplier Desk</a>
-            </div>
-        </div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Supplier</th>
-                        <th>Fleet</th>
-                        <th>Unbilled</th>
-                        <th>Paid</th>
-                        <th>Outstanding</th>
-                        <th>Open</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in top_suppliers %}
-                        <tr>
-                            <td>
-                                <strong>{{ item.party_name }}</strong>
-                                <div class="muted-text">{{ item.party_code }}</div>
-                            </td>
-                            <td>{{ item.asset_count }}</td>
-                            <td>AED {{ "%.2f"|format(item.unbilled_amount) }}</td>
-                            <td>AED {{ "%.2f"|format(item.paid_total) }}</td>
-                            <td>AED {{ "%.2f"|format(item.outstanding_total) }}</td>
-                            <td><a class="table-link" href="{{ url_for('supplier_detail', party_code=item.party_code) }}">Manage</a></td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="6">No suppliers registered yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </article>
-
-    <article class="card table-card chart-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Charts</p>
-                <h2>Shift Distribution</h2>
-            </div>
-        </div>
-        {% if shift_chart %}
-            <div class="chart-stack">
-                {% for item in shift_chart %}
-                    <div class="chart-row">
-                        <div class="chart-label">{{ item.label }}</div>
-                        <div class="chart-bar-shell">
-                            <div class="chart-bar" style="width: {{ item.width }}%"></div>
-                        </div>
-                        <div class="chart-value">{{ item.value }}</div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="muted-text">Shift chart data available nahi.</p>
-        {% endif %}
-    </article>
-
-    <article class="card table-card chart-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Charts</p>
-                <h2>Vehicle Mix</h2>
-            </div>
-        </div>
-        {% if vehicle_chart %}
-            <div class="chart-stack">
-                {% for item in vehicle_chart %}
-                    <div class="chart-row">
-                        <div class="chart-label">{{ item.label }}</div>
-                        <div class="chart-bar-shell">
-                            <div class="chart-bar orange-bar" style="width: {{ item.width }}%"></div>
-                        </div>
-                        <div class="chart-value">{{ item.value }}</div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="muted-text">Vehicle chart data available nahi.</p>
-        {% endif %}
-    </article>
-</section>
-
-<section class="card dashboard-utility-card">
-    <div class="section-heading slim-heading">
-        <div>
-            <p class="eyebrow">Tools</p>
-            <h2>Data Sync</h2>
-        </div>
-    </div>
-    <div class="dashboard-utility-actions">
-        <form class="action-card-form compact-utility-form upload-card-form" method="post" action="{{ url_for('import_driver_pdf') }}" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="file" name="driver_pdf" accept=".pdf,application/pdf">
-            <button class="button button-secondary quiet-button" type="submit">Driver PDF</button>
-        </form>
-        <form class="action-card-form compact-utility-form" method="post" action="{{ url_for('import_currentlink') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="button button-secondary quiet-button" type="submit">Excel Sync</button>
-        </form>
-    </div>
-</section>
-
-<section class="card table-card">
-    <div class="section-heading slim-heading">
-        <div>
-            <p class="eyebrow">Driver Cards</p>
-            <h2>Smart Driver Overview</h2>
-        </div>
-    </div>
-    <section class="driver-grid simple-grid">
-        {% for driver in drivers %}
-            {% set vehicle_type_value = (driver.vehicle_type or "")|lower %}
-            <a class="driver-card simple-card smart-card animated-driver-card" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">
-                <div class="driver-card-top">
-                    <span class="driver-id">{{ driver.driver_id }}</span>
-                </div>
-                <div class="driver-card-minimal-icon" aria-hidden="true">
-                    {% if "trailer" in vehicle_type_value %}
-                        &#128667;
-                    {% elif "crane" in vehicle_type_value %}
-                        &#127959;
-                    {% elif "pickup" in vehicle_type_value %}
-                        &#128664;
-                    {% elif "bus" in vehicle_type_value %}
-                        &#128652;
-                    {% elif "tanker" in vehicle_type_value or "water" in vehicle_type_value %}
-                        &#128666;
-                    {% else %}
-                        &#128666;
-                    {% endif %}
-                </div>
-                <div class="driver-card-minimal-copy">
-                    <h3>{{ driver.full_name }}</h3>
-                    <p class="driver-card-minimal-meta">Vehicle No {{ driver.vehicle_no }}</p>
-                </div>
-                <div class="driver-card-bottom">
-                    <span class="driver-card-note">Open action panel</span>
-                    <span class="driver-card-arrow">Open</span>
-                </div>
-            </a>
-        {% else %}
-            <section class="card empty-state full-width-card">
-                <h3>No drivers found</h3>
-                <p>Add driver or import data.</p>
-            </section>
-        {% endfor %}
-    </section>
 </section>
 {% endblock %}

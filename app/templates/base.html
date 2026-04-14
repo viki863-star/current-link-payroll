@@ -50,20 +50,13 @@
                 </div>
                 {% if current_role %}
                     {% if is_admin %}
-                        <section class="workspace-shell">
-                            <div class="workspace-switcher">
-                                {% for item in admin_workspace_links %}
-                                    <a class="workspace-pill {% if current_admin_workspace == item.key %}active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
-                                {% endfor %}
-                            </div>
-                            <nav class="actions-row tight-actions hero-nav workspace-nav">
-                                {% for item in admin_module_links %}
-                                    <a class="button {% if not item.primary %}button-secondary{% endif %} {% if request.endpoint == item.endpoint %}workspace-button-active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
-                                {% endfor %}
-                                <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
-                                <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
-                            </nav>
-                        </section>
+                        <nav class="actions-row tight-actions hero-nav workspace-nav simple-admin-nav">
+                            <a class="button {% if request.endpoint == 'dashboard' %}workspace-button-active{% else %}button-secondary{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
+                            {% for item in admin_module_links %}
+                                <a class="button {% if item.primary %}{% else %}button-secondary{% endif %} {% if request.endpoint == item.endpoint %}workspace-button-active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
+                            {% endfor %}
+                            <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
+                        </nav>
                     {% elif is_owner %}
                         <nav class="actions-row tight-actions hero-nav">
                             <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
