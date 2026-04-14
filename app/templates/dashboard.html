@@ -4,11 +4,55 @@
 <section class="dashboard-hero">
     <article class="card dashboard-hero-card">
         <div>
-            <p class="eyebrow">Operations Hub</p>
-            <h2>Driver and Supplier Control Center</h2>
-            <p class="lead">Payroll stays safe, and supplier fleet, month-end timesheets, vouchers, and balances stay visible from one clear desk.</p>
+            <p class="eyebrow">Universal Workspace</p>
+            <h2>Universal Control Tower</h2>
+            <p class="lead">Open the right desk without changing login. Payroll, supplier hire, customer billing and finance controls now stay separated so your work feels cleaner and faster.</p>
+        </div>
+        <div class="dashboard-hero-pills">
+            <span>One Admin Login</span>
+            <span>Focused Workspaces</span>
+            <span>Live Business View</span>
         </div>
     </article>
+</section>
+
+<section class="workspace-launch-grid">
+    <a class="card workspace-launch-card workspace-drivers" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">
+        <span class="eyebrow">Driver Desk</span>
+        <strong>Payroll & Driver Control</strong>
+        <p>Open driver master, salary store, deductions, slips and portal workflows without supplier clutter.</p>
+        <div class="workspace-launch-metrics">
+            <span>{{ total_drivers }} drivers</span>
+            <span>{{ active_drivers }} active</span>
+        </div>
+    </a>
+    <a class="card workspace-launch-card workspace-suppliers" href="{{ url_for('switch_workspace', workspace_key='suppliers') }}">
+        <span class="eyebrow">Supplier Desk</span>
+        <strong>Hire Fleet & Payments</strong>
+        <p>Manage supplier register, vehicles, month-end rows, vouchers, payments and outstanding balances.</p>
+        <div class="workspace-launch-metrics">
+            <span>{{ supplier_hub_summary.supplier_count }} suppliers</span>
+            <span>AED {{ "%.0f"|format(supplier_hub_summary.outstanding_total) }} due</span>
+        </div>
+    </a>
+    <a class="card workspace-launch-card workspace-customers" href="{{ url_for('switch_workspace', workspace_key='customers') }}">
+        <span class="eyebrow">Customer Desk</span>
+        <strong>Invoices & Statements</strong>
+        <p>Open agreements, LPOs, rentals, customer invoices, receipts and receivable statements in one desk.</p>
+        <div class="workspace-launch-metrics">
+            <span>{{ customer_summary.customer_count }} customers</span>
+            <span>AED {{ "%.0f"|format(customer_summary.receivable_total) }} receivable</span>
+        </div>
+    </a>
+    <a class="card workspace-launch-card workspace-accounts" href="{{ url_for('switch_workspace', workspace_key='accounts') }}">
+        <span class="eyebrow">Accounts Desk</span>
+        <strong>Tax, Fund & Reports</strong>
+        <p>Track owner fund, VAT, collections, annual fees, loans and reports from one finance-focused screen.</p>
+        <div class="workspace-launch-metrics">
+            <span>{{ invoice_summary.open_invoice_count }} open invoices</span>
+            <span>AED {{ "%.0f"|format(owner_fund_balance) }} fund</span>
+        </div>
+    </a>
 </section>
 
 <section class="stats premium-stats">
@@ -113,6 +157,16 @@
         <span class="eyebrow">Master</span>
         <strong>Party Master</strong>
         <p>Shared directory for suppliers and future business parties.</p>
+    </a>
+    <a class="card quick-link-card" href="{{ url_for('customers') }}">
+        <span class="eyebrow">Customer Desk</span>
+        <strong>Open Customers</strong>
+        <p>Statements, receivable visibility and recent rental billing.</p>
+    </a>
+    <a class="card quick-link-card accent-card" href="{{ url_for('reports_center') }}">
+        <span class="eyebrow">Accounts</span>
+        <strong>Management Reports</strong>
+        <p>Open finance and tax reporting without switching login.</p>
     </a>
 </section>
 

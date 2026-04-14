@@ -12,7 +12,7 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %} {% if is_admin and current_admin_workspace %}workspace-{{ current_admin_workspace }}{% endif %}">
     <div class="brand-shell">
         {% block shell_header %}
             <header class="hero">
@@ -23,47 +23,66 @@
                 </div>
                 <div class="hero-stage">
                     <div class="hero-copy compact-copy">
-                        <p class="eyebrow">{{ config["COMPANY_NAME"] }}</p>
+                        <p class="eyebrow">{{ current_workspace_meta.eyebrow if current_workspace_meta else config["COMPANY_NAME"] }}</p>
                         <h1>
                             {% if is_admin %}
-                                Admin
+                                {{ current_workspace_meta.title }}
                             {% elif is_owner %}
-                                Owner
+                                {{ current_workspace_meta.title }}
                             {% elif is_driver %}
-                                Driver Portal
+                                {{ current_workspace_meta.title }}
                             {% else %}
-                                Portal
+                                {{ current_workspace_meta.title if current_workspace_meta else "Portal" }}
                             {% endif %}
                         </h1>
+                        {% if current_workspace_meta and current_workspace_meta.summary %}
+                            <p class="workspace-lead">{{ current_workspace_meta.summary }}</p>
+                        {% endif %}
                     </div>
                     <div class="topbar-meta">
                         {% if current_role %}
                             <span class="user-chip">{{ current_user_name or current_role|title }}</span>
                         {% endif %}
+                        {% if is_admin %}
+                            <span class="workspace-chip">{{ current_workspace_meta.label }}</span>
+                        {% endif %}
                     </div>
                 </div>
-                <nav class="actions-row tight-actions hero-nav">
-                    <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
-                    {% if current_role %}
-                        {% if is_admin %}
-                            <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                            <a class="button button-secondary" href="{{ url_for('company_setup') }}">Company Setup</a>
-                            <a class="button button-secondary" href="{{ url_for('driver_list') }}">Drivers</a>
-                            <a class="button button-secondary" href="{{ url_for('party_list') }}">Parties</a>
-                            <a class="button button-secondary" href="{{ url_for('suppliers') }}">Suppliers</a>
-                            <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund</a>
-                            <a class="button" href="{{ url_for('create_driver') }}">Add Driver</a>
-                        {% elif is_owner %}
+                {% if current_role %}
+                    {% if is_admin %}
+                        <section class="workspace-shell">
+                            <div class="workspace-switcher">
+                                {% for item in admin_workspace_links %}
+                                    <a class="workspace-pill {% if current_admin_workspace == item.key %}active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
+                                {% endfor %}
+                            </div>
+                            <nav class="actions-row tight-actions hero-nav workspace-nav">
+                                {% for item in admin_module_links %}
+                                    <a class="button {% if not item.primary %}button-secondary{% endif %} {% if request.endpoint == item.endpoint %}workspace-button-active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
+                                {% endfor %}
+                                <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
+                                <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
+                            </nav>
+                        </section>
+                    {% elif is_owner %}
+                        <nav class="actions-row tight-actions hero-nav">
+                            <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
                             <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund</a>
                             <a class="button button-secondary" href="{{ url_for('owner_fund_pdf') }}">Owner Fund PDF</a>
-                        {% elif is_driver %}
+                            <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
+                        </nav>
+                    {% elif is_driver %}
+                        <nav class="actions-row tight-actions hero-nav">
+                            <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
                             <a class="button button-secondary" href="{{ url_for('driver_portal') }}">My Portal</a>
-                        {% endif %}
-                        <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
-                    {% else %}
-                        <a class="button" href="{{ url_for('login') }}">Portal Login</a>
+                            <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
+                        </nav>
                     {% endif %}
-                </nav>
+                {% else %}
+                    <nav class="actions-row tight-actions hero-nav">
+                        <a class="button" href="{{ url_for('login') }}">Portal Login</a>
+                    </nav>
+                {% endif %}
             </header>
         {% endblock %}
 

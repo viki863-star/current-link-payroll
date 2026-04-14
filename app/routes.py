@@ -31,6 +31,7 @@ from .pdf_service import (
     generate_owner_fund_pdf,
     generate_salary_slip_pdf,
     generate_supplier_payment_voucher_pdf,
+    generate_tax_invoice_pdf,
     generate_timesheet_pdf,
 )
 
@@ -53,6 +54,7 @@ RATE_TYPE_OPTIONS = ["Monthly", "Daily", "Trip", "Hourly", "Fixed"]
 HIRE_DIRECTION_OPTIONS = ["Supplier Hire", "Customer Rental"]
 UNIT_TYPE_OPTIONS = ["Days", "Trips", "Hours", "Months", "Units"]
 INVOICE_KIND_OPTIONS = ["Sales", "Purchase"]
+INVOICE_DOCUMENT_OPTIONS = ["Tax Invoice", "Simplified Tax Invoice", "Credit Note", "Debit Note", "Supplier Bill"]
 PAYMENT_KIND_OPTIONS = ["Received", "Paid"]
 PAYMENT_METHOD_OPTIONS = ["Bank", "Cash", "Owner Fund", "Cheque", "Transfer", "Other"]
 LOAN_TYPE_OPTIONS = ["Given", "Recovered"]
@@ -61,6 +63,40 @@ SUPPLIER_RATE_BASIS_OPTIONS = ["Hours", "Days", "Trips", "Monthly", "Fixed"]
 SUPPLIER_VOUCHER_STATUS_OPTIONS = ["Open", "Partially Paid", "Paid"]
 BRANCH_STATUS_OPTIONS = ["Active", "Inactive"]
 FINANCIAL_YEAR_STATUS_OPTIONS = ["Open", "Closed", "Archived"]
+INVOICE_LINE_SLOTS = 4
+ADMIN_WORKSPACE_ORDER = ["universal", "drivers", "suppliers", "customers", "accounts"]
+ADMIN_WORKSPACE_META = {
+    "universal": {
+        "label": "Universal",
+        "eyebrow": "Universal Workspace",
+        "title": "Universal Control Tower",
+        "summary": "One clear executive view across payroll, suppliers, customers, owner fund, tax and reporting.",
+    },
+    "drivers": {
+        "label": "Drivers",
+        "eyebrow": "Driver Workspace",
+        "title": "Driver Payroll Desk",
+        "summary": "Focused payroll, slips, transactions, timesheets and driver master without supplier or invoice noise.",
+    },
+    "suppliers": {
+        "label": "Suppliers",
+        "eyebrow": "Supplier Workspace",
+        "title": "Supplier Hire Desk",
+        "summary": "Register suppliers, fleet, month-end rows, vouchers, payments and outstanding balances from one clean desk.",
+    },
+    "customers": {
+        "label": "Customers",
+        "eyebrow": "Customer Workspace",
+        "title": "Customer Billing Desk",
+        "summary": "Contracts, LPOs, customer rental jobs, invoices, receipts and statements in one focused flow.",
+    },
+    "accounts": {
+        "label": "Accounts",
+        "eyebrow": "Accounts Workspace",
+        "title": "Accounts & Compliance Desk",
+        "summary": "Owner fund, VAT, annual fees, loans, invoice control and management reports in one finance-ready workspace.",
+    },
+}
 
 
 class ValidationError(ValueError):
@@ -75,13 +111,19 @@ def register_routes(app: Flask) -> None:
 
     @app.context_processor
     def inject_auth_context():
+        current_role = _current_role()
+        current_workspace = _current_admin_workspace() if current_role == "admin" else ""
         return {
-            "current_role": _current_role(),
+            "current_role": current_role,
             "current_driver_id": session.get("driver_id"),
             "current_user_name": session.get("display_name", ""),
-            "is_admin": _current_role() == "admin",
-            "is_driver": _current_role() == "driver",
-            "is_owner": _current_role() == "owner",
+            "is_admin": current_role == "admin",
+            "is_driver": current_role == "driver",
+            "is_owner": current_role == "owner",
+            "current_admin_workspace": current_workspace,
+            "current_workspace_meta": _current_workspace_meta(),
+            "admin_workspace_links": _admin_workspace_links() if current_role == "admin" else [],
+            "admin_module_links": _admin_module_links(current_workspace) if current_role == "admin" else [],
         }
 
     @app.route("/")
@@ -190,9 +232,16 @@ def register_routes(app: Flask) -> None:
     def services():
         return render_template("services.html")
 
+    @app.get("/workspace/<workspace_key>")
+    @_login_required("admin")
+    def switch_workspace(workspace_key: str):
+        selected_workspace = _set_admin_workspace(workspace_key)
+        return redirect(url_for(_workspace_home_endpoint(selected_workspace)))
+
     @app.route("/dashboard")
     @_login_required("admin")
     def dashboard():
+        _touch_admin_workspace("universal")
         db = open_db()
         query = request.args.get("q", "").strip()
         status_filter = request.args.get("status", "").strip()
@@ -240,6 +289,7 @@ def register_routes(app: Flask) -> None:
         supplier_hub_summary = _supplier_hub_summary(db)
         top_suppliers = _supplier_directory_rows(db, limit=6)
         customer_summary = _customer_summary(db)
+        invoice_summary = _invoice_center_summary(db)
         loan_summary = _loan_summary(db)
         annual_fee_summary = _annual_fee_summary(db)
         import_history = db.execute(
@@ -302,6 +352,7 @@ def register_routes(app: Flask) -> None:
             supplier_hub_summary=supplier_hub_summary,
             top_suppliers=top_suppliers,
             customer_summary=customer_summary,
+            invoice_summary=invoice_summary,
             loan_summary=loan_summary,
             annual_fee_summary=annual_fee_summary,
             import_history=import_history,
@@ -315,6 +366,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/company-setup", methods=["GET", "POST"])
     @_login_required("admin")
     def company_setup():
+        _touch_admin_workspace("accounts")
         db = open_db()
         profile_values = _company_profile_values(db)
         branch_values = _default_branch_form(db)
@@ -714,6 +766,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/suppliers", methods=["GET", "POST"])
     @_login_required("admin")
     def suppliers():
+        _touch_admin_workspace("suppliers")
         db = open_db()
         values = _default_supplier_form()
         query = request.args.get("q", "").strip()
@@ -783,6 +836,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/suppliers/<party_code>", methods=["GET", "POST"])
     @_login_required("admin")
     def supplier_detail(party_code: str):
+        _touch_admin_workspace("suppliers")
         db = open_db()
         party = _fetch_supplier_party(db, party_code)
         if party is None:
@@ -1189,6 +1243,7 @@ def register_routes(app: Flask) -> None:
     @app.get("/customers")
     @_login_required("admin")
     def customers():
+        _touch_admin_workspace("customers")
         db = open_db()
         customer_parties = _parties_by_role(db, "Customer")
         summary = _customer_summary(db)
@@ -1207,6 +1262,7 @@ def register_routes(app: Flask) -> None:
     @app.get("/customers/<party_code>/statement")
     @_login_required("admin")
     def customer_statement(party_code: str):
+        _touch_admin_workspace("customers")
         db = open_db()
         party = _fetch_party(db, party_code)
         if party is None:
@@ -1226,6 +1282,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/agreements-lpos", methods=["GET", "POST"])
     @_login_required("admin")
     def agreements_lpos():
+        _touch_admin_workspace("customers")
         db = open_db()
         agreement_values = _default_agreement_form()
         lpo_values = _default_lpo_form()
@@ -1476,6 +1533,7 @@ def register_routes(app: Flask) -> None:
         db = open_db()
         invoice_values = _default_invoice_form()
         payment_values = _default_payment_form()
+        invoice_line_rows = _default_invoice_lines()
 
         edit_invoice_no = request.args.get("edit_invoice", "").strip().upper()
         edit_voucher_no = request.args.get("edit_payment", "").strip().upper()
@@ -1483,6 +1541,7 @@ def register_routes(app: Flask) -> None:
             invoice_row = db.execute("SELECT * FROM account_invoices WHERE invoice_no = ?", (edit_invoice_no,)).fetchone()
             if invoice_row is not None:
                 invoice_values = _invoice_form_from_row(invoice_row)
+                invoice_line_rows = _invoice_line_rows_for_form(db, invoice_row["invoice_no"], invoice_values)
         if edit_voucher_no:
             payment_row = db.execute("SELECT * FROM account_payments WHERE voucher_no = ?", (edit_voucher_no,)).fetchone()
             if payment_row is not None:
@@ -1493,7 +1552,8 @@ def register_routes(app: Flask) -> None:
             try:
                 if action == "save_invoice":
                     invoice_values = _invoice_form_data(request)
-                    payload = _prepare_invoice_payload(db, invoice_values)
+                    invoice_line_rows = _invoice_line_form_data(request)
+                    payload, prepared_lines = _prepare_invoice_payload(db, invoice_values, invoice_line_rows)
                     _ensure_reference_available(
                         db,
                         "account_invoices",
@@ -1510,16 +1570,18 @@ def register_routes(app: Flask) -> None:
                             """
                             UPDATE account_invoices
                             SET invoice_no = ?, party_code = ?, agreement_no = ?, lpo_no = ?, hire_no = ?, invoice_kind = ?,
-                                issue_date = ?, due_date = ?, subtotal = ?, tax_percent = ?, tax_amount = ?,
-                                total_amount = ?, notes = ?
+                                document_type = ?, issue_date = ?, due_date = ?, subtotal = ?, tax_percent = ?,
+                                tax_amount = ?, total_amount = ?, pdf_path = ?, notes = ?
                             WHERE invoice_no = ?
                             """,
                             (
                                 payload[0], payload[1], payload[2], payload[3], payload[4], payload[5],
-                                payload[6], payload[7], payload[8], payload[9], payload[10], payload[11], payload[15],
+                                payload[6], payload[7], payload[8], payload[9], payload[10], payload[11], payload[12], payload[16], payload[17],
                                 invoice_values["original_invoice_no"],
                             ),
                         )
+                        db.execute("DELETE FROM account_invoice_lines WHERE invoice_no = ?", (invoice_values["original_invoice_no"],))
+                        _save_invoice_lines(db, invoice_values["invoice_no"], prepared_lines)
                         if invoice_values["invoice_no"] != invoice_values["original_invoice_no"]:
                             db.execute(
                                 "UPDATE account_payments SET invoice_no = ? WHERE invoice_no = ?",
@@ -1539,12 +1601,13 @@ def register_routes(app: Flask) -> None:
                             """
                             INSERT INTO account_invoices (
                                 invoice_no, party_code, agreement_no, lpo_no, hire_no, invoice_kind,
-                                issue_date, due_date, subtotal, tax_percent, tax_amount,
-                                total_amount, paid_amount, balance_amount, status, notes
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                document_type, issue_date, due_date, subtotal, tax_percent, tax_amount,
+                                total_amount, paid_amount, balance_amount, status, pdf_path, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                             payload,
                         )
+                        _save_invoice_lines(db, invoice_values["invoice_no"], prepared_lines)
                         _audit_log(
                             db,
                             "account_invoice_created",
@@ -1648,8 +1711,10 @@ def register_routes(app: Flask) -> None:
         return render_template(
             "invoice_center.html",
             invoice_values=invoice_values,
+            invoice_line_rows=invoice_line_rows,
             payment_values=payment_values,
             invoice_kind_options=INVOICE_KIND_OPTIONS,
+            invoice_document_options=INVOICE_DOCUMENT_OPTIONS,
             payment_method_options=PAYMENT_METHOD_OPTIONS,
             parties=_contract_parties(db),
             agreements=_agreement_rows(db, limit=40),
@@ -1661,6 +1726,18 @@ def register_routes(app: Flask) -> None:
             summary=_invoice_center_summary(db),
         )
 
+    @app.get("/invoices/<invoice_no>/pdf")
+    @_login_required("admin")
+    def invoice_pdf(invoice_no: str):
+        db = open_db()
+        pdf_path = _regenerate_invoice_pdf(app, db, invoice_no)
+        if not pdf_path:
+            flash("Invoice PDF could not be generated.", "error")
+            return redirect(url_for("invoice_center"))
+        relative_path = Path(pdf_path).relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
+        flash("Invoice PDF generated successfully.", "success")
+        return redirect(url_for("generated_file", filename=relative_path))
+
     @app.post("/invoices/<invoice_no>/delete")
     @_login_required("admin")
     def delete_invoice(invoice_no: str):
@@ -1669,6 +1746,7 @@ def register_routes(app: Flask) -> None:
         if payment_count:
             flash("Invoice cannot be deleted while payments are linked to it.", "error")
             return redirect(url_for("invoice_center"))
+        db.execute("DELETE FROM account_invoice_lines WHERE invoice_no = ?", (invoice_no,))
         db.execute("DELETE FROM account_invoices WHERE invoice_no = ?", (invoice_no,))
         _audit_log(db, "account_invoice_deleted", entity_type="invoice", entity_id=invoice_no, details=invoice_no)
         db.commit()
@@ -1694,6 +1772,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/loans", methods=["GET", "POST"])
     @_login_required("admin")
     def loans_center():
+        _touch_admin_workspace("accounts")
         db = open_db()
         values = _default_loan_form()
         edit_loan_no = request.args.get("edit_loan", "").strip().upper()
@@ -1769,6 +1848,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/annual-fees", methods=["GET", "POST"])
     @_login_required("admin")
     def annual_fees():
+        _touch_admin_workspace("accounts")
         db = open_db()
         values = _default_fee_form()
         edit_fee_no = request.args.get("edit_fee", "").strip().upper()
@@ -1845,6 +1925,7 @@ def register_routes(app: Flask) -> None:
     @app.get("/tax")
     @_login_required("admin")
     def tax_center():
+        _touch_admin_workspace("accounts")
         db = open_db()
         return render_template(
             "tax_center.html",
@@ -1855,6 +1936,7 @@ def register_routes(app: Flask) -> None:
     @app.get("/reports")
     @_login_required("admin")
     def reports_center():
+        _touch_admin_workspace("accounts")
         db = open_db()
         return render_template(
             "reports_center.html",
@@ -1873,6 +1955,8 @@ def register_routes(app: Flask) -> None:
     @app.route("/owner-fund", methods=["GET", "POST"])
     @_login_required("admin", "owner")
     def owner_fund():
+        if _current_role() == "admin":
+            _touch_admin_workspace("accounts")
         db = open_db()
         can_edit = _current_role() == "admin"
         edit_entry_id = request.args.get("edit", "").strip()
@@ -2146,6 +2230,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/drivers/list")
     @_login_required("admin")
     def driver_list():
+        _touch_admin_workspace("drivers")
         db = open_db()
         query = request.args.get("q", "").strip()
         status_filter = request.args.get("status", "").strip()
@@ -2181,6 +2266,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/drivers/new", methods=["GET", "POST"])
     @_login_required("admin")
     def create_driver():
+        _touch_admin_workspace("drivers")
         if request.method == "POST":
             form = _driver_form_data(request)
             missing_fields = [
@@ -2265,6 +2351,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/drivers/<driver_id>/edit", methods=["GET", "POST"])
     @_login_required("admin")
     def edit_driver(driver_id: str):
+        _touch_admin_workspace("drivers")
         db = open_db()
         driver = _fetch_driver(db, driver_id)
         if driver is None:
@@ -2428,6 +2515,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/drivers/<driver_id>")
     @_login_required("admin")
     def driver_action(driver_id: str):
+        _touch_admin_workspace("drivers")
         db = open_db()
         driver = _fetch_driver(db, driver_id)
         if driver is None:
@@ -2478,6 +2566,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/drivers/<driver_id>/transactions", methods=["GET", "POST"])
     @_login_required("admin")
     def driver_transactions(driver_id: str):
+        _touch_admin_workspace("drivers")
         db = open_db()
         driver = _fetch_driver(db, driver_id)
         if driver is None:
@@ -2631,6 +2720,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/drivers/<driver_id>/salary-store", methods=["GET", "POST"])
     @_login_required("admin")
     def driver_salary_store(driver_id: str):
+        _touch_admin_workspace("drivers")
         db = open_db()
         driver = _fetch_driver(db, driver_id)
         if driver is None:
@@ -2817,6 +2907,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/drivers/<driver_id>/salary-slip", methods=["GET", "POST"])
     @_login_required("admin")
     def driver_salary_slip(driver_id: str):
+        _touch_admin_workspace("drivers")
         db = open_db()
         driver = _fetch_driver(db, driver_id)
         if driver is None:
@@ -3253,6 +3344,8 @@ def _set_session(role: str, driver_id: str | None = None, display_name: str = ""
     session.permanent = True
     session["role"] = role
     session["display_name"] = display_name
+    if role == "admin":
+        session["admin_workspace"] = "universal"
     if driver_id:
         session["driver_id"] = driver_id
 
@@ -3268,12 +3361,130 @@ def _current_driver_id() -> str:
 def _role_home_endpoint() -> str:
     role = _current_role()
     if role == "admin":
-        return "dashboard"
+        return _workspace_home_endpoint(_current_admin_workspace())
     if role == "owner":
         return "owner_fund"
     if role == "driver":
         return "driver_portal"
     return "login"
+
+
+def _current_admin_workspace() -> str:
+    if _current_role() != "admin":
+        return ""
+    workspace = (session.get("admin_workspace") or "universal").strip().lower()
+    if workspace not in ADMIN_WORKSPACE_META:
+        workspace = "universal"
+    return workspace
+
+
+def _set_admin_workspace(workspace: str) -> str:
+    normalized = (workspace or "universal").strip().lower()
+    if normalized not in ADMIN_WORKSPACE_META:
+        normalized = "universal"
+    session["admin_workspace"] = normalized
+    return normalized
+
+
+def _touch_admin_workspace(workspace: str) -> None:
+    if _current_role() == "admin":
+        _set_admin_workspace(workspace)
+
+
+def _workspace_home_endpoint(workspace: str) -> str:
+    return {
+        "universal": "dashboard",
+        "drivers": "driver_list",
+        "suppliers": "suppliers",
+        "customers": "customers",
+        "accounts": "reports_center",
+    }.get(workspace, "dashboard")
+
+
+def _current_workspace_meta() -> dict[str, str]:
+    role = _current_role()
+    if role == "admin":
+        workspace = _current_admin_workspace() or "universal"
+        return {"key": workspace, **ADMIN_WORKSPACE_META[workspace]}
+    if role == "owner":
+        return {
+            "key": "owner",
+            "label": "Owner",
+            "eyebrow": "Owner Workspace",
+            "title": "Owner Fund Desk",
+            "summary": "Track owner fund movement, support salary payouts and keep monthly backing visible.",
+        }
+    if role == "driver":
+        return {
+            "key": "driver",
+            "label": "Driver",
+            "eyebrow": "Driver Portal",
+            "title": "Driver Self Service",
+            "summary": "View salary, slips, transaction history, timesheet activity and assigned vehicle from one place.",
+        }
+    return {
+        "key": "public",
+        "label": "Portal",
+        "eyebrow": "Current Link",
+        "title": "Portal Access",
+        "summary": "Open the right workspace and move fast without mixing payroll, supplier and customer operations.",
+    }
+
+
+def _admin_workspace_links():
+    return [
+        {
+            "key": workspace,
+            "label": ADMIN_WORKSPACE_META[workspace]["label"],
+            "url": url_for("switch_workspace", workspace_key=workspace),
+        }
+        for workspace in ADMIN_WORKSPACE_ORDER
+    ]
+
+
+def _admin_module_links(workspace: str):
+    workspace_key = workspace or "universal"
+    module_map = {
+        "universal": [
+            {"label": "Dashboard", "endpoint": "dashboard"},
+            {"label": "Drivers", "endpoint": "driver_list"},
+            {"label": "Suppliers", "endpoint": "suppliers"},
+            {"label": "Customers", "endpoint": "customers"},
+            {"label": "Accounts", "endpoint": "reports_center"},
+        ],
+        "drivers": [
+            {"label": "Driver List", "endpoint": "driver_list"},
+            {"label": "Add Driver", "endpoint": "create_driver", "primary": True},
+            {"label": "Universal", "endpoint": "dashboard"},
+        ],
+        "suppliers": [
+            {"label": "Supplier Desk", "endpoint": "suppliers"},
+            {"label": "Party Master", "endpoint": "party_list"},
+            {"label": "Invoices", "endpoint": "invoice_center"},
+        ],
+        "customers": [
+            {"label": "Customer Desk", "endpoint": "customers"},
+            {"label": "Agreements", "endpoint": "agreements_lpos"},
+            {"label": "Invoices", "endpoint": "invoice_center"},
+            {"label": "Party Master", "endpoint": "party_list"},
+        ],
+        "accounts": [
+            {"label": "Reports", "endpoint": "reports_center"},
+            {"label": "Invoices", "endpoint": "invoice_center"},
+            {"label": "Owner Fund", "endpoint": "owner_fund"},
+            {"label": "Tax", "endpoint": "tax_center"},
+            {"label": "Annual Fees", "endpoint": "annual_fees"},
+            {"label": "Loans", "endpoint": "loans_center"},
+            {"label": "Company Setup", "endpoint": "company_setup"},
+        ],
+    }
+    return [
+        {
+            **item,
+            "url": url_for(item["endpoint"]),
+        }
+        for item in module_map.get(workspace_key, module_map["universal"])
+    ]
 
 
 def _find_driver_by_phone(db, phone_number: str):
@@ -3878,6 +4089,7 @@ def _default_invoice_form(db=None):
         "lpo_no": "",
         "hire_no": "",
         "invoice_kind": INVOICE_KIND_OPTIONS[0],
+        "document_type": INVOICE_DOCUMENT_OPTIONS[0],
         "issue_date": date.today().isoformat(),
         "due_date": "",
         "subtotal": "",
@@ -3898,6 +4110,20 @@ def _default_payment_form(db=None):
         "reference": "",
         "notes": "",
     }
+
+
+def _default_invoice_lines():
+    return [
+        {
+            "line_no": index,
+            "description": "",
+            "quantity": "1" if index == 1 else "",
+            "unit_label": "",
+            "rate": "",
+            "subtotal": "",
+        }
+        for index in range(1, INVOICE_LINE_SLOTS + 1)
+    ]
 
 
 def _default_loan_form(db=None):
@@ -3993,12 +4219,32 @@ def _invoice_form_data(request):
         "lpo_no": request.form.get("lpo_no", "").strip().upper(),
         "hire_no": request.form.get("hire_no", "").strip().upper(),
         "invoice_kind": request.form.get("invoice_kind", INVOICE_KIND_OPTIONS[0]).strip() or INVOICE_KIND_OPTIONS[0],
+        "document_type": request.form.get("document_type", INVOICE_DOCUMENT_OPTIONS[0]).strip() or INVOICE_DOCUMENT_OPTIONS[0],
         "issue_date": request.form.get("issue_date", "").strip(),
         "due_date": request.form.get("due_date", "").strip(),
         "subtotal": request.form.get("subtotal", "").strip(),
         "tax_percent": request.form.get("tax_percent", "0").strip() or "0",
         "notes": request.form.get("notes", "").strip(),
     }
+
+
+def _invoice_line_form_data(request):
+    rows = []
+    for index in range(1, INVOICE_LINE_SLOTS + 1):
+        quantity_raw = request.form.get(f"line_quantity_{index}", "").strip()
+        rate_raw = request.form.get(f"line_rate_{index}", "").strip()
+        subtotal_raw = request.form.get(f"line_subtotal_{index}", "").strip()
+        rows.append(
+            {
+                "line_no": index,
+                "description": request.form.get(f"line_description_{index}", "").strip(),
+                "quantity": quantity_raw or ("1" if index == 1 else ""),
+                "unit_label": request.form.get(f"line_unit_{index}", "").strip(),
+                "rate": rate_raw,
+                "subtotal": subtotal_raw,
+            }
+        )
+    return rows
 
 
 def _payment_form_data(request):
@@ -4159,6 +4405,7 @@ def _invoice_form_from_row(row):
             "lpo_no": row["lpo_no"] or "",
             "hire_no": row["hire_no"] or "",
             "invoice_kind": row["invoice_kind"] or INVOICE_KIND_OPTIONS[0],
+            "document_type": row["document_type"] or (INVOICE_DOCUMENT_OPTIONS[0] if (row["invoice_kind"] or INVOICE_KIND_OPTIONS[0]) == "Sales" else "Supplier Bill"),
             "issue_date": row["issue_date"] or "",
             "due_date": row["due_date"] or "",
             "subtotal": _display_number(row["subtotal"]),
@@ -4167,6 +4414,60 @@ def _invoice_form_from_row(row):
         }
     )
     return values
+
+
+def _invoice_line_rows_for_form(db, invoice_no: str, invoice_values=None):
+    rows = db.execute(
+        """
+        SELECT line_no, description, quantity, unit_label, rate, subtotal
+        FROM account_invoice_lines
+        WHERE invoice_no = ?
+        ORDER BY line_no ASC, id ASC
+        """,
+        (invoice_no,),
+    ).fetchall()
+    if rows:
+        line_rows = []
+        for index, row in enumerate(rows[:INVOICE_LINE_SLOTS], start=1):
+            line_rows.append(
+                {
+                    "line_no": index,
+                    "description": row["description"] or "",
+                    "quantity": _display_number(row["quantity"]),
+                    "unit_label": row["unit_label"] or "",
+                    "rate": _display_number(row["rate"]),
+                    "subtotal": _display_number(row["subtotal"]),
+                }
+            )
+        while len(line_rows) < INVOICE_LINE_SLOTS:
+            line_rows.append(_default_invoice_lines()[len(line_rows)])
+        return line_rows
+
+    invoice_values = invoice_values or {}
+    hire_no = invoice_values.get("hire_no", "")
+    if hire_no:
+        hire_row = db.execute(
+            """
+            SELECT asset_name, unit_type, quantity, rate, subtotal
+            FROM hire_records
+            WHERE hire_no = ?
+            """,
+            (hire_no,),
+        ).fetchone()
+        if hire_row is not None:
+            line_rows = _default_invoice_lines()
+            line_rows[0].update(
+                {
+                    "description": hire_row["asset_name"] or "",
+                    "quantity": _display_number(hire_row["quantity"]),
+                    "unit_label": hire_row["unit_type"] or "",
+                    "rate": _display_number(hire_row["rate"]),
+                    "subtotal": _display_number(hire_row["subtotal"]),
+                }
+            )
+            return line_rows
+
+    return _default_invoice_lines()
 
 
 def _payment_form_from_row(row):
@@ -5109,21 +5410,123 @@ def _prepare_hire_payload(db, values):
     return (values["hire_no"], values["party_code"], agreement_no or None, lpo_no or None, entry_date, values["direction"], values["asset_name"], values["asset_type"], values["unit_type"], quantity, rate, subtotal, tax_percent, tax_amount, total_amount, values["status"], values["notes"])
 
 
-def _prepare_invoice_payload(db, values):
+def _prepare_invoice_line_payloads(db, values, line_rows):
+    prepared_lines = []
+    for row in line_rows:
+        description = (row.get("description") or "").strip()
+        quantity_raw = (row.get("quantity") or "").strip()
+        unit_label = (row.get("unit_label") or "").strip()
+        rate_raw = (row.get("rate") or "").strip()
+        subtotal_raw = (row.get("subtotal") or "").strip()
+        if not any([description, quantity_raw, unit_label, rate_raw, subtotal_raw]):
+            continue
+        if not description:
+            raise ValidationError(f"Invoice line {row['line_no']} description is required.")
+        quantity = _parse_decimal(quantity_raw or "1", f"Invoice line {row['line_no']} quantity", required=True, minimum=0.01)
+        rate = _parse_decimal(rate_raw or "0", f"Invoice line {row['line_no']} rate", required=False, default=0.0, minimum=0.0)
+        subtotal = round(quantity * rate, 2)
+        prepared_lines.append(
+            {
+                "line_no": len(prepared_lines) + 1,
+                "description": description,
+                "quantity": quantity,
+                "unit_label": unit_label,
+                "rate": rate,
+                "subtotal": subtotal,
+            }
+        )
+
+    if prepared_lines:
+        return prepared_lines
+
+    hire_no = (values.get("hire_no") or "").strip().upper()
+    if hire_no:
+        hire_row = db.execute(
+            """
+            SELECT asset_name, unit_type, quantity, rate, subtotal
+            FROM hire_records
+            WHERE hire_no = ?
+            """,
+            (hire_no,),
+        ).fetchone()
+        if hire_row is not None:
+            return [
+                {
+                    "line_no": 1,
+                    "description": hire_row["asset_name"] or f"Hire {hire_no}",
+                    "quantity": float(hire_row["quantity"] or 1.0),
+                    "unit_label": hire_row["unit_type"] or "",
+                    "rate": float(hire_row["rate"] or 0.0),
+                    "subtotal": float(hire_row["subtotal"] or 0.0),
+                }
+            ]
+
+    return []
+
+
+def _save_invoice_lines(db, invoice_no: str, line_rows):
+    for row in line_rows:
+        db.execute(
+            """
+            INSERT INTO account_invoice_lines (
+                invoice_no, line_no, description, quantity, unit_label, rate, subtotal
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                invoice_no,
+                row["line_no"],
+                row["description"],
+                row["quantity"],
+                row["unit_label"] or None,
+                row["rate"],
+                row["subtotal"],
+            ),
+        )
+
+
+def _prepare_invoice_payload(db, values, line_rows):
     if not values["invoice_no"]:
         values["invoice_no"] = _next_reference_code(db, "account_invoices", "invoice_no", "INV")
+    if values["document_type"] not in INVOICE_DOCUMENT_OPTIONS:
+        values["document_type"] = INVOICE_DOCUMENT_OPTIONS[0]
     _validate_party_reference(db, values["party_code"])
     agreement_no = _optional_reference_exists(db, "agreements", "agreement_no", values["agreement_no"], "Agreement")
     lpo_no = _optional_reference_exists(db, "lpos", "lpo_no", values["lpo_no"], "LPO")
     hire_no = _optional_reference_exists(db, "hire_records", "hire_no", values["hire_no"], "Hire register")
     issue_date = _validate_date_text(values["issue_date"], "Invoice date")
     due_date = _validate_date_text(values["due_date"], "Invoice due date", required=False)
-    subtotal = _parse_decimal(values["subtotal"], "Invoice subtotal", required=True, minimum=0.0)
+    prepared_lines = _prepare_invoice_line_payloads(db, values, line_rows)
+    if prepared_lines:
+        subtotal = round(sum(float(row["subtotal"]) for row in prepared_lines), 2)
+    else:
+        subtotal = _parse_decimal(values["subtotal"], "Invoice subtotal", required=True, minimum=0.0)
     tax_percent = _parse_decimal(values["tax_percent"], "Invoice tax percent", required=False, default=0.0, minimum=0.0)
     tax_amount = round(subtotal * (tax_percent / 100.0), 2)
     total_amount = round(subtotal + tax_amount, 2)
     values["total_amount"] = total_amount
-    return (values["invoice_no"], values["party_code"], agreement_no or None, lpo_no or None, hire_no or None, values["invoice_kind"], issue_date, due_date or None, subtotal, tax_percent, tax_amount, total_amount, 0.0, total_amount, "Open", values["notes"])
+    return (
+        (
+            values["invoice_no"],
+            values["party_code"],
+            agreement_no or None,
+            lpo_no or None,
+            hire_no or None,
+            values["invoice_kind"],
+            values["document_type"],
+            issue_date,
+            due_date or None,
+            subtotal,
+            tax_percent,
+            tax_amount,
+            total_amount,
+            0.0,
+            total_amount,
+            "Open",
+            None,
+            values["notes"],
+        ),
+        prepared_lines,
+    )
 
 
 def _prepare_payment_payload(invoice, values):
@@ -5188,7 +5591,7 @@ def _invoice_rows(db, invoice_kind: str | None = None, limit: int = 12):
     if invoice_kind:
         where_sql = "WHERE i.invoice_kind = ?"
         params.append(invoice_kind)
-    return db.execute(f"SELECT i.invoice_no, i.party_code, p.party_name, i.agreement_no, i.lpo_no, i.hire_no, i.invoice_kind, i.issue_date, i.due_date, i.subtotal, i.tax_percent, i.tax_amount, i.total_amount, i.paid_amount, i.balance_amount, i.status, i.notes FROM account_invoices i LEFT JOIN parties p ON p.party_code = i.party_code {where_sql} ORDER BY i.issue_date DESC, i.id DESC LIMIT {int(limit)}", params).fetchall()
+    return db.execute(f"SELECT i.invoice_no, i.party_code, p.party_name, i.agreement_no, i.lpo_no, i.hire_no, i.invoice_kind, i.document_type, i.issue_date, i.due_date, i.subtotal, i.tax_percent, i.tax_amount, i.total_amount, i.paid_amount, i.balance_amount, i.status, i.pdf_path, i.notes FROM account_invoices i LEFT JOIN parties p ON p.party_code = i.party_code {where_sql} ORDER BY i.issue_date DESC, i.id DESC LIMIT {int(limit)}", params).fetchall()
 
 
 def _payment_rows(db, limit: int = 12):
@@ -5787,6 +6190,19 @@ def _restore_generated_file(app: Flask, db, filename: str) -> str | None:
     if slip is not None:
         return _rebuild_salary_slip_pdf(app, db, slip)
 
+    invoice = db.execute(
+        """
+        SELECT invoice_no
+        FROM account_invoices
+        WHERE pdf_path = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (filename,),
+    ).fetchone()
+    if invoice is not None:
+        return _regenerate_invoice_pdf(app, db, invoice["invoice_no"])
+
     if filename.startswith("drivers/") and "/kata_pdfs/" in filename:
         parts = filename.split("/")
         if len(parts) >= 2:
@@ -5837,6 +6253,68 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         app.config["STATIC_ASSETS_DIR"],
         app.config["GENERATED_DIR"],
     )
+
+
+def _invoice_output_dir(app: Flask) -> Path:
+    output_dir = Path(app.config["GENERATED_DIR"]) / "invoices"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+
+def _invoice_line_rows(db, invoice_no: str):
+    return db.execute(
+        """
+        SELECT line_no, description, quantity, unit_label, rate, subtotal
+        FROM account_invoice_lines
+        WHERE invoice_no = ?
+        ORDER BY line_no ASC, id ASC
+        """,
+        (invoice_no,),
+    ).fetchall()
+
+
+def _regenerate_invoice_pdf(app: Flask, db, invoice_no: str) -> str | None:
+    invoice = db.execute(
+        """
+        SELECT invoice_no, party_code, agreement_no, lpo_no, hire_no, invoice_kind, document_type,
+               issue_date, due_date, subtotal, tax_percent, tax_amount, total_amount, paid_amount,
+               balance_amount, status, notes, pdf_path
+        FROM account_invoices
+        WHERE invoice_no = ?
+        """,
+        (invoice_no,),
+    ).fetchone()
+    if invoice is None:
+        return None
+    party = _fetch_party(db, invoice["party_code"])
+    if party is None:
+        return None
+    company_profile = _company_profile_values(db)
+    line_rows = _invoice_line_rows(db, invoice_no)
+    if not line_rows:
+        fallback_description = invoice.get("notes") or invoice.get("hire_no") or invoice.get("document_type") or "Invoice line"
+        line_rows = [
+            {
+                "line_no": 1,
+                "description": fallback_description,
+                "quantity": 1.0,
+                "unit_label": "Lot",
+                "rate": float(invoice["subtotal"] or 0.0),
+                "subtotal": float(invoice["subtotal"] or 0.0),
+            }
+        ]
+    output_path = generate_tax_invoice_pdf(
+        company_profile,
+        party,
+        invoice,
+        line_rows,
+        str(_invoice_output_dir(app)),
+        app.config["STATIC_ASSETS_DIR"],
+    )
+    relative_path = Path(output_path).relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
+    db.execute("UPDATE account_invoices SET pdf_path = ? WHERE invoice_no = ?", (relative_path, invoice_no))
+    db.commit()
+    return output_path
 
 
 def _timesheet_total_for_month(db, driver_id: str, month_value: str) -> float:

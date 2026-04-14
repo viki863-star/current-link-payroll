@@ -929,6 +929,73 @@ label span {
     margin-bottom: 16px;
 }
 
+.workspace-launch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.workspace-launch-card {
+    padding: 20px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.985), rgba(243, 248, 255, 0.98));
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.workspace-launch-card strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 1.16rem;
+}
+
+.workspace-launch-card p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.workspace-launch-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 22px 42px rgba(19, 56, 104, 0.14);
+}
+
+.workspace-launch-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.workspace-launch-metrics span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 7px 11px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    color: var(--primary-dark);
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.workspace-drivers {
+    background: linear-gradient(145deg, rgba(243, 249, 255, 0.99), rgba(234, 243, 255, 0.98));
+}
+
+.workspace-suppliers {
+    background: linear-gradient(145deg, rgba(255, 250, 243, 0.99), rgba(255, 243, 223, 0.98));
+}
+
+.workspace-customers {
+    background: linear-gradient(145deg, rgba(246, 255, 250, 0.99), rgba(231, 249, 240, 0.98));
+}
+
+.workspace-accounts {
+    background: linear-gradient(145deg, rgba(248, 247, 255, 0.99), rgba(238, 239, 251, 0.98));
+}
+
 .quick-link-card {
     padding: 18px;
     color: var(--ink);
@@ -1179,6 +1246,7 @@ thead th {
     justify-content: flex-end;
     margin-bottom: 0;
     align-items: center;
+    gap: 10px;
 }
 
 .hero-nav {
@@ -1206,6 +1274,81 @@ thead th {
     color: var(--primary-dark);
     border: 1px solid rgba(21, 51, 93, 0.12);
     font-weight: 700;
+}
+
+.workspace-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(28, 86, 139, 0.12), rgba(230, 135, 31, 0.14));
+    color: var(--primary-dark);
+    border: 1px solid rgba(21, 51, 93, 0.10);
+    font-weight: 800;
+}
+
+.workspace-lead {
+    max-width: 720px;
+    margin: 10px 0 0;
+    color: var(--muted);
+    line-height: 1.58;
+    font-size: 0.98rem;
+}
+
+.workspace-shell {
+    width: min(1180px, calc(100% - 28px));
+    margin: 14px auto 0;
+    display: grid;
+    gap: 12px;
+}
+
+.workspace-switcher {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 22px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(243, 248, 255, 0.84));
+    border: 1px solid rgba(21, 51, 93, 0.09);
+    box-shadow: 0 18px 34px rgba(19, 56, 104, 0.10);
+}
+
+.workspace-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(21, 51, 93, 0.10);
+    color: var(--primary-dark);
+    font-weight: 800;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.workspace-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(19, 56, 104, 0.08);
+}
+
+.workspace-pill.active {
+    background: linear-gradient(135deg, var(--primary), #2a6ead);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 14px 26px rgba(28, 86, 139, 0.20);
+}
+
+.workspace-nav {
+    width: 100%;
+    margin: 0;
+}
+
+.workspace-button-active {
+    box-shadow:
+        0 12px 24px rgba(19, 56, 104, 0.10),
+        inset 0 0 0 1px rgba(230, 135, 31, 0.35);
 }
 
 .login-shell {
@@ -2952,6 +3095,11 @@ html {
         flex-direction: column;
     }
 
+    .workspace-switcher,
+    .workspace-nav {
+        width: 100%;
+    }
+
     .dashboard-utility-actions,
     .compact-utility-form {
         flex-direction: column;
@@ -3017,6 +3165,14 @@ html {
 
     .hero-nav {
         padding: 12px;
+    }
+
+    .workspace-switcher {
+        padding: 12px;
+    }
+
+    .workspace-pill {
+        flex: 1 1 140px;
     }
 
     .brand-banner-shell {
