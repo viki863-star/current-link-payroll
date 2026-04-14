@@ -997,7 +997,68 @@ label span {
 }
 
 .desk-dashboard-shell {
+    display: grid;
+    gap: 18px;
     padding-top: 6px;
+}
+
+.desk-dashboard-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: center;
+    padding: 22px 24px;
+    background:
+        radial-gradient(circle at top right, rgba(230, 135, 31, 0.16), transparent 22%),
+        radial-gradient(circle at bottom left, rgba(28, 86, 139, 0.16), transparent 24%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.99), rgba(242, 247, 255, 0.98));
+}
+
+.desk-dashboard-hero h2 {
+    margin: 8px 0 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    letter-spacing: -0.04em;
+}
+
+.desk-dashboard-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.desk-dashboard-meta span {
+    display: grid;
+    gap: 3px;
+    min-width: 100px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+}
+
+.desk-dashboard-meta strong {
+    color: var(--primary-dark);
+}
+
+.desk-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.desk-chart-card {
+    padding: 20px 22px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.99), rgba(242, 247, 255, 0.98));
+}
+
+.compact-chart-stack {
+    gap: 12px;
+}
+
+.compact-chart-row {
+    grid-template-columns: minmax(90px, 1fr) minmax(120px, 2fr) auto;
 }
 
 .desk-grid {
@@ -1112,6 +1173,22 @@ label span {
 .desk-metrics small {
     color: var(--muted);
     font-weight: 700;
+}
+
+.desk-card-button {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    min-height: 40px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--primary), #2c70b0);
+    color: #fff;
+    font-weight: 800;
+    box-shadow: 0 14px 24px rgba(28, 86, 139, 0.18);
 }
 
 .desk-driver {
@@ -1241,6 +1318,18 @@ label span {
     gap: 8px;
 }
 
+.driver-desk-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(28, 86, 139, 0.12), rgba(230, 135, 31, 0.16));
+    color: var(--primary-dark);
+    font-size: 1.5rem;
+    box-shadow: 0 12px 22px rgba(19, 56, 104, 0.08);
+}
+
 .driver-desk-body h2 {
     margin: 0;
     font-family: Georgia, "Times New Roman", serif;
@@ -1270,6 +1359,20 @@ label span {
     color: var(--primary-dark);
     font-size: 0.82rem;
     font-weight: 800;
+}
+
+.driver-desk-open {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    min-height: 38px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--primary), #2b6eae);
+    color: #fff;
+    font-weight: 800;
+    box-shadow: 0 12px 20px rgba(28, 86, 139, 0.16);
 }
 
 .driver-desk-empty {
@@ -3366,6 +3469,10 @@ html {
         grid-template-columns: 1fr;
     }
 
+    .desk-chart-grid {
+        grid-template-columns: 1fr;
+    }
+
     .driver-desk-filter-form {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -3472,6 +3579,11 @@ html {
     .desk-card {
         min-height: 220px;
         padding: 22px;
+    }
+
+    .desk-dashboard-hero {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .desk-metrics,
