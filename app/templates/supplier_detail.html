@@ -2,11 +2,17 @@
 
 {% block content %}
 <section class="dashboard-hero">
-    <article class="card dashboard-hero-card">
+    <article class="card dashboard-hero-card supplier-hero-card">
         <div>
             <p class="eyebrow">Supplier Workspace</p>
             <h2>{{ party.party_name }}</h2>
             <p class="lead">{{ party.party_code }} | {{ party.contact_person or 'No contact person' }} | {{ party.phone_number or 'No phone number' }}</p>
+            <div class="supplier-meta-strip">
+                <span>{{ party.party_kind }}</span>
+                <span>{{ party.status }}</span>
+                <span>Outstanding AED {{ "%.2f"|format(summary.outstanding_total) }}</span>
+                <span>Paid AED {{ "%.2f"|format(summary.paid_total) }}</span>
+            </div>
         </div>
         <div class="form-actions left-actions">
             <a class="button button-secondary" href="{{ url_for('suppliers') }}">Back to Suppliers</a>
@@ -42,15 +48,15 @@
     </article>
 </section>
 
-<section class="detail-layout dashboard-layout chart-layout">
-    <article class="card action-panel form-panel">
+<section class="detail-layout supplier-workspace-grid">
+    <article class="card action-panel form-panel supplier-surface-card">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Fleet</p>
                 <h2>{% if asset_values.original_asset_code %}Edit Vehicle{% else %}Add Supplier Vehicle{% endif %}</h2>
             </div>
         </div>
-        <form method="post" class="entry-form two-column-form">
+        <form method="post" class="entry-form two-column-form supplier-workspace-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="save_asset">
             <input type="hidden" name="original_asset_code" value="{{ asset_values.original_asset_code }}">
@@ -106,14 +112,14 @@
         </form>
     </article>
 
-    <article class="card action-panel form-panel">
+    <article class="card action-panel form-panel supplier-surface-card">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Month-End</p>
                 <h2>{% if timesheet_values.original_timesheet_no %}Edit Timesheet{% else %}Add Timesheet Row{% endif %}</h2>
             </div>
         </div>
-        <form method="post" class="entry-form two-column-form">
+        <form method="post" class="entry-form two-column-form supplier-workspace-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="save_timesheet">
             <input type="hidden" name="original_timesheet_no" value="{{ timesheet_values.original_timesheet_no }}">
@@ -148,7 +154,7 @@
             </label>
             <label>
                 <span>Billable Qty</span>
-                <input type="number" step="0.01" name="billable_qty" value="{{ timesheet_values.billable_qty }}" placeholder="Hours / Days / Trips / Months" required>
+                <input type="number" step="0.01" name="billable_qty" value="{{ timesheet_values.billable_qty }}" placeholder="Billing quantity" required>
             </label>
             <label>
                 <span>Timesheet Hours</span>
@@ -156,7 +162,7 @@
             </label>
             <label>
                 <span>Rate</span>
-                <input type="number" step="0.01" name="rate" value="{{ timesheet_values.rate }}" placeholder="Uses default rate if left blank">
+                <input type="number" step="0.01" name="rate" value="{{ timesheet_values.rate }}" placeholder="Blank = default rate">
             </label>
             <label>
                 <span>Status</span>
@@ -179,15 +185,15 @@
     </article>
 </section>
 
-<section class="detail-layout dashboard-layout chart-layout">
-    <article class="card action-panel form-panel">
+<section class="detail-layout supplier-workspace-grid">
+    <article class="card action-panel form-panel supplier-surface-card">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Voucher</p>
                 <h2>{% if voucher_values.original_voucher_no %}Edit Supplier Voucher{% else %}Create Month-End Voucher{% endif %}</h2>
             </div>
         </div>
-        <form method="post" class="entry-form two-column-form">
+        <form method="post" class="entry-form two-column-form supplier-workspace-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="save_voucher">
             <input type="hidden" name="original_voucher_no" value="{{ voucher_values.original_voucher_no }}">
@@ -228,14 +234,14 @@
         </form>
     </article>
 
-    <article class="card action-panel form-panel">
+    <article class="card action-panel form-panel supplier-surface-card">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Payment</p>
                 <h2>{% if payment_values.original_payment_no %}Edit Supplier Payment{% else %}Post Supplier Payment{% endif %}</h2>
             </div>
         </div>
-        <form method="post" class="entry-form two-column-form">
+        <form method="post" class="entry-form two-column-form supplier-workspace-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="save_payment">
             <input type="hidden" name="original_payment_no" value="{{ payment_values.original_payment_no }}">
@@ -286,8 +292,8 @@
     </article>
 </section>
 
-<section class="detail-layout dashboard-layout chart-layout">
-    <article class="card table-card">
+<section class="detail-layout supplier-table-grid">
+    <article class="card table-card supplier-surface-card">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Fleet</p>
@@ -332,7 +338,7 @@
         </div>
     </article>
 
-    <article class="card table-card">
+    <article class="card table-card supplier-surface-card">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Timesheet</p>
@@ -384,8 +390,8 @@
     </article>
 </section>
 
-<section class="detail-layout dashboard-layout chart-layout">
-    <article class="card table-card">
+<section class="detail-layout supplier-table-grid">
+    <article class="card table-card supplier-surface-card">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Payables</p>
@@ -432,7 +438,7 @@
         </div>
     </article>
 
-    <article class="card table-card">
+    <article class="card table-card supplier-surface-card">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Payments</p>
@@ -479,7 +485,7 @@
     </article>
 </section>
 
-<section class="card table-card">
+<section class="card table-card supplier-surface-card supplier-ledger-card">
     <div class="section-heading slim-heading">
         <div>
             <p class="eyebrow">Statement</p>

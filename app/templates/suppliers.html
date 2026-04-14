@@ -2,11 +2,16 @@
 
 {% block content %}
 <section class="dashboard-hero">
-    <article class="card dashboard-hero-card">
+    <article class="card dashboard-hero-card supplier-hero-card">
         <div>
             <p class="eyebrow">Supplier System</p>
             <h2>Register Supplier, Fleet, and Payables Base</h2>
             <p class="lead">Start from supplier master, then open each supplier for vehicles, month-end timesheets, vouchers, payment vouchers, and live outstanding balance.</p>
+            <div class="supplier-meta-strip">
+                <span>{{ summary.supplier_count }} Suppliers</span>
+                <span>{{ summary.asset_count }} Fleet Units</span>
+                <span>AED {{ "%.2f"|format(summary.outstanding_total) }} Outstanding</span>
+            </div>
         </div>
     </article>
 </section>
@@ -39,15 +44,15 @@
     </article>
 </section>
 
-<section class="detail-layout dashboard-layout chart-layout">
-    <article class="card action-panel form-panel">
+<section class="detail-layout supplier-workspace-grid">
+    <article class="card action-panel form-panel supplier-surface-card">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Master</p>
                 <h2>{% if values.original_party_code %}Edit Supplier{% else %}Register Supplier{% endif %}</h2>
             </div>
         </div>
-        <form method="post" class="entry-form two-column-form supplier-entry-form">
+        <form method="post" class="entry-form two-column-form supplier-workspace-form supplier-entry-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="original_party_code" value="{{ values.original_party_code }}">
             <label>
@@ -121,7 +126,7 @@
         </form>
     </article>
 
-    <article class="card table-card">
+    <article class="card table-card supplier-surface-card">
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Flow</p>
@@ -139,7 +144,7 @@
     </article>
 </section>
 
-<section class="card search-panel compact-panel premium-filter-panel">
+<section class="card search-panel compact-panel premium-filter-panel supplier-surface-card">
     <div class="section-heading slim-heading">
         <div>
             <p class="eyebrow">Supplier Search</p>
@@ -160,7 +165,7 @@
     </form>
 </section>
 
-<section class="card table-card premium-directory-card">
+<section class="card table-card premium-directory-card supplier-surface-card">
     <div class="table-wrap">
         <table class="premium-directory-table">
             <thead>
