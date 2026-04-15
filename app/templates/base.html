@@ -52,6 +52,9 @@
                     {% if is_admin %}
                         <nav class="actions-row tight-actions hero-nav workspace-nav simple-admin-nav">
                             <a class="button {% if request.endpoint == 'dashboard' %}workspace-button-active{% else %}button-secondary{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
+                            {% if admin_workspace_home_url and admin_workspace_home_label %}
+                                <a class="button {% if request.endpoint == admin_workspace_home_endpoint %}workspace-button-active{% else %}button-secondary{% endif %}" href="{{ admin_workspace_home_url }}">{{ admin_workspace_home_label }}</a>
+                            {% endif %}
                             <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
                         </nav>
                     {% elif is_owner %}

@@ -113,6 +113,7 @@ def register_routes(app: Flask) -> None:
     def inject_auth_context():
         current_role = _current_role()
         current_workspace = _current_admin_workspace() if current_role == "admin" else ""
+        workspace_home_endpoint = _workspace_home_endpoint(current_workspace) if current_role == "admin" else ""
         return {
             "current_role": current_role,
             "current_driver_id": session.get("driver_id"),
@@ -124,6 +125,9 @@ def register_routes(app: Flask) -> None:
             "current_workspace_meta": _current_workspace_meta(),
             "admin_workspace_links": _admin_workspace_links() if current_role == "admin" else [],
             "admin_module_links": _admin_module_links(current_workspace) if current_role == "admin" else [],
+            "admin_workspace_home_endpoint": workspace_home_endpoint,
+            "admin_workspace_home_url": url_for(workspace_home_endpoint) if workspace_home_endpoint else "",
+            "admin_workspace_home_label": f"{ADMIN_WORKSPACE_META[current_workspace]['title']}" if current_role == "admin" and current_workspace in ADMIN_WORKSPACE_META and current_workspace != "universal" else "",
         }
 
     @app.route("/")
@@ -2520,7 +2524,7 @@ def register_routes(app: Flask) -> None:
         driver = _fetch_driver(db, driver_id)
         if driver is None:
             flash("Driver not found.", "error")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("driver_list"))
 
         current_month = _current_month_value()
         current_salary = db.execute(
@@ -2571,7 +2575,7 @@ def register_routes(app: Flask) -> None:
         driver = _fetch_driver(db, driver_id)
         if driver is None:
             flash("Driver not found.", "error")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("driver_list"))
 
         edit_transaction_id = request.args.get("edit", "").strip()
         form = {
@@ -2725,7 +2729,7 @@ def register_routes(app: Flask) -> None:
         driver = _fetch_driver(db, driver_id)
         if driver is None:
             flash("Driver not found.", "error")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("driver_list"))
 
         edit_salary_id = request.args.get("edit", "").strip()
         selected_month = request.args.get("month", "").strip() or _current_month_value()
@@ -2912,7 +2916,7 @@ def register_routes(app: Flask) -> None:
         driver = _fetch_driver(db, driver_id)
         if driver is None:
             flash("Driver not found.", "error")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("driver_list"))
 
         salary_rows = db.execute(
             "SELECT * FROM salary_store WHERE driver_id = ? ORDER BY salary_month DESC",
