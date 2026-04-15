@@ -1,122 +1,47 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="desk-dashboard-shell">
-    <article class="card desk-dashboard-hero">
-        <div>
-            <span class="desk-kicker">Current Link</span>
-            <h2>Choose Desk</h2>
-        </div>
-        <div class="desk-dashboard-meta">
-            <span><strong>{{ total_drivers }}</strong><small>Drivers</small></span>
-            <span><strong>{{ supplier_hub_summary.supplier_count }}</strong><small>Suppliers</small></span>
-            <span><strong>{{ customer_summary.customer_count }}</strong><small>Customers</small></span>
-            <span><strong>{{ invoice_summary.open_invoice_count }}</strong><small>Open</small></span>
-        </div>
-    </article>
-
-    <div class="desk-grid">
-        <a class="card desk-card desk-driver" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">
-            <div class="desk-card-copy">
-                <span class="desk-kicker">Drivers</span>
+<section class="admin-desk-shell">
+    <div class="dashboard-desk-grid">
+        <a class="card admin-desk-tile" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">
+            <span class="admin-desk-visual admin-desk-visual-driver" aria-hidden="true">D</span>
+            <div class="admin-desk-copy">
+                <span class="admin-desk-label">Drivers</span>
                 <h2>Driver Desk</h2>
                 <p>Payroll and control.</p>
             </div>
-            <div class="desk-metrics">
-                <span><strong>{{ total_drivers }}</strong><small>Total</small></span>
-                <span><strong>{{ active_drivers }}</strong><small>Active</small></span>
-            </div>
-            <span class="desk-card-button">Open Desk</span>
+            <span class="admin-desk-button">Open Desk</span>
         </a>
 
-        <a class="card desk-card desk-supplier" href="{{ url_for('switch_workspace', workspace_key='suppliers') }}">
-            <div class="desk-card-copy">
-                <span class="desk-kicker">Suppliers</span>
+        <a class="card admin-desk-tile" href="{{ url_for('switch_workspace', workspace_key='suppliers') }}">
+            <span class="admin-desk-visual admin-desk-visual-supplier" aria-hidden="true">S</span>
+            <div class="admin-desk-copy">
+                <span class="admin-desk-label">Suppliers</span>
                 <h2>Supplier Desk</h2>
                 <p>Fleet and payments.</p>
             </div>
-            <div class="desk-metrics">
-                <span><strong>{{ supplier_hub_summary.supplier_count }}</strong><small>Suppliers</small></span>
-                <span><strong>AED {{ "%.0f"|format(supplier_hub_summary.outstanding_total) }}</strong><small>Due</small></span>
-            </div>
-            <span class="desk-card-button">Open Desk</span>
+            <span class="admin-desk-button">Open Desk</span>
         </a>
 
-        <a class="card desk-card desk-customer" href="{{ url_for('switch_workspace', workspace_key='customers') }}">
-            <div class="desk-card-copy">
-                <span class="desk-kicker">Customers</span>
+        <a class="card admin-desk-tile" href="{{ url_for('switch_workspace', workspace_key='customers') }}">
+            <span class="admin-desk-visual admin-desk-visual-customer" aria-hidden="true">C</span>
+            <div class="admin-desk-copy">
+                <span class="admin-desk-label">Customers</span>
                 <h2>Customer Desk</h2>
                 <p>Invoices and statements.</p>
             </div>
-            <div class="desk-metrics">
-                <span><strong>{{ customer_summary.customer_count }}</strong><small>Customers</small></span>
-                <span><strong>AED {{ "%.0f"|format(customer_summary.receivable_total) }}</strong><small>Open</small></span>
-            </div>
-            <span class="desk-card-button">Open Desk</span>
+            <span class="admin-desk-button">Open Desk</span>
         </a>
 
-        <a class="card desk-card desk-accounts" href="{{ url_for('switch_workspace', workspace_key='accounts') }}">
-            <div class="desk-card-copy">
-                <span class="desk-kicker">Accounts</span>
+        <a class="card admin-desk-tile" href="{{ url_for('switch_workspace', workspace_key='accounts') }}">
+            <span class="admin-desk-visual admin-desk-visual-accounts" aria-hidden="true">A</span>
+            <div class="admin-desk-copy">
+                <span class="admin-desk-label">Accounts</span>
                 <h2>Accounts Desk</h2>
-                <p>Fund, tax and reports.</p>
+                <p>Fund, tax, reports.</p>
             </div>
-            <div class="desk-metrics">
-                <span><strong>{{ invoice_summary.open_invoice_count }}</strong><small>Open</small></span>
-                <span><strong>AED {{ "%.0f"|format(owner_fund_balance) }}</strong><small>Fund</small></span>
-            </div>
-            <span class="desk-card-button">Open Desk</span>
+            <span class="admin-desk-button">Open Desk</span>
         </a>
-    </div>
-
-    <div class="desk-chart-grid">
-        <article class="card desk-chart-card">
-            <div class="section-heading slim-heading">
-                <div>
-                    <p class="eyebrow">Drivers</p>
-                    <h2>Shift Mix</h2>
-                </div>
-            </div>
-            {% if shift_chart %}
-                <div class="chart-stack compact-chart-stack">
-                    {% for item in shift_chart %}
-                        <div class="chart-row compact-chart-row">
-                            <div class="chart-label">{{ item.label }}</div>
-                            <div class="chart-bar-shell">
-                                <div class="chart-bar" style="width: {{ item.width }}%"></div>
-                            </div>
-                            <div class="chart-value">{{ item.value }}</div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p class="muted-text">No data.</p>
-            {% endif %}
-        </article>
-
-        <article class="card desk-chart-card">
-            <div class="section-heading slim-heading">
-                <div>
-                    <p class="eyebrow">Fleet</p>
-                    <h2>Vehicle Mix</h2>
-                </div>
-            </div>
-            {% if vehicle_chart %}
-                <div class="chart-stack compact-chart-stack">
-                    {% for item in vehicle_chart %}
-                        <div class="chart-row compact-chart-row">
-                            <div class="chart-label">{{ item.label }}</div>
-                            <div class="chart-bar-shell">
-                                <div class="chart-bar orange-bar" style="width: {{ item.width }}%"></div>
-                            </div>
-                            <div class="chart-value">{{ item.value }}</div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p class="muted-text">No data.</p>
-            {% endif %}
-        </article>
     </div>
 </section>
 {% endblock %}

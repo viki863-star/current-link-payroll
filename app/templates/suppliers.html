@@ -1,216 +1,174 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="dashboard-hero">
-    <article class="card dashboard-hero-card supplier-hero-card">
-        <div>
-            <p class="eyebrow">Supplier System</p>
-            <h2>Register Supplier, Fleet, and Payables Base</h2>
-            <p class="lead">Start from supplier master, then open each supplier for vehicles, month-end timesheets, vouchers, payment vouchers, and live outstanding balance.</p>
-            <div class="supplier-meta-strip">
-                <span>{{ summary.supplier_count }} Suppliers</span>
-                <span>{{ summary.asset_count }} Fleet Units</span>
-                <span>AED {{ "%.2f"|format(summary.outstanding_total) }} Outstanding</span>
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button" href="#supplier-register">New Supplier</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ summary.supplier_count }}</strong><small>Suppliers</small></span>
+                <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
             </div>
         </div>
-    </article>
-</section>
-
-<section class="stats premium-stats">
-    <article class="card stat-card premium-stat-card blue-stat">
-        <span>Suppliers</span>
-        <strong>{{ summary.supplier_count }}</strong>
-        <small>Registered suppliers in the live master.</small>
-    </article>
-    <article class="card stat-card premium-stat-card orange-stat">
-        <span>Fleet Units</span>
-        <strong>{{ summary.asset_count }}</strong>
-        <small>Supplier vehicles and hired assets saved in system.</small>
-    </article>
-    <article class="card stat-card premium-stat-card navy-stat">
-        <span>Unbilled Timesheets</span>
-        <strong>AED {{ "%.2f"|format(summary.unbilled_amount) }}</strong>
-        <small>Operational rows waiting for month-end voucher creation.</small>
-    </article>
-    <article class="card stat-card premium-stat-card green-stat">
-        <span>Paid to Suppliers</span>
-        <strong>AED {{ "%.2f"|format(summary.paid_total) }}</strong>
-        <small>Total supplier payments already posted.</small>
-    </article>
-    <article class="card stat-card premium-stat-card slate-stat">
-        <span>Outstanding</span>
-        <strong>AED {{ "%.2f"|format(summary.outstanding_total) }}</strong>
-        <small>Current live payable balance across supplier vouchers.</small>
-    </article>
-</section>
-
-<section class="detail-layout supplier-workspace-grid">
-    <article class="card action-panel form-panel supplier-surface-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Master</p>
-                <h2>{% if values.original_party_code %}Edit Supplier{% else %}Register Supplier{% endif %}</h2>
-            </div>
-        </div>
-        <form method="post" class="entry-form two-column-form supplier-workspace-form supplier-entry-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="original_party_code" value="{{ values.original_party_code }}">
+        <form method="get" class="admin-filter-grid desk-single-filter">
             <label>
-                <span>Supplier Code</span>
-                <input type="text" name="party_code" value="{{ values.party_code }}" placeholder="Auto if left blank" {% if values.original_party_code %}readonly{% endif %}>
+                <span>Search</span>
+                <input type="search" name="q" value="{{ query }}" placeholder="Supplier, code, contact, phone">
             </label>
-            <label>
-                <span>Supplier Name</span>
-                <input type="text" name="party_name" value="{{ values.party_name }}" required>
-            </label>
-            <label>
-                <span>Kind</span>
-                <select name="party_kind">
-                    <option value="Company" {% if values.party_kind == 'Company' %}selected{% endif %}>Company</option>
-                    <option value="Individual" {% if values.party_kind == 'Individual' %}selected{% endif %}>Individual</option>
-                </select>
-            </label>
-            <label>
-                <span>Contact Person</span>
-                <input type="text" name="contact_person" value="{{ values.contact_person }}">
-            </label>
-            <label>
-                <span>Phone Number</span>
-                <input type="text" name="phone_number" value="{{ values.phone_number }}">
-            </label>
-            <label>
-                <span>Email</span>
-                <input type="email" name="email" value="{{ values.email }}">
-            </label>
-            <label>
-                <span>TRN / VAT No</span>
-                <input type="text" name="trn_no" value="{{ values.trn_no }}">
-            </label>
-            <label>
-                <span>Trade License No</span>
-                <input type="text" name="trade_license_no" value="{{ values.trade_license_no }}">
-            </label>
-            <label class="full-span">
-                <span>Additional Tags</span>
-                <div class="check-grid">
-                    {% for item in role_options %}
-                        <label class="check-tile">
-                            <input type="checkbox" name="party_roles" value="{{ item }}" {% if item in values.party_roles %}checked{% endif %}>
-                            <span>{{ item }}</span>
-                        </label>
-                    {% endfor %}
-                </div>
-                <small class="muted-text">Supplier tag always stays active in this module.</small>
-            </label>
-            <label class="full-span">
-                <span>Address</span>
-                <textarea name="address" rows="3">{{ values.address }}</textarea>
-            </label>
-            <label class="full-span">
-                <span>Notes</span>
-                <textarea name="notes" rows="3">{{ values.notes }}</textarea>
-            </label>
-            <label>
-                <span>Status</span>
-                <select name="status">
-                    <option value="Active" {% if values.status == 'Active' %}selected{% endif %}>Active</option>
-                    <option value="Inactive" {% if values.status == 'Inactive' %}selected{% endif %}>Inactive</option>
-                </select>
-            </label>
-            <div class="form-actions left-actions full-span">
-                <button class="button" type="submit">{% if values.original_party_code %}Update Supplier{% else %}Save Supplier{% endif %}</button>
-                {% if values.original_party_code %}
-                    <a class="button button-secondary" href="{{ url_for('suppliers') }}">Cancel</a>
+            <div class="admin-filter-actions">
+                <button class="button" type="submit">Search</button>
+                {% if query %}
+                    <a class="button button-secondary" href="{{ url_for('suppliers') }}">Clear</a>
                 {% endif %}
             </div>
         </form>
     </article>
 
-    <article class="card table-card supplier-surface-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Flow</p>
-                <h2>How This Supplier System Works</h2>
+    <section class="desk-content-grid">
+        <article class="card desk-panel-card" id="supplier-register">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Master</span>
+                    <h2>{% if values.original_party_code %}Edit Supplier{% else %}Register Supplier{% endif %}</h2>
+                </div>
             </div>
-        </div>
-        <div class="supplier-flow-list">
-            <div class="supplier-flow-step"><strong>1. Register Supplier</strong><span>Add Hussain or any supplier with contact and tax details.</span></div>
-            <div class="supplier-flow-step"><strong>2. Add Vehicles</strong><span>Save trailers, tankers, cranes, equipment and their rate basis.</span></div>
-            <div class="supplier-flow-step"><strong>3. Post Month-End Timesheets</strong><span>Enter hours, days, trips or monthly quantity with rate for each asset.</span></div>
-            <div class="supplier-flow-step"><strong>4. Create Voucher</strong><span>System picks open timesheets for that month and makes one payable voucher.</span></div>
-            <div class="supplier-flow-step"><strong>5. Post Payment</strong><span>Record paid amount and print supplier payment voucher when needed.</span></div>
-            <div class="supplier-flow-step"><strong>6. Check Balance</strong><span>Open supplier workspace anytime to see total, paid and outstanding.</span></div>
-        </div>
-    </article>
-</section>
+            <form method="post" class="desk-form-grid supplier-entry-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="original_party_code" value="{{ values.original_party_code }}">
+                <label>
+                    <span>Supplier Code</span>
+                    <input type="text" name="party_code" value="{{ values.party_code }}" placeholder="Auto if left blank" {% if values.original_party_code %}readonly{% endif %}>
+                </label>
+                <label>
+                    <span>Supplier Name</span>
+                    <input type="text" name="party_name" value="{{ values.party_name }}" required>
+                </label>
+                <label>
+                    <span>Kind</span>
+                    <select name="party_kind">
+                        <option value="Company" {% if values.party_kind == 'Company' %}selected{% endif %}>Company</option>
+                        <option value="Individual" {% if values.party_kind == 'Individual' %}selected{% endif %}>Individual</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Contact</span>
+                    <input type="text" name="contact_person" value="{{ values.contact_person }}">
+                </label>
+                <label>
+                    <span>Phone</span>
+                    <input type="text" name="phone_number" value="{{ values.phone_number }}">
+                </label>
+                <label>
+                    <span>Email</span>
+                    <input type="email" name="email" value="{{ values.email }}">
+                </label>
+                <label>
+                    <span>TRN / VAT</span>
+                    <input type="text" name="trn_no" value="{{ values.trn_no }}">
+                </label>
+                <label>
+                    <span>Trade License</span>
+                    <input type="text" name="trade_license_no" value="{{ values.trade_license_no }}">
+                </label>
+                <label class="full-span">
+                    <span>Additional Tags</span>
+                    <div class="check-grid compact-check-grid">
+                        {% for item in role_options %}
+                            <label class="check-tile">
+                                <input type="checkbox" name="party_roles" value="{{ item }}" {% if item in values.party_roles %}checked{% endif %}>
+                                <span>{{ item }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </label>
+                <label class="full-span">
+                    <span>Address</span>
+                    <textarea name="address" rows="3">{{ values.address }}</textarea>
+                </label>
+                <label class="full-span">
+                    <span>Notes</span>
+                    <textarea name="notes" rows="3">{{ values.notes }}</textarea>
+                </label>
+                <label>
+                    <span>Status</span>
+                    <select name="status">
+                        <option value="Active" {% if values.status == 'Active' %}selected{% endif %}>Active</option>
+                        <option value="Inactive" {% if values.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </label>
+                <div class="form-actions left-actions full-span">
+                    <button class="button" type="submit">{% if values.original_party_code %}Update Supplier{% else %}Save Supplier{% endif %}</button>
+                    {% if values.original_party_code %}
+                        <a class="button button-secondary" href="{{ url_for('suppliers') }}">Cancel</a>
+                    {% endif %}
+                </div>
+            </form>
+        </article>
 
-<section class="card search-panel compact-panel premium-filter-panel supplier-surface-card">
-    <div class="section-heading slim-heading">
-        <div>
-            <p class="eyebrow">Supplier Search</p>
-            <h2>Supplier Directory</h2>
+        <div class="desk-side-stack">
+            <article class="card desk-panel-card compact-side-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Focus</span>
+                        <h2>Supplier Flow</h2>
+                    </div>
+                </div>
+                <div class="compact-step-list">
+                    <span>Register supplier</span>
+                    <span>Add fleet units</span>
+                    <span>Post timesheets</span>
+                    <span>Create voucher</span>
+                    <span>Post payment</span>
+                </div>
+            </article>
+            <article class="card desk-panel-card compact-side-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Quick</span>
+                        <h2>Shortcuts</h2>
+                    </div>
+                </div>
+                <div class="mini-link-stack">
+                    <a class="mini-link-pill" href="{{ url_for('invoice_center') }}">Invoice Center</a>
+                    <a class="mini-link-pill" href="{{ url_for('party_list') }}">Party Master</a>
+                </div>
+            </article>
         </div>
-    </div>
-    <form method="get" class="filter-grid compact-filter-grid">
-        <label>
-            <span>Search</span>
-            <input type="search" name="q" value="{{ query }}" placeholder="Search code, supplier, contact, phone">
-        </label>
-        <div class="form-actions left-actions full-span">
-            <button class="button" type="submit">Apply</button>
-            {% if query %}
-                <a class="button button-secondary" href="{{ url_for('suppliers') }}">Clear</a>
-            {% endif %}
-        </div>
-    </form>
-</section>
+    </section>
 
-<section class="card table-card premium-directory-card supplier-surface-card">
-    <div class="table-wrap">
-        <table class="premium-directory-table">
-            <thead>
-                <tr>
-                    <th>Supplier</th>
-                    <th>Contact</th>
-                    <th>Fleet</th>
-                    <th>Unbilled</th>
-                    <th>Paid</th>
-                    <th>Outstanding</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in suppliers %}
-                    <tr>
-                        <td>
-                            <div class="directory-driver-cell">
-                                <div class="directory-badge">{{ item.party_code }}</div>
-                                <div>
-                                    <strong>{{ item.party_name }}</strong>
-                                    <div class="directory-meta">{{ item.party_kind }} / {{ item.party_roles }}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <div>{{ item.contact_person or '-' }}</div>
-                            <div class="directory-meta">{{ item.phone_number or '-' }}</div>
-                        </td>
-                        <td>{{ item.asset_count }}</td>
-                        <td>AED {{ "%.2f"|format(item.unbilled_amount) }}</td>
-                        <td>AED {{ "%.2f"|format(item.paid_total) }}</td>
-                        <td>AED {{ "%.2f"|format(item.outstanding_total) }}</td>
-                        <td>
-                            <div class="table-actions">
-                                <a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=item.party_code) }}">Open Desk</a>
-                                <a class="mini-action-link" href="{{ url_for('suppliers', edit=item.party_code) }}">Edit</a>
-                            </div>
-                        </td>
-                    </tr>
-                {% else %}
-                    <tr><td colspan="7" class="muted-text">No suppliers found yet.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <section class="directory-card-grid">
+        {% for item in suppliers %}
+            <article class="card directory-card supplier-directory-card">
+                <div class="directory-card-head">
+                    <span class="vehicle-icon-chip" aria-hidden="true">S</span>
+                    <span class="status-chip {{ item.status|lower }}">{{ item.status }}</span>
+                </div>
+                <div class="directory-card-body">
+                    <h2>{{ item.party_name }}</h2>
+                    <div class="directory-card-lines">
+                        <span class="directory-line"><strong>Code</strong><small>{{ item.party_code }}</small></span>
+                        <span class="directory-line"><strong>Contact</strong><small>{{ item.contact_person or item.phone_number or '-' }}</small></span>
+                    </div>
+                </div>
+                <div class="directory-stat-row">
+                    <span><strong>{{ item.asset_count }}</strong><small>Fleet</small></span>
+                    <span><strong>AED {{ "%.0f"|format(item.outstanding_total) }}</strong><small>Due</small></span>
+                </div>
+                <div class="directory-card-foot split-actions">
+                    <a class="button button-secondary directory-open" href="{{ url_for('supplier_detail', party_code=item.party_code) }}">Open Desk</a>
+                    <a class="button button-secondary directory-open" href="{{ url_for('suppliers', edit=item.party_code) }}">Edit</a>
+                </div>
+            </article>
+        {% else %}
+            <article class="card directory-empty">
+                <h2>No Supplier Found</h2>
+                <p>Add your first supplier.</p>
+            </article>
+        {% endfor %}
+    </section>
 </section>
 {% endblock %}

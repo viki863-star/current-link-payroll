@@ -1,131 +1,91 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="dashboard-hero">
-    <article class="card dashboard-hero-card">
-        <div>
-            <p class="eyebrow">Accounts</p>
-            <h2>Customers & Receivables Desk</h2>
-            <p class="lead">Rental clients, invoices, receipts and collection visibility in one place.</p>
-        </div>
-    </article>
-</section>
-
-<section class="stats premium-stats">
-    <article class="card stat-card premium-stat-card blue-stat"><span>Customers</span><strong>{{ summary.customer_count }}</strong><small>Parties marked as customer.</small></article>
-    <article class="card stat-card premium-stat-card orange-stat"><span>Open Invoices</span><strong>{{ summary.open_sales_invoices }}</strong><small>Sales invoices still collectible.</small></article>
-    <article class="card stat-card premium-stat-card navy-stat"><span>Total Receivable</span><strong>AED {{ "%.2f"|format(summary.receivable_total) }}</strong><small>Current receivable outstanding.</small></article>
-    <article class="card stat-card premium-stat-card green-stat"><span>Rental Register</span><strong>AED {{ "%.2f"|format(summary.rental_total) }}</strong><small>Customer rental value booked.</small></article>
-</section>
-
-<section class="quick-link-grid dashboard-quick-grid">
-    <a class="card quick-link-card accent-card" href="{{ url_for('agreements_lpos') }}">
-        <span class="eyebrow">Contracts</span>
-        <strong>Agreements & LPOs</strong>
-        <p>Register client agreements, LPOs and rental jobs.</p>
-    </a>
-    <a class="card quick-link-card owner-card" href="{{ url_for('invoice_center') }}">
-        <span class="eyebrow">Invoices</span>
-        <strong>Invoice Center</strong>
-        <p>Create customer invoices and track receipts.</p>
-    </a>
-    <a class="card quick-link-card" href="{{ url_for('party_list') }}">
-        <span class="eyebrow">Master</span>
-        <strong>Party Master</strong>
-        <p>Maintain customer details and tax profile.</p>
-    </a>
-</section>
-
-<section class="detail-layout dashboard-layout chart-layout">
-    <article class="card table-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Customers</p>
-                <h2>Customer Directory</h2>
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button" href="{{ url_for('invoice_center') }}">Invoice Center</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ summary.customer_count }}</strong><small>Customers</small></span>
+                <span><strong>{{ summary.open_sales_invoices }}</strong><small>Open</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.receivable_total) }}</strong><small>Receivable</small></span>
             </div>
         </div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Customer</th><th>Contact</th><th>Status</th><th>Statement</th></tr></thead>
-                <tbody>
-                    {% for item in customer_parties %}
-                        <tr>
-                            <td><strong>{{ item.party_name }}</strong><div class="muted-text">{{ item.party_code }}</div></td>
-                            <td>{{ item.contact_person or "-" }}<div class="muted-text">{{ item.phone_number or "-" }}</div></td>
-                            <td>{{ item.status }}</td>
-                            <td><a class="table-link" href="{{ url_for('customer_statement', party_code=item.party_code) }}">Open Statement</a></td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="4">No customer parties found yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="mini-link-stack inline-link-stack">
+            <a class="mini-link-pill" href="{{ url_for('agreements_lpos') }}">Agreements</a>
+            <a class="mini-link-pill" href="{{ url_for('party_list') }}">Party Master</a>
         </div>
     </article>
 
-    <article class="card table-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Exposure</p>
-                <h2>Top Customer Receivables</h2>
-            </div>
-        </div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Customer</th><th>Invoices</th><th>Total</th><th>Outstanding</th></tr></thead>
-                <tbody>
-                    {% for item in top_receivables %}
-                        <tr><td>{{ item.party_name }}</td><td>{{ item.invoice_count }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td><td>AED {{ "%.2f"|format(item.balance_amount) }}</td></tr>
-                    {% else %}
-                        <tr><td colspan="4">No receivable rows yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </article>
-</section>
+    <section class="directory-card-grid">
+        {% for item in customer_parties %}
+            <article class="card directory-card customer-directory-card">
+                <div class="directory-card-head">
+                    <span class="vehicle-icon-chip" aria-hidden="true">C</span>
+                    <span class="status-chip {{ item.status|lower }}">{{ item.status }}</span>
+                </div>
+                <div class="directory-card-body">
+                    <h2>{{ item.party_name }}</h2>
+                    <div class="directory-card-lines">
+                        <span class="directory-line"><strong>Code</strong><small>{{ item.party_code }}</small></span>
+                        <span class="directory-line"><strong>Contact</strong><small>{{ item.contact_person or item.phone_number or '-' }}</small></span>
+                    </div>
+                </div>
+                <div class="directory-card-foot">
+                    <span class="directory-code">Customer</span>
+                    <a class="button button-secondary directory-open" href="{{ url_for('customer_statement', party_code=item.party_code) }}">Open Statement</a>
+                </div>
+            </article>
+        {% else %}
+            <article class="card directory-empty">
+                <h2>No Customer Found</h2>
+                <p>Add customer parties first.</p>
+            </article>
+        {% endfor %}
+    </section>
 
-<section class="detail-layout dashboard-layout chart-layout">
-    <article class="card table-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Rental</p>
-                <h2>Recent Customer Rental Rows</h2>
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card compact-side-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Receivables</span>
+                    <h2>Top Exposure</h2>
+                </div>
             </div>
-        </div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Date</th><th>Hire No</th><th>Customer</th><th>Asset</th><th>Total</th><th>Status</th></tr></thead>
-                <tbody>
-                    {% for item in recent_hires %}
-                        <tr><td>{{ item.entry_date }}</td><td>{{ item.hire_no }}</td><td>{{ item.party_name }}</td><td>{{ item.asset_name }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td><td>{{ item.status }}</td></tr>
-                    {% else %}
-                        <tr><td colspan="6">No customer rental row registered yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </article>
+            <div class="mini-ledger-list">
+                {% for item in top_receivables %}
+                    <div class="mini-ledger-row">
+                        <strong>{{ item.party_name }}</strong>
+                        <span>AED {{ "%.2f"|format(item.balance_amount) }}</span>
+                    </div>
+                {% else %}
+                    <p class="muted-text">No receivable rows yet.</p>
+                {% endfor %}
+            </div>
+        </article>
 
-    <article class="card table-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Invoices</p>
-                <h2>Recent Sales Invoices</h2>
+        <article class="card desk-panel-card compact-side-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Invoices</span>
+                    <h2>Recent Sales</h2>
+                </div>
             </div>
-        </div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Invoice</th><th>Customer</th><th>Date</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
-                <tbody>
-                    {% for item in recent_invoices %}
-                        <tr><td>{{ item.invoice_no }}</td><td>{{ item.party_name }}</td><td>{{ item.issue_date }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td><td>AED {{ "%.2f"|format(item.balance_amount) }}</td><td>{{ item.status }}</td></tr>
-                    {% else %}
-                        <tr><td colspan="6">No sales invoices created yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </article>
+            <div class="mini-ledger-list">
+                {% for item in recent_invoices %}
+                    <div class="mini-ledger-row stacked-row">
+                        <strong>{{ item.invoice_no }}</strong>
+                        <span>{{ item.party_name }}</span>
+                        <span>AED {{ "%.2f"|format(item.balance_amount) }}</span>
+                    </div>
+                {% else %}
+                    <p class="muted-text">No sales invoices yet.</p>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
 </section>
 {% endblock %}

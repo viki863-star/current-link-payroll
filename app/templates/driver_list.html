@@ -1,9 +1,20 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="driver-desk-shell">
-    <article class="card driver-desk-toolbar">
-        <form method="get" class="driver-desk-filter-form">
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button" href="{{ url_for('create_driver') }}">Add Driver</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ driver_count }}</strong><small>Total</small></span>
+                <span><strong>{{ active_count }}</strong><small>Active</small></span>
+                <span><strong>{{ inactive_count }}</strong><small>Inactive</small></span>
+            </div>
+        </div>
+        <form method="get" class="admin-filter-grid">
             <label>
                 <span>Search</span>
                 <input type="search" name="q" value="{{ query }}" placeholder="Driver, ID, phone, vehicle">
@@ -34,31 +45,21 @@
                     {% endfor %}
                 </select>
             </label>
-            <div class="driver-desk-actions">
+            <div class="admin-filter-actions">
                 <button class="button" type="submit">Search</button>
-                <a class="button button-secondary" href="{{ url_for('create_driver') }}">Add Driver</a>
                 {% if query or status_filter or shift_filter or vehicle_filter %}
                     <a class="button button-secondary" href="{{ url_for('driver_list') }}">Clear</a>
                 {% endif %}
             </div>
         </form>
-        <div class="driver-desk-stats">
-            <span><strong>{{ driver_count }}</strong><small>Total</small></span>
-            <span><strong>{{ active_count }}</strong><small>Active</small></span>
-            <span><strong>{{ inactive_count }}</strong><small>Inactive</small></span>
-        </div>
     </article>
 
-    <section class="driver-desk-grid">
+    <section class="directory-card-grid driver-card-wall">
         {% for driver in drivers %}
-            <a class="card driver-desk-card" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">
-                {% set vehicle_type_value = (driver.vehicle_type or "")|lower %}
-                <div class="driver-desk-head">
-                    <span class="driver-desk-id">{{ driver.driver_id }}</span>
-                    <span class="status-chip {{ driver.status|lower }}">{{ driver.status }}</span>
-                </div>
-                <div class="driver-desk-body">
-                    <div class="driver-desk-icon" aria-hidden="true">
+            {% set vehicle_type_value = (driver.vehicle_type or "")|lower %}
+            <article class="card directory-card driver-directory-card">
+                <div class="directory-card-head">
+                    <span class="vehicle-icon-chip" aria-hidden="true">
                         {% if "trailer" in vehicle_type_value %}
                             &#128667;
                         {% elif "crane" in vehicle_type_value %}
@@ -72,21 +73,25 @@
                         {% else %}
                             &#128666;
                         {% endif %}
-                    </div>
+                    </span>
+                    <span class="status-chip {{ driver.status|lower }}">{{ driver.status }}</span>
+                </div>
+                <div class="directory-card-body">
                     <h2>{{ driver.full_name }}</h2>
-                    <div class="driver-desk-line">{{ driver.vehicle_no or "-" }}</div>
-                    <div class="driver-desk-line">{{ driver.shift or "Shift -" }}</div>
+                    <div class="directory-card-lines">
+                        <span class="directory-line"><strong>Vehicle</strong><small>{{ driver.vehicle_no or '-' }}</small></span>
+                        <span class="directory-line"><strong>Shift</strong><small>{{ driver.shift or 'Shift -' }}</small></span>
+                    </div>
                 </div>
-                <div class="driver-desk-meta">
-                    <span>AED {{ "%.0f"|format(driver.basic_salary) }}</span>
-                    <span>{{ driver.duty_start or "-" }}</span>
+                <div class="directory-card-foot">
+                    <span class="directory-code">{{ driver.driver_id }}</span>
+                    <a class="button button-secondary directory-open" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Open Driver</a>
                 </div>
-                <div class="driver-desk-open">Open Driver</div>
-            </a>
+            </article>
         {% else %}
-            <article class="card driver-desk-empty">
+            <article class="card directory-empty">
                 <h2>No Driver Found</h2>
-                <p>Change search or add a new driver.</p>
+                <p>Change search or add a driver.</p>
             </article>
         {% endfor %}
     </section>

@@ -70,31 +70,31 @@ ADMIN_WORKSPACE_META = {
         "label": "Universal",
         "eyebrow": "Dashboard",
         "title": "Main Dashboard",
-        "summary": "Choose a desk.",
+        "summary": "Pick a desk.",
     },
     "drivers": {
         "label": "Drivers",
         "eyebrow": "Driver Desk",
         "title": "Driver Desk",
-        "summary": "Payroll and driver control.",
+        "summary": "Driver control.",
     },
     "suppliers": {
         "label": "Suppliers",
         "eyebrow": "Supplier Desk",
         "title": "Supplier Desk",
-        "summary": "Fleet, timesheets, vouchers and payments.",
+        "summary": "Fleet and payments.",
     },
     "customers": {
         "label": "Customers",
         "eyebrow": "Customer Desk",
         "title": "Customer Desk",
-        "summary": "Invoices, contracts and statements.",
+        "summary": "Invoices and statements.",
     },
     "accounts": {
         "label": "Accounts",
         "eyebrow": "Accounts Desk",
         "title": "Accounts Desk",
-        "summary": "Fund, tax, fees, loans and reports.",
+        "summary": "Fund, tax, reports.",
     },
 }
 
@@ -3447,27 +3447,17 @@ def _admin_module_links(workspace: str):
     module_map = {
         "universal": [],
         "drivers": [
-            {"label": "Driver List", "endpoint": "driver_list"},
             {"label": "Add Driver", "endpoint": "create_driver", "primary": True},
         ],
         "suppliers": [
-            {"label": "Supplier Desk", "endpoint": "suppliers"},
-            {"label": "Party Master", "endpoint": "party_list"},
             {"label": "Invoices", "endpoint": "invoice_center"},
         ],
         "customers": [
-            {"label": "Customer Desk", "endpoint": "customers"},
-            {"label": "Agreements", "endpoint": "agreements_lpos"},
-            {"label": "Invoices", "endpoint": "invoice_center"},
+            {"label": "Invoices", "endpoint": "invoice_center", "primary": True},
         ],
         "accounts": [
-            {"label": "Reports", "endpoint": "reports_center"},
-            {"label": "Invoices", "endpoint": "invoice_center"},
-            {"label": "Owner Fund", "endpoint": "owner_fund"},
+            {"label": "Owner Fund", "endpoint": "owner_fund", "primary": True},
             {"label": "Tax", "endpoint": "tax_center"},
-            {"label": "Annual Fees", "endpoint": "annual_fees"},
-            {"label": "Loans", "endpoint": "loans_center"},
-            {"label": "Company Setup", "endpoint": "company_setup"},
         ],
     }
     return [

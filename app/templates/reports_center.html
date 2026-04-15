@@ -1,104 +1,114 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="dashboard-hero">
-    <article class="card dashboard-hero-card">
-        <div>
-            <p class="eyebrow">Reports</p>
-            <h2>Management Reporting Deck</h2>
-            <p class="lead">A leadership view across payables, receivables, fees, loans and VAT.</p>
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button" href="{{ url_for('owner_fund') }}">Owner Fund</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>AED {{ "%.0f"|format(customer_summary.receivable_total) }}</strong><small>Receivable</small></span>
+                <span><strong>AED {{ "%.0f"|format(supplier_summary.payable_total) }}</strong><small>Payable</small></span>
+                <span><strong>AED {{ "%.0f"|format(tax_summary.net_vat) }}</strong><small>Net VAT</small></span>
+            </div>
         </div>
-    </article>
-</section>
-
-<section class="stats premium-stats">
-    <article class="card stat-card premium-stat-card blue-stat"><span>Receivables</span><strong>AED {{ "%.2f"|format(customer_summary.receivable_total) }}</strong><small>Open customer balance.</small></article>
-    <article class="card stat-card premium-stat-card orange-stat"><span>Payables</span><strong>AED {{ "%.2f"|format(supplier_summary.payable_total) }}</strong><small>Open supplier balance.</small></article>
-    <article class="card stat-card premium-stat-card green-stat"><span>Loan Outstanding</span><strong>AED {{ "%.2f"|format(loan_summary.outstanding) }}</strong><small>Recoverable loan amount.</small></article>
-    <article class="card stat-card premium-stat-card navy-stat"><span>Fee Due</span><strong>AED {{ "%.2f"|format(annual_fee_summary.total_balance) }}</strong><small>Annual fees still open.</small></article>
-</section>
-
-<section class="detail-layout dashboard-layout chart-layout">
-    <article class="card table-card">
-        <div class="section-heading slim-heading"><div><p class="eyebrow">Receivables</p><h2>Top Customer Exposure</h2></div></div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Customer</th><th>Invoices</th><th>Total</th><th>Outstanding</th></tr></thead>
-                <tbody>
-                    {% for item in top_receivables %}
-                        <tr><td>{{ item.party_name }}</td><td>{{ item.invoice_count }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td><td>AED {{ "%.2f"|format(item.balance_amount) }}</td></tr>
-                    {% else %}
-                        <tr><td colspan="4">No customer exposure yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="mini-link-stack inline-link-stack">
+            <a class="mini-link-pill" href="{{ url_for('tax_center') }}">Tax</a>
+            <a class="mini-link-pill" href="{{ url_for('loans_center') }}">Loans</a>
+            <a class="mini-link-pill" href="{{ url_for('annual_fees') }}">Annual Fees</a>
+            <a class="mini-link-pill" href="{{ url_for('company_setup') }}">Company Setup</a>
         </div>
     </article>
 
-    <article class="card table-card">
-        <div class="section-heading slim-heading"><div><p class="eyebrow">Payables</p><h2>Top Supplier Exposure</h2></div></div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Supplier</th><th>Invoices</th><th>Total</th><th>Outstanding</th></tr></thead>
-                <tbody>
-                    {% for item in top_payables %}
-                        <tr><td>{{ item.party_name }}</td><td>{{ item.invoice_count }}</td><td>AED {{ "%.2f"|format(item.total_amount) }}</td><td>AED {{ "%.2f"|format(item.balance_amount) }}</td></tr>
-                    {% else %}
-                        <tr><td colspan="4">No supplier exposure yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </article>
-</section>
+    <section class="accounts-link-grid">
+        <a class="card accounts-link-card" href="{{ url_for('owner_fund') }}"><strong>Owner Fund</strong><span>Cash backing</span></a>
+        <a class="card accounts-link-card" href="{{ url_for('tax_center') }}"><strong>Tax</strong><span>VAT view</span></a>
+        <a class="card accounts-link-card" href="{{ url_for('loans_center') }}"><strong>Loans</strong><span>Recovery desk</span></a>
+        <a class="card accounts-link-card" href="{{ url_for('annual_fees') }}"><strong>Annual Fees</strong><span>Open balances</span></a>
+    </section>
 
-<section class="detail-layout dashboard-layout chart-layout">
-    <article class="card table-card">
-        <div class="section-heading slim-heading"><div><p class="eyebrow">Collections</p><h2>Due Annual Fees</h2></div></div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Fee No</th><th>Party</th><th>Type</th><th>Due</th><th>Balance</th></tr></thead>
-                <tbody>
-                    {% for item in due_fees %}
-                        <tr><td>{{ item.fee_no }}</td><td>{{ item.party_name }}</td><td>{{ item.fee_type }}</td><td>{{ item.due_date }}</td><td>AED {{ "%.2f"|format(item.balance_amount) }}</td></tr>
-                    {% else %}
-                        <tr><td colspan="5">No annual fee balances yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </article>
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card compact-side-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Receivables</span>
+                    <h2>Top Customers</h2>
+                </div>
+            </div>
+            <div class="mini-ledger-list">
+                {% for item in top_receivables %}
+                    <div class="mini-ledger-row">
+                        <strong>{{ item.party_name }}</strong>
+                        <span>AED {{ "%.2f"|format(item.balance_amount) }}</span>
+                    </div>
+                {% else %}
+                    <p class="muted-text">No customer exposure yet.</p>
+                {% endfor %}
+            </div>
+        </article>
 
-    <article class="card table-card">
-        <div class="section-heading slim-heading"><div><p class="eyebrow">Loans</p><h2>Recent Loan Movement</h2></div></div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>No</th><th>Party</th><th>Date</th><th>Type</th><th>Amount</th></tr></thead>
-                <tbody>
-                    {% for item in recent_loans %}
-                        <tr><td>{{ item.loan_no }}</td><td>{{ item.party_name }}</td><td>{{ item.entry_date }}</td><td>{{ item.loan_type }}</td><td>AED {{ "%.2f"|format(item.amount) }}</td></tr>
-                    {% else %}
-                        <tr><td colspan="5">No loan movement yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </article>
-</section>
+        <article class="card desk-panel-card compact-side-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Payables</span>
+                    <h2>Top Suppliers</h2>
+                </div>
+            </div>
+            <div class="mini-ledger-list">
+                {% for item in top_payables %}
+                    <div class="mini-ledger-row">
+                        <strong>{{ item.party_name }}</strong>
+                        <span>AED {{ "%.2f"|format(item.balance_amount) }}</span>
+                    </div>
+                {% else %}
+                    <p class="muted-text">No supplier exposure yet.</p>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
 
-<section class="card table-card">
-    <div class="section-heading slim-heading"><div><p class="eyebrow">VAT</p><h2>Tax Snapshot</h2></div></div>
-    <div class="table-wrap">
-        <table>
-            <thead><tr><th>Metric</th><th>Amount</th></tr></thead>
-            <tbody>
-                <tr><td>Taxable Sales</td><td>AED {{ "%.2f"|format(tax_summary.taxable_sales) }}</td></tr>
-                <tr><td>Output VAT</td><td>AED {{ "%.2f"|format(tax_summary.output_vat) }}</td></tr>
-                <tr><td>Taxable Purchases</td><td>AED {{ "%.2f"|format(tax_summary.taxable_purchases) }}</td></tr>
-                <tr><td>Input VAT</td><td>AED {{ "%.2f"|format(tax_summary.input_vat) }}</td></tr>
-                <tr><td>Net VAT</td><td>AED {{ "%.2f"|format(tax_summary.net_vat) }}</td></tr>
-            </tbody>
-        </table>
-    </div>
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card compact-side-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Fees</span>
+                    <h2>Due Fees</h2>
+                </div>
+            </div>
+            <div class="mini-ledger-list">
+                {% for item in due_fees %}
+                    <div class="mini-ledger-row stacked-row">
+                        <strong>{{ item.fee_no }}</strong>
+                        <span>{{ item.party_name }}</span>
+                        <span>AED {{ "%.2f"|format(item.balance_amount) }}</span>
+                    </div>
+                {% else %}
+                    <p class="muted-text">No fee balances yet.</p>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="card desk-panel-card compact-side-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Loans</span>
+                    <h2>Recent Movement</h2>
+                </div>
+            </div>
+            <div class="mini-ledger-list">
+                {% for item in recent_loans %}
+                    <div class="mini-ledger-row stacked-row">
+                        <strong>{{ item.loan_no }}</strong>
+                        <span>{{ item.party_name }}</span>
+                        <span>AED {{ "%.2f"|format(item.amount) }}</span>
+                    </div>
+                {% else %}
+                    <p class="muted-text">No loan movement yet.</p>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
 </section>
 {% endblock %}
