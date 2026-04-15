@@ -322,72 +322,60 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
     _draw_header(pdf, assets_dir)
-    _draw_title(pdf, title, "VAT-ready invoice with line items, references and running balance")
+    _draw_title(pdf, title, "Commercial invoice with clean references, VAT and running balance")
 
     seller_x = 16 * mm
-    seller_y = PAGE_HEIGHT - 108 * mm
+    seller_y = PAGE_HEIGHT - 116 * mm
     seller_w = 86 * mm
-    seller_h = 33 * mm
+    seller_h = 42 * mm
     buyer_x = 108 * mm
     buyer_y = seller_y
     buyer_w = 86 * mm
     buyer_h = seller_h
 
-    for box_x, box_y, box_w, box_h, heading in (
-        (seller_x, seller_y, seller_w, seller_h, "SELLER"),
-        (buyer_x, buyer_y, buyer_w, buyer_h, "BILL TO"),
-    ):
-        pdf.setFillColor(colors.white)
-        pdf.roundRect(box_x, box_y, box_w, box_h, 4 * mm, fill=1, stroke=0)
-        pdf.setStrokeColor(LINE)
-        pdf.roundRect(box_x, box_y, box_w, box_h, 4 * mm, fill=0, stroke=1)
-        pdf.setFillColor(BLUE_SOFT)
-        pdf.roundRect(box_x, box_y + box_h - 8 * mm, box_w, 8 * mm, 4 * mm, fill=1, stroke=0)
-        pdf.setFillColor(BLUE_DARK)
-        pdf.setFont("Helvetica-Bold", 8.5)
-        pdf.drawString(box_x + 4 * mm, box_y + box_h - 5.2 * mm, heading)
-
-    pdf.setFillColor(TEXT)
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(seller_x + 4 * mm, seller_y + 19.5 * mm, (company_profile.get("company_name") or "Current Link")[:34])
-    pdf.setFont("Helvetica", 7.6)
-    pdf.drawString(seller_x + 4 * mm, seller_y + 14 * mm, (company_profile.get("legal_name") or company_profile.get("company_name") or "-")[:40])
-    pdf.drawString(seller_x + 4 * mm, seller_y + 9 * mm, f"TRN: {company_profile.get('trn_no') or '-'}")
     seller_contact = " | ".join(item for item in [company_profile.get("phone_number"), company_profile.get("email")] if item) or "-"
-    pdf.drawString(seller_x + 4 * mm, seller_y + 4 * mm, seller_contact[:42])
-    seller_address, seller_address_size = _fit_text(pdf, company_profile.get("address") or "-", "Helvetica", 7.1, 76 * mm, min_size=6.1)
-    pdf.setFont("Helvetica", seller_address_size)
-    pdf.drawString(seller_x + 4 * mm, seller_y + 24.2 * mm, seller_address)
-
-    pdf.setFillColor(TEXT)
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(buyer_x + 4 * mm, buyer_y + 19.5 * mm, (party.get("party_name") or "-")[:34])
-    pdf.setFont("Helvetica", 7.6)
-    pdf.drawString(buyer_x + 4 * mm, buyer_y + 14 * mm, (party.get("contact_person") or party.get("party_kind") or "-")[:38])
-    pdf.drawString(buyer_x + 4 * mm, buyer_y + 9 * mm, f"TRN: {party.get('trn_no') or '-'}")
     buyer_contact = " | ".join(item for item in [party.get("phone_number"), party.get("email")] if item) or "-"
-    pdf.drawString(buyer_x + 4 * mm, buyer_y + 4 * mm, buyer_contact[:42])
-    buyer_address, buyer_address_size = _fit_text(pdf, party.get("address") or "-", "Helvetica", 7.1, 76 * mm, min_size=6.1)
-    pdf.setFont("Helvetica", buyer_address_size)
-    pdf.drawString(buyer_x + 4 * mm, buyer_y + 24.2 * mm, buyer_address)
 
-    meta_y = PAGE_HEIGHT - 149 * mm
+    _draw_invoice_party_box(
+        pdf,
+        seller_x,
+        seller_y,
+        seller_w,
+        seller_h,
+        "SELLER",
+        company_profile.get("company_name") or "Current Link",
+        company_profile.get("legal_name") or company_profile.get("company_name") or "-",
+        company_profile.get("address") or "-",
+        company_profile.get("trn_no") or "-",
+        seller_contact,
+    )
+    _draw_invoice_party_box(
+        pdf,
+        buyer_x,
+        buyer_y,
+        buyer_w,
+        buyer_h,
+        "BILL TO",
+        party.get("party_name") or "-",
+        party.get("contact_person") or party.get("party_kind") or "-",
+        party.get("address") or "-",
+        party.get("trn_no") or "-",
+        buyer_contact,
+    )
+
+    meta_y = PAGE_HEIGHT - 165 * mm
     _draw_stat_box(pdf, 16 * mm, meta_y, 40 * mm, 14 * mm, "INVOICE NO", str(invoice["invoice_no"]))
     _draw_stat_box(pdf, 60 * mm, meta_y, 38 * mm, 14 * mm, "ISSUE DATE", format_date_label(invoice.get("issue_date")))
     _draw_stat_box(pdf, 102 * mm, meta_y, 38 * mm, 14 * mm, "DUE DATE", format_date_label(invoice.get("due_date")))
     _draw_stat_box(pdf, 144 * mm, meta_y, 50 * mm, 14 * mm, "STATUS", invoice.get("status") or "Open")
 
-    ref_y = PAGE_HEIGHT - 167 * mm
-    pdf.setFillColor(SOFT)
-    pdf.roundRect(16 * mm, ref_y, 178 * mm, 12 * mm, 3 * mm, fill=1, stroke=0)
-    pdf.setStrokeColor(LINE)
-    pdf.roundRect(16 * mm, ref_y, 178 * mm, 12 * mm, 3 * mm, fill=0, stroke=1)
-    _draw_small_meta_row(pdf, 21 * mm, ref_y + 6.5 * mm, "Kind", invoice.get("invoice_kind") or "-", 30 * mm)
-    _draw_small_meta_row(pdf, 59 * mm, ref_y + 6.5 * mm, "Agreement", invoice.get("agreement_no") or "-", 33 * mm)
-    _draw_small_meta_row(pdf, 104 * mm, ref_y + 6.5 * mm, "LPO", invoice.get("lpo_no") or "-", 26 * mm)
-    _draw_small_meta_row(pdf, 142 * mm, ref_y + 6.5 * mm, "Hire", invoice.get("hire_no") or "-", 26 * mm)
+    ref_y = PAGE_HEIGHT - 181 * mm
+    _draw_stat_box(pdf, 16 * mm, ref_y, 40 * mm, 12 * mm, "KIND", invoice.get("invoice_kind") or "-")
+    _draw_stat_box(pdf, 60 * mm, ref_y, 42 * mm, 12 * mm, "AGREEMENT", invoice.get("agreement_no") or "-")
+    _draw_stat_box(pdf, 106 * mm, ref_y, 40 * mm, 12 * mm, "LPO", invoice.get("lpo_no") or "-")
+    _draw_stat_box(pdf, 150 * mm, ref_y, 44 * mm, 12 * mm, "HIRE", invoice.get("hire_no") or "-")
 
-    table_top = PAGE_HEIGHT - 186 * mm
+    table_top = PAGE_HEIGHT - 198 * mm
     _draw_table_header(
         pdf,
         table_top,
@@ -415,15 +403,16 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
         pdf.drawRightString(193 * mm, y, format_currency(float(line.get("subtotal") or 0)))
         y -= row_height
 
-    min_rows = 8
-    while len(line_items) < min_rows and y >= 65 * mm:
-        if len(line_items) % 2 == 0:
+    min_rows = 6
+    filler_index = len(line_items)
+    while filler_index < min_rows and y >= 67 * mm:
+        if filler_index % 2 == 0:
             pdf.setFillColor(colors.white)
             pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.1 * mm, 1.8 * mm, fill=1, stroke=0)
         pdf.setStrokeColor(LINE)
         pdf.line(16 * mm, y - 2.2 * mm, 194 * mm, y - 2.2 * mm)
         y -= row_height
-        line_items.append({})
+        filler_index += 1
 
     summary_y = 49 * mm
     _draw_stat_box(pdf, 112 * mm, summary_y + 28 * mm, 82 * mm, 12 * mm, "SUBTOTAL", f"{currency} {format_currency(subtotal)}")
@@ -438,17 +427,26 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
     pdf.setFillColor(BLUE_DARK)
     pdf.setFont("Helvetica-Bold", 8.2)
     pdf.drawString(20 * mm, notes_y + 17 * mm, "NOTES")
+    note_lines = _wrap_text_lines(
+        pdf,
+        invoice.get("notes") or company_profile.get("invoice_terms") or "No notes entered.",
+        "Helvetica",
+        7.1,
+        80 * mm,
+        max_lines=2,
+        min_size=6.0,
+    )
     pdf.setFillColor(TEXT)
-    note_text, note_size = _fit_text(pdf, invoice.get("notes") or company_profile.get("invoice_terms") or "No notes entered.", "Helvetica", 7.2, 80 * mm, min_size=6.0)
-    pdf.setFont("Helvetica", note_size)
-    pdf.drawString(20 * mm, notes_y + 10 * mm, note_text)
+    pdf.setFont("Helvetica", 7.1)
+    for index, note_line in enumerate(note_lines):
+        pdf.drawString(20 * mm, notes_y + 11.5 * mm - (index * 4.2 * mm), note_line)
 
-    _draw_small_meta_row(pdf, 20 * mm, notes_y + 4.2 * mm, "Terms", company_profile.get("invoice_terms") or "-", 46 * mm)
+    _draw_small_meta_row(pdf, 20 * mm, notes_y + 3.4 * mm, "Terms", company_profile.get("invoice_terms") or "-", 44 * mm)
 
     payment_y = 38 * mm
     _draw_stat_box(pdf, 112 * mm, payment_y + 12 * mm, 39 * mm, 12 * mm, "PAID", f"{currency} {format_currency(paid_amount)}", fill_color=SOFT)
     _draw_stat_box(pdf, 155 * mm, payment_y + 12 * mm, 39 * mm, 12 * mm, "BALANCE", f"{currency} {format_currency(balance_amount)}", fill_color=colors.HexColor("#FFF4E8"), text_color=ORANGE, border_color=ORANGE)
-    _draw_small_meta_row(pdf, 116 * mm, payment_y + 6.3 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 52 * mm)
+    _draw_small_meta_row(pdf, 116 * mm, payment_y + 6.3 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 50 * mm)
 
     _draw_footer_banner(pdf, assets_dir)
     pdf.showPage()
@@ -958,11 +956,96 @@ def _draw_label_value_row(pdf: canvas.Canvas, x: float, y: float, label_width: f
 def _draw_small_meta_row(pdf: canvas.Canvas, x: float, y: float, label: str, value: str, value_width: float) -> None:
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 6.9)
-    pdf.drawString(x, y, f"{label}:")
+    label_text = f"{label}:"
+    pdf.drawString(x, y, label_text)
     pdf.setFillColor(TEXT)
     text, size = _fit_text(pdf, str(value or "-"), "Helvetica-Bold", 7.1, value_width)
     pdf.setFont("Helvetica-Bold", size)
-    pdf.drawRightString(x + 46 * mm, y, text)
+    label_width = pdf.stringWidth(label_text, "Helvetica", 6.9) + (2 * mm)
+    pdf.drawRightString(x + label_width + value_width, y, text)
+
+
+def _draw_invoice_party_box(
+    pdf: canvas.Canvas,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    heading: str,
+    title: str,
+    secondary: str,
+    address: str,
+    trn_no: str,
+    contact: str,
+) -> None:
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(x, y, w, h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(x, y, w, h, 4 * mm, fill=0, stroke=1)
+    pdf.setFillColor(BLUE_SOFT)
+    pdf.roundRect(x, y + h - 8 * mm, w, 8 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 8.5)
+    pdf.drawString(x + 4 * mm, y + h - 5.2 * mm, heading)
+
+    safe_title, title_size = _fit_text(pdf, title or "-", "Helvetica-Bold", 9.6, w - 8 * mm, min_size=7.8)
+    safe_secondary, secondary_size = _fit_text(pdf, secondary or "-", "Helvetica", 7.4, w - 8 * mm, min_size=6.5)
+    address_lines = _wrap_text_lines(pdf, address or "-", "Helvetica", 7.0, w - 8 * mm, max_lines=2, min_size=6.0)
+    contact_line, contact_size = _fit_text(pdf, contact or "-", "Helvetica", 6.7, w - 8 * mm, min_size=6.0)
+
+    top_y = y + h - 12.8 * mm
+    pdf.setFillColor(TEXT)
+    pdf.setFont("Helvetica-Bold", title_size)
+    pdf.drawString(x + 4 * mm, top_y, safe_title)
+    pdf.setFont("Helvetica", secondary_size)
+    pdf.drawString(x + 4 * mm, top_y - 4.6 * mm, safe_secondary)
+
+    pdf.setFont("Helvetica", 7.0)
+    for index, line in enumerate(address_lines):
+        pdf.drawString(x + 4 * mm, top_y - 9.2 * mm - (index * 3.8 * mm), line)
+
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 6.8)
+    pdf.drawString(x + 4 * mm, y + 7.1 * mm, f"TRN: {trn_no or '-'}")
+    pdf.drawString(x + 4 * mm, y + 3.1 * mm, contact_line)
+
+
+def _wrap_text_lines(
+    pdf: canvas.Canvas,
+    text: str,
+    font_name: str,
+    font_size: float,
+    max_width: float,
+    *,
+    max_lines: int = 2,
+    min_size: float = 6.0,
+):
+    value = " ".join(str(text or "-").split()) or "-"
+    if max_lines <= 1:
+        return [_fit_text(pdf, value, font_name, font_size, max_width, min_size=min_size)[0]]
+
+    words = value.split(" ")
+    lines = []
+    index = 0
+
+    while index < len(words) and len(lines) < max_lines:
+        if len(lines) == max_lines - 1:
+            remainder = " ".join(words[index:]).strip()
+            lines.append(_fit_text(pdf, remainder, font_name, font_size, max_width, min_size=min_size)[0])
+            break
+
+        current = words[index]
+        index += 1
+        while index < len(words):
+            candidate = f"{current} {words[index]}".strip()
+            if pdf.stringWidth(candidate, font_name, font_size) <= max_width:
+                current = candidate
+                index += 1
+            else:
+                break
+        lines.append(_fit_text(pdf, current, font_name, font_size, max_width, min_size=min_size)[0])
+
+    return lines[:max_lines] or ["-"]
 
 
 def _draw_stat_box(
