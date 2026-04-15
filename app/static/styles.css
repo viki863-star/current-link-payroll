@@ -4021,6 +4021,29 @@ html {
     padding: 18px;
 }
 
+.supplier-detail-shell .desk-panel-card {
+    padding: 20px;
+}
+
+.supplier-overview-card {
+    display: grid;
+    gap: 18px;
+}
+
+.supplier-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.partnership-summary-grid {
+    margin: 4px 0 14px;
+}
+
+.supplier-month-filter {
+    margin-bottom: 14px;
+}
+
 .desk-panel-head {
     display: flex;
     justify-content: space-between;

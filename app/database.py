@@ -186,6 +186,13 @@ CREATE TABLE IF NOT EXISTS supplier_assets (
     vehicle_no TEXT,
     rate_basis TEXT NOT NULL DEFAULT 'Hours',
     default_rate REAL NOT NULL DEFAULT 0,
+    double_shift_mode TEXT NOT NULL DEFAULT 'Single Shift',
+    partnership_mode TEXT NOT NULL DEFAULT 'Standard',
+    partner_name TEXT,
+    company_share_percent REAL NOT NULL DEFAULT 100,
+    partner_share_percent REAL NOT NULL DEFAULT 0,
+    day_shift_paid_by TEXT NOT NULL DEFAULT 'Company',
+    night_shift_paid_by TEXT NOT NULL DEFAULT 'Company',
     capacity TEXT,
     status TEXT NOT NULL DEFAULT 'Active',
     notes TEXT,
@@ -244,6 +251,25 @@ CREATE TABLE IF NOT EXISTS supplier_payments (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(voucher_no) REFERENCES supplier_vouchers(voucher_no),
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_partnership_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entry_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    asset_code TEXT NOT NULL,
+    period_month TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    entry_kind TEXT NOT NULL DEFAULT 'Vehicle Expense',
+    expense_head TEXT,
+    shift_label TEXT NOT NULL DEFAULT 'General',
+    driver_name TEXT,
+    paid_by TEXT NOT NULL DEFAULT 'Company',
+    amount REAL NOT NULL DEFAULT 0,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code),
+    FOREIGN KEY(asset_code) REFERENCES supplier_assets(asset_code)
 );
 
 CREATE TABLE IF NOT EXISTS agreements (
@@ -600,6 +626,13 @@ CREATE TABLE IF NOT EXISTS supplier_assets (
     vehicle_no TEXT,
     rate_basis TEXT NOT NULL DEFAULT 'Hours',
     default_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
+    double_shift_mode TEXT NOT NULL DEFAULT 'Single Shift',
+    partnership_mode TEXT NOT NULL DEFAULT 'Standard',
+    partner_name TEXT,
+    company_share_percent DOUBLE PRECISION NOT NULL DEFAULT 100,
+    partner_share_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+    day_shift_paid_by TEXT NOT NULL DEFAULT 'Company',
+    night_shift_paid_by TEXT NOT NULL DEFAULT 'Company',
     capacity TEXT,
     status TEXT NOT NULL DEFAULT 'Active',
     notes TEXT,
@@ -658,6 +691,25 @@ CREATE TABLE IF NOT EXISTS supplier_payments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(voucher_no) REFERENCES supplier_vouchers(voucher_no),
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_partnership_entries (
+    id BIGSERIAL PRIMARY KEY,
+    entry_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    asset_code TEXT NOT NULL,
+    period_month TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    entry_kind TEXT NOT NULL DEFAULT 'Vehicle Expense',
+    expense_head TEXT,
+    shift_label TEXT NOT NULL DEFAULT 'General',
+    driver_name TEXT,
+    paid_by TEXT NOT NULL DEFAULT 'Company',
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code),
+    FOREIGN KEY(asset_code) REFERENCES supplier_assets(asset_code)
 );
 
 CREATE TABLE IF NOT EXISTS agreements (
@@ -860,6 +912,15 @@ REQUIRED_COLUMNS = {
     "account_invoices": {
         "document_type": "TEXT NOT NULL DEFAULT 'Tax Invoice'",
         "pdf_path": "TEXT",
+    },
+    "supplier_assets": {
+        "double_shift_mode": "TEXT NOT NULL DEFAULT 'Single Shift'",
+        "partnership_mode": "TEXT NOT NULL DEFAULT 'Standard'",
+        "partner_name": "TEXT",
+        "company_share_percent": "DOUBLE PRECISION NOT NULL DEFAULT 100",
+        "partner_share_percent": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "day_shift_paid_by": "TEXT NOT NULL DEFAULT 'Company'",
+        "night_shift_paid_by": "TEXT NOT NULL DEFAULT 'Company'",
     },
 }
 

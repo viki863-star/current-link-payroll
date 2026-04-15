@@ -61,6 +61,11 @@ LOAN_TYPE_OPTIONS = ["Given", "Recovered"]
 FEE_TYPE_OPTIONS = ["Visa", "Vehicle"]
 SUPPLIER_RATE_BASIS_OPTIONS = ["Hours", "Days", "Trips", "Monthly", "Fixed"]
 SUPPLIER_VOUCHER_STATUS_OPTIONS = ["Open", "Partially Paid", "Paid"]
+SUPPLIER_SHIFT_MODE_OPTIONS = ["Single Shift", "Double Shift"]
+SUPPLIER_PARTNERSHIP_MODE_OPTIONS = ["Standard", "Partnership"]
+PARTNERSHIP_ENTRY_KIND_OPTIONS = ["Vehicle Expense", "Driver Salary", "OT / Allowance", "Other"]
+PARTNERSHIP_PAID_BY_OPTIONS = ["Company", "Partner"]
+PARTNERSHIP_SHIFT_OPTIONS = ["General", "Day", "Night"]
 BRANCH_STATUS_OPTIONS = ["Active", "Inactive"]
 FINANCIAL_YEAR_STATUS_OPTIONS = ["Open", "Closed", "Archived"]
 INVOICE_LINE_SLOTS = 4
@@ -851,11 +856,14 @@ def register_routes(app: Flask) -> None:
         timesheet_values = _default_supplier_timesheet_form(db, party_code)
         voucher_values = _default_supplier_voucher_form(db, party_code)
         payment_values = _default_supplier_payment_form(db, party_code)
+        partnership_values = _default_supplier_partnership_form(db, party_code)
 
         edit_asset_code = request.args.get("edit_asset", "").strip().upper()
         edit_timesheet_no = request.args.get("edit_timesheet", "").strip().upper()
         edit_voucher_no = request.args.get("edit_voucher", "").strip().upper()
         edit_payment_no = request.args.get("edit_payment", "").strip().upper()
+        edit_entry_no = request.args.get("edit_entry", "").strip().upper()
+        partnership_month = _normalize_month(request.args.get("partnership_month", "").strip() or _current_month_value())
 
         if edit_asset_code:
             row = db.execute("SELECT * FROM supplier_assets WHERE asset_code = ? AND party_code = ?", (edit_asset_code, party_code)).fetchone()
@@ -873,6 +881,10 @@ def register_routes(app: Flask) -> None:
             row = db.execute("SELECT * FROM supplier_payments WHERE payment_no = ? AND party_code = ?", (edit_payment_no, party_code)).fetchone()
             if row is not None:
                 payment_values = _supplier_payment_form_from_row(row)
+        if edit_entry_no:
+            row = db.execute("SELECT * FROM supplier_partnership_entries WHERE entry_no = ? AND party_code = ?", (edit_entry_no, party_code)).fetchone()
+            if row is not None:
+                partnership_values = _supplier_partnership_form_from_row(row)
 
         if request.method == "POST":
             action = request.form.get("action", "").strip()
@@ -893,7 +905,9 @@ def register_routes(app: Flask) -> None:
                             """
                             UPDATE supplier_assets
                             SET asset_code = ?, party_code = ?, asset_name = ?, asset_type = ?, vehicle_no = ?,
-                                rate_basis = ?, default_rate = ?, capacity = ?, status = ?, notes = ?
+                                rate_basis = ?, default_rate = ?, double_shift_mode = ?, partnership_mode = ?,
+                                partner_name = ?, company_share_percent = ?, partner_share_percent = ?,
+                                day_shift_paid_by = ?, night_shift_paid_by = ?, capacity = ?, status = ?, notes = ?
                             WHERE asset_code = ?
                             """,
                             payload + (asset_values["original_asset_code"],),
@@ -916,8 +930,10 @@ def register_routes(app: Flask) -> None:
                             """
                             INSERT INTO supplier_assets (
                                 asset_code, party_code, asset_name, asset_type, vehicle_no,
-                                rate_basis, default_rate, capacity, status, notes
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                rate_basis, default_rate, double_shift_mode, partnership_mode, partner_name,
+                                company_share_percent, partner_share_percent, day_shift_paid_by, night_shift_paid_by,
+                                capacity, status, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                             payload,
                         )
@@ -1123,6 +1139,58 @@ def register_routes(app: Flask) -> None:
                     db.commit()
                     flash(message, "success")
                     return redirect(url_for("supplier_detail", party_code=party_code))
+
+                if action == "save_partnership_entry":
+                    partnership_values = _supplier_partnership_form_data(request, party_code)
+                    payload = _prepare_supplier_partnership_payload(db, partnership_values)
+                    _ensure_reference_available(
+                        db,
+                        "supplier_partnership_entries",
+                        "entry_no",
+                        partnership_values["entry_no"],
+                        partnership_values["original_entry_no"],
+                        "Partnership entry number",
+                    )
+                    if partnership_values["original_entry_no"]:
+                        db.execute(
+                            """
+                            UPDATE supplier_partnership_entries
+                            SET entry_no = ?, party_code = ?, asset_code = ?, period_month = ?, entry_date = ?,
+                                entry_kind = ?, expense_head = ?, shift_label = ?, driver_name = ?, paid_by = ?,
+                                amount = ?, notes = ?
+                            WHERE entry_no = ?
+                            """,
+                            payload + (partnership_values["original_entry_no"],),
+                        )
+                        _audit_log(
+                            db,
+                            "supplier_partnership_entry_updated",
+                            entity_type="supplier_partnership_entry",
+                            entity_id=partnership_values["entry_no"],
+                            details=f"{party_code} / {partnership_values['asset_code']} / AED {partnership_values['amount']}",
+                        )
+                        message = "Partnership entry updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO supplier_partnership_entries (
+                                entry_no, party_code, asset_code, period_month, entry_date,
+                                entry_kind, expense_head, shift_label, driver_name, paid_by, amount, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        _audit_log(
+                            db,
+                            "supplier_partnership_entry_created",
+                            entity_type="supplier_partnership_entry",
+                            entity_id=partnership_values["entry_no"],
+                            details=f"{party_code} / {partnership_values['asset_code']} / AED {partnership_values['amount']}",
+                        )
+                        message = "Partnership entry saved successfully."
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("supplier_detail", party_code=party_code, partnership_month=partnership_values["period_month"]))
             except ValidationError as exc:
                 flash(str(exc), "error")
 
@@ -1130,6 +1198,9 @@ def register_routes(app: Flask) -> None:
         supplier_timesheets = _supplier_timesheet_rows(db, party_code)
         supplier_vouchers = _supplier_voucher_rows(db, party_code)
         supplier_payments = _supplier_payment_rows(db, party_code)
+        partnership_entries = _supplier_partnership_rows(db, party_code)
+        partnership_summary = _supplier_partnership_summary(db, party_code, partnership_month)
+        partnership_assets = _supplier_partnership_asset_rows(db, party_code, partnership_month)
         statement_rows, statement_summary = _supplier_statement_data(db, party_code)
 
         return render_template(
@@ -1139,14 +1210,24 @@ def register_routes(app: Flask) -> None:
             timesheet_values=timesheet_values,
             voucher_values=voucher_values,
             payment_values=payment_values,
+            partnership_values=partnership_values,
             summary=_supplier_detail_summary(db, party_code),
             statement_rows=statement_rows,
             statement_summary=statement_summary,
+            partnership_entries=partnership_entries,
+            partnership_summary=partnership_summary,
+            partnership_assets=partnership_assets,
+            partnership_month=partnership_month,
             assets=supplier_assets,
             timesheets=supplier_timesheets,
             vouchers=supplier_vouchers,
             payments=supplier_payments,
             rate_basis_options=SUPPLIER_RATE_BASIS_OPTIONS,
+            shift_mode_options=SUPPLIER_SHIFT_MODE_OPTIONS,
+            partnership_mode_options=SUPPLIER_PARTNERSHIP_MODE_OPTIONS,
+            partnership_entry_kind_options=PARTNERSHIP_ENTRY_KIND_OPTIONS,
+            partnership_paid_by_options=PARTNERSHIP_PAID_BY_OPTIONS,
+            partnership_shift_options=PARTNERSHIP_SHIFT_OPTIONS,
             payment_method_options=PAYMENT_METHOD_OPTIONS,
             voucher_status_options=SUPPLIER_VOUCHER_STATUS_OPTIONS,
         )
@@ -1224,6 +1305,23 @@ def register_routes(app: Flask) -> None:
         db.commit()
         flash("Supplier payment deleted successfully.", "success")
         return redirect(url_for("supplier_detail", party_code=payment["party_code"]))
+
+    @app.post("/supplier-partnership/<entry_no>/delete")
+    @_login_required("admin")
+    def delete_supplier_partnership_entry(entry_no: str):
+        db = open_db()
+        entry = db.execute(
+            "SELECT entry_no, party_code FROM supplier_partnership_entries WHERE entry_no = ?",
+            (entry_no,),
+        ).fetchone()
+        if entry is None:
+            flash("Partnership entry was not found.", "error")
+            return redirect(url_for("suppliers"))
+        db.execute("DELETE FROM supplier_partnership_entries WHERE entry_no = ?", (entry_no,))
+        _audit_log(db, "supplier_partnership_entry_deleted", entity_type="supplier_partnership_entry", entity_id=entry_no, details=entry_no)
+        db.commit()
+        flash("Partnership entry deleted successfully.", "success")
+        return redirect(url_for("supplier_detail", party_code=entry["party_code"]))
 
     @app.get("/supplier-payments/<payment_no>/voucher")
     @_login_required("admin")
@@ -4642,6 +4740,13 @@ def _default_supplier_asset_form(db=None, party_code: str = ""):
         "vehicle_no": "",
         "rate_basis": SUPPLIER_RATE_BASIS_OPTIONS[0],
         "default_rate": "",
+        "double_shift_mode": SUPPLIER_SHIFT_MODE_OPTIONS[0],
+        "partnership_mode": SUPPLIER_PARTNERSHIP_MODE_OPTIONS[0],
+        "partner_name": "",
+        "company_share_percent": "100",
+        "partner_share_percent": "0",
+        "day_shift_paid_by": PARTNERSHIP_PAID_BY_OPTIONS[0],
+        "night_shift_paid_by": PARTNERSHIP_PAID_BY_OPTIONS[0],
         "capacity": "",
         "status": "Active",
         "notes": "",
@@ -4695,6 +4800,25 @@ def _default_supplier_payment_form(db=None, party_code: str = ""):
     }
 
 
+def _default_supplier_partnership_form(db=None, party_code: str = ""):
+    db = db or open_db()
+    return {
+        "original_entry_no": "",
+        "entry_no": _next_reference_code(db, "supplier_partnership_entries", "entry_no", "PEN"),
+        "party_code": party_code,
+        "asset_code": "",
+        "period_month": _current_month_value(),
+        "entry_date": date.today().isoformat(),
+        "entry_kind": PARTNERSHIP_ENTRY_KIND_OPTIONS[0],
+        "expense_head": "",
+        "shift_label": PARTNERSHIP_SHIFT_OPTIONS[0],
+        "driver_name": "",
+        "paid_by": PARTNERSHIP_PAID_BY_OPTIONS[0],
+        "amount": "",
+        "notes": "",
+    }
+
+
 def _supplier_asset_form_data(request, party_code: str):
     return {
         "original_asset_code": request.form.get("original_asset_code", "").strip().upper(),
@@ -4705,6 +4829,13 @@ def _supplier_asset_form_data(request, party_code: str):
         "vehicle_no": request.form.get("vehicle_no", "").strip(),
         "rate_basis": request.form.get("rate_basis", SUPPLIER_RATE_BASIS_OPTIONS[0]).strip() or SUPPLIER_RATE_BASIS_OPTIONS[0],
         "default_rate": request.form.get("default_rate", "").strip(),
+        "double_shift_mode": request.form.get("double_shift_mode", SUPPLIER_SHIFT_MODE_OPTIONS[0]).strip() or SUPPLIER_SHIFT_MODE_OPTIONS[0],
+        "partnership_mode": request.form.get("partnership_mode", SUPPLIER_PARTNERSHIP_MODE_OPTIONS[0]).strip() or SUPPLIER_PARTNERSHIP_MODE_OPTIONS[0],
+        "partner_name": request.form.get("partner_name", "").strip(),
+        "company_share_percent": request.form.get("company_share_percent", "100").strip() or "100",
+        "partner_share_percent": request.form.get("partner_share_percent", "0").strip() or "0",
+        "day_shift_paid_by": request.form.get("day_shift_paid_by", PARTNERSHIP_PAID_BY_OPTIONS[0]).strip() or PARTNERSHIP_PAID_BY_OPTIONS[0],
+        "night_shift_paid_by": request.form.get("night_shift_paid_by", PARTNERSHIP_PAID_BY_OPTIONS[0]).strip() or PARTNERSHIP_PAID_BY_OPTIONS[0],
         "capacity": request.form.get("capacity", "").strip(),
         "status": request.form.get("status", "Active").strip() or "Active",
         "notes": request.form.get("notes", "").strip(),
@@ -4755,6 +4886,24 @@ def _supplier_payment_form_data(request, party_code: str):
     }
 
 
+def _supplier_partnership_form_data(request, party_code: str):
+    return {
+        "original_entry_no": request.form.get("original_entry_no", "").strip().upper(),
+        "entry_no": request.form.get("entry_no", "").strip().upper(),
+        "party_code": party_code,
+        "asset_code": request.form.get("asset_code", "").strip().upper(),
+        "period_month": _normalize_month(request.form.get("period_month", "").strip()),
+        "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
+        "entry_kind": request.form.get("entry_kind", PARTNERSHIP_ENTRY_KIND_OPTIONS[0]).strip() or PARTNERSHIP_ENTRY_KIND_OPTIONS[0],
+        "expense_head": request.form.get("expense_head", "").strip(),
+        "shift_label": request.form.get("shift_label", PARTNERSHIP_SHIFT_OPTIONS[0]).strip() or PARTNERSHIP_SHIFT_OPTIONS[0],
+        "driver_name": request.form.get("driver_name", "").strip(),
+        "paid_by": request.form.get("paid_by", PARTNERSHIP_PAID_BY_OPTIONS[0]).strip() or PARTNERSHIP_PAID_BY_OPTIONS[0],
+        "amount": request.form.get("amount", "").strip(),
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
 def _supplier_asset_form_from_row(row):
     values = _default_supplier_asset_form()
     values.update(
@@ -4767,6 +4916,13 @@ def _supplier_asset_form_from_row(row):
             "vehicle_no": row["vehicle_no"] or "",
             "rate_basis": row["rate_basis"] or SUPPLIER_RATE_BASIS_OPTIONS[0],
             "default_rate": _display_number(row["default_rate"]),
+            "double_shift_mode": row["double_shift_mode"] or SUPPLIER_SHIFT_MODE_OPTIONS[0],
+            "partnership_mode": row["partnership_mode"] or SUPPLIER_PARTNERSHIP_MODE_OPTIONS[0],
+            "partner_name": row["partner_name"] or "",
+            "company_share_percent": _display_number(row["company_share_percent"]),
+            "partner_share_percent": _display_number(row["partner_share_percent"]),
+            "day_shift_paid_by": row["day_shift_paid_by"] or PARTNERSHIP_PAID_BY_OPTIONS[0],
+            "night_shift_paid_by": row["night_shift_paid_by"] or PARTNERSHIP_PAID_BY_OPTIONS[0],
             "capacity": row["capacity"] or "",
             "status": row["status"] or "Active",
             "notes": row["notes"] or "",
@@ -4831,6 +4987,28 @@ def _supplier_payment_form_from_row(row):
     return values
 
 
+def _supplier_partnership_form_from_row(row):
+    values = _default_supplier_partnership_form()
+    values.update(
+        {
+            "original_entry_no": row["entry_no"],
+            "entry_no": row["entry_no"],
+            "party_code": row["party_code"],
+            "asset_code": row["asset_code"] or "",
+            "period_month": row["period_month"] or _current_month_value(),
+            "entry_date": row["entry_date"] or date.today().isoformat(),
+            "entry_kind": row["entry_kind"] or PARTNERSHIP_ENTRY_KIND_OPTIONS[0],
+            "expense_head": row["expense_head"] or "",
+            "shift_label": row["shift_label"] or PARTNERSHIP_SHIFT_OPTIONS[0],
+            "driver_name": row["driver_name"] or "",
+            "paid_by": row["paid_by"] or PARTNERSHIP_PAID_BY_OPTIONS[0],
+            "amount": _display_number(row["amount"]),
+            "notes": row["notes"] or "",
+        }
+    )
+    return values
+
+
 def _prepare_supplier_asset_payload(db, values):
     _validate_party_reference(db, values["party_code"])
     if not values["asset_code"]:
@@ -4838,6 +5016,21 @@ def _prepare_supplier_asset_payload(db, values):
     if not values["asset_name"]:
         raise ValidationError("Vehicle / asset name is required.")
     default_rate = _parse_decimal(values["default_rate"], "Default rate", required=False, default=0.0, minimum=0.0)
+    double_shift_mode = values["double_shift_mode"] if values["double_shift_mode"] in SUPPLIER_SHIFT_MODE_OPTIONS else SUPPLIER_SHIFT_MODE_OPTIONS[0]
+    partnership_mode = values["partnership_mode"] if values["partnership_mode"] in SUPPLIER_PARTNERSHIP_MODE_OPTIONS else SUPPLIER_PARTNERSHIP_MODE_OPTIONS[0]
+    if partnership_mode == "Partnership":
+        company_share_percent = _parse_decimal(values["company_share_percent"], "Company share percent", required=True, minimum=0.0)
+        partner_share_percent = _parse_decimal(values["partner_share_percent"], "Partner share percent", required=True, minimum=0.0)
+        if abs((company_share_percent + partner_share_percent) - 100.0) > 0.01:
+            raise ValidationError("Company share and partner share must total 100.")
+        if not values["partner_name"]:
+            raise ValidationError("Partner name is required for partnership vehicles.")
+    else:
+        company_share_percent = 100.0
+        partner_share_percent = 0.0
+        values["partner_name"] = ""
+    day_shift_paid_by = values["day_shift_paid_by"] if values["day_shift_paid_by"] in PARTNERSHIP_PAID_BY_OPTIONS else PARTNERSHIP_PAID_BY_OPTIONS[0]
+    night_shift_paid_by = values["night_shift_paid_by"] if values["night_shift_paid_by"] in PARTNERSHIP_PAID_BY_OPTIONS else PARTNERSHIP_PAID_BY_OPTIONS[0]
     return (
         values["asset_code"],
         values["party_code"],
@@ -4846,6 +5039,13 @@ def _prepare_supplier_asset_payload(db, values):
         values["vehicle_no"],
         values["rate_basis"],
         default_rate,
+        double_shift_mode,
+        partnership_mode,
+        values["partner_name"],
+        company_share_percent,
+        partner_share_percent,
+        day_shift_paid_by,
+        night_shift_paid_by,
         values["capacity"],
         values["status"],
         values["notes"],
@@ -5001,6 +5201,47 @@ def _prepare_supplier_payment_payload(db, values):
     )
 
 
+def _prepare_supplier_partnership_payload(db, values):
+    _validate_party_reference(db, values["party_code"])
+    asset = db.execute(
+        """
+        SELECT asset_code, party_code, asset_name, partnership_mode, double_shift_mode
+        FROM supplier_assets
+        WHERE asset_code = ? AND party_code = ?
+        """,
+        (values["asset_code"], values["party_code"]),
+    ).fetchone()
+    if asset is None:
+        raise ValidationError("Select a valid supplier vehicle first.")
+    if not values["entry_no"]:
+        values["entry_no"] = _next_reference_code(db, "supplier_partnership_entries", "entry_no", "PEN")
+    entry_date = _validate_date_text(values["entry_date"], "Entry date")
+    amount = _parse_decimal(values["amount"], "Amount", required=True, minimum=0.01)
+    entry_kind = values["entry_kind"] if values["entry_kind"] in PARTNERSHIP_ENTRY_KIND_OPTIONS else PARTNERSHIP_ENTRY_KIND_OPTIONS[0]
+    shift_label = values["shift_label"] if values["shift_label"] in PARTNERSHIP_SHIFT_OPTIONS else PARTNERSHIP_SHIFT_OPTIONS[0]
+    paid_by = values["paid_by"] if values["paid_by"] in PARTNERSHIP_PAID_BY_OPTIONS else PARTNERSHIP_PAID_BY_OPTIONS[0]
+    if asset["partnership_mode"] != "Partnership" and paid_by == "Partner":
+        raise ValidationError("This vehicle is not marked as a partnership vehicle yet.")
+    if asset["double_shift_mode"] != "Double Shift" and shift_label in {"Day", "Night"}:
+        raise ValidationError("Day or night split can only be used on double-shift vehicles.")
+    if entry_kind == "Driver Salary" and not values["driver_name"]:
+        raise ValidationError("Driver name is required for salary split entries.")
+    return (
+        values["entry_no"],
+        values["party_code"],
+        values["asset_code"],
+        values["period_month"],
+        entry_date,
+        entry_kind,
+        values["expense_head"],
+        shift_label,
+        values["driver_name"],
+        paid_by,
+        amount,
+        values["notes"],
+    )
+
+
 def _supplier_voucher_paid_amount(db, voucher_no: str, exclude_payment_no: str = "") -> float:
     if exclude_payment_no:
         row = db.execute(
@@ -5059,6 +5300,8 @@ def _supplier_hub_summary(db):
     return {
         "supplier_count": int(db.execute("SELECT COUNT(*) FROM parties WHERE party_roles LIKE ?", ("%Supplier%",)).fetchone()[0]),
         "asset_count": int(db.execute("SELECT COUNT(*) FROM supplier_assets").fetchone()[0]),
+        "double_shift_count": int(db.execute("SELECT COUNT(*) FROM supplier_assets WHERE double_shift_mode = 'Double Shift'").fetchone()[0]),
+        "partnership_count": int(db.execute("SELECT COUNT(*) FROM supplier_assets WHERE partnership_mode = 'Partnership'").fetchone()[0]),
         "unbilled_amount": float(db.execute("SELECT COALESCE(SUM(subtotal), 0) FROM supplier_timesheets WHERE COALESCE(voucher_no, '') = ''").fetchone()[0] or 0.0),
         "voucher_total": float(db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM supplier_vouchers").fetchone()[0] or 0.0),
         "paid_total": float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM supplier_payments").fetchone()[0] or 0.0),
@@ -5098,6 +5341,8 @@ def _supplier_directory_rows(db, query: str = "", limit: int | None = None):
             p.trade_license_no,
             p.status,
             COALESCE(asset_totals.asset_count, 0) AS asset_count,
+            COALESCE(asset_totals.double_shift_count, 0) AS double_shift_count,
+            COALESCE(asset_totals.partnership_count, 0) AS partnership_count,
             COALESCE(ts_totals.unbilled_count, 0) AS unbilled_count,
             COALESCE(ts_totals.unbilled_amount, 0) AS unbilled_amount,
             COALESCE(voucher_totals.voucher_count, 0) AS voucher_count,
@@ -5106,7 +5351,11 @@ def _supplier_directory_rows(db, query: str = "", limit: int | None = None):
             COALESCE(payment_totals.paid_amount, 0) AS paid_total
         FROM parties p
         LEFT JOIN (
-            SELECT party_code, COUNT(*) AS asset_count
+            SELECT
+                party_code,
+                COUNT(*) AS asset_count,
+                SUM(CASE WHEN double_shift_mode = 'Double Shift' THEN 1 ELSE 0 END) AS double_shift_count,
+                SUM(CASE WHEN partnership_mode = 'Partnership' THEN 1 ELSE 0 END) AS partnership_count
             FROM supplier_assets
             GROUP BY party_code
         ) asset_totals ON asset_totals.party_code = p.party_code
@@ -5141,7 +5390,9 @@ def _supplier_asset_rows(db, party_code: str, limit: int = 40):
         f"""
         SELECT
             asset_code, party_code, asset_name, asset_type, vehicle_no,
-            rate_basis, default_rate, capacity, status, notes
+            rate_basis, default_rate, double_shift_mode, partnership_mode, partner_name,
+            company_share_percent, partner_share_percent, day_shift_paid_by, night_shift_paid_by,
+            capacity, status, notes
         FROM supplier_assets
         WHERE party_code = ?
         ORDER BY CASE WHEN status = 'Active' THEN 0 ELSE 1 END, asset_name ASC
@@ -5220,9 +5471,39 @@ def _supplier_payment_rows(db, party_code: str, limit: int = 30):
     ).fetchall()
 
 
+def _supplier_partnership_rows(db, party_code: str, limit: int = 40):
+    return db.execute(
+        f"""
+        SELECT
+            e.entry_no,
+            e.party_code,
+            e.asset_code,
+            a.asset_name,
+            a.vehicle_no,
+            e.period_month,
+            e.entry_date,
+            e.entry_kind,
+            e.expense_head,
+            e.shift_label,
+            e.driver_name,
+            e.paid_by,
+            e.amount,
+            e.notes
+        FROM supplier_partnership_entries e
+        LEFT JOIN supplier_assets a ON a.asset_code = e.asset_code
+        WHERE e.party_code = ?
+        ORDER BY e.period_month DESC, e.entry_date DESC, e.id DESC
+        LIMIT {int(limit)}
+        """,
+        (party_code,),
+    ).fetchall()
+
+
 def _supplier_detail_summary(db, party_code: str):
     return {
         "asset_count": int(db.execute("SELECT COUNT(*) FROM supplier_assets WHERE party_code = ?", (party_code,)).fetchone()[0]),
+        "double_shift_count": int(db.execute("SELECT COUNT(*) FROM supplier_assets WHERE party_code = ? AND double_shift_mode = 'Double Shift'", (party_code,)).fetchone()[0]),
+        "partnership_count": int(db.execute("SELECT COUNT(*) FROM supplier_assets WHERE party_code = ? AND partnership_mode = 'Partnership'", (party_code,)).fetchone()[0]),
         "unbilled_count": int(db.execute("SELECT COUNT(*) FROM supplier_timesheets WHERE party_code = ? AND COALESCE(voucher_no, '') = ''", (party_code,)).fetchone()[0]),
         "unbilled_amount": float(db.execute("SELECT COALESCE(SUM(subtotal), 0) FROM supplier_timesheets WHERE party_code = ? AND COALESCE(voucher_no, '') = ''", (party_code,)).fetchone()[0] or 0.0),
         "voucher_total": float(db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM supplier_vouchers WHERE party_code = ?", (party_code,)).fetchone()[0] or 0.0),
@@ -5315,6 +5596,161 @@ def _supplier_statement_data(db, party_code: str):
         "outstanding": max(round(sum(item["voucher_amount"] for item in rows) - sum(item["payment_amount"] for item in rows), 2), 0.0),
     }
     return rows, summary
+
+
+def _supplier_partnership_summary(db, party_code: str, period_month: str):
+    month_value = _normalize_month(period_month)
+    work_total = float(
+        db.execute(
+            """
+            SELECT COALESCE(SUM(subtotal), 0)
+            FROM supplier_timesheets
+            WHERE party_code = ? AND period_month = ?
+            """,
+            (party_code, month_value),
+        ).fetchone()[0]
+        or 0.0
+    )
+    company_paid = float(
+        db.execute(
+            """
+            SELECT COALESCE(SUM(amount), 0)
+            FROM supplier_partnership_entries
+            WHERE party_code = ? AND period_month = ? AND paid_by = 'Company'
+            """,
+            (party_code, month_value),
+        ).fetchone()[0]
+        or 0.0
+    )
+    partner_paid = float(
+        db.execute(
+            """
+            SELECT COALESCE(SUM(amount), 0)
+            FROM supplier_partnership_entries
+            WHERE party_code = ? AND period_month = ? AND paid_by = 'Partner'
+            """,
+            (party_code, month_value),
+        ).fetchone()[0]
+        or 0.0
+    )
+    return {
+        "period_month": month_value,
+        "work_total": work_total,
+        "company_paid": company_paid,
+        "partner_paid": partner_paid,
+        "total_cost": round(company_paid + partner_paid, 2),
+    }
+
+
+def _supplier_partnership_asset_rows(db, party_code: str, period_month: str):
+    month_value = _normalize_month(period_month)
+    assets = db.execute(
+        """
+        SELECT
+            asset_code,
+            asset_name,
+            vehicle_no,
+            double_shift_mode,
+            partnership_mode,
+            partner_name,
+            company_share_percent,
+            partner_share_percent,
+            day_shift_paid_by,
+            night_shift_paid_by
+        FROM supplier_assets
+        WHERE party_code = ?
+        ORDER BY asset_name ASC, asset_code ASC
+        """,
+        (party_code,),
+    ).fetchall()
+    rows = []
+    for asset in assets:
+        work_total = float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(subtotal), 0)
+                FROM supplier_timesheets
+                WHERE party_code = ? AND asset_code = ? AND period_month = ?
+                """,
+                (party_code, asset["asset_code"], month_value),
+            ).fetchone()[0]
+            or 0.0
+        )
+        company_paid = float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(amount), 0)
+                FROM supplier_partnership_entries
+                WHERE party_code = ? AND asset_code = ? AND period_month = ? AND paid_by = 'Company'
+                """,
+                (party_code, asset["asset_code"], month_value),
+            ).fetchone()[0]
+            or 0.0
+        )
+        partner_paid = float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(amount), 0)
+                FROM supplier_partnership_entries
+                WHERE party_code = ? AND asset_code = ? AND period_month = ? AND paid_by = 'Partner'
+                """,
+                (party_code, asset["asset_code"], month_value),
+            ).fetchone()[0]
+            or 0.0
+        )
+        company_salary = float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(amount), 0)
+                FROM supplier_partnership_entries
+                WHERE party_code = ? AND asset_code = ? AND period_month = ? AND paid_by = 'Company' AND entry_kind = 'Driver Salary'
+                """,
+                (party_code, asset["asset_code"], month_value),
+            ).fetchone()[0]
+            or 0.0
+        )
+        partner_salary = float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(amount), 0)
+                FROM supplier_partnership_entries
+                WHERE party_code = ? AND asset_code = ? AND period_month = ? AND paid_by = 'Partner' AND entry_kind = 'Driver Salary'
+                """,
+                (party_code, asset["asset_code"], month_value),
+            ).fetchone()[0]
+            or 0.0
+        )
+        company_share_percent = float(asset["company_share_percent"] or 100.0)
+        partner_share_percent = float(asset["partner_share_percent"] or 0.0)
+        if (asset["partnership_mode"] or "Standard") != "Partnership":
+            company_share_percent = 100.0
+            partner_share_percent = 0.0
+        company_share_amount = round(work_total * (company_share_percent / 100.0), 2)
+        partner_share_amount = round(work_total * (partner_share_percent / 100.0), 2)
+        rows.append(
+            {
+                "asset_code": asset["asset_code"],
+                "asset_name": asset["asset_name"],
+                "vehicle_no": asset["vehicle_no"],
+                "double_shift_mode": asset["double_shift_mode"] or SUPPLIER_SHIFT_MODE_OPTIONS[0],
+                "partnership_mode": asset["partnership_mode"] or SUPPLIER_PARTNERSHIP_MODE_OPTIONS[0],
+                "partner_name": asset["partner_name"] or "-",
+                "company_share_percent": company_share_percent,
+                "partner_share_percent": partner_share_percent,
+                "day_shift_paid_by": asset["day_shift_paid_by"] or PARTNERSHIP_PAID_BY_OPTIONS[0],
+                "night_shift_paid_by": asset["night_shift_paid_by"] or PARTNERSHIP_PAID_BY_OPTIONS[0],
+                "work_total": work_total,
+                "company_paid": company_paid,
+                "partner_paid": partner_paid,
+                "company_salary": company_salary,
+                "partner_salary": partner_salary,
+                "company_share_amount": company_share_amount,
+                "partner_share_amount": partner_share_amount,
+                "company_net": round(company_share_amount - company_paid, 2),
+                "partner_net": round(partner_share_amount - partner_paid, 2),
+            }
+        )
+    return rows
 
 
 def _supplier_payment_with_context(db, payment_no: str):

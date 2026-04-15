@@ -11,6 +11,8 @@
             <div class="admin-mini-stats">
                 <span><strong>{{ summary.supplier_count }}</strong><small>Suppliers</small></span>
                 <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
+                <span><strong>{{ summary.double_shift_count }}</strong><small>Double Shift</small></span>
+                <span><strong>{{ summary.partnership_count }}</strong><small>Partnership</small></span>
                 <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
             </div>
         </div>
@@ -156,6 +158,8 @@
                 </div>
                 <div class="directory-stat-row">
                     <span><strong>{{ item.asset_count }}</strong><small>Fleet</small></span>
+                    <span><strong>{{ item.double_shift_count }}</strong><small>Double Shift</small></span>
+                    <span><strong>{{ item.partnership_count }}</strong><small>Partnership</small></span>
                     <span><strong>AED {{ "%.0f"|format(item.outstanding_total) }}</strong><small>Due</small></span>
                 </div>
                 <div class="directory-card-foot split-actions">

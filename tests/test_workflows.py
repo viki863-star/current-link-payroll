@@ -1359,6 +1359,171 @@ def test_supplier_workspace_records_support_edit_delete_and_balance_resync(app, 
         assert payment_row == 0
 
 
+def test_supplier_partnership_and_double_shift_flow_tracks_monthly_split(app, client):
+    create_driver_record(app, driver_id="DRV-PART-1", full_name="Core Driver Safe")
+    admin_session(client)
+
+    client.post(
+        "/suppliers",
+        data={
+            "party_code": "PTY-PART-01",
+            "party_name": "Hussain Partner Fleet",
+            "party_kind": "Company",
+            "party_roles": ["Supplier", "Partner"],
+            "contact_person": "Hussain",
+            "phone_number": "0502003004",
+            "email": "hussain.partner@example.com",
+            "trn_no": "TRN-PART-1",
+            "trade_license_no": "LIC-PART-1",
+            "address": "Mussafah",
+            "notes": "50/50 tanker partnership",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+
+    asset_response = client.post(
+        "/suppliers/PTY-PART-01",
+        data={
+            "action": "save_asset",
+            "original_asset_code": "",
+            "asset_code": "AST-PART-01",
+            "asset_name": "Tanker 50-50",
+            "asset_type": "Tanker",
+            "vehicle_no": "TNK-501",
+            "rate_basis": "Hours",
+            "default_rate": "150",
+            "double_shift_mode": "Double Shift",
+            "partnership_mode": "Partnership",
+            "partner_name": "Hussain",
+            "company_share_percent": "50",
+            "partner_share_percent": "50",
+            "day_shift_paid_by": "Company",
+            "night_shift_paid_by": "Partner",
+            "capacity": "5000 Gallon",
+            "status": "Active",
+            "notes": "Shared tanker with double shift",
+        },
+        follow_redirects=True,
+    )
+    assert asset_response.status_code == 200
+
+    client.post(
+        "/suppliers/PTY-PART-01",
+        data={
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "TSH-PART-01",
+            "asset_code": "AST-PART-01",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "billing_basis": "Hours",
+            "billable_qty": "100",
+            "timesheet_hours": "100",
+            "rate": "150",
+            "status": "Open",
+            "notes": "April partnership work",
+        },
+        follow_redirects=True,
+    )
+
+    client.post(
+        "/suppliers/PTY-PART-01",
+        data={
+            "action": "save_partnership_entry",
+            "original_entry_no": "",
+            "entry_no": "PEN-0001",
+            "asset_code": "AST-PART-01",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "entry_kind": "Vehicle Expense",
+            "expense_head": "Fuel",
+            "shift_label": "General",
+            "driver_name": "",
+            "paid_by": "Partner",
+            "amount": "2000",
+            "notes": "Fuel paid by partner",
+        },
+        follow_redirects=True,
+    )
+
+    client.post(
+        "/suppliers/PTY-PART-01",
+        data={
+            "action": "save_partnership_entry",
+            "original_entry_no": "",
+            "entry_no": "PEN-0002",
+            "asset_code": "AST-PART-01",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "entry_kind": "Driver Salary",
+            "expense_head": "Day shift salary",
+            "shift_label": "Day",
+            "driver_name": "Company Driver",
+            "paid_by": "Company",
+            "amount": "2500",
+            "notes": "Day shift paid by company",
+        },
+        follow_redirects=True,
+    )
+
+    client.post(
+        "/suppliers/PTY-PART-01",
+        data={
+            "action": "save_partnership_entry",
+            "original_entry_no": "",
+            "entry_no": "PEN-0003",
+            "asset_code": "AST-PART-01",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "entry_kind": "Driver Salary",
+            "expense_head": "Night shift salary",
+            "shift_label": "Night",
+            "driver_name": "Partner Driver",
+            "paid_by": "Partner",
+            "amount": "2400",
+            "notes": "Night shift paid by partner",
+        },
+        follow_redirects=True,
+    )
+
+    detail = client.get("/suppliers/PTY-PART-01?partnership_month=2026-04", follow_redirects=True)
+    assert detail.status_code == 200
+    assert b"Double Shift" in detail.data
+    assert b"Partnership Register" in detail.data
+    assert b"Hussain" in detail.data
+    assert b"Company Net" in detail.data
+    assert b"Partner Net" in detail.data
+
+    with app.app_context():
+        db = open_db()
+        asset_row = db.execute(
+            """
+            SELECT double_shift_mode, partnership_mode, partner_name,
+                   company_share_percent, partner_share_percent,
+                   day_shift_paid_by, night_shift_paid_by
+            FROM supplier_assets
+            WHERE asset_code = ?
+            """,
+            ("AST-PART-01",),
+        ).fetchone()
+        entry_count = db.execute(
+            "SELECT COUNT(*) FROM supplier_partnership_entries WHERE asset_code = ?",
+            ("AST-PART-01",),
+        ).fetchone()[0]
+
+        assert asset_row is not None
+        assert asset_row["double_shift_mode"] == "Double Shift"
+        assert asset_row["partnership_mode"] == "Partnership"
+        assert asset_row["partner_name"] == "Hussain"
+        assert float(asset_row["company_share_percent"]) == 50.0
+        assert float(asset_row["partner_share_percent"]) == 50.0
+        assert asset_row["day_shift_paid_by"] == "Company"
+        assert asset_row["night_shift_paid_by"] == "Partner"
+        assert entry_count == 3
+        assert db.execute("SELECT COUNT(*) FROM drivers WHERE driver_id = ?", ("DRV-PART-1",)).fetchone()[0] == 1
+
+
 def test_invoice_center_generates_tax_invoice_pdf_with_line_items(app, client):
     admin_session(client)
 

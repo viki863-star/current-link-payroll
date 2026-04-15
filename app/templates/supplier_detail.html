@@ -1,534 +1,330 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="dashboard-hero">
-    <article class="card dashboard-hero-card supplier-hero-card">
-        <div>
-            <p class="eyebrow">Supplier Workspace</p>
-            <h2>{{ party.party_name }}</h2>
-            <p class="lead">{{ party.party_code }} | {{ party.contact_person or 'No contact person' }} | {{ party.phone_number or 'No phone number' }}</p>
-            <div class="supplier-meta-strip">
-                <span>{{ party.party_kind }}</span>
-                <span>{{ party.status }}</span>
-                <span>Outstanding AED {{ "%.2f"|format(summary.outstanding_total) }}</span>
-                <span>Paid AED {{ "%.2f"|format(summary.paid_total) }}</span>
+<section class="admin-desk-shell supplier-detail-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button button-secondary" href="{{ url_for('suppliers') }}">Supplier Desk</a>
+                <a class="button" href="#asset-form">Add Vehicle</a>
+                <a class="button" href="#partnership-form">Partnership</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
+                <span><strong>{{ summary.double_shift_count }}</strong><small>Double Shift</small></span>
+                <span><strong>{{ summary.partnership_count }}</strong><small>Partnership</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
             </div>
         </div>
-        <div class="form-actions left-actions">
-            <a class="button button-secondary" href="{{ url_for('suppliers') }}">Back to Suppliers</a>
-        </div>
     </article>
-</section>
 
-<section class="stats premium-stats">
-    <article class="card stat-card premium-stat-card blue-stat">
-        <span>Fleet Units</span>
-        <strong>{{ summary.asset_count }}</strong>
-        <small>Registered supplier vehicles and hired assets.</small>
-    </article>
-    <article class="card stat-card premium-stat-card orange-stat">
-        <span>Open Timesheets</span>
-        <strong>{{ summary.unbilled_count }}</strong>
-        <small>Month-end rows still waiting for voucher creation.</small>
-    </article>
-    <article class="card stat-card premium-stat-card navy-stat">
-        <span>Unbilled Amount</span>
-        <strong>AED {{ "%.2f"|format(summary.unbilled_amount) }}</strong>
-        <small>Current work value not yet moved into a supplier voucher.</small>
-    </article>
-    <article class="card stat-card premium-stat-card green-stat">
-        <span>Paid</span>
-        <strong>AED {{ "%.2f"|format(summary.paid_total) }}</strong>
-        <small>Total posted supplier payments.</small>
-    </article>
-    <article class="card stat-card premium-stat-card slate-stat">
-        <span>Outstanding</span>
-        <strong>AED {{ "%.2f"|format(summary.outstanding_total) }}</strong>
-        <small>Live payable balance after posted payments.</small>
-    </article>
-</section>
-
-<section class="detail-layout supplier-workspace-grid">
-    <article class="card action-panel form-panel supplier-surface-card">
-        <div class="section-heading slim-heading">
+    <article class="card desk-panel-card supplier-overview-card">
+        <div class="desk-panel-head">
             <div>
-                <p class="eyebrow">Fleet</p>
-                <h2>{% if asset_values.original_asset_code %}Edit Vehicle{% else %}Add Supplier Vehicle{% endif %}</h2>
+                <span class="admin-desk-label">Supplier Detail</span>
+                <h2>{{ party.party_name }}</h2>
+                <p class="workspace-lead">{{ party.party_code }}{% if party.contact_person %} | {{ party.contact_person }}{% endif %}{% if party.phone_number %} | {{ party.phone_number }}{% endif %}</p>
+            </div>
+            <div class="mini-link-stack inline-link-stack">
+                <span class="mini-link-pill">{{ party.party_kind }}</span>
+                <span class="mini-link-pill">{{ party.status }}</span>
+                {% if party.email %}<span class="mini-link-pill">{{ party.email }}</span>{% endif %}
             </div>
         </div>
-        <form method="post" class="entry-form two-column-form supplier-workspace-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="save_asset">
-            <input type="hidden" name="original_asset_code" value="{{ asset_values.original_asset_code }}">
-            <label>
-                <span>Asset Code</span>
-                <input type="text" name="asset_code" value="{{ asset_values.asset_code }}" {% if asset_values.original_asset_code %}readonly{% endif %}>
-            </label>
-            <label>
-                <span>Asset Name</span>
-                <input type="text" name="asset_name" value="{{ asset_values.asset_name }}" placeholder="Trailer 01 / Tanker 12" required>
-            </label>
-            <label>
-                <span>Asset Type</span>
-                <input type="text" name="asset_type" value="{{ asset_values.asset_type }}">
-            </label>
-            <label>
-                <span>Vehicle No</span>
-                <input type="text" name="vehicle_no" value="{{ asset_values.vehicle_no }}">
-            </label>
-            <label>
-                <span>Rate Basis</span>
-                <select name="rate_basis">
-                    {% for item in rate_basis_options %}
-                        <option value="{{ item }}" {% if asset_values.rate_basis == item %}selected{% endif %}>{{ item }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>
-                <span>Default Rate</span>
-                <input type="number" step="0.01" name="default_rate" value="{{ asset_values.default_rate }}">
-            </label>
-            <label>
-                <span>Capacity / Notes</span>
-                <input type="text" name="capacity" value="{{ asset_values.capacity }}">
-            </label>
-            <label>
-                <span>Status</span>
-                <select name="status">
-                    <option value="Active" {% if asset_values.status == 'Active' %}selected{% endif %}>Active</option>
-                    <option value="Inactive" {% if asset_values.status == 'Inactive' %}selected{% endif %}>Inactive</option>
-                </select>
-            </label>
-            <label class="full-span">
-                <span>Notes</span>
-                <textarea name="notes" rows="3">{{ asset_values.notes }}</textarea>
-            </label>
-            <div class="form-actions left-actions full-span">
-                <button class="button" type="submit">{% if asset_values.original_asset_code %}Update Vehicle{% else %}Save Vehicle{% endif %}</button>
-                {% if asset_values.original_asset_code %}
-                    <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code) }}">Cancel</a>
-                {% endif %}
-            </div>
-        </form>
-    </article>
-
-    <article class="card action-panel form-panel supplier-surface-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Month-End</p>
-                <h2>{% if timesheet_values.original_timesheet_no %}Edit Timesheet{% else %}Add Timesheet Row{% endif %}</h2>
-            </div>
-        </div>
-        <form method="post" class="entry-form two-column-form supplier-workspace-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="save_timesheet">
-            <input type="hidden" name="original_timesheet_no" value="{{ timesheet_values.original_timesheet_no }}">
-            <label>
-                <span>Timesheet No</span>
-                <input type="text" name="timesheet_no" value="{{ timesheet_values.timesheet_no }}" {% if timesheet_values.original_timesheet_no %}readonly{% endif %}>
-            </label>
-            <label>
-                <span>Asset</span>
-                <select name="asset_code" required>
-                    <option value="">Select vehicle</option>
-                    {% for item in assets %}
-                        <option value="{{ item.asset_code }}" {% if timesheet_values.asset_code == item.asset_code %}selected{% endif %}>{{ item.asset_name }}{% if item.vehicle_no %} / {{ item.vehicle_no }}{% endif %}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>
-                <span>Period Month</span>
-                <input type="month" name="period_month" value="{{ timesheet_values.period_month }}" required>
-            </label>
-            <label>
-                <span>Entry Date</span>
-                <input type="date" name="entry_date" value="{{ timesheet_values.entry_date }}" required>
-            </label>
-            <label>
-                <span>Billing Basis</span>
-                <select name="billing_basis">
-                    {% for item in rate_basis_options %}
-                        <option value="{{ item }}" {% if timesheet_values.billing_basis == item %}selected{% endif %}>{{ item }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>
-                <span>Billable Qty</span>
-                <input type="number" step="0.01" name="billable_qty" value="{{ timesheet_values.billable_qty }}" placeholder="Billing quantity" required>
-            </label>
-            <label>
-                <span>Timesheet Hours</span>
-                <input type="number" step="0.01" name="timesheet_hours" value="{{ timesheet_values.timesheet_hours }}" placeholder="Optional hours log">
-            </label>
-            <label>
-                <span>Rate</span>
-                <input type="number" step="0.01" name="rate" value="{{ timesheet_values.rate }}" placeholder="Blank = default rate">
-            </label>
-            <label>
-                <span>Status</span>
-                <select name="status">
-                    <option value="Open" {% if timesheet_values.status == 'Open' %}selected{% endif %}>Open</option>
-                    <option value="Hold" {% if timesheet_values.status == 'Hold' %}selected{% endif %}>Hold</option>
-                </select>
-            </label>
-            <label class="full-span">
-                <span>Notes</span>
-                <textarea name="notes" rows="3">{{ timesheet_values.notes }}</textarea>
-            </label>
-            <div class="form-actions left-actions full-span">
-                <button class="button" type="submit">{% if timesheet_values.original_timesheet_no %}Update Timesheet{% else %}Save Timesheet{% endif %}</button>
-                {% if timesheet_values.original_timesheet_no %}
-                    <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code) }}">Cancel</a>
-                {% endif %}
-            </div>
-        </form>
-    </article>
-</section>
-
-<section class="detail-layout supplier-workspace-grid">
-    <article class="card action-panel form-panel supplier-surface-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Voucher</p>
-                <h2>{% if voucher_values.original_voucher_no %}Edit Supplier Voucher{% else %}Create Month-End Voucher{% endif %}</h2>
-            </div>
-        </div>
-        <form method="post" class="entry-form two-column-form supplier-workspace-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="save_voucher">
-            <input type="hidden" name="original_voucher_no" value="{{ voucher_values.original_voucher_no }}">
-            <label>
-                <span>Voucher No</span>
-                <input type="text" name="voucher_no" value="{{ voucher_values.voucher_no }}" {% if voucher_values.original_voucher_no %}readonly{% endif %}>
-            </label>
-            <label>
-                <span>Period Month</span>
-                <input type="month" name="period_month" value="{{ voucher_values.period_month }}" required>
-            </label>
-            <label>
-                <span>Voucher Date</span>
-                <input type="date" name="issue_date" value="{{ voucher_values.issue_date }}" required>
-            </label>
-            <label>
-                <span>Tax %</span>
-                <input type="number" step="0.01" name="tax_percent" value="{{ voucher_values.tax_percent }}">
-            </label>
-            <label>
-                <span>Status</span>
-                <select name="status">
-                    {% for item in voucher_status_options %}
-                        <option value="{{ item }}" {% if voucher_values.status == item %}selected{% endif %}>{{ item }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label class="full-span">
-                <span>Notes</span>
-                <textarea name="notes" rows="3">{{ voucher_values.notes }}</textarea>
-            </label>
-            <div class="form-actions left-actions full-span">
-                <button class="button success-button" type="submit">{% if voucher_values.original_voucher_no %}Update Voucher{% else %}Create Voucher from Open Timesheets{% endif %}</button>
-                {% if voucher_values.original_voucher_no %}
-                    <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code) }}">Cancel</a>
-                {% endif %}
-            </div>
-        </form>
-    </article>
-
-    <article class="card action-panel form-panel supplier-surface-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Payment</p>
-                <h2>{% if payment_values.original_payment_no %}Edit Supplier Payment{% else %}Post Supplier Payment{% endif %}</h2>
-            </div>
-        </div>
-        <form method="post" class="entry-form two-column-form supplier-workspace-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="save_payment">
-            <input type="hidden" name="original_payment_no" value="{{ payment_values.original_payment_no }}">
-            <label>
-                <span>Payment No</span>
-                <input type="text" name="payment_no" value="{{ payment_values.payment_no }}" {% if payment_values.original_payment_no %}readonly{% endif %}>
-            </label>
-            <label>
-                <span>Voucher</span>
-                <select name="voucher_no" required>
-                    <option value="">Select supplier voucher</option>
-                    {% for item in vouchers %}
-                        <option value="{{ item.voucher_no }}" {% if payment_values.voucher_no == item.voucher_no %}selected{% endif %}>{{ item.voucher_no }} / {{ item.period_month }} / AED {{ "%.2f"|format(item.balance_amount) }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>
-                <span>Payment Date</span>
-                <input type="date" name="entry_date" value="{{ payment_values.entry_date }}" required>
-            </label>
-            <label>
-                <span>Method</span>
-                <select name="payment_method">
-                    {% for item in payment_method_options %}
-                        <option value="{{ item }}" {% if payment_values.payment_method == item %}selected{% endif %}>{{ item }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>
-                <span>Amount</span>
-                <input type="number" step="0.01" name="amount" value="{{ payment_values.amount }}" required>
-            </label>
-            <label>
-                <span>Reference</span>
-                <input type="text" name="reference" value="{{ payment_values.reference }}">
-            </label>
-            <label class="full-span">
-                <span>Notes</span>
-                <textarea name="notes" rows="3">{{ payment_values.notes }}</textarea>
-            </label>
-            <div class="form-actions left-actions full-span">
-                <button class="button success-button" type="submit">{% if payment_values.original_payment_no %}Update Payment{% else %}Save Payment{% endif %}</button>
-                {% if payment_values.original_payment_no %}
-                    <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code) }}">Cancel</a>
-                {% endif %}
-            </div>
-        </form>
-    </article>
-</section>
-
-<section class="detail-layout supplier-table-grid">
-    <article class="card table-card supplier-surface-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Fleet</p>
-                <h2>Supplier Vehicles</h2>
-            </div>
-        </div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Asset</th>
-                        <th>Type</th>
-                        <th>Vehicle No</th>
-                        <th>Rate Basis</th>
-                        <th>Default Rate</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in assets %}
-                        <tr>
-                            <td><strong>{{ item.asset_name }}</strong><div class="muted-text">{{ item.asset_code }}</div></td>
-                            <td>{{ item.asset_type }}</td>
-                            <td>{{ item.vehicle_no or '-' }}</td>
-                            <td>{{ item.rate_basis }}</td>
-                            <td>AED {{ "%.2f"|format(item.default_rate) }}</td>
-                            <td>
-                                <div class="table-actions">
-                                    <a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, edit_asset=item.asset_code) }}">Edit</a>
-                                    <form method="post" action="{{ url_for('delete_supplier_asset', asset_code=item.asset_code) }}" onsubmit="return confirm('Delete this supplier vehicle?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button class="mini-action-button" type="submit">Delete</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="6">No supplier vehicles added yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="supplier-overview-grid">
+            <div class="directory-line"><strong>Work Open</strong><small>{{ summary.unbilled_count }} Rows / AED {{ "%.2f"|format(summary.unbilled_amount) }}</small></div>
+            <div class="directory-line"><strong>Paid</strong><small>AED {{ "%.2f"|format(summary.paid_total) }}</small></div>
+            <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(summary.outstanding_total) }}</small></div>
+            <div class="directory-line"><strong>Address</strong><small>{{ party.address or 'No address' }}</small></div>
         </div>
     </article>
 
-    <article class="card table-card supplier-surface-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Timesheet</p>
-                <h2>Month-End Rows</h2>
-            </div>
-        </div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Month</th>
-                        <th>Timesheet</th>
-                        <th>Asset</th>
-                        <th>Qty</th>
-                        <th>Rate</th>
-                        <th>Amount</th>
-                        <th>Voucher</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in timesheets %}
-                        <tr>
-                            <td>{{ item.period_month }}</td>
-                            <td>{{ item.timesheet_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
-                            <td>{{ item.asset_name }}<div class="muted-text">{{ item.vehicle_no or '-' }}</div></td>
-                            <td>{{ item.billable_qty }} {{ item.billing_basis }}</td>
-                            <td>AED {{ "%.2f"|format(item.rate) }}</td>
-                            <td>AED {{ "%.2f"|format(item.subtotal) }}</td>
-                            <td>{{ item.voucher_no or 'Open' }}</td>
-                            <td>
-                                <div class="table-actions">
-                                    {% if not item.voucher_no %}
-                                        <a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, edit_timesheet=item.timesheet_no) }}">Edit</a>
-                                    {% endif %}
-                                    <form method="post" action="{{ url_for('delete_supplier_timesheet', timesheet_no=item.timesheet_no) }}" onsubmit="return confirm('Delete this timesheet row?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button class="mini-action-button" type="submit">Delete</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="8">No supplier timesheet rows posted yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </article>
-</section>
+    <section class="compact-content-grid">
+        <article class="card desk-panel-card" id="asset-form">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Fleet</span><h2>{% if asset_values.original_asset_code %}Edit Vehicle{% else %}Register Vehicle{% endif %}</h2></div></div>
+            <form method="post" class="desk-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="save_asset">
+                <input type="hidden" name="original_asset_code" value="{{ asset_values.original_asset_code }}">
+                <label><span>Asset Code</span><input type="text" name="asset_code" value="{{ asset_values.asset_code }}" {% if asset_values.original_asset_code %}readonly{% endif %}></label>
+                <label><span>Asset Name</span><input type="text" name="asset_name" value="{{ asset_values.asset_name }}" placeholder="Trailer 01 / Tanker 12" required></label>
+                <label><span>Asset Type</span><input type="text" name="asset_type" value="{{ asset_values.asset_type }}" placeholder="Trailer / Tanker / Crane"></label>
+                <label><span>Vehicle No</span><input type="text" name="vehicle_no" value="{{ asset_values.vehicle_no }}" placeholder="Plate or fleet number"></label>
+                <label><span>Rate Basis</span><select name="rate_basis">{% for item in rate_basis_options %}<option value="{{ item }}" {% if asset_values.rate_basis == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Default Rate</span><input type="number" step="0.01" name="default_rate" value="{{ asset_values.default_rate }}" placeholder="Default month-end rate"></label>
+                <label><span>Shift Mode</span><select name="double_shift_mode">{% for item in shift_mode_options %}<option value="{{ item }}" {% if asset_values.double_shift_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Ownership</span><select name="partnership_mode">{% for item in partnership_mode_options %}<option value="{{ item }}" {% if asset_values.partnership_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Partner Name</span><input type="text" name="partner_name" value="{{ asset_values.partner_name }}" placeholder="Required for partnership vehicle"></label>
+                <label><span>Company Share %</span><input type="number" step="0.01" name="company_share_percent" value="{{ asset_values.company_share_percent }}"></label>
+                <label><span>Partner Share %</span><input type="number" step="0.01" name="partner_share_percent" value="{{ asset_values.partner_share_percent }}"></label>
+                <label><span>Day Shift Salary By</span><select name="day_shift_paid_by">{% for item in partnership_paid_by_options %}<option value="{{ item }}" {% if asset_values.day_shift_paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Night Shift Salary By</span><select name="night_shift_paid_by">{% for item in partnership_paid_by_options %}<option value="{{ item }}" {% if asset_values.night_shift_paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Capacity / Notes</span><input type="text" name="capacity" value="{{ asset_values.capacity }}" placeholder="Capacity or fleet note"></label>
+                <label><span>Status</span><select name="status"><option value="Active" {% if asset_values.status == 'Active' %}selected{% endif %}>Active</option><option value="Inactive" {% if asset_values.status == 'Inactive' %}selected{% endif %}>Inactive</option></select></label>
+                <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ asset_values.notes }}</textarea></label>
+                <div class="form-actions left-actions full-span"><button class="button" type="submit">{% if asset_values.original_asset_code %}Update Vehicle{% else %}Save Vehicle{% endif %}</button>{% if asset_values.original_asset_code %}<a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, partnership_month=partnership_month) }}">Cancel</a>{% endif %}</div>
+            </form>
+        </article>
 
-<section class="detail-layout supplier-table-grid">
-    <article class="card table-card supplier-surface-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Payables</p>
-                <h2>Supplier Vouchers</h2>
-            </div>
-        </div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Voucher</th>
-                        <th>Month</th>
-                        <th>Total</th>
-                        <th>Paid</th>
-                        <th>Balance</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in vouchers %}
-                        <tr>
-                            <td>{{ item.voucher_no }}<div class="muted-text">{{ item.issue_date }}</div></td>
-                            <td>{{ item.period_month }}</td>
-                            <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
-                            <td>AED {{ "%.2f"|format(item.paid_amount) }}</td>
-                            <td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
-                            <td>{{ item.status }}</td>
-                            <td>
-                                <div class="table-actions">
-                                    <a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, edit_voucher=item.voucher_no) }}">Edit</a>
-                                    <form method="post" action="{{ url_for('delete_supplier_voucher', voucher_no=item.voucher_no) }}" onsubmit="return confirm('Delete this voucher? Linked timesheets will reopen.');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button class="mini-action-button" type="submit">Delete</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="7">No supplier vouchers created yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </article>
-
-    <article class="card table-card supplier-surface-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Payments</p>
-                <h2>Supplier Payments & Payment Voucher</h2>
-            </div>
-        </div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Payment</th>
-                        <th>Voucher</th>
-                        <th>Amount</th>
-                        <th>Method</th>
-                        <th>Reference</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in payments %}
-                        <tr>
-                            <td>{{ item.payment_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
-                            <td>{{ item.voucher_no }}<div class="muted-text">{{ item.period_month or '-' }}</div></td>
-                            <td>AED {{ "%.2f"|format(item.amount) }}</td>
-                            <td>{{ item.payment_method }}</td>
-                            <td>{{ item.reference or '-' }}</td>
-                            <td>
-                                <div class="table-actions">
-                                    <a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, edit_payment=item.payment_no) }}">Edit</a>
-                                    <a class="mini-action-link" href="{{ url_for('supplier_payment_voucher', payment_no=item.payment_no) }}">Voucher PDF</a>
-                                    <form method="post" action="{{ url_for('delete_supplier_payment', payment_no=item.payment_no) }}" onsubmit="return confirm('Delete this supplier payment?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button class="mini-action-button" type="submit">Delete</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="6">No supplier payments posted yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </article>
-</section>
-
-<section class="card table-card supplier-surface-card supplier-ledger-card">
-    <div class="section-heading slim-heading">
-        <div>
-            <p class="eyebrow">Statement</p>
-            <h2>Supplier Running Ledger</h2>
-        </div>
-    </div>
-    <section class="stats compact-stats supplier-mini-stats">
-        <article class="card stat-card premium-stat-card blue-stat"><span>Work Logged</span><strong>AED {{ "%.2f"|format(statement_summary.work_logged) }}</strong></article>
-        <article class="card stat-card premium-stat-card navy-stat"><span>Voucher Total</span><strong>AED {{ "%.2f"|format(statement_summary.total_vouchers) }}</strong></article>
-        <article class="card stat-card premium-stat-card green-stat"><span>Total Paid</span><strong>AED {{ "%.2f"|format(statement_summary.total_paid) }}</strong></article>
-        <article class="card stat-card premium-stat-card orange-stat"><span>Outstanding</span><strong>AED {{ "%.2f"|format(statement_summary.outstanding) }}</strong></article>
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Month-End</span><h2>{% if timesheet_values.original_timesheet_no %}Edit Timesheet{% else %}Post Timesheet{% endif %}</h2></div></div>
+            <form method="post" class="desk-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="save_timesheet"><input type="hidden" name="original_timesheet_no" value="{{ timesheet_values.original_timesheet_no }}">
+                <label><span>Timesheet No</span><input type="text" name="timesheet_no" value="{{ timesheet_values.timesheet_no }}" {% if timesheet_values.original_timesheet_no %}readonly{% endif %}></label>
+                <label><span>Asset</span><select name="asset_code" required><option value="">Select vehicle</option>{% for item in assets %}<option value="{{ item.asset_code }}" {% if timesheet_values.asset_code == item.asset_code %}selected{% endif %}>{{ item.asset_name }}{% if item.vehicle_no %} / {{ item.vehicle_no }}{% endif %}</option>{% endfor %}</select></label>
+                <label><span>Period Month</span><input type="month" name="period_month" value="{{ timesheet_values.period_month }}" required></label>
+                <label><span>Entry Date</span><input type="date" name="entry_date" value="{{ timesheet_values.entry_date }}" required></label>
+                <label><span>Billing Basis</span><select name="billing_basis">{% for item in rate_basis_options %}<option value="{{ item }}" {% if timesheet_values.billing_basis == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Billable Qty</span><input type="number" step="0.01" name="billable_qty" value="{{ timesheet_values.billable_qty }}" required></label>
+                <label><span>Timesheet Hours</span><input type="number" step="0.01" name="timesheet_hours" value="{{ timesheet_values.timesheet_hours }}" placeholder="Optional hours"></label>
+                <label><span>Rate</span><input type="number" step="0.01" name="rate" value="{{ timesheet_values.rate }}" placeholder="Blank uses default"></label>
+                <label><span>Status</span><select name="status"><option value="Open" {% if timesheet_values.status == 'Open' %}selected{% endif %}>Open</option><option value="Hold" {% if timesheet_values.status == 'Hold' %}selected{% endif %}>Hold</option></select></label>
+                <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ timesheet_values.notes }}</textarea></label>
+                <div class="form-actions left-actions full-span"><button class="button" type="submit">{% if timesheet_values.original_timesheet_no %}Update Timesheet{% else %}Save Timesheet{% endif %}</button>{% if timesheet_values.original_timesheet_no %}<a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, partnership_month=partnership_month) }}">Cancel</a>{% endif %}</div>
+            </form>
+        </article>
     </section>
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Reference</th>
-                    <th>Type</th>
-                    <th>Details</th>
-                    <th>Work Value</th>
-                    <th>Voucher</th>
-                    <th>Payment</th>
-                    <th>Running Balance</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in statement_rows %}
-                    <tr>
-                        <td>{{ item.entry_date }}</td>
-                        <td>{{ item.reference }}</td>
-                        <td>{{ item.entry_type }}</td>
-                        <td>{{ item.details }}</td>
-                        <td>{% if item.work_amount %}AED {{ "%.2f"|format(item.work_amount) }}{% else %}-{% endif %}</td>
-                        <td>{% if item.voucher_amount %}AED {{ "%.2f"|format(item.voucher_amount) }}{% else %}-{% endif %}</td>
-                        <td>{% if item.payment_amount %}AED {{ "%.2f"|format(item.payment_amount) }}{% else %}-{% endif %}</td>
-                        <td>AED {{ "%.2f"|format(item.running_balance) }}</td>
-                    </tr>
-                {% else %}
-                    <tr><td colspan="8">No ledger rows yet.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <section class="compact-content-grid">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Voucher</span><h2>{% if voucher_values.original_voucher_no %}Edit Voucher{% else %}Create Voucher{% endif %}</h2></div></div>
+            <form method="post" class="desk-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="save_voucher"><input type="hidden" name="original_voucher_no" value="{{ voucher_values.original_voucher_no }}">
+                <label><span>Voucher No</span><input type="text" name="voucher_no" value="{{ voucher_values.voucher_no }}" {% if voucher_values.original_voucher_no %}readonly{% endif %}></label>
+                <label><span>Period Month</span><input type="month" name="period_month" value="{{ voucher_values.period_month }}" required></label>
+                <label><span>Voucher Date</span><input type="date" name="issue_date" value="{{ voucher_values.issue_date }}" required></label>
+                <label><span>Tax %</span><input type="number" step="0.01" name="tax_percent" value="{{ voucher_values.tax_percent }}"></label>
+                <label><span>Status</span><select name="status">{% for item in voucher_status_options %}<option value="{{ item }}" {% if voucher_values.status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ voucher_values.notes }}</textarea></label>
+                <div class="form-actions left-actions full-span"><button class="button success-button" type="submit">{% if voucher_values.original_voucher_no %}Update Voucher{% else %}Create Voucher from Open Timesheets{% endif %}</button>{% if voucher_values.original_voucher_no %}<a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, partnership_month=partnership_month) }}">Cancel</a>{% endif %}</div>
+            </form>
+        </article>
+
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Payment</span><h2>{% if payment_values.original_payment_no %}Edit Payment{% else %}Post Payment{% endif %}</h2></div></div>
+            <form method="post" class="desk-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="save_payment"><input type="hidden" name="original_payment_no" value="{{ payment_values.original_payment_no }}">
+                <label><span>Payment No</span><input type="text" name="payment_no" value="{{ payment_values.payment_no }}" {% if payment_values.original_payment_no %}readonly{% endif %}></label>
+                <label><span>Voucher</span><select name="voucher_no" required><option value="">Select supplier voucher</option>{% for item in vouchers %}<option value="{{ item.voucher_no }}" {% if payment_values.voucher_no == item.voucher_no %}selected{% endif %}>{{ item.voucher_no }} / {{ item.period_month }} / AED {{ "%.2f"|format(item.balance_amount) }}</option>{% endfor %}</select></label>
+                <label><span>Payment Date</span><input type="date" name="entry_date" value="{{ payment_values.entry_date }}" required></label>
+                <label><span>Method</span><select name="payment_method">{% for item in payment_method_options %}<option value="{{ item }}" {% if payment_values.payment_method == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ payment_values.amount }}" required></label>
+                <label><span>Reference</span><input type="text" name="reference" value="{{ payment_values.reference }}"></label>
+                <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ payment_values.notes }}</textarea></label>
+                <div class="form-actions left-actions full-span"><button class="button success-button" type="submit">{% if payment_values.original_payment_no %}Update Payment{% else %}Save Payment{% endif %}</button>{% if payment_values.original_payment_no %}<a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, partnership_month=partnership_month) }}">Cancel</a>{% endif %}</div>
+            </form>
+        </article>
+    </section>
+
+    <section class="compact-content-grid">
+        <article class="card desk-panel-card" id="partnership-form">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Partnership</span><h2>{% if partnership_values.original_entry_no %}Edit Partnership Entry{% else %}Post Partnership Entry{% endif %}</h2></div></div>
+            <form method="post" class="desk-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="save_partnership_entry"><input type="hidden" name="original_entry_no" value="{{ partnership_values.original_entry_no }}">
+                <label><span>Entry No</span><input type="text" name="entry_no" value="{{ partnership_values.entry_no }}" {% if partnership_values.original_entry_no %}readonly{% endif %}></label>
+                <label><span>Asset</span><select name="asset_code" required><option value="">Select partnership vehicle</option>{% for item in assets %}<option value="{{ item.asset_code }}" {% if partnership_values.asset_code == item.asset_code %}selected{% endif %}>{{ item.asset_name }}{% if item.vehicle_no %} / {{ item.vehicle_no }}{% endif %}</option>{% endfor %}</select></label>
+                <label><span>Period Month</span><input type="month" name="period_month" value="{{ partnership_values.period_month }}" required></label>
+                <label><span>Entry Date</span><input type="date" name="entry_date" value="{{ partnership_values.entry_date }}" required></label>
+                <label><span>Entry Type</span><select name="entry_kind">{% for item in partnership_entry_kind_options %}<option value="{{ item }}" {% if partnership_values.entry_kind == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Expense Head</span><input type="text" name="expense_head" value="{{ partnership_values.expense_head }}" placeholder="Fuel / maintenance / salary"></label>
+                <label><span>Shift</span><select name="shift_label">{% for item in partnership_shift_options %}<option value="{{ item }}" {% if partnership_values.shift_label == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Driver Name</span><input type="text" name="driver_name" value="{{ partnership_values.driver_name }}" placeholder="Required for driver salary"></label>
+                <label><span>Paid By</span><select name="paid_by">{% for item in partnership_paid_by_options %}<option value="{{ item }}" {% if partnership_values.paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ partnership_values.amount }}" required></label>
+                <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ partnership_values.notes }}</textarea></label>
+                <div class="form-actions left-actions full-span"><button class="button success-button" type="submit">{% if partnership_values.original_entry_no %}Update Entry{% else %}Save Entry{% endif %}</button>{% if partnership_values.original_entry_no %}<a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, partnership_month=partnership_month) }}">Cancel</a>{% endif %}</div>
+            </form>
+        </article>
+
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Result</span><h2>Monthly Partnership Result</h2></div></div>
+            <form method="get" class="admin-filter-grid desk-single-filter supplier-month-filter">
+                <label><span>Period Month</span><input type="month" name="partnership_month" value="{{ partnership_month }}"></label>
+                <div class="admin-filter-actions"><button class="button button-secondary" type="submit">View Month</button></div>
+            </form>
+            <div class="supplier-overview-grid partnership-summary-grid">
+                <div class="directory-line"><strong>Work Value</strong><small>AED {{ "%.2f"|format(partnership_summary.work_total) }}</small></div>
+                <div class="directory-line"><strong>Company Paid</strong><small>AED {{ "%.2f"|format(partnership_summary.company_paid) }}</small></div>
+                <div class="directory-line"><strong>Partner Paid</strong><small>AED {{ "%.2f"|format(partnership_summary.partner_paid) }}</small></div>
+                <div class="directory-line"><strong>Total Cost</strong><small>AED {{ "%.2f"|format(partnership_summary.total_cost) }}</small></div>
+            </div>
+            <div class="mini-link-stack inline-link-stack"><span class="mini-link-pill">Month {{ partnership_month }}</span><span class="mini-link-pill">{{ summary.partnership_count }} Partnership Vehicles</span><span class="mini-link-pill">{{ summary.double_shift_count }} Double Shift Vehicles</span></div>
+        </article>
+    </section>
+    <section class="compact-content-grid">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Fleet</span><h2>Supplier Vehicles</h2></div></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Vehicle</th><th>Shift</th><th>Partnership</th><th>Rate</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {% for item in assets %}
+                            <tr>
+                                <td><strong>{{ item.asset_name }}</strong><div class="muted-text">{{ item.asset_code }}{% if item.vehicle_no %} / {{ item.vehicle_no }}{% endif %}</div><div class="muted-text">{{ item.asset_type or '-' }}</div></td>
+                                <td>{{ item.double_shift_mode }}<div class="muted-text">Day {{ item.day_shift_paid_by }} / Night {{ item.night_shift_paid_by }}</div></td>
+                                <td>{% if item.partnership_mode == 'Partnership' %}{{ item.partner_name or 'Partner' }}<div class="muted-text">{{ "%.0f"|format(item.company_share_percent) }}% / {{ "%.0f"|format(item.partner_share_percent) }}%</div>{% else %}Standard{% endif %}</td>
+                                <td>{{ item.rate_basis }}<div class="muted-text">AED {{ "%.2f"|format(item.default_rate) }}</div></td>
+                                <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, edit_asset=item.asset_code, partnership_month=partnership_month) }}">Edit</a><form method="post" action="{{ url_for('delete_supplier_asset', asset_code=item.asset_code) }}" onsubmit="return confirm('Delete this supplier asset?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="5">No supplier vehicles yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Timesheet</span><h2>Month-End Rows</h2></div></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>No</th><th>Vehicle</th><th>Month</th><th>Qty</th><th>Subtotal</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {% for item in timesheets %}
+                            <tr>
+                                <td>{{ item.timesheet_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
+                                <td>{{ item.asset_name }}<div class="muted-text">{{ item.vehicle_no or '-' }}</div></td>
+                                <td>{{ item.period_month }}</td>
+                                <td>{{ "%.2f"|format(item.billable_qty) }}<div class="muted-text">{{ item.billing_basis }}</div></td>
+                                <td>AED {{ "%.2f"|format(item.subtotal) }}</td>
+                                <td><div class="table-actions">{% if not item.voucher_no %}<a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, edit_timesheet=item.timesheet_no, partnership_month=partnership_month) }}">Edit</a>{% endif %}<form method="post" action="{{ url_for('delete_supplier_timesheet', timesheet_no=item.timesheet_no) }}" onsubmit="return confirm('Delete this timesheet row?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="6">No supplier timesheet rows yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+
+    <section class="compact-content-grid">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Settlement</span><h2>Vehicle Partnership Result</h2></div></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Vehicle</th><th>Mode</th><th>Work</th><th>Company</th><th>Partner</th><th>Company Net</th><th>Partner Net</th></tr></thead>
+                    <tbody>
+                        {% for item in partnership_assets %}
+                            <tr>
+                                <td><strong>{{ item.asset_name }}</strong><div class="muted-text">{{ item.vehicle_no or '-' }}</div>{% if item.partnership_mode == 'Partnership' %}<div class="muted-text">{{ item.partner_name or 'Partner' }} / {{ "%.0f"|format(item.company_share_percent) }}-{{ "%.0f"|format(item.partner_share_percent) }}</div>{% endif %}</td>
+                                <td>{{ item.double_shift_mode }}</td>
+                                <td>AED {{ "%.2f"|format(item.work_total) }}</td>
+                                <td>Share AED {{ "%.2f"|format(item.company_share_amount) }}<div class="muted-text">Paid AED {{ "%.2f"|format(item.company_paid) }}</div></td>
+                                <td>Share AED {{ "%.2f"|format(item.partner_share_amount) }}<div class="muted-text">Paid AED {{ "%.2f"|format(item.partner_paid) }}</div></td>
+                                <td>AED {{ "%.2f"|format(item.company_net) }}</td>
+                                <td>AED {{ "%.2f"|format(item.partner_net) }}</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="7">No partnership vehicle rows for this month.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Entries</span><h2>Partnership Register</h2></div></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>No</th><th>Month</th><th>Vehicle</th><th>Type</th><th>Paid By</th><th>Amount</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {% for item in partnership_entries %}
+                            <tr>
+                                <td>{{ item.entry_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
+                                <td>{{ item.period_month }}</td>
+                                <td>{{ item.asset_name }}<div class="muted-text">{{ item.shift_label }}{% if item.driver_name %} / {{ item.driver_name }}{% endif %}</div></td>
+                                <td>{{ item.entry_kind }}<div class="muted-text">{{ item.expense_head or '-' }}</div></td>
+                                <td>{{ item.paid_by }}</td>
+                                <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                                <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, edit_entry=item.entry_no, partnership_month=partnership_month) }}">Edit</a><form method="post" action="{{ url_for('delete_supplier_partnership_entry', entry_no=item.entry_no) }}" onsubmit="return confirm('Delete this partnership entry?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="7">No partnership entries yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+    <section class="compact-content-grid">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Payables</span><h2>Supplier Vouchers</h2></div></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Voucher</th><th>Month</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {% for item in vouchers %}
+                            <tr>
+                                <td>{{ item.voucher_no }}<div class="muted-text">{{ item.issue_date }}</div></td>
+                                <td>{{ item.period_month }}</td>
+                                <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                <td>AED {{ "%.2f"|format(item.paid_amount) }}</td>
+                                <td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
+                                <td>{{ item.status }}</td>
+                                <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, edit_voucher=item.voucher_no, partnership_month=partnership_month) }}">Edit</a><form method="post" action="{{ url_for('delete_supplier_voucher', voucher_no=item.voucher_no) }}" onsubmit="return confirm('Delete this voucher? Linked timesheets will reopen.');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="7">No supplier vouchers created yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Payments</span><h2>Supplier Payments</h2></div></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Payment</th><th>Voucher</th><th>Amount</th><th>Method</th><th>Reference</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {% for item in payments %}
+                            <tr>
+                                <td>{{ item.payment_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
+                                <td>{{ item.voucher_no }}<div class="muted-text">{{ item.period_month or '-' }}</div></td>
+                                <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                                <td>{{ item.payment_method }}</td>
+                                <td>{{ item.reference or '-' }}</td>
+                                <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, edit_payment=item.payment_no, partnership_month=partnership_month) }}">Edit</a><a class="mini-action-link" href="{{ url_for('supplier_payment_voucher', payment_no=item.payment_no) }}">Voucher PDF</a><form method="post" action="{{ url_for('delete_supplier_payment', payment_no=item.payment_no) }}" onsubmit="return confirm('Delete this supplier payment?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="6">No supplier payments posted yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+
+    <article class="card desk-panel-card">
+        <div class="desk-panel-head"><div><span class="admin-desk-label">Statement</span><h2>Supplier Running Ledger</h2></div></div>
+        <div class="supplier-overview-grid">
+            <div class="directory-line"><strong>Work Logged</strong><small>AED {{ "%.2f"|format(statement_summary.work_logged) }}</small></div>
+            <div class="directory-line"><strong>Voucher Total</strong><small>AED {{ "%.2f"|format(statement_summary.total_vouchers) }}</small></div>
+            <div class="directory-line"><strong>Total Paid</strong><small>AED {{ "%.2f"|format(statement_summary.total_paid) }}</small></div>
+            <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(statement_summary.outstanding) }}</small></div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Date</th><th>Reference</th><th>Type</th><th>Details</th><th>Work Value</th><th>Voucher</th><th>Payment</th><th>Running Balance</th></tr></thead>
+                <tbody>
+                    {% for item in statement_rows %}
+                        <tr>
+                            <td>{{ item.entry_date }}</td>
+                            <td>{{ item.reference }}</td>
+                            <td>{{ item.entry_type }}</td>
+                            <td>{{ item.details }}</td>
+                            <td>{% if item.work_amount %}AED {{ "%.2f"|format(item.work_amount) }}{% else %}-{% endif %}</td>
+                            <td>{% if item.voucher_amount %}AED {{ "%.2f"|format(item.voucher_amount) }}{% else %}-{% endif %}</td>
+                            <td>{% if item.payment_amount %}AED {{ "%.2f"|format(item.payment_amount) }}{% else %}-{% endif %}</td>
+                            <td>AED {{ "%.2f"|format(item.running_balance) }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="8">No ledger rows yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
 </section>
 {% endblock %}
