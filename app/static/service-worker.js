@@ -1,11 +1,11 @@
-const CACHE_NAME = "current-link-v1";
+const CACHE_NAME = "current-link-v2";
 const CORE_ASSETS = [
   "/login",
-  "/static/styles.css",
-  "/static/current-link-header.png",
+  "/static/styles.css?v=20260415a",
+  "/static/current-link-header-premium.png",
   "/static/current-link-footer.png",
-  "/static/manifest.webmanifest",
-  "/static/icon-192.svg",
+  "/static/manifest.webmanifest?v=20260415a",
+  "/static/icon-192.svg?v=20260415a",
   "/static/icon-512.svg"
 ];
 

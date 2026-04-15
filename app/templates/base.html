@@ -7,10 +7,10 @@
     <meta name="theme-color" content="#1c568b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
-    <link rel="icon" href="{{ url_for('static', filename='icon-192.svg') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.svg') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest', v='20260415a') }}">
+    <link rel="icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260415a') }}">
 </head>
 <body class="{% block body_class %}{% endblock %} {% if is_admin and current_admin_workspace %}workspace-{{ current_admin_workspace }}{% endif %}">
     <div class="brand-shell">
@@ -52,9 +52,6 @@
                     {% if is_admin %}
                         <nav class="actions-row tight-actions hero-nav workspace-nav simple-admin-nav">
                             <a class="button {% if request.endpoint == 'dashboard' %}workspace-button-active{% else %}button-secondary{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
-                            {% for item in admin_module_links %}
-                                <a class="button {% if item.primary %}{% else %}button-secondary{% endif %} {% if request.endpoint == item.endpoint %}workspace-button-active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
-                            {% endfor %}
                             <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
                         </nav>
                     {% elif is_owner %}
@@ -107,7 +104,7 @@
     <script>
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", () => {
-                navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js') }}");
+                navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js', v='20260415a') }}");
             });
         }
     </script>
