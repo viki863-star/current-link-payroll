@@ -410,6 +410,106 @@ CREATE TABLE IF NOT EXISTS annual_fee_entries (
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
 
+CREATE TABLE IF NOT EXISTS vehicle_master (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    vehicle_id TEXT NOT NULL UNIQUE,
+    vehicle_no TEXT NOT NULL,
+    vehicle_type TEXT NOT NULL,
+    make_model TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    shift_mode TEXT NOT NULL DEFAULT 'Single Shift',
+    ownership_mode TEXT NOT NULL DEFAULT 'Standard',
+    partner_party_code TEXT,
+    partner_name TEXT,
+    company_share_percent REAL NOT NULL DEFAULT 100,
+    partner_share_percent REAL NOT NULL DEFAULT 0,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_staff (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    staff_code TEXT NOT NULL UNIQUE,
+    staff_name TEXT NOT NULL,
+    phone_number TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_staff_advances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    advance_no TEXT NOT NULL UNIQUE,
+    staff_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    funding_source TEXT NOT NULL DEFAULT 'Owner Fund',
+    amount REAL NOT NULL DEFAULT 0,
+    settled_amount REAL NOT NULL DEFAULT 0,
+    balance_amount REAL NOT NULL DEFAULT 0,
+    reference TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(staff_code) REFERENCES maintenance_staff(staff_code)
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_papers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    paper_no TEXT NOT NULL UNIQUE,
+    paper_date TEXT NOT NULL,
+    vehicle_id TEXT NOT NULL,
+    vehicle_no TEXT NOT NULL,
+    workshop_party_code TEXT,
+    staff_code TEXT,
+    advance_no TEXT,
+    tax_mode TEXT NOT NULL DEFAULT 'Without Tax',
+    supplier_bill_no TEXT,
+    work_summary TEXT,
+    funding_source TEXT NOT NULL DEFAULT 'Owner Fund',
+    paid_by TEXT NOT NULL DEFAULT 'Company',
+    subtotal REAL NOT NULL DEFAULT 0,
+    tax_amount REAL NOT NULL DEFAULT 0,
+    total_amount REAL NOT NULL DEFAULT 0,
+    company_share_amount REAL NOT NULL DEFAULT 0,
+    partner_share_amount REAL NOT NULL DEFAULT 0,
+    company_paid_amount REAL NOT NULL DEFAULT 0,
+    partner_paid_amount REAL NOT NULL DEFAULT 0,
+    attachment_path TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(vehicle_id) REFERENCES vehicle_master(vehicle_id),
+    FOREIGN KEY(workshop_party_code) REFERENCES parties(party_code),
+    FOREIGN KEY(staff_code) REFERENCES maintenance_staff(staff_code),
+    FOREIGN KEY(advance_no) REFERENCES maintenance_staff_advances(advance_no)
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_paper_lines (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    paper_no TEXT NOT NULL,
+    line_no INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    quantity REAL NOT NULL DEFAULT 1,
+    rate REAL NOT NULL DEFAULT 0,
+    amount REAL NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(paper_no) REFERENCES maintenance_papers(paper_no)
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_settlements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    settlement_no TEXT NOT NULL UNIQUE,
+    paper_no TEXT NOT NULL,
+    settlement_type TEXT NOT NULL DEFAULT 'Direct',
+    advance_no TEXT,
+    party_code TEXT,
+    amount REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Settled',
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(paper_no) REFERENCES maintenance_papers(paper_no),
+    FOREIGN KEY(advance_no) REFERENCES maintenance_staff_advances(advance_no),
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS import_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source_type TEXT NOT NULL,
@@ -847,6 +947,106 @@ CREATE TABLE IF NOT EXISTS annual_fee_entries (
     status TEXT NOT NULL DEFAULT 'Due',
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS vehicle_master (
+    id BIGSERIAL PRIMARY KEY,
+    vehicle_id TEXT NOT NULL UNIQUE,
+    vehicle_no TEXT NOT NULL,
+    vehicle_type TEXT NOT NULL,
+    make_model TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    shift_mode TEXT NOT NULL DEFAULT 'Single Shift',
+    ownership_mode TEXT NOT NULL DEFAULT 'Standard',
+    partner_party_code TEXT,
+    partner_name TEXT,
+    company_share_percent DOUBLE PRECISION NOT NULL DEFAULT 100,
+    partner_share_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_staff (
+    id BIGSERIAL PRIMARY KEY,
+    staff_code TEXT NOT NULL UNIQUE,
+    staff_name TEXT NOT NULL,
+    phone_number TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_staff_advances (
+    id BIGSERIAL PRIMARY KEY,
+    advance_no TEXT NOT NULL UNIQUE,
+    staff_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    funding_source TEXT NOT NULL DEFAULT 'Owner Fund',
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    settled_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    balance_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    reference TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(staff_code) REFERENCES maintenance_staff(staff_code)
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_papers (
+    id BIGSERIAL PRIMARY KEY,
+    paper_no TEXT NOT NULL UNIQUE,
+    paper_date TEXT NOT NULL,
+    vehicle_id TEXT NOT NULL,
+    vehicle_no TEXT NOT NULL,
+    workshop_party_code TEXT,
+    staff_code TEXT,
+    advance_no TEXT,
+    tax_mode TEXT NOT NULL DEFAULT 'Without Tax',
+    supplier_bill_no TEXT,
+    work_summary TEXT,
+    funding_source TEXT NOT NULL DEFAULT 'Owner Fund',
+    paid_by TEXT NOT NULL DEFAULT 'Company',
+    subtotal DOUBLE PRECISION NOT NULL DEFAULT 0,
+    tax_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    total_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    company_share_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    partner_share_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    company_paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    partner_paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    attachment_path TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(vehicle_id) REFERENCES vehicle_master(vehicle_id),
+    FOREIGN KEY(workshop_party_code) REFERENCES parties(party_code),
+    FOREIGN KEY(staff_code) REFERENCES maintenance_staff(staff_code),
+    FOREIGN KEY(advance_no) REFERENCES maintenance_staff_advances(advance_no)
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_paper_lines (
+    id BIGSERIAL PRIMARY KEY,
+    paper_no TEXT NOT NULL,
+    line_no INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    quantity DOUBLE PRECISION NOT NULL DEFAULT 1,
+    rate DOUBLE PRECISION NOT NULL DEFAULT 0,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(paper_no) REFERENCES maintenance_papers(paper_no)
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_settlements (
+    id BIGSERIAL PRIMARY KEY,
+    settlement_no TEXT NOT NULL UNIQUE,
+    paper_no TEXT NOT NULL,
+    settlement_type TEXT NOT NULL DEFAULT 'Direct',
+    advance_no TEXT,
+    party_code TEXT,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Settled',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(paper_no) REFERENCES maintenance_papers(paper_no),
+    FOREIGN KEY(advance_no) REFERENCES maintenance_staff_advances(advance_no),
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
 

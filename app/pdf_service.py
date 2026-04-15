@@ -420,14 +420,12 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
     tax_percent = float(invoice["tax_percent"] or 0.0)
     tax_amount = float(invoice["tax_amount"] or 0.0)
     total_amount = float(invoice["total_amount"] or 0.0)
-    paid_amount = float(invoice["paid_amount"] or 0.0)
-    balance_amount = float(invoice["balance_amount"] or 0.0)
     currency = company_profile.get("base_currency") or "AED"
     title = invoice.get("document_type") or ("Tax Invoice" if (invoice.get("invoice_kind") or "Sales") == "Sales" else "Supplier Bill")
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
     _draw_header(pdf, assets_dir)
-    _draw_title(pdf, title, "Commercial invoice with clean references, VAT and running balance")
+    _draw_title(pdf, title, "Commercial invoice with seller, bill-to, line items and VAT")
 
     seller_x = 16 * mm
     seller_y = PAGE_HEIGHT - 116 * mm
@@ -468,19 +466,7 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
         buyer_contact,
     )
 
-    meta_y = PAGE_HEIGHT - 165 * mm
-    _draw_stat_box(pdf, 16 * mm, meta_y, 40 * mm, 14 * mm, "INVOICE NO", str(invoice["invoice_no"]))
-    _draw_stat_box(pdf, 60 * mm, meta_y, 38 * mm, 14 * mm, "ISSUE DATE", format_date_label(invoice.get("issue_date")))
-    _draw_stat_box(pdf, 102 * mm, meta_y, 38 * mm, 14 * mm, "DUE DATE", format_date_label(invoice.get("due_date")))
-    _draw_stat_box(pdf, 144 * mm, meta_y, 50 * mm, 14 * mm, "STATUS", invoice.get("status") or "Open")
-
-    ref_y = PAGE_HEIGHT - 181 * mm
-    _draw_stat_box(pdf, 16 * mm, ref_y, 40 * mm, 12 * mm, "KIND", invoice.get("invoice_kind") or "-")
-    _draw_stat_box(pdf, 60 * mm, ref_y, 42 * mm, 12 * mm, "AGREEMENT", invoice.get("agreement_no") or "-")
-    _draw_stat_box(pdf, 106 * mm, ref_y, 40 * mm, 12 * mm, "LPO", invoice.get("lpo_no") or "-")
-    _draw_stat_box(pdf, 150 * mm, ref_y, 44 * mm, 12 * mm, "HIRE", invoice.get("hire_no") or "-")
-
-    table_top = PAGE_HEIGHT - 198 * mm
+    table_top = PAGE_HEIGHT - 163 * mm
     _draw_table_header(
         pdf,
         table_top,
@@ -508,7 +494,7 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
         pdf.drawRightString(193 * mm, y, format_currency(float(line.get("subtotal") or 0)))
         y -= row_height
 
-    min_rows = 6
+    min_rows = 9
     filler_index = len(line_items)
     while filler_index < min_rows and y >= 67 * mm:
         if filler_index % 2 == 0:
@@ -519,16 +505,16 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
         y -= row_height
         filler_index += 1
 
-    summary_y = 49 * mm
-    _draw_stat_box(pdf, 112 * mm, summary_y + 28 * mm, 82 * mm, 12 * mm, "SUBTOTAL", f"{currency} {format_currency(subtotal)}")
-    _draw_stat_box(pdf, 112 * mm, summary_y + 14 * mm, 82 * mm, 12 * mm, "VAT", f"{tax_percent:.2f}% / {currency} {format_currency(tax_amount)}", fill_color=SOFT)
-    _draw_stat_box(pdf, 112 * mm, summary_y, 82 * mm, 12 * mm, "TOTAL", f"{currency} {format_currency(total_amount)}", fill_color=BLUE, text_color=colors.white, border_color=BLUE)
+    summary_y = 43 * mm
+    _draw_stat_box(pdf, 118 * mm, summary_y + 30 * mm, 76 * mm, 12 * mm, "SUBTOTAL", f"{currency} {format_currency(subtotal)}")
+    _draw_stat_box(pdf, 118 * mm, summary_y + 15 * mm, 76 * mm, 12 * mm, "VAT", f"{tax_percent:.2f}% / {currency} {format_currency(tax_amount)}", fill_color=SOFT)
+    _draw_stat_box(pdf, 118 * mm, summary_y, 76 * mm, 12 * mm, "TOTAL AMOUNT", f"{currency} {format_currency(total_amount)}", fill_color=BLUE, text_color=colors.white, border_color=BLUE)
 
     notes_y = 38 * mm
     pdf.setFillColor(colors.white)
-    pdf.roundRect(16 * mm, notes_y, 90 * mm, 24 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.roundRect(16 * mm, notes_y, 96 * mm, 24 * mm, 4 * mm, fill=1, stroke=0)
     pdf.setStrokeColor(LINE)
-    pdf.roundRect(16 * mm, notes_y, 90 * mm, 24 * mm, 4 * mm, fill=0, stroke=1)
+    pdf.roundRect(16 * mm, notes_y, 96 * mm, 24 * mm, 4 * mm, fill=0, stroke=1)
     pdf.setFillColor(BLUE_DARK)
     pdf.setFont("Helvetica-Bold", 8.2)
     pdf.drawString(20 * mm, notes_y + 17 * mm, "NOTES")
@@ -537,7 +523,7 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
         invoice.get("notes") or company_profile.get("invoice_terms") or "No notes entered.",
         "Helvetica",
         7.1,
-        80 * mm,
+        86 * mm,
         max_lines=2,
         min_size=6.0,
     )
@@ -546,12 +532,8 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
     for index, note_line in enumerate(note_lines):
         pdf.drawString(20 * mm, notes_y + 11.5 * mm - (index * 4.2 * mm), note_line)
 
-    _draw_small_meta_row(pdf, 20 * mm, notes_y + 3.4 * mm, "Terms", company_profile.get("invoice_terms") or "-", 44 * mm)
-
-    payment_y = 38 * mm
-    _draw_stat_box(pdf, 112 * mm, payment_y + 12 * mm, 39 * mm, 12 * mm, "PAID", f"{currency} {format_currency(paid_amount)}", fill_color=SOFT)
-    _draw_stat_box(pdf, 155 * mm, payment_y + 12 * mm, 39 * mm, 12 * mm, "BALANCE", f"{currency} {format_currency(balance_amount)}", fill_color=colors.HexColor("#FFF4E8"), text_color=ORANGE, border_color=ORANGE)
-    _draw_small_meta_row(pdf, 116 * mm, payment_y + 6.3 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 50 * mm)
+    _draw_small_meta_row(pdf, 20 * mm, notes_y + 3.4 * mm, "Terms", company_profile.get("invoice_terms") or "-", 50 * mm)
+    _draw_small_meta_row(pdf, 118 * mm, notes_y - 4.8 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 54 * mm)
 
     _draw_footer_banner(pdf, assets_dir)
     pdf.showPage()

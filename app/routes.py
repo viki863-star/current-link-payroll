@@ -67,6 +67,14 @@ SUPPLIER_PARTNERSHIP_MODE_OPTIONS = ["Standard", "Partnership"]
 PARTNERSHIP_ENTRY_KIND_OPTIONS = ["Vehicle Expense", "Driver Salary", "OT / Allowance", "Other"]
 PARTNERSHIP_PAID_BY_OPTIONS = ["Company", "Partner"]
 PARTNERSHIP_SHIFT_OPTIONS = ["General", "Day", "Night"]
+FLEET_SHIFT_MODE_OPTIONS = ["Single Shift", "Double Shift"]
+FLEET_OWNERSHIP_MODE_OPTIONS = ["Standard", "Partnership"]
+MAINTENANCE_TAX_MODE_OPTIONS = ["Without Tax", "Tax Invoice"]
+MAINTENANCE_FUNDING_SOURCE_OPTIONS = ["Owner Fund", "Bank", "Owner Direct", "Technician Advance", "Workshop Credit", "Other"]
+MAINTENANCE_ADVANCE_SOURCE_OPTIONS = ["Owner Fund", "Bank", "Owner Direct", "Other"]
+MAINTENANCE_PAID_BY_OPTIONS = ["Company", "Partner"]
+MAINTENANCE_SETTLEMENT_STATUS_OPTIONS = ["Open", "Settled"]
+MAINTENANCE_LINE_SLOTS = 4
 BRANCH_STATUS_OPTIONS = ["Active", "Inactive"]
 FINANCIAL_YEAR_STATUS_OPTIONS = ["Open", "Closed", "Archived"]
 INVOICE_LINE_SLOTS = 4
@@ -100,7 +108,7 @@ ADMIN_WORKSPACE_META = {
         "label": "Accounts",
         "eyebrow": "Accounts Desk",
         "title": "Accounts Desk",
-        "summary": "Fund, tax, reports.",
+        "summary": "Fund, tax, reports and fleet.",
     },
 }
 
@@ -2025,6 +2033,264 @@ def register_routes(app: Flask) -> None:
         flash("Annual fee row deleted successfully.", "success")
         return redirect(url_for("annual_fees"))
 
+    @app.route("/fleet-maintenance", methods=["GET", "POST"])
+    @_login_required("admin")
+    def fleet_maintenance():
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        filters = _fleet_maintenance_filter_values(request)
+        vehicle_values = _default_fleet_vehicle_form(db)
+        staff_values = _default_maintenance_staff_form(db)
+        advance_values = _default_maintenance_advance_form(db)
+        paper_values = _default_maintenance_paper_form(db)
+        paper_line_rows = _default_maintenance_paper_lines()
+
+        if request.method == "POST":
+            action = request.form.get("action", "").strip()
+            try:
+                if action == "save_vehicle":
+                    vehicle_values = _fleet_vehicle_form_data(request)
+                    payload = _prepare_fleet_vehicle_payload(db, vehicle_values)
+                    _ensure_reference_available(
+                        db,
+                        "vehicle_master",
+                        "vehicle_id",
+                        vehicle_values["vehicle_id"],
+                        vehicle_values["original_vehicle_id"],
+                        "Vehicle ID",
+                    )
+                    if vehicle_values["original_vehicle_id"]:
+                        db.execute(
+                            """
+                            UPDATE vehicle_master
+                            SET vehicle_id = ?, vehicle_no = ?, vehicle_type = ?, make_model = ?, status = ?,
+                                shift_mode = ?, ownership_mode = ?, partner_party_code = ?, partner_name = ?,
+                                company_share_percent = ?, partner_share_percent = ?, notes = ?
+                            WHERE vehicle_id = ?
+                            """,
+                            payload + (vehicle_values["original_vehicle_id"],),
+                        )
+                        message = "Vehicle updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO vehicle_master (
+                                vehicle_id, vehicle_no, vehicle_type, make_model, status,
+                                shift_mode, ownership_mode, partner_party_code, partner_name,
+                                company_share_percent, partner_share_percent, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        message = "Vehicle saved successfully."
+                    _audit_log(
+                        db,
+                        "fleet_vehicle_saved",
+                        entity_type="fleet_vehicle",
+                        entity_id=vehicle_values["vehicle_id"],
+                        details=f"{vehicle_values['vehicle_no']} / {vehicle_values['ownership_mode']}",
+                    )
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("fleet_maintenance", month=filters["month"]))
+
+                if action == "save_staff":
+                    staff_values = _maintenance_staff_form_data(request)
+                    payload = _prepare_maintenance_staff_payload(db, staff_values)
+                    _ensure_reference_available(
+                        db,
+                        "maintenance_staff",
+                        "staff_code",
+                        staff_values["staff_code"],
+                        staff_values["original_staff_code"],
+                        "Technician ID",
+                    )
+                    if staff_values["original_staff_code"]:
+                        db.execute(
+                            """
+                            UPDATE maintenance_staff
+                            SET staff_code = ?, staff_name = ?, phone_number = ?, status = ?, notes = ?
+                            WHERE staff_code = ?
+                            """,
+                            payload + (staff_values["original_staff_code"],),
+                        )
+                        message = "Technician updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO maintenance_staff (
+                                staff_code, staff_name, phone_number, status, notes
+                            ) VALUES (?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        message = "Technician saved successfully."
+                    _audit_log(
+                        db,
+                        "maintenance_staff_saved",
+                        entity_type="maintenance_staff",
+                        entity_id=staff_values["staff_code"],
+                        details=staff_values["staff_name"],
+                    )
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("fleet_maintenance", month=filters["month"]))
+
+                if action == "save_advance":
+                    advance_values = _maintenance_advance_form_data(request)
+                    payload = _prepare_maintenance_advance_payload(db, advance_values)
+                    _ensure_reference_available(
+                        db,
+                        "maintenance_staff_advances",
+                        "advance_no",
+                        advance_values["advance_no"],
+                        advance_values["original_advance_no"],
+                        "Advance number",
+                    )
+                    if advance_values["original_advance_no"]:
+                        db.execute(
+                            """
+                            UPDATE maintenance_staff_advances
+                            SET advance_no = ?, staff_code = ?, entry_date = ?, funding_source = ?,
+                                amount = ?, settled_amount = ?, balance_amount = ?, reference = ?, notes = ?
+                            WHERE advance_no = ?
+                            """,
+                            payload + (advance_values["original_advance_no"],),
+                        )
+                        message = "Technician advance updated successfully."
+                    else:
+                        db.execute(
+                            """
+                            INSERT INTO maintenance_staff_advances (
+                                advance_no, staff_code, entry_date, funding_source,
+                                amount, settled_amount, balance_amount, reference, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            payload,
+                        )
+                        message = "Technician advance saved successfully."
+                    _audit_log(
+                        db,
+                        "maintenance_advance_saved",
+                        entity_type="maintenance_advance",
+                        entity_id=advance_values["advance_no"],
+                        details=f"{advance_values['staff_code']} / AED {advance_values['amount']}",
+                    )
+                    db.commit()
+                    flash(message, "success")
+                    return redirect(url_for("fleet_maintenance", month=filters["month"]))
+
+                if action == "save_paper":
+                    paper_values = _maintenance_paper_form_data(request)
+                    paper_line_rows = _maintenance_paper_line_form_data(request)
+                    prepared = _prepare_maintenance_paper_payload(db, paper_values, paper_line_rows)
+                    attachment_path = _save_maintenance_attachment(app, prepared["paper_no"], request.files.get("attachment"))
+                    db.execute(
+                        """
+                        INSERT INTO maintenance_papers (
+                            paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, staff_code, advance_no,
+                            tax_mode, supplier_bill_no, work_summary, funding_source, paid_by, subtotal, tax_amount,
+                            total_amount, company_share_amount, partner_share_amount, company_paid_amount,
+                            partner_paid_amount, attachment_path, notes
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            prepared["paper_no"],
+                            prepared["paper_date"],
+                            prepared["vehicle_id"],
+                            prepared["vehicle_no"],
+                            prepared["workshop_party_code"],
+                            prepared["staff_code"],
+                            prepared["advance_no"],
+                            prepared["tax_mode"],
+                            prepared["supplier_bill_no"],
+                            prepared["work_summary"],
+                            prepared["funding_source"],
+                            prepared["paid_by"],
+                            prepared["subtotal"],
+                            prepared["tax_amount"],
+                            prepared["total_amount"],
+                            prepared["company_share_amount"],
+                            prepared["partner_share_amount"],
+                            prepared["company_paid_amount"],
+                            prepared["partner_paid_amount"],
+                            attachment_path,
+                            prepared["notes"],
+                        ),
+                    )
+                    _save_maintenance_paper_lines(db, prepared["paper_no"], prepared["line_payloads"])
+                    if prepared["settlement_payload"] is not None:
+                        db.execute(
+                            """
+                            INSERT INTO maintenance_settlements (
+                                settlement_no, paper_no, settlement_type, advance_no, party_code, amount, status, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            prepared["settlement_payload"],
+                        )
+                    if prepared["advance_update"] is not None:
+                        db.execute(
+                            """
+                            UPDATE maintenance_staff_advances
+                            SET settled_amount = ?, balance_amount = ?
+                            WHERE advance_no = ?
+                            """,
+                            (
+                                prepared["advance_update"]["settled_amount"],
+                                prepared["advance_update"]["balance_amount"],
+                                prepared["advance_update"]["advance_no"],
+                            ),
+                        )
+                    _audit_log(
+                        db,
+                        "maintenance_paper_saved",
+                        entity_type="maintenance_paper",
+                        entity_id=prepared["paper_no"],
+                        details=f"{prepared['vehicle_no']} / {prepared['funding_source']} / AED {prepared['total_amount']}",
+                    )
+                    db.commit()
+                    flash("Maintenance paper saved successfully.", "success")
+                    return redirect(url_for("fleet_maintenance", month=prepared["view_month"], vehicle_id=filters["vehicle_id"], funding_source=filters["funding_source"], search=filters["search"]))
+            except ValidationError as exc:
+                flash(str(exc), "error")
+
+        summary = _fleet_maintenance_summary(db, filters["month"])
+        vehicle_rows = _fleet_vehicle_rows(db)
+        staff_rows = _maintenance_staff_rows(db)
+        advance_rows = _maintenance_advance_rows(db)
+        paper_rows = _maintenance_paper_rows(db, filters, limit=18)
+        workshop_payables = _maintenance_workshop_payables(db, filters)
+        vehicle_statement_rows = _vehicle_maintenance_statement_rows(db, filters)
+        partnership_rows = _maintenance_partnership_rows(db, filters)
+        technician_ledgers = _maintenance_staff_ledger_rows(db)
+
+        return render_template(
+            "fleet_maintenance.html",
+            filters=filters,
+            summary=summary,
+            vehicle_values=vehicle_values,
+            staff_values=staff_values,
+            advance_values=advance_values,
+            paper_values=paper_values,
+            paper_line_rows=paper_line_rows,
+            vehicle_rows=vehicle_rows,
+            staff_rows=staff_rows,
+            advance_rows=advance_rows,
+            paper_rows=paper_rows,
+            workshop_payables=workshop_payables,
+            vehicle_statement_rows=vehicle_statement_rows,
+            partnership_rows=partnership_rows,
+            technician_ledgers=technician_ledgers,
+            shift_mode_options=FLEET_SHIFT_MODE_OPTIONS,
+            ownership_mode_options=FLEET_OWNERSHIP_MODE_OPTIONS,
+            tax_mode_options=MAINTENANCE_TAX_MODE_OPTIONS,
+            advance_source_options=MAINTENANCE_ADVANCE_SOURCE_OPTIONS,
+            funding_source_options=MAINTENANCE_FUNDING_SOURCE_OPTIONS,
+            paid_by_options=MAINTENANCE_PAID_BY_OPTIONS,
+            workshop_parties=_parties_by_role(db, "Supplier"),
+            partner_parties=_parties_by_role(db, "Partner"),
+        )
+
     @app.get("/tax")
     @_login_required("admin")
     def tax_center():
@@ -3587,6 +3853,7 @@ def _admin_module_links(workspace: str):
         ],
         "accounts": [
             {"label": "Owner Fund", "endpoint": "owner_fund", "primary": True},
+            {"label": "Fleet Maintenance", "endpoint": "fleet_maintenance"},
             {"label": "Tax", "endpoint": "tax_center"},
         ],
     }
@@ -3825,6 +4092,52 @@ def _contract_parties(db):
         """,
         ("%Supplier%", "%Customer%"),
     ).fetchall()
+
+
+def _fleet_vehicle_row(db, vehicle_id: str, *, required: bool = False):
+    row = db.execute(
+        """
+        SELECT
+            vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+            partner_party_code, partner_name, company_share_percent, partner_share_percent, notes, created_at
+        FROM vehicle_master
+        WHERE vehicle_id = ?
+        """,
+        (vehicle_id,),
+    ).fetchone()
+    if row is None and required:
+        raise ValidationError("Selected vehicle was not found.")
+    return row
+
+
+def _maintenance_staff_row(db, staff_code: str, *, required: bool = False):
+    row = db.execute(
+        """
+        SELECT staff_code, staff_name, phone_number, status, notes, created_at
+        FROM maintenance_staff
+        WHERE staff_code = ?
+        """,
+        (staff_code,),
+    ).fetchone()
+    if row is None and required:
+        raise ValidationError("Selected technician was not found.")
+    return row
+
+
+def _maintenance_advance_row(db, advance_no: str, *, required: bool = False):
+    row = db.execute(
+        """
+        SELECT
+            advance_no, staff_code, entry_date, funding_source, amount, settled_amount, balance_amount,
+            reference, notes, created_at
+        FROM maintenance_staff_advances
+        WHERE advance_no = ?
+        """,
+        (advance_no,),
+    ).fetchone()
+    if row is None and required:
+        raise ValidationError("Selected technician advance was not found.")
+    return row
 
 
 def _next_reference_code(db, table_name: str, field_name: str, prefix: str) -> str:
@@ -4267,6 +4580,407 @@ def _default_fee_form(db=None):
         "received_amount": "0",
         "status": "Due",
         "notes": "",
+    }
+
+
+def _default_fleet_vehicle_form(db=None):
+    db = db or open_db()
+    return {
+        "original_vehicle_id": "",
+        "vehicle_id": _next_reference_code(db, "vehicle_master", "vehicle_id", "VEH"),
+        "vehicle_no": "",
+        "vehicle_type": "",
+        "make_model": "",
+        "status": "Active",
+        "shift_mode": FLEET_SHIFT_MODE_OPTIONS[0],
+        "ownership_mode": FLEET_OWNERSHIP_MODE_OPTIONS[0],
+        "partner_party_code": "",
+        "partner_name": "",
+        "company_share_percent": "100",
+        "partner_share_percent": "0",
+        "notes": "",
+    }
+
+
+def _default_maintenance_staff_form(db=None):
+    db = db or open_db()
+    return {
+        "original_staff_code": "",
+        "staff_code": _next_reference_code(db, "maintenance_staff", "staff_code", "TEC"),
+        "staff_name": "",
+        "phone_number": "",
+        "status": "Active",
+        "notes": "",
+    }
+
+
+def _default_maintenance_advance_form(db=None):
+    db = db or open_db()
+    return {
+        "original_advance_no": "",
+        "advance_no": _next_reference_code(db, "maintenance_staff_advances", "advance_no", "ADV"),
+        "staff_code": "",
+        "entry_date": date.today().isoformat(),
+        "funding_source": MAINTENANCE_ADVANCE_SOURCE_OPTIONS[0],
+        "amount": "",
+        "reference": "",
+        "notes": "",
+    }
+
+
+def _default_maintenance_paper_form(db=None):
+    db = db or open_db()
+    return {
+        "paper_no": _next_reference_code(db, "maintenance_papers", "paper_no", "MTP"),
+        "paper_date": date.today().isoformat(),
+        "vehicle_id": "",
+        "workshop_party_code": "",
+        "staff_code": "",
+        "advance_no": "",
+        "tax_mode": MAINTENANCE_TAX_MODE_OPTIONS[0],
+        "supplier_bill_no": "",
+        "work_summary": "",
+        "funding_source": MAINTENANCE_FUNDING_SOURCE_OPTIONS[0],
+        "paid_by": MAINTENANCE_PAID_BY_OPTIONS[0],
+        "tax_amount": "0",
+        "notes": "",
+    }
+
+
+def _default_maintenance_paper_lines():
+    return [
+        {
+            "line_no": index + 1,
+            "description": "",
+            "quantity": "1",
+            "rate": "",
+            "amount": "",
+        }
+        for index in range(MAINTENANCE_LINE_SLOTS)
+    ]
+
+
+def _fleet_vehicle_form_data(request):
+    return {
+        "original_vehicle_id": request.form.get("original_vehicle_id", "").strip().upper(),
+        "vehicle_id": request.form.get("vehicle_id", "").strip().upper(),
+        "vehicle_no": request.form.get("vehicle_no", "").strip().upper(),
+        "vehicle_type": request.form.get("vehicle_type", "").strip(),
+        "make_model": request.form.get("make_model", "").strip(),
+        "status": request.form.get("status", "Active").strip() or "Active",
+        "shift_mode": request.form.get("shift_mode", FLEET_SHIFT_MODE_OPTIONS[0]).strip() or FLEET_SHIFT_MODE_OPTIONS[0],
+        "ownership_mode": request.form.get("ownership_mode", FLEET_OWNERSHIP_MODE_OPTIONS[0]).strip() or FLEET_OWNERSHIP_MODE_OPTIONS[0],
+        "partner_party_code": request.form.get("partner_party_code", "").strip().upper(),
+        "partner_name": request.form.get("partner_name", "").strip(),
+        "company_share_percent": request.form.get("company_share_percent", "100").strip() or "100",
+        "partner_share_percent": request.form.get("partner_share_percent", "0").strip() or "0",
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _maintenance_staff_form_data(request):
+    return {
+        "original_staff_code": request.form.get("original_staff_code", "").strip().upper(),
+        "staff_code": request.form.get("staff_code", "").strip().upper(),
+        "staff_name": request.form.get("staff_name", "").strip(),
+        "phone_number": request.form.get("phone_number", "").strip(),
+        "status": request.form.get("status", "Active").strip() or "Active",
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _maintenance_advance_form_data(request):
+    funding_source = request.form.get("funding_source", MAINTENANCE_ADVANCE_SOURCE_OPTIONS[0]).strip() or MAINTENANCE_ADVANCE_SOURCE_OPTIONS[0]
+    if funding_source not in MAINTENANCE_ADVANCE_SOURCE_OPTIONS:
+        funding_source = MAINTENANCE_ADVANCE_SOURCE_OPTIONS[0]
+    return {
+        "original_advance_no": request.form.get("original_advance_no", "").strip().upper(),
+        "advance_no": request.form.get("advance_no", "").strip().upper(),
+        "staff_code": request.form.get("staff_code", "").strip().upper(),
+        "entry_date": request.form.get("entry_date", "").strip(),
+        "funding_source": funding_source,
+        "amount": request.form.get("amount", "").strip(),
+        "reference": request.form.get("reference", "").strip(),
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _maintenance_paper_form_data(request):
+    tax_mode = request.form.get("tax_mode", MAINTENANCE_TAX_MODE_OPTIONS[0]).strip() or MAINTENANCE_TAX_MODE_OPTIONS[0]
+    if tax_mode not in MAINTENANCE_TAX_MODE_OPTIONS:
+        tax_mode = MAINTENANCE_TAX_MODE_OPTIONS[0]
+    funding_source = request.form.get("funding_source", MAINTENANCE_FUNDING_SOURCE_OPTIONS[0]).strip() or MAINTENANCE_FUNDING_SOURCE_OPTIONS[0]
+    if funding_source not in MAINTENANCE_FUNDING_SOURCE_OPTIONS:
+        funding_source = MAINTENANCE_FUNDING_SOURCE_OPTIONS[0]
+    paid_by = request.form.get("paid_by", MAINTENANCE_PAID_BY_OPTIONS[0]).strip() or MAINTENANCE_PAID_BY_OPTIONS[0]
+    if paid_by not in MAINTENANCE_PAID_BY_OPTIONS:
+        paid_by = MAINTENANCE_PAID_BY_OPTIONS[0]
+    return {
+        "paper_no": request.form.get("paper_no", "").strip().upper(),
+        "paper_date": request.form.get("paper_date", "").strip(),
+        "vehicle_id": request.form.get("vehicle_id", "").strip().upper(),
+        "workshop_party_code": request.form.get("workshop_party_code", "").strip().upper(),
+        "staff_code": request.form.get("staff_code", "").strip().upper(),
+        "advance_no": request.form.get("advance_no", "").strip().upper(),
+        "tax_mode": tax_mode,
+        "supplier_bill_no": request.form.get("supplier_bill_no", "").strip(),
+        "work_summary": request.form.get("work_summary", "").strip(),
+        "funding_source": funding_source,
+        "paid_by": paid_by,
+        "tax_amount": request.form.get("tax_amount", "0").strip() or "0",
+        "notes": request.form.get("notes", "").strip(),
+    }
+
+
+def _maintenance_paper_line_form_data(request):
+    rows = []
+    for index in range(1, MAINTENANCE_LINE_SLOTS + 1):
+        rows.append(
+            {
+                "line_no": index,
+                "description": request.form.get(f"line_description_{index}", "").strip(),
+                "quantity": request.form.get(f"line_quantity_{index}", "").strip(),
+                "rate": request.form.get(f"line_rate_{index}", "").strip(),
+                "amount": request.form.get(f"line_amount_{index}", "").strip(),
+            }
+        )
+    return rows
+
+
+def _prepare_fleet_vehicle_payload(db, values):
+    if not values["vehicle_id"]:
+        values["vehicle_id"] = _next_reference_code(db, "vehicle_master", "vehicle_id", "VEH")
+    if not values["vehicle_no"]:
+        raise ValidationError("Vehicle number is required.")
+    if not values["vehicle_type"]:
+        raise ValidationError("Vehicle type is required.")
+    shift_mode = values["shift_mode"] if values["shift_mode"] in FLEET_SHIFT_MODE_OPTIONS else FLEET_SHIFT_MODE_OPTIONS[0]
+    ownership_mode = values["ownership_mode"] if values["ownership_mode"] in FLEET_OWNERSHIP_MODE_OPTIONS else FLEET_OWNERSHIP_MODE_OPTIONS[0]
+    partner_party_code = values["partner_party_code"]
+    partner_name = values["partner_name"]
+    if partner_party_code:
+        partner_party = _validate_party_reference(db, partner_party_code)
+        partner_name = partner_party["party_name"]
+    company_share_percent = _parse_decimal(values["company_share_percent"], "Company share percent", required=True, minimum=0.0, maximum=100.0)
+    partner_share_percent = _parse_decimal(values["partner_share_percent"], "Partner share percent", required=True, minimum=0.0, maximum=100.0)
+    if ownership_mode == "Partnership":
+        if not (partner_party_code or partner_name):
+            raise ValidationError("Select or enter a partner for partnership vehicle.")
+        if abs((company_share_percent + partner_share_percent) - 100.0) > 0.01:
+            raise ValidationError("Company and partner share must total 100.")
+    else:
+        partner_party_code = None
+        partner_name = ""
+        company_share_percent = 100.0
+        partner_share_percent = 0.0
+    return (
+        values["vehicle_id"],
+        values["vehicle_no"],
+        values["vehicle_type"],
+        values["make_model"] or None,
+        values["status"],
+        shift_mode,
+        ownership_mode,
+        partner_party_code,
+        partner_name or None,
+        company_share_percent,
+        partner_share_percent,
+        values["notes"] or None,
+    )
+
+
+def _prepare_maintenance_staff_payload(db, values):
+    if not values["staff_code"]:
+        values["staff_code"] = _next_reference_code(db, "maintenance_staff", "staff_code", "TEC")
+    if not values["staff_name"]:
+        raise ValidationError("Technician name is required.")
+    return (
+        values["staff_code"],
+        values["staff_name"],
+        _normalize_optional_phone(values["phone_number"]) or None,
+        values["status"],
+        values["notes"] or None,
+    )
+
+
+def _prepare_maintenance_advance_payload(db, values):
+    if not values["advance_no"]:
+        values["advance_no"] = _next_reference_code(db, "maintenance_staff_advances", "advance_no", "ADV")
+    _maintenance_staff_row(db, values["staff_code"], required=True)
+    entry_date = _validate_date_text(values["entry_date"], "Advance date")
+    amount = _parse_decimal(values["amount"], "Advance amount", required=True, minimum=0.01)
+    settled_amount = 0.0
+    if values["original_advance_no"]:
+        existing = _maintenance_advance_row(db, values["original_advance_no"], required=True)
+        settled_amount = float(existing["settled_amount"] or 0.0)
+        if settled_amount - amount > 0.001:
+            raise ValidationError("Advance amount cannot be lower than already settled amount.")
+    balance_amount = round(amount - settled_amount, 2)
+    return (
+        values["advance_no"],
+        values["staff_code"],
+        entry_date,
+        values["funding_source"],
+        amount,
+        settled_amount,
+        max(balance_amount, 0.0),
+        values["reference"] or None,
+        values["notes"] or None,
+    )
+
+
+def _prepare_maintenance_line_payloads(line_rows):
+    prepared = []
+    for row in line_rows:
+        if not any([(row.get("description") or "").strip(), (row.get("quantity") or "").strip(), (row.get("rate") or "").strip()]):
+            continue
+        description = (row.get("description") or "").strip()
+        if not description:
+            raise ValidationError(f"Maintenance line {row['line_no']} description is required.")
+        quantity = _parse_decimal(row.get("quantity") or "1", f"Maintenance line {row['line_no']} quantity", required=True, minimum=0.01)
+        rate = _parse_decimal(row.get("rate") or "0", f"Maintenance line {row['line_no']} rate", required=True, minimum=0.0)
+        amount = round(quantity * rate, 2)
+        prepared.append(
+            {
+                "line_no": len(prepared) + 1,
+                "description": description,
+                "quantity": quantity,
+                "rate": rate,
+                "amount": amount,
+            }
+        )
+    if not prepared:
+        raise ValidationError("Add at least one maintenance work line.")
+    return prepared
+
+
+def _prepare_maintenance_paper_payload(db, values, line_rows):
+    if not values["paper_no"]:
+        values["paper_no"] = _next_reference_code(db, "maintenance_papers", "paper_no", "MTP")
+    paper_date = _validate_date_text(values["paper_date"], "Paper date")
+    vehicle = _fleet_vehicle_row(db, values["vehicle_id"], required=True)
+    workshop_party_code = values["workshop_party_code"] or ""
+    if workshop_party_code:
+        _validate_party_reference(db, workshop_party_code)
+    staff_code = values["staff_code"] or ""
+    if staff_code:
+        _maintenance_staff_row(db, staff_code, required=True)
+
+    advance_row = None
+    if values["advance_no"]:
+        advance_row = _maintenance_advance_row(db, values["advance_no"], required=True)
+        if staff_code and advance_row["staff_code"] != staff_code:
+            raise ValidationError("Selected advance does not belong to the chosen technician.")
+        staff_code = advance_row["staff_code"]
+
+    if values["funding_source"] == "Technician Advance":
+        if not staff_code:
+            raise ValidationError("Select a technician for technician advance settlement.")
+        if advance_row is None:
+            raise ValidationError("Select the technician advance that will settle this paper.")
+    if values["funding_source"] == "Workshop Credit" and not workshop_party_code:
+        raise ValidationError("Select workshop / auto shop for workshop credit paper.")
+
+    prepared_lines = _prepare_maintenance_line_payloads(line_rows)
+    subtotal = round(sum(float(item["amount"]) for item in prepared_lines), 2)
+    tax_amount = 0.0
+    if values["tax_mode"] == "Tax Invoice":
+        tax_amount = _parse_decimal(values["tax_amount"], "VAT amount", required=True, minimum=0.0)
+    total_amount = round(subtotal + tax_amount, 2)
+
+    if values["work_summary"]:
+        work_summary = values["work_summary"]
+    else:
+        work_summary = "; ".join(item["description"] for item in prepared_lines[:2])
+
+    if (vehicle["ownership_mode"] or FLEET_OWNERSHIP_MODE_OPTIONS[0]) == "Partnership":
+        company_share_percent = float(vehicle["company_share_percent"] or 0.0)
+        partner_share_percent = float(vehicle["partner_share_percent"] or 0.0)
+        company_share_amount = round(total_amount * (company_share_percent / 100.0), 2)
+        partner_share_amount = round(total_amount * (partner_share_percent / 100.0), 2)
+    else:
+        company_share_amount = total_amount
+        partner_share_amount = 0.0
+
+    if values["funding_source"] == "Workshop Credit":
+        company_paid_amount = 0.0
+        partner_paid_amount = 0.0
+    elif values["paid_by"] == "Partner":
+        company_paid_amount = 0.0
+        partner_paid_amount = total_amount
+    else:
+        company_paid_amount = total_amount
+        partner_paid_amount = 0.0
+
+    settlement_payload = None
+    advance_update = None
+    if values["funding_source"] == "Technician Advance":
+        available_amount = float(advance_row["balance_amount"] or 0.0)
+        if total_amount - available_amount > 0.001:
+            raise ValidationError(f"Paper total cannot exceed selected advance balance {available_amount:,.2f}.")
+        settlement_payload = (
+            _next_reference_code(db, "maintenance_settlements", "settlement_no", "MTS"),
+            values["paper_no"],
+            "Technician Advance",
+            advance_row["advance_no"],
+            None,
+            total_amount,
+            "Settled",
+            values["notes"] or work_summary,
+        )
+        advance_update = {
+            "advance_no": advance_row["advance_no"],
+            "settled_amount": round(float(advance_row["settled_amount"] or 0.0) + total_amount, 2),
+            "balance_amount": round(float(advance_row["balance_amount"] or 0.0) - total_amount, 2),
+        }
+    elif values["funding_source"] == "Workshop Credit":
+        settlement_payload = (
+            _next_reference_code(db, "maintenance_settlements", "settlement_no", "MTS"),
+            values["paper_no"],
+            "Workshop Credit",
+            None,
+            workshop_party_code,
+            total_amount,
+            "Open",
+            values["notes"] or work_summary,
+        )
+    else:
+        settlement_payload = (
+            _next_reference_code(db, "maintenance_settlements", "settlement_no", "MTS"),
+            values["paper_no"],
+            "Direct",
+            None,
+            workshop_party_code or None,
+            total_amount,
+            "Settled",
+            values["notes"] or work_summary,
+        )
+
+    return {
+        "paper_no": values["paper_no"],
+        "paper_date": paper_date,
+        "vehicle_id": vehicle["vehicle_id"],
+        "vehicle_no": vehicle["vehicle_no"],
+        "workshop_party_code": workshop_party_code or None,
+        "staff_code": staff_code or None,
+        "advance_no": advance_row["advance_no"] if advance_row else None,
+        "tax_mode": values["tax_mode"],
+        "supplier_bill_no": values["supplier_bill_no"] or None,
+        "work_summary": work_summary,
+        "funding_source": values["funding_source"],
+        "paid_by": values["paid_by"],
+        "subtotal": subtotal,
+        "tax_amount": tax_amount,
+        "total_amount": total_amount,
+        "company_share_amount": company_share_amount,
+        "partner_share_amount": partner_share_amount,
+        "company_paid_amount": company_paid_amount,
+        "partner_paid_amount": partner_paid_amount,
+        "notes": values["notes"] or None,
+        "line_payloads": prepared_lines,
+        "settlement_payload": settlement_payload,
+        "advance_update": advance_update,
+        "view_month": paper_date[:7],
     }
 
 
@@ -6087,6 +6801,289 @@ def _annual_fee_summary(db):
     return {"total_annual": total_annual, "total_received": total_received, "total_balance": total_balance, "due_count": due_count}
 
 
+def _fleet_maintenance_filter_values(request):
+    month_value = request.args.get("month", "").strip() or request.form.get("month", "").strip() or _current_month_value()
+    funding_source = request.args.get("funding_source", "").strip() or request.form.get("funding_source", "").strip()
+    if funding_source and funding_source not in MAINTENANCE_FUNDING_SOURCE_OPTIONS:
+        funding_source = ""
+    return {
+        "month": _normalize_month(month_value) if month_value else _current_month_value(),
+        "vehicle_id": request.args.get("vehicle_id", "").strip().upper() or request.form.get("vehicle_id", "").strip().upper(),
+        "funding_source": funding_source,
+        "search": request.args.get("search", "").strip() or request.form.get("search", "").strip(),
+    }
+
+
+def _maintenance_paper_filter_clause(filters):
+    clauses = []
+    params = []
+    if filters.get("month"):
+        clauses.append("SUBSTR(p.paper_date, 1, 7) = ?")
+        params.append(filters["month"])
+    if filters.get("vehicle_id"):
+        clauses.append("p.vehicle_id = ?")
+        params.append(filters["vehicle_id"])
+    if filters.get("funding_source"):
+        clauses.append("p.funding_source = ?")
+        params.append(filters["funding_source"])
+    if filters.get("search"):
+        needle = f"%{filters['search'].lower()}%"
+        clauses.append(
+            """
+            (
+                LOWER(COALESCE(p.paper_no, '')) LIKE ? OR
+                LOWER(COALESCE(p.vehicle_no, '')) LIKE ? OR
+                LOWER(COALESCE(p.work_summary, '')) LIKE ? OR
+                LOWER(COALESCE(p.supplier_bill_no, '')) LIKE ? OR
+                LOWER(COALESCE(workshop.party_name, '')) LIKE ? OR
+                LOWER(COALESCE(staff.staff_name, '')) LIKE ?
+            )
+            """
+        )
+        params.extend([needle] * 6)
+    return ("WHERE " + " AND ".join(clauses)) if clauses else "", params
+
+
+def _fleet_maintenance_summary(db, month_value: str):
+    month_total = float(
+        db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM maintenance_papers WHERE SUBSTR(paper_date, 1, 7) = ?", (month_value,)).fetchone()[0]
+        or 0.0
+    )
+    month_tax = float(
+        db.execute("SELECT COALESCE(SUM(tax_amount), 0) FROM maintenance_papers WHERE SUBSTR(paper_date, 1, 7) = ?", (month_value,)).fetchone()[0]
+        or 0.0
+    )
+    month_papers = int(
+        db.execute("SELECT COUNT(*) FROM maintenance_papers WHERE SUBSTR(paper_date, 1, 7) = ?", (month_value,)).fetchone()[0]
+        or 0
+    )
+    return {
+        "vehicle_count": int(db.execute("SELECT COUNT(*) FROM vehicle_master").fetchone()[0]),
+        "partnership_count": int(db.execute("SELECT COUNT(*) FROM vehicle_master WHERE ownership_mode = 'Partnership'").fetchone()[0]),
+        "double_shift_count": int(db.execute("SELECT COUNT(*) FROM vehicle_master WHERE shift_mode = 'Double Shift'").fetchone()[0]),
+        "open_advance_balance": float(db.execute("SELECT COALESCE(SUM(balance_amount), 0) FROM maintenance_staff_advances").fetchone()[0] or 0.0),
+        "workshop_credit_balance": float(
+            db.execute(
+                "SELECT COALESCE(SUM(amount), 0) FROM maintenance_settlements WHERE settlement_type = 'Workshop Credit' AND status = 'Open'"
+            ).fetchone()[0]
+            or 0.0
+        ),
+        "month_total": month_total,
+        "month_tax": month_tax,
+        "month_papers": month_papers,
+    }
+
+
+def _fleet_vehicle_rows(db):
+    return db.execute(
+        """
+        SELECT
+            v.vehicle_id,
+            v.vehicle_no,
+            v.vehicle_type,
+            v.make_model,
+            v.status,
+            v.shift_mode,
+            v.ownership_mode,
+            COALESCE(partner.party_name, v.partner_name) AS partner_name,
+            v.company_share_percent,
+            v.partner_share_percent,
+            v.notes
+        FROM vehicle_master v
+        LEFT JOIN parties partner ON partner.party_code = v.partner_party_code
+        ORDER BY CASE WHEN v.status = 'Active' THEN 0 ELSE 1 END, v.vehicle_no ASC, v.id DESC
+        """
+    ).fetchall()
+
+
+def _maintenance_staff_rows(db):
+    return db.execute(
+        """
+        SELECT
+            staff.staff_code,
+            staff.staff_name,
+            staff.phone_number,
+            staff.status,
+            staff.notes,
+            COALESCE(ledger.given_amount, 0) AS given_amount,
+            COALESCE(ledger.settled_amount, 0) AS settled_amount,
+            COALESCE(ledger.balance_amount, 0) AS balance_amount
+        FROM maintenance_staff staff
+        LEFT JOIN (
+            SELECT
+                staff_code,
+                COALESCE(SUM(amount), 0) AS given_amount,
+                COALESCE(SUM(settled_amount), 0) AS settled_amount,
+                COALESCE(SUM(balance_amount), 0) AS balance_amount
+            FROM maintenance_staff_advances
+            GROUP BY staff_code
+        ) ledger ON ledger.staff_code = staff.staff_code
+        ORDER BY CASE WHEN staff.status = 'Active' THEN 0 ELSE 1 END, staff.staff_name ASC
+        """
+    ).fetchall()
+
+
+def _maintenance_staff_ledger_rows(db):
+    return db.execute(
+        """
+        SELECT
+            staff.staff_code,
+            staff.staff_name,
+            COALESCE(SUM(adv.amount), 0) AS given_amount,
+            COALESCE(SUM(adv.settled_amount), 0) AS settled_amount,
+            COALESCE(SUM(adv.balance_amount), 0) AS balance_amount
+        FROM maintenance_staff staff
+        LEFT JOIN maintenance_staff_advances adv ON adv.staff_code = staff.staff_code
+        GROUP BY staff.staff_code, staff.staff_name
+        HAVING COALESCE(SUM(adv.amount), 0) > 0 OR COUNT(adv.id) > 0
+        ORDER BY COALESCE(SUM(adv.balance_amount), 0) DESC, staff.staff_name ASC
+        """
+    ).fetchall()
+
+
+def _maintenance_advance_rows(db, limit: int = 20):
+    return db.execute(
+        f"""
+        SELECT
+            adv.advance_no,
+            adv.staff_code,
+            staff.staff_name,
+            adv.entry_date,
+            adv.funding_source,
+            adv.amount,
+            adv.settled_amount,
+            adv.balance_amount,
+            adv.reference,
+            adv.notes
+        FROM maintenance_staff_advances adv
+        LEFT JOIN maintenance_staff staff ON staff.staff_code = adv.staff_code
+        ORDER BY adv.entry_date DESC, adv.id DESC
+        LIMIT {int(limit)}
+        """
+    ).fetchall()
+
+
+def _maintenance_paper_rows(db, filters, limit: int = 18):
+    where_sql, params = _maintenance_paper_filter_clause(filters)
+    return db.execute(
+        f"""
+        SELECT
+            p.paper_no,
+            p.paper_date,
+            p.vehicle_id,
+            p.vehicle_no,
+            vehicle.vehicle_type,
+            vehicle.shift_mode,
+            vehicle.ownership_mode,
+            COALESCE(workshop.party_name, '-') AS workshop_name,
+            COALESCE(staff.staff_name, '-') AS staff_name,
+            p.tax_mode,
+            p.supplier_bill_no,
+            p.work_summary,
+            p.funding_source,
+            p.paid_by,
+            p.subtotal,
+            p.tax_amount,
+            p.total_amount,
+            p.company_share_amount,
+            p.partner_share_amount,
+            p.company_paid_amount,
+            p.partner_paid_amount,
+            p.attachment_path,
+            p.notes
+        FROM maintenance_papers p
+        LEFT JOIN vehicle_master vehicle ON vehicle.vehicle_id = p.vehicle_id
+        LEFT JOIN parties workshop ON workshop.party_code = p.workshop_party_code
+        LEFT JOIN maintenance_staff staff ON staff.staff_code = p.staff_code
+        {where_sql}
+        ORDER BY p.paper_date DESC, p.id DESC
+        LIMIT {int(limit)}
+        """,
+        params,
+    ).fetchall()
+
+
+def _maintenance_workshop_payables(db, filters):
+    where_sql, params = _maintenance_paper_filter_clause(filters)
+    prefix = " AND " if where_sql else " WHERE "
+    return db.execute(
+        f"""
+        SELECT
+            settlement.party_code,
+            COALESCE(workshop.party_name, settlement.party_code, 'Workshop') AS party_name,
+            COUNT(*) AS paper_count,
+            COALESCE(SUM(settlement.amount), 0) AS balance_amount
+        FROM maintenance_settlements settlement
+        LEFT JOIN maintenance_papers p ON p.paper_no = settlement.paper_no
+        LEFT JOIN parties workshop ON workshop.party_code = settlement.party_code
+        LEFT JOIN maintenance_staff staff ON staff.staff_code = p.staff_code
+        {where_sql}
+        {prefix}settlement.settlement_type = 'Workshop Credit' AND settlement.status = 'Open'
+        GROUP BY settlement.party_code, workshop.party_name
+        ORDER BY COALESCE(SUM(settlement.amount), 0) DESC, workshop.party_name ASC
+        """,
+        params,
+    ).fetchall()
+
+
+def _vehicle_maintenance_statement_rows(db, filters):
+    where_sql, params = _maintenance_paper_filter_clause(filters)
+    return db.execute(
+        f"""
+        SELECT
+            p.vehicle_id,
+            p.vehicle_no,
+            vehicle.vehicle_type,
+            vehicle.shift_mode,
+            COUNT(*) AS paper_count,
+            COALESCE(SUM(p.subtotal), 0) AS subtotal,
+            COALESCE(SUM(p.tax_amount), 0) AS tax_amount,
+            COALESCE(SUM(p.total_amount), 0) AS total_amount,
+            COALESCE(SUM(p.company_paid_amount), 0) AS company_paid_amount,
+            COALESCE(SUM(p.partner_paid_amount), 0) AS partner_paid_amount
+        FROM maintenance_papers p
+        LEFT JOIN vehicle_master vehicle ON vehicle.vehicle_id = p.vehicle_id
+        LEFT JOIN parties workshop ON workshop.party_code = p.workshop_party_code
+        LEFT JOIN maintenance_staff staff ON staff.staff_code = p.staff_code
+        {where_sql}
+        GROUP BY p.vehicle_id, p.vehicle_no, vehicle.vehicle_type, vehicle.shift_mode
+        ORDER BY COALESCE(SUM(p.total_amount), 0) DESC, p.vehicle_no ASC
+        """
+        ,
+        params,
+    ).fetchall()
+
+
+def _maintenance_partnership_rows(db, filters):
+    where_sql, params = _maintenance_paper_filter_clause(filters)
+    prefix = " AND " if where_sql else " WHERE "
+    return db.execute(
+        f"""
+        SELECT
+            p.vehicle_id,
+            p.vehicle_no,
+            vehicle.vehicle_type,
+            COALESCE(partner.party_name, vehicle.partner_name, 'Partner') AS partner_name,
+            COUNT(*) AS paper_count,
+            COALESCE(SUM(p.total_amount), 0) AS total_amount,
+            COALESCE(SUM(p.company_share_amount), 0) AS company_share_amount,
+            COALESCE(SUM(p.partner_share_amount), 0) AS partner_share_amount,
+            COALESCE(SUM(p.company_paid_amount), 0) AS company_paid_amount,
+            COALESCE(SUM(p.partner_paid_amount), 0) AS partner_paid_amount
+        FROM maintenance_papers p
+        LEFT JOIN vehicle_master vehicle ON vehicle.vehicle_id = p.vehicle_id
+        LEFT JOIN parties workshop ON workshop.party_code = p.workshop_party_code
+        LEFT JOIN maintenance_staff staff ON staff.staff_code = p.staff_code
+        LEFT JOIN parties partner ON partner.party_code = vehicle.partner_party_code
+        {where_sql}
+        {prefix}vehicle.ownership_mode = 'Partnership'
+        GROUP BY p.vehicle_id, p.vehicle_no, vehicle.vehicle_type, partner.party_name, vehicle.partner_name
+        ORDER BY COALESCE(SUM(p.total_amount), 0) DESC, p.vehicle_no ASC
+        """,
+        params,
+    ).fetchall()
+
+
 def _tax_summary(db):
     output_sales = float(db.execute("SELECT COALESCE(SUM(subtotal), 0) FROM account_invoices WHERE invoice_kind = 'Sales'").fetchone()[0])
     output_vat = float(db.execute("SELECT COALESCE(SUM(tax_amount), 0) FROM account_invoices WHERE invoice_kind = 'Sales'").fetchone()[0])
@@ -6759,6 +7756,43 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         app.config["STATIC_ASSETS_DIR"],
         app.config["GENERATED_DIR"],
     )
+
+
+def _maintenance_output_dir(app: Flask, paper_no: str) -> Path:
+    output_dir = Path(app.config["GENERATED_DIR"]) / "maintenance" / secure_filename((paper_no or "paper").lower())
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+
+def _save_maintenance_attachment(app: Flask, paper_no: str, upload_file) -> str | None:
+    if upload_file is None or not getattr(upload_file, "filename", ""):
+        return None
+    safe_name = secure_filename(upload_file.filename)
+    if not safe_name:
+        return None
+    output_dir = _maintenance_output_dir(app, paper_no)
+    output_path = output_dir / safe_name
+    upload_file.save(output_path)
+    return output_path.relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
+
+
+def _save_maintenance_paper_lines(db, paper_no: str, line_payloads):
+    for row in line_payloads:
+        db.execute(
+            """
+            INSERT INTO maintenance_paper_lines (
+                paper_no, line_no, description, quantity, rate, amount
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                paper_no,
+                row["line_no"],
+                row["description"],
+                row["quantity"],
+                row["rate"],
+                row["amount"],
+            ),
+        )
 
 
 def _invoice_output_dir(app: Flask) -> Path:

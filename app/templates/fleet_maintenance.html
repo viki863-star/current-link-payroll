@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell maintenance-workspace-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button button-secondary" href="{{ url_for('reports_center') }}">Accounts Desk</a>
+                <a class="button" href="#paper-entry">New Paper</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ summary.vehicle_count }}</strong><small>Vehicles</small></span>
+                <span><strong>{{ summary.month_papers }}</strong><small>This Month</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.month_total) }}</strong><small>Repairs</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.workshop_credit_balance) }}</strong><small>Workshop Credit</small></span>
+            </div>
+        </div>
+        <form method="get" class="admin-filter-grid maintenance-filter-grid">
+            <label>
+                <span>Month</span>
+                <input type="month" name="month" value="{{ filters.month }}">
+            </label>
+            <label>
+                <span>Vehicle</span>
+                <select name="vehicle_id">
+                    <option value="">All vehicles</option>
+                    {% for item in vehicle_rows %}
+                        <option value="{{ item.vehicle_id }}" {% if filters.vehicle_id == item.vehicle_id %}selected{% endif %}>{{ item.vehicle_no }} | {{ item.vehicle_type }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Funding</span>
+                <select name="funding_source">
+                    <option value="">All sources</option>
+                    {% for item in funding_source_options %}
+                        <option value="{{ item }}" {% if filters.funding_source == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Search</span>
+                <input type="text" name="search" value="{{ filters.search }}" placeholder="Paper, vehicle, workshop, bill">
+            </label>
+            <div class="admin-filter-actions">
+                <button class="button" type="submit">Apply</button>
+                <a class="button button-secondary" href="{{ url_for('fleet_maintenance') }}">Clear</a>
+            </div>
+        </form>
+        <div class="mini-link-stack inline-link-stack">
+            <a class="mini-link-pill" href="#vehicle-master">Vehicle Master</a>
+            <a class="mini-link-pill" href="#technicians">Technicians</a>
+            <a class="mini-link-pill" href="#advance-ledger">Advance Ledger</a>
+            <a class="mini-link-pill" href="#paper-entry">Maintenance Papers</a>
+        </div>
+    </article>
+
+    <section class="accounts-link-grid maintenance-summary-grid">
+        <article class="card accounts-link-card"><strong>{{ summary.double_shift_count }}</strong><span>Double Shift Fleet</span></article>
+        <article class="card accounts-link-card"><strong>{{ summary.partnership_count }}</strong><span>Partnership Vehicles</span></article>
+        <article class="card accounts-link-card"><strong>AED {{ "%.0f"|format(summary.open_advance_balance) }}</strong><span>Technician Balance</span></article>
+        <article class="card accounts-link-card"><strong>AED {{ "%.0f"|format(summary.month_tax) }}</strong><span>Month VAT</span></article>
+    </section>
+
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card" id="vehicle-master">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Own Fleet</span>
+                    <h2>Vehicle Master</h2>
+                </div>
+            </div>
+            <form method="post" class="desk-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="save_vehicle">
+                <input type="hidden" name="original_vehicle_id" value="{{ vehicle_values.original_vehicle_id }}">
+
+                <label><span>Vehicle ID</span><input type="text" name="vehicle_id" value="{{ vehicle_values.vehicle_id }}"></label>
+                <label><span>Vehicle No</span><input type="text" name="vehicle_no" value="{{ vehicle_values.vehicle_no }}" placeholder="Plate / fleet number"></label>
+                <label><span>Vehicle Type</span><input type="text" name="vehicle_type" value="{{ vehicle_values.vehicle_type }}" placeholder="Tanker / Trailer / Pickup"></label>
+                <label><span>Make / Model</span><input type="text" name="make_model" value="{{ vehicle_values.make_model }}"></label>
+                <label><span>Shift Mode</span><select name="shift_mode">{% for item in shift_mode_options %}<option value="{{ item }}" {% if vehicle_values.shift_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Ownership</span><select name="ownership_mode">{% for item in ownership_mode_options %}<option value="{{ item }}" {% if vehicle_values.ownership_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Partner Party</span><select name="partner_party_code"><option value="">Optional</option>{% for item in partner_parties %}<option value="{{ item.party_code }}" {% if vehicle_values.partner_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>{% endfor %}</select></label>
+                <label><span>Partner Name</span><input type="text" name="partner_name" value="{{ vehicle_values.partner_name }}" placeholder="If party not registered"></label>
+                <label><span>Company Share %</span><input type="number" step="0.01" name="company_share_percent" value="{{ vehicle_values.company_share_percent }}"></label>
+                <label><span>Partner Share %</span><input type="number" step="0.01" name="partner_share_percent" value="{{ vehicle_values.partner_share_percent }}"></label>
+                <label><span>Status</span><select name="status"><option value="Active" {% if vehicle_values.status == 'Active' %}selected{% endif %}>Active</option><option value="Inactive" {% if vehicle_values.status == 'Inactive' %}selected{% endif %}>Inactive</option></select></label>
+                <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ vehicle_values.notes }}</textarea></label>
+                <div class="form-actions left-actions full-span"><button class="button" type="submit">Save Vehicle</button></div>
+            </form>
+        </article>
+
+        <article class="card desk-panel-card" id="technicians">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Maintenance Team</span>
+                    <h2>Technicians</h2>
+                </div>
+            </div>
+            <form method="post" class="desk-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="save_staff">
+                <input type="hidden" name="original_staff_code" value="{{ staff_values.original_staff_code }}">
+                <label><span>Technician ID</span><input type="text" name="staff_code" value="{{ staff_values.staff_code }}"></label>
+                <label><span>Name</span><input type="text" name="staff_name" value="{{ staff_values.staff_name }}"></label>
+                <label><span>Phone</span><input type="text" name="phone_number" value="{{ staff_values.phone_number }}"></label>
+                <label><span>Status</span><select name="status"><option value="Active" {% if staff_values.status == 'Active' %}selected{% endif %}>Active</option><option value="Inactive" {% if staff_values.status == 'Inactive' %}selected{% endif %}>Inactive</option></select></label>
+                <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ staff_values.notes }}</textarea></label>
+                <div class="form-actions left-actions full-span"><button class="button" type="submit">Save Technician</button></div>
+            </form>
+        </article>
+    </section>
+
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card" id="advance-ledger">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Advance Ledger</span><h2>Issue Technician Advance</h2></div></div>
+            <form method="post" class="desk-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="save_advance">
+                <input type="hidden" name="original_advance_no" value="{{ advance_values.original_advance_no }}">
+                <label><span>Advance No</span><input type="text" name="advance_no" value="{{ advance_values.advance_no }}"></label>
+                <label><span>Technician</span><select name="staff_code"><option value="">Select</option>{% for item in staff_rows %}<option value="{{ item.staff_code }}" {% if advance_values.staff_code == item.staff_code %}selected{% endif %}>{{ item.staff_name }}</option>{% endfor %}</select></label>
+                <label><span>Date</span><input type="date" name="entry_date" value="{{ advance_values.entry_date }}"></label>
+                <label><span>Source</span><select name="funding_source">{% for item in advance_source_options %}<option value="{{ item }}" {% if advance_values.funding_source == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ advance_values.amount }}"></label>
+                <label><span>Reference</span><input type="text" name="reference" value="{{ advance_values.reference }}"></label>
+                <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ advance_values.notes }}</textarea></label>
+                <div class="form-actions left-actions full-span"><button class="button" type="submit">Save Advance</button></div>
+            </form>
+        </article>
+
+        <div class="desk-side-stack">
+            <article class="card desk-panel-card compact-side-card">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Workflow</span><h2>How It Runs</h2></div></div>
+                <div class="compact-step-list">
+                    <span>Register vehicle</span>
+                    <span>Issue technician advance</span>
+                    <span>Attach maintenance paper</span>
+                    <span>Split partnership cost</span>
+                </div>
+            </article>
+
+            <article class="card desk-panel-card compact-side-card">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Filters</span><h2>Current Scope</h2></div></div>
+                <div class="mini-ledger-list">
+                    <div class="mini-ledger-row"><strong>Month</strong><span>{{ filters.month or '-' }}</span></div>
+                    <div class="mini-ledger-row"><strong>Vehicle</strong><span>{{ filters.vehicle_id or 'All' }}</span></div>
+                    <div class="mini-ledger-row"><strong>Funding</strong><span>{{ filters.funding_source or 'All' }}</span></div>
+                    <div class="mini-ledger-row"><strong>Search</strong><span>{{ filters.search or '-' }}</span></div>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <article class="card desk-panel-card" id="paper-entry">
+        <div class="desk-panel-head"><div><span class="admin-desk-label">Maintenance Paper</span><h2>Paper Entry</h2></div></div>
+        <form method="post" enctype="multipart/form-data" class="desk-form-grid invoice-form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_paper">
+            <label><span>Paper No</span><input type="text" name="paper_no" value="{{ paper_values.paper_no }}"></label>
+            <label><span>Paper Date</span><input type="date" name="paper_date" value="{{ paper_values.paper_date }}"></label>
+            <label><span>Vehicle</span><select name="vehicle_id"><option value="">Select vehicle</option>{% for item in vehicle_rows %}<option value="{{ item.vehicle_id }}" {% if paper_values.vehicle_id == item.vehicle_id %}selected{% endif %}>{{ item.vehicle_no }} | {{ item.vehicle_type }} | {{ item.shift_mode }}</option>{% endfor %}</select></label>
+            <label><span>Workshop / Auto Shop</span><select name="workshop_party_code"><option value="">Optional</option>{% for item in workshop_parties %}<option value="{{ item.party_code }}" {% if paper_values.workshop_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>{% endfor %}</select></label>
+            <label><span>Technician</span><select name="staff_code"><option value="">Optional</option>{% for item in staff_rows %}<option value="{{ item.staff_code }}" {% if paper_values.staff_code == item.staff_code %}selected{% endif %}>{{ item.staff_name }}</option>{% endfor %}</select></label>
+            <label><span>Advance</span><select name="advance_no"><option value="">Optional</option>{% for item in advance_rows %}<option value="{{ item.advance_no }}" {% if paper_values.advance_no == item.advance_no %}selected{% endif %}>{{ item.advance_no }} | {{ item.staff_name }} | AED {{ "%.2f"|format(item.balance_amount) }}</option>{% endfor %}</select></label>
+            <label><span>Tax Mode</span><select name="tax_mode">{% for item in tax_mode_options %}<option value="{{ item }}" {% if paper_values.tax_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+            <label><span>Funding Source</span><select name="funding_source">{% for item in funding_source_options %}<option value="{{ item }}" {% if paper_values.funding_source == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+            <label><span>Supplier Bill No</span><input type="text" name="supplier_bill_no" value="{{ paper_values.supplier_bill_no }}"></label>
+            <label><span>Paid By</span><select name="paid_by">{% for item in paid_by_options %}<option value="{{ item }}" {% if paper_values.paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+            <label><span>VAT Amount</span><input type="number" step="0.01" name="tax_amount" value="{{ paper_values.tax_amount }}"></label>
+            <label><span>Attachment</span><input type="file" name="attachment" accept=".pdf,.png,.jpg,.jpeg,.webp"></label>
+            <label class="full-span"><span>Work Summary</span><input type="text" name="work_summary" value="{{ paper_values.work_summary }}" placeholder="Gearbox, welding, hose, tyre, pump, electrical work"></label>
+            <div class="full-span maintenance-line-editor">
+                <div class="maintenance-line-header"><span>Description</span><span>Qty</span><span>Rate</span><span>Amount</span></div>
+                {% for line in paper_line_rows %}
+                    <div class="maintenance-line-row">
+                        <input type="text" name="line_description_{{ line.line_no }}" value="{{ line.description }}" placeholder="Part / labour detail">
+                        <input type="number" step="0.01" name="line_quantity_{{ line.line_no }}" value="{{ line.quantity }}" placeholder="1">
+                        <input type="number" step="0.01" name="line_rate_{{ line.line_no }}" value="{{ line.rate }}" placeholder="0.00">
+                        <input type="number" step="0.01" name="line_amount_{{ line.line_no }}" value="{{ line.amount }}" placeholder="Auto" readonly>
+                    </div>
+                {% endfor %}
+            </div>
+            <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ paper_values.notes }}</textarea></label>
+            <div class="form-actions left-actions full-span"><button class="button" type="submit">Save Paper</button></div>
+        </form>
+    </article>
+
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Fleet</span><h2>Registered Vehicles</h2></div></div>
+            <section class="directory-card-grid">
+                {% for item in vehicle_rows %}
+                    <article class="card directory-card customer-directory-card">
+                        <div class="directory-card-head"><span class="vehicle-icon-chip" aria-hidden="true">V</span><span class="status-chip {{ item.status|lower }}">{{ item.status }}</span></div>
+                        <div class="directory-card-body">
+                            <h2>{{ item.vehicle_no }}</h2>
+                            <div class="directory-card-lines">
+                                <span class="directory-line"><strong>Type</strong><small>{{ item.vehicle_type }}</small></span>
+                                <span class="directory-line"><strong>Shift</strong><small>{{ item.shift_mode }}</small></span>
+                                <span class="directory-line"><strong>Mode</strong><small>{{ item.ownership_mode }}</small></span>
+                                {% if item.partner_name %}<span class="directory-line"><strong>Partner</strong><small>{{ item.partner_name }}</small></span>{% endif %}
+                            </div>
+                        </div>
+                    </article>
+                {% else %}
+                    <article class="card directory-empty"><h2>No Vehicles Yet</h2><p>Add company fleet first.</p></article>
+                {% endfor %}
+            </section>
+        </article>
+
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Technicians</span><h2>Maintenance Team Ledger</h2></div></div>
+            <section class="directory-card-grid">
+                {% for item in staff_rows %}
+                    <article class="card directory-card customer-directory-card">
+                        <div class="directory-card-head"><span class="vehicle-icon-chip" aria-hidden="true">T</span><span class="status-chip {{ item.status|lower }}">{{ item.status }}</span></div>
+                        <div class="directory-card-body">
+                            <h2>{{ item.staff_name }}</h2>
+                            <div class="directory-card-lines">
+                                <span class="directory-line"><strong>Phone</strong><small>{{ item.phone_number or '-' }}</small></span>
+                                <span class="directory-line"><strong>Given</strong><small>AED {{ "%.2f"|format(item.given_amount) }}</small></span>
+                                <span class="directory-line"><strong>Settled</strong><small>AED {{ "%.2f"|format(item.settled_amount) }}</small></span>
+                                <span class="directory-line"><strong>Balance</strong><small>AED {{ "%.2f"|format(item.balance_amount) }}</small></span>
+                            </div>
+                        </div>
+                    </article>
+                {% else %}
+                    <article class="card directory-empty"><h2>No Technicians Yet</h2><p>Register Amjad, Mansoor and team.</p></article>
+                {% endfor %}
+            </section>
+        </article>
+    </section>
+
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Advance Ledger</span><h2>Technician Balance</h2></div></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Advance</th><th>Technician</th><th>Date</th><th>Source</th><th>Given</th><th>Settled</th><th>Balance</th></tr></thead>
+                    <tbody>
+                        {% for item in advance_rows %}
+                            <tr>
+                                <td>{{ item.advance_no }}</td><td>{{ item.staff_name }}</td><td>{{ item.entry_date }}</td><td>{{ item.funding_source }}</td>
+                                <td>AED {{ "%.2f"|format(item.amount) }}</td><td>AED {{ "%.2f"|format(item.settled_amount) }}</td><td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="7">No technician advance rows yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="card desk-panel-card compact-side-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Workshop Payable</span><h2>Open Credit</h2></div></div>
+            <div class="mini-ledger-list">
+                {% for item in workshop_payables %}
+                    <div class="mini-ledger-row stacked-row"><strong>{{ item.party_name }}</strong><span>{{ item.paper_count }} paper(s)</span><span>AED {{ "%.2f"|format(item.balance_amount) }}</span></div>
+                {% else %}
+                    <p class="muted-text">No workshop credit open.</p>
+                {% endfor %}
+            </div>
+
+            <div class="desk-panel-head maintenance-subhead"><div><span class="admin-desk-label">Settlement</span><h2>Technician Net</h2></div></div>
+            <div class="mini-ledger-list">
+                {% for item in technician_ledgers %}
+                    <div class="mini-ledger-row stacked-row"><strong>{{ item.staff_name }}</strong><span>Given AED {{ "%.0f"|format(item.given_amount) }} / Settled AED {{ "%.0f"|format(item.settled_amount) }}</span><span>AED {{ "%.2f"|format(item.balance_amount) }}</span></div>
+                {% else %}
+                    <p class="muted-text">No technician balance yet.</p>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
+
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Papers</span><h2>Recent Maintenance Papers</h2></div></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Paper</th><th>Vehicle</th><th>Workshop</th><th>Funding</th><th>Total</th><th>Attachment</th></tr></thead>
+                    <tbody>
+                        {% for item in paper_rows %}
+                            <tr>
+                                <td><strong>{{ item.paper_no }}</strong><br><small>{{ item.paper_date }}</small></td>
+                                <td>{{ item.vehicle_no }}<br><small>{{ item.vehicle_type }} / {{ item.shift_mode }}</small></td>
+                                <td>{{ item.workshop_name }}<br><small>{{ item.staff_name }}</small></td>
+                                <td>{{ item.funding_source }}<br><small>{{ item.tax_mode }}</small></td>
+                                <td>AED {{ "%.2f"|format(item.total_amount) }}<br><small>{{ item.work_summary }}</small></td>
+                                <td>{% if item.attachment_path %}<a class="mini-link-pill" href="{{ url_for('generated_file', filename=item.attachment_path) }}">Open File</a>{% else %}<span class="muted-text">No file</span>{% endif %}</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="6">No maintenance papers found for current filter.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Statement</span><h2>Vehicle Maintenance Statement</h2></div></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Vehicle</th><th>Papers</th><th>Subtotal</th><th>VAT</th><th>Total</th><th>Company Paid</th><th>Partner Paid</th></tr></thead>
+                    <tbody>
+                        {% for item in vehicle_statement_rows %}
+                            <tr>
+                                <td><strong>{{ item.vehicle_no }}</strong><br><small>{{ item.vehicle_type }} / {{ item.shift_mode }}</small></td>
+                                <td>{{ item.paper_count }}</td>
+                                <td>AED {{ "%.2f"|format(item.subtotal) }}</td>
+                                <td>AED {{ "%.2f"|format(item.tax_amount) }}</td>
+                                <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                <td>AED {{ "%.2f"|format(item.company_paid_amount) }}</td>
+                                <td>AED {{ "%.2f"|format(item.partner_paid_amount) }}</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="7">No vehicle statement rows yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+
+    <article class="card desk-panel-card">
+        <div class="desk-panel-head"><div><span class="admin-desk-label">Partnership Result</span><h2>Month-End Split</h2></div></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Vehicle</th><th>Partner</th><th>Total</th><th>Company Share</th><th>Partner Share</th><th>Company Paid</th><th>Partner Paid</th><th>Net Position</th></tr></thead>
+                <tbody>
+                    {% for item in partnership_rows %}
+                        {% set company_delta = (item.company_paid_amount|float) - (item.company_share_amount|float) %}
+                        <tr>
+                            <td><strong>{{ item.vehicle_no }}</strong><br><small>{{ item.vehicle_type }}</small></td>
+                            <td>{{ item.partner_name }}</td>
+                            <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                            <td>AED {{ "%.2f"|format(item.company_share_amount) }}</td>
+                            <td>AED {{ "%.2f"|format(item.partner_share_amount) }}</td>
+                            <td>AED {{ "%.2f"|format(item.company_paid_amount) }}</td>
+                            <td>AED {{ "%.2f"|format(item.partner_paid_amount) }}</td>
+                            <td>{% if company_delta > 0 %}Company recover AED {{ "%.2f"|format(company_delta) }}{% elif company_delta < 0 %}Company owe AED {{ "%.2f"|format(company_delta * -1) }}{% else %}Settled{% endif %}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="8">No partnership maintenance rows yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+{% endblock %}

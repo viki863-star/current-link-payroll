@@ -4129,6 +4129,50 @@ html {
     overflow: auto;
 }
 
+.maintenance-filter-grid {
+    grid-template-columns: minmax(150px, 0.7fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(220px, 1.3fr) auto;
+}
+
+.maintenance-line-editor {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at top right, rgba(230, 135, 31, 0.08), transparent 28%),
+        linear-gradient(180deg, rgba(248, 251, 255, 0.99), rgba(238, 245, 255, 0.96));
+    border: 1px solid rgba(21, 51, 93, 0.10);
+    overflow-x: auto;
+}
+
+.maintenance-line-header,
+.maintenance-line-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2.8fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    min-width: 620px;
+}
+
+.maintenance-line-header {
+    padding: 0 4px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary-dark);
+}
+
+.maintenance-line-row input[readonly] {
+    background: rgba(21, 51, 93, 0.05);
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.maintenance-subhead {
+    margin-top: 18px;
+}
+
 .compact-check-grid {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }

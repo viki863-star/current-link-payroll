@@ -1,7 +1,9 @@
 import re
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 
+from pypdf import PdfReader
 from werkzeug.security import generate_password_hash
 
 from app.database import open_db
@@ -1732,5 +1734,315 @@ def test_invoice_center_generates_tax_invoice_pdf_with_line_items(app, client):
         assert float(invoice_row["total_amount"]) == 13650.0
         assert line_count == 2
         assert invoice_row["pdf_path"].startswith("invoices/")
-        assert (Path(app.config["GENERATED_DIR"]) / invoice_row["pdf_path"]).exists()
+        pdf_path = Path(app.config["GENERATED_DIR"]) / invoice_row["pdf_path"]
+        assert pdf_path.exists()
+
+    extracted_text = "\n".join(page.extract_text() or "" for page in PdfReader(str(pdf_path)).pages)
+    assert "Tax Invoice" in extracted_text
+    assert "SELLER" in extracted_text
+    assert "BILL TO" in extracted_text
+    assert "SUBTOTAL" in extracted_text
+    assert "VAT" in extracted_text
+    assert "TOTAL AMOUNT" in extracted_text
+    assert "INVOICE NO" not in extracted_text
+    assert "ISSUE DATE" not in extracted_text
+    assert "DUE DATE" not in extracted_text
+    assert "STATUS" not in extracted_text
+    assert "KIND" not in extracted_text
+    assert "AGREEMENT" not in extracted_text
+    assert "LPO" not in extracted_text
+    assert "HIRE" not in extracted_text
+    assert "PAID" not in extracted_text
+    assert "BALANCE" not in extracted_text
+
+
+def test_fleet_maintenance_tracks_advance_workshop_credit_and_partnership_split(app, client):
+    admin_session(client)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, address, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "PTY-WS-01",
+                "Zaraki Auto Shop",
+                "Company",
+                "Supplier",
+                "Workshop",
+                "0501000001",
+                "shop@example.com",
+                "",
+                "Mussafah",
+                "Active",
+            ),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, address, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "PTY-PART-02",
+                "Hussain Partnership",
+                "Company",
+                "Partner",
+                "Hussain",
+                "0502000002",
+                "partner@example.com",
+                "",
+                "Abu Dhabi",
+                "Active",
+            ),
+        )
+        db.commit()
+
+    vehicle_standard = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_vehicle",
+            "original_vehicle_id": "",
+            "vehicle_id": "VEH-0001",
+            "vehicle_no": "TNK-101",
+            "vehicle_type": "Water Tanker",
+            "make_model": "Hino 5000",
+            "status": "Active",
+            "shift_mode": "Single Shift",
+            "ownership_mode": "Standard",
+            "partner_party_code": "",
+            "partner_name": "",
+            "company_share_percent": "100",
+            "partner_share_percent": "0",
+            "notes": "Own tanker",
+        },
+        follow_redirects=True,
+    )
+    assert b"Vehicle saved successfully." in vehicle_standard.data
+
+    vehicle_partnership = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_vehicle",
+            "original_vehicle_id": "",
+            "vehicle_id": "VEH-0002",
+            "vehicle_no": "TRL-202",
+            "vehicle_type": "Trailer",
+            "make_model": "Partnership Trailer",
+            "status": "Active",
+            "shift_mode": "Double Shift",
+            "ownership_mode": "Partnership",
+            "partner_party_code": "PTY-PART-02",
+            "partner_name": "",
+            "company_share_percent": "50",
+            "partner_share_percent": "50",
+            "notes": "50/50 unit",
+        },
+        follow_redirects=True,
+    )
+    assert b"Vehicle saved successfully." in vehicle_partnership.data
+
+    technician = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_staff",
+            "original_staff_code": "",
+            "staff_code": "TEC-0001",
+            "staff_name": "Amjad",
+            "phone_number": "0505556667",
+            "status": "Active",
+            "notes": "Lead technician",
+        },
+        follow_redirects=True,
+    )
+    assert b"Technician saved successfully." in technician.data
+
+    advance = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_advance",
+            "original_advance_no": "",
+            "advance_no": "ADV-0001",
+            "staff_code": "TEC-0001",
+            "entry_date": "2026-04-01",
+            "funding_source": "Owner Fund",
+            "amount": "3000",
+            "reference": "Owner issue",
+            "notes": "April advance",
+        },
+        follow_redirects=True,
+    )
+    assert b"Technician advance saved successfully." in advance.data
+
+    paper_one = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_paper",
+            "paper_no": "MTP-0001",
+            "paper_date": "2026-04-15",
+            "vehicle_id": "VEH-0001",
+            "workshop_party_code": "",
+            "staff_code": "TEC-0001",
+            "advance_no": "ADV-0001",
+            "tax_mode": "Without Tax",
+            "supplier_bill_no": "BILL-001",
+            "work_summary": "Oil seal and labour",
+            "funding_source": "Technician Advance",
+            "paid_by": "Company",
+            "tax_amount": "0",
+            "notes": "Settled from Amjad advance",
+            "line_description_1": "Oil seal replacement",
+            "line_quantity_1": "1",
+            "line_rate_1": "500",
+            "line_amount_1": "",
+            "line_description_2": "",
+            "line_quantity_2": "",
+            "line_rate_2": "",
+            "line_amount_2": "",
+            "line_description_3": "",
+            "line_quantity_3": "",
+            "line_rate_3": "",
+            "line_amount_3": "",
+            "line_description_4": "",
+            "line_quantity_4": "",
+            "line_rate_4": "",
+            "line_amount_4": "",
+            "attachment": (BytesIO(b"paper-one"), "paper-one.pdf"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert b"Maintenance paper saved successfully." in paper_one.data
+
+    paper_two = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_paper",
+            "paper_no": "MTP-0002",
+            "paper_date": "2026-04-20",
+            "vehicle_id": "VEH-0002",
+            "workshop_party_code": "PTY-WS-01",
+            "staff_code": "",
+            "advance_no": "",
+            "tax_mode": "Tax Invoice",
+            "supplier_bill_no": "VAT-2002",
+            "work_summary": "Brake and welding paper",
+            "funding_source": "Workshop Credit",
+            "paid_by": "Partner",
+            "tax_amount": "50",
+            "notes": "Workshop monthly bill",
+            "line_description_1": "Brake overhaul and welding",
+            "line_quantity_1": "1",
+            "line_rate_1": "1000",
+            "line_amount_1": "",
+            "line_description_2": "",
+            "line_quantity_2": "",
+            "line_rate_2": "",
+            "line_amount_2": "",
+            "line_description_3": "",
+            "line_quantity_3": "",
+            "line_rate_3": "",
+            "line_amount_3": "",
+            "line_description_4": "",
+            "line_quantity_4": "",
+            "line_rate_4": "",
+            "line_amount_4": "",
+            "attachment": (BytesIO(b"paper-two"), "paper-two.jpg"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert b"Maintenance paper saved successfully." in paper_two.data
+
+    filtered = client.get("/fleet-maintenance?month=2026-04&search=Brake", follow_redirects=True)
+    assert filtered.status_code == 200
+    assert b"Vehicle Master" in filtered.data
+    assert b"Brake and welding paper" in filtered.data
+    assert b"Zaraki Auto Shop" in filtered.data
+
+    with app.app_context():
+        db = open_db()
+        assert db.execute("SELECT COUNT(*) FROM vehicle_master").fetchone()[0] == 2
+        assert db.execute("SELECT COUNT(*) FROM maintenance_staff").fetchone()[0] == 1
+        assert db.execute("SELECT COUNT(*) FROM maintenance_paper_lines WHERE paper_no = ?", ("MTP-0001",)).fetchone()[0] == 1
+        assert db.execute("SELECT COUNT(*) FROM maintenance_paper_lines WHERE paper_no = ?", ("MTP-0002",)).fetchone()[0] == 1
+
+        advance_row = db.execute(
+            """
+            SELECT amount, settled_amount, balance_amount
+            FROM maintenance_staff_advances
+            WHERE advance_no = ?
+            """,
+            ("ADV-0001",),
+        ).fetchone()
+        first_paper = db.execute(
+            """
+            SELECT total_amount, company_share_amount, partner_share_amount, company_paid_amount, partner_paid_amount, attachment_path
+            FROM maintenance_papers
+            WHERE paper_no = ?
+            """,
+            ("MTP-0001",),
+        ).fetchone()
+        second_paper = db.execute(
+            """
+            SELECT total_amount, tax_amount, company_share_amount, partner_share_amount, company_paid_amount, partner_paid_amount
+            FROM maintenance_papers
+            WHERE paper_no = ?
+            """,
+            ("MTP-0002",),
+        ).fetchone()
+        technician_settlement = db.execute(
+            """
+            SELECT settlement_type, amount, status
+            FROM maintenance_settlements
+            WHERE paper_no = ?
+            """,
+            ("MTP-0001",),
+        ).fetchone()
+        workshop_settlement = db.execute(
+            """
+            SELECT settlement_type, party_code, amount, status
+            FROM maintenance_settlements
+            WHERE paper_no = ?
+            """,
+            ("MTP-0002",),
+        ).fetchone()
+
+        assert advance_row is not None
+        assert float(advance_row["amount"]) == 3000.0
+        assert float(advance_row["settled_amount"]) == 500.0
+        assert float(advance_row["balance_amount"]) == 2500.0
+
+        assert first_paper is not None
+        assert float(first_paper["total_amount"]) == 500.0
+        assert float(first_paper["company_share_amount"]) == 500.0
+        assert float(first_paper["partner_share_amount"]) == 0.0
+        assert float(first_paper["company_paid_amount"]) == 500.0
+        assert float(first_paper["partner_paid_amount"]) == 0.0
+        assert first_paper["attachment_path"].startswith("maintenance/mtp-0001/")
+        assert (Path(app.config["GENERATED_DIR"]) / first_paper["attachment_path"]).exists()
+
+        assert second_paper is not None
+        assert float(second_paper["total_amount"]) == 1050.0
+        assert float(second_paper["tax_amount"]) == 50.0
+        assert float(second_paper["company_share_amount"]) == 525.0
+        assert float(second_paper["partner_share_amount"]) == 525.0
+        assert float(second_paper["company_paid_amount"]) == 0.0
+        assert float(second_paper["partner_paid_amount"]) == 0.0
+
+        assert technician_settlement is not None
+        assert technician_settlement["settlement_type"] == "Technician Advance"
+        assert float(technician_settlement["amount"]) == 500.0
+        assert technician_settlement["status"] == "Settled"
+
+        assert workshop_settlement is not None
+        assert workshop_settlement["settlement_type"] == "Workshop Credit"
+        assert workshop_settlement["party_code"] == "PTY-WS-01"
+        assert float(workshop_settlement["amount"]) == 1050.0
+        assert workshop_settlement["status"] == "Open"
 
