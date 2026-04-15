@@ -588,14 +588,26 @@ def test_owner_fund_filters_scope_statement_and_pdf_link(app, client):
             """,
             ("DRV-T1", "2026-04-14", "Advance", "Owner Fund", "Office", 1200.0, "50000 allocation"),
         )
+        db.execute(
+            """
+            INSERT INTO salary_slips (driver_id, salary_store_id, salary_month, generated_at, total_deductions, net_payable, remaining_advance, payment_source, paid_by, pdf_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("DRV-T1", 0, "2026-04", "2026-04-15 10:30:00", 0.0, 3000.0, 0.0, "Owner Fund", "Waqar", ""),
+        )
         db.commit()
 
     response = client.get("/owner-fund?month=2026-04&movement=Outgoing&search=50000")
 
     assert response.status_code == 200
     assert b"View Used" in response.data
-    assert b"Driver Txn / DRV-T1" in response.data
+    assert b"Driver Txn / Test Driver" in response.data
     assert b"month=2026-04&amp;movement=Outgoing&amp;search=50000" in response.data
+
+    driver_name_response = client.get("/owner-fund?month=2026-04&movement=Outgoing&search=Test")
+    assert driver_name_response.status_code == 200
+    assert b"Driver Txn / Test Driver" in driver_name_response.data
+    assert b"Salary Slip / Test Driver" in driver_name_response.data
 
 
 def test_party_master_create_auto_code_and_keep_driver_data_safe(app, client):

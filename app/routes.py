@@ -6448,16 +6448,19 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         )
     for entry in db.execute(
         """
-        SELECT entry_date, driver_id, given_by, amount, details
+        SELECT driver_transactions.entry_date, driver_transactions.driver_id, driver_transactions.given_by,
+               driver_transactions.amount, driver_transactions.details, drivers.full_name
         FROM driver_transactions
+        LEFT JOIN drivers ON drivers.driver_id = driver_transactions.driver_id
         WHERE source = 'Owner Fund'
-        ORDER BY entry_date ASC, id ASC
+        ORDER BY driver_transactions.entry_date ASC, driver_transactions.id ASC
         """
     ).fetchall():
+        driver_name = entry["full_name"] or entry["driver_id"]
         rows.append(
             {
                 "entry_date": entry["entry_date"],
-                "reference": f"Driver Txn / {entry['driver_id']}",
+                "reference": f"Driver Txn / {driver_name}",
                 "party": entry["given_by"] or "-",
                 "details": entry["details"] or "-",
                 "incoming": 0.0,
@@ -6467,16 +6470,19 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         )
     for entry in db.execute(
         """
-        SELECT generated_at, driver_id, paid_by, net_payable, salary_month
+        SELECT salary_slips.generated_at, salary_slips.driver_id, salary_slips.paid_by,
+               salary_slips.net_payable, salary_slips.salary_month, drivers.full_name
         FROM salary_slips
+        LEFT JOIN drivers ON drivers.driver_id = salary_slips.driver_id
         WHERE payment_source = 'Owner Fund'
-        ORDER BY generated_at ASC, id ASC
+        ORDER BY salary_slips.generated_at ASC, salary_slips.id ASC
         """
     ).fetchall():
+        driver_name = entry["full_name"] or entry["driver_id"]
         rows.append(
             {
                 "entry_date": _date_only_value(entry["generated_at"]),
-                "reference": f"Salary Slip / {entry['driver_id']}",
+                "reference": f"Salary Slip / {driver_name}",
                 "party": entry["paid_by"] or "-",
                 "details": f"Salary {entry['salary_month']}",
                 "incoming": 0.0,
