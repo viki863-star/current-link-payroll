@@ -59,6 +59,7 @@ PAYMENT_KIND_OPTIONS = ["Received", "Paid"]
 PAYMENT_METHOD_OPTIONS = ["Bank", "Cash", "Owner Fund", "Cheque", "Transfer", "Other"]
 LOAN_TYPE_OPTIONS = ["Given", "Recovered"]
 FEE_TYPE_OPTIONS = ["Visa", "Vehicle"]
+OWNER_FUND_MOVEMENT_OPTIONS = ["All", "Incoming", "Outgoing"]
 SUPPLIER_RATE_BASIS_OPTIONS = ["Hours", "Days", "Trips", "Monthly", "Fixed"]
 SUPPLIER_VOUCHER_STATUS_OPTIONS = ["Open", "Partially Paid", "Paid"]
 SUPPLIER_SHIFT_MODE_OPTIONS = ["Single Shift", "Double Shift"]
@@ -2061,6 +2062,7 @@ def register_routes(app: Flask) -> None:
             _touch_admin_workspace("accounts")
         db = open_db()
         can_edit = _current_role() == "admin"
+        filters = _owner_fund_filter_values(request)
         edit_entry_id = request.args.get("edit", "").strip()
         values = {
             "entry_id": "",
@@ -2167,6 +2169,8 @@ def register_routes(app: Flask) -> None:
                     return redirect(url_for("owner_fund"))
 
         incoming, outgoing, balance = _owner_fund_totals(db)
+        view_rows = _owner_fund_statement(db, reverse=False, filters=filters)
+        view_incoming, view_outgoing, view_net, view_closing = _owner_fund_view_totals(view_rows)
         entries = db.execute(
             """
             SELECT id, owner_name, entry_date, amount, received_by, payment_method, details
@@ -2175,8 +2179,14 @@ def register_routes(app: Flask) -> None:
             LIMIT 20
             """
         ).fetchall()
-        statement = _owner_fund_statement(db)
+        statement = list(reversed(view_rows))
         pdf_files = _recent_generated_files(Path(app.config["GENERATED_DIR"]) / "owner_fund", "owner-fund-kata")
+        pdf_url = url_for(
+            "owner_fund_pdf",
+            month=filters["month"],
+            movement=filters["movement"],
+            search=filters["search"],
+        )
 
         return render_template(
             "owner_fund.html",
@@ -2184,10 +2194,17 @@ def register_routes(app: Flask) -> None:
             incoming=incoming,
             outgoing=outgoing,
             balance=balance,
+            view_incoming=view_incoming,
+            view_outgoing=view_outgoing,
+            view_net=view_net,
+            view_closing=view_closing,
             entries=entries,
             statement=statement,
             can_edit=can_edit,
             pdf_files=pdf_files,
+            filters=filters,
+            movement_options=OWNER_FUND_MOVEMENT_OPTIONS,
+            pdf_url=pdf_url,
         )
 
     @app.post("/owner-fund/<int:entry_id>/delete")
@@ -2222,13 +2239,24 @@ def register_routes(app: Flask) -> None:
     def owner_fund_pdf():
         db = open_db()
         incoming, outgoing, balance = _owner_fund_totals(db)
-        statement = _owner_fund_statement(db, reverse=False)
+        filters = _owner_fund_filter_values(request)
+        statement = _owner_fund_statement(db, reverse=False, filters=filters)
+        view_incoming, view_outgoing, view_net, view_closing = _owner_fund_view_totals(statement)
         output_dir = Path(app.config["GENERATED_DIR"]) / "owner_fund"
         pdf_path = generate_owner_fund_pdf(
             statement,
-            {"incoming": incoming, "outgoing": outgoing, "balance": balance},
+            {
+                "incoming": view_incoming,
+                "outgoing": view_outgoing,
+                "balance": view_net,
+                "closing_balance": view_closing if statement else balance,
+                "overall_balance": balance,
+                "overall_incoming": incoming,
+                "overall_outgoing": outgoing,
+            },
             str(output_dir),
             app.config["STATIC_ASSETS_DIR"],
+            filters=filters,
         )
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
@@ -6377,7 +6405,28 @@ def _owner_fund_totals(db):
     return incoming, outgoing, incoming - outgoing
 
 
-def _owner_fund_statement(db, reverse: bool = True):
+def _owner_fund_filter_values(request):
+    month_value = request.args.get("month", "").strip() or request.form.get("month", "").strip()
+    filters = {
+        "month": _normalize_month(month_value) if month_value else "",
+        "movement": request.args.get("movement", "").strip() or request.form.get("movement", "").strip() or OWNER_FUND_MOVEMENT_OPTIONS[0],
+        "search": request.args.get("search", "").strip() or request.form.get("search", "").strip(),
+    }
+    if filters["movement"] not in OWNER_FUND_MOVEMENT_OPTIONS:
+        filters["movement"] = OWNER_FUND_MOVEMENT_OPTIONS[0]
+    return filters
+
+
+def _owner_fund_view_totals(rows):
+    incoming = sum(float(row["incoming"]) for row in rows)
+    outgoing = sum(float(row["outgoing"]) for row in rows)
+    net = incoming - outgoing
+    closing_balance = float(rows[-1]["balance"]) if rows else 0.0
+    return incoming, outgoing, net, closing_balance
+
+
+def _owner_fund_statement(db, reverse: bool = True, filters=None):
+    filters = filters or {"month": "", "movement": OWNER_FUND_MOVEMENT_OPTIONS[0], "search": ""}
     rows = []
     for entry in db.execute(
         """
@@ -6394,6 +6443,7 @@ def _owner_fund_statement(db, reverse: bool = True):
                 "details": entry["details"] or "-",
                 "incoming": float(entry["amount"]),
                 "outgoing": 0.0,
+                "movement": "Incoming",
             }
         )
     for entry in db.execute(
@@ -6412,6 +6462,7 @@ def _owner_fund_statement(db, reverse: bool = True):
                 "details": entry["details"] or "-",
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"]),
+                "movement": "Outgoing",
             }
         )
     for entry in db.execute(
@@ -6430,16 +6481,43 @@ def _owner_fund_statement(db, reverse: bool = True):
                 "details": f"Salary {entry['salary_month']}",
                 "incoming": 0.0,
                 "outgoing": float(entry["net_payable"]),
+                "movement": "Outgoing",
             }
         )
-    rows.sort(key=lambda item: item["entry_date"])
+    rows.sort(key=lambda item: (item["entry_date"], item["movement"], item["reference"]))
     balance = 0.0
     for row in rows:
         balance += row["incoming"] - row["outgoing"]
         row["balance"] = balance
+
+    filtered_rows = []
+    search_text = (filters.get("search") or "").strip().lower()
+    month_filter = filters.get("month") or ""
+    movement_filter = filters.get("movement") or OWNER_FUND_MOVEMENT_OPTIONS[0]
+
+    for row in rows:
+        if month_filter and str(row["entry_date"])[:7] != month_filter:
+            continue
+        if movement_filter != OWNER_FUND_MOVEMENT_OPTIONS[0] and row["movement"] != movement_filter:
+            continue
+        if search_text:
+            haystack = " ".join(
+                [
+                    str(row["reference"]),
+                    str(row["party"]),
+                    str(row["details"]),
+                    f"{float(row['incoming']):.2f}",
+                    f"{float(row['outgoing']):.2f}",
+                    f"{float(row['balance']):.2f}",
+                ]
+            ).lower()
+            if search_text not in haystack:
+                continue
+        filtered_rows.append(row)
+
     if reverse:
-        rows.reverse()
-    return rows[:60] if reverse else rows
+        filtered_rows.reverse()
+    return filtered_rows[:60] if reverse else filtered_rows
 
 
 def _current_month_value() -> str:

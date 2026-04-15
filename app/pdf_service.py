@@ -121,48 +121,153 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
     return str(output_path)
 
 
-def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir: str) -> str:
+def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir: str, filters=None) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = Path(output_dir) / f"owner-fund-kata_{timestamp}.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_header(pdf, assets_dir)
-    _draw_title(pdf, "Owner Fund Kata", "Incoming owner funds, outgoing usage and running balance")
+    filters = filters or {}
 
-    pdf.setFillColor(SOFT)
-    pdf.roundRect(16 * mm, PAGE_HEIGHT - 104 * mm, 178 * mm, 18 * mm, 4 * mm, fill=1, stroke=0)
-    pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(22 * mm, PAGE_HEIGHT - 94 * mm, f"Incoming: AED {format_currency(float(totals['incoming']))}")
-    pdf.drawString(84 * mm, PAGE_HEIGHT - 94 * mm, f"Used: AED {format_currency(float(totals['outgoing']))}")
-    pdf.drawString(138 * mm, PAGE_HEIGHT - 94 * mm, f"Balance: AED {format_currency(float(totals['balance']))}")
+    table_left = 16 * mm
+    table_width = 178 * mm
+    table_top = PAGE_HEIGHT - 122 * mm
+    row_height = 6.1 * mm
+    bottom_limit = 42 * mm
+    rows_per_page = max(1, int((table_top - bottom_limit - (8 * mm)) // row_height))
 
-    top = PAGE_HEIGHT - 118 * mm
-    _draw_table_header(
-        pdf,
-        top,
-        ["Date", "Reference", "Details", "Incoming", "Outgoing", "Balance"],
-        [18, 42, 96, 146, 170, 190],
-    )
+    def _active_filter_text():
+        parts = []
+        if filters.get("month"):
+            parts.append(f"Month {format_month_label(filters['month'])}")
+        if filters.get("movement") and filters["movement"] != "All":
+            parts.append(filters["movement"])
+        if filters.get("search"):
+            parts.append(f"Search {filters['search']}")
+        return " | ".join(parts)
 
-    y = top - 7 * mm
-    pdf.setFont("Helvetica", 8.2)
-    for row in statement_rows[:24]:
-        pdf.setFillColor(TEXT)
-        pdf.drawString(18 * mm, y, format_date_label(row["entry_date"]))
-        pdf.drawString(42 * mm, y, str(row["reference"])[:24])
-        details = f"{row['party']} | {row['details']}" if row["party"] else str(row["details"])
-        pdf.drawString(96 * mm, y, details[:28])
-        pdf.drawRightString(163 * mm, y, format_currency(float(row["incoming"])))
-        pdf.drawRightString(184 * mm, y, format_currency(float(row["outgoing"])))
-        pdf.drawRightString(193 * mm, y, format_currency(float(row["balance"])))
-        y -= 6.3 * mm
-        if y < 44 * mm:
-            break
+    filter_text = _active_filter_text()
+    table_rows = list(statement_rows) if statement_rows else [
+        {
+            "entry_date": "-",
+            "movement": "-",
+            "reference": "No matching rows",
+            "party": "-",
+            "details": "No owner fund movement matched the current filter.",
+            "incoming": 0.0,
+            "outgoing": 0.0,
+            "balance": float(totals.get("closing_balance", totals.get("balance", 0.0))),
+        }
+    ]
+    pages = [table_rows[index : index + rows_per_page] for index in range(0, len(table_rows), rows_per_page)] or [table_rows]
+    total_pages = len(pages)
 
-    _draw_footer_banner(pdf, assets_dir)
-    pdf.showPage()
+    def _draw_filter_bar():
+        if not filter_text:
+            return
+        bar_x = 16 * mm
+        bar_y = PAGE_HEIGHT - 78 * mm
+        bar_w = 178 * mm
+        bar_h = 8.6 * mm
+        pdf.setFillColor(BLUE_SOFT)
+        pdf.roundRect(bar_x, bar_y, bar_w, bar_h, 3 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(bar_x, bar_y, bar_w, bar_h, 3 * mm, fill=0, stroke=1)
+        pdf.setFillColor(BLUE_DARK)
+        text, size = _fit_text(pdf, f"Filtered View: {filter_text}", "Helvetica-Bold", 7.4, bar_w - 8 * mm, min_size=6.2)
+        pdf.setFont("Helvetica-Bold", size)
+        pdf.drawString(bar_x + 4 * mm, bar_y + 2.7 * mm, text)
+
+    def _draw_summary(page_number: int):
+        stat_y = PAGE_HEIGHT - 104 * mm
+        _draw_stat_box(pdf, 16 * mm, stat_y, 41 * mm, 14 * mm, "VIEW IN", f"AED {format_currency(float(totals['incoming']))}")
+        _draw_stat_box(pdf, 61 * mm, stat_y, 41 * mm, 14 * mm, "VIEW OUT", f"AED {format_currency(float(totals['outgoing']))}", fill_color=SOFT)
+        _draw_stat_box(pdf, 106 * mm, stat_y, 41 * mm, 14 * mm, "VIEW NET", f"AED {format_currency(float(totals['balance']))}", fill_color=SOFT)
+        _draw_stat_box(
+            pdf,
+            151 * mm,
+            stat_y,
+            43 * mm,
+            14 * mm,
+            "CLOSING",
+            f"AED {format_currency(float(totals.get('closing_balance', totals['balance'])))}",
+            fill_color=colors.HexColor("#FFF4E8"),
+            text_color=ORANGE,
+            border_color=ORANGE,
+        )
+
+        overall_incoming = totals.get("overall_incoming")
+        overall_outgoing = totals.get("overall_outgoing")
+        overall_balance = totals.get("overall_balance")
+        if overall_incoming is not None and overall_outgoing is not None and overall_balance is not None:
+            note = (
+                f"Overall In AED {format_currency(float(overall_incoming))}   "
+                f"Out AED {format_currency(float(overall_outgoing))}   "
+                f"Balance AED {format_currency(float(overall_balance))}"
+            )
+        else:
+            note = "Running balance follows the filtered owner fund view."
+        note_text, note_size = _fit_text(pdf, note, "Helvetica", 7.0, 150 * mm, min_size=6.0)
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", note_size)
+        pdf.drawString(16 * mm, PAGE_HEIGHT - 113 * mm, note_text)
+        pdf.drawRightString(194 * mm, PAGE_HEIGHT - 113 * mm, f"Page {page_number} / {total_pages}")
+
+    def _draw_table(page_rows, page_number: int):
+        _draw_header(pdf, assets_dir)
+        _draw_title(pdf, "Owner Fund Kata", "Incoming owner funds, outgoing usage and running balance")
+        _draw_filter_bar()
+        _draw_summary(page_number)
+        _draw_table_header(
+            pdf,
+            table_top,
+            ["Date", "Type", "Reference", "Details", "In", "Out", "Balance"],
+            [18, 36, 53, 91, 146, 165, 182],
+        )
+
+        y = table_top - 6.4 * mm
+        for index, row in enumerate(page_rows):
+            if index % 2 == 0:
+                pdf.setFillColor(SOFT)
+                pdf.roundRect(table_left, y - 2.2 * mm, table_width, 5.7 * mm, 1.8 * mm, fill=1, stroke=0)
+
+            pdf.setFillColor(TEXT)
+            pdf.setFont("Helvetica", 7.2)
+            pdf.drawString(18 * mm, y, format_date_label(row["entry_date"]))
+
+            movement_text, movement_size = _fit_text(pdf, row.get("movement") or "-", "Helvetica-Bold", 7.1, 15 * mm, min_size=6.2)
+            pdf.setFont("Helvetica-Bold", movement_size)
+            pdf.drawString(36 * mm, y, movement_text)
+
+            ref_text, ref_size = _fit_text(pdf, str(row["reference"]), "Helvetica-Bold", 7.0, 34 * mm, min_size=6.0)
+            pdf.setFont("Helvetica-Bold", ref_size)
+            pdf.drawString(53 * mm, y, ref_text)
+
+            details_value = str(row["details"] or "-")
+            if row.get("party") and row["party"] != "-":
+                details_value = f"{row['party']} | {details_value}"
+            detail_text, detail_size = _fit_text(pdf, details_value, "Helvetica", 6.8, 52 * mm, min_size=5.8)
+            pdf.setFont("Helvetica", detail_size)
+            pdf.drawString(91 * mm, y, detail_text)
+
+            pdf.setFont("Helvetica-Bold", 7.2)
+            pdf.drawRightString(160 * mm, y, format_currency(float(row["incoming"])))
+            pdf.drawRightString(177 * mm, y, format_currency(float(row["outgoing"])))
+            pdf.drawRightString(194 * mm, y, format_currency(float(row["balance"])))
+            y -= row_height
+
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 7.0)
+        footer_text = "Amounts are shown in AED. Large statements continue automatically to the next page."
+        footer_line, footer_size = _fit_text(pdf, footer_text, "Helvetica", 7.0, 120 * mm, min_size=6.0)
+        pdf.setFont("Helvetica", footer_size)
+        pdf.drawString(16 * mm, 33 * mm, footer_line)
+        _draw_footer_banner(pdf, assets_dir)
+        pdf.showPage()
+
+    for page_number, page_rows in enumerate(pages, start=1):
+        _draw_table(page_rows, page_number)
+
     pdf.save()
     return str(output_path)
 

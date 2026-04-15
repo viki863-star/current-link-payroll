@@ -3,17 +3,53 @@
 {% block content %}
 <section class="stats compact-stats">
     <article class="card stat-card">
-        <span>Incoming</span>
-        <strong>AED {{ "%.2f"|format(incoming) }}</strong>
+        <span>View Incoming</span>
+        <strong>AED {{ "%.2f"|format(view_incoming) }}</strong>
     </article>
     <article class="card stat-card">
-        <span>Used</span>
-        <strong>AED {{ "%.2f"|format(outgoing) }}</strong>
+        <span>View Used</span>
+        <strong>AED {{ "%.2f"|format(view_outgoing) }}</strong>
     </article>
     <article class="card stat-card">
-        <span>Balance</span>
-        <strong>AED {{ "%.2f"|format(balance) }}</strong>
+        <span>View Net</span>
+        <strong>AED {{ "%.2f"|format(view_net) }}</strong>
     </article>
+    <article class="card stat-card">
+        <span>Closing Balance</span>
+        <strong>AED {{ "%.2f"|format(view_closing if statement else balance) }}</strong>
+    </article>
+</section>
+
+<section class="card search-panel">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Report Filter</p>
+            <h2>Owner Fund View</h2>
+        </div>
+        <a class="button button-secondary inline-button" href="{{ pdf_url }}">Download PDF</a>
+    </div>
+    <form method="get" class="entry-form two-column-form">
+        <label>
+            <span>Month</span>
+            <input type="month" name="month" value="{{ filters.month }}">
+        </label>
+        <label>
+            <span>Movement</span>
+            <select name="movement">
+                {% for item in movement_options %}
+                    <option value="{{ item }}" {% if filters.movement == item %}selected{% endif %}>{{ item }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="full-span">
+            <span>Search</span>
+            <input type="search" name="search" value="{{ filters.search }}" placeholder="Owner, driver, details, amount">
+        </label>
+        <div class="form-actions left-actions">
+            <button class="button" type="submit">Apply Filter</button>
+            <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Clear</a>
+        </div>
+    </form>
 </section>
 
 <section class="detail-layout owner-fund-layout">
@@ -66,7 +102,7 @@
         {% else %}
             <div class="panel-note">Owner login read-only hai. Yahan se aap owner fund statement aur PDF dekh sakte hain.</div>
             <div class="form-actions left-actions">
-                <a class="button" href="{{ url_for('owner_fund_pdf') }}">Open Owner Fund PDF</a>
+                <a class="button" href="{{ pdf_url }}">Open Owner Fund PDF</a>
             </div>
         {% endif %}
     </article>
@@ -122,12 +158,12 @@
 </section>
 
 <section class="card table-card">
-    <div class="section-heading slim-heading">
-        <div>
-            <p class="eyebrow">PDF Files</p>
-            <h2>Owner Fund Reports</h2>
-        </div>
-        <a class="button button-secondary inline-button" href="{{ url_for('owner_fund_pdf') }}">Generate PDF</a>
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">PDF Files</p>
+                <h2>Owner Fund Reports</h2>
+            </div>
+        <a class="button button-secondary inline-button" href="{{ pdf_url }}">Generate PDF</a>
     </div>
     {% if pdf_files %}
         <ul class="result-list">
@@ -156,6 +192,7 @@
                 <thead>
                     <tr>
                         <th>Date</th>
+                        <th>Type</th>
                         <th>Reference</th>
                         <th>Party</th>
                         <th>Details</th>
@@ -168,6 +205,7 @@
                     {% for item in statement %}
                         <tr>
                             <td>{{ item.entry_date }}</td>
+                            <td>{{ item.movement }}</td>
                             <td>{{ item.reference }}</td>
                             <td>{{ item.party }}</td>
                             <td>{{ item.details }}</td>

@@ -1,10 +1,11 @@
+import re
 from datetime import datetime
 from pathlib import Path
 
 from werkzeug.security import generate_password_hash
 
 from app.database import open_db
-from app.pdf_service import generate_kata_pdf
+from app.pdf_service import generate_kata_pdf, generate_owner_fund_pdf
 
 
 def admin_session(client):
@@ -433,6 +434,48 @@ def test_kata_pdf_accepts_postgres_datetime_generated_at(app, tmp_path):
     assert Path(output_path).exists()
 
 
+def test_owner_fund_pdf_supports_filtered_multi_page_output(app, tmp_path):
+    rows = []
+    running_balance = 0.0
+    for index in range(1, 43):
+        incoming = 50000.0 if index == 1 else (2500.0 if index % 9 == 0 else 0.0)
+        outgoing = 3100.0 if index % 3 == 0 else 650.0
+        running_balance += incoming - outgoing
+        rows.append(
+            {
+                "entry_date": f"2026-04-{((index - 1) % 28) + 1:02d}",
+                "movement": "Incoming" if incoming else "Outgoing",
+                "reference": f"Owner Flow / REF-{index:03d}",
+                "party": "Waqar" if index % 2 else "Driver Desk",
+                "details": f"Owner fund movement row {index} with 50000 tracking details",
+                "incoming": incoming,
+                "outgoing": outgoing,
+                "balance": running_balance,
+            }
+        )
+
+    output_path = generate_owner_fund_pdf(
+        rows,
+        {
+            "incoming": sum(float(row["incoming"]) for row in rows),
+            "outgoing": sum(float(row["outgoing"]) for row in rows),
+            "balance": sum(float(row["incoming"]) for row in rows) - sum(float(row["outgoing"]) for row in rows),
+            "closing_balance": running_balance,
+            "overall_balance": running_balance,
+            "overall_incoming": sum(float(row["incoming"]) for row in rows),
+            "overall_outgoing": sum(float(row["outgoing"]) for row in rows),
+        },
+        str(tmp_path),
+        str(Path(app.root_path).parent / "app" / "static"),
+        filters={"month": "2026-04", "movement": "Outgoing", "search": "50000"},
+    )
+
+    pdf_file = Path(output_path)
+    assert pdf_file.exists()
+    raw_bytes = pdf_file.read_bytes()
+    assert len(re.findall(rb"/Type /Page\b", raw_bytes)) >= 2
+
+
 def test_delete_driver_removes_related_records(app, client):
     create_driver_record(app)
     admin_session(client)
@@ -516,6 +559,43 @@ def test_owner_fund_can_edit_and_delete(app, client):
     with app.app_context():
         db = open_db()
         assert db.execute("SELECT COUNT(*) FROM owner_fund_entries WHERE id = ?", (entry_id,)).fetchone()[0] == 0
+
+
+def test_owner_fund_filters_scope_statement_and_pdf_link(app, client):
+    admin_session(client)
+    create_driver_record(app)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, details)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            ("Nasrullah", "2026-04-12", 50000.0, "Waqar", "Cash", "capital"),
+        )
+        db.execute(
+            """
+            INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, details)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            ("Nasrullah", "2026-05-03", 9000.0, "Waqar", "Cash", "future capital"),
+        )
+        db.execute(
+            """
+            INSERT INTO driver_transactions (driver_id, entry_date, txn_type, source, given_by, amount, details)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("DRV-T1", "2026-04-14", "Advance", "Owner Fund", "Office", 1200.0, "50000 allocation"),
+        )
+        db.commit()
+
+    response = client.get("/owner-fund?month=2026-04&movement=Outgoing&search=50000")
+
+    assert response.status_code == 200
+    assert b"View Used" in response.data
+    assert b"Driver Txn / DRV-T1" in response.data
+    assert b"month=2026-04&amp;movement=Outgoing&amp;search=50000" in response.data
 
 
 def test_party_master_create_auto_code_and_keep_driver_data_safe(app, client):
