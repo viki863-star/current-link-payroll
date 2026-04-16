@@ -10,7 +10,7 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest', v='20260415a') }}">
     <link rel="icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260416b') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260416c') }}">
 </head>
 <body class="{% block body_class %}{% endblock %} {% if is_admin and current_admin_workspace %}workspace-{{ current_admin_workspace }}{% endif %}">
     <div class="brand-shell">
@@ -68,6 +68,12 @@
                         <nav class="actions-row tight-actions hero-nav">
                             <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
                             <a class="button button-secondary" href="{{ url_for('driver_portal') }}">My Portal</a>
+                            <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
+                        </nav>
+                    {% elif is_supplier %}
+                        <nav class="actions-row tight-actions hero-nav">
+                            <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
+                            <a class="button button-secondary" href="{{ url_for('supplier_portal') }}">My Portal</a>
                             <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
                         </nav>
                     {% endif %}

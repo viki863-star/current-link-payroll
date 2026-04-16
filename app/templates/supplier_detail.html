@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
 <section class="admin-desk-shell supplier-detail-shell">
@@ -10,7 +10,7 @@
                 {% if supplier_mode == "Partnership" %}
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='partnership', partnership_month=partnership_month) }}">Partnership</a>
                 {% else %}
-                    <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Billing</a>
+                    <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Invoice Intake</a>
                 {% endif %}
             </div>
             <div class="admin-mini-stats">
@@ -173,129 +173,344 @@
                 </div>
             </article>
         </section>
-    {% elif active_screen == "billing" %}
-        <section class="compact-content-grid">
-            <article class="card desk-panel-card">
-                <div class="desk-panel-head"><div><span class="admin-desk-label">Screen 4</span><h2>{% if voucher_values.original_voucher_no %}Edit Voucher{% else %}Billing Voucher{% endif %}</h2></div></div>
-                <form method="post" class="desk-form-grid">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="save_voucher">
-                    <input type="hidden" name="original_voucher_no" value="{{ voucher_values.original_voucher_no }}">
-                    <label><span>Voucher No</span><input type="text" name="voucher_no" value="{{ voucher_values.voucher_no }}" {% if voucher_values.original_voucher_no %}readonly{% endif %}></label>
-                    <label><span>Period Month</span><input type="month" name="period_month" value="{{ voucher_values.period_month }}" required></label>
-                    <label><span>Voucher Date</span><input type="date" name="issue_date" value="{{ voucher_values.issue_date }}" required></label>
-                    <label><span>Tax %</span><input type="number" step="0.01" name="tax_percent" value="{{ voucher_values.tax_percent }}"></label>
-                    <label><span>Status</span><select name="status">{% for item in voucher_status_options %}<option value="{{ item }}" {% if voucher_values.status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-                    <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ voucher_values.notes }}</textarea></label>
-                    <div class="form-actions left-actions full-span">
-                        <button class="button success-button" type="submit">{% if voucher_values.original_voucher_no %}Update Voucher{% else %}Create Voucher{% endif %}</button>
-                        {% if voucher_values.original_voucher_no %}
-                            <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Cancel</a>
-                        {% endif %}
-                    </div>
-                </form>
-            </article>
+        {% elif active_screen == "billing" %}
+        {% if supplier_mode == "Normal" %}
+            <section class="compact-content-grid">
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Screen 4</span><h2>By Hand Invoice Entry</h2></div></div>
+                    <form method="post" enctype="multipart/form-data" class="desk-form-grid">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="save_submission">
+                        <input type="hidden" name="submission_no" value="{{ submission_values.submission_no }}">
+                        <label><span>Submission No</span><input type="text" value="{{ submission_values.submission_no }}" readonly></label>
+                        <label><span>Invoice No</span><input type="text" name="external_invoice_no" value="{{ submission_values.external_invoice_no }}" required></label>
+                        <label><span>Invoice Date</span><input type="date" name="invoice_date" value="{{ submission_values.invoice_date }}" required></label>
+                        <label><span>Period Month</span><input type="month" name="period_month" value="{{ submission_values.period_month }}" required></label>
+                        <label><span>Subtotal</span><input type="number" step="0.01" name="subtotal" value="{{ submission_values.subtotal }}" required></label>
+                        <label><span>VAT Amount</span><input type="number" step="0.01" name="vat_amount" value="{{ submission_values.vat_amount or '0.00' }}" required></label>
+                        <label><span>Total Amount</span><input type="number" step="0.01" name="total_amount" value="{{ submission_values.total_amount }}" required></label>
+                        <label><span>Invoice Attachment</span><input type="file" name="invoice_attachment" accept=".pdf,.png,.jpg,.jpeg,.webp"></label>
+                        <label><span>Timesheet Attachment</span><input type="file" name="timesheet_attachment" accept=".pdf,.png,.jpg,.jpeg,.webp"></label>
+                        <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ submission_values.notes }}</textarea></label>
+                        <div class="form-actions left-actions full-span">
+                            <button class="button success-button" type="submit">Save By Hand</button>
+                            {% if portal_account and portal_account.portal_enabled %}
+                                <span class="muted-text">Portal invited: {{ portal_account.login_email }}</span>
+                            {% endif %}
+                        </div>
+                    </form>
+                </article>
 
-            <article class="card desk-panel-card">
-                <div class="desk-panel-head"><div><span class="admin-desk-label">Payment</span><h2>{% if payment_values.original_payment_no %}Edit Payment{% else %}Make Payment{% endif %}</h2></div></div>
-                <form method="post" class="desk-form-grid">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="save_payment">
-                    <input type="hidden" name="original_payment_no" value="{{ payment_values.original_payment_no }}">
-                    <label><span>Payment No</span><input type="text" name="payment_no" value="{{ payment_values.payment_no }}" {% if payment_values.original_payment_no %}readonly{% endif %}></label>
-                    <label><span>Voucher</span><select name="voucher_no" required><option value="">Select supplier voucher</option>{% for item in vouchers %}<option value="{{ item.voucher_no }}" {% if payment_values.voucher_no == item.voucher_no %}selected{% endif %}>{{ item.voucher_no }} / {{ item.period_month }} / AED {{ "%.2f"|format(item.balance_amount) }}</option>{% endfor %}</select></label>
-                    <label><span>Payment Date</span><input type="date" name="entry_date" value="{{ payment_values.entry_date }}" required></label>
-                    <label><span>Method</span><select name="payment_method">{% for item in payment_method_options %}<option value="{{ item }}" {% if payment_values.payment_method == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-                    <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ payment_values.amount }}" required></label>
-                    <label><span>Reference</span><input type="text" name="reference" value="{{ payment_values.reference }}"></label>
-                    <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ payment_values.notes }}</textarea></label>
-                    <div class="form-actions left-actions full-span">
-                        <button class="button success-button" type="submit">{% if payment_values.original_payment_no %}Update Payment{% else %}Save Payment{% endif %}</button>
-                        {% if payment_values.original_payment_no %}
-                            <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Cancel</a>
-                        {% endif %}
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Portal Queue</span><h2>Pending Supplier Submissions</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Invoice</th><th>Date</th><th>Total</th><th>Files</th><th>Action</th></tr></thead>
+                            <tbody>
+                                {% set pending = namespace(found=false) %}
+                                {% for item in submissions %}
+                                    {% if item.display_status == "Pending" %}
+                                        {% set pending.found = true %}
+                                        <tr>
+                                            <td>{{ item.external_invoice_no }}<div class="muted-text">{{ item.submission_no }} / {{ item.source_channel }}</div></td>
+                                            <td>{{ item.invoice_date }}</td>
+                                            <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                            <td>
+                                                {% if item.invoice_attachment_path %}<a class="mini-action-link" href="{{ url_for('generated_file', filename=item.invoice_attachment_path) }}">Invoice</a>{% endif %}
+                                                {% if item.timesheet_attachment_path %}<a class="mini-action-link" href="{{ url_for('generated_file', filename=item.timesheet_attachment_path) }}">Timesheet</a>{% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="table-actions">
+                                                    <form method="post">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <input type="hidden" name="action" value="approve_submission">
+                                                        <input type="hidden" name="submission_no" value="{{ item.submission_no }}">
+                                                        <button class="mini-action-button" type="submit">Approve</button>
+                                                    </form>
+                                                    <form method="post">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <input type="hidden" name="action" value="reject_submission">
+                                                        <input type="hidden" name="submission_no" value="{{ item.submission_no }}">
+                                                        <button class="mini-action-button" type="submit">Reject</button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if not pending.found %}
+                                    <tr><td colspan="5">No pending portal submissions.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
                     </div>
-                </form>
-            </article>
-        </section>
-        <section class="compact-content-grid">
-            <article class="card desk-panel-card">
-                <div class="desk-panel-head"><div><span class="admin-desk-label">Payables</span><h2>Supplier Vouchers</h2></div></div>
-                <div class="table-wrap">
-                    <table>
-                        <thead><tr><th>Voucher</th><th>Month</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
-                        <tbody>
-                            {% for item in vouchers %}
-                                <tr>
-                                    <td>{{ item.voucher_no }}<div class="muted-text">{{ item.issue_date }}</div></td>
-                                    <td>{{ item.period_month }}</td>
-                                    <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
-                                    <td>AED {{ "%.2f"|format(item.paid_amount) }}</td>
-                                    <td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
-                                    <td>{{ item.status }}</td>
-                                    <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_voucher=item.voucher_no, partnership_month=partnership_month) }}">Edit</a><form method="post" action="{{ url_for('delete_supplier_voucher', voucher_no=item.voucher_no) }}" onsubmit="return confirm('Delete this voucher? Linked timesheets will reopen.');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
-                                </tr>
-                            {% else %}
-                                <tr><td colspan="7">No supplier vouchers created yet.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </article>
+                </article>
+            </section>
 
-            <article class="card desk-panel-card">
-                <div class="desk-panel-head"><div><span class="admin-desk-label">Payments</span><h2>Payment Register</h2></div></div>
-                <div class="table-wrap">
-                    <table>
-                        <thead><tr><th>Payment</th><th>Voucher</th><th>Amount</th><th>Method</th><th>Reference</th><th>Actions</th></tr></thead>
-                        <tbody>
-                            {% for item in payments %}
-                                <tr>
-                                    <td>{{ item.payment_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
-                                    <td>{{ item.voucher_no }}<div class="muted-text">{{ item.period_month or '-' }}</div></td>
-                                    <td>AED {{ "%.2f"|format(item.amount) }}</td>
-                                    <td>{{ item.payment_method }}</td>
-                                    <td>{{ item.reference or '-' }}</td>
-                                    <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_payment=item.payment_no, partnership_month=partnership_month) }}">Edit</a><a class="mini-action-link" href="{{ url_for('supplier_payment_voucher', payment_no=item.payment_no) }}">Voucher PDF</a><form method="post" action="{{ url_for('delete_supplier_payment', payment_no=item.payment_no) }}" onsubmit="return confirm('Delete this supplier payment?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
-                                </tr>
-                            {% else %}
-                                <tr><td colspan="6">No supplier payments posted yet.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </article>
-        </section>
+            <section class="compact-content-grid">
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Ready</span><h2>Approved / Ready For Voucher</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Invoice</th><th>Date</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
+                            <tbody>
+                                {% set ready = namespace(found=false) %}
+                                {% for item in submissions %}
+                                    {% if item.display_status in ["Approved", "Converted", "Partially Paid", "Paid"] %}
+                                        {% set ready.found = true %}
+                                        <tr>
+                                            <td>{{ item.external_invoice_no }}<div class="muted-text">{{ item.submission_no }} / {{ item.source_channel }}</div></td>
+                                            <td>{{ item.invoice_date }}</td>
+                                            <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                            <td>{{ item.display_status }}</td>
+                                            <td>
+                                                <div class="table-actions">
+                                                    {% if item.display_status == "Approved" %}
+                                                        <form method="post">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                            <input type="hidden" name="action" value="convert_submission">
+                                                            <input type="hidden" name="submission_no" value="{{ item.submission_no }}">
+                                                            <button class="mini-action-button" type="submit">Convert</button>
+                                                        </form>
+                                                    {% elif item.linked_voucher_no %}
+                                                        <a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_voucher=item.linked_voucher_no, partnership_month=partnership_month) }}">Voucher</a>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if not ready.found %}
+                                    <tr><td colspan="5">No approved supplier invoices yet.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payment</span><h2>{% if payment_values.original_payment_no %}Edit Payment{% else %}Make Payment{% endif %}</h2></div></div>
+                    <form method="post" class="desk-form-grid">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="save_payment">
+                        <input type="hidden" name="original_payment_no" value="{{ payment_values.original_payment_no }}">
+                        <label><span>Payment No</span><input type="text" name="payment_no" value="{{ payment_values.payment_no }}" {% if payment_values.original_payment_no %}readonly{% endif %}></label>
+                        <label><span>Voucher</span><select name="voucher_no" required><option value="">Select supplier voucher</option>{% for item in vouchers %}<option value="{{ item.voucher_no }}" {% if payment_values.voucher_no == item.voucher_no %}selected{% endif %}>{{ item.voucher_no }} / {{ item.period_month }} / AED {{ "%.2f"|format(item.balance_amount) }}</option>{% endfor %}</select></label>
+                        <label><span>Payment Date</span><input type="date" name="entry_date" value="{{ payment_values.entry_date }}" required></label>
+                        <label><span>Method</span><select name="payment_method">{% for item in payment_method_options %}<option value="{{ item }}" {% if payment_values.payment_method == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                        <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ payment_values.amount }}" required></label>
+                        <label><span>Reference</span><input type="text" name="reference" value="{{ payment_values.reference }}"></label>
+                        <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ payment_values.notes }}</textarea></label>
+                        <div class="form-actions left-actions full-span">
+                            <button class="button success-button" type="submit">{% if payment_values.original_payment_no %}Update Payment{% else %}Save Payment{% endif %}</button>
+                            {% if payment_values.original_payment_no %}
+                                <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Cancel</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </article>
+            </section>
+
+            <section class="compact-content-grid">
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payables</span><h2>Supplier Vouchers</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Voucher</th><th>Source</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                {% for item in vouchers %}
+                                    <tr>
+                                        <td>{{ item.voucher_no }}<div class="muted-text">{{ item.issue_date }}</div></td>
+                                        <td>{{ item.source_type or 'Timesheet' }}<div class="muted-text">{{ item.source_reference or item.period_month }}</div></td>
+                                        <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                        <td>AED {{ "%.2f"|format(item.paid_amount) }}</td>
+                                        <td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
+                                        <td>{{ item.status }}</td>
+                                        <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_voucher=item.voucher_no, partnership_month=partnership_month) }}">Edit</a><form method="post" action="{{ url_for('delete_supplier_voucher', voucher_no=item.voucher_no) }}" onsubmit="return confirm('Delete this voucher?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                    </tr>
+                                {% else %}
+                                    <tr><td colspan="7">No supplier vouchers created yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payments</span><h2>Payment Register</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Payment</th><th>Voucher</th><th>Amount</th><th>Method</th><th>Reference</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                {% for item in payments %}
+                                    <tr>
+                                        <td>{{ item.payment_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
+                                        <td>{{ item.voucher_no }}<div class="muted-text">{{ item.period_month or '-' }}</div></td>
+                                        <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                                        <td>{{ item.payment_method }}</td>
+                                        <td>{{ item.reference or '-' }}</td>
+                                        <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_payment=item.payment_no, partnership_month=partnership_month) }}">Edit</a><a class="mini-action-link" href="{{ url_for('supplier_payment_voucher', payment_no=item.payment_no) }}">Voucher PDF</a><form method="post" action="{{ url_for('delete_supplier_payment', payment_no=item.payment_no) }}" onsubmit="return confirm('Delete this supplier payment?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                    </tr>
+                                {% else %}
+                                    <tr><td colspan="6">No supplier payments posted yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+        {% else %}
+            <section class="compact-content-grid">
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Screen 4</span><h2>{% if voucher_values.original_voucher_no %}Edit Voucher{% else %}Billing Voucher{% endif %}</h2></div></div>
+                    <form method="post" class="desk-form-grid">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="save_voucher">
+                        <input type="hidden" name="original_voucher_no" value="{{ voucher_values.original_voucher_no }}">
+                        <label><span>Voucher No</span><input type="text" name="voucher_no" value="{{ voucher_values.voucher_no }}" {% if voucher_values.original_voucher_no %}readonly{% endif %}></label>
+                        <label><span>Period Month</span><input type="month" name="period_month" value="{{ voucher_values.period_month }}" required></label>
+                        <label><span>Voucher Date</span><input type="date" name="issue_date" value="{{ voucher_values.issue_date }}" required></label>
+                        <label><span>Tax %</span><input type="number" step="0.01" name="tax_percent" value="{{ voucher_values.tax_percent }}"></label>
+                        <label><span>Status</span><select name="status">{% for item in voucher_status_options %}<option value="{{ item }}" {% if voucher_values.status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                        <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ voucher_values.notes }}</textarea></label>
+                        <div class="form-actions left-actions full-span">
+                            <button class="button success-button" type="submit">{% if voucher_values.original_voucher_no %}Update Voucher{% else %}Create Voucher{% endif %}</button>
+                            {% if voucher_values.original_voucher_no %}
+                                <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Cancel</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </article>
+
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payment</span><h2>{% if payment_values.original_payment_no %}Edit Payment{% else %}Make Payment{% endif %}</h2></div></div>
+                    <form method="post" class="desk-form-grid">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="save_payment">
+                        <input type="hidden" name="original_payment_no" value="{{ payment_values.original_payment_no }}">
+                        <label><span>Payment No</span><input type="text" name="payment_no" value="{{ payment_values.payment_no }}" {% if payment_values.original_payment_no %}readonly{% endif %}></label>
+                        <label><span>Voucher</span><select name="voucher_no" required><option value="">Select supplier voucher</option>{% for item in vouchers %}<option value="{{ item.voucher_no }}" {% if payment_values.voucher_no == item.voucher_no %}selected{% endif %}>{{ item.voucher_no }} / {{ item.period_month }} / AED {{ "%.2f"|format(item.balance_amount) }}</option>{% endfor %}</select></label>
+                        <label><span>Payment Date</span><input type="date" name="entry_date" value="{{ payment_values.entry_date }}" required></label>
+                        <label><span>Method</span><select name="payment_method">{% for item in payment_method_options %}<option value="{{ item }}" {% if payment_values.payment_method == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                        <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ payment_values.amount }}" required></label>
+                        <label><span>Reference</span><input type="text" name="reference" value="{{ payment_values.reference }}"></label>
+                        <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ payment_values.notes }}</textarea></label>
+                        <div class="form-actions left-actions full-span">
+                            <button class="button success-button" type="submit">{% if payment_values.original_payment_no %}Update Payment{% else %}Save Payment{% endif %}</button>
+                            {% if payment_values.original_payment_no %}
+                                <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Cancel</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </article>
+            </section>
+            <section class="compact-content-grid">
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payables</span><h2>Supplier Vouchers</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Voucher</th><th>Month</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                {% for item in vouchers %}
+                                    <tr>
+                                        <td>{{ item.voucher_no }}<div class="muted-text">{{ item.issue_date }}</div></td>
+                                        <td>{{ item.period_month }}</td>
+                                        <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                        <td>AED {{ "%.2f"|format(item.paid_amount) }}</td>
+                                        <td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
+                                        <td>{{ item.status }}</td>
+                                        <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_voucher=item.voucher_no, partnership_month=partnership_month) }}">Edit</a><form method="post" action="{{ url_for('delete_supplier_voucher', voucher_no=item.voucher_no) }}" onsubmit="return confirm('Delete this voucher? Linked timesheets will reopen.');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                    </tr>
+                                {% else %}
+                                    <tr><td colspan="7">No supplier vouchers created yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payments</span><h2>Payment Register</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Payment</th><th>Voucher</th><th>Amount</th><th>Method</th><th>Reference</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                {% for item in payments %}
+                                    <tr>
+                                        <td>{{ item.payment_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
+                                        <td>{{ item.voucher_no }}<div class="muted-text">{{ item.period_month or '-' }}</div></td>
+                                        <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                                        <td>{{ item.payment_method }}</td>
+                                        <td>{{ item.reference or '-' }}</td>
+                                        <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_payment=item.payment_no, partnership_month=partnership_month) }}">Edit</a><a class="mini-action-link" href="{{ url_for('supplier_payment_voucher', payment_no=item.payment_no) }}">Voucher PDF</a><form method="post" action="{{ url_for('delete_supplier_payment', payment_no=item.payment_no) }}" onsubmit="return confirm('Delete this supplier payment?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                    </tr>
+                                {% else %}
+                                    <tr><td colspan="6">No supplier payments posted yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+        {% endif %}
     {% elif active_screen == "statement" %}
         <article class="card desk-panel-card">
             <div class="desk-panel-head"><div><span class="admin-desk-label">Screen 5</span><h2>Statement of Account</h2></div></div>
-            <div class="supplier-overview-grid">
-                <div class="directory-line"><strong>Work Logged</strong><small>AED {{ "%.2f"|format(statement_summary.work_logged) }}</small></div>
-                <div class="directory-line"><strong>Voucher Total</strong><small>AED {{ "%.2f"|format(statement_summary.total_vouchers) }}</small></div>
-                <div class="directory-line"><strong>Total Paid</strong><small>AED {{ "%.2f"|format(statement_summary.total_paid) }}</small></div>
-                <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(statement_summary.outstanding) }}</small></div>
-            </div>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>Date</th><th>Reference</th><th>Type</th><th>Details</th><th>Work</th><th>Voucher</th><th>Payment</th><th>Running Balance</th></tr></thead>
-                    <tbody>
-                        {% for item in statement_rows %}
-                            <tr>
-                                <td>{{ item.entry_date }}</td>
-                                <td>{{ item.reference }}</td>
-                                <td>{{ item.entry_type }}</td>
-                                <td>{{ item.details }}</td>
-                                <td>{% if item.work_amount %}AED {{ "%.2f"|format(item.work_amount) }}{% else %}-{% endif %}</td>
-                                <td>{% if item.voucher_amount %}AED {{ "%.2f"|format(item.voucher_amount) }}{% else %}-{% endif %}</td>
-                                <td>{% if item.payment_amount %}AED {{ "%.2f"|format(item.payment_amount) }}{% else %}-{% endif %}</td>
-                                <td>AED {{ "%.2f"|format(item.running_balance) }}</td>
-                            </tr>
-                        {% else %}
-                            <tr><td colspan="8">No ledger rows yet.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            {% if supplier_mode == "Normal" %}
+                <div class="supplier-overview-grid">
+                    <div class="directory-line"><strong>Total Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.total_submitted) }}</small></div>
+                    <div class="directory-line"><strong>Total Paid</strong><small>AED {{ "%.2f"|format(statement_summary.total_paid) }}</small></div>
+                    <div class="directory-line"><strong>Approved Outstanding</strong><small>AED {{ "%.2f"|format(statement_summary.approved_outstanding) }}</small></div>
+                    <div class="directory-line"><strong>Pending Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.pending_submitted) }}</small></div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Invoice Date</th><th>Invoice No</th><th>Total Amount</th><th>Paid Amount</th><th>Balance Amount</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for item in statement_rows %}
+                                <tr>
+                                    <td>{{ item.invoice_date }}</td>
+                                    <td>{{ item.external_invoice_no }}<div class="muted-text">{{ item.submission_no }}</div></td>
+                                    <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                    <td>AED {{ "%.2f"|format(item.paid_amount_display) }}</td>
+                                    <td>AED {{ "%.2f"|format(item.balance_amount_display) }}</td>
+                                    <td>{{ item.display_status }}</td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="6">No statement rows yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="supplier-overview-grid">
+                    <div class="directory-line"><strong>Work Logged</strong><small>AED {{ "%.2f"|format(statement_summary.work_logged) }}</small></div>
+                    <div class="directory-line"><strong>Voucher Total</strong><small>AED {{ "%.2f"|format(statement_summary.total_vouchers) }}</small></div>
+                    <div class="directory-line"><strong>Total Paid</strong><small>AED {{ "%.2f"|format(statement_summary.total_paid) }}</small></div>
+                    <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(statement_summary.outstanding) }}</small></div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Date</th><th>Reference</th><th>Type</th><th>Details</th><th>Work</th><th>Voucher</th><th>Payment</th><th>Running Balance</th></tr></thead>
+                        <tbody>
+                            {% for item in statement_rows %}
+                                <tr>
+                                    <td>{{ item.entry_date }}</td>
+                                    <td>{{ item.reference }}</td>
+                                    <td>{{ item.entry_type }}</td>
+                                    <td>{{ item.details }}</td>
+                                    <td>{% if item.work_amount %}AED {{ "%.2f"|format(item.work_amount) }}{% else %}-{% endif %}</td>
+                                    <td>{% if item.voucher_amount %}AED {{ "%.2f"|format(item.voucher_amount) }}{% else %}-{% endif %}</td>
+                                    <td>{% if item.payment_amount %}AED {{ "%.2f"|format(item.payment_amount) }}{% else %}-{% endif %}</td>
+                                    <td>AED {{ "%.2f"|format(item.running_balance) }}</td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="8">No ledger rows yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
         </article>
     {% elif supplier_mode == "Partnership" and active_screen == "partnership" %}
         <section class="compact-content-grid">
@@ -392,3 +607,4 @@
     {% endif %}
 </section>
 {% endblock %}
+

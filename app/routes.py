@@ -143,6 +143,8 @@ def register_routes(app: Flask) -> None:
             "is_admin": current_role == "admin",
             "is_driver": current_role == "driver",
             "is_owner": current_role == "owner",
+            "is_supplier": current_role == "supplier",
+            "current_supplier_party_code": session.get("supplier_party_code", ""),
             "current_admin_workspace": current_workspace,
             "current_workspace_meta": _current_workspace_meta(),
             "admin_workspace_links": _admin_workspace_links() if current_role == "admin" else [],
@@ -253,6 +255,189 @@ def register_routes(app: Flask) -> None:
         session.clear()
         flash("You have been signed out.", "success")
         return redirect(url_for("login"))
+
+    @app.route("/supplier-activate", methods=["GET", "POST"])
+    def supplier_activate():
+        if _current_role():
+            return redirect(url_for(_role_home_endpoint()))
+
+        values = {
+            "supplier_code": "",
+            "login_email": "",
+        }
+        if request.method == "POST":
+            values = {
+                "supplier_code": request.form.get("supplier_code", "").strip().upper(),
+                "login_email": request.form.get("login_email", "").strip(),
+            }
+            password = request.form.get("password", "").strip()
+            confirm_password = request.form.get("confirm_password", "").strip()
+            db = open_db()
+            try:
+                account, party = _supplier_activation_target(db, values["supplier_code"], values["login_email"])
+                if not password:
+                    raise ValidationError("New password is required.")
+                if len(password) < 6:
+                    raise ValidationError("Password must be at least 6 characters.")
+                if password != confirm_password:
+                    raise ValidationError("Password confirmation does not match.")
+                db.execute(
+                    """
+                    UPDATE supplier_portal_accounts
+                    SET password_hash = ?, activation_status = 'Active', updated_at = CURRENT_TIMESTAMP
+                    WHERE party_code = ?
+                    """,
+                    (generate_password_hash(password), account["party_code"]),
+                )
+                _audit_log(
+                    db,
+                    "supplier_portal_activated",
+                    entity_type="supplier_portal",
+                    entity_id=account["party_code"],
+                    details=party["party_name"],
+                )
+                db.commit()
+                flash("Supplier portal activated. You can sign in now.", "success")
+                return redirect(url_for("supplier_login"))
+            except ValidationError as exc:
+                flash(str(exc), "error")
+
+        return render_template("supplier_activate.html", values=values)
+
+    @app.route("/supplier-login", methods=["GET", "POST"])
+    def supplier_login():
+        if _current_role():
+            return redirect(url_for(_role_home_endpoint()))
+
+        values = {"supplier_code": ""}
+        if request.method == "POST":
+            values["supplier_code"] = request.form.get("supplier_code", "").strip().upper()
+            password = request.form.get("password", "").strip()
+            db = open_db()
+            identifier = _auth_identifier("supplier", supplier_code=values["supplier_code"])
+            lock_info = _get_login_lock(db, "supplier", identifier)
+            if lock_info["locked"]:
+                flash(lock_info["message"], "error")
+                _audit_log(
+                    db,
+                    "login_blocked",
+                    entity_type="auth",
+                    entity_id=values["supplier_code"] or "supplier",
+                    status="blocked",
+                    details=lock_info["message"],
+                )
+                db.commit()
+                return render_template("supplier_login.html", values=values)
+
+            try:
+                account, party = _supplier_login_target(db, values["supplier_code"])
+                if not password:
+                    raise ValidationError("Supplier password is required.")
+                if not account["password_hash"]:
+                    raise ValidationError("Supplier access is not activated yet.")
+                if not check_password_hash(account["password_hash"], password):
+                    raise ValidationError("Supplier password is not correct.")
+                db.execute(
+                    """
+                    UPDATE supplier_portal_accounts
+                    SET last_login_at = CURRENT_TIMESTAMP
+                    WHERE party_code = ?
+                    """,
+                    (account["party_code"],),
+                )
+                _clear_failed_login(db, "supplier", identifier)
+                _audit_log(
+                    db,
+                    "login_success",
+                    entity_type="auth",
+                    entity_id=account["party_code"],
+                    details=f"Supplier login / {party['party_name']}",
+                )
+                db.commit()
+                _set_session("supplier", supplier_party_code=account["party_code"], display_name=party["party_name"])
+                flash(f"Welcome {party['party_name']}.", "success")
+                return redirect(url_for("supplier_portal"))
+            except ValidationError as exc:
+                _record_failed_login(db, "supplier", identifier)
+                _audit_log(
+                    db,
+                    "login_failed",
+                    entity_type="auth",
+                    entity_id=values["supplier_code"] or "supplier",
+                    status="failed",
+                    details=str(exc),
+                )
+                db.commit()
+                flash(_latest_login_error(db, "supplier", identifier, str(exc)), "error")
+
+        return render_template("supplier_login.html", values=values)
+
+    @app.route("/portal/supplier", methods=["GET", "POST"])
+    @_login_required("supplier")
+    def supplier_portal():
+        db = open_db()
+        party_code = _current_supplier_party_code()
+        party = _fetch_supplier_party(db, party_code)
+        if party is None or _supplier_mode_for_party(db, party_code) != "Normal" or (party["party_kind"] or "") != "Company":
+            session.clear()
+            flash("Supplier portal access is no longer available for this account.", "error")
+            return redirect(url_for("supplier_login"))
+
+        portal_account = _supplier_portal_account_row(db, party_code)
+        if portal_account is None or not int(portal_account["portal_enabled"] or 0):
+            session.clear()
+            flash("Supplier portal is disabled for this account.", "error")
+            return redirect(url_for("supplier_login"))
+
+        submission_values = _default_supplier_submission_form(db, party_code, source_channel="Portal")
+        if request.method == "POST":
+            action = request.form.get("action", "").strip()
+            if action == "submit_invoice":
+                submission_values = _supplier_submission_form_data(request, party_code, source_channel="Portal")
+                try:
+                    payload = _prepare_supplier_submission_payload(
+                        db,
+                        submission_values,
+                        source_channel="Portal",
+                        created_by_role="supplier",
+                        created_by_name=party["party_name"],
+                        invoice_file=request.files.get("invoice_attachment"),
+                        timesheet_file=request.files.get("timesheet_attachment"),
+                    )
+                    db.execute(
+                        """
+                        INSERT INTO supplier_invoice_submissions (
+                            submission_no, party_code, source_channel, external_invoice_no, period_month,
+                            invoice_date, subtotal, vat_amount, total_amount, invoice_attachment_path,
+                            timesheet_attachment_path, notes, review_status, review_note, reviewed_by,
+                            reviewed_at, linked_voucher_no, created_by_role, created_by_name
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        payload,
+                    )
+                    _audit_log(
+                        db,
+                        "supplier_submission_created",
+                        entity_type="supplier_submission",
+                        entity_id=submission_values["submission_no"],
+                        details=f"Portal / {party_code} / {submission_values['external_invoice_no']}",
+                    )
+                    db.commit()
+                    flash("Invoice submitted successfully. It is now waiting for review.", "success")
+                    return redirect(url_for("supplier_portal"))
+                except ValidationError as exc:
+                    flash(str(exc), "error")
+
+        statement_rows, statement_summary = _supplier_statement_data(db, party_code, supplier_mode="Normal")
+        return render_template(
+            "supplier_portal.html",
+            party=party,
+            portal_account=portal_account,
+            submission_values=submission_values,
+            submissions=_supplier_submission_rows(db, party_code, limit=20),
+            statement_rows=statement_rows,
+            statement_summary=statement_summary,
+        )
 
     @app.get("/services")
     def services():
@@ -801,7 +986,11 @@ def register_routes(app: Flask) -> None:
         if edit_party_code:
             existing_party = _fetch_party(db, edit_party_code)
             if existing_party is not None and "Supplier" in _deserialize_party_roles(existing_party["party_roles"] or ""):
-                values = _supplier_form_from_party(existing_party, _supplier_profile_row(db, edit_party_code))
+                values = _supplier_form_from_party(
+                    existing_party,
+                    _supplier_profile_row(db, edit_party_code),
+                    _supplier_portal_account_row(db, edit_party_code),
+                )
 
         if request.method == "POST":
             values = _supplier_form_data(request, supplier_mode)
@@ -819,6 +1008,7 @@ def register_routes(app: Flask) -> None:
                         payload[1:] + (values["original_party_code"],),
                     )
                     _upsert_supplier_profile(db, payload[0], values)
+                    _upsert_supplier_portal_account(db, payload[0], values)
                     _audit_log(
                         db,
                         "supplier_updated",
@@ -838,6 +1028,7 @@ def register_routes(app: Flask) -> None:
                         payload,
                     )
                     _upsert_supplier_profile(db, payload[0], values)
+                    _upsert_supplier_portal_account(db, payload[0], values)
                     _audit_log(
                         db,
                         "supplier_created",
@@ -880,7 +1071,11 @@ def register_routes(app: Flask) -> None:
         if edit_party_code:
             existing_party = _fetch_party(db, edit_party_code)
             if existing_party is not None and "Supplier" in _deserialize_party_roles(existing_party["party_roles"] or ""):
-                values = _supplier_form_from_party(existing_party, _supplier_profile_row(db, edit_party_code))
+                values = _supplier_form_from_party(
+                    existing_party,
+                    _supplier_profile_row(db, edit_party_code),
+                    _supplier_portal_account_row(db, edit_party_code),
+                )
 
         if request.method == "POST":
             values = _supplier_form_data(request, supplier_mode)
@@ -898,6 +1093,7 @@ def register_routes(app: Flask) -> None:
                         payload[1:] + (values["original_party_code"],),
                     )
                     _upsert_supplier_profile(db, payload[0], values)
+                    _upsert_supplier_portal_account(db, payload[0], values)
                     _audit_log(db, "supplier_updated", entity_type="supplier", entity_id=payload[0], details=f"{payload[1]} / Partnership")
                     message = "Supplier updated successfully."
                 else:
@@ -911,6 +1107,7 @@ def register_routes(app: Flask) -> None:
                         payload,
                     )
                     _upsert_supplier_profile(db, payload[0], values)
+                    _upsert_supplier_portal_account(db, payload[0], values)
                     _audit_log(db, "supplier_created", entity_type="supplier", entity_id=payload[0], details=f"{payload[1]} / Partnership")
                     message = "Supplier registered successfully."
                 db.commit()
@@ -952,7 +1149,9 @@ def register_routes(app: Flask) -> None:
         timesheet_values = _default_supplier_timesheet_form(db, party_code)
         voucher_values = _default_supplier_voucher_form(db, party_code)
         payment_values = _default_supplier_payment_form(db, party_code)
+        submission_values = _default_supplier_submission_form(db, party_code, source_channel="By Hand")
         partnership_values = _default_supplier_partnership_form(db, party_code)
+        portal_account = _supplier_portal_account_row(db, party_code)
 
         edit_asset_code = request.args.get("edit_asset", "").strip().upper()
         edit_timesheet_no = request.args.get("edit_timesheet", "").strip().upper()
@@ -1109,8 +1308,108 @@ def register_routes(app: Flask) -> None:
                     flash(message, "success")
                     return redirect(url_for("supplier_detail", party_code=party_code, screen="timesheets", partnership_month=partnership_month))
 
+                if action == "save_submission":
+                    if supplier_mode != "Normal":
+                        raise ValidationError("Invoice intake is only available in supplier desk.")
+                    submission_values = _supplier_submission_form_data(request, party_code, source_channel="By Hand")
+                    payload = _prepare_supplier_submission_payload(
+                        db,
+                        submission_values,
+                        source_channel="By Hand",
+                        created_by_role="admin",
+                        created_by_name=session.get("display_name", "") or "Admin",
+                        invoice_file=request.files.get("invoice_attachment"),
+                        timesheet_file=request.files.get("timesheet_attachment"),
+                    )
+                    db.execute(
+                        """
+                        INSERT INTO supplier_invoice_submissions (
+                            submission_no, party_code, source_channel, external_invoice_no, period_month,
+                            invoice_date, subtotal, vat_amount, total_amount, invoice_attachment_path,
+                            timesheet_attachment_path, notes, review_status, review_note, reviewed_by,
+                            reviewed_at, linked_voucher_no, created_by_role, created_by_name
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        payload,
+                    )
+                    _audit_log(
+                        db,
+                        "supplier_submission_created",
+                        entity_type="supplier_submission",
+                        entity_id=submission_values["submission_no"],
+                        details=f"By Hand / {party_code} / {submission_values['external_invoice_no']}",
+                    )
+                    db.commit()
+                    flash("By-hand supplier invoice saved and marked ready for voucher.", "success")
+                    return redirect(url_for("supplier_detail", party_code=party_code, screen="billing", partnership_month=partnership_month))
+
+                if action == "approve_submission":
+                    if supplier_mode != "Normal":
+                        raise ValidationError("Submission review is only available in supplier desk.")
+                    submission_no = request.form.get("submission_no", "").strip().upper()
+                    review_note = request.form.get("review_note", "").strip()
+                    _set_supplier_submission_status(
+                        db,
+                        party_code,
+                        submission_no,
+                        "Approved",
+                        review_note=review_note,
+                        reviewed_by=session.get("display_name", "") or "Admin",
+                    )
+                    _audit_log(db, "supplier_submission_approved", entity_type="supplier_submission", entity_id=submission_no, details=party_code)
+                    db.commit()
+                    flash("Supplier invoice approved and moved to ready queue.", "success")
+                    return redirect(url_for("supplier_detail", party_code=party_code, screen="billing", partnership_month=partnership_month))
+
+                if action == "reject_submission":
+                    if supplier_mode != "Normal":
+                        raise ValidationError("Submission review is only available in supplier desk.")
+                    submission_no = request.form.get("submission_no", "").strip().upper()
+                    review_note = request.form.get("review_note", "").strip()
+                    _set_supplier_submission_status(
+                        db,
+                        party_code,
+                        submission_no,
+                        "Rejected",
+                        review_note=review_note,
+                        reviewed_by=session.get("display_name", "") or "Admin",
+                    )
+                    _audit_log(db, "supplier_submission_rejected", entity_type="supplier_submission", entity_id=submission_no, details=party_code)
+                    db.commit()
+                    flash("Supplier invoice rejected.", "success")
+                    return redirect(url_for("supplier_detail", party_code=party_code, screen="billing", partnership_month=partnership_month))
+
+                if action == "convert_submission":
+                    if supplier_mode != "Normal":
+                        raise ValidationError("Submission conversion is only available in supplier desk.")
+                    submission_no = request.form.get("submission_no", "").strip().upper()
+                    new_voucher_no = _convert_supplier_submission_to_voucher(
+                        db,
+                        party_code,
+                        submission_no,
+                        actor_name=session.get("display_name", "") or "Admin",
+                    )
+                    _audit_log(
+                        db,
+                        "supplier_submission_converted",
+                        entity_type="supplier_submission",
+                        entity_id=submission_no,
+                        details=f"{party_code} / {new_voucher_no}",
+                    )
+                    db.commit()
+                    flash("Supplier invoice converted into payable voucher.", "success")
+                    return redirect(url_for("supplier_detail", party_code=party_code, screen="billing", partnership_month=partnership_month))
+
                 if action == "save_voucher":
                     voucher_values = _supplier_voucher_form_data(request, party_code)
+                    if (
+                        supplier_mode == "Normal"
+                        and (party["party_kind"] or "") == "Company"
+                        and portal_account is not None
+                        and int(portal_account["portal_enabled"] or 0)
+                        and not voucher_values["original_voucher_no"]
+                    ):
+                        raise ValidationError("Use invoice intake and convert approved supplier invoices into vouchers.")
                     if voucher_values["original_voucher_no"]:
                         payload = _prepare_existing_supplier_voucher_payload(db, voucher_values)
                         _ensure_reference_available(
@@ -1126,7 +1425,7 @@ def register_routes(app: Flask) -> None:
                             UPDATE supplier_vouchers
                             SET voucher_no = ?, party_code = ?, period_month = ?, issue_date = ?, subtotal = ?,
                                 tax_percent = ?, tax_amount = ?, total_amount = ?, paid_amount = ?, balance_amount = ?,
-                                status = ?, notes = ?
+                                status = ?, notes = ?, source_type = ?, source_reference = ?
                             WHERE voucher_no = ?
                             """,
                             payload + (voucher_values["original_voucher_no"],),
@@ -1138,6 +1437,10 @@ def register_routes(app: Flask) -> None:
                             )
                             db.execute(
                                 "UPDATE supplier_payments SET voucher_no = ? WHERE voucher_no = ?",
+                                (voucher_values["voucher_no"], voucher_values["original_voucher_no"]),
+                            )
+                            db.execute(
+                                "UPDATE supplier_invoice_submissions SET linked_voucher_no = ? WHERE linked_voucher_no = ?",
                                 (voucher_values["voucher_no"], voucher_values["original_voucher_no"]),
                             )
                         _supplier_sync_voucher_balance(db, voucher_values["voucher_no"])
@@ -1155,8 +1458,9 @@ def register_routes(app: Flask) -> None:
                             """
                             INSERT INTO supplier_vouchers (
                                 voucher_no, party_code, period_month, issue_date, subtotal,
-                                tax_percent, tax_amount, total_amount, paid_amount, balance_amount, status, notes
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                tax_percent, tax_amount, total_amount, paid_amount, balance_amount, status, notes,
+                                source_type, source_reference
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                             payload,
                         )
@@ -1301,10 +1605,11 @@ def register_routes(app: Flask) -> None:
         supplier_timesheets = _supplier_timesheet_rows(db, party_code)
         supplier_vouchers = _supplier_voucher_rows(db, party_code)
         supplier_payments = _supplier_payment_rows(db, party_code)
+        supplier_submissions = _supplier_submission_rows(db, party_code, limit=30) if supplier_mode == "Normal" else []
         partnership_entries = _supplier_partnership_rows(db, party_code) if supplier_mode == "Partnership" else []
         partnership_summary = _supplier_partnership_summary(db, party_code, partnership_month) if supplier_mode == "Partnership" else {"work_total": 0.0, "company_paid": 0.0, "partner_paid": 0.0, "total_cost": 0.0}
         partnership_assets = _supplier_partnership_asset_rows(db, party_code, partnership_month) if supplier_mode == "Partnership" else []
-        statement_rows, statement_summary = _supplier_statement_data(db, party_code)
+        statement_rows, statement_summary = _supplier_statement_data(db, party_code, supplier_mode=supplier_mode)
 
         return render_template(
             "supplier_detail.html",
@@ -1313,10 +1618,13 @@ def register_routes(app: Flask) -> None:
             timesheet_values=timesheet_values,
             voucher_values=voucher_values,
             payment_values=payment_values,
+            submission_values=submission_values,
             partnership_values=partnership_values,
+            portal_account=portal_account,
             summary=_supplier_detail_summary(db, party_code),
             statement_rows=statement_rows,
             statement_summary=statement_summary,
+            submissions=supplier_submissions,
             partnership_entries=partnership_entries,
             partnership_summary=partnership_summary,
             partnership_assets=partnership_assets,
@@ -1383,7 +1691,10 @@ def register_routes(app: Flask) -> None:
     @_login_required("admin")
     def delete_supplier_voucher(voucher_no: str):
         db = open_db()
-        voucher = db.execute("SELECT voucher_no, party_code FROM supplier_vouchers WHERE voucher_no = ?", (voucher_no,)).fetchone()
+        voucher = db.execute(
+            "SELECT voucher_no, party_code, source_type, source_reference FROM supplier_vouchers WHERE voucher_no = ?",
+            (voucher_no,),
+        ).fetchone()
         if voucher is None:
             flash("Supplier voucher was not found.", "error")
             return redirect(url_for("suppliers"))
@@ -1391,11 +1702,21 @@ def register_routes(app: Flask) -> None:
         if count:
             flash(f"Voucher cannot be deleted because {count} payment row(s) are linked.", "error")
             return redirect(url_for("supplier_detail", party_code=voucher["party_code"], screen="billing"))
-        db.execute("UPDATE supplier_timesheets SET voucher_no = NULL, status = 'Open' WHERE voucher_no = ?", (voucher_no,))
+        if (voucher["source_type"] or "Timesheet") == "Submission" and voucher["source_reference"]:
+            db.execute(
+                """
+                UPDATE supplier_invoice_submissions
+                SET review_status = 'Approved', linked_voucher_no = NULL, reviewed_at = CURRENT_TIMESTAMP
+                WHERE submission_no = ? AND party_code = ?
+                """,
+                (voucher["source_reference"], voucher["party_code"]),
+            )
+        else:
+            db.execute("UPDATE supplier_timesheets SET voucher_no = NULL, status = 'Open' WHERE voucher_no = ?", (voucher_no,))
         db.execute("DELETE FROM supplier_vouchers WHERE voucher_no = ?", (voucher_no,))
         _audit_log(db, "supplier_voucher_deleted", entity_type="supplier_voucher", entity_id=voucher_no, details=voucher_no)
         db.commit()
-        flash("Supplier voucher deleted and linked timesheets reopened.", "success")
+        flash("Supplier voucher deleted successfully.", "success")
         return redirect(url_for("supplier_detail", party_code=voucher["party_code"], screen="billing"))
 
     @app.post("/supplier-payments/<payment_no>/delete")
@@ -3792,7 +4113,7 @@ def register_routes(app: Flask) -> None:
         abort(404)
 
     @app.get("/generated/<path:filename>")
-    @_login_required("admin", "owner", "driver")
+    @_login_required("admin", "owner", "driver", "supplier")
     def generated_file(filename: str):
         if not _can_access_generated_file(filename):
             flash("You do not have access to that file.", "error")
@@ -3832,10 +4153,12 @@ def _client_ip() -> str:
     return forwarded_for or request.remote_addr or "unknown"
 
 
-def _auth_identifier(role: str, phone_number: str = "") -> str:
+def _auth_identifier(role: str, phone_number: str = "", supplier_code: str = "") -> str:
     if role == "driver":
         normalized_phone = _normalize_phone(phone_number)
         return normalized_phone or _client_ip()
+    if role == "supplier":
+        return (supplier_code or "").strip().upper() or _client_ip()
     return _client_ip()
 
 
@@ -3929,7 +4252,7 @@ def _audit_log(db, action: str, *, entity_type: str = "", entity_id: str = "", s
     )
 
 
-def _set_session(role: str, driver_id: str | None = None, display_name: str = "") -> None:
+def _set_session(role: str, driver_id: str | None = None, supplier_party_code: str | None = None, display_name: str = "") -> None:
     session.clear()
     session.permanent = True
     session["role"] = role
@@ -3938,6 +4261,8 @@ def _set_session(role: str, driver_id: str | None = None, display_name: str = ""
         session["admin_workspace"] = "universal"
     if driver_id:
         session["driver_id"] = driver_id
+    if supplier_party_code:
+        session["supplier_party_code"] = supplier_party_code
 
 
 def _current_role() -> str:
@@ -3948,6 +4273,10 @@ def _current_driver_id() -> str:
     return session.get("driver_id", "")
 
 
+def _current_supplier_party_code() -> str:
+    return session.get("supplier_party_code", "")
+
+
 def _role_home_endpoint() -> str:
     role = _current_role()
     if role == "admin":
@@ -3956,6 +4285,8 @@ def _role_home_endpoint() -> str:
         return "owner_fund"
     if role == "driver":
         return "driver_portal"
+    if role == "supplier":
+        return "supplier_portal"
     return "login"
 
 
@@ -4013,6 +4344,14 @@ def _current_workspace_meta() -> dict[str, str]:
             "eyebrow": "Driver Portal",
             "title": "Driver Self Service",
             "summary": "View salary, slips, transaction history, timesheet activity and assigned vehicle from one place.",
+        }
+    if role == "supplier":
+        return {
+            "key": "supplier",
+            "label": "Supplier",
+            "eyebrow": "Supplier Portal",
+            "title": "Supplier Portal",
+            "summary": "Submit invoices, track review status and check your statement without waiting for paper follow-up.",
         }
     return {
         "key": "public",
@@ -5798,7 +6137,7 @@ def _supplier_screen_options(supplier_mode: str):
     options = [
         {"key": "vehicles", "label": "Vehicles"},
         {"key": "timesheets", "label": "Timesheets"},
-        {"key": "billing", "label": "Billing & Payment"},
+        {"key": "billing", "label": "Invoice Intake & Payment" if supplier_mode == "Normal" else "Billing & Payment"},
         {"key": "statement", "label": "Statement"},
     ]
     if (supplier_mode or "Normal") == "Partnership":
@@ -5861,6 +6200,10 @@ def _default_supplier_form(supplier_mode: str = "Normal"):
     values["partner_name"] = ""
     values["default_company_share_percent"] = "50" if values["supplier_mode"] == "Partnership" else "100"
     values["default_partner_share_percent"] = "50" if values["supplier_mode"] == "Partnership" else "0"
+    values["portal_enabled"] = False
+    values["portal_login_email"] = ""
+    values["portal_activation_status"] = "Invited"
+    values["portal_last_login_at"] = ""
     return values
 
 
@@ -5887,12 +6230,17 @@ def _supplier_form_data(request, supplier_mode: str = "Normal"):
         "partner_name": request.form.get("partner_name", "").strip(),
         "default_company_share_percent": request.form.get("default_company_share_percent", "100").strip() or "100",
         "default_partner_share_percent": request.form.get("default_partner_share_percent", "0").strip() or "0",
+        "portal_enabled": request.form.get("portal_enabled", "").strip() in {"1", "true", "on", "yes"},
+        "portal_login_email": request.form.get("portal_login_email", "").strip(),
+        "portal_activation_status": request.form.get("portal_activation_status", "").strip() or "Invited",
+        "portal_last_login_at": request.form.get("portal_last_login_at", "").strip(),
     }
 
 
-def _supplier_form_from_party(record, profile=None):
+def _supplier_form_from_party(record, profile=None, portal_account=None):
     values = _party_values_from_record(record)
-    profile = profile or {}
+    profile = dict(profile) if profile else {}
+    portal_account = dict(portal_account) if portal_account else {}
     supplier_mode = profile.get("supplier_mode") or "Normal"
     if supplier_mode not in SUPPLIER_MODE_OPTIONS:
         supplier_mode = "Normal"
@@ -5902,6 +6250,10 @@ def _supplier_form_from_party(record, profile=None):
     values["partner_name"] = profile.get("partner_name") or ""
     values["default_company_share_percent"] = _display_number(profile.get("default_company_share_percent", 100 if supplier_mode == "Normal" else 50))
     values["default_partner_share_percent"] = _display_number(profile.get("default_partner_share_percent", 0 if supplier_mode == "Normal" else 50))
+    values["portal_enabled"] = bool(portal_account.get("portal_enabled"))
+    values["portal_login_email"] = portal_account.get("login_email") or values.get("email", "")
+    values["portal_activation_status"] = portal_account.get("activation_status") or "Invited"
+    values["portal_last_login_at"] = portal_account.get("last_login_at") or ""
     return values
 
 
@@ -5983,6 +6335,120 @@ def _upsert_supplier_profile(db, party_code: str, values) -> None:
         )
 
 
+def _supplier_portal_is_eligible(supplier_mode: str, party_kind: str) -> bool:
+    return (supplier_mode or "Normal") == "Normal" and (party_kind or "Company") == "Company"
+
+
+def _supplier_portal_account_row(db, party_code: str):
+    return db.execute(
+        """
+        SELECT
+            party_code,
+            login_email,
+            password_hash,
+            portal_enabled,
+            activation_status,
+            last_login_at
+        FROM supplier_portal_accounts
+        WHERE party_code = ?
+        """,
+        (party_code,),
+    ).fetchone()
+
+
+def _upsert_supplier_portal_account(db, party_code: str, values) -> None:
+    eligible = _supplier_portal_is_eligible(values.get("supplier_mode"), values.get("party_kind"))
+    portal_enabled = bool(values.get("portal_enabled")) if eligible else False
+    login_email = (values.get("portal_login_email") or values.get("email") or "").strip().lower()
+    if portal_enabled and not login_email:
+        raise ValidationError("Portal login email is required when supplier portal is enabled.")
+    if login_email:
+        _validate_optional_email(login_email)
+
+    existing = _supplier_portal_account_row(db, party_code)
+    if not eligible and existing is None:
+        return
+
+    if not eligible:
+        if existing is not None:
+            db.execute(
+                """
+                UPDATE supplier_portal_accounts
+                SET login_email = ?, portal_enabled = 0, activation_status = 'Suspended', updated_at = CURRENT_TIMESTAMP
+                WHERE party_code = ?
+                """,
+                (login_email or existing["login_email"] or "", party_code),
+            )
+        return
+
+    if existing is None:
+        if not login_email and not portal_enabled:
+            return
+        activation_status = "Invited" if portal_enabled else "Suspended"
+        db.execute(
+            """
+            INSERT INTO supplier_portal_accounts (
+                party_code, login_email, password_hash, portal_enabled, activation_status, last_login_at
+            ) VALUES (?, ?, '', ?, ?, NULL)
+            """,
+            (party_code, login_email, 1 if portal_enabled else 0, activation_status),
+        )
+        return
+
+    activation_status = existing["activation_status"] or "Invited"
+    if not portal_enabled:
+        activation_status = "Suspended"
+    elif existing["password_hash"]:
+        activation_status = "Active"
+    else:
+        activation_status = "Invited"
+
+    db.execute(
+        """
+        UPDATE supplier_portal_accounts
+        SET login_email = ?, portal_enabled = ?, activation_status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE party_code = ?
+        """,
+        (login_email or existing["login_email"] or "", 1 if portal_enabled else 0, activation_status, party_code),
+    )
+
+
+def _supplier_activation_target(db, supplier_code: str, login_email: str):
+    normalized_code = (supplier_code or "").strip().upper()
+    normalized_email = (login_email or "").strip().lower()
+    if not normalized_code:
+        raise ValidationError("Supplier code is required.")
+    if not normalized_email:
+        raise ValidationError("Registered email is required.")
+    _validate_optional_email(normalized_email)
+    party = _fetch_supplier_party(db, normalized_code)
+    if party is None or _supplier_mode_for_party(db, normalized_code) != "Normal" or (party["party_kind"] or "") != "Company":
+        raise ValidationError("Supplier portal is only available for normal company suppliers.")
+    account = _supplier_portal_account_row(db, normalized_code)
+    if account is None or not int(account["portal_enabled"] or 0):
+        raise ValidationError("Portal access is not enabled for this supplier.")
+    if (account["login_email"] or "").strip().lower() != normalized_email:
+        raise ValidationError("Supplier code and email do not match the invited account.")
+    return account, party
+
+
+def _supplier_login_target(db, supplier_code: str):
+    normalized_code = (supplier_code or "").strip().upper()
+    if not normalized_code:
+        raise ValidationError("Supplier code is required.")
+    party = _fetch_supplier_party(db, normalized_code)
+    account = _supplier_portal_account_row(db, normalized_code)
+    if party is None or account is None:
+        raise ValidationError("Supplier portal account was not found.")
+    if _supplier_mode_for_party(db, normalized_code) != "Normal" or (party["party_kind"] or "") != "Company":
+        raise ValidationError("Supplier portal is not available for this supplier.")
+    if not int(account["portal_enabled"] or 0):
+        raise ValidationError("Supplier portal is disabled.")
+    if (account["activation_status"] or "") == "Suspended":
+        raise ValidationError("Supplier portal is suspended.")
+    return account, party
+
+
 def _normalize_supplier_roles(values) -> list[str]:
     selected = ["Supplier"]
     for role in PARTY_ROLE_OPTIONS:
@@ -6061,6 +6527,24 @@ def _default_supplier_payment_form(db=None, party_code: str = ""):
         "payment_method": PAYMENT_METHOD_OPTIONS[0],
         "reference": "",
         "notes": "",
+    }
+
+
+def _default_supplier_submission_form(db=None, party_code: str = "", source_channel: str = "By Hand"):
+    db = db or open_db()
+    return {
+        "original_submission_no": "",
+        "submission_no": _next_reference_code(db, "supplier_invoice_submissions", "submission_no", "SIN"),
+        "party_code": party_code,
+        "source_channel": source_channel,
+        "external_invoice_no": "",
+        "period_month": _current_month_value(),
+        "invoice_date": date.today().isoformat(),
+        "subtotal": "",
+        "vat_amount": "",
+        "total_amount": "",
+        "notes": "",
+        "review_note": "",
     }
 
 
@@ -6150,6 +6634,23 @@ def _supplier_payment_form_data(request, party_code: str):
     }
 
 
+def _supplier_submission_form_data(request, party_code: str, source_channel: str = "By Hand"):
+    return {
+        "original_submission_no": request.form.get("original_submission_no", "").strip().upper(),
+        "submission_no": request.form.get("submission_no", "").strip().upper(),
+        "party_code": party_code,
+        "source_channel": source_channel,
+        "external_invoice_no": request.form.get("external_invoice_no", "").strip().upper(),
+        "period_month": _normalize_month(request.form.get("period_month", "").strip() or request.form.get("invoice_date", "").strip()[:7] or _current_month_value()),
+        "invoice_date": request.form.get("invoice_date", date.today().isoformat()).strip() or date.today().isoformat(),
+        "subtotal": request.form.get("subtotal", "").strip(),
+        "vat_amount": request.form.get("vat_amount", "").strip(),
+        "total_amount": request.form.get("total_amount", "").strip(),
+        "notes": request.form.get("notes", "").strip(),
+        "review_note": request.form.get("review_note", "").strip(),
+    }
+
+
 def _supplier_partnership_form_data(request, party_code: str):
     return {
         "original_entry_no": request.form.get("original_entry_no", "").strip().upper(),
@@ -6166,6 +6667,282 @@ def _supplier_partnership_form_data(request, party_code: str):
         "amount": request.form.get("amount", "").strip(),
         "notes": request.form.get("notes", "").strip(),
     }
+
+
+def _supplier_submission_attachment_dir(party_code: str) -> Path:
+    folder = Path(current_app.config["GENERATED_DIR"]) / "suppliers" / party_code / "submissions"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def _save_supplier_submission_attachment(submission_no: str, party_code: str, upload, attachment_kind: str, required: bool) -> str:
+    if upload is None or not getattr(upload, "filename", ""):
+        if required:
+            raise ValidationError(f"{attachment_kind.title()} attachment is required.")
+        return ""
+    safe_name = secure_filename(upload.filename or "")
+    extension = Path(safe_name).suffix.lower()
+    filename = f"{submission_no.lower()}_{attachment_kind.replace(' ', '_').lower()}{extension or '.bin'}"
+    target = _supplier_submission_attachment_dir(party_code) / filename
+    upload.save(target)
+    return target.relative_to(Path(current_app.config["GENERATED_DIR"])).as_posix()
+
+
+def _prepare_supplier_submission_payload(
+    db,
+    values,
+    *,
+    source_channel: str,
+    created_by_role: str,
+    created_by_name: str,
+    invoice_file,
+    timesheet_file,
+):
+    _validate_party_reference(db, values["party_code"])
+    if not values["submission_no"]:
+        values["submission_no"] = _next_reference_code(db, "supplier_invoice_submissions", "submission_no", "SIN")
+    if not values["external_invoice_no"]:
+        raise ValidationError("Invoice number is required.")
+    invoice_date = _validate_date_text(values["invoice_date"], "Invoice date")
+    subtotal = _parse_decimal(values["subtotal"], "Subtotal", required=True, minimum=0.01)
+    vat_amount = _parse_decimal(values["vat_amount"], "VAT amount", required=False, default=0.0, minimum=0.0)
+    total_amount = _parse_decimal(values["total_amount"], "Total amount", required=True, minimum=0.01)
+    expected_total = round(subtotal + vat_amount, 2)
+    if abs(total_amount - expected_total) > 0.01:
+        raise ValidationError("Total amount must equal subtotal plus VAT.")
+    if source_channel not in {"Portal", "By Hand"}:
+        source_channel = "By Hand"
+
+    invoice_attachment_path = _save_supplier_submission_attachment(
+        values["submission_no"],
+        values["party_code"],
+        invoice_file,
+        "invoice",
+        required=source_channel == "Portal",
+    )
+    timesheet_attachment_path = _save_supplier_submission_attachment(
+        values["submission_no"],
+        values["party_code"],
+        timesheet_file,
+        "timesheet",
+        required=source_channel == "Portal",
+    )
+    if source_channel == "Portal":
+        review_status = "Pending"
+        review_note = ""
+        reviewed_by = None
+        reviewed_at = None
+    else:
+        review_status = "Approved"
+        review_note = values.get("review_note", "").strip() or "Ready for Voucher"
+        reviewed_by = created_by_name
+        reviewed_at = datetime.now().isoformat(timespec="seconds")
+
+    return (
+        values["submission_no"],
+        values["party_code"],
+        source_channel,
+        values["external_invoice_no"],
+        values["period_month"] or invoice_date[:7],
+        invoice_date,
+        subtotal,
+        vat_amount,
+        total_amount,
+        invoice_attachment_path or None,
+        timesheet_attachment_path or None,
+        values.get("notes", "").strip(),
+        review_status,
+        review_note or None,
+        reviewed_by,
+        reviewed_at,
+        None,
+        created_by_role,
+        created_by_name,
+    )
+
+
+def _supplier_submission_with_voucher(db, submission_no: str, party_code: str | None = None):
+    params = [submission_no]
+    party_sql = ""
+    if party_code:
+        params.append(party_code)
+        party_sql = "AND s.party_code = ?"
+    return db.execute(
+        f"""
+        SELECT
+            s.submission_no,
+            s.party_code,
+            s.source_channel,
+            s.external_invoice_no,
+            s.period_month,
+            s.invoice_date,
+            s.subtotal,
+            s.vat_amount,
+            s.total_amount,
+            s.invoice_attachment_path,
+            s.timesheet_attachment_path,
+            s.notes,
+            s.review_status,
+            s.review_note,
+            s.reviewed_by,
+            s.reviewed_at,
+            s.linked_voucher_no,
+            s.created_by_role,
+            s.created_by_name,
+            s.created_at,
+            v.status AS voucher_status,
+            v.paid_amount AS voucher_paid_amount,
+            v.balance_amount AS voucher_balance_amount
+        FROM supplier_invoice_submissions s
+        LEFT JOIN supplier_vouchers v ON v.voucher_no = s.linked_voucher_no
+        WHERE s.submission_no = ?
+        {party_sql}
+        """,
+        params,
+    ).fetchone()
+
+
+def _set_supplier_submission_status(db, party_code: str, submission_no: str, status: str, *, review_note: str = "", reviewed_by: str = "") -> None:
+    row = _supplier_submission_with_voucher(db, submission_no, party_code)
+    if row is None:
+        raise ValidationError("Supplier invoice submission was not found.")
+    if row["linked_voucher_no"]:
+        raise ValidationError("Converted supplier invoices cannot be reviewed again.")
+    if status not in {"Approved", "Rejected"}:
+        raise ValidationError("Invalid review status.")
+    db.execute(
+        """
+        UPDATE supplier_invoice_submissions
+        SET review_status = ?, review_note = ?, reviewed_by = ?, reviewed_at = ?
+        WHERE submission_no = ? AND party_code = ?
+        """,
+        (
+            status,
+            review_note or None,
+            reviewed_by or None,
+            datetime.now().isoformat(timespec="seconds"),
+            submission_no,
+            party_code,
+        ),
+    )
+
+
+def _convert_supplier_submission_to_voucher(db, party_code: str, submission_no: str, *, actor_name: str) -> str:
+    row = _supplier_submission_with_voucher(db, submission_no, party_code)
+    if row is None:
+        raise ValidationError("Supplier invoice submission was not found.")
+    if row["review_status"] != "Approved":
+        raise ValidationError("Only approved supplier invoices can be converted.")
+    if row["linked_voucher_no"]:
+        raise ValidationError("This supplier invoice was already converted.")
+    voucher_no = _next_reference_code(db, "supplier_vouchers", "voucher_no", "SPV")
+    subtotal = float(row["subtotal"] or 0.0)
+    vat_amount = float(row["vat_amount"] or 0.0)
+    total_amount = float(row["total_amount"] or 0.0)
+    tax_percent = round((vat_amount / subtotal) * 100.0, 4) if subtotal > 0 else 0.0
+    db.execute(
+        """
+        INSERT INTO supplier_vouchers (
+            voucher_no, party_code, period_month, issue_date, subtotal,
+            tax_percent, tax_amount, total_amount, paid_amount, balance_amount,
+            status, notes, source_type, source_reference
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            voucher_no,
+            party_code,
+            row["period_month"] or (row["invoice_date"] or "")[:7] or _current_month_value(),
+            row["invoice_date"],
+            subtotal,
+            tax_percent,
+            vat_amount,
+            total_amount,
+            0.0,
+            total_amount,
+            "Open",
+            row["notes"] or "",
+            "Submission",
+            submission_no,
+        ),
+    )
+    db.execute(
+        """
+        UPDATE supplier_invoice_submissions
+        SET review_status = 'Converted', linked_voucher_no = ?, reviewed_by = ?, reviewed_at = ?
+        WHERE submission_no = ? AND party_code = ?
+        """,
+        (
+            voucher_no,
+            actor_name or None,
+            datetime.now().isoformat(timespec="seconds"),
+            submission_no,
+            party_code,
+        ),
+    )
+    return voucher_no
+
+
+def _supplier_submission_rows(db, party_code: str, limit: int = 30):
+    rows = db.execute(
+        f"""
+        SELECT
+            s.submission_no,
+            s.party_code,
+            s.source_channel,
+            s.external_invoice_no,
+            s.period_month,
+            s.invoice_date,
+            s.subtotal,
+            s.vat_amount,
+            s.total_amount,
+            s.invoice_attachment_path,
+            s.timesheet_attachment_path,
+            s.notes,
+            s.review_status,
+            s.review_note,
+            s.reviewed_by,
+            s.reviewed_at,
+            s.linked_voucher_no,
+            s.created_by_role,
+            s.created_by_name,
+            s.created_at,
+            v.status AS voucher_status,
+            v.paid_amount AS voucher_paid_amount,
+            v.balance_amount AS voucher_balance_amount
+        FROM supplier_invoice_submissions s
+        LEFT JOIN supplier_vouchers v ON v.voucher_no = s.linked_voucher_no
+        WHERE s.party_code = ?
+        ORDER BY s.invoice_date DESC, s.created_at DESC, s.id DESC
+        LIMIT {int(limit)}
+        """,
+        (party_code,),
+    ).fetchall()
+    prepared = []
+    for row in rows:
+        total_amount = float(row["total_amount"] or 0.0)
+        if row["linked_voucher_no"]:
+            paid_amount = float(row["voucher_paid_amount"] or 0.0)
+            balance_amount = float(row["voucher_balance_amount"] or 0.0)
+            display_status = row["voucher_status"] or "Converted"
+            if display_status == "Open":
+                display_status = "Converted"
+        else:
+            paid_amount = 0.0
+            if row["review_status"] == "Approved":
+                balance_amount = total_amount
+            else:
+                balance_amount = 0.0
+            display_status = row["review_status"] or "Pending"
+        prepared.append(
+            {
+                **dict(row),
+                "total_amount": total_amount,
+                "paid_amount_display": paid_amount,
+                "balance_amount_display": balance_amount,
+                "display_status": display_status,
+            }
+        )
+    return prepared
 
 
 def _supplier_asset_form_from_row(row):
@@ -6419,6 +7196,8 @@ def _prepare_new_supplier_voucher_payload(db, values):
             total_amount,
             "Open",
             values["notes"],
+            "Timesheet",
+            values["period_month"],
         ),
         timesheets,
     )
@@ -6427,7 +7206,7 @@ def _prepare_new_supplier_voucher_payload(db, values):
 def _prepare_existing_supplier_voucher_payload(db, values):
     voucher_lookup = values["original_voucher_no"] or values["voucher_no"]
     voucher = db.execute(
-        "SELECT voucher_no, tax_percent FROM supplier_vouchers WHERE voucher_no = ? AND party_code = ?",
+        "SELECT voucher_no, tax_percent, source_type, source_reference, subtotal FROM supplier_vouchers WHERE voucher_no = ? AND party_code = ?",
         (voucher_lookup, values["party_code"]),
     ).fetchone()
     if voucher is None:
@@ -6436,13 +7215,16 @@ def _prepare_existing_supplier_voucher_payload(db, values):
         values["voucher_no"] = voucher_lookup
     issue_date = _validate_date_text(values["issue_date"], "Voucher date")
     tax_percent = _parse_decimal(values["tax_percent"], "Tax percent", required=False, default=float(voucher["tax_percent"] or 0.0), minimum=0.0)
-    subtotal = float(
-        db.execute(
-            "SELECT COALESCE(SUM(subtotal), 0) FROM supplier_timesheets WHERE voucher_no = ?",
-            (voucher_lookup,),
-        ).fetchone()[0]
-        or 0.0
-    )
+    if (voucher["source_type"] or "Timesheet") == "Submission":
+        subtotal = float(voucher["subtotal"] or 0.0)
+    else:
+        subtotal = float(
+            db.execute(
+                "SELECT COALESCE(SUM(subtotal), 0) FROM supplier_timesheets WHERE voucher_no = ?",
+                (voucher_lookup,),
+            ).fetchone()[0]
+            or 0.0
+        )
     paid_amount = _supplier_voucher_paid_amount(db, voucher_lookup)
     tax_amount = round(subtotal * (tax_percent / 100.0), 2)
     total_amount = round(subtotal + tax_amount, 2)
@@ -6463,6 +7245,8 @@ def _prepare_existing_supplier_voucher_payload(db, values):
         balance_amount,
         status,
         values["notes"],
+        voucher["source_type"] or "Timesheet",
+        voucher["source_reference"],
     )
 
 
@@ -6563,18 +7347,21 @@ def _supplier_voucher_status(total_amount: float, paid_amount: float) -> str:
 
 def _supplier_sync_voucher_balance(db, voucher_no: str):
     voucher = db.execute(
-        "SELECT voucher_no, tax_percent FROM supplier_vouchers WHERE voucher_no = ?",
+        "SELECT voucher_no, tax_percent, source_type, subtotal FROM supplier_vouchers WHERE voucher_no = ?",
         (voucher_no,),
     ).fetchone()
     if voucher is None:
         return
-    subtotal = float(
-        db.execute(
-            "SELECT COALESCE(SUM(subtotal), 0) FROM supplier_timesheets WHERE voucher_no = ?",
-            (voucher_no,),
-        ).fetchone()[0]
-        or 0.0
-    )
+    if (voucher["source_type"] or "Timesheet") == "Submission":
+        subtotal = float(voucher["subtotal"] or 0.0)
+    else:
+        subtotal = float(
+            db.execute(
+                "SELECT COALESCE(SUM(subtotal), 0) FROM supplier_timesheets WHERE voucher_no = ?",
+                (voucher_no,),
+            ).fetchone()[0]
+            or 0.0
+        )
     tax_percent = float(voucher["tax_percent"] or 0.0)
     tax_amount = round(subtotal * (tax_percent / 100.0), 2)
     total_amount = round(subtotal + tax_amount, 2)
@@ -6846,7 +7633,7 @@ def _supplier_voucher_rows(db, party_code: str, limit: int = 30):
         SELECT
             voucher_no, party_code, period_month, issue_date,
             subtotal, tax_percent, tax_amount, total_amount,
-            paid_amount, balance_amount, status, notes
+            paid_amount, balance_amount, status, notes, source_type, source_reference
         FROM supplier_vouchers
         WHERE party_code = ?
         ORDER BY issue_date DESC, id DESC
@@ -6922,7 +7709,24 @@ def _supplier_detail_summary(db, party_code: str):
     }
 
 
-def _supplier_statement_data(db, party_code: str):
+def _supplier_statement_data(db, party_code: str, supplier_mode: str = "Normal"):
+    if supplier_mode == "Normal":
+        rows = _supplier_submission_rows(db, party_code, limit=200)
+        summary = {
+            "approved_outstanding": round(
+                sum(
+                    item["balance_amount_display"]
+                    for item in rows
+                    if item["display_status"] in {"Approved", "Converted", "Partially Paid", "Paid"}
+                ),
+                2,
+            ),
+            "pending_submitted": round(sum(item["total_amount"] for item in rows if item["display_status"] == "Pending"), 2),
+            "total_paid": round(sum(item["paid_amount_display"] for item in rows), 2),
+            "total_submitted": round(sum(item["total_amount"] for item in rows), 2),
+        }
+        return rows, summary
+
     rows = []
     timesheets = db.execute(
         """
@@ -8690,6 +9494,9 @@ def _can_access_generated_file(filename: str) -> bool:
         return True
     if role == "owner":
         return filename.startswith("owner_fund/")
+    if role == "supplier":
+        party_code = _current_supplier_party_code()
+        return bool(party_code) and filename.startswith(f"suppliers/{party_code}/")
     if role == "driver":
         driver_id = _current_driver_id()
         db = open_db()

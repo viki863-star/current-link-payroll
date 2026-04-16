@@ -68,6 +68,38 @@ def create_driver_record(app, **overrides):
     return payload
 
 
+def create_supplier_record(
+    client,
+    *,
+    party_code,
+    party_name,
+    party_kind="Company",
+    portal_enabled=False,
+    portal_login_email="",
+):
+    return client.post(
+        "/suppliers",
+        data={
+            "original_party_code": "",
+            "party_code": party_code,
+            "party_name": party_name,
+            "party_kind": party_kind,
+            "party_roles": ["Supplier"],
+            "contact_person": party_name,
+            "phone_number": "0500000001",
+            "email": portal_login_email or f"{party_code.lower()}@example.com",
+            "portal_login_email": portal_login_email,
+            "portal_enabled": "1" if portal_enabled else "",
+            "trn_no": f"TRN-{party_code}",
+            "trade_license_no": f"LIC-{party_code}",
+            "address": "Mussafah",
+            "notes": "supplier",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+
+
 def test_driver_login_requires_phone_and_pin(app, client):
     create_driver_record(app)
 
@@ -1451,6 +1483,184 @@ def test_supplier_workspace_records_support_edit_delete_and_balance_resync(app, 
         assert timesheet_row == 0
         assert voucher_row == 0
         assert payment_row == 0
+
+
+def test_individual_supplier_cannot_activate_portal(app, client):
+    admin_session(client)
+    response = create_supplier_record(
+        client,
+        party_code="PTY-IND-01",
+        party_name="Individual Supplier",
+        party_kind="Individual",
+        portal_enabled=True,
+        portal_login_email="individual@example.com",
+    )
+    assert b"Supplier registered successfully." in response.data
+
+    client.get("/logout", follow_redirects=False)
+    activation = client.post(
+        "/supplier-activate",
+        data={
+            "supplier_code": "PTY-IND-01",
+            "login_email": "individual@example.com",
+            "password": "secret12",
+            "confirm_password": "secret12",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier portal is only available for normal company suppliers." in activation.data
+
+
+def test_company_supplier_portal_can_activate_login_submit_and_convert(app, client):
+    admin_session(client)
+    response = create_supplier_record(
+        client,
+        party_code="PTY-COMP-01",
+        party_name="Portal Supplier LLC",
+        party_kind="Company",
+        portal_enabled=True,
+        portal_login_email="portal@example.com",
+    )
+    assert b"Supplier registered successfully." in response.data
+
+    client.get("/logout", follow_redirects=False)
+    activation = client.post(
+        "/supplier-activate",
+        data={
+            "supplier_code": "PTY-COMP-01",
+            "login_email": "portal@example.com",
+            "password": "secret12",
+            "confirm_password": "secret12",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier portal activated" in activation.data
+
+    login = client.post(
+        "/supplier-login",
+        data={"supplier_code": "PTY-COMP-01", "password": "secret12"},
+        follow_redirects=False,
+    )
+    assert login.status_code == 302
+    assert "/portal/supplier" in login.headers["Location"]
+
+    submit = client.post(
+        "/portal/supplier",
+        data={
+            "action": "submit_invoice",
+            "submission_no": "SIN-PORT-01",
+            "external_invoice_no": "INV-PORT-01",
+            "invoice_date": "2026-04-15",
+            "period_month": "2026-04",
+            "subtotal": "1000",
+            "vat_amount": "50",
+            "total_amount": "1050",
+            "notes": "portal invoice",
+            "invoice_attachment": (BytesIO(b"invoice"), "invoice.pdf"),
+            "timesheet_attachment": (BytesIO(b"timesheet"), "timesheet.pdf"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert b"Invoice submitted successfully." in submit.data
+
+    client.get("/logout", follow_redirects=False)
+    admin_session(client)
+
+    approve = client.post(
+        "/suppliers/PTY-COMP-01",
+        data={
+            "action": "approve_submission",
+            "submission_no": "SIN-PORT-01",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier invoice approved" in approve.data
+
+    convert = client.post(
+        "/suppliers/PTY-COMP-01",
+        data={
+            "action": "convert_submission",
+            "submission_no": "SIN-PORT-01",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier invoice converted into payable voucher." in convert.data
+
+    with app.app_context():
+        db = open_db()
+        submission = db.execute(
+            """
+            SELECT review_status, linked_voucher_no, invoice_attachment_path, timesheet_attachment_path
+            FROM supplier_invoice_submissions
+            WHERE submission_no = ?
+            """,
+            ("SIN-PORT-01",),
+        ).fetchone()
+        voucher = db.execute(
+            """
+            SELECT source_type, source_reference, total_amount, balance_amount, paid_amount
+            FROM supplier_vouchers
+            WHERE voucher_no = ?
+            """,
+            (submission["linked_voucher_no"],),
+        ).fetchone()
+        assert submission["review_status"] == "Converted"
+        assert submission["linked_voucher_no"]
+        assert submission["invoice_attachment_path"].startswith("suppliers/PTY-COMP-01/")
+        assert submission["timesheet_attachment_path"].startswith("suppliers/PTY-COMP-01/")
+        assert voucher["source_type"] == "Submission"
+        assert voucher["source_reference"] == "SIN-PORT-01"
+        assert float(voucher["total_amount"]) == 1050.0
+        assert float(voucher["balance_amount"]) == 1050.0
+        assert float(voucher["paid_amount"]) == 0.0
+
+
+def test_admin_by_hand_supplier_submission_defaults_to_approved_ready(app, client):
+    admin_session(client)
+    response = create_supplier_record(
+        client,
+        party_code="PTY-HAND-01",
+        party_name="Manual Supplier LLC",
+        party_kind="Company",
+    )
+    assert b"Supplier registered successfully." in response.data
+
+    saved = client.post(
+        "/suppliers/PTY-HAND-01",
+        data={
+            "action": "save_submission",
+            "submission_no": "SIN-HAND-01",
+            "external_invoice_no": "INV-HAND-01",
+            "invoice_date": "2026-04-16",
+            "period_month": "2026-04",
+            "subtotal": "2000",
+            "vat_amount": "100",
+            "total_amount": "2100",
+            "notes": "manual paper checked",
+        },
+        follow_redirects=True,
+    )
+    assert b"By-hand supplier invoice saved" in saved.data
+
+    statement_page = client.get("/suppliers/PTY-HAND-01?screen=statement", follow_redirects=True)
+    assert b"INV-HAND-01" in statement_page.data
+    assert b"Approved Outstanding" in statement_page.data
+
+    with app.app_context():
+        db = open_db()
+        submission = db.execute(
+            """
+            SELECT review_status, review_note, linked_voucher_no, total_amount
+            FROM supplier_invoice_submissions
+            WHERE submission_no = ?
+            """,
+            ("SIN-HAND-01",),
+        ).fetchone()
+        assert submission["review_status"] == "Approved"
+        assert submission["review_note"] == "Ready for Voucher"
+        assert submission["linked_voucher_no"] is None
+        assert float(submission["total_amount"]) == 2100.0
 
 
 def test_supplier_partnership_and_double_shift_flow_tracks_monthly_split(app, client):

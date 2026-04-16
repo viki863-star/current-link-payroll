@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block body_class %}login-page-body{% endblock %}
+
+{% block content %}
+<section class="login-page-shell">
+    <article class="card login-page-brand-card">
+        <img class="login-page-brand" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} logo">
+        <div class="login-page-copy">
+            <div class="public-page-topline">
+                <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
+            </div>
+            <p class="eyebrow">Supplier Access</p>
+            <h2>Supplier portal login</h2>
+        </div>
+    </article>
+
+    <article class="card login-stage-card">
+        <div class="login-stage-head">
+            <p class="eyebrow">Step 2</p>
+            <h3>Enter supplier credentials</h3>
+        </div>
+        <form method="post" class="stage-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>
+                <span>Supplier Code</span>
+                <input type="text" name="supplier_code" value="{{ values.supplier_code }}" placeholder="PTY-0001" required>
+            </label>
+            <label>
+                <span>Password</span>
+                <input type="password" name="password" placeholder="Enter password" required>
+            </label>
+            <div class="login-stage-footer">
+                <div class="login-tip">Submit invoice, track review status and check your statement in one portal.</div>
+                <button class="button login-submit-button" type="submit">Enter Supplier Portal</button>
+            </div>
+        </form>
+    </article>
+</section>
+{% endblock %}

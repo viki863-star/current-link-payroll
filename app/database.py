@@ -190,6 +190,19 @@ CREATE TABLE IF NOT EXISTS supplier_profile (
     FOREIGN KEY(partner_party_code) REFERENCES parties(party_code)
 );
 
+CREATE TABLE IF NOT EXISTS supplier_portal_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    party_code TEXT NOT NULL UNIQUE,
+    login_email TEXT NOT NULL,
+    password_hash TEXT,
+    portal_enabled INTEGER NOT NULL DEFAULT 0,
+    activation_status TEXT NOT NULL DEFAULT 'Invited',
+    last_login_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS supplier_assets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     asset_code TEXT NOT NULL UNIQUE,
@@ -246,6 +259,8 @@ CREATE TABLE IF NOT EXISTS supplier_vouchers (
     paid_amount REAL NOT NULL DEFAULT 0,
     balance_amount REAL NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'Open',
+    source_type TEXT NOT NULL DEFAULT 'Timesheet',
+    source_reference TEXT,
     notes TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
@@ -264,6 +279,32 @@ CREATE TABLE IF NOT EXISTS supplier_payments (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(voucher_no) REFERENCES supplier_vouchers(voucher_no),
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_invoice_submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    submission_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    source_channel TEXT NOT NULL DEFAULT 'By Hand',
+    external_invoice_no TEXT NOT NULL,
+    period_month TEXT NOT NULL,
+    invoice_date TEXT NOT NULL,
+    subtotal REAL NOT NULL DEFAULT 0,
+    vat_amount REAL NOT NULL DEFAULT 0,
+    total_amount REAL NOT NULL DEFAULT 0,
+    invoice_attachment_path TEXT,
+    timesheet_attachment_path TEXT,
+    notes TEXT,
+    review_status TEXT NOT NULL DEFAULT 'Pending',
+    review_note TEXT,
+    reviewed_by TEXT,
+    reviewed_at TEXT,
+    linked_voucher_no TEXT,
+    created_by_role TEXT,
+    created_by_name TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code),
+    FOREIGN KEY(linked_voucher_no) REFERENCES supplier_vouchers(voucher_no)
 );
 
 CREATE TABLE IF NOT EXISTS supplier_partnership_entries (
@@ -750,6 +791,19 @@ CREATE TABLE IF NOT EXISTS supplier_profile (
     FOREIGN KEY(partner_party_code) REFERENCES parties(party_code)
 );
 
+CREATE TABLE IF NOT EXISTS supplier_portal_accounts (
+    id BIGSERIAL PRIMARY KEY,
+    party_code TEXT NOT NULL UNIQUE,
+    login_email TEXT NOT NULL,
+    password_hash TEXT,
+    portal_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    activation_status TEXT NOT NULL DEFAULT 'Invited',
+    last_login_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS supplier_assets (
     id BIGSERIAL PRIMARY KEY,
     asset_code TEXT NOT NULL UNIQUE,
@@ -806,6 +860,8 @@ CREATE TABLE IF NOT EXISTS supplier_vouchers (
     paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     balance_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'Open',
+    source_type TEXT NOT NULL DEFAULT 'Timesheet',
+    source_reference TEXT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
@@ -824,6 +880,32 @@ CREATE TABLE IF NOT EXISTS supplier_payments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(voucher_no) REFERENCES supplier_vouchers(voucher_no),
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_invoice_submissions (
+    id BIGSERIAL PRIMARY KEY,
+    submission_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    source_channel TEXT NOT NULL DEFAULT 'By Hand',
+    external_invoice_no TEXT NOT NULL,
+    period_month TEXT NOT NULL,
+    invoice_date TEXT NOT NULL,
+    subtotal DOUBLE PRECISION NOT NULL DEFAULT 0,
+    vat_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    total_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    invoice_attachment_path TEXT,
+    timesheet_attachment_path TEXT,
+    notes TEXT,
+    review_status TEXT NOT NULL DEFAULT 'Pending',
+    review_note TEXT,
+    reviewed_by TEXT,
+    reviewed_at TIMESTAMP,
+    linked_voucher_no TEXT,
+    created_by_role TEXT,
+    created_by_name TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code),
+    FOREIGN KEY(linked_voucher_no) REFERENCES supplier_vouchers(voucher_no)
 );
 
 CREATE TABLE IF NOT EXISTS supplier_partnership_entries (
@@ -1168,6 +1250,31 @@ REQUIRED_COLUMNS = {
         "partner_name": "TEXT",
         "default_company_share_percent": "DOUBLE PRECISION NOT NULL DEFAULT 100",
         "default_partner_share_percent": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+    },
+    "supplier_portal_accounts": {
+        "password_hash": "TEXT",
+        "portal_enabled": "BOOLEAN NOT NULL DEFAULT FALSE",
+        "activation_status": "TEXT NOT NULL DEFAULT 'Invited'",
+        "last_login_at": "TIMESTAMP",
+        "updated_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    },
+    "supplier_vouchers": {
+        "source_type": "TEXT NOT NULL DEFAULT 'Timesheet'",
+        "source_reference": "TEXT",
+    },
+    "supplier_invoice_submissions": {
+        "source_channel": "TEXT NOT NULL DEFAULT 'By Hand'",
+        "period_month": "TEXT NOT NULL DEFAULT ''",
+        "vat_amount": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "invoice_attachment_path": "TEXT",
+        "timesheet_attachment_path": "TEXT",
+        "review_status": "TEXT NOT NULL DEFAULT 'Pending'",
+        "review_note": "TEXT",
+        "reviewed_by": "TEXT",
+        "reviewed_at": "TIMESTAMP",
+        "linked_voucher_no": "TEXT",
+        "created_by_role": "TEXT",
+        "created_by_name": "TEXT",
     },
     "supplier_partnership_entries": {
         "source_type": "TEXT",

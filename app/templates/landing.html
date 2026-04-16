@@ -23,6 +23,18 @@
             </div>
         </div>
     </article>
+
+    <article class="card public-landing-access-card">
+        <div class="public-landing-access-head">
+            <p class="eyebrow">Supplier Access</p>
+            <h2>Supplier company portal</h2>
+            <p>For invited company suppliers only.</p>
+        </div>
+        <div class="actions-row public-landing-actions">
+            <a class="button" href="{{ url_for('supplier_activate') }}">Supplier Activate</a>
+            <a class="button button-secondary" href="{{ url_for('supplier_login') }}">Supplier Login</a>
+        </div>
+    </article>
 </section>
 {% endblock %}
 

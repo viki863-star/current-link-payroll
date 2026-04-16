@@ -4473,3 +4473,32 @@ html {
         width: 100%;
     }
 }
+.public-landing-access-card {
+    display: grid;
+    gap: 1rem;
+    align-content: start;
+}
+
+.public-landing-access-head p,
+.public-landing-access-head h2 {
+    margin: 0;
+}
+
+.public-landing-access-head {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.portal-toggle-field {
+    display: grid;
+    gap: 0.6rem;
+    align-content: start;
+}
+
+.inline-check-tile {
+    max-width: 20rem;
+}
+
+.supplier-portal-shell .desk-panel-card {
+    min-height: 100%;
+}

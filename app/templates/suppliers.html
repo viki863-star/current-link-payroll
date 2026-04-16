@@ -72,6 +72,36 @@
                     <span>Email</span>
                     <input type="email" name="email" value="{{ values.email }}">
                 </label>
+                {% if supplier_mode == "Normal" %}
+                    <label>
+                        <span>Portal Login Email</span>
+                        <input type="email" name="portal_login_email" value="{{ values.portal_login_email }}" placeholder="Only for company supplier portal">
+                    </label>
+                    <div class="portal-toggle-field">
+                        <span>Portal Access</span>
+                        <label class="check-tile inline-check-tile">
+                            <input type="checkbox" name="portal_enabled" value="1" {% if values.portal_enabled %}checked{% endif %}>
+                            <span>Enable supplier portal</span>
+                        </label>
+                        <small class="muted-text">
+                            {% if values.party_kind == "Individual" %}
+                                Individual suppliers stay admin-managed only.
+                            {% else %}
+                                Company supplier can activate with Supplier Code and invited email.
+                            {% endif %}
+                        </small>
+                    </div>
+                    {% if values.original_party_code %}
+                        <label>
+                            <span>Portal Status</span>
+                            <input type="text" value="{{ values.portal_activation_status }}" readonly>
+                        </label>
+                        <label>
+                            <span>Last Login</span>
+                            <input type="text" value="{{ values.portal_last_login_at or '-' }}" readonly>
+                        </label>
+                    {% endif %}
+                {% endif %}
                 <label>
                     <span>TRN / VAT</span>
                     <input type="text" name="trn_no" value="{{ values.trn_no }}">
@@ -150,7 +180,7 @@
                     <span>Register supplier</span>
                     <span>Add fleet units</span>
                     <span>Post timesheets</span>
-                    <span>Billing & payment</span>
+                    <span>Invoice intake & payment</span>
                     <span>Statement of account</span>
                     {% if supplier_mode == "Partnership" %}<span>Partnership result</span>{% endif %}
                 </div>
