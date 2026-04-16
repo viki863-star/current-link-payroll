@@ -6,12 +6,13 @@
         <div class="admin-toolbar-row">
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a class="button button-secondary" href="{{ url_for(desk_endpoint) }}">{{ supplier_mode }} Desk</a>
+                <a class="button button-secondary" href="{{ url_for(desk_endpoint) }}">{{ "Supplier Desk" if supplier_mode == "Normal" else "Partnership Desk" }}</a>
                 {% if supplier_mode == "Partnership" %}
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='partnership', partnership_month=partnership_month) }}">Partnership</a>
                 {% else %}
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Invoice Intake</a>
                 {% endif %}
+                <a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, month=partnership_month) }}">Statement PDF</a>
             </div>
             <div class="admin-mini-stats">
                 <span><strong>{{ summary.asset_count }}</strong><small>Vehicles</small></span>
@@ -30,7 +31,7 @@
     <article class="card desk-panel-card supplier-overview-card">
         <div class="desk-panel-head">
             <div>
-                <span class="admin-desk-label">{{ supplier_mode }} Supplier</span>
+                <span class="admin-desk-label">{{ "Supplier" if supplier_mode == "Normal" else "Partnership Supplier" }}</span>
                 <h2>{{ party.party_name }}</h2>
                 <p class="workspace-lead">{{ party.party_code }}{% if party.contact_person %} | {{ party.contact_person }}{% endif %}{% if party.phone_number %} | {{ party.phone_number }}{% endif %}</p>
             </div>
@@ -515,20 +516,20 @@
     {% elif supplier_mode == "Partnership" and active_screen == "partnership" %}
         <section class="compact-content-grid">
             <article class="card desk-panel-card" id="partnership-form">
-                <div class="desk-panel-head"><div><span class="admin-desk-label">Screen 6</span><h2>{% if partnership_values.original_entry_no %}Edit Partnership Entry{% else %}Partnership Result Entry{% endif %}</h2></div></div>
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Screen 5</span><h2>{% if partnership_values.original_entry_no %}Edit Expense or Salary{% else %}Expenses & Salary Split{% endif %}</h2></div></div>
                 <form method="post" class="desk-form-grid">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="save_partnership_entry">
                     <input type="hidden" name="original_entry_no" value="{{ partnership_values.original_entry_no }}">
                     <label><span>Entry No</span><input type="text" name="entry_no" value="{{ partnership_values.entry_no }}" {% if partnership_values.original_entry_no %}readonly{% endif %}></label>
-                    <label><span>Asset</span><select name="asset_code" required><option value="">Select partnership vehicle</option>{% for item in assets %}<option value="{{ item.asset_code }}" {% if partnership_values.asset_code == item.asset_code %}selected{% endif %}>{{ item.asset_name }}{% if item.vehicle_no %} / {{ item.vehicle_no }}{% endif %}</option>{% endfor %}</select></label>
-                    <label><span>Period Month</span><input type="month" name="period_month" value="{{ partnership_values.period_month }}" required></label>
-                    <label><span>Entry Date</span><input type="date" name="entry_date" value="{{ partnership_values.entry_date }}" required></label>
-                    <label><span>Entry Type</span><select name="entry_kind">{% for item in partnership_entry_kind_options %}<option value="{{ item }}" {% if partnership_values.entry_kind == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-                    <label><span>Expense Head</span><input type="text" name="expense_head" value="{{ partnership_values.expense_head }}" placeholder="Fuel / maintenance / salary"></label>
-                    <label><span>Shift</span><select name="shift_label">{% for item in partnership_shift_options %}<option value="{{ item }}" {% if partnership_values.shift_label == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-                    <label><span>Driver Name</span><input type="text" name="driver_name" value="{{ partnership_values.driver_name }}" placeholder="Required for salary entry"></label>
+                    <label><span>Vehicle</span><select name="asset_code" required><option value="">Select partnership vehicle</option>{% for item in assets %}<option value="{{ item.asset_code }}" {% if partnership_values.asset_code == item.asset_code %}selected{% endif %}>{{ item.asset_name }}{% if item.vehicle_no %} / {{ item.vehicle_no }}{% endif %}</option>{% endfor %}</select></label>
+                    <label><span>Month</span><input type="month" name="period_month" value="{{ partnership_values.period_month }}" required></label>
+                    <label><span>Date</span><input type="date" name="entry_date" value="{{ partnership_values.entry_date }}" required></label>
+                    <label><span>Type</span><select name="entry_kind">{% for item in partnership_entry_kind_options %}<option value="{{ item }}" {% if partnership_values.entry_kind == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
                     <label><span>Paid By</span><select name="paid_by">{% for item in partnership_paid_by_options %}<option value="{{ item }}" {% if partnership_values.paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                    <label><span>Shift</span><select name="shift_label">{% for item in partnership_shift_options %}<option value="{{ item }}" {% if partnership_values.shift_label == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                    <label><span>Driver Name</span><input type="text" name="driver_name" value="{{ partnership_values.driver_name }}" placeholder="If salary is for one driver"></label>
+                    <label><span>Expense Head</span><input type="text" name="expense_head" value="{{ partnership_values.expense_head }}" placeholder="Salary / Maintenance / Other"></label>
                     <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ partnership_values.amount }}" required></label>
                     <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ partnership_values.notes }}</textarea></label>
                     <div class="form-actions left-actions full-span">
@@ -541,7 +542,7 @@
             </article>
 
             <article class="card desk-panel-card">
-                <div class="desk-panel-head"><div><span class="admin-desk-label">Result</span><h2>Monthly Split</h2></div></div>
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Result</span><h2>Monthly Profit View</h2></div></div>
                 <form method="get" class="admin-filter-grid desk-single-filter supplier-month-filter">
                     <input type="hidden" name="screen" value="partnership">
                     <label><span>Period Month</span><input type="month" name="partnership_month" value="{{ partnership_month }}"></label>
@@ -549,31 +550,36 @@
                 </form>
                 <div class="supplier-overview-grid partnership-summary-grid">
                     <div class="directory-line"><strong>Work Value</strong><small>AED {{ "%.2f"|format(partnership_summary.work_total) }}</small></div>
+                    <div class="directory-line"><strong>Salary Cost</strong><small>AED {{ "%.2f"|format(partnership_summary.total_salary_cost) }}</small></div>
+                    <div class="directory-line"><strong>Maintenance Cost</strong><small>AED {{ "%.2f"|format(partnership_summary.total_maintenance_cost) }}</small></div>
+                    <div class="directory-line"><strong>Net Profit</strong><small>AED {{ "%.2f"|format(partnership_summary.net_profit) }}</small></div>
                     <div class="directory-line"><strong>Company Paid</strong><small>AED {{ "%.2f"|format(partnership_summary.company_paid) }}</small></div>
                     <div class="directory-line"><strong>Partner Paid</strong><small>AED {{ "%.2f"|format(partnership_summary.partner_paid) }}</small></div>
-                    <div class="directory-line"><strong>Total Cost</strong><small>AED {{ "%.2f"|format(partnership_summary.total_cost) }}</small></div>
+                    <div class="directory-line"><strong>Company Should Receive</strong><small>AED {{ "%.2f"|format(partnership_summary.company_should_receive) }}</small></div>
+                    <div class="directory-line"><strong>Partner Should Receive</strong><small>AED {{ "%.2f"|format(partnership_summary.partner_should_receive) }}</small></div>
                 </div>
             </article>
         </section>
         <section class="compact-content-grid">
             <article class="card desk-panel-card">
-                <div class="desk-panel-head"><div><span class="admin-desk-label">Settlement</span><h2>Vehicle Partnership Result</h2></div></div>
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Settlement</span><h2>Vehicle Profit Result</h2></div></div>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>Vehicle</th><th>Mode</th><th>Work</th><th>Company</th><th>Partner</th><th>Company Net</th><th>Partner Net</th></tr></thead>
+                        <thead><tr><th>Vehicle</th><th>Mode</th><th>Work</th><th>Salary</th><th>Maintenance</th><th>Net Profit</th><th>Company</th><th>Partner</th></tr></thead>
                         <tbody>
                             {% for item in partnership_assets %}
                                 <tr>
                                     <td><strong>{{ item.asset_name }}</strong><div class="muted-text">{{ item.vehicle_no or '-' }}</div><div class="muted-text">{{ item.partner_name or 'Partner' }} / {{ "%.0f"|format(item.company_share_percent) }}-{{ "%.0f"|format(item.partner_share_percent) }}</div></td>
                                     <td>{{ item.double_shift_mode }}</td>
                                     <td>AED {{ "%.2f"|format(item.work_total) }}</td>
-                                    <td>Share AED {{ "%.2f"|format(item.company_share_amount) }}<div class="muted-text">Paid AED {{ "%.2f"|format(item.company_paid) }}</div></td>
-                                    <td>Share AED {{ "%.2f"|format(item.partner_share_amount) }}<div class="muted-text">Paid AED {{ "%.2f"|format(item.partner_paid) }}</div></td>
-                                    <td>AED {{ "%.2f"|format(item.company_net) }}</td>
-                                    <td>AED {{ "%.2f"|format(item.partner_net) }}</td>
+                                    <td>Company AED {{ "%.2f"|format(item.company_salary) }}<div class="muted-text">Partner AED {{ "%.2f"|format(item.partner_salary) }}</div></td>
+                                    <td>Company AED {{ "%.2f"|format(item.company_maintenance) }}<div class="muted-text">Partner AED {{ "%.2f"|format(item.partner_maintenance) }}</div></td>
+                                    <td>AED {{ "%.2f"|format(item.net_profit) }}</td>
+                                    <td>Share AED {{ "%.2f"|format(item.company_share_amount) }}<div class="muted-text">Paid AED {{ "%.2f"|format(item.company_paid) }}</div><div class="muted-text">Should receive AED {{ "%.2f"|format(item.company_should_receive) }}</div></td>
+                                    <td>Share AED {{ "%.2f"|format(item.partner_share_amount) }}<div class="muted-text">Paid AED {{ "%.2f"|format(item.partner_paid) }}</div><div class="muted-text">Should receive AED {{ "%.2f"|format(item.partner_should_receive) }}</div></td>
                                 </tr>
                             {% else %}
-                                <tr><td colspan="7">No partnership vehicle rows for this month.</td></tr>
+                                <tr><td colspan="8">No partnership vehicle rows for this month.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -581,7 +587,7 @@
             </article>
 
             <article class="card desk-panel-card">
-                <div class="desk-panel-head"><div><span class="admin-desk-label">Entries</span><h2>Partnership Register</h2></div></div>
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Entries</span><h2>Expense & Salary Register</h2></div></div>
                 <div class="table-wrap">
                     <table>
                         <thead><tr><th>No</th><th>Month</th><th>Vehicle</th><th>Type</th><th>Paid By</th><th>Amount</th><th>Actions</th></tr></thead>

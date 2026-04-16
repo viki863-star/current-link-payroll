@@ -411,6 +411,119 @@ def generate_supplier_payment_voucher_pdf(party, voucher, payment, output_dir: s
     return str(output_path)
 
 
+def generate_plain_supplier_statement_pdf(party, statement_rows, summary, output_dir: str, title: str = "Supplier Statement") -> str:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_code = str(party["party_code"]).replace("/", "-")
+    output_path = Path(output_dir) / f"{safe_code}_statement_{timestamp}.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+    rows = list(statement_rows or [])
+    if not rows:
+        rows = [{"invoice_date": "-", "external_invoice_no": "No invoice", "submission_no": "-", "total_amount": 0.0, "paid_amount_display": 0.0, "balance_amount_display": 0.0, "display_status": "No Data"}]
+
+    table_top = PAGE_HEIGHT - 92 * mm
+    row_height = 7.2 * mm
+    bottom_limit = 26 * mm
+    rows_per_page = max(1, int((table_top - bottom_limit) // row_height) - 1)
+    pages = [rows[index:index + rows_per_page] for index in range(0, len(rows), rows_per_page)] or [rows]
+
+    for page_number, page_rows in enumerate(pages, start=1):
+        pdf.setFillColor(colors.white)
+        pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
+        _draw_title(pdf, title, f"{party['party_name']} | {party['party_code']}")
+        _draw_stat_box(pdf, 16 * mm, PAGE_HEIGHT - 58 * mm, 42 * mm, 14 * mm, "Submitted", f"AED {format_currency(float(summary.get('total_submitted', 0.0)))}")
+        _draw_stat_box(pdf, 61 * mm, PAGE_HEIGHT - 58 * mm, 42 * mm, 14 * mm, "Paid", f"AED {format_currency(float(summary.get('total_paid', 0.0)))}", fill_color=SOFT)
+        _draw_stat_box(pdf, 106 * mm, PAGE_HEIGHT - 58 * mm, 42 * mm, 14 * mm, "Outstanding", f"AED {format_currency(float(summary.get('approved_outstanding', 0.0)))}", fill_color=SOFT)
+        _draw_stat_box(pdf, 151 * mm, PAGE_HEIGHT - 58 * mm, 43 * mm, 14 * mm, "Pending", f"AED {format_currency(float(summary.get('pending_submitted', 0.0)))}", fill_color=colors.HexColor("#FFF4E8"), text_color=ORANGE, border_color=ORANGE)
+
+        _draw_table_header(pdf, table_top, ["Date", "Invoice", "Total", "Paid", "Balance", "Status"], [18, 46, 118, 144, 168, 184])
+        y = table_top - 6.2 * mm
+        for index, row in enumerate(page_rows):
+            if index % 2 == 0:
+                pdf.setFillColor(SOFT)
+                pdf.roundRect(16 * mm, y - 2.2 * mm, 178 * mm, 6.2 * mm, 1.6 * mm, fill=1, stroke=0)
+            pdf.setFillColor(TEXT)
+            pdf.setFont("Helvetica", 7.2)
+            pdf.drawString(18 * mm, y, format_date_label(row.get("invoice_date")))
+            invoice_text, invoice_size = _fit_text(pdf, str(row.get("external_invoice_no") or "-"), "Helvetica-Bold", 7.2, 28 * mm, min_size=6.0)
+            pdf.setFont("Helvetica-Bold", invoice_size)
+            pdf.drawString(46 * mm, y, invoice_text)
+            pdf.setFont("Helvetica", 7.2)
+            pdf.drawRightString(138 * mm, y, format_currency(float(row.get("total_amount") or 0.0)))
+            pdf.drawRightString(160 * mm, y, format_currency(float(row.get("paid_amount_display") or 0.0)))
+            pdf.drawRightString(182 * mm, y, format_currency(float(row.get("balance_amount_display") or 0.0)))
+            status_text, status_size = _fit_text(pdf, str(row.get("display_status") or "-"), "Helvetica-Bold", 7.0, 10 * mm, min_size=6.0)
+            pdf.setFont("Helvetica-Bold", status_size)
+            pdf.drawRightString(194 * mm, y, status_text)
+            y -= row_height
+
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 7.0)
+        pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
+        pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number} / {len(pages)}")
+        pdf.showPage()
+
+    pdf.save()
+    return str(output_path)
+
+
+def generate_partnership_supplier_statement_pdf(party, period_month: str, asset_rows, summary, output_dir: str) -> str:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_code = str(party["party_code"]).replace("/", "-")
+    output_path = Path(output_dir) / f"{safe_code}_partnership_{period_month}_{timestamp}.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+    rows = list(asset_rows or [])
+    if not rows:
+        rows = [{"asset_name": "No vehicle", "vehicle_no": "-", "double_shift_mode": "-", "work_total": 0.0, "total_salary_cost": 0.0, "total_maintenance_cost": 0.0, "net_profit": 0.0, "company_should_receive": 0.0, "partner_should_receive": 0.0}]
+
+    table_top = PAGE_HEIGHT - 96 * mm
+    row_height = 8.0 * mm
+    bottom_limit = 26 * mm
+    rows_per_page = max(1, int((table_top - bottom_limit) // row_height) - 1)
+    pages = [rows[index:index + rows_per_page] for index in range(0, len(rows), rows_per_page)] or [rows]
+
+    for page_number, page_rows in enumerate(pages, start=1):
+        pdf.setFillColor(colors.white)
+        pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
+        _draw_title(pdf, "Partnership Profit Statement", f"{party['party_name']} | {format_month_label(period_month)}")
+        _draw_stat_box(pdf, 16 * mm, PAGE_HEIGHT - 58 * mm, 42 * mm, 14 * mm, "Work", f"AED {format_currency(float(summary.get('work_total', 0.0)))}")
+        _draw_stat_box(pdf, 61 * mm, PAGE_HEIGHT - 58 * mm, 42 * mm, 14 * mm, "Salary", f"AED {format_currency(float(summary.get('total_salary_cost', 0.0)))}", fill_color=SOFT)
+        _draw_stat_box(pdf, 106 * mm, PAGE_HEIGHT - 58 * mm, 42 * mm, 14 * mm, "Maintenance", f"AED {format_currency(float(summary.get('total_maintenance_cost', 0.0)))}", fill_color=SOFT)
+        _draw_stat_box(pdf, 151 * mm, PAGE_HEIGHT - 58 * mm, 43 * mm, 14 * mm, "Net Profit", f"AED {format_currency(float(summary.get('net_profit', 0.0)))}", fill_color=colors.HexColor("#FFF4E8"), text_color=ORANGE, border_color=ORANGE)
+
+        _draw_table_header(pdf, table_top, ["Vehicle", "Mode", "Work", "Salary", "Maint.", "Net", "Company", "Partner"], [18, 58, 78, 102, 126, 148, 172, 192])
+        y = table_top - 6.2 * mm
+        for index, row in enumerate(page_rows):
+            if index % 2 == 0:
+                pdf.setFillColor(SOFT)
+                pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.8 * mm, 1.6 * mm, fill=1, stroke=0)
+            pdf.setFillColor(TEXT)
+            vehicle_text, vehicle_size = _fit_text(pdf, f"{row.get('asset_name') or '-'} / {row.get('vehicle_no') or '-'}", "Helvetica-Bold", 6.9, 36 * mm, min_size=5.8)
+            pdf.setFont("Helvetica-Bold", vehicle_size)
+            pdf.drawString(18 * mm, y, vehicle_text)
+            pdf.setFont("Helvetica", 6.8)
+            pdf.drawString(58 * mm, y, str(row.get("double_shift_mode") or "-"))
+            pdf.drawRightString(100 * mm, y, format_currency(float(row.get("work_total") or 0.0)))
+            pdf.drawRightString(124 * mm, y, format_currency(float(row.get("total_salary_cost") or 0.0)))
+            pdf.drawRightString(146 * mm, y, format_currency(float(row.get("total_maintenance_cost") or 0.0)))
+            pdf.drawRightString(168 * mm, y, format_currency(float(row.get("net_profit") or 0.0)))
+            pdf.drawRightString(188 * mm, y, format_currency(float(row.get("company_should_receive") or 0.0)))
+            pdf.drawRightString(194 * mm, y, format_currency(float(row.get("partner_should_receive") or 0.0)))
+            y -= row_height
+
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 7.0)
+        pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
+        pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number} / {len(pages)}")
+        pdf.showPage()
+
+    pdf.save()
+    return str(output_path)
+
+
 def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output_dir: str, assets_dir: str) -> str:
     safe_invoice_no = str(invoice["invoice_no"]).replace("/", "-")
     output_path = Path(output_dir) / f"{safe_invoice_no}_tax-invoice.pdf"

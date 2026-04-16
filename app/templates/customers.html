@@ -6,7 +6,8 @@
         <div class="admin-toolbar-row">
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a class="button" href="{{ url_for('invoice_center') }}">Invoice Center</a>
+                <a class="button" href="#customer-register">{% if values.original_party_code %}Edit Customer{% else %}Add Customer{% endif %}</a>
+                <a class="button button-secondary" href="{{ url_for('invoice_center') }}">Invoice Center</a>
             </div>
             <div class="admin-mini-stats">
                 <span><strong>{{ summary.customer_count }}</strong><small>Customers</small></span>
@@ -19,6 +20,79 @@
             <a class="mini-link-pill" href="{{ url_for('party_list') }}">Party Master</a>
         </div>
     </article>
+
+    <section class="desk-content-grid">
+        <article class="card desk-panel-card" id="customer-register">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Customer</span>
+                    <h2>{% if values.original_party_code %}Edit Customer{% else %}Add Customer{% endif %}</h2>
+                </div>
+            </div>
+            <form method="post" class="desk-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="original_party_code" value="{{ values.original_party_code }}">
+                <label><span>Customer Code</span><input type="text" name="party_code" value="{{ values.party_code }}" placeholder="Auto if left blank" {% if values.original_party_code %}readonly{% endif %}></label>
+                <label><span>Customer Name</span><input type="text" name="party_name" value="{{ values.party_name }}" required></label>
+                <label><span>Kind</span><select name="party_kind"><option value="Company" {% if values.party_kind == 'Company' %}selected{% endif %}>Company</option><option value="Individual" {% if values.party_kind == 'Individual' %}selected{% endif %}>Individual</option></select></label>
+                <label><span>Contact</span><input type="text" name="contact_person" value="{{ values.contact_person }}"></label>
+                <label><span>Phone</span><input type="text" name="phone_number" value="{{ values.phone_number }}"></label>
+                <label><span>Email</span><input type="email" name="email" value="{{ values.email }}"></label>
+                <label><span>TRN</span><input type="text" name="trn_no" value="{{ values.trn_no }}"></label>
+                <label><span>Trade License</span><input type="text" name="trade_license_no" value="{{ values.trade_license_no }}"></label>
+                <label><span>Status</span><select name="status"><option value="Active" {% if values.status == 'Active' %}selected{% endif %}>Active</option><option value="Inactive" {% if values.status == 'Inactive' %}selected{% endif %}>Inactive</option></select></label>
+                <label class="full-span"><span>Address</span><textarea name="address" rows="3">{{ values.address }}</textarea></label>
+                <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ values.notes }}</textarea></label>
+                <div class="form-actions left-actions full-span">
+                    <button class="button" type="submit">{% if values.original_party_code %}Update Customer{% else %}Save Customer{% endif %}</button>
+                    {% if values.original_party_code %}
+                        <a class="button button-secondary" href="{{ url_for('customers') }}">Cancel</a>
+                    {% endif %}
+                </div>
+            </form>
+        </article>
+
+        <div class="desk-side-stack">
+            <article class="card desk-panel-card compact-side-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Receivables</span>
+                        <h2>Top Exposure</h2>
+                    </div>
+                </div>
+                <div class="mini-ledger-list">
+                    {% for item in top_receivables %}
+                        <div class="mini-ledger-row">
+                            <strong>{{ item.party_name }}</strong>
+                            <span>AED {{ "%.2f"|format(item.balance_amount) }}</span>
+                        </div>
+                    {% else %}
+                        <p class="muted-text">No receivable rows yet.</p>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <article class="card desk-panel-card compact-side-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Invoices</span>
+                        <h2>Recent Sales</h2>
+                    </div>
+                </div>
+                <div class="mini-ledger-list">
+                    {% for item in recent_invoices %}
+                        <div class="mini-ledger-row stacked-row">
+                            <strong>{{ item.invoice_no }}</strong>
+                            <span>{{ item.party_name }}</span>
+                            <span>AED {{ "%.2f"|format(item.balance_amount) }}</span>
+                        </div>
+                    {% else %}
+                        <p class="muted-text">No sales invoices yet.</p>
+                    {% endfor %}
+                </div>
+            </article>
+        </div>
+    </section>
 
     <section class="directory-card-grid">
         {% for item in customer_parties %}
@@ -34,58 +108,21 @@
                         <span class="directory-line"><strong>Contact</strong><small>{{ item.contact_person or item.phone_number or '-' }}</small></span>
                     </div>
                 </div>
-                <div class="directory-card-foot">
-                    <span class="directory-code">Customer</span>
+                <div class="directory-card-foot split-actions">
                     <a class="button button-secondary directory-open" href="{{ url_for('customer_statement', party_code=item.party_code) }}">Open Statement</a>
+                    <a class="button button-secondary directory-open" href="{{ url_for('customers', edit=item.party_code) }}">Edit</a>
+                    <form method="post" action="{{ url_for('archive_customer', party_code=item.party_code) }}" onsubmit="return confirm('Archive this customer from the desk?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="button button-secondary directory-open" type="submit">Archive</button>
+                    </form>
                 </div>
             </article>
         {% else %}
             <article class="card directory-empty">
                 <h2>No Customer Found</h2>
-                <p>Add customer parties first.</p>
+                <p>Add your first customer here.</p>
             </article>
         {% endfor %}
-    </section>
-
-    <section class="desk-content-grid compact-content-grid">
-        <article class="card desk-panel-card compact-side-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Receivables</span>
-                    <h2>Top Exposure</h2>
-                </div>
-            </div>
-            <div class="mini-ledger-list">
-                {% for item in top_receivables %}
-                    <div class="mini-ledger-row">
-                        <strong>{{ item.party_name }}</strong>
-                        <span>AED {{ "%.2f"|format(item.balance_amount) }}</span>
-                    </div>
-                {% else %}
-                    <p class="muted-text">No receivable rows yet.</p>
-                {% endfor %}
-            </div>
-        </article>
-
-        <article class="card desk-panel-card compact-side-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Invoices</span>
-                    <h2>Recent Sales</h2>
-                </div>
-            </div>
-            <div class="mini-ledger-list">
-                {% for item in recent_invoices %}
-                    <div class="mini-ledger-row stacked-row">
-                        <strong>{{ item.invoice_no }}</strong>
-                        <span>{{ item.party_name }}</span>
-                        <span>AED {{ "%.2f"|format(item.balance_amount) }}</span>
-                    </div>
-                {% else %}
-                    <p class="muted-text">No sales invoices yet.</p>
-                {% endfor %}
-            </div>
-        </article>
     </section>
 </section>
 {% endblock %}

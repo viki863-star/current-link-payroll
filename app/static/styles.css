@@ -3845,6 +3845,10 @@ html {
     align-items: center;
 }
 
+.split-actions form {
+    margin: 0;
+}
+
 .admin-mini-stats {
     display: flex;
     flex-wrap: wrap;
@@ -4195,6 +4199,14 @@ html {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
+}
+
+.company-clean-layout {
+    grid-template-columns: 1fr;
+}
+
+.company-clean-layout .form-panel {
+    max-width: none;
 }
 
 .partnership-summary-grid {

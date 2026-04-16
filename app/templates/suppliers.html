@@ -225,6 +225,10 @@
                 <div class="directory-card-foot split-actions">
                     <a class="button button-secondary directory-open" href="{{ url_for(detail_endpoint, party_code=item.party_code) }}">Open Desk</a>
                     <a class="button button-secondary directory-open" href="{{ url_for(desk_endpoint, edit=item.party_code) }}">Edit</a>
+                    <form method="post" action="{{ url_for('archive_supplier', party_code=item.party_code) }}" onsubmit="return confirm('Archive this supplier from the desk?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="button button-secondary directory-open" type="submit">Archive</button>
+                    </form>
                 </div>
             </article>
         {% else %}

@@ -29,6 +29,8 @@ from .pdf_service import (
     format_month_label,
     generate_kata_pdf,
     generate_owner_fund_pdf,
+    generate_partnership_supplier_statement_pdf,
+    generate_plain_supplier_statement_pdf,
     generate_salary_slip_pdf,
     generate_supplier_payment_voucher_pdf,
     generate_tax_invoice_pdf,
@@ -437,7 +439,29 @@ def register_routes(app: Flask) -> None:
             submissions=_supplier_submission_rows(db, party_code, limit=20),
             statement_rows=statement_rows,
             statement_summary=statement_summary,
+            statement_pdf_url=url_for("supplier_portal_statement_pdf"),
         )
+
+    @app.get("/portal/supplier/statement-pdf")
+    @_login_required("supplier")
+    def supplier_portal_statement_pdf():
+        db = open_db()
+        party_code = _current_supplier_party_code()
+        party = _fetch_supplier_party(db, party_code)
+        if party is None:
+            flash("Supplier portal account was not found.", "error")
+            return redirect(url_for("supplier_login"))
+        statement_rows, statement_summary = _supplier_statement_data(db, party_code, supplier_mode="Normal")
+        output_dir = _supplier_output_dir(app, party_code) / "portal_statements"
+        pdf_path = generate_plain_supplier_statement_pdf(
+            party,
+            statement_rows,
+            statement_summary,
+            str(output_dir),
+            title="Supplier Portal Statement",
+        )
+        relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+        return redirect(url_for("generated_file", filename=relative_path))
 
     @app.get("/services")
     def services():
@@ -1042,6 +1066,9 @@ def register_routes(app: Flask) -> None:
                 return redirect(url_for(_supplier_desk_endpoint(values["supplier_mode"])))
             except ValidationError as exc:
                 flash(str(exc), "error")
+            except Exception:
+                current_app.logger.exception("Supplier save failed for %s", values.get("party_code") or values.get("original_party_code") or "new")
+                flash("Supplier save failed. Please check portal email and supplier details, then try again.", "error")
 
         return render_template(
             "suppliers.html",
@@ -1115,6 +1142,9 @@ def register_routes(app: Flask) -> None:
                 return redirect(url_for("partnership_suppliers"))
             except ValidationError as exc:
                 flash(str(exc), "error")
+            except Exception:
+                current_app.logger.exception("Partnership supplier save failed for %s", values.get("party_code") or values.get("original_party_code") or "new")
+                flash("Supplier save failed. Please review the partnership details and try again.", "error")
 
         return render_template(
             "suppliers.html",
@@ -1652,6 +1682,59 @@ def register_routes(app: Flask) -> None:
     def supplier_statement(party_code: str):
         return redirect(url_for("supplier_detail", party_code=party_code, screen="statement"))
 
+    @app.get("/suppliers/<party_code>/statement-pdf")
+    @_login_required("admin")
+    def supplier_statement_pdf(party_code: str):
+        db = open_db()
+        party = _fetch_supplier_party(db, party_code)
+        if party is None:
+            flash("Supplier was not found.", "error")
+            return redirect(url_for("suppliers"))
+        supplier_mode = _supplier_mode_for_party(db, party_code)
+        statement_rows, statement_summary = _supplier_statement_data(db, party_code, supplier_mode=supplier_mode)
+        output_dir = _supplier_output_dir(app, party_code) / "statements"
+        if supplier_mode == "Partnership":
+            partnership_month = _normalize_month(request.args.get("month", "").strip() or _current_month_value())
+            asset_rows = _supplier_partnership_asset_rows(db, party_code, partnership_month)
+            pdf_path = generate_partnership_supplier_statement_pdf(
+                party,
+                partnership_month,
+                asset_rows,
+                statement_summary,
+                str(output_dir),
+            )
+        else:
+            pdf_path = generate_plain_supplier_statement_pdf(
+                party,
+                statement_rows,
+                statement_summary,
+                str(output_dir),
+                title="Supplier Statement of Account",
+            )
+        relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+        return redirect(url_for("generated_file", filename=relative_path))
+
+    @app.post("/suppliers/<party_code>/archive")
+    @_login_required("admin")
+    def archive_supplier(party_code: str):
+        db = open_db()
+        party = _fetch_supplier_party(db, party_code)
+        if party is None:
+            flash("Supplier was not found.", "error")
+            return redirect(url_for("suppliers"))
+        next_status = "Inactive" if (party["status"] or "Active") == "Active" else "Active"
+        db.execute("UPDATE parties SET status = ? WHERE party_code = ?", (next_status, party_code))
+        _audit_log(
+            db,
+            "supplier_status_updated",
+            entity_type="supplier",
+            entity_id=party_code,
+            details=f"{party['party_name']} / {next_status}",
+        )
+        db.commit()
+        flash(f"{party['party_name']} marked as {next_status}.", "success")
+        return redirect(url_for(_supplier_desk_endpoint(_supplier_mode_for_party(db, party_code))))
+
     @app.post("/supplier-assets/<asset_code>/delete")
     @_login_required("admin")
     def delete_supplier_asset(asset_code: str):
@@ -1770,18 +1853,76 @@ def register_routes(app: Flask) -> None:
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
-    @app.get("/customers")
+    @app.route("/customers", methods=["GET", "POST"])
     @_login_required("admin")
     def customers():
         _touch_admin_workspace("customers")
         db = open_db()
-        customer_parties = _parties_by_role(db, "Customer")
+        values = _default_customer_form()
+        edit_party_code = request.args.get("edit", "").strip().upper()
+        if edit_party_code:
+            existing_party = _fetch_party(db, edit_party_code)
+            if existing_party is not None and "Customer" in _deserialize_party_roles(existing_party["party_roles"] or ""):
+                values = _customer_form_from_party(existing_party)
+
+        if request.method == "POST":
+            values = _customer_form_data(request)
+            try:
+                payload = _prepare_customer_party_payload(db, values)
+                if values["original_party_code"]:
+                    db.execute(
+                        """
+                        UPDATE parties
+                        SET party_name = ?, party_kind = ?, party_roles = ?, contact_person = ?,
+                            phone_number = ?, email = ?, trn_no = ?, trade_license_no = ?,
+                            address = ?, notes = ?, status = ?
+                        WHERE party_code = ?
+                        """,
+                        payload[1:] + (values["original_party_code"],),
+                    )
+                    _audit_log(
+                        db,
+                        "customer_updated",
+                        entity_type="customer",
+                        entity_id=payload[0],
+                        details=payload[1],
+                    )
+                    message = "Customer updated successfully."
+                else:
+                    db.execute(
+                        """
+                        INSERT INTO parties (
+                            party_code, party_name, party_kind, party_roles, contact_person,
+                            phone_number, email, trn_no, trade_license_no, address, notes, status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        payload,
+                    )
+                    _audit_log(
+                        db,
+                        "customer_created",
+                        entity_type="customer",
+                        entity_id=payload[0],
+                        details=payload[1],
+                    )
+                    message = "Customer saved successfully."
+                db.commit()
+                flash(message, "success")
+                return redirect(url_for("customers"))
+            except ValidationError as exc:
+                flash(str(exc), "error")
+            except Exception:
+                current_app.logger.exception("Customer save failed for %s", values.get("party_code") or values.get("original_party_code") or "new")
+                flash("Customer save failed. Please review the form and try again.", "error")
+
+        customer_parties = _parties_by_role(db, "Customer", active_only=True)
         summary = _customer_summary(db)
         top_receivables = _party_balance_rows(db, invoice_kind="Sales", limit=8)
         recent_hires = _hire_rows(db, direction="Customer Rental", limit=8)
         recent_invoices = _invoice_rows(db, invoice_kind="Sales", limit=8)
         return render_template(
             "customers.html",
+            values=values,
             customer_parties=customer_parties,
             summary=summary,
             top_receivables=top_receivables,
@@ -1808,6 +1949,27 @@ def register_routes(app: Flask) -> None:
             summary=summary,
             back_endpoint="customers",
         )
+
+    @app.post("/customers/<party_code>/archive")
+    @_login_required("admin")
+    def archive_customer(party_code: str):
+        db = open_db()
+        party = _fetch_party(db, party_code)
+        if party is None or "Customer" not in _deserialize_party_roles(party["party_roles"] or ""):
+            flash("Customer was not found.", "error")
+            return redirect(url_for("customers"))
+        next_status = "Inactive" if (party["status"] or "Active") == "Active" else "Active"
+        db.execute("UPDATE parties SET status = ? WHERE party_code = ?", (next_status, party_code))
+        _audit_log(
+            db,
+            "customer_status_updated",
+            entity_type="customer",
+            entity_id=party_code,
+            details=f"{party['party_name']} / {next_status}",
+        )
+        db.commit()
+        flash(f"{party['party_name']} marked as {next_status}.", "success")
+        return redirect(url_for("customers"))
 
     @app.route("/agreements-lpos", methods=["GET", "POST"])
     @_login_required("admin")
@@ -4588,6 +4750,50 @@ def _party_values_from_record(record):
     return values
 
 
+def _default_customer_form():
+    values = _default_party_form()
+    values["party_roles"] = ["Customer"]
+    values["original_party_code"] = ""
+    return values
+
+
+def _customer_form_data(request):
+    values = _party_form_data(request)
+    values["original_party_code"] = request.form.get("original_party_code", "").strip().upper()
+    values["party_roles"] = ["Customer"]
+    return values
+
+
+def _customer_form_from_party(record):
+    values = _party_values_from_record(record)
+    values["original_party_code"] = record["party_code"]
+    values["party_roles"] = ["Customer"]
+    return values
+
+
+def _prepare_customer_party_payload(db, values):
+    if not values["party_name"]:
+        raise ValidationError("Customer name is required.")
+    values["party_roles"] = ["Customer"]
+    values["phone_number"] = _normalize_optional_phone(values["phone_number"])
+    _validate_optional_email(values["email"])
+    values["party_code"] = values["party_code"] or values["original_party_code"] or _next_party_code(db)
+    return (
+        values["party_code"],
+        values["party_name"],
+        values["party_kind"],
+        _serialize_party_roles(values["party_roles"]),
+        values["contact_person"],
+        values["phone_number"],
+        values["email"],
+        values["trn_no"],
+        values["trade_license_no"],
+        values["address"],
+        values["notes"],
+        values["status"],
+    )
+
+
 def _next_party_code(db) -> str:
     rows = db.execute("SELECT party_code FROM parties WHERE party_code LIKE ? ORDER BY party_code ASC", ("PTY-%",)).fetchall()
     max_number = 0
@@ -4610,14 +4816,16 @@ def _preview_next_party_code() -> str:
 
 
 
-def _parties_by_role(db, role: str):
+def _parties_by_role(db, role: str, active_only: bool = False):
+    status_clause = "AND status = 'Active'" if active_only else ""
     return db.execute(
-        """
+        f"""
         SELECT
             party_code, party_name, party_kind, party_roles, contact_person,
             phone_number, email, trn_no, trade_license_no, address, notes, status, created_at
         FROM parties
         WHERE party_roles LIKE ?
+        {status_clause}
         ORDER BY CASE WHEN status = 'Active' THEN 0 ELSE 1 END, party_name ASC
         """,
         (f"%{role}%",),
@@ -6137,11 +6345,11 @@ def _supplier_screen_options(supplier_mode: str):
     options = [
         {"key": "vehicles", "label": "Vehicles"},
         {"key": "timesheets", "label": "Timesheets"},
-        {"key": "billing", "label": "Invoice Intake & Payment" if supplier_mode == "Normal" else "Billing & Payment"},
+        {"key": "billing", "label": "Invoice Intake & Payment" if supplier_mode == "Normal" else "Expenses & Salary Split"},
         {"key": "statement", "label": "Statement"},
     ]
     if (supplier_mode or "Normal") == "Partnership":
-        options.append({"key": "partnership", "label": "Partnership Result"})
+        options.append({"key": "partnership", "label": "Profit Result"})
     return options
 
 
@@ -6374,7 +6582,7 @@ def _upsert_supplier_portal_account(db, party_code: str, values) -> None:
             db.execute(
                 """
                 UPDATE supplier_portal_accounts
-                SET login_email = ?, portal_enabled = 0, activation_status = 'Suspended', updated_at = CURRENT_TIMESTAMP
+                SET login_email = ?, portal_enabled = 0, activation_status = 'Suspended'
                 WHERE party_code = ?
                 """,
                 (login_email or existing["login_email"] or "", party_code),
@@ -6406,7 +6614,7 @@ def _upsert_supplier_portal_account(db, party_code: str, values) -> None:
     db.execute(
         """
         UPDATE supplier_portal_accounts
-        SET login_email = ?, portal_enabled = ?, activation_status = ?, updated_at = CURRENT_TIMESTAMP
+        SET login_email = ?, portal_enabled = ?, activation_status = ?
         WHERE party_code = ?
         """,
         (login_email or existing["login_email"] or "", 1 if portal_enabled else 0, activation_status, party_code),
@@ -7497,12 +7705,14 @@ def _supplier_hub_summary(db, supplier_mode: str = "Normal"):
     }
 
 
-def _supplier_directory_rows(db, query: str = "", limit: int | None = None, supplier_mode: str = "Normal"):
+def _supplier_directory_rows(db, query: str = "", limit: int | None = None, supplier_mode: str = "Normal", active_only: bool = True):
     normalized_mode = supplier_mode if supplier_mode in SUPPLIER_MODE_OPTIONS else "Normal"
     filters = ["p.party_roles LIKE ?"]
     params = ["%Supplier%"]
     filters.append("COALESCE(profile.supplier_mode, 'Normal') = ?")
     params.append(normalized_mode)
+    if active_only:
+        filters.append("p.status = 'Active'")
     if query:
         needle = f"%{query.strip().lower()}%"
         filters.append(
@@ -7846,12 +8056,73 @@ def _supplier_partnership_summary(db, party_code: str, period_month: str):
         ).fetchone()[0]
         or 0.0
     )
+    company_salary = float(
+        db.execute(
+            """
+            SELECT COALESCE(SUM(amount), 0)
+            FROM supplier_partnership_entries
+            WHERE party_code = ? AND period_month = ? AND paid_by = 'Company' AND entry_kind = 'Driver Salary'
+            """,
+            (party_code, month_value),
+        ).fetchone()[0]
+        or 0.0
+    )
+    partner_salary = float(
+        db.execute(
+            """
+            SELECT COALESCE(SUM(amount), 0)
+            FROM supplier_partnership_entries
+            WHERE party_code = ? AND period_month = ? AND paid_by = 'Partner' AND entry_kind = 'Driver Salary'
+            """,
+            (party_code, month_value),
+        ).fetchone()[0]
+        or 0.0
+    )
+    company_maintenance = float(
+        db.execute(
+            """
+            SELECT COALESCE(SUM(amount), 0)
+            FROM supplier_partnership_entries
+            WHERE party_code = ? AND period_month = ? AND paid_by = 'Company' AND entry_kind = 'Vehicle Expense'
+            """,
+            (party_code, month_value),
+        ).fetchone()[0]
+        or 0.0
+    )
+    partner_maintenance = float(
+        db.execute(
+            """
+            SELECT COALESCE(SUM(amount), 0)
+            FROM supplier_partnership_entries
+            WHERE party_code = ? AND period_month = ? AND paid_by = 'Partner' AND entry_kind = 'Vehicle Expense'
+            """,
+            (party_code, month_value),
+        ).fetchone()[0]
+        or 0.0
+    )
+    total_salary_cost = round(company_salary + partner_salary, 2)
+    total_maintenance_cost = round(company_maintenance + partner_maintenance, 2)
+    total_cost = round(company_paid + partner_paid, 2)
+    net_profit = round(work_total - total_cost, 2)
+    company_profit_share = round(net_profit * 0.5, 2)
+    partner_profit_share = round(net_profit * 0.5, 2)
     return {
         "period_month": month_value,
         "work_total": work_total,
         "company_paid": company_paid,
         "partner_paid": partner_paid,
-        "total_cost": round(company_paid + partner_paid, 2),
+        "company_salary": company_salary,
+        "partner_salary": partner_salary,
+        "company_maintenance": company_maintenance,
+        "partner_maintenance": partner_maintenance,
+        "total_salary_cost": total_salary_cost,
+        "total_maintenance_cost": total_maintenance_cost,
+        "total_cost": total_cost,
+        "net_profit": net_profit,
+        "company_profit_share": company_profit_share,
+        "partner_profit_share": partner_profit_share,
+        "company_should_receive": round(company_profit_share + company_paid, 2),
+        "partner_should_receive": round(partner_profit_share + partner_paid, 2),
     }
 
 
@@ -7938,8 +8209,34 @@ def _supplier_partnership_asset_rows(db, party_code: str, period_month: str):
         if (asset["partnership_mode"] or "Standard") != "Partnership":
             company_share_percent = 100.0
             partner_share_percent = 0.0
-        company_share_amount = round(work_total * (company_share_percent / 100.0), 2)
-        partner_share_amount = round(work_total * (partner_share_percent / 100.0), 2)
+        company_maintenance = float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(amount), 0)
+                FROM supplier_partnership_entries
+                WHERE party_code = ? AND asset_code = ? AND period_month = ? AND paid_by = 'Company' AND entry_kind = 'Vehicle Expense'
+                """,
+                (party_code, asset["asset_code"], month_value),
+            ).fetchone()[0]
+            or 0.0
+        )
+        partner_maintenance = float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(amount), 0)
+                FROM supplier_partnership_entries
+                WHERE party_code = ? AND asset_code = ? AND period_month = ? AND paid_by = 'Partner' AND entry_kind = 'Vehicle Expense'
+                """,
+                (party_code, asset["asset_code"], month_value),
+            ).fetchone()[0]
+            or 0.0
+        )
+        total_salary_cost = round(company_salary + partner_salary, 2)
+        total_maintenance_cost = round(company_maintenance + partner_maintenance, 2)
+        total_cost = round(company_paid + partner_paid, 2)
+        net_profit = round(work_total - total_cost, 2)
+        company_share_amount = round(net_profit * (company_share_percent / 100.0), 2)
+        partner_share_amount = round(net_profit * (partner_share_percent / 100.0), 2)
         rows.append(
             {
                 "asset_code": asset["asset_code"],
@@ -7957,10 +8254,16 @@ def _supplier_partnership_asset_rows(db, party_code: str, period_month: str):
                 "partner_paid": partner_paid,
                 "company_salary": company_salary,
                 "partner_salary": partner_salary,
+                "company_maintenance": company_maintenance,
+                "partner_maintenance": partner_maintenance,
+                "total_salary_cost": total_salary_cost,
+                "total_maintenance_cost": total_maintenance_cost,
+                "total_cost": total_cost,
+                "net_profit": net_profit,
                 "company_share_amount": company_share_amount,
                 "partner_share_amount": partner_share_amount,
-                "company_net": round(company_share_amount - company_paid, 2),
-                "partner_net": round(partner_share_amount - partner_paid, 2),
+                "company_should_receive": round(company_share_amount + company_paid, 2),
+                "partner_should_receive": round(partner_share_amount + partner_paid, 2),
             }
         )
     return rows

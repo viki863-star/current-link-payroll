@@ -67,6 +67,9 @@
                 <span class="admin-desk-label">Statement</span>
                 <h2>Statement of account</h2>
             </div>
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ statement_pdf_url }}">Download PDF</a>
+            </div>
         </div>
         <div class="supplier-overview-grid">
             <div class="directory-line"><strong>Total Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.total_submitted) }}</small></div>
