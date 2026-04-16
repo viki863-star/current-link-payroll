@@ -177,6 +177,19 @@ CREATE TABLE IF NOT EXISTS parties (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS supplier_profile (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    party_code TEXT NOT NULL UNIQUE,
+    supplier_mode TEXT NOT NULL DEFAULT 'Normal',
+    partner_party_code TEXT,
+    partner_name TEXT,
+    default_company_share_percent REAL NOT NULL DEFAULT 100,
+    default_partner_share_percent REAL NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code),
+    FOREIGN KEY(partner_party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS supplier_assets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     asset_code TEXT NOT NULL UNIQUE,
@@ -419,6 +432,9 @@ CREATE TABLE IF NOT EXISTS vehicle_master (
     status TEXT NOT NULL DEFAULT 'Active',
     shift_mode TEXT NOT NULL DEFAULT 'Single Shift',
     ownership_mode TEXT NOT NULL DEFAULT 'Standard',
+    source_type TEXT NOT NULL DEFAULT 'Own Fleet Vehicle',
+    source_party_code TEXT,
+    source_asset_code TEXT,
     partner_party_code TEXT,
     partner_name TEXT,
     company_share_percent REAL NOT NULL DEFAULT 100,
@@ -458,6 +474,9 @@ CREATE TABLE IF NOT EXISTS maintenance_papers (
     paper_date TEXT NOT NULL,
     vehicle_id TEXT NOT NULL,
     vehicle_no TEXT NOT NULL,
+    target_class TEXT NOT NULL DEFAULT 'Own Fleet Vehicle',
+    target_party_code TEXT,
+    target_asset_code TEXT,
     workshop_party_code TEXT,
     staff_code TEXT,
     advance_no TEXT,
@@ -473,6 +492,7 @@ CREATE TABLE IF NOT EXISTS maintenance_papers (
     partner_share_amount REAL NOT NULL DEFAULT 0,
     company_paid_amount REAL NOT NULL DEFAULT 0,
     partner_paid_amount REAL NOT NULL DEFAULT 0,
+    linked_partnership_entry_no TEXT,
     attachment_path TEXT,
     notes TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -717,6 +737,19 @@ CREATE TABLE IF NOT EXISTS parties (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS supplier_profile (
+    id BIGSERIAL PRIMARY KEY,
+    party_code TEXT NOT NULL UNIQUE,
+    supplier_mode TEXT NOT NULL DEFAULT 'Normal',
+    partner_party_code TEXT,
+    partner_name TEXT,
+    default_company_share_percent DOUBLE PRECISION NOT NULL DEFAULT 100,
+    default_partner_share_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code),
+    FOREIGN KEY(partner_party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS supplier_assets (
     id BIGSERIAL PRIMARY KEY,
     asset_code TEXT NOT NULL UNIQUE,
@@ -959,6 +992,9 @@ CREATE TABLE IF NOT EXISTS vehicle_master (
     status TEXT NOT NULL DEFAULT 'Active',
     shift_mode TEXT NOT NULL DEFAULT 'Single Shift',
     ownership_mode TEXT NOT NULL DEFAULT 'Standard',
+    source_type TEXT NOT NULL DEFAULT 'Own Fleet Vehicle',
+    source_party_code TEXT,
+    source_asset_code TEXT,
     partner_party_code TEXT,
     partner_name TEXT,
     company_share_percent DOUBLE PRECISION NOT NULL DEFAULT 100,
@@ -998,6 +1034,9 @@ CREATE TABLE IF NOT EXISTS maintenance_papers (
     paper_date TEXT NOT NULL,
     vehicle_id TEXT NOT NULL,
     vehicle_no TEXT NOT NULL,
+    target_class TEXT NOT NULL DEFAULT 'Own Fleet Vehicle',
+    target_party_code TEXT,
+    target_asset_code TEXT,
     workshop_party_code TEXT,
     staff_code TEXT,
     advance_no TEXT,
@@ -1013,6 +1052,7 @@ CREATE TABLE IF NOT EXISTS maintenance_papers (
     partner_share_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     company_paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     partner_paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    linked_partnership_entry_no TEXT,
     attachment_path TEXT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1121,6 +1161,28 @@ REQUIRED_COLUMNS = {
         "partner_share_percent": "DOUBLE PRECISION NOT NULL DEFAULT 0",
         "day_shift_paid_by": "TEXT NOT NULL DEFAULT 'Company'",
         "night_shift_paid_by": "TEXT NOT NULL DEFAULT 'Company'",
+    },
+    "supplier_profile": {
+        "supplier_mode": "TEXT NOT NULL DEFAULT 'Normal'",
+        "partner_party_code": "TEXT",
+        "partner_name": "TEXT",
+        "default_company_share_percent": "DOUBLE PRECISION NOT NULL DEFAULT 100",
+        "default_partner_share_percent": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+    },
+    "supplier_partnership_entries": {
+        "source_type": "TEXT",
+        "source_reference": "TEXT",
+    },
+    "vehicle_master": {
+        "source_type": "TEXT NOT NULL DEFAULT 'Own Fleet Vehicle'",
+        "source_party_code": "TEXT",
+        "source_asset_code": "TEXT",
+    },
+    "maintenance_papers": {
+        "target_class": "TEXT NOT NULL DEFAULT 'Own Fleet Vehicle'",
+        "target_party_code": "TEXT",
+        "target_asset_code": "TEXT",
+        "linked_partnership_entry_no": "TEXT",
     },
 }
 

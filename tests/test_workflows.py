@@ -1154,7 +1154,7 @@ def test_supplier_workspace_flow_keeps_driver_core_safe(app, client):
     )
     assert payment.status_code == 200
 
-    supplier_detail = client.get("/suppliers/PTY-SUP-01", follow_redirects=True)
+    supplier_detail = client.get("/suppliers/PTY-SUP-01?screen=billing", follow_redirects=True)
     assert supplier_detail.status_code == 200
     assert b"Hussain Logistics" in supplier_detail.data
     assert b"SPV-HUS-01" in supplier_detail.data
@@ -1458,12 +1458,16 @@ def test_supplier_partnership_and_double_shift_flow_tracks_monthly_split(app, cl
     admin_session(client)
 
     client.post(
-        "/suppliers",
+        "/suppliers/partnership",
         data={
             "party_code": "PTY-PART-01",
             "party_name": "Hussain Partner Fleet",
             "party_kind": "Company",
             "party_roles": ["Supplier", "Partner"],
+            "supplier_mode": "Partnership",
+            "partner_name": "Hussain",
+            "default_company_share_percent": "50",
+            "default_partner_share_percent": "50",
             "contact_person": "Hussain",
             "phone_number": "0502003004",
             "email": "hussain.partner@example.com",
@@ -1581,7 +1585,7 @@ def test_supplier_partnership_and_double_shift_flow_tracks_monthly_split(app, cl
         follow_redirects=True,
     )
 
-    detail = client.get("/suppliers/PTY-PART-01?partnership_month=2026-04", follow_redirects=True)
+    detail = client.get("/suppliers/PTY-PART-01?screen=partnership&partnership_month=2026-04", follow_redirects=True)
     assert detail.status_code == 200
     assert b"Double Shift" in detail.data
     assert b"Partnership Register" in detail.data

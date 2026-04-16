@@ -25,8 +25,8 @@
                 <span>Vehicle</span>
                 <select name="vehicle_id">
                     <option value="">All vehicles</option>
-                    {% for item in vehicle_rows %}
-                        <option value="{{ item.vehicle_id }}" {% if filters.vehicle_id == item.vehicle_id %}selected{% endif %}>{{ item.vehicle_no }} | {{ item.vehicle_type }}</option>
+                    {% for item in filter_vehicle_rows %}
+                        <option value="{{ item.vehicle_id }}" {% if filters.vehicle_id == item.vehicle_id %}selected{% endif %}>{{ item.vehicle_no }} | {{ item.vehicle_type }} | {{ item.source_type }}</option>
                     {% endfor %}
                 </select>
             </label>
@@ -159,9 +159,12 @@
         <form method="post" enctype="multipart/form-data" class="desk-form-grid invoice-form-grid">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="save_paper">
+            <input type="hidden" name="original_paper_no" value="{{ paper_values.original_paper_no }}">
             <label><span>Paper No</span><input type="text" name="paper_no" value="{{ paper_values.paper_no }}"></label>
             <label><span>Paper Date</span><input type="date" name="paper_date" value="{{ paper_values.paper_date }}"></label>
-            <label><span>Vehicle</span><select name="vehicle_id"><option value="">Select vehicle</option>{% for item in vehicle_rows %}<option value="{{ item.vehicle_id }}" {% if paper_values.vehicle_id == item.vehicle_id %}selected{% endif %}>{{ item.vehicle_no }} | {{ item.vehicle_type }} | {{ item.shift_mode }}</option>{% endfor %}</select></label>
+            <label><span>Target Class</span><select name="target_class">{% for item in target_class_options %}<option value="{{ item }}" {% if paper_values.target_class == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+            <label><span>Own Fleet Vehicle</span><select name="vehicle_id"><option value="">Select own fleet</option>{% for item in vehicle_rows %}<option value="{{ item.vehicle_id }}" {% if paper_values.vehicle_id == item.vehicle_id %}selected{% endif %}>{{ item.vehicle_no }} | {{ item.vehicle_type }} | {{ item.shift_mode }}</option>{% endfor %}</select></label>
+            <label><span>Partnership Supplier Vehicle</span><select name="target_asset_code"><option value="">Select supplier vehicle</option>{% for item in partnership_supplier_assets %}<option value="{{ item.asset_code }}" {% if paper_values.target_asset_code == item.asset_code %}selected{% endif %}>{{ item.party_name }} | {{ item.asset_name }}{% if item.vehicle_no %} | {{ item.vehicle_no }}{% endif %}</option>{% endfor %}</select></label>
             <label><span>Workshop / Auto Shop</span><select name="workshop_party_code"><option value="">Optional</option>{% for item in workshop_parties %}<option value="{{ item.party_code }}" {% if paper_values.workshop_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>{% endfor %}</select></label>
             <label><span>Technician</span><select name="staff_code"><option value="">Optional</option>{% for item in staff_rows %}<option value="{{ item.staff_code }}" {% if paper_values.staff_code == item.staff_code %}selected{% endif %}>{{ item.staff_name }}</option>{% endfor %}</select></label>
             <label><span>Advance</span><select name="advance_no"><option value="">Optional</option>{% for item in advance_rows %}<option value="{{ item.advance_no }}" {% if paper_values.advance_no == item.advance_no %}selected{% endif %}>{{ item.advance_no }} | {{ item.staff_name }} | AED {{ "%.2f"|format(item.balance_amount) }}</option>{% endfor %}</select></label>
@@ -184,7 +187,7 @@
                 {% endfor %}
             </div>
             <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ paper_values.notes }}</textarea></label>
-            <div class="form-actions left-actions full-span"><button class="button" type="submit">Save Paper</button></div>
+            <div class="form-actions left-actions full-span"><button class="button" type="submit">{% if paper_values.original_paper_no %}Update Paper{% else %}Save Paper{% endif %}</button>{% if paper_values.original_paper_no %}<a class="button button-secondary" href="{{ url_for('fleet_maintenance', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Cancel</a>{% endif %}</div>
         </form>
     </article>
 
@@ -280,22 +283,23 @@
             <div class="desk-panel-head"><div><span class="admin-desk-label">Papers</span><h2>Recent Maintenance Papers</h2></div></div>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Paper</th><th>Vehicle</th><th>Workshop</th><th>Funding</th><th>Total</th><th>Attachment</th></tr></thead>
-                    <tbody>
-                        {% for item in paper_rows %}
-                            <tr>
-                                <td><strong>{{ item.paper_no }}</strong><br><small>{{ item.paper_date }}</small></td>
-                                <td>{{ item.vehicle_no }}<br><small>{{ item.vehicle_type }} / {{ item.shift_mode }}</small></td>
-                                <td>{{ item.workshop_name }}<br><small>{{ item.staff_name }}</small></td>
-                                <td>{{ item.funding_source }}<br><small>{{ item.tax_mode }}</small></td>
-                                <td>AED {{ "%.2f"|format(item.total_amount) }}<br><small>{{ item.work_summary }}</small></td>
-                                <td>{% if item.attachment_path %}<a class="mini-link-pill" href="{{ url_for('generated_file', filename=item.attachment_path) }}">Open File</a>{% else %}<span class="muted-text">No file</span>{% endif %}</td>
-                            </tr>
-                        {% else %}
-                            <tr><td colspan="6">No maintenance papers found for current filter.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                        <thead><tr><th>Paper</th><th>Vehicle</th><th>Workshop</th><th>Funding</th><th>Total</th><th>Attachment</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {% for item in paper_rows %}
+                                <tr>
+                                    <td><strong>{{ item.paper_no }}</strong><br><small>{{ item.paper_date }}</small></td>
+                                    <td>{{ item.vehicle_no }}<br><small>{{ item.vehicle_type }} / {{ item.shift_mode }} / {{ item.target_class }}</small></td>
+                                    <td>{{ item.workshop_name }}<br><small>{{ item.staff_name }}</small></td>
+                                    <td>{{ item.funding_source }}<br><small>{{ item.tax_mode }}</small></td>
+                                    <td>AED {{ "%.2f"|format(item.total_amount) }}<br><small>{{ item.work_summary }}</small></td>
+                                    <td>{% if item.attachment_path %}<a class="mini-link-pill" href="{{ url_for('generated_file', filename=item.attachment_path) }}">Open File</a>{% else %}<span class="muted-text">No file</span>{% endif %}</td>
+                                    <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('fleet_maintenance', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search, edit_paper=item.paper_no) }}">Edit</a><form method="post" action="{{ url_for('delete_maintenance_paper', paper_no=item.paper_no) }}" onsubmit="return confirm('Delete this maintenance paper?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="7">No maintenance papers found for current filter.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
             </div>
         </article>
 

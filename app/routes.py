@@ -64,6 +64,7 @@ SUPPLIER_RATE_BASIS_OPTIONS = ["Hours", "Days", "Trips", "Monthly", "Fixed"]
 SUPPLIER_VOUCHER_STATUS_OPTIONS = ["Open", "Partially Paid", "Paid"]
 SUPPLIER_SHIFT_MODE_OPTIONS = ["Single Shift", "Double Shift"]
 SUPPLIER_PARTNERSHIP_MODE_OPTIONS = ["Standard", "Partnership"]
+SUPPLIER_MODE_OPTIONS = ["Normal", "Partnership"]
 PARTNERSHIP_ENTRY_KIND_OPTIONS = ["Vehicle Expense", "Driver Salary", "OT / Allowance", "Other"]
 PARTNERSHIP_PAID_BY_OPTIONS = ["Company", "Partner"]
 PARTNERSHIP_SHIFT_OPTIONS = ["General", "Day", "Night"]
@@ -74,11 +75,12 @@ MAINTENANCE_FUNDING_SOURCE_OPTIONS = ["Owner Fund", "Bank", "Owner Direct", "Tec
 MAINTENANCE_ADVANCE_SOURCE_OPTIONS = ["Owner Fund", "Bank", "Owner Direct", "Other"]
 MAINTENANCE_PAID_BY_OPTIONS = ["Company", "Partner"]
 MAINTENANCE_SETTLEMENT_STATUS_OPTIONS = ["Open", "Settled"]
+MAINTENANCE_TARGET_CLASS_OPTIONS = ["Own Fleet Vehicle", "Partnership Supplier Vehicle"]
 MAINTENANCE_LINE_SLOTS = 4
 BRANCH_STATUS_OPTIONS = ["Active", "Inactive"]
 FINANCIAL_YEAR_STATUS_OPTIONS = ["Open", "Closed", "Archived"]
 INVOICE_LINE_SLOTS = 4
-ADMIN_WORKSPACE_ORDER = ["universal", "drivers", "suppliers", "customers", "accounts"]
+ADMIN_WORKSPACE_ORDER = ["universal", "drivers", "suppliers-normal", "suppliers-partnership", "customers", "accounts"]
 ADMIN_WORKSPACE_META = {
     "universal": {
         "label": "Universal",
@@ -92,11 +94,17 @@ ADMIN_WORKSPACE_META = {
         "title": "Driver Desk",
         "summary": "Driver control.",
     },
-    "suppliers": {
-        "label": "Suppliers",
+    "suppliers-normal": {
+        "label": "Normal Suppliers",
         "eyebrow": "Supplier Desk",
-        "title": "Supplier Desk",
-        "summary": "Fleet and payments.",
+        "title": "Normal Supplier Desk",
+        "summary": "Standard supplier vehicles, timesheets and payables.",
+    },
+    "suppliers-partnership": {
+        "label": "Partnership Suppliers",
+        "eyebrow": "Partnership Desk",
+        "title": "Partnership Supplier Desk",
+        "summary": "Shared vehicles, shifts, partner split and payable control.",
     },
     "customers": {
         "label": "Customers",
@@ -784,18 +792,19 @@ def register_routes(app: Flask) -> None:
     @app.route("/suppliers", methods=["GET", "POST"])
     @_login_required("admin")
     def suppliers():
-        _touch_admin_workspace("suppliers")
+        supplier_mode = "Normal"
+        _touch_admin_workspace(_supplier_mode_workspace_key(supplier_mode))
         db = open_db()
-        values = _default_supplier_form()
+        values = _default_supplier_form(supplier_mode)
         query = request.args.get("q", "").strip()
         edit_party_code = request.args.get("edit", "").strip().upper()
         if edit_party_code:
             existing_party = _fetch_party(db, edit_party_code)
             if existing_party is not None and "Supplier" in _deserialize_party_roles(existing_party["party_roles"] or ""):
-                values = _supplier_form_from_party(existing_party)
+                values = _supplier_form_from_party(existing_party, _supplier_profile_row(db, edit_party_code))
 
         if request.method == "POST":
-            values = _supplier_form_data(request)
+            values = _supplier_form_data(request, supplier_mode)
             try:
                 payload = _prepare_supplier_party_payload(db, values)
                 if values["original_party_code"]:
@@ -809,12 +818,13 @@ def register_routes(app: Flask) -> None:
                         """,
                         payload[1:] + (values["original_party_code"],),
                     )
+                    _upsert_supplier_profile(db, payload[0], values)
                     _audit_log(
                         db,
                         "supplier_updated",
                         entity_type="supplier",
                         entity_id=payload[0],
-                        details=f"{payload[1]} / {_serialize_party_roles(_deserialize_party_roles(payload[3]))}",
+                        details=f"{payload[1]} / {values['supplier_mode']}",
                     )
                     message = "Supplier updated successfully."
                 else:
@@ -827,17 +837,18 @@ def register_routes(app: Flask) -> None:
                         """,
                         payload,
                     )
+                    _upsert_supplier_profile(db, payload[0], values)
                     _audit_log(
                         db,
                         "supplier_created",
                         entity_type="supplier",
                         entity_id=payload[0],
-                        details=f"{payload[1]} / {_serialize_party_roles(_deserialize_party_roles(payload[3]))}",
+                        details=f"{payload[1]} / {values['supplier_mode']}",
                     )
                     message = "Supplier registered successfully."
                 db.commit()
                 flash(message, "success")
-                return redirect(url_for("suppliers"))
+                return redirect(url_for(_supplier_desk_endpoint(values["supplier_mode"])))
             except ValidationError as exc:
                 flash(str(exc), "error")
 
@@ -845,23 +856,99 @@ def register_routes(app: Flask) -> None:
             "suppliers.html",
             values=values,
             query=query,
-            summary=_supplier_hub_summary(db),
-            suppliers=_supplier_directory_rows(db, query=query),
-            rate_basis_options=SUPPLIER_RATE_BASIS_OPTIONS,
+            summary=_supplier_hub_summary(db, supplier_mode),
+            suppliers=_supplier_directory_rows(db, query=query, supplier_mode=supplier_mode),
             role_options=[item for item in PARTY_ROLE_OPTIONS if item != "Supplier"],
+            supplier_mode=supplier_mode,
+            desk_title="Normal Supplier Desk",
+            detail_endpoint="supplier_detail",
+            desk_endpoint="suppliers",
+            counterpart_endpoint="partnership_suppliers",
+            counterpart_label="Partnership Desk",
+            partner_parties=_supplier_partner_parties(db),
+        )
+
+    @app.route("/suppliers/partnership", methods=["GET", "POST"])
+    @_login_required("admin")
+    def partnership_suppliers():
+        supplier_mode = "Partnership"
+        _touch_admin_workspace(_supplier_mode_workspace_key(supplier_mode))
+        db = open_db()
+        values = _default_supplier_form(supplier_mode)
+        query = request.args.get("q", "").strip()
+        edit_party_code = request.args.get("edit", "").strip().upper()
+        if edit_party_code:
+            existing_party = _fetch_party(db, edit_party_code)
+            if existing_party is not None and "Supplier" in _deserialize_party_roles(existing_party["party_roles"] or ""):
+                values = _supplier_form_from_party(existing_party, _supplier_profile_row(db, edit_party_code))
+
+        if request.method == "POST":
+            values = _supplier_form_data(request, supplier_mode)
+            try:
+                payload = _prepare_supplier_party_payload(db, values)
+                if values["original_party_code"]:
+                    db.execute(
+                        """
+                        UPDATE parties
+                        SET party_name = ?, party_kind = ?, party_roles = ?, contact_person = ?,
+                            phone_number = ?, email = ?, trn_no = ?, trade_license_no = ?,
+                            address = ?, notes = ?, status = ?
+                        WHERE party_code = ?
+                        """,
+                        payload[1:] + (values["original_party_code"],),
+                    )
+                    _upsert_supplier_profile(db, payload[0], values)
+                    _audit_log(db, "supplier_updated", entity_type="supplier", entity_id=payload[0], details=f"{payload[1]} / Partnership")
+                    message = "Supplier updated successfully."
+                else:
+                    db.execute(
+                        """
+                        INSERT INTO parties (
+                            party_code, party_name, party_kind, party_roles, contact_person,
+                            phone_number, email, trn_no, trade_license_no, address, notes, status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        payload,
+                    )
+                    _upsert_supplier_profile(db, payload[0], values)
+                    _audit_log(db, "supplier_created", entity_type="supplier", entity_id=payload[0], details=f"{payload[1]} / Partnership")
+                    message = "Supplier registered successfully."
+                db.commit()
+                flash(message, "success")
+                return redirect(url_for("partnership_suppliers"))
+            except ValidationError as exc:
+                flash(str(exc), "error")
+
+        return render_template(
+            "suppliers.html",
+            values=values,
+            query=query,
+            summary=_supplier_hub_summary(db, supplier_mode),
+            suppliers=_supplier_directory_rows(db, query=query, supplier_mode=supplier_mode),
+            role_options=[item for item in PARTY_ROLE_OPTIONS if item != "Supplier"],
+            supplier_mode=supplier_mode,
+            desk_title="Partnership Supplier Desk",
+            detail_endpoint="supplier_detail",
+            desk_endpoint="partnership_suppliers",
+            counterpart_endpoint="suppliers",
+            counterpart_label="Normal Desk",
+            partner_parties=_supplier_partner_parties(db),
         )
 
     @app.route("/suppliers/<party_code>", methods=["GET", "POST"])
     @_login_required("admin")
     def supplier_detail(party_code: str):
-        _touch_admin_workspace("suppliers")
         db = open_db()
         party = _fetch_supplier_party(db, party_code)
         if party is None:
             flash("Supplier was not found.", "error")
             return redirect(url_for("suppliers"))
 
-        asset_values = _default_supplier_asset_form(db, party_code)
+        supplier_mode = _supplier_mode_for_party(db, party_code)
+        _touch_admin_workspace(_supplier_mode_workspace_key(supplier_mode))
+        active_screen = _normalize_supplier_screen(request.args.get("screen", ""), supplier_mode)
+
+        asset_values = _apply_supplier_mode_to_asset_values(db, _default_supplier_asset_form(db, party_code), supplier_mode, party_code)
         timesheet_values = _default_supplier_timesheet_form(db, party_code)
         voucher_values = _default_supplier_voucher_form(db, party_code)
         payment_values = _default_supplier_payment_form(db, party_code)
@@ -900,6 +987,7 @@ def register_routes(app: Flask) -> None:
             try:
                 if action == "save_asset":
                     asset_values = _supplier_asset_form_data(request, party_code)
+                    asset_values = _apply_supplier_mode_to_asset_values(db, asset_values, supplier_mode, party_code)
                     payload = _prepare_supplier_asset_payload(db, asset_values)
                     _ensure_reference_available(
                         db,
@@ -924,6 +1012,10 @@ def register_routes(app: Flask) -> None:
                         if asset_values["original_asset_code"] != asset_values["asset_code"]:
                             db.execute(
                                 "UPDATE supplier_timesheets SET asset_code = ? WHERE asset_code = ?",
+                                (asset_values["asset_code"], asset_values["original_asset_code"]),
+                            )
+                            db.execute(
+                                "UPDATE supplier_partnership_entries SET asset_code = ? WHERE asset_code = ?",
                                 (asset_values["asset_code"], asset_values["original_asset_code"]),
                             )
                         _audit_log(
@@ -956,7 +1048,7 @@ def register_routes(app: Flask) -> None:
                         message = "Supplier vehicle saved successfully."
                     db.commit()
                     flash(message, "success")
-                    return redirect(url_for("supplier_detail", party_code=party_code))
+                    return redirect(url_for("supplier_detail", party_code=party_code, screen="vehicles", partnership_month=partnership_month))
 
                 if action == "save_timesheet":
                     timesheet_values = _supplier_timesheet_form_data(request, party_code)
@@ -1015,7 +1107,7 @@ def register_routes(app: Flask) -> None:
                         message = "Supplier timesheet saved successfully."
                     db.commit()
                     flash(message, "success")
-                    return redirect(url_for("supplier_detail", party_code=party_code))
+                    return redirect(url_for("supplier_detail", party_code=party_code, screen="timesheets", partnership_month=partnership_month))
 
                 if action == "save_voucher":
                     voucher_values = _supplier_voucher_form_data(request, party_code)
@@ -1086,7 +1178,7 @@ def register_routes(app: Flask) -> None:
                         message = "Supplier voucher created from open timesheets."
                     db.commit()
                     flash(message, "success")
-                    return redirect(url_for("supplier_detail", party_code=party_code))
+                    return redirect(url_for("supplier_detail", party_code=party_code, screen="billing", partnership_month=partnership_month))
 
                 if action == "save_payment":
                     payment_values = _supplier_payment_form_data(request, party_code)
@@ -1147,9 +1239,11 @@ def register_routes(app: Flask) -> None:
                         message = "Supplier payment saved successfully."
                     db.commit()
                     flash(message, "success")
-                    return redirect(url_for("supplier_detail", party_code=party_code))
+                    return redirect(url_for("supplier_detail", party_code=party_code, screen="billing", partnership_month=partnership_month))
 
                 if action == "save_partnership_entry":
+                    if supplier_mode != "Partnership":
+                        raise ValidationError("Partnership entries are only available in partnership supplier desk.")
                     partnership_values = _supplier_partnership_form_data(request, party_code)
                     payload = _prepare_supplier_partnership_payload(db, partnership_values)
                     _ensure_reference_available(
@@ -1199,7 +1293,7 @@ def register_routes(app: Flask) -> None:
                         message = "Partnership entry saved successfully."
                     db.commit()
                     flash(message, "success")
-                    return redirect(url_for("supplier_detail", party_code=party_code, partnership_month=partnership_values["period_month"]))
+                    return redirect(url_for("supplier_detail", party_code=party_code, screen="partnership", partnership_month=partnership_values["period_month"]))
             except ValidationError as exc:
                 flash(str(exc), "error")
 
@@ -1207,9 +1301,9 @@ def register_routes(app: Flask) -> None:
         supplier_timesheets = _supplier_timesheet_rows(db, party_code)
         supplier_vouchers = _supplier_voucher_rows(db, party_code)
         supplier_payments = _supplier_payment_rows(db, party_code)
-        partnership_entries = _supplier_partnership_rows(db, party_code)
-        partnership_summary = _supplier_partnership_summary(db, party_code, partnership_month)
-        partnership_assets = _supplier_partnership_asset_rows(db, party_code, partnership_month)
+        partnership_entries = _supplier_partnership_rows(db, party_code) if supplier_mode == "Partnership" else []
+        partnership_summary = _supplier_partnership_summary(db, party_code, partnership_month) if supplier_mode == "Partnership" else {"work_total": 0.0, "company_paid": 0.0, "partner_paid": 0.0, "total_cost": 0.0}
+        partnership_assets = _supplier_partnership_asset_rows(db, party_code, partnership_month) if supplier_mode == "Partnership" else []
         statement_rows, statement_summary = _supplier_statement_data(db, party_code)
 
         return render_template(
@@ -1239,12 +1333,16 @@ def register_routes(app: Flask) -> None:
             partnership_shift_options=PARTNERSHIP_SHIFT_OPTIONS,
             payment_method_options=PAYMENT_METHOD_OPTIONS,
             voucher_status_options=SUPPLIER_VOUCHER_STATUS_OPTIONS,
+            supplier_mode=supplier_mode,
+            active_screen=active_screen,
+            screen_options=_supplier_screen_options(supplier_mode),
+            desk_endpoint=_supplier_desk_endpoint(supplier_mode),
         )
 
     @app.get("/suppliers/<party_code>/statement")
     @_login_required("admin")
     def supplier_statement(party_code: str):
-        return redirect(url_for("supplier_detail", party_code=party_code))
+        return redirect(url_for("supplier_detail", party_code=party_code, screen="statement"))
 
     @app.post("/supplier-assets/<asset_code>/delete")
     @_login_required("admin")
@@ -1257,12 +1355,12 @@ def register_routes(app: Flask) -> None:
         count = int(db.execute("SELECT COUNT(*) FROM supplier_timesheets WHERE asset_code = ?", (asset_code,)).fetchone()[0])
         if count:
             flash(f"Vehicle cannot be deleted because {count} timesheet row(s) are linked.", "error")
-            return redirect(url_for("supplier_detail", party_code=asset["party_code"]))
+            return redirect(url_for("supplier_detail", party_code=asset["party_code"], screen="vehicles"))
         db.execute("DELETE FROM supplier_assets WHERE asset_code = ?", (asset_code,))
         _audit_log(db, "supplier_asset_deleted", entity_type="supplier_asset", entity_id=asset_code, details=asset["asset_name"])
         db.commit()
         flash("Supplier vehicle deleted successfully.", "success")
-        return redirect(url_for("supplier_detail", party_code=asset["party_code"]))
+        return redirect(url_for("supplier_detail", party_code=asset["party_code"], screen="vehicles"))
 
     @app.post("/supplier-timesheets/<timesheet_no>/delete")
     @_login_required("admin")
@@ -1274,12 +1372,12 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("suppliers"))
         if row["voucher_no"]:
             flash("Billed timesheets cannot be deleted until their voucher is removed.", "error")
-            return redirect(url_for("supplier_detail", party_code=row["party_code"]))
+            return redirect(url_for("supplier_detail", party_code=row["party_code"], screen="timesheets"))
         db.execute("DELETE FROM supplier_timesheets WHERE timesheet_no = ?", (timesheet_no,))
         _audit_log(db, "supplier_timesheet_deleted", entity_type="supplier_timesheet", entity_id=timesheet_no, details=timesheet_no)
         db.commit()
         flash("Supplier timesheet deleted successfully.", "success")
-        return redirect(url_for("supplier_detail", party_code=row["party_code"]))
+        return redirect(url_for("supplier_detail", party_code=row["party_code"], screen="timesheets"))
 
     @app.post("/supplier-vouchers/<voucher_no>/delete")
     @_login_required("admin")
@@ -1292,13 +1390,13 @@ def register_routes(app: Flask) -> None:
         count = int(db.execute("SELECT COUNT(*) FROM supplier_payments WHERE voucher_no = ?", (voucher_no,)).fetchone()[0])
         if count:
             flash(f"Voucher cannot be deleted because {count} payment row(s) are linked.", "error")
-            return redirect(url_for("supplier_detail", party_code=voucher["party_code"]))
+            return redirect(url_for("supplier_detail", party_code=voucher["party_code"], screen="billing"))
         db.execute("UPDATE supplier_timesheets SET voucher_no = NULL, status = 'Open' WHERE voucher_no = ?", (voucher_no,))
         db.execute("DELETE FROM supplier_vouchers WHERE voucher_no = ?", (voucher_no,))
         _audit_log(db, "supplier_voucher_deleted", entity_type="supplier_voucher", entity_id=voucher_no, details=voucher_no)
         db.commit()
         flash("Supplier voucher deleted and linked timesheets reopened.", "success")
-        return redirect(url_for("supplier_detail", party_code=voucher["party_code"]))
+        return redirect(url_for("supplier_detail", party_code=voucher["party_code"], screen="billing"))
 
     @app.post("/supplier-payments/<payment_no>/delete")
     @_login_required("admin")
@@ -1313,7 +1411,7 @@ def register_routes(app: Flask) -> None:
         _audit_log(db, "supplier_payment_deleted", entity_type="supplier_payment", entity_id=payment_no, details=payment["voucher_no"])
         db.commit()
         flash("Supplier payment deleted successfully.", "success")
-        return redirect(url_for("supplier_detail", party_code=payment["party_code"]))
+        return redirect(url_for("supplier_detail", party_code=payment["party_code"], screen="billing"))
 
     @app.post("/supplier-partnership/<entry_no>/delete")
     @_login_required("admin")
@@ -1330,7 +1428,7 @@ def register_routes(app: Flask) -> None:
         _audit_log(db, "supplier_partnership_entry_deleted", entity_type="supplier_partnership_entry", entity_id=entry_no, details=entry_no)
         db.commit()
         flash("Partnership entry deleted successfully.", "success")
-        return redirect(url_for("supplier_detail", party_code=entry["party_code"]))
+        return redirect(url_for("supplier_detail", party_code=entry["party_code"], screen="partnership"))
 
     @app.get("/supplier-payments/<payment_no>/voucher")
     @_login_required("admin")
@@ -2044,6 +2142,13 @@ def register_routes(app: Flask) -> None:
         advance_values = _default_maintenance_advance_form(db)
         paper_values = _default_maintenance_paper_form(db)
         paper_line_rows = _default_maintenance_paper_lines()
+        edit_paper_no = request.args.get("edit_paper", "").strip().upper()
+
+        if edit_paper_no:
+            existing_paper = _maintenance_paper_row(db, edit_paper_no)
+            if existing_paper is not None:
+                paper_values = _maintenance_paper_form_from_row(existing_paper)
+                paper_line_rows = _maintenance_paper_line_rows_for_form(db, edit_paper_no)
 
         if request.method == "POST":
             action = request.form.get("action", "").strip()
@@ -2064,8 +2169,8 @@ def register_routes(app: Flask) -> None:
                             """
                             UPDATE vehicle_master
                             SET vehicle_id = ?, vehicle_no = ?, vehicle_type = ?, make_model = ?, status = ?,
-                                shift_mode = ?, ownership_mode = ?, partner_party_code = ?, partner_name = ?,
-                                company_share_percent = ?, partner_share_percent = ?, notes = ?
+                                shift_mode = ?, ownership_mode = ?, source_type = ?, source_party_code = ?, source_asset_code = ?,
+                                partner_party_code = ?, partner_name = ?, company_share_percent = ?, partner_share_percent = ?, notes = ?
                             WHERE vehicle_id = ?
                             """,
                             payload + (vehicle_values["original_vehicle_id"],),
@@ -2076,9 +2181,9 @@ def register_routes(app: Flask) -> None:
                             """
                             INSERT INTO vehicle_master (
                                 vehicle_id, vehicle_no, vehicle_type, make_model, status,
-                                shift_mode, ownership_mode, partner_party_code, partner_name,
-                                company_share_percent, partner_share_percent, notes
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                shift_mode, ownership_mode, source_type, source_party_code, source_asset_code,
+                                partner_party_code, partner_name, company_share_percent, partner_share_percent, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                             payload,
                         )
@@ -2184,40 +2289,98 @@ def register_routes(app: Flask) -> None:
                     paper_values = _maintenance_paper_form_data(request)
                     paper_line_rows = _maintenance_paper_line_form_data(request)
                     prepared = _prepare_maintenance_paper_payload(db, paper_values, paper_line_rows)
-                    attachment_path = _save_maintenance_attachment(app, prepared["paper_no"], request.files.get("attachment"))
-                    db.execute(
-                        """
-                        INSERT INTO maintenance_papers (
-                            paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, staff_code, advance_no,
-                            tax_mode, supplier_bill_no, work_summary, funding_source, paid_by, subtotal, tax_amount,
-                            total_amount, company_share_amount, partner_share_amount, company_paid_amount,
-                            partner_paid_amount, attachment_path, notes
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (
+                    existing_paper = None
+                    attachment_path = None
+                    if paper_values["original_paper_no"]:
+                        existing_paper = _maintenance_paper_row(db, paper_values["original_paper_no"], required=True)
+                        _ensure_reference_available(
+                            db,
+                            "maintenance_papers",
+                            "paper_no",
                             prepared["paper_no"],
-                            prepared["paper_date"],
-                            prepared["vehicle_id"],
-                            prepared["vehicle_no"],
-                            prepared["workshop_party_code"],
-                            prepared["staff_code"],
-                            prepared["advance_no"],
-                            prepared["tax_mode"],
-                            prepared["supplier_bill_no"],
-                            prepared["work_summary"],
-                            prepared["funding_source"],
-                            prepared["paid_by"],
-                            prepared["subtotal"],
-                            prepared["tax_amount"],
-                            prepared["total_amount"],
-                            prepared["company_share_amount"],
-                            prepared["partner_share_amount"],
-                            prepared["company_paid_amount"],
-                            prepared["partner_paid_amount"],
-                            attachment_path,
-                            prepared["notes"],
-                        ),
-                    )
+                            paper_values["original_paper_no"],
+                            "Paper number",
+                        )
+                        attachment_path = _save_maintenance_attachment(app, prepared["paper_no"], request.files.get("attachment")) or existing_paper["attachment_path"]
+                        _reverse_maintenance_paper_effects(db, existing_paper)
+                        db.execute(
+                            """
+                            UPDATE maintenance_papers
+                            SET paper_no = ?, paper_date = ?, vehicle_id = ?, vehicle_no = ?, target_class = ?, target_party_code = ?, target_asset_code = ?,
+                                workshop_party_code = ?, staff_code = ?, advance_no = ?, tax_mode = ?, supplier_bill_no = ?, work_summary = ?,
+                                funding_source = ?, paid_by = ?, subtotal = ?, tax_amount = ?, total_amount = ?,
+                                company_share_amount = ?, partner_share_amount = ?, company_paid_amount = ?, partner_paid_amount = ?,
+                                linked_partnership_entry_no = ?, attachment_path = ?, notes = ?
+                            WHERE paper_no = ?
+                            """,
+                            (
+                                prepared["paper_no"],
+                                prepared["paper_date"],
+                                prepared["vehicle_id"],
+                                prepared["vehicle_no"],
+                                prepared["target_class"],
+                                prepared["target_party_code"],
+                                prepared["target_asset_code"],
+                                prepared["workshop_party_code"],
+                                prepared["staff_code"],
+                                prepared["advance_no"],
+                                prepared["tax_mode"],
+                                prepared["supplier_bill_no"],
+                                prepared["work_summary"],
+                                prepared["funding_source"],
+                                prepared["paid_by"],
+                                prepared["subtotal"],
+                                prepared["tax_amount"],
+                                prepared["total_amount"],
+                                prepared["company_share_amount"],
+                                prepared["partner_share_amount"],
+                                prepared["company_paid_amount"],
+                                prepared["partner_paid_amount"],
+                                None,
+                                attachment_path,
+                                prepared["notes"],
+                                paper_values["original_paper_no"],
+                            ),
+                        )
+                    else:
+                        attachment_path = _save_maintenance_attachment(app, prepared["paper_no"], request.files.get("attachment"))
+                        db.execute(
+                            """
+                            INSERT INTO maintenance_papers (
+                                paper_no, paper_date, vehicle_id, vehicle_no, target_class, target_party_code, target_asset_code,
+                                workshop_party_code, staff_code, advance_no, tax_mode, supplier_bill_no, work_summary, funding_source, paid_by,
+                                subtotal, tax_amount, total_amount, company_share_amount, partner_share_amount, company_paid_amount,
+                                partner_paid_amount, linked_partnership_entry_no, attachment_path, notes
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                prepared["paper_no"],
+                                prepared["paper_date"],
+                                prepared["vehicle_id"],
+                                prepared["vehicle_no"],
+                                prepared["target_class"],
+                                prepared["target_party_code"],
+                                prepared["target_asset_code"],
+                                prepared["workshop_party_code"],
+                                prepared["staff_code"],
+                                prepared["advance_no"],
+                                prepared["tax_mode"],
+                                prepared["supplier_bill_no"],
+                                prepared["work_summary"],
+                                prepared["funding_source"],
+                                prepared["paid_by"],
+                                prepared["subtotal"],
+                                prepared["tax_amount"],
+                                prepared["total_amount"],
+                                prepared["company_share_amount"],
+                                prepared["partner_share_amount"],
+                                prepared["company_paid_amount"],
+                                prepared["partner_paid_amount"],
+                                None,
+                                attachment_path,
+                                prepared["notes"],
+                            ),
+                        )
                     _save_maintenance_paper_lines(db, prepared["paper_no"], prepared["line_payloads"])
                     if prepared["settlement_payload"] is not None:
                         db.execute(
@@ -2241,6 +2404,12 @@ def register_routes(app: Flask) -> None:
                                 prepared["advance_update"]["advance_no"],
                             ),
                         )
+                    linked_partnership_entry_no = _save_maintenance_linked_partnership_entry(db, prepared)
+                    if linked_partnership_entry_no:
+                        db.execute(
+                            "UPDATE maintenance_papers SET linked_partnership_entry_no = ? WHERE paper_no = ?",
+                            (linked_partnership_entry_no, prepared["paper_no"]),
+                        )
                     _audit_log(
                         db,
                         "maintenance_paper_saved",
@@ -2256,6 +2425,7 @@ def register_routes(app: Flask) -> None:
 
         summary = _fleet_maintenance_summary(db, filters["month"])
         vehicle_rows = _fleet_vehicle_rows(db)
+        filter_vehicle_rows = _maintenance_target_vehicle_rows(db)
         staff_rows = _maintenance_staff_rows(db)
         advance_rows = _maintenance_advance_rows(db)
         paper_rows = _maintenance_paper_rows(db, filters, limit=18)
@@ -2274,6 +2444,7 @@ def register_routes(app: Flask) -> None:
             paper_values=paper_values,
             paper_line_rows=paper_line_rows,
             vehicle_rows=vehicle_rows,
+            filter_vehicle_rows=filter_vehicle_rows,
             staff_rows=staff_rows,
             advance_rows=advance_rows,
             paper_rows=paper_rows,
@@ -2289,7 +2460,30 @@ def register_routes(app: Flask) -> None:
             paid_by_options=MAINTENANCE_PAID_BY_OPTIONS,
             workshop_parties=_parties_by_role(db, "Supplier"),
             partner_parties=_parties_by_role(db, "Partner"),
+            target_class_options=MAINTENANCE_TARGET_CLASS_OPTIONS,
+            partnership_supplier_assets=_partnership_supplier_asset_options(db),
         )
+
+    @app.post("/fleet-maintenance/<paper_no>/delete")
+    @_login_required("admin")
+    def delete_maintenance_paper(paper_no: str):
+        db = open_db()
+        paper = _maintenance_paper_row(db, paper_no)
+        if paper is None:
+            flash("Maintenance paper was not found.", "error")
+            return redirect(url_for("fleet_maintenance"))
+        _reverse_maintenance_paper_effects(db, paper)
+        db.execute("DELETE FROM maintenance_papers WHERE paper_no = ?", (paper_no,))
+        _audit_log(
+            db,
+            "maintenance_paper_deleted",
+            entity_type="maintenance_paper",
+            entity_id=paper_no,
+            details=f"{paper['vehicle_no']} / AED {float(paper['total_amount'] or 0.0):.2f}",
+        )
+        db.commit()
+        flash("Maintenance paper deleted successfully.", "success")
+        return redirect(url_for("fleet_maintenance", month=(paper["paper_date"] or "")[:7]))
 
     @app.get("/tax")
     @_login_required("admin")
@@ -3792,6 +3986,8 @@ def _workspace_home_endpoint(workspace: str) -> str:
         "universal": "dashboard",
         "drivers": "driver_list",
         "suppliers": "suppliers",
+        "suppliers-normal": "suppliers",
+        "suppliers-partnership": "partnership_suppliers",
         "customers": "customers",
         "accounts": "reports_center",
     }.get(workspace, "dashboard")
@@ -3846,10 +4042,19 @@ def _admin_module_links(workspace: str):
             {"label": "Add Driver", "endpoint": "create_driver", "primary": True},
         ],
         "suppliers": [
-            {"label": "Invoices", "endpoint": "invoice_center"},
+            {"label": "Normal Desk", "endpoint": "suppliers", "primary": True},
+            {"label": "Partnership Desk", "endpoint": "partnership_suppliers"},
+        ],
+        "suppliers-normal": [
+            {"label": "New Supplier", "endpoint": "suppliers", "primary": True},
+            {"label": "Partnership Desk", "endpoint": "partnership_suppliers"},
+        ],
+        "suppliers-partnership": [
+            {"label": "New Partner Supplier", "endpoint": "partnership_suppliers", "primary": True},
+            {"label": "Normal Desk", "endpoint": "suppliers"},
         ],
         "customers": [
-            {"label": "Invoices", "endpoint": "invoice_center", "primary": True},
+            {"label": "Invoices", "endpoint": "invoice_center"},
         ],
         "accounts": [
             {"label": "Owner Fund", "endpoint": "owner_fund", "primary": True},
@@ -4099,6 +4304,7 @@ def _fleet_vehicle_row(db, vehicle_id: str, *, required: bool = False):
         """
         SELECT
             vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+            source_type, source_party_code, source_asset_code,
             partner_party_code, partner_name, company_share_percent, partner_share_percent, notes, created_at
         FROM vehicle_master
         WHERE vehicle_id = ?
@@ -4108,6 +4314,108 @@ def _fleet_vehicle_row(db, vehicle_id: str, *, required: bool = False):
     if row is None and required:
         raise ValidationError("Selected vehicle was not found.")
     return row
+
+
+def _partnership_supplier_asset_row(db, asset_code: str, *, required: bool = False):
+    row = db.execute(
+        """
+        SELECT
+            asset.asset_code,
+            asset.party_code,
+            asset.asset_name,
+            asset.asset_type,
+            asset.vehicle_no,
+            asset.double_shift_mode,
+            asset.partnership_mode,
+            COALESCE(profile.partner_party_code, '') AS partner_party_code,
+            COALESCE(profile.partner_name, asset.partner_name, '') AS partner_name,
+            CASE
+                WHEN asset.company_share_percent IS NULL OR asset.company_share_percent = 0
+                THEN COALESCE(profile.default_company_share_percent, 50)
+                ELSE asset.company_share_percent
+            END AS company_share_percent,
+            CASE
+                WHEN asset.partner_share_percent IS NULL OR asset.partner_share_percent = 0
+                THEN COALESCE(profile.default_partner_share_percent, 50)
+                ELSE asset.partner_share_percent
+            END AS partner_share_percent,
+            party.party_name
+        FROM supplier_assets asset
+        JOIN parties party ON party.party_code = asset.party_code
+        LEFT JOIN supplier_profile profile ON profile.party_code = asset.party_code
+        WHERE asset.asset_code = ? AND COALESCE(profile.supplier_mode, 'Normal') = 'Partnership'
+        """,
+        (asset_code,),
+    ).fetchone()
+    if row is None and required:
+        raise ValidationError("Select a valid partnership supplier vehicle first.")
+    return row
+
+
+def _partnership_supplier_asset_options(db):
+    return db.execute(
+        """
+        SELECT
+            asset.asset_code,
+            asset.party_code,
+            asset.asset_name,
+            asset.vehicle_no,
+            asset.asset_type,
+            asset.double_shift_mode,
+            party.party_name,
+            COALESCE(profile.partner_name, asset.partner_name, 'Partner') AS partner_name
+        FROM supplier_assets asset
+        JOIN parties party ON party.party_code = asset.party_code
+        LEFT JOIN supplier_profile profile ON profile.party_code = asset.party_code
+        WHERE COALESCE(profile.supplier_mode, 'Normal') = 'Partnership'
+        ORDER BY party.party_name ASC, asset.asset_name ASC
+        """
+    ).fetchall()
+
+
+def _ensure_supplier_vehicle_shadow(db, asset_row):
+    vehicle_id = f"PSV-{asset_row['asset_code']}"
+    payload = (
+        vehicle_id,
+        (asset_row["vehicle_no"] or asset_row["asset_code"] or "").strip().upper(),
+        asset_row["asset_type"] or "Supplier Vehicle",
+        asset_row["asset_name"] or "Partnership Supplier Vehicle",
+        "Active",
+        asset_row["double_shift_mode"] or FLEET_SHIFT_MODE_OPTIONS[0],
+        "Partnership",
+        "Partnership Supplier Vehicle",
+        asset_row["party_code"],
+        asset_row["asset_code"],
+        asset_row["partner_party_code"] or None,
+        asset_row["partner_name"] or None,
+        float(asset_row["company_share_percent"] or 50.0),
+        float(asset_row["partner_share_percent"] or 50.0),
+        f"Mirror vehicle for supplier asset {asset_row['asset_code']}",
+    )
+    existing = _fleet_vehicle_row(db, vehicle_id)
+    if existing is None:
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status,
+                shift_mode, ownership_mode, source_type, source_party_code, source_asset_code,
+                partner_party_code, partner_name, company_share_percent, partner_share_percent, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            payload,
+        )
+    else:
+        db.execute(
+            """
+            UPDATE vehicle_master
+            SET vehicle_no = ?, vehicle_type = ?, make_model = ?, status = ?,
+                shift_mode = ?, ownership_mode = ?, source_type = ?, source_party_code = ?, source_asset_code = ?,
+                partner_party_code = ?, partner_name = ?, company_share_percent = ?, partner_share_percent = ?, notes = ?
+            WHERE vehicle_id = ?
+            """,
+            payload[1:] + (vehicle_id,),
+        )
+    return _fleet_vehicle_row(db, vehicle_id, required=True)
 
 
 def _maintenance_staff_row(db, staff_code: str, *, required: bool = False):
@@ -4631,9 +4939,12 @@ def _default_maintenance_advance_form(db=None):
 def _default_maintenance_paper_form(db=None):
     db = db or open_db()
     return {
+        "original_paper_no": "",
         "paper_no": _next_reference_code(db, "maintenance_papers", "paper_no", "MTP"),
         "paper_date": date.today().isoformat(),
+        "target_class": MAINTENANCE_TARGET_CLASS_OPTIONS[0],
         "vehicle_id": "",
+        "target_asset_code": "",
         "workshop_party_code": "",
         "staff_code": "",
         "advance_no": "",
@@ -4658,6 +4969,49 @@ def _default_maintenance_paper_lines():
         }
         for index in range(MAINTENANCE_LINE_SLOTS)
     ]
+
+
+def _maintenance_paper_form_from_row(row):
+    return {
+        "original_paper_no": row["paper_no"],
+        "paper_no": row["paper_no"],
+        "paper_date": row["paper_date"],
+        "target_class": row["target_class"] or MAINTENANCE_TARGET_CLASS_OPTIONS[0],
+        "vehicle_id": row["vehicle_id"] or "",
+        "target_asset_code": row["target_asset_code"] or "",
+        "workshop_party_code": row["workshop_party_code"] or "",
+        "staff_code": row["staff_code"] or "",
+        "advance_no": row["advance_no"] or "",
+        "tax_mode": row["tax_mode"] or MAINTENANCE_TAX_MODE_OPTIONS[0],
+        "supplier_bill_no": row["supplier_bill_no"] or "",
+        "work_summary": row["work_summary"] or "",
+        "funding_source": row["funding_source"] or MAINTENANCE_FUNDING_SOURCE_OPTIONS[0],
+        "paid_by": row["paid_by"] or MAINTENANCE_PAID_BY_OPTIONS[0],
+        "tax_amount": f"{float(row['tax_amount'] or 0.0):.2f}",
+        "notes": row["notes"] or "",
+    }
+
+
+def _maintenance_paper_line_rows_for_form(db, paper_no: str):
+    rows = db.execute(
+        """
+        SELECT line_no, description, quantity, rate, amount
+        FROM maintenance_paper_lines
+        WHERE paper_no = ?
+        ORDER BY line_no ASC, id ASC
+        """,
+        (paper_no,),
+    ).fetchall()
+    slots = _default_maintenance_paper_lines()
+    for index, row in enumerate(rows[:MAINTENANCE_LINE_SLOTS]):
+        slots[index] = {
+            "line_no": index + 1,
+            "description": row["description"] or "",
+            "quantity": f"{float(row['quantity'] or 0.0):.2f}".rstrip("0").rstrip("."),
+            "rate": f"{float(row['rate'] or 0.0):.2f}".rstrip("0").rstrip("."),
+            "amount": f"{float(row['amount'] or 0.0):.2f}".rstrip("0").rstrip("."),
+        }
+    return slots
 
 
 def _fleet_vehicle_form_data(request):
@@ -4715,10 +5069,16 @@ def _maintenance_paper_form_data(request):
     paid_by = request.form.get("paid_by", MAINTENANCE_PAID_BY_OPTIONS[0]).strip() or MAINTENANCE_PAID_BY_OPTIONS[0]
     if paid_by not in MAINTENANCE_PAID_BY_OPTIONS:
         paid_by = MAINTENANCE_PAID_BY_OPTIONS[0]
+    target_class = request.form.get("target_class", MAINTENANCE_TARGET_CLASS_OPTIONS[0]).strip() or MAINTENANCE_TARGET_CLASS_OPTIONS[0]
+    if target_class not in MAINTENANCE_TARGET_CLASS_OPTIONS:
+        target_class = MAINTENANCE_TARGET_CLASS_OPTIONS[0]
     return {
+        "original_paper_no": request.form.get("original_paper_no", "").strip().upper(),
         "paper_no": request.form.get("paper_no", "").strip().upper(),
         "paper_date": request.form.get("paper_date", "").strip(),
+        "target_class": target_class,
         "vehicle_id": request.form.get("vehicle_id", "").strip().upper(),
+        "target_asset_code": request.form.get("target_asset_code", "").strip().upper(),
         "workshop_party_code": request.form.get("workshop_party_code", "").strip().upper(),
         "staff_code": request.form.get("staff_code", "").strip().upper(),
         "advance_no": request.form.get("advance_no", "").strip().upper(),
@@ -4781,6 +5141,9 @@ def _prepare_fleet_vehicle_payload(db, values):
         values["status"],
         shift_mode,
         ownership_mode,
+        "Own Fleet Vehicle",
+        None,
+        None,
         partner_party_code,
         partner_name or None,
         company_share_percent,
@@ -4858,7 +5221,16 @@ def _prepare_maintenance_paper_payload(db, values, line_rows):
     if not values["paper_no"]:
         values["paper_no"] = _next_reference_code(db, "maintenance_papers", "paper_no", "MTP")
     paper_date = _validate_date_text(values["paper_date"], "Paper date")
-    vehicle = _fleet_vehicle_row(db, values["vehicle_id"], required=True)
+    target_class = values["target_class"] if values["target_class"] in MAINTENANCE_TARGET_CLASS_OPTIONS else MAINTENANCE_TARGET_CLASS_OPTIONS[0]
+    target_party_code = None
+    target_asset_code = None
+    if target_class == "Partnership Supplier Vehicle":
+        supplier_asset = _partnership_supplier_asset_row(db, values["target_asset_code"], required=True)
+        vehicle = _ensure_supplier_vehicle_shadow(db, supplier_asset)
+        target_party_code = supplier_asset["party_code"]
+        target_asset_code = supplier_asset["asset_code"]
+    else:
+        vehicle = _fleet_vehicle_row(db, values["vehicle_id"], required=True)
     workshop_party_code = values["workshop_party_code"] or ""
     if workshop_party_code:
         _validate_party_reference(db, workshop_party_code)
@@ -4959,6 +5331,9 @@ def _prepare_maintenance_paper_payload(db, values, line_rows):
     return {
         "paper_no": values["paper_no"],
         "paper_date": paper_date,
+        "target_class": target_class,
+        "target_party_code": target_party_code,
+        "target_asset_code": target_asset_code,
         "vehicle_id": vehicle["vehicle_id"],
         "vehicle_no": vehicle["vehicle_no"],
         "workshop_party_code": workshop_party_code or None,
@@ -5407,24 +5782,92 @@ def _fetch_supplier_party(db, party_code: str):
     return party
 
 
-def _normalize_supplier_roles(values) -> list[str]:
-    selected = ["Supplier"]
-    for role in PARTY_ROLE_OPTIONS:
-        if role == "Supplier":
-            continue
-        if role in values and role not in selected:
-            selected.append(role)
-    return selected
+def _supplier_mode_workspace_key(supplier_mode: str) -> str:
+    return "suppliers-partnership" if (supplier_mode or "Normal") == "Partnership" else "suppliers-normal"
 
 
-def _default_supplier_form():
+def _supplier_desk_endpoint(supplier_mode: str) -> str:
+    return "partnership_suppliers" if (supplier_mode or "Normal") == "Partnership" else "suppliers"
+
+
+def _supplier_detail_endpoint(supplier_mode: str) -> str:
+    return "supplier_detail"
+
+
+def _supplier_screen_options(supplier_mode: str):
+    options = [
+        {"key": "vehicles", "label": "Vehicles"},
+        {"key": "timesheets", "label": "Timesheets"},
+        {"key": "billing", "label": "Billing & Payment"},
+        {"key": "statement", "label": "Statement"},
+    ]
+    if (supplier_mode or "Normal") == "Partnership":
+        options.append({"key": "partnership", "label": "Partnership Result"})
+    return options
+
+
+def _default_supplier_screen(supplier_mode: str) -> str:
+    return "vehicles"
+
+
+def _normalize_supplier_screen(screen: str, supplier_mode: str) -> str:
+    requested = (screen or "").strip().lower()
+    valid = {item["key"] for item in _supplier_screen_options(supplier_mode)}
+    return requested if requested in valid else _default_supplier_screen(supplier_mode)
+
+
+def _supplier_partner_parties(db):
+    return db.execute(
+        """
+        SELECT party_code, party_name
+        FROM parties
+        WHERE party_roles LIKE ?
+        ORDER BY party_name ASC
+        """,
+        ("%Partner%",),
+    ).fetchall()
+
+
+def _supplier_profile_row(db, party_code: str):
+    return db.execute(
+        """
+        SELECT
+            party_code,
+            supplier_mode,
+            partner_party_code,
+            partner_name,
+            default_company_share_percent,
+            default_partner_share_percent
+        FROM supplier_profile
+        WHERE party_code = ?
+        """,
+        (party_code,),
+    ).fetchone()
+
+
+def _supplier_mode_for_party(db, party_code: str) -> str:
+    profile = _supplier_profile_row(db, party_code)
+    if profile is not None and (profile["supplier_mode"] or "") in SUPPLIER_MODE_OPTIONS:
+        return profile["supplier_mode"]
+    return "Normal"
+
+
+def _default_supplier_form(supplier_mode: str = "Normal"):
     values = _default_party_form()
     values["original_party_code"] = ""
     values["party_roles"] = ["Supplier"]
+    values["supplier_mode"] = supplier_mode if supplier_mode in SUPPLIER_MODE_OPTIONS else SUPPLIER_MODE_OPTIONS[0]
+    values["partner_party_code"] = ""
+    values["partner_name"] = ""
+    values["default_company_share_percent"] = "50" if values["supplier_mode"] == "Partnership" else "100"
+    values["default_partner_share_percent"] = "50" if values["supplier_mode"] == "Partnership" else "0"
     return values
 
 
-def _supplier_form_data(request):
+def _supplier_form_data(request, supplier_mode: str = "Normal"):
+    form_mode = request.form.get("supplier_mode", "").strip().title() or supplier_mode
+    if form_mode not in SUPPLIER_MODE_OPTIONS:
+        form_mode = supplier_mode if supplier_mode in SUPPLIER_MODE_OPTIONS else SUPPLIER_MODE_OPTIONS[0]
     return {
         "original_party_code": request.form.get("original_party_code", "").strip().upper(),
         "party_code": request.form.get("party_code", "").strip().upper(),
@@ -5439,12 +5882,26 @@ def _supplier_form_data(request):
         "address": request.form.get("address", "").strip(),
         "notes": request.form.get("notes", "").strip(),
         "status": request.form.get("status", "Active").strip() or "Active",
+        "supplier_mode": form_mode,
+        "partner_party_code": request.form.get("partner_party_code", "").strip().upper(),
+        "partner_name": request.form.get("partner_name", "").strip(),
+        "default_company_share_percent": request.form.get("default_company_share_percent", "100").strip() or "100",
+        "default_partner_share_percent": request.form.get("default_partner_share_percent", "0").strip() or "0",
     }
 
 
-def _supplier_form_from_party(record):
+def _supplier_form_from_party(record, profile=None):
     values = _party_values_from_record(record)
+    profile = profile or {}
+    supplier_mode = profile.get("supplier_mode") or "Normal"
+    if supplier_mode not in SUPPLIER_MODE_OPTIONS:
+        supplier_mode = "Normal"
     values["original_party_code"] = record["party_code"]
+    values["supplier_mode"] = supplier_mode
+    values["partner_party_code"] = profile.get("partner_party_code") or ""
+    values["partner_name"] = profile.get("partner_name") or ""
+    values["default_company_share_percent"] = _display_number(profile.get("default_company_share_percent", 100 if supplier_mode == "Normal" else 50))
+    values["default_partner_share_percent"] = _display_number(profile.get("default_partner_share_percent", 0 if supplier_mode == "Normal" else 50))
     return values
 
 
@@ -5469,6 +5926,71 @@ def _prepare_supplier_party_payload(db, values):
         values["notes"],
         values["status"],
     )
+
+
+def _prepare_supplier_profile_payload(db, values):
+    supplier_mode = values.get("supplier_mode") or "Normal"
+    if supplier_mode not in SUPPLIER_MODE_OPTIONS:
+        supplier_mode = "Normal"
+    partner_party_code = values.get("partner_party_code", "")
+    partner_name = values.get("partner_name", "")
+    if partner_party_code:
+        partner_row = _validate_party_reference(db, partner_party_code)
+        partner_name = partner_row["party_name"]
+    if supplier_mode == "Partnership":
+        company_share = _parse_decimal(values.get("default_company_share_percent", "50"), "Company share percent", required=True, minimum=0.0, maximum=100.0)
+        partner_share = _parse_decimal(values.get("default_partner_share_percent", "50"), "Partner share percent", required=True, minimum=0.0, maximum=100.0)
+        if abs((company_share + partner_share) - 100.0) > 0.01:
+            raise ValidationError("Company and partner share must total 100.")
+        if not (partner_party_code or partner_name):
+            raise ValidationError("Partnership supplier needs partner details.")
+    else:
+        partner_party_code = ""
+        partner_name = ""
+        company_share = 100.0
+        partner_share = 0.0
+    return (
+        supplier_mode,
+        partner_party_code or None,
+        partner_name or None,
+        company_share,
+        partner_share,
+    )
+
+
+def _upsert_supplier_profile(db, party_code: str, values) -> None:
+    profile_payload = _prepare_supplier_profile_payload(db, values)
+    existing = _supplier_profile_row(db, party_code)
+    if existing is None:
+        db.execute(
+            """
+            INSERT INTO supplier_profile (
+                party_code, supplier_mode, partner_party_code, partner_name,
+                default_company_share_percent, default_partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (party_code,) + profile_payload,
+        )
+    else:
+        db.execute(
+            """
+            UPDATE supplier_profile
+            SET supplier_mode = ?, partner_party_code = ?, partner_name = ?,
+                default_company_share_percent = ?, default_partner_share_percent = ?
+            WHERE party_code = ?
+            """,
+            profile_payload + (party_code,),
+        )
+
+
+def _normalize_supplier_roles(values) -> list[str]:
+    selected = ["Supplier"]
+    for role in PARTY_ROLE_OPTIONS:
+        if role == "Supplier":
+            continue
+        if role in values and role not in selected:
+            selected.append(role)
+    return selected
 
 
 def _default_supplier_asset_form(db=None, party_code: str = ""):
@@ -5748,6 +6270,39 @@ def _supplier_partnership_form_from_row(row):
             "notes": row["notes"] or "",
         }
     )
+    return values
+
+
+def _supplier_profile_defaults(db, party_code: str):
+    profile = _supplier_profile_row(db, party_code)
+    if profile is None:
+        return {
+            "partner_name": "",
+            "company_share_percent": 50.0,
+            "partner_share_percent": 50.0,
+        }
+    return {
+        "partner_name": profile["partner_name"] or "",
+        "company_share_percent": float(profile["default_company_share_percent"] or 50.0),
+        "partner_share_percent": float(profile["default_partner_share_percent"] or 50.0),
+    }
+
+
+def _apply_supplier_mode_to_asset_values(db, values, supplier_mode: str, party_code: str):
+    values["party_code"] = party_code
+    if (supplier_mode or "Normal") == "Partnership":
+        defaults = _supplier_profile_defaults(db, party_code)
+        values["partnership_mode"] = "Partnership"
+        values["partner_name"] = values["partner_name"] or defaults["partner_name"]
+        values["company_share_percent"] = values["company_share_percent"] or _display_number(defaults["company_share_percent"])
+        values["partner_share_percent"] = values["partner_share_percent"] or _display_number(defaults["partner_share_percent"])
+    else:
+        values["partnership_mode"] = "Standard"
+        values["partner_name"] = ""
+        values["company_share_percent"] = "100"
+        values["partner_share_percent"] = "0"
+        values["day_shift_paid_by"] = PARTNERSHIP_PAID_BY_OPTIONS[0]
+        values["night_shift_paid_by"] = PARTNERSHIP_PAID_BY_OPTIONS[0]
     return values
 
 
@@ -6038,23 +6593,129 @@ def _supplier_sync_voucher_balance(db, voucher_no: str):
     )
 
 
-def _supplier_hub_summary(db):
+def _supplier_hub_summary(db, supplier_mode: str = "Normal"):
+    normalized_mode = supplier_mode if supplier_mode in SUPPLIER_MODE_OPTIONS else "Normal"
     return {
-        "supplier_count": int(db.execute("SELECT COUNT(*) FROM parties WHERE party_roles LIKE ?", ("%Supplier%",)).fetchone()[0]),
-        "asset_count": int(db.execute("SELECT COUNT(*) FROM supplier_assets").fetchone()[0]),
-        "double_shift_count": int(db.execute("SELECT COUNT(*) FROM supplier_assets WHERE double_shift_mode = 'Double Shift'").fetchone()[0]),
-        "partnership_count": int(db.execute("SELECT COUNT(*) FROM supplier_assets WHERE partnership_mode = 'Partnership'").fetchone()[0]),
-        "unbilled_amount": float(db.execute("SELECT COALESCE(SUM(subtotal), 0) FROM supplier_timesheets WHERE COALESCE(voucher_no, '') = ''").fetchone()[0] or 0.0),
-        "voucher_total": float(db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM supplier_vouchers").fetchone()[0] or 0.0),
-        "paid_total": float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM supplier_payments").fetchone()[0] or 0.0),
-        "outstanding_total": float(db.execute("SELECT COALESCE(SUM(balance_amount), 0) FROM supplier_vouchers").fetchone()[0] or 0.0),
-        "open_vouchers": int(db.execute("SELECT COUNT(*) FROM supplier_vouchers WHERE balance_amount > 0.009").fetchone()[0]),
+        "supplier_count": int(
+            db.execute(
+                """
+                SELECT COUNT(*)
+                FROM parties p
+                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+                WHERE p.party_roles LIKE ? AND COALESCE(profile.supplier_mode, 'Normal') = ?
+                """,
+                ("%Supplier%", normalized_mode),
+            ).fetchone()[0]
+        ),
+        "asset_count": int(
+            db.execute(
+                """
+                SELECT COUNT(*)
+                FROM supplier_assets asset
+                JOIN parties p ON p.party_code = asset.party_code
+                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+                """,
+                (normalized_mode,),
+            ).fetchone()[0]
+        ),
+        "double_shift_count": int(
+            db.execute(
+                """
+                SELECT COUNT(*)
+                FROM supplier_assets asset
+                JOIN parties p ON p.party_code = asset.party_code
+                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+                WHERE asset.double_shift_mode = 'Double Shift' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+                """,
+                (normalized_mode,),
+            ).fetchone()[0]
+        ),
+        "partnership_count": int(
+            db.execute(
+                """
+                SELECT COUNT(*)
+                FROM supplier_assets asset
+                JOIN parties p ON p.party_code = asset.party_code
+                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+                WHERE asset.partnership_mode = 'Partnership' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+                """,
+                (normalized_mode,),
+            ).fetchone()[0]
+        ),
+        "unbilled_amount": float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(t.subtotal), 0)
+                FROM supplier_timesheets t
+                JOIN parties p ON p.party_code = t.party_code
+                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+                WHERE COALESCE(t.voucher_no, '') = '' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+                """,
+                (normalized_mode,),
+            ).fetchone()[0]
+            or 0.0
+        ),
+        "voucher_total": float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(v.total_amount), 0)
+                FROM supplier_vouchers v
+                JOIN parties p ON p.party_code = v.party_code
+                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+                """,
+                (normalized_mode,),
+            ).fetchone()[0]
+            or 0.0
+        ),
+        "paid_total": float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(pay.amount), 0)
+                FROM supplier_payments pay
+                JOIN parties p ON p.party_code = pay.party_code
+                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+                """,
+                (normalized_mode,),
+            ).fetchone()[0]
+            or 0.0
+        ),
+        "outstanding_total": float(
+            db.execute(
+                """
+                SELECT COALESCE(SUM(v.balance_amount), 0)
+                FROM supplier_vouchers v
+                JOIN parties p ON p.party_code = v.party_code
+                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+                """,
+                (normalized_mode,),
+            ).fetchone()[0]
+            or 0.0
+        ),
+        "open_vouchers": int(
+            db.execute(
+                """
+                SELECT COUNT(*)
+                FROM supplier_vouchers v
+                JOIN parties p ON p.party_code = v.party_code
+                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+                WHERE v.balance_amount > 0.009 AND COALESCE(profile.supplier_mode, 'Normal') = ?
+                """,
+                (normalized_mode,),
+            ).fetchone()[0]
+        ),
     }
 
 
-def _supplier_directory_rows(db, query: str = "", limit: int | None = None):
+def _supplier_directory_rows(db, query: str = "", limit: int | None = None, supplier_mode: str = "Normal"):
+    normalized_mode = supplier_mode if supplier_mode in SUPPLIER_MODE_OPTIONS else "Normal"
     filters = ["p.party_roles LIKE ?"]
     params = ["%Supplier%"]
+    filters.append("COALESCE(profile.supplier_mode, 'Normal') = ?")
+    params.append(normalized_mode)
     if query:
         needle = f"%{query.strip().lower()}%"
         filters.append(
@@ -6082,6 +6743,11 @@ def _supplier_directory_rows(db, query: str = "", limit: int | None = None):
             p.trn_no,
             p.trade_license_no,
             p.status,
+            COALESCE(profile.supplier_mode, 'Normal') AS supplier_mode,
+            COALESCE(profile.partner_party_code, '') AS partner_party_code,
+            COALESCE(profile.partner_name, '') AS partner_name,
+            COALESCE(profile.default_company_share_percent, 100) AS default_company_share_percent,
+            COALESCE(profile.default_partner_share_percent, 0) AS default_partner_share_percent,
             COALESCE(asset_totals.asset_count, 0) AS asset_count,
             COALESCE(asset_totals.double_shift_count, 0) AS double_shift_count,
             COALESCE(asset_totals.partnership_count, 0) AS partnership_count,
@@ -6092,6 +6758,7 @@ def _supplier_directory_rows(db, query: str = "", limit: int | None = None):
             COALESCE(voucher_totals.balance_amount, 0) AS outstanding_total,
             COALESCE(payment_totals.paid_amount, 0) AS paid_total
         FROM parties p
+        LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
         LEFT JOIN (
             SELECT
                 party_code,
@@ -6858,8 +7525,8 @@ def _fleet_maintenance_summary(db, month_value: str):
         or 0
     )
     return {
-        "vehicle_count": int(db.execute("SELECT COUNT(*) FROM vehicle_master").fetchone()[0]),
-        "partnership_count": int(db.execute("SELECT COUNT(*) FROM vehicle_master WHERE ownership_mode = 'Partnership'").fetchone()[0]),
+        "vehicle_count": int(db.execute("SELECT COUNT(*) FROM vehicle_master WHERE COALESCE(source_type, 'Own Fleet Vehicle') = 'Own Fleet Vehicle'").fetchone()[0]),
+        "partnership_count": int(db.execute("SELECT COUNT(*) FROM vehicle_master WHERE COALESCE(source_type, '') = 'Partnership Supplier Vehicle'").fetchone()[0]),
         "double_shift_count": int(db.execute("SELECT COUNT(*) FROM vehicle_master WHERE shift_mode = 'Double Shift'").fetchone()[0]),
         "open_advance_balance": float(db.execute("SELECT COALESCE(SUM(balance_amount), 0) FROM maintenance_staff_advances").fetchone()[0] or 0.0),
         "workshop_credit_balance": float(
@@ -6885,15 +7552,85 @@ def _fleet_vehicle_rows(db):
             v.status,
             v.shift_mode,
             v.ownership_mode,
+            v.source_type,
+            v.source_party_code,
+            v.source_asset_code,
             COALESCE(partner.party_name, v.partner_name) AS partner_name,
             v.company_share_percent,
             v.partner_share_percent,
             v.notes
         FROM vehicle_master v
         LEFT JOIN parties partner ON partner.party_code = v.partner_party_code
+        WHERE COALESCE(v.source_type, 'Own Fleet Vehicle') = 'Own Fleet Vehicle'
         ORDER BY CASE WHEN v.status = 'Active' THEN 0 ELSE 1 END, v.vehicle_no ASC, v.id DESC
         """
     ).fetchall()
+
+
+def _maintenance_target_vehicle_rows(db):
+    return db.execute(
+        """
+        SELECT
+            v.vehicle_id,
+            v.vehicle_no,
+            v.vehicle_type,
+            v.shift_mode,
+            COALESCE(v.source_type, 'Own Fleet Vehicle') AS source_type
+        FROM vehicle_master v
+        ORDER BY
+            CASE WHEN COALESCE(v.source_type, 'Own Fleet Vehicle') = 'Own Fleet Vehicle' THEN 0 ELSE 1 END,
+            v.vehicle_no ASC,
+            v.id DESC
+        """
+    ).fetchall()
+
+
+def _maintenance_paper_row(db, paper_no: str, *, required: bool = False):
+    row = db.execute(
+        """
+        SELECT *
+        FROM maintenance_papers
+        WHERE paper_no = ?
+        """,
+        (paper_no,),
+    ).fetchone()
+    if row is None and required:
+        raise ValidationError("Maintenance paper was not found.")
+    return row
+
+
+def _reverse_maintenance_paper_effects(db, paper_row):
+    settlement_rows = db.execute(
+        """
+        SELECT settlement_type, advance_no, amount
+        FROM maintenance_settlements
+        WHERE paper_no = ?
+        ORDER BY id ASC
+        """,
+        (paper_row["paper_no"],),
+    ).fetchall()
+    for settlement in settlement_rows:
+        if settlement["settlement_type"] == "Technician Advance" and settlement["advance_no"]:
+            advance_row = _maintenance_advance_row(db, settlement["advance_no"])
+            if advance_row is None:
+                continue
+            new_settled = max(round(float(advance_row["settled_amount"] or 0.0) - float(settlement["amount"] or 0.0), 2), 0.0)
+            new_balance = round(float(advance_row["amount"] or 0.0) - new_settled, 2)
+            db.execute(
+                """
+                UPDATE maintenance_staff_advances
+                SET settled_amount = ?, balance_amount = ?
+                WHERE advance_no = ?
+                """,
+                (new_settled, max(new_balance, 0.0), settlement["advance_no"]),
+            )
+    db.execute("DELETE FROM maintenance_settlements WHERE paper_no = ?", (paper_row["paper_no"],))
+    if paper_row["linked_partnership_entry_no"]:
+        db.execute(
+            "DELETE FROM supplier_partnership_entries WHERE entry_no = ?",
+            (paper_row["linked_partnership_entry_no"],),
+        )
+    db.execute("DELETE FROM maintenance_paper_lines WHERE paper_no = ?", (paper_row["paper_no"],))
 
 
 def _maintenance_staff_rows(db):
@@ -6972,6 +7709,9 @@ def _maintenance_paper_rows(db, filters, limit: int = 18):
             p.paper_date,
             p.vehicle_id,
             p.vehicle_no,
+            p.target_class,
+            p.target_party_code,
+            p.target_asset_code,
             vehicle.vehicle_type,
             vehicle.shift_mode,
             vehicle.ownership_mode,
@@ -6989,6 +7729,7 @@ def _maintenance_paper_rows(db, filters, limit: int = 18):
             p.partner_share_amount,
             p.company_paid_amount,
             p.partner_paid_amount,
+            p.linked_partnership_entry_no,
             p.attachment_path,
             p.notes
         FROM maintenance_papers p
@@ -7076,7 +7817,7 @@ def _maintenance_partnership_rows(db, filters):
         LEFT JOIN maintenance_staff staff ON staff.staff_code = p.staff_code
         LEFT JOIN parties partner ON partner.party_code = vehicle.partner_party_code
         {where_sql}
-        {prefix}vehicle.ownership_mode = 'Partnership'
+        {prefix}p.target_class = 'Partnership Supplier Vehicle'
         GROUP BY p.vehicle_id, p.vehicle_no, vehicle.vehicle_type, partner.party_name, vehicle.partner_name
         ORDER BY COALESCE(SUM(p.total_amount), 0) DESC, p.vehicle_no ASC
         """,
@@ -7793,6 +8534,38 @@ def _save_maintenance_paper_lines(db, paper_no: str, line_payloads):
                 row["amount"],
             ),
         )
+
+
+def _save_maintenance_linked_partnership_entry(db, prepared):
+    if prepared["target_class"] != "Partnership Supplier Vehicle" or not prepared["target_party_code"] or not prepared["target_asset_code"]:
+        return None
+    entry_no = _next_reference_code(db, "supplier_partnership_entries", "entry_no", "PEN")
+    paid_by = "Partner" if prepared["paid_by"] == "Partner" else "Company"
+    db.execute(
+        """
+        INSERT INTO supplier_partnership_entries (
+            entry_no, party_code, asset_code, period_month, entry_date,
+            entry_kind, expense_head, shift_label, driver_name, paid_by, amount, notes, source_type, source_reference
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            entry_no,
+            prepared["target_party_code"],
+            prepared["target_asset_code"],
+            prepared["paper_date"][:7],
+            prepared["paper_date"],
+            "Vehicle Expense",
+            "Maintenance",
+            "General",
+            "",
+            paid_by,
+            prepared["total_amount"],
+            f"Maintenance paper {prepared['paper_no']} / {prepared['work_summary']}",
+            "maintenance_paper",
+            prepared["paper_no"],
+        ),
+    )
+    return entry_no
 
 
 def _invoice_output_dir(app: Flask) -> Path:

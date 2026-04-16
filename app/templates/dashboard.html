@@ -13,12 +13,22 @@
             <span class="admin-desk-button">Open Desk</span>
         </a>
 
-        <a class="card admin-desk-tile" href="{{ url_for('switch_workspace', workspace_key='suppliers') }}">
+        <a class="card admin-desk-tile" href="{{ url_for('switch_workspace', workspace_key='suppliers-normal') }}">
             <span class="admin-desk-visual admin-desk-visual-supplier" aria-hidden="true">S</span>
             <div class="admin-desk-copy">
                 <span class="admin-desk-label">Suppliers</span>
-                <h2>Supplier Desk</h2>
-                <p>Fleet and payments.</p>
+                <h2>Normal Supplier Desk</h2>
+                <p>Fleet and payables.</p>
+            </div>
+            <span class="admin-desk-button">Open Desk</span>
+        </a>
+
+        <a class="card admin-desk-tile" href="{{ url_for('switch_workspace', workspace_key='suppliers-partnership') }}">
+            <span class="admin-desk-visual admin-desk-visual-supplier admin-desk-visual-partnership" aria-hidden="true">P</span>
+            <div class="admin-desk-copy">
+                <span class="admin-desk-label">Partnership</span>
+                <h2>Partnership Supplier Desk</h2>
+                <p>Partner split and settlement.</p>
             </div>
             <span class="admin-desk-button">Open Desk</span>
         </a>
