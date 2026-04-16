@@ -6599,7 +6599,7 @@ def _upsert_supplier_portal_account(db, party_code: str, values) -> None:
                 party_code, login_email, password_hash, portal_enabled, activation_status, last_login_at
             ) VALUES (?, ?, '', ?, ?, NULL)
             """,
-            (party_code, login_email, 1 if portal_enabled else 0, activation_status),
+            (party_code, login_email, bool(portal_enabled), activation_status),
         )
         return
 
@@ -6617,7 +6617,7 @@ def _upsert_supplier_portal_account(db, party_code: str, values) -> None:
         SET login_email = ?, portal_enabled = ?, activation_status = ?
         WHERE party_code = ?
         """,
-        (login_email or existing["login_email"] or "", 1 if portal_enabled else 0, activation_status, party_code),
+        (login_email or existing["login_email"] or "", bool(portal_enabled), activation_status, party_code),
     )
 
 
