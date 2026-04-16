@@ -432,13 +432,15 @@ def generate_plain_supplier_statement_pdf(party, statement_rows, summary, output
         pdf.setFillColor(colors.white)
         pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
         _draw_title(pdf, title, f"{party['party_name']} | {party['party_code']}")
-        _draw_stat_box(pdf, 16 * mm, PAGE_HEIGHT - 58 * mm, 42 * mm, 14 * mm, "Submitted", f"AED {format_currency(float(summary.get('total_submitted', 0.0)))}")
-        _draw_stat_box(pdf, 61 * mm, PAGE_HEIGHT - 58 * mm, 42 * mm, 14 * mm, "Paid", f"AED {format_currency(float(summary.get('total_paid', 0.0)))}", fill_color=SOFT)
-        _draw_stat_box(pdf, 106 * mm, PAGE_HEIGHT - 58 * mm, 42 * mm, 14 * mm, "Outstanding", f"AED {format_currency(float(summary.get('approved_outstanding', 0.0)))}", fill_color=SOFT)
-        _draw_stat_box(pdf, 151 * mm, PAGE_HEIGHT - 58 * mm, 43 * mm, 14 * mm, "Pending", f"AED {format_currency(float(summary.get('pending_submitted', 0.0)))}", fill_color=colors.HexColor("#FFF4E8"), text_color=ORANGE, border_color=ORANGE)
+        _draw_stat_box(pdf, 16 * mm, PAGE_HEIGHT - 58 * mm, 34 * mm, 14 * mm, "All Submitted", f"AED {format_currency(float(summary.get('all_submitted', 0.0)))}")
+        _draw_stat_box(pdf, 54 * mm, PAGE_HEIGHT - 58 * mm, 34 * mm, 14 * mm, "Approved", f"AED {format_currency(float(summary.get('approved_total', 0.0)))}", fill_color=SOFT)
+        _draw_stat_box(pdf, 92 * mm, PAGE_HEIGHT - 58 * mm, 34 * mm, 14 * mm, "Paid", f"AED {format_currency(float(summary.get('total_paid', 0.0)))}", fill_color=SOFT)
+        _draw_stat_box(pdf, 130 * mm, PAGE_HEIGHT - 58 * mm, 31 * mm, 14 * mm, "Pending", f"AED {format_currency(float(summary.get('pending_submitted', 0.0)))}", fill_color=colors.HexColor("#FFF4E8"), text_color=ORANGE, border_color=ORANGE)
+        _draw_stat_box(pdf, 165 * mm, PAGE_HEIGHT - 58 * mm, 29 * mm, 14 * mm, "Rejected", f"AED {format_currency(float(summary.get('rejected_total', 0.0)))}", fill_color=colors.HexColor("#FDECEC"), text_color=colors.HexColor("#B42318"), border_color=colors.HexColor("#F2B8B5"))
+        _draw_stat_box(pdf, 16 * mm, PAGE_HEIGHT - 76 * mm, 178 * mm, 12 * mm, "Outstanding", f"AED {format_currency(float(summary.get('approved_outstanding', 0.0)))}", fill_color=colors.HexColor("#EEF6FF"), text_color=BLUE_DARK, border_color=BLUE)
 
-        _draw_table_header(pdf, table_top, ["Date", "Invoice", "Total", "Paid", "Balance", "Status"], [18, 46, 118, 144, 168, 184])
-        y = table_top - 6.2 * mm
+        _draw_table_header(pdf, table_top - 18 * mm, ["Date", "Invoice", "Total", "Paid", "Balance", "Status"], [18, 46, 118, 144, 168, 184])
+        y = table_top - 24.2 * mm
         for index, row in enumerate(page_rows):
             if index % 2 == 0:
                 pdf.setFillColor(SOFT)

@@ -4201,6 +4201,44 @@ html {
     gap: 12px;
 }
 
+.supplier-statement-grid {
+    margin-bottom: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.supplier-status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 96px;
+    font-size: 0.8rem;
+}
+
+.supplier-status-pill.status-approved,
+.supplier-status-pill.status-pending,
+.supplier-status-pill.status-rejected {
+    border-width: 1px;
+    border-style: solid;
+}
+
+.supplier-status-pill.status-approved {
+    background: rgba(15, 118, 110, 0.1);
+    color: #0f766e;
+    border-color: rgba(15, 118, 110, 0.18);
+}
+
+.supplier-status-pill.status-pending {
+    background: rgba(230, 135, 31, 0.1);
+    color: #b45309;
+    border-color: rgba(230, 135, 31, 0.2);
+}
+
+.supplier-status-pill.status-rejected {
+    background: rgba(220, 38, 38, 0.08);
+    color: #b91c1c;
+    border-color: rgba(220, 38, 38, 0.18);
+}
+
 .company-clean-layout {
     grid-template-columns: 1fr;
 }

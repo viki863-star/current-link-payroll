@@ -7141,6 +7141,11 @@ def _supplier_submission_rows(db, party_code: str, limit: int = 30):
             else:
                 balance_amount = 0.0
             display_status = row["review_status"] or "Pending"
+        status_bucket = "approved"
+        if display_status == "Pending":
+            status_bucket = "pending"
+        elif display_status == "Rejected":
+            status_bucket = "rejected"
         prepared.append(
             {
                 **dict(row),
@@ -7148,6 +7153,7 @@ def _supplier_submission_rows(db, party_code: str, limit: int = 30):
                 "paid_amount_display": paid_amount,
                 "balance_amount_display": balance_amount,
                 "display_status": display_status,
+                "status_bucket": status_bucket,
             }
         )
     return prepared
@@ -7923,17 +7929,19 @@ def _supplier_statement_data(db, party_code: str, supplier_mode: str = "Normal")
     if supplier_mode == "Normal":
         rows = _supplier_submission_rows(db, party_code, limit=200)
         summary = {
+            "all_submitted": round(sum(item["total_amount"] for item in rows), 2),
+            "approved_total": round(sum(item["total_amount"] for item in rows if item["status_bucket"] == "approved"), 2),
             "approved_outstanding": round(
                 sum(
                     item["balance_amount_display"]
                     for item in rows
-                    if item["display_status"] in {"Approved", "Converted", "Partially Paid", "Paid"}
+                    if item["status_bucket"] == "approved"
                 ),
                 2,
             ),
-            "pending_submitted": round(sum(item["total_amount"] for item in rows if item["display_status"] == "Pending"), 2),
-            "total_paid": round(sum(item["paid_amount_display"] for item in rows), 2),
-            "total_submitted": round(sum(item["total_amount"] for item in rows), 2),
+            "pending_submitted": round(sum(item["total_amount"] for item in rows if item["status_bucket"] == "pending"), 2),
+            "rejected_total": round(sum(item["total_amount"] for item in rows if item["status_bucket"] == "rejected"), 2),
+            "total_paid": round(sum(item["paid_amount_display"] for item in rows if item["status_bucket"] == "approved"), 2),
         }
         return rows, summary
 

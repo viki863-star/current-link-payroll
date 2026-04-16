@@ -66,16 +66,18 @@
             <div>
                 <span class="admin-desk-label">Statement</span>
                 <h2>Statement of account</h2>
+                <p class="workspace-lead">Submitted invoices, approval status, and real payable balance.</p>
             </div>
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ statement_pdf_url }}">Download PDF</a>
             </div>
         </div>
-        <div class="supplier-overview-grid">
-            <div class="directory-line"><strong>Total Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.total_submitted) }}</small></div>
-            <div class="directory-line"><strong>Total Paid</strong><small>AED {{ "%.2f"|format(statement_summary.total_paid) }}</small></div>
-            <div class="directory-line"><strong>Approved Outstanding</strong><small>AED {{ "%.2f"|format(statement_summary.approved_outstanding) }}</small></div>
-            <div class="directory-line"><strong>Pending Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.pending_submitted) }}</small></div>
+        <div class="supplier-overview-grid supplier-statement-grid">
+            <div class="directory-line"><strong>All Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.all_submitted) }}</small></div>
+            <div class="directory-line"><strong>Approved</strong><small>AED {{ "%.2f"|format(statement_summary.approved_total) }}</small></div>
+            <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(statement_summary.approved_outstanding) }}</small></div>
+            <div class="directory-line"><strong>Pending</strong><small>AED {{ "%.2f"|format(statement_summary.pending_submitted) }}</small></div>
+            <div class="directory-line"><strong>Rejected</strong><small>AED {{ "%.2f"|format(statement_summary.rejected_total) }}</small></div>
         </div>
         <div class="table-wrap">
             <table>
@@ -88,7 +90,7 @@
                             <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
                             <td>AED {{ "%.2f"|format(item.paid_amount_display) }}</td>
                             <td>AED {{ "%.2f"|format(item.balance_amount_display) }}</td>
-                            <td>{{ item.display_status }}</td>
+                            <td><span class="mini-link-pill supplier-status-pill status-{{ item.status_bucket }}">{{ item.display_status }}</span></td>
                         </tr>
                     {% else %}
                         <tr><td colspan="6">No statement rows yet.</td></tr>

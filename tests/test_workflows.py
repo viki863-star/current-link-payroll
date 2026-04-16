@@ -1666,7 +1666,8 @@ def test_admin_by_hand_supplier_submission_defaults_to_approved_ready(app, clien
 
     statement_page = client.get("/suppliers/PTY-HAND-01?screen=statement", follow_redirects=True)
     assert b"INV-HAND-01" in statement_page.data
-    assert b"Approved Outstanding" in statement_page.data
+    assert b"Outstanding" in statement_page.data
+    assert b"Approved" in statement_page.data
 
     with app.app_context():
         db = open_db()
