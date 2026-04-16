@@ -10,7 +10,7 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest', v='20260415a') }}">
     <link rel="icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260416c') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260416d') }}">
 </head>
 <body class="{% block body_class %}{% endblock %} {% if is_admin and current_admin_workspace %}workspace-{{ current_admin_workspace }}{% endif %}">
     <div class="brand-shell">
@@ -113,7 +113,7 @@
     <script>
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", () => {
-                navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js', v='20260415a') }}");
+                navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js', v='20260416d') }}");
             });
         }
     </script>

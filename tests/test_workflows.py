@@ -100,6 +100,27 @@ def create_supplier_record(
     )
 
 
+def create_customer_record(client, *, party_code, party_name, party_kind="Company"):
+    return client.post(
+        "/customers",
+        data={
+            "original_party_code": "",
+            "party_code": party_code,
+            "party_name": party_name,
+            "party_kind": party_kind,
+            "contact_person": party_name,
+            "phone_number": "0500000002",
+            "email": f"{party_code.lower()}@example.com",
+            "trn_no": f"TRN-{party_code}",
+            "trade_license_no": f"LIC-{party_code}",
+            "address": "Abu Dhabi",
+            "notes": "customer",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+
+
 def test_driver_login_requires_phone_and_pin(app, client):
     create_driver_record(app)
 
@@ -1798,10 +1819,10 @@ def test_supplier_partnership_and_double_shift_flow_tracks_monthly_split(app, cl
     detail = client.get("/suppliers/PTY-PART-01?screen=partnership&partnership_month=2026-04", follow_redirects=True)
     assert detail.status_code == 200
     assert b"Double Shift" in detail.data
-    assert b"Partnership Register" in detail.data
+    assert b"Vehicle Profit Result" in detail.data
     assert b"Hussain" in detail.data
-    assert b"Company Net" in detail.data
-    assert b"Partner Net" in detail.data
+    assert b"Company Should Receive" in detail.data
+    assert b"Partner Should Receive" in detail.data
 
     with app.app_context():
         db = open_db()
@@ -2259,4 +2280,123 @@ def test_fleet_maintenance_tracks_advance_workshop_credit_and_partnership_split(
         assert workshop_settlement["party_code"] == "PTY-WS-01"
         assert float(workshop_settlement["amount"]) == 1050.0
         assert workshop_settlement["status"] == "Open"
+
+
+def test_supplier_edit_flow_accepts_portal_toggle_without_500(app, client):
+    admin_session(client)
+    created = create_supplier_record(
+        client,
+        party_code="PTY-EDIT-PORTAL",
+        party_name="Edit Portal Supplier",
+        party_kind="Company",
+        portal_enabled=False,
+    )
+    assert b"Supplier registered successfully." in created.data
+
+    updated = client.post(
+        "/suppliers",
+        data={
+            "original_party_code": "PTY-EDIT-PORTAL",
+            "party_code": "PTY-EDIT-PORTAL",
+            "party_name": "Edit Portal Supplier",
+            "party_kind": "Company",
+            "party_roles": ["Supplier"],
+            "contact_person": "Ops",
+            "phone_number": "0500000001",
+            "email": "edit.portal@example.com",
+            "portal_login_email": "edit.portal@example.com",
+            "portal_enabled": "1",
+            "trn_no": "TRN-PTY-EDIT-PORTAL",
+            "trade_license_no": "LIC-PTY-EDIT-PORTAL",
+            "address": "Mussafah",
+            "notes": "updated",
+            "status": "Active",
+            "supplier_mode": "Normal",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier updated successfully." in updated.data
+
+    with app.app_context():
+        db = open_db()
+        account = db.execute(
+            "SELECT login_email, portal_enabled FROM supplier_portal_accounts WHERE party_code = ?",
+            ("PTY-EDIT-PORTAL",),
+        ).fetchone()
+        assert account is not None
+        assert account["login_email"] == "edit.portal@example.com"
+        assert int(account["portal_enabled"]) == 1
+
+
+def test_customer_desk_can_add_and_archive_customer(app, client):
+    admin_session(client)
+    created = create_customer_record(client, party_code="PTY-CUST-01", party_name="Delta Customer")
+    assert b"Customer saved successfully." in created.data
+
+    archive = client.post("/customers/PTY-CUST-01/archive", data={}, follow_redirects=True)
+    assert archive.status_code == 200
+    assert b"marked as Inactive" in archive.data
+
+    desk = client.get("/customers", follow_redirects=True)
+    assert b"Delta Customer" not in desk.data
+
+    with app.app_context():
+        db = open_db()
+        row = db.execute("SELECT status FROM parties WHERE party_code = ?", ("PTY-CUST-01",)).fetchone()
+        assert row["status"] == "Inactive"
+
+
+def test_supplier_portal_and_partnership_statement_pdfs_download(app, client):
+    admin_session(client)
+    create_supplier_record(
+        client,
+        party_code="PTY-COMP-02",
+        party_name="PDF Supplier LLC",
+        party_kind="Company",
+        portal_enabled=True,
+        portal_login_email="pdf.portal@example.com",
+    )
+    client.get("/logout", follow_redirects=False)
+    client.post(
+        "/supplier-activate",
+        data={
+            "supplier_code": "PTY-COMP-02",
+            "login_email": "pdf.portal@example.com",
+            "password": "secret12",
+            "confirm_password": "secret12",
+        },
+        follow_redirects=True,
+    )
+    client.post("/supplier-login", data={"supplier_code": "PTY-COMP-02", "password": "secret12"}, follow_redirects=True)
+    portal_pdf = client.get("/portal/supplier/statement-pdf", follow_redirects=False)
+    assert portal_pdf.status_code == 302
+    assert "/generated/" in portal_pdf.headers["Location"]
+
+    client.get("/logout", follow_redirects=False)
+    admin_session(client)
+    client.post(
+        "/suppliers/partnership",
+        data={
+            "party_code": "PTY-PDF-PART",
+            "party_name": "Partnership PDF Supplier",
+            "party_kind": "Company",
+            "party_roles": ["Supplier", "Partner"],
+            "contact_person": "Ops",
+            "phone_number": "0500000003",
+            "email": "partnership@example.com",
+            "trn_no": "",
+            "trade_license_no": "",
+            "address": "Mussafah",
+            "notes": "partnership",
+            "status": "Active",
+            "supplier_mode": "Partnership",
+            "partner_name": "Partner",
+            "default_company_share_percent": "50",
+            "default_partner_share_percent": "50",
+        },
+        follow_redirects=True,
+    )
+    partnership_pdf = client.get("/suppliers/PTY-PDF-PART/statement-pdf?month=2026-04", follow_redirects=False)
+    assert partnership_pdf.status_code == 302
+    assert "/generated/" in partnership_pdf.headers["Location"]
 
