@@ -1685,6 +1685,71 @@ def test_admin_by_hand_supplier_submission_defaults_to_approved_ready(app, clien
         assert float(submission["total_amount"]) == 2100.0
 
 
+def test_supplier_portal_statement_hides_rejected_rows_but_allows_resubmit(app, client):
+    admin_session(client)
+    create_supplier_record(
+        client,
+        party_code="PTY-REJ-01",
+        party_name="Rejected Portal Supplier",
+        party_kind="Company",
+        portal_enabled=True,
+        portal_login_email="reject@example.com",
+    )
+    client.get("/logout", follow_redirects=False)
+    client.post(
+        "/supplier-activate",
+        data={
+            "supplier_code": "PTY-REJ-01",
+            "login_email": "reject@example.com",
+            "password": "secret12",
+            "confirm_password": "secret12",
+        },
+        follow_redirects=True,
+    )
+    client.post("/supplier-login", data={"supplier_code": "PTY-REJ-01", "password": "secret12"}, follow_redirects=True)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO supplier_invoice_submissions (
+                submission_no, party_code, source_channel, external_invoice_no, period_month,
+                invoice_date, subtotal, vat_amount, total_amount, review_status, review_note,
+                created_by_role, created_by_name
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "SIN-REJ-01",
+                "PTY-REJ-01",
+                "Portal",
+                "INV-REJ-01",
+                "2026-04",
+                "2026-04-01",
+                1000.0,
+                50.0,
+                1050.0,
+                "Rejected",
+                "Wrong invoice",
+                "supplier",
+                "Rejected Portal Supplier",
+            ),
+        )
+        db.commit()
+
+    portal_page = client.get("/portal/supplier", follow_redirects=True)
+    assert b"INV-REJ-01" in portal_page.data
+    assert b"Resubmit" in portal_page.data
+    assert b"Rejected" in portal_page.data
+    assert b"Wrong invoice" in portal_page.data
+    assert b"Statement of account" in portal_page.data
+    statement_slice = portal_page.data.split(b"Statement of account", 1)[1]
+    assert b"INV-REJ-01" not in statement_slice
+
+    resubmit = client.get("/portal/supplier?resubmit_submission=SIN-REJ-01", follow_redirects=True)
+    assert b"You can resubmit this invoice with corrected files or amounts." in resubmit.data
+    assert b"INV-REJ-01" in resubmit.data
+
+
 def test_supplier_partnership_and_double_shift_flow_tracks_monthly_split(app, client):
     create_driver_record(app, driver_id="DRV-PART-1", full_name="Core Driver Safe")
     admin_session(client)

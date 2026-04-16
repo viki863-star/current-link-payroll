@@ -392,6 +392,30 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("supplier_login"))
 
         submission_values = _default_supplier_submission_form(db, party_code, source_channel="Portal")
+        resubmit_submission = request.args.get("resubmit_submission", "").strip().upper()
+        if request.method == "GET" and resubmit_submission:
+            row = db.execute(
+                """
+                SELECT
+                    submission_no,
+                    party_code,
+                    external_invoice_no,
+                    period_month,
+                    invoice_date,
+                    subtotal,
+                    vat_amount,
+                    total_amount,
+                    notes,
+                    review_note
+                FROM supplier_invoice_submissions
+                WHERE submission_no = ? AND party_code = ? AND review_status = 'Rejected'
+                LIMIT 1
+                """,
+                (resubmit_submission, party_code),
+            ).fetchone()
+            if row is not None:
+                submission_values = _supplier_submission_form_from_row(db, row, source_channel="Portal")
+                flash("You can resubmit this invoice with corrected files or amounts.", "info")
         if request.method == "POST":
             action = request.form.get("action", "").strip()
             if action == "submit_invoice":
@@ -6756,6 +6780,23 @@ def _default_supplier_submission_form(db=None, party_code: str = "", source_chan
     }
 
 
+def _supplier_submission_form_from_row(db, row, source_channel: str = "Portal"):
+    values = _default_supplier_submission_form(db, row["party_code"], source_channel=source_channel)
+    values.update(
+        {
+            "external_invoice_no": row["external_invoice_no"] or "",
+            "period_month": row["period_month"] or _current_month_value(),
+            "invoice_date": row["invoice_date"] or date.today().isoformat(),
+            "subtotal": _display_number(row["subtotal"]),
+            "vat_amount": _display_number(row["vat_amount"]),
+            "total_amount": _display_number(row["total_amount"]),
+            "notes": row["notes"] or "",
+            "review_note": row["review_note"] or "",
+        }
+    )
+    return values
+
+
 def _default_supplier_partnership_form(db=None, party_code: str = ""):
     db = db or open_db()
     return {
@@ -7927,7 +7968,7 @@ def _supplier_detail_summary(db, party_code: str):
 
 def _supplier_statement_data(db, party_code: str, supplier_mode: str = "Normal"):
     if supplier_mode == "Normal":
-        rows = _supplier_submission_rows(db, party_code, limit=200)
+        rows = [item for item in _supplier_submission_rows(db, party_code, limit=200) if item["status_bucket"] != "rejected"]
         summary = {
             "all_submitted": round(sum(item["total_amount"] for item in rows), 2),
             "approved_total": round(sum(item["total_amount"] for item in rows if item["status_bucket"] == "approved"), 2),
@@ -7940,7 +7981,6 @@ def _supplier_statement_data(db, party_code: str, supplier_mode: str = "Normal")
                 2,
             ),
             "pending_submitted": round(sum(item["total_amount"] for item in rows if item["status_bucket"] == "pending"), 2),
-            "rejected_total": round(sum(item["total_amount"] for item in rows if item["status_bucket"] == "rejected"), 2),
             "total_paid": round(sum(item["paid_amount_display"] for item in rows if item["status_bucket"] == "approved"), 2),
         }
         return rows, summary

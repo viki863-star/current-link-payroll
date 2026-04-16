@@ -35,25 +35,33 @@
                 <div>
                     <span class="admin-desk-label">Status</span>
                     <h2>Submission status</h2>
+                    <p class="workspace-lead">Rejected invoices stay here only. Correct them and submit again.</p>
                 </div>
             </div>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Invoice</th><th>Date</th><th>Total</th><th>Status</th><th>Files</th></tr></thead>
+                    <thead><tr><th>Invoice</th><th>Date</th><th>Total</th><th>Status</th><th>Files</th><th>Action</th></tr></thead>
                     <tbody>
                         {% for item in submissions %}
                             <tr>
                                 <td>{{ item.external_invoice_no }}<div class="muted-text">{{ item.submission_no }}</div></td>
                                 <td>{{ item.invoice_date }}</td>
                                 <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
-                                <td>{{ item.display_status }}</td>
+                                <td><span class="mini-link-pill supplier-status-pill status-{{ item.status_bucket }}">{{ item.display_status }}</span>{% if item.review_note %}<div class="muted-text">{{ item.review_note }}</div>{% endif %}</td>
                                 <td>
                                     {% if item.invoice_attachment_path %}<a class="mini-action-link" href="{{ url_for('generated_file', filename=item.invoice_attachment_path) }}">Invoice</a>{% endif %}
                                     {% if item.timesheet_attachment_path %}<a class="mini-action-link" href="{{ url_for('generated_file', filename=item.timesheet_attachment_path) }}">Timesheet</a>{% endif %}
                                 </td>
+                                <td>
+                                    {% if item.status_bucket == "rejected" %}
+                                        <a class="mini-action-link" href="{{ url_for('supplier_portal', resubmit_submission=item.submission_no) }}">Resubmit</a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
                             </tr>
                         {% else %}
-                            <tr><td colspan="5">No submissions yet.</td></tr>
+                            <tr><td colspan="6">No submissions yet.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -71,14 +79,13 @@
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ statement_pdf_url }}">Download PDF</a>
             </div>
-        </div>
-        <div class="supplier-overview-grid supplier-statement-grid">
-            <div class="directory-line"><strong>All Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.all_submitted) }}</small></div>
-            <div class="directory-line"><strong>Approved</strong><small>AED {{ "%.2f"|format(statement_summary.approved_total) }}</small></div>
-            <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(statement_summary.approved_outstanding) }}</small></div>
-            <div class="directory-line"><strong>Pending</strong><small>AED {{ "%.2f"|format(statement_summary.pending_submitted) }}</small></div>
-            <div class="directory-line"><strong>Rejected</strong><small>AED {{ "%.2f"|format(statement_summary.rejected_total) }}</small></div>
-        </div>
+            </div>
+            <div class="supplier-overview-grid supplier-statement-grid">
+                <div class="directory-line"><strong>All Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.all_submitted) }}</small></div>
+                <div class="directory-line"><strong>Approved</strong><small>AED {{ "%.2f"|format(statement_summary.approved_total) }}</small></div>
+                <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(statement_summary.approved_outstanding) }}</small></div>
+                <div class="directory-line"><strong>Pending</strong><small>AED {{ "%.2f"|format(statement_summary.pending_submitted) }}</small></div>
+            </div>
         <div class="table-wrap">
             <table>
                 <thead><tr><th>Invoice Date</th><th>Invoice No</th><th>Total Amount</th><th>Paid Amount</th><th>Balance Amount</th><th>Status</th></tr></thead>
