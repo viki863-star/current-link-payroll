@@ -95,10 +95,10 @@ ADMIN_WORKSPACE_META = {
         "summary": "Driver control.",
     },
     "suppliers-normal": {
-        "label": "Normal Suppliers",
+        "label": "Suppliers",
         "eyebrow": "Supplier Desk",
-        "title": "Normal Supplier Desk",
-        "summary": "Standard supplier vehicles, timesheets and payables.",
+        "title": "Supplier Desk",
+        "summary": "Supplier vehicles, timesheets and payables.",
     },
     "suppliers-partnership": {
         "label": "Partnership Suppliers",
@@ -860,7 +860,7 @@ def register_routes(app: Flask) -> None:
             suppliers=_supplier_directory_rows(db, query=query, supplier_mode=supplier_mode),
             role_options=[item for item in PARTY_ROLE_OPTIONS if item != "Supplier"],
             supplier_mode=supplier_mode,
-            desk_title="Normal Supplier Desk",
+            desk_title="Supplier Desk",
             detail_endpoint="supplier_detail",
             desk_endpoint="suppliers",
             counterpart_endpoint="partnership_suppliers",
@@ -931,7 +931,7 @@ def register_routes(app: Flask) -> None:
             detail_endpoint="supplier_detail",
             desk_endpoint="partnership_suppliers",
             counterpart_endpoint="suppliers",
-            counterpart_label="Normal Desk",
+            counterpart_label="Supplier Desk",
             partner_parties=_supplier_partner_parties(db),
         )
 

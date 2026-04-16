@@ -13,7 +13,9 @@
                 <span><strong>{{ summary.supplier_count }}</strong><small>Suppliers</small></span>
                 <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
                 <span><strong>{{ summary.double_shift_count }}</strong><small>Double Shift</small></span>
-                <span><strong>{{ summary.partnership_count }}</strong><small>Partnership</small></span>
+                {% if supplier_mode == "Partnership" %}
+                    <span><strong>{{ summary.partnership_count }}</strong><small>Partnership</small></span>
+                {% endif %}
                 <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
             </div>
         </div>
@@ -25,7 +27,7 @@
             <div class="admin-filter-actions">
                 <button class="button" type="submit">Search</button>
                 {% if query %}
-                    <a class="button button-secondary" href="{{ url_for('suppliers') }}">Clear</a>
+                    <a class="button button-secondary" href="{{ url_for(desk_endpoint) }}">Clear</a>
                 {% endif %}
             </div>
         </form>
@@ -36,7 +38,7 @@
             <div class="desk-panel-head">
                 <div>
                     <span class="admin-desk-label">Master</span>
-                    <h2>{% if values.original_party_code %}Edit Supplier{% else %}Register {{ supplier_mode }} Supplier{% endif %}</h2>
+                    <h2>{% if values.original_party_code %}Edit Supplier{% else %}{% if supplier_mode == "Partnership" %}Register Partnership Supplier{% else %}Register Supplier{% endif %}{% endif %}</h2>
                 </div>
             </div>
             <form method="post" class="desk-form-grid supplier-entry-form">
@@ -130,7 +132,7 @@
                 <div class="form-actions left-actions full-span">
                     <button class="button" type="submit">{% if values.original_party_code %}Update Supplier{% else %}Save Supplier{% endif %}</button>
                     {% if values.original_party_code %}
-                        <a class="button button-secondary" href="{{ url_for('suppliers') }}">Cancel</a>
+                        <a class="button button-secondary" href="{{ url_for(desk_endpoint) }}">Cancel</a>
                     {% endif %}
                 </div>
             </form>
@@ -170,9 +172,9 @@
 
     <section class="directory-card-grid">
         {% for item in suppliers %}
-            <article class="card directory-card supplier-directory-card">
+            <article class="card directory-card supplier-directory-card {% if supplier_mode == 'Partnership' %}partnership-card{% else %}normal-card{% endif %}">
                 <div class="directory-card-head">
-                    <span class="vehicle-icon-chip" aria-hidden="true">S</span>
+                    <span class="vehicle-icon-chip" aria-hidden="true">{% if supplier_mode == "Partnership" %}P{% else %}S{% endif %}</span>
                     <span class="status-chip {{ item.status|lower }}">{{ item.status }}</span>
                 </div>
                 <div class="directory-card-body">
@@ -185,7 +187,9 @@
                 <div class="directory-stat-row">
                     <span><strong>{{ item.asset_count }}</strong><small>Fleet</small></span>
                     <span><strong>{{ item.double_shift_count }}</strong><small>Double Shift</small></span>
-                    <span><strong>{{ item.partnership_count }}</strong><small>Partnership</small></span>
+                    {% if supplier_mode == "Partnership" %}
+                        <span><strong>{{ item.partnership_count }}</strong><small>Partnership</small></span>
+                    {% endif %}
                     <span><strong>AED {{ "%.0f"|format(item.outstanding_total) }}</strong><small>Due</small></span>
                 </div>
                 <div class="directory-card-foot split-actions">
@@ -196,7 +200,7 @@
         {% else %}
             <article class="card directory-empty">
                 <h2>No Supplier Found</h2>
-                <p>Add your first {{ supplier_mode|lower }} supplier.</p>
+                <p>{% if supplier_mode == "Partnership" %}Add your first partnership supplier.{% else %}Add your first supplier.{% endif %}</p>
             </article>
         {% endfor %}
     </section>
