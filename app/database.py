@@ -193,6 +193,7 @@ CREATE TABLE IF NOT EXISTS supplier_profile (
 CREATE TABLE IF NOT EXISTS supplier_portal_accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     party_code TEXT NOT NULL UNIQUE,
+    user_id TEXT UNIQUE,
     login_email TEXT NOT NULL,
     password_hash TEXT,
     portal_enabled INTEGER NOT NULL DEFAULT 0,
@@ -285,6 +286,7 @@ CREATE TABLE IF NOT EXISTS supplier_invoice_submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     submission_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
+    lpo_no TEXT,
     source_channel TEXT NOT NULL DEFAULT 'By Hand',
     external_invoice_no TEXT NOT NULL,
     period_month TEXT NOT NULL,
@@ -343,10 +345,50 @@ CREATE TABLE IF NOT EXISTS agreements (
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
 
+CREATE TABLE IF NOT EXISTS supplier_registration_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_no TEXT NOT NULL UNIQUE,
+    company_name TEXT NOT NULL,
+    contact_person TEXT,
+    phone_number TEXT,
+    email TEXT NOT NULL,
+    trn_no TEXT,
+    trade_license_no TEXT,
+    address TEXT,
+    notes TEXT,
+    user_id TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    approval_status TEXT NOT NULL DEFAULT 'Pending Approval',
+    reviewed_by TEXT,
+    reviewed_at TEXT,
+    rejection_note TEXT,
+    approved_party_code TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS supplier_quotation_submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quotation_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    quotation_date TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    amount_basis TEXT,
+    amount REAL NOT NULL DEFAULT 0,
+    notes TEXT,
+    attachment_path TEXT,
+    review_status TEXT NOT NULL DEFAULT 'Pending',
+    review_note TEXT,
+    reviewed_by TEXT,
+    reviewed_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS lpos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lpo_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
+    quotation_no TEXT,
     agreement_no TEXT,
     issue_date TEXT NOT NULL,
     valid_until TEXT,
@@ -794,6 +836,7 @@ CREATE TABLE IF NOT EXISTS supplier_profile (
 CREATE TABLE IF NOT EXISTS supplier_portal_accounts (
     id BIGSERIAL PRIMARY KEY,
     party_code TEXT NOT NULL UNIQUE,
+    user_id TEXT UNIQUE,
     login_email TEXT NOT NULL,
     password_hash TEXT,
     portal_enabled BOOLEAN NOT NULL DEFAULT FALSE,
@@ -886,6 +929,7 @@ CREATE TABLE IF NOT EXISTS supplier_invoice_submissions (
     id BIGSERIAL PRIMARY KEY,
     submission_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
+    lpo_no TEXT,
     source_channel TEXT NOT NULL DEFAULT 'By Hand',
     external_invoice_no TEXT NOT NULL,
     period_month TEXT NOT NULL,
@@ -944,10 +988,50 @@ CREATE TABLE IF NOT EXISTS agreements (
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
 
+CREATE TABLE IF NOT EXISTS supplier_registration_requests (
+    id BIGSERIAL PRIMARY KEY,
+    request_no TEXT NOT NULL UNIQUE,
+    company_name TEXT NOT NULL,
+    contact_person TEXT,
+    phone_number TEXT,
+    email TEXT NOT NULL,
+    trn_no TEXT,
+    trade_license_no TEXT,
+    address TEXT,
+    notes TEXT,
+    user_id TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    approval_status TEXT NOT NULL DEFAULT 'Pending Approval',
+    reviewed_by TEXT,
+    reviewed_at TIMESTAMP,
+    rejection_note TEXT,
+    approved_party_code TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS supplier_quotation_submissions (
+    id BIGSERIAL PRIMARY KEY,
+    quotation_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    quotation_date TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    amount_basis TEXT,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    notes TEXT,
+    attachment_path TEXT,
+    review_status TEXT NOT NULL DEFAULT 'Pending',
+    review_note TEXT,
+    reviewed_by TEXT,
+    reviewed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS lpos (
     id BIGSERIAL PRIMARY KEY,
     lpo_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
+    quotation_no TEXT,
     agreement_no TEXT,
     issue_date TEXT NOT NULL,
     valid_until TEXT,
@@ -1252,6 +1336,7 @@ REQUIRED_COLUMNS = {
         "default_partner_share_percent": "DOUBLE PRECISION NOT NULL DEFAULT 0",
     },
     "supplier_portal_accounts": {
+        "user_id": "TEXT",
         "password_hash": "TEXT",
         "portal_enabled": "BOOLEAN NOT NULL DEFAULT FALSE",
         "activation_status": "TEXT NOT NULL DEFAULT 'Invited'",
@@ -1263,6 +1348,7 @@ REQUIRED_COLUMNS = {
         "source_reference": "TEXT",
     },
     "supplier_invoice_submissions": {
+        "lpo_no": "TEXT",
         "source_channel": "TEXT NOT NULL DEFAULT 'By Hand'",
         "period_month": "TEXT NOT NULL DEFAULT ''",
         "vat_amount": "DOUBLE PRECISION NOT NULL DEFAULT 0",
@@ -1275,6 +1361,30 @@ REQUIRED_COLUMNS = {
         "linked_voucher_no": "TEXT",
         "created_by_role": "TEXT",
         "created_by_name": "TEXT",
+    },
+    "supplier_registration_requests": {
+        "contact_person": "TEXT",
+        "phone_number": "TEXT",
+        "trn_no": "TEXT",
+        "trade_license_no": "TEXT",
+        "address": "TEXT",
+        "notes": "TEXT",
+        "reviewed_by": "TEXT",
+        "reviewed_at": "TIMESTAMP",
+        "rejection_note": "TEXT",
+        "approved_party_code": "TEXT",
+    },
+    "supplier_quotation_submissions": {
+        "amount_basis": "TEXT",
+        "notes": "TEXT",
+        "attachment_path": "TEXT",
+        "review_status": "TEXT NOT NULL DEFAULT 'Pending'",
+        "review_note": "TEXT",
+        "reviewed_by": "TEXT",
+        "reviewed_at": "TIMESTAMP",
+    },
+    "lpos": {
+        "quotation_no": "TEXT",
     },
     "supplier_partnership_entries": {
         "source_type": "TEXT",
