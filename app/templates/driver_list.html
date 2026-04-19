@@ -55,40 +55,69 @@
         </form>
     </article>
 
-    <section class="directory-card-grid driver-card-wall">
+    <section class="db-grid driver-card-wall">
         {% for driver in drivers %}
             {% set vehicle_type_value = (driver.vehicle_type or "")|lower %}
-            <article class="card directory-card driver-directory-card">
-                <div class="directory-card-head">
-                    <span class="vehicle-icon-chip" aria-hidden="true">
-                        {% if "trailer" in vehicle_type_value %}
-                            &#128667;
-                        {% elif "crane" in vehicle_type_value %}
-                            &#127959;
-                        {% elif "pickup" in vehicle_type_value %}
-                            &#128664;
-                        {% elif "bus" in vehicle_type_value %}
-                            &#128652;
-                        {% elif "tanker" in vehicle_type_value or "water" in vehicle_type_value %}
-                            &#128666;
-                        {% else %}
-                            &#128666;
-                        {% endif %}
-                    </span>
-                    <span class="status-chip {{ driver.status|lower }}">{{ driver.status }}</span>
-                </div>
-                <div class="directory-card-body">
-                    <h2>{{ driver.full_name }}</h2>
-                    <div class="directory-card-lines">
-                        <span class="directory-line"><strong>Vehicle</strong><small>{{ driver.vehicle_no or '-' }}</small></span>
-                        <span class="directory-line"><strong>Shift</strong><small>{{ driver.shift or 'Shift -' }}</small></span>
+            {% if "trailer" in vehicle_type_value %}
+                {% set veh_icon = "🚛" %}
+            {% elif "crane" in vehicle_type_value %}
+                {% set veh_icon = "🏗️" %}
+            {% elif "pickup" in vehicle_type_value %}
+                {% set veh_icon = "🚐" %}
+            {% elif "bus" in vehicle_type_value %}
+                {% set veh_icon = "🚌" %}
+            {% elif "tanker" in vehicle_type_value or "water" in vehicle_type_value %}
+                {% set veh_icon = "🚚" %}
+            {% else %}
+                {% set veh_icon = "🚛" %}
+            {% endif %}
+
+            <a class="wc wc-driver" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">
+                <div class="wc-shimmer"></div>
+                <div class="wc-bg-icon">{{ veh_icon }}</div>
+
+                <div class="wc-top">
+                    <div class="wc-icon-badge wc-badge-driver">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                             stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                            <circle cx="12" cy="8" r="4"/>
+                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                        </svg>
+                    </div>
+                    <div class="wc-meta">
+                        <span class="wc-tag">{{ driver.shift or "Driver" }}</span>
+                        <span class="wc-category status-chip {{ driver.status|lower }}">{{ driver.status }}</span>
                     </div>
                 </div>
-                <div class="directory-card-foot">
-                    <span class="directory-code">{{ driver.driver_id }}</span>
-                    <a class="button button-secondary directory-open" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Open Driver</a>
+
+                <div class="wc-body">
+                    <h2 class="wc-title">{{ driver.full_name }}</h2>
+                    <p class="wc-desc">
+                        {{ driver.vehicle_type or "No vehicle type" }}
+                        {% if driver.vehicle_no %} · {{ driver.vehicle_no }}{% endif %}
+                        {% if driver.phone_number %} · {{ driver.phone_number }}{% endif %}
+                    </p>
                 </div>
-            </article>
+
+                <div class="wc-footer">
+                    <div class="wc-quick-stats">
+                        <span class="wc-stat wc-stat-driver">{{ driver.driver_id }}</span>
+                        {% if driver.basic_salary %}
+                            <span class="wc-stat wc-stat-driver">AED {{ "%.0f"|format(driver.basic_salary) }}</span>
+                        {% endif %}
+                        <span class="wc-stat wc-stat-driver">{{ driver.shift or "—" }}</span>
+                    </div>
+                    <div class="wc-cta">
+                        <span class="wc-cta-text">Open</span>
+                        <span class="wc-cta-arrow">
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                                <path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+            </a>
+
         {% else %}
             <article class="card directory-empty">
                 <h2>No Driver Found</h2>
@@ -96,5 +125,6 @@
             </article>
         {% endfor %}
     </section>
+
 </section>
 {% endblock %}

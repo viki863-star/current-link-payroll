@@ -9340,6 +9340,13 @@ def _supplier_statement_data(db, party_code: str, supplier_mode: str = "Normal")
         }
         return rows, summary
 
+    # Cash suppliers use the dedicated kata view — statement is not applicable
+    if supplier_mode == "Cash":
+        return [], {
+            "work_logged": 0.0, "total_vouchers": 0.0,
+            "total_paid": 0.0, "outstanding": 0.0,
+        }
+
     rows = []
     timesheets = db.execute(
         """
