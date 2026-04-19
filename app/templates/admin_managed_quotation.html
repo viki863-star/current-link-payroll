@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<section class="admin-desk-shell">
+
+    {# ── Toolbar ── #}
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing') }}">&larr; Supplier Detail</a>
+                <a class="button button-secondary" href="{{ url_for('managed_suppliers') }}">Managed Desk</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ party.party_name }}</strong><small>Supplier</small></span>
+                <span><strong>{{ party.party_code }}</strong><small>Code</small></span>
+            </div>
+        </div>
+    </article>
+
+    <article class="card desk-panel-card">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">Managed Supplier &mdash; Quotation Entry</span>
+                <h2>Create Quotation</h2>
+                <p class="workspace-lead">
+                    Enter a quotation on behalf of <strong>{{ party.party_name }}</strong>.
+                    This quotation will be automatically marked as <strong>Approved</strong>.
+                </p>
+            </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="desk-form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <label>
+                <span>Quotation No</span>
+                <input type="text" name="quotation_no" value="{{ quotation_no }}" required
+                       placeholder="{{ quotation_no }}" style="font-weight:800;">
+            </label>
+
+            <label>
+                <span>Quotation Date</span>
+                <input type="date" name="quotation_date" id="quotation_date" required>
+            </label>
+
+            <label class="full-span">
+                <span>Job Title / Scope of Work</span>
+                <input type="text" name="job_title" placeholder="Describe the service or supply" required>
+            </label>
+
+            <label>
+                <span>Rate Basis</span>
+                <select name="rate_basis">
+                    <option value="">&mdash; Select &mdash;</option>
+                    <option value="Hours">Per Hour</option>
+                    <option value="Days">Per Day</option>
+                    <option value="Trips">Per Trip</option>
+                    <option value="Monthly">Monthly</option>
+                    <option value="Fixed">Fixed Lump Sum</option>
+                </select>
+            </label>
+
+            <label>
+                <span>Quoted Amount (AED)</span>
+                <input type="number" step="0.01" min="0" name="amount" placeholder="0.00" required>
+            </label>
+
+            <label class="full-span">
+                <span>Notes</span>
+                <textarea name="notes" rows="3" placeholder="Any terms, conditions or additional details&hellip;"></textarea>
+            </label>
+
+            <label class="full-span">
+                <span>Quotation Attachment <small>(PDF, JPG or PNG &mdash; optional)</small></span>
+                <input type="file" name="quotation_attachment" accept=".pdf,.jpg,.jpeg,.png" style="padding:6px;">
+            </label>
+
+            <div class="form-actions full-span" style="display:flex;gap:10px;align-items:center;">
+                <button class="button success-button" type="submit">Create &amp; Auto-Approve Quotation</button>
+                <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code) }}">Cancel</a>
+                <span class="muted-text" style="font-size:0.82rem;">
+                    Quotation will be auto-approved. You can issue an LPO immediately from the Quotation Review page.
+                </span>
+            </div>
+        </form>
+    </article>
+
+</section>
+
+<script>
+document.getElementById('quotation_date').value = new Date().toISOString().slice(0, 10);
+</script>
+
+{% endblock %}

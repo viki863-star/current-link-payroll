@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+/* ── Issue LPO form styles ─────────────────────────────────────────── */
+.lpo-issue-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+.lpo-issue-grid .full-span { grid-column: 1 / -1; }
+
+.lpo-source-card {
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: rgba(28,86,139,0.05);
+    border: 1px solid rgba(28,86,139,0.12);
+    margin-bottom: 6px;
+}
+.lpo-source-card h3 {
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #1c568b;
+    margin: 0 0 10px;
+}
+.lpo-meta-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px 18px;
+}
+.lpo-meta-item { display: flex; flex-direction: column; gap: 2px; }
+.lpo-meta-item small {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #6b7280;
+}
+.lpo-meta-item strong { font-size: 0.92rem; color: #15335d; }
+
+.lpo-amount-preview {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 4px;
+}
+.lpo-amt-box {
+    padding: 12px 14px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid rgba(28,86,139,0.12);
+    background: rgba(255,255,255,0.9);
+}
+.lpo-amt-box small {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+.lpo-amt-box strong { font-size: 1.05rem; font-weight: 800; color: #15335d; }
+.lpo-amt-box.lpo-total { background: #1c568b; border-color: #1c568b; }
+.lpo-amt-box.lpo-total small { color: rgba(255,255,255,0.7); }
+.lpo-amt-box.lpo-total strong { color: #fff; }
+
+.already-issued-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: rgba(22,163,74,0.07);
+    border: 1px solid rgba(22,163,74,0.18);
+    color: #14532d;
+    font-weight: 700;
+    margin-bottom: 14px;
+}
+</style>
+
+<section class="admin-desk-shell">
+
+    {# ── Toolbar ── #}
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('admin_supplier_quotations') }}">← Quotation Review</a>
+                <a class="button button-secondary" href="{{ url_for('suppliers') }}">Supplier Desk</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ quotation.quotation_no }}</strong><small>Quotation</small></span>
+                <span><strong>{{ party.party_name if party else quotation.party_code }}</strong><small>Supplier</small></span>
+                <span><strong>AED {{ "%.2f"|format(quotation.amount) }}</strong><small>Quoted Amount</small></span>
+            </div>
+        </div>
+    </article>
+
+    {# ── Already issued warning ── #}
+    {% if existing_lpo %}
+        <div class="already-issued-banner">
+            <span>✓</span>
+            <span>
+                An LPO has already been issued for this quotation:
+                <strong>{{ existing_lpo.lpo_no }}</strong>
+                (Status: {{ existing_lpo.status }}).
+                {% if existing_lpo.pdf_path %}
+                    <a href="{{ url_for('generated_file', filename=existing_lpo.pdf_path) }}"
+                       target="_blank" style="color:inherit;text-decoration:underline;">Download PDF</a>
+                {% endif %}
+                You may issue another LPO below only if required.
+            </span>
+        </div>
+    {% endif %}
+
+    <article class="card desk-panel-card">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">Supplier Desk — LPO Release</span>
+                <h2>Issue Local Purchase Order</h2>
+                <p class="workspace-lead">
+                    Review the approved quotation details below and complete the LPO form.
+                    A PDF will be generated automatically on submission.
+                </p>
+            </div>
+        </div>
+
+        {# ── Quotation source card ── #}
+        <div class="lpo-source-card">
+            <h3>From Approved Quotation</h3>
+            <div class="lpo-meta-row">
+                <div class="lpo-meta-item">
+                    <small>Quotation No</small>
+                    <strong>{{ quotation.quotation_no }}</strong>
+                </div>
+                <div class="lpo-meta-item">
+                    <small>Quotation Date</small>
+                    <strong>{{ quotation.quotation_date or "—" }}</strong>
+                </div>
+                <div class="lpo-meta-item">
+                    <small>Supplier</small>
+                    <strong>{{ party.party_name if party else quotation.party_code }}</strong>
+                </div>
+                <div class="lpo-meta-item">
+                    <small>Job Title</small>
+                    <strong>{{ quotation.job_title or "—" }}</strong>
+                </div>
+                <div class="lpo-meta-item">
+                    <small>Rate Basis</small>
+                    <strong>{{ quotation.rate_basis or "—" }}</strong>
+                </div>
+                <div class="lpo-meta-item">
+                    <small>Quoted Amount</small>
+                    <strong>AED {{ "%.2f"|format(quotation.amount) }}</strong>
+                </div>
+            </div>
+            {% if quotation.notes %}
+                <div class="muted-text" style="margin-top:8px;font-size:0.84rem;">
+                    Quotation notes: {{ quotation.notes }}
+                </div>
+            {% endif %}
+            {% if quotation.attachment_path %}
+                <div style="margin-top:8px;">
+                    <a href="{{ url_for('generated_file', filename=quotation.attachment_path) }}"
+                       target="_blank" class="mini-link-pill">📎 View Quotation Attachment</a>
+                </div>
+            {% endif %}
+        </div>
+
+        {# ── LPO Release Form ── #}
+        <form method="post" class="lpo-issue-grid" id="lpo-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            {# Row 1: LPO No + Issue Date + Valid Until #}
+            <label>
+                <span>LPO No</span>
+                <input type="text" name="lpo_no" value="{{ lpo_no }}" required
+                       placeholder="{{ lpo_no }}" style="font-weight:800;">
+            </label>
+
+            <label>
+                <span>Issue Date</span>
+                <input type="date" name="issue_date" id="issue_date"
+                       value="{{ today }}" required>
+            </label>
+
+            <label>
+                <span>Valid Until <small>(optional)</small></span>
+                <input type="date" name="valid_until">
+            </label>
+
+            <label></label>{# spacer #}
+
+            {# Row 2: Amount + VAT % #}
+            <label>
+                <span>Amount (AED excl. VAT)</span>
+                <input type="number" step="0.01" min="0" name="amount" id="lpo_amount"
+                       value="{{ "%.2f"|format(quotation.amount) }}"
+                       oninput="calcLpoTotal()" required>
+            </label>
+
+            <label>
+                <span>VAT %</span>
+                <input type="number" step="0.01" min="0" max="100" name="tax_percent"
+                       id="lpo_vat" value="5" oninput="calcLpoTotal()">
+            </label>
+
+            {# Amount preview #}
+            <div class="lpo-amount-preview full-span" id="lpo-preview">
+                <div class="lpo-amt-box">
+                    <small>Subtotal</small>
+                    <strong id="prev-sub">AED 0.00</strong>
+                </div>
+                <div class="lpo-amt-box">
+                    <small>VAT</small>
+                    <strong id="prev-vat">AED 0.00</strong>
+                </div>
+                <div class="lpo-amt-box lpo-total">
+                    <small>Total</small>
+                    <strong id="prev-total">AED 0.00</strong>
+                </div>
+            </div>
+
+            {# Row 3: Scope / description #}
+            <label class="full-span">
+                <span>Scope of Work / Description</span>
+                <textarea name="description" rows="3"
+                          placeholder="Detail the work scope, deliverables or supply specifications…">{{ quotation.job_title or "" }}</textarea>
+            </label>
+
+            {# Row 4: Payment Terms + Delivery Terms #}
+            <label>
+                <span>Payment Terms</span>
+                <input type="text" name="payment_terms"
+                       placeholder="e.g. Net 30 days from invoice date"
+                       value="Net 30 days from invoice approval">
+            </label>
+
+            <label>
+                <span>Delivery / Completion Terms</span>
+                <input type="text" name="delivery_terms"
+                       placeholder="e.g. Within 7 working days of LPO receipt">
+            </label>
+
+            {# Row 5: Internal notes #}
+            <label class="full-span">
+                <span>Internal Notes <small>(admin only — not printed on PDF)</small></span>
+                <textarea name="notes" rows="2"
+                          placeholder="Internal notes for reference…"></textarea>
+            </label>
+
+            {# Row 6: Additional / custom terms #}
+            <label class="full-span">
+                <span>Additional / Special Terms <small>(printed on LPO PDF in highlighted section)</small></span>
+                <textarea name="additional_terms" rows="3"
+                          placeholder="Enter any custom terms or special conditions for this LPO…"></textarea>
+            </label>
+
+            <div class="form-actions full-span" style="display:flex;gap:10px;align-items:center;">
+                <button class="button success-button" type="submit" id="issue-lpo-btn">
+                    📄 Issue LPO &amp; Generate PDF
+                </button>
+                <a class="button button-secondary"
+                   href="{{ url_for('admin_supplier_quotations') }}">Cancel</a>
+                <span class="muted-text" style="font-size:0.82rem;">
+                    PDF will be saved and made available to the supplier in their portal.
+                </span>
+            </div>
+        </form>
+
+    </article>
+
+</section>
+
+<script>
+// Pre-fill today's date
+document.getElementById('issue_date').value = new Date().toISOString().slice(0, 10);
+
+function calcLpoTotal() {
+    var amount = parseFloat(document.getElementById('lpo_amount').value) || 0;
+    var vat    = parseFloat(document.getElementById('lpo_vat').value)    || 0;
+    var vatAmt = Math.round(amount * vat / 100 * 100) / 100;
+    var total  = Math.round((amount + vatAmt) * 100) / 100;
+    document.getElementById('prev-sub').textContent   = 'AED ' + amount.toFixed(2);
+    document.getElementById('prev-vat').textContent   = 'AED ' + vatAmt.toFixed(2);
+    document.getElementById('prev-total').textContent = 'AED ' + total.toFixed(2);
+}
+// Run once on load
+calcLpoTotal();
+</script>
+
+{% endblock %}

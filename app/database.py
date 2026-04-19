@@ -50,6 +50,26 @@ CREATE TABLE IF NOT EXISTS driver_timesheets (
     FOREIGN KEY(driver_id) REFERENCES drivers(driver_id)
 );
 
+CREATE TABLE IF NOT EXISTS supplier_quotation_submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quotation_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    quotation_date TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    rate_basis TEXT,
+    amount REAL NOT NULL DEFAULT 0,
+    notes TEXT,
+    attachment_path TEXT,
+    review_status TEXT NOT NULL DEFAULT 'Pending',
+    review_note TEXT,
+    reviewed_by TEXT,
+    reviewed_at TEXT,
+    created_by_role TEXT,
+    created_by_name TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS salary_store (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     driver_id TEXT NOT NULL,
@@ -286,7 +306,6 @@ CREATE TABLE IF NOT EXISTS supplier_invoice_submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     submission_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
-    lpo_no TEXT,
     source_channel TEXT NOT NULL DEFAULT 'By Hand',
     external_invoice_no TEXT NOT NULL,
     period_month TEXT NOT NULL,
@@ -307,6 +326,28 @@ CREATE TABLE IF NOT EXISTS supplier_invoice_submissions (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(party_code) REFERENCES parties(party_code),
     FOREIGN KEY(linked_voucher_no) REFERENCES supplier_vouchers(voucher_no)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_registration_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_no TEXT NOT NULL UNIQUE,
+    company_name TEXT NOT NULL,
+    contact_person TEXT NOT NULL,
+    phone_number TEXT NOT NULL,
+    email TEXT NOT NULL,
+    trn_no TEXT,
+    trade_license_no TEXT,
+    address TEXT,
+    notes TEXT,
+    user_id TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    approval_status TEXT NOT NULL DEFAULT 'Pending Approval',
+    reviewed_by TEXT,
+    reviewed_at TEXT,
+    rejection_note TEXT,
+    approved_party_code TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(approved_party_code) REFERENCES parties(party_code)
 );
 
 CREATE TABLE IF NOT EXISTS supplier_partnership_entries (
@@ -345,50 +386,10 @@ CREATE TABLE IF NOT EXISTS agreements (
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
 
-CREATE TABLE IF NOT EXISTS supplier_registration_requests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    request_no TEXT NOT NULL UNIQUE,
-    company_name TEXT NOT NULL,
-    contact_person TEXT,
-    phone_number TEXT,
-    email TEXT NOT NULL,
-    trn_no TEXT,
-    trade_license_no TEXT,
-    address TEXT,
-    notes TEXT,
-    user_id TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    approval_status TEXT NOT NULL DEFAULT 'Pending Approval',
-    reviewed_by TEXT,
-    reviewed_at TEXT,
-    rejection_note TEXT,
-    approved_party_code TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS supplier_quotation_submissions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    quotation_no TEXT NOT NULL UNIQUE,
-    party_code TEXT NOT NULL,
-    quotation_date TEXT NOT NULL,
-    job_title TEXT NOT NULL,
-    amount_basis TEXT,
-    amount REAL NOT NULL DEFAULT 0,
-    notes TEXT,
-    attachment_path TEXT,
-    review_status TEXT NOT NULL DEFAULT 'Pending',
-    review_note TEXT,
-    reviewed_by TEXT,
-    reviewed_at TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(party_code) REFERENCES parties(party_code)
-);
-
 CREATE TABLE IF NOT EXISTS lpos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lpo_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
-    quotation_no TEXT,
     agreement_no TEXT,
     issue_date TEXT NOT NULL,
     valid_until TEXT,
@@ -396,6 +397,51 @@ CREATE TABLE IF NOT EXISTS lpos (
     tax_percent REAL NOT NULL DEFAULT 0,
     description TEXT,
     status TEXT NOT NULL DEFAULT 'Open',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+-- Phase 8: Cash Supplier tables
+CREATE TABLE IF NOT EXISTS cash_supplier_trips (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trip_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    period_month TEXT,
+    trip_count REAL NOT NULL DEFAULT 1,
+    rate REAL NOT NULL DEFAULT 0,
+    total_amount REAL NOT NULL DEFAULT 0,
+    vehicle_no TEXT,
+    notes TEXT,
+    created_by TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS cash_supplier_debits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    debit_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    debit_type TEXT NOT NULL DEFAULT 'Advance',
+    amount REAL NOT NULL DEFAULT 0,
+    description TEXT,
+    notes TEXT,
+    created_by TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS cash_supplier_payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payment_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    amount REAL NOT NULL DEFAULT 0,
+    payment_method TEXT NOT NULL DEFAULT 'Cash',
+    reference TEXT,
+    notes TEXT,
+    created_by TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
@@ -929,7 +975,6 @@ CREATE TABLE IF NOT EXISTS supplier_invoice_submissions (
     id BIGSERIAL PRIMARY KEY,
     submission_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
-    lpo_no TEXT,
     source_channel TEXT NOT NULL DEFAULT 'By Hand',
     external_invoice_no TEXT NOT NULL,
     period_month TEXT NOT NULL,
@@ -950,6 +995,28 @@ CREATE TABLE IF NOT EXISTS supplier_invoice_submissions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(party_code) REFERENCES parties(party_code),
     FOREIGN KEY(linked_voucher_no) REFERENCES supplier_vouchers(voucher_no)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_registration_requests (
+    id BIGSERIAL PRIMARY KEY,
+    request_no TEXT NOT NULL UNIQUE,
+    company_name TEXT NOT NULL,
+    contact_person TEXT NOT NULL,
+    phone_number TEXT NOT NULL,
+    email TEXT NOT NULL,
+    trn_no TEXT,
+    trade_license_no TEXT,
+    address TEXT,
+    notes TEXT,
+    user_id TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    approval_status TEXT NOT NULL DEFAULT 'Pending Approval',
+    reviewed_by TEXT,
+    reviewed_at TIMESTAMP,
+    rejection_note TEXT,
+    approved_party_code TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(approved_party_code) REFERENCES parties(party_code)
 );
 
 CREATE TABLE IF NOT EXISTS supplier_partnership_entries (
@@ -988,50 +1055,10 @@ CREATE TABLE IF NOT EXISTS agreements (
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
 
-CREATE TABLE IF NOT EXISTS supplier_registration_requests (
-    id BIGSERIAL PRIMARY KEY,
-    request_no TEXT NOT NULL UNIQUE,
-    company_name TEXT NOT NULL,
-    contact_person TEXT,
-    phone_number TEXT,
-    email TEXT NOT NULL,
-    trn_no TEXT,
-    trade_license_no TEXT,
-    address TEXT,
-    notes TEXT,
-    user_id TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    approval_status TEXT NOT NULL DEFAULT 'Pending Approval',
-    reviewed_by TEXT,
-    reviewed_at TIMESTAMP,
-    rejection_note TEXT,
-    approved_party_code TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS supplier_quotation_submissions (
-    id BIGSERIAL PRIMARY KEY,
-    quotation_no TEXT NOT NULL UNIQUE,
-    party_code TEXT NOT NULL,
-    quotation_date TEXT NOT NULL,
-    job_title TEXT NOT NULL,
-    amount_basis TEXT,
-    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
-    notes TEXT,
-    attachment_path TEXT,
-    review_status TEXT NOT NULL DEFAULT 'Pending',
-    review_note TEXT,
-    reviewed_by TEXT,
-    reviewed_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(party_code) REFERENCES parties(party_code)
-);
-
 CREATE TABLE IF NOT EXISTS lpos (
     id BIGSERIAL PRIMARY KEY,
     lpo_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
-    quotation_no TEXT,
     agreement_no TEXT,
     issue_date TEXT NOT NULL,
     valid_until TEXT,
@@ -1336,7 +1363,7 @@ REQUIRED_COLUMNS = {
         "default_partner_share_percent": "DOUBLE PRECISION NOT NULL DEFAULT 0",
     },
     "supplier_portal_accounts": {
-        "user_id": "TEXT",
+        "user_id": "TEXT UNIQUE",
         "password_hash": "TEXT",
         "portal_enabled": "BOOLEAN NOT NULL DEFAULT FALSE",
         "activation_status": "TEXT NOT NULL DEFAULT 'Invited'",
@@ -1348,10 +1375,10 @@ REQUIRED_COLUMNS = {
         "source_reference": "TEXT",
     },
     "supplier_invoice_submissions": {
-        "lpo_no": "TEXT",
         "source_channel": "TEXT NOT NULL DEFAULT 'By Hand'",
         "period_month": "TEXT NOT NULL DEFAULT ''",
         "vat_amount": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "lpo_no": "TEXT",
         "invoice_attachment_path": "TEXT",
         "timesheet_attachment_path": "TEXT",
         "review_status": "TEXT NOT NULL DEFAULT 'Pending'",
@@ -1362,29 +1389,47 @@ REQUIRED_COLUMNS = {
         "created_by_role": "TEXT",
         "created_by_name": "TEXT",
     },
-    "supplier_registration_requests": {
-        "contact_person": "TEXT",
-        "phone_number": "TEXT",
-        "trn_no": "TEXT",
-        "trade_license_no": "TEXT",
-        "address": "TEXT",
-        "notes": "TEXT",
-        "reviewed_by": "TEXT",
-        "reviewed_at": "TIMESTAMP",
-        "rejection_note": "TEXT",
-        "approved_party_code": "TEXT",
-    },
+    # ── supplier_quotation_submissions ───────────────────────────────────────
+    # Added Phase 5 Part A: safe migration for databases created before these
+    # columns were present in SQLITE_SCHEMA. No data is dropped or altered.
+    # The inline route at /supplier-quotations POSTs all these columns.
     "supplier_quotation_submissions": {
-        "amount_basis": "TEXT",
+        "quotation_date": "TEXT NOT NULL DEFAULT ''",
+        "job_title": "TEXT NOT NULL DEFAULT ''",
+        "rate_basis": "TEXT",
+        "amount": "REAL NOT NULL DEFAULT 0",
         "notes": "TEXT",
         "attachment_path": "TEXT",
         "review_status": "TEXT NOT NULL DEFAULT 'Pending'",
         "review_note": "TEXT",
         "reviewed_by": "TEXT",
+        "reviewed_at": "TEXT",
+        "created_by_role": "TEXT",
+        "created_by_name": "TEXT",
+    },
+    "supplier_registration_requests": {
+        "trn_no": "TEXT",
+        "trade_license_no": "TEXT",
+        "address": "TEXT",
+        "notes": "TEXT",
+        "user_id": "TEXT NOT NULL UNIQUE",
+        "password_hash": "TEXT NOT NULL",
+        "approval_status": "TEXT NOT NULL DEFAULT 'Pending Approval'",
+        "reviewed_by": "TEXT",
         "reviewed_at": "TIMESTAMP",
+        "rejection_note": "TEXT",
+        "approved_party_code": "TEXT",
     },
     "lpos": {
-        "quotation_no": "TEXT",
+        # Phase 6 Part B/C — LPO release workflow extended fields.
+        # Safe additive migration only. No existing data is affected.
+        "job_title": "TEXT",
+        "payment_terms": "TEXT",
+        "delivery_terms": "TEXT",
+        "additional_terms": "TEXT",
+        "pdf_path": "TEXT",
+        "issued_by": "TEXT",
+        "notes": "TEXT",
     },
     "supplier_partnership_entries": {
         "source_type": "TEXT",
@@ -1553,9 +1598,27 @@ def _ensure_columns(db: DatabaseAdapter) -> None:
     for table_name, columns in REQUIRED_COLUMNS.items():
         existing_columns = _existing_columns(db, table_name)
         for column_name, column_type in columns.items():
-            if column_name in existing_columns:
-                continue
-            db.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+            if column_name not in existing_columns:
+                safe_column_type = _normalize_add_column_type(column_type)
+                db.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {safe_column_type}")
+
+            if _column_requires_unique(column_type):
+                _ensure_unique_index(db, table_name, column_name)
+
+
+def _normalize_add_column_type(column_type: str) -> str:
+    return " ".join(part for part in column_type.split() if part.upper() != "UNIQUE")
+
+
+def _column_requires_unique(column_type: str) -> bool:
+    return "UNIQUE" in column_type.upper().split()
+
+
+def _ensure_unique_index(db: DatabaseAdapter, table_name: str, column_name: str) -> None:
+    index_name = f"ux_{table_name}_{column_name}"
+    db.execute(
+        f"CREATE UNIQUE INDEX IF NOT EXISTS {index_name} ON {table_name} ({column_name})"
+    )
 
 
 def _existing_columns(db: DatabaseAdapter, table_name: str) -> set[str]:

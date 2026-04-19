@@ -1,51 +1,187 @@
 {% extends "base.html" %}
-
+{% block title %}Current Link — Heavy Transport & General Contracting{% endblock %}
 {% block body_class %}landing-page-body{% endblock %}
 
-{% block shell_header %}{% endblock %}
-
 {% block content %}
-<section class="public-landing-shell">
-    <article class="card public-landing-logo-card simple-landing-logo-card">
-        <img class="public-landing-logo" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} logo">
-    </article>
 
-    <article class="card public-landing-hero-card simple-landing-hero-card">
-        <div class="public-landing-image"></div>
-        <div class="public-landing-overlay"></div>
-        <div class="public-landing-content">
-            <p class="eyebrow">Current Link</p>
-            <h2>Heavy Transport Solutions</h2>
-            <div class="actions-row public-landing-actions">
-                <a class="button quote-button" href="{{ url_for('services') }}#quote">Get Quote</a>
-                <a class="button button-secondary" href="{{ url_for('services') }}">Our Services</a>
-                <a class="button portal-launch-button" href="{{ url_for('login') }}">Portal Login</a>
+{# ── HERO ─────────────────────────────────────────────────────────────── #}
+<section class="lp-hero">
+    <div class="lp-hero-bg" style="background-image: url('{{ url_for('static', filename='landing-hero-v2.png') }}');"></div>
+    <div class="lp-hero-overlay"></div>
+    <div class="lp-hero-inner">
+        <div class="lp-hero-content">
+            <span class="lp-eyebrow">🏗 UAE's Trusted Transport Partner</span>
+            <h1 class="lp-hero-title">
+                Heavy Transport<br>
+                &amp; Contracting<br>
+                <span class="lp-hero-accent">Excellence</span>
+            </h1>
+            <p class="lp-hero-sub">
+                Professional fleet management, crane services, tanker logistics
+                &amp; general contracting across the UAE — licensed, certified, operational 24/7.
+            </p>
+            <div class="lp-hero-actions">
+                <a class="lp-btn-orange" href="{{ url_for('services') }}#quote">Get a Quote</a>
+                <a class="lp-btn-outline-white" href="{{ url_for('services') }}">Our Services</a>
+                <a class="lp-btn-outline-white" href="{{ url_for('supplier_register') }}">Supplier Register</a>
+                <a class="lp-btn-outline-white" href="{{ url_for('supplier_login') }}">Supplier Login</a>
             </div>
         </div>
-    </article>
-
-    <article class="card public-landing-access-card">
-        <div class="public-landing-access-head">
-            <p class="eyebrow">Supplier Access</p>
-            <h2>Supplier company portal</h2>
-            <p>For invited company suppliers only.</p>
-        </div>
-        <div class="actions-row public-landing-actions">
-            <a class="button" href="{{ url_for('supplier_activate') }}">Supplier Activate</a>
-            <a class="button button-secondary" href="{{ url_for('supplier_login') }}">Supplier Login</a>
-        </div>
-    </article>
+    </div>
 </section>
+
+{# ── STATS STRIP ─────────────────────────────────────────────────────── #}
+<section class="lp-stats">
+    <div class="lp-stats-inner">
+        <div class="lp-stat-item">
+            <span class="lp-stat-num">UAE</span>
+            <span class="lp-stat-lbl">Nationwide Coverage</span>
+        </div>
+        <div class="lp-stat-div"></div>
+        <div class="lp-stat-item">
+            <span class="lp-stat-num">24/7</span>
+            <span class="lp-stat-lbl">Operations</span>
+        </div>
+        <div class="lp-stat-div"></div>
+        <div class="lp-stat-item">
+            <span class="lp-stat-num">SPC</span>
+            <span class="lp-stat-lbl">Licensed &amp; Registered</span>
+        </div>
+        <div class="lp-stat-div"></div>
+        <div class="lp-stat-item">
+            <span class="lp-stat-num">100%</span>
+            <span class="lp-stat-lbl">Compliance</span>
+        </div>
+    </div>
+</section>
+
+{# ── SERVICES ─────────────────────────────────────────────────────────── #}
+<section class="lp-section lp-services-section">
+    <div class="lp-section-inner">
+        <div class="lp-section-header">
+            <span class="lp-section-eyebrow">What We Do</span>
+            <h2 class="lp-section-title">Our Core Services</h2>
+            <p class="lp-section-sub">End-to-end heavy transport &amp; contracting solutions delivered with precision across the UAE.</p>
+        </div>
+        <div class="lp-services-grid">
+            <div class="lp-service-card">
+                <div class="lp-service-icon lp-icon-orange">🚛</div>
+                <h3 class="lp-service-title">Heavy Transport</h3>
+                <p class="lp-service-desc">Oversize load transport, flatbed haulage, and specialized freight movement across all Emirates.</p>
+            </div>
+            <div class="lp-service-card">
+                <div class="lp-service-icon lp-icon-navy">🏗</div>
+                <h3 class="lp-service-title">Crane Services</h3>
+                <p class="lp-service-desc">Mobile and crawler cranes for heavy lifting, installation, and industrial project support.</p>
+            </div>
+            <div class="lp-service-card">
+                <div class="lp-service-icon lp-icon-orange">⛽</div>
+                <h3 class="lp-service-title">Tanker Logistics</h3>
+                <p class="lp-service-desc">Bulk liquid, fuel, and chemical tanker transport with full safety compliance standards.</p>
+            </div>
+            <div class="lp-service-card">
+                <div class="lp-service-icon lp-icon-navy">📦</div>
+                <h3 class="lp-service-title">General Contracting</h3>
+                <p class="lp-service-desc">Project-based contracting, site logistics, and manpower supply for industrial sectors.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# ── HIGHLIGHTS ───────────────────────────────────────────────────────── #}
+<section class="lp-section lp-highlights-section">
+    <div class="lp-section-inner">
+        <div class="lp-section-header">
+            <span class="lp-section-eyebrow">Why Choose Us</span>
+            <h2 class="lp-section-title">Company Highlights</h2>
+        </div>
+        <div class="lp-highlights-grid">
+            <div class="lp-highlight">
+                <div class="lp-hl-icon">🌍</div>
+                <div class="lp-hl-text">
+                    <strong>UAE Nationwide</strong>
+                    <span>Operations spanning all Emirates with a well-connected logistics network.</span>
+                </div>
+            </div>
+            <div class="lp-highlight">
+                <div class="lp-hl-icon">⏱</div>
+                <div class="lp-hl-text">
+                    <strong>24/7 Operations</strong>
+                    <span>Round-the-clock fleet availability for urgent and scheduled assignments.</span>
+                </div>
+            </div>
+            <div class="lp-highlight">
+                <div class="lp-hl-icon">📋</div>
+                <div class="lp-hl-text">
+                    <strong>Licensed &amp; Certified</strong>
+                    <span>Fully registered LLC SPC with all UAE regulatory certifications in place.</span>
+                </div>
+            </div>
+            <div class="lp-highlight">
+                <div class="lp-hl-icon">💪</div>
+                <div class="lp-hl-text">
+                    <strong>Fleet Strength</strong>
+                    <span>Diverse, well-maintained fleet of heavy vehicles, cranes, and tankers.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# ── PORTAL ACCESS ────────────────────────────────────────────────────── #}
+<section class="lp-section lp-portal-section">
+    <div class="lp-section-inner">
+        <div class="lp-section-header">
+            <span class="lp-section-eyebrow">System Access</span>
+            <h2 class="lp-section-title">Portal Access</h2>
+            <p class="lp-section-sub">Register as a supplier or log in to your dedicated workspace portal.</p>
+        </div>
+        <div class="lp-portal-grid">
+            <div class="lp-portal-card lp-portal-supplier">
+                <div class="lp-portal-icon">🏢</div>
+                <h3 class="lp-portal-title">Supplier Portal</h3>
+                <p class="lp-portal-desc">Register your company, submit quotations, track LPOs and manage your invoices &amp; payments — all in one place.</p>
+                <div class="lp-portal-actions">
+                    <a class="lp-btn-orange" href="{{ url_for('supplier_register') }}">Register Now</a>
+                    <a class="lp-btn-outline-navy" href="{{ url_for('supplier_login') }}">Login</a>
+                </div>
+            </div>
+            <div class="lp-portal-card lp-portal-internal">
+                <div class="lp-portal-icon">⚙️</div>
+                <h3 class="lp-portal-title">Internal Portal</h3>
+                <p class="lp-portal-desc">Admin, driver &amp; owner access to the full ERP dashboard, driver payroll, fleet management, and reporting system.</p>
+                <div class="lp-portal-actions">
+                    <a class="lp-btn-navy" href="{{ url_for('login') }}">Portal Login</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 {% endblock %}
 
 {% block shell_footer %}
-<footer class="landing-contact-footer">
-    <div class="landing-contact-wrap">
-        <span>Mussafah M17, Abu Dhabi, UAE</span>
-        <a href="tel:+971501224963">050-1224963</a>
-        <a href="tel:+971501082900">050-1082900</a>
-        <a href="mailto:info@currentlinkgc.com">info@currentlinkgc.com</a>
-        <a href="https://www.currentlinkgc.com" target="_blank" rel="noreferrer">www.currentlinkgc.com</a>
+<footer class="lp-footer">
+    <div class="lp-footer-inner">
+        <div class="lp-footer-brand">
+            <img class="lp-footer-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
+            <div>
+                <div class="lp-footer-name">
+                    <span>CURRENT</span><span class="lp-footer-link">LINK</span>
+                </div>
+                <div class="lp-footer-tagline">Transport &amp; General Contracting LLC SPC</div>
+            </div>
+        </div>
+        <div class="lp-footer-contacts">
+            <a href="tel:+971501224963">📞 050-1224963</a>
+            <a href="tel:+971501082900">📞 050-1082900</a>
+            <a href="mailto:info@currentlinkgc.com">✉ info@currentlinkgc.com</a>
+            <a href="https://www.currentlinkgc.com" target="_blank" rel="noreferrer">🌐 currentlinkgc.com</a>
+        </div>
+        <div class="lp-footer-address">📍 Mussafah M17, Abu Dhabi, UAE</div>
+    </div>
+    <div class="lp-footer-copy">
+        © 2026 Current Link Transport &amp; General Contracting LLC SPC. All rights reserved.
     </div>
 </footer>
 {% endblock %}

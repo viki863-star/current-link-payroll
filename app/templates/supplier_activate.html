@@ -1,11 +1,17 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block body_class %}login-page-body{% endblock %}
 
 {% block content %}
 <section class="login-page-shell">
     <article class="card login-page-brand-card">
-        <img class="login-page-brand" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} logo">
+        <div class="login-page-brand-css">
+            <img class="lpb-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
+            <div class="lpb-text">
+                <div class="lpb-name"><span>CURRENT</span><span class="lpb-link">LINK</span></div>
+                <div class="lpb-tagline">TRANSPORT AND GENERAL CONTRACTING LLC SPC</div>
+            </div>
+        </div>
         <div class="login-page-copy">
             <div class="public-page-topline">
                 <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
@@ -46,3 +52,4 @@
     </article>
 </section>
 {% endblock %}
+

@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <section class="admin-desk-shell supplier-detail-shell">
@@ -6,13 +6,20 @@
         <div class="admin-toolbar-row">
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a class="button button-secondary" href="{{ url_for(desk_endpoint) }}">{{ "Supplier Desk" if supplier_mode == "Normal" else "Partnership Desk" }}</a>
+                <a class="button button-secondary" href="{{ url_for(desk_endpoint) }}">{% if supplier_mode == "Partnership" %}Partnership Desk{% elif supplier_mode == "Managed" %}Managed Desk{% elif supplier_mode == "Cash" %}Cash Desk{% else %}Supplier Desk{% endif %}</a>
                 {% if supplier_mode == "Partnership" %}
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='partnership', partnership_month=partnership_month) }}">Partnership</a>
+                {% elif supplier_mode == "Managed" %}
+                    <a class="button" href="{{ url_for('admin_managed_quotation', party_code=party.party_code) }}">+ Quotation</a>
+                    <a class="button" href="{{ url_for('admin_managed_invoice', party_code=party.party_code) }}">+ Invoice</a>
+                {% elif supplier_mode == "Cash" %}
+                    <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata') }}">Kata / Statement</a>
                 {% else %}
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Invoice Intake</a>
                 {% endif %}
-                <a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, month=partnership_month) }}">Statement PDF</a>
+                {% if supplier_mode != "Cash" %}
+                    <a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, month=partnership_month) }}">Statement PDF</a>
+                {% endif %}
             </div>
             <div class="admin-mini-stats">
                 <span><strong>{{ summary.asset_count }}</strong><small>Vehicles</small></span>
@@ -31,7 +38,7 @@
     <article class="card desk-panel-card supplier-overview-card">
         <div class="desk-panel-head">
             <div>
-                <span class="admin-desk-label">{{ "Supplier" if supplier_mode == "Normal" else "Partnership Supplier" }}</span>
+                <span class="admin-desk-label">{% if supplier_mode == "Partnership" %}Partnership Supplier{% elif supplier_mode == "Managed" %}Managed Supplier{% elif supplier_mode == "Cash" %}Cash Supplier{% else %}Supplier{% endif %}</span>
                 <h2>{{ party.party_name }}</h2>
                 <p class="workspace-lead">{{ party.party_code }}{% if party.contact_person %} | {{ party.contact_person }}{% endif %}{% if party.phone_number %} | {{ party.phone_number }}{% endif %}</p>
             </div>
@@ -56,7 +63,7 @@
             <article class="card desk-panel-card" id="asset-form">
                 <div class="desk-panel-head">
                     <div>
-                        <span class="admin-desk-label">Screen 2</span>
+                        <span class="admin-desk-label">Fleet</span>
                         <h2>{% if asset_values.original_asset_code %}Edit Vehicle{% else %}Add Vehicle{% endif %}</h2>
                     </div>
                 </div>
@@ -127,7 +134,7 @@
     {% elif active_screen == "timesheets" %}
         <section class="compact-content-grid">
             <article class="card desk-panel-card">
-                <div class="desk-panel-head"><div><span class="admin-desk-label">Screen 3</span><h2>{% if timesheet_values.original_timesheet_no %}Edit Timesheet{% else %}Add Timesheet{% endif %}</h2></div></div>
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Timesheets</span><h2>{% if timesheet_values.original_timesheet_no %}Edit Timesheet{% else %}Add Timesheet{% endif %}</h2></div></div>
                 <form method="post" class="desk-form-grid">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="save_timesheet">
@@ -175,10 +182,10 @@
             </article>
         </section>
         {% elif active_screen == "billing" %}
-        {% if supplier_mode == "Normal" %}
+        {% if supplier_mode in ("Normal", "Managed") %}
             <section class="compact-content-grid">
                 <article class="card desk-panel-card">
-                    <div class="desk-panel-head"><div><span class="admin-desk-label">Screen 4</span><h2>By Hand Invoice Entry</h2></div></div>
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Invoice Entry</span><h2>By Hand Invoice Entry</h2></div></div>
                     <form method="post" enctype="multipart/form-data" class="desk-form-grid">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="save_submission">
@@ -206,13 +213,14 @@
                     <div class="desk-panel-head"><div><span class="admin-desk-label">Portal Queue</span><h2>Pending Supplier Submissions</h2></div></div>
                     <div class="table-wrap">
                         <table>
-                            <thead><tr><th>Invoice</th><th>Date</th><th>Total</th><th>Files</th><th>Action</th></tr></thead>
+                            <thead><tr><th>LPO</th><th>Invoice</th><th>Date</th><th>Total</th><th>Files</th><th>Action</th></tr></thead>
                             <tbody>
                                 {% set pending = namespace(found=false) %}
                                 {% for item in submissions %}
                                     {% if item.display_status == "Pending" %}
                                         {% set pending.found = true %}
                                         <tr>
+                                            <td>{{ item.lpo_no or "—" }}</td>
                                             <td>{{ item.external_invoice_no }}<div class="muted-text">{{ item.submission_no }} / {{ item.source_channel }}</div></td>
                                             <td>{{ item.invoice_date }}</td>
                                             <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
@@ -240,7 +248,7 @@
                                     {% endif %}
                                 {% endfor %}
                                 {% if not pending.found %}
-                                    <tr><td colspan="5">No pending portal submissions.</td></tr>
+                                    <tr><td colspan="6">No pending portal submissions.</td></tr>
                                 {% endif %}
                             </tbody>
                         </table>
@@ -253,13 +261,14 @@
                     <div class="desk-panel-head"><div><span class="admin-desk-label">Ready</span><h2>Approved / Ready For Voucher</h2></div></div>
                     <div class="table-wrap">
                         <table>
-                            <thead><tr><th>Invoice</th><th>Date</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
+                            <thead><tr><th>LPO</th><th>Invoice</th><th>Date</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
                             <tbody>
                                 {% set ready = namespace(found=false) %}
                                 {% for item in submissions %}
                                     {% if item.display_status in ["Approved", "Converted", "Partially Paid", "Paid"] %}
                                         {% set ready.found = true %}
                                         <tr>
+                                            <td>{{ item.lpo_no or "—" }}</td>
                                             <td>{{ item.external_invoice_no }}<div class="muted-text">{{ item.submission_no }} / {{ item.source_channel }}</div></td>
                                             <td>{{ item.invoice_date }}</td>
                                             <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
@@ -282,7 +291,7 @@
                                     {% endif %}
                                 {% endfor %}
                                 {% if not ready.found %}
-                                    <tr><td colspan="5">No approved supplier invoices yet.</td></tr>
+                                    <tr><td colspan="6">No approved supplier invoices yet.</td></tr>
                                 {% endif %}
                             </tbody>
                         </table>
@@ -363,7 +372,7 @@
         {% else %}
             <section class="compact-content-grid">
                 <article class="card desk-panel-card">
-                    <div class="desk-panel-head"><div><span class="admin-desk-label">Screen 4</span><h2>{% if voucher_values.original_voucher_no %}Edit Voucher{% else %}Billing Voucher{% endif %}</h2></div></div>
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Voucher</span><h2>{% if voucher_values.original_voucher_no %}Edit Voucher{% else %}Billing Voucher{% endif %}</h2></div></div>
                     <form method="post" class="desk-form-grid">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="save_voucher">
@@ -454,9 +463,150 @@
                 </article>
             </section>
         {% endif %}
+    {% elif supplier_mode == "Cash" and active_screen == "kata" %}
+        {# ── Summary cards ── #}
+        <section class="compact-content-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;">
+            <article class="card" style="padding:16px;text-align:center;">
+                <small style="color:var(--color-muted);">Earned</small>
+                <div style="font-size:1.35rem;font-weight:800;color:var(--color-success,#16a34a);">AED {{ "%.2f"|format(kata_summary.total_earned) }}</div>
+            </article>
+            <article class="card" style="padding:16px;text-align:center;">
+                <small style="color:var(--color-muted);">Debits / Loan</small>
+                <div style="font-size:1.35rem;font-weight:800;color:var(--color-danger,#dc2626);">AED {{ "%.2f"|format(kata_summary.total_debits) }}</div>
+            </article>
+            <article class="card" style="padding:16px;text-align:center;">
+                <small style="color:var(--color-muted);">Paid</small>
+                <div style="font-size:1.35rem;font-weight:800;color:var(--color-info,#2563eb);">AED {{ "%.2f"|format(kata_summary.total_paid) }}</div>
+            </article>
+            <article class="card" style="padding:16px;text-align:center;">
+                <small style="color:var(--color-muted);">Balance</small>
+                <div style="font-size:1.35rem;font-weight:800;color:{% if kata_summary.balance >= 0 %}var(--color-success,#16a34a){% else %}var(--color-danger,#dc2626){% endif %};">AED {{ "%.2f"|format(kata_summary.balance) }}</div>
+            </article>
+        </section>
+
+        {# ── Entry forms ── #}
+        <section class="compact-content-grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px;">
+            {# Trip earning #}
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Earning</span><h2>Add Trip</h2></div></div>
+                <form method="post" class="desk-form-grid" style="gap:8px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_trip">
+                    <label><span>Trip No</span><input type="text" name="trip_no" value="{{ cash_trip_no }}" style="font-weight:800;font-size:0.82rem;"></label>
+                    <label><span>Date</span><input type="date" name="entry_date" id="trip_date" required></label>
+                    <label><span>Period</span><input type="month" name="period_month"></label>
+                    <label><span>Trips</span><input type="number" step="0.5" min="0" name="trip_count" value="1" required id="t_cnt" oninput="calcTrip()"></label>
+                    <label><span>Rate</span><input type="number" step="0.01" min="0" name="rate" placeholder="0.00" required id="t_rate" oninput="calcTrip()"></label>
+                    <label><span>Total</span><input type="number" step="0.01" name="total_display" id="t_total" readonly style="font-weight:800;"></label>
+                    <label><span>Vehicle</span><input type="text" name="vehicle_no" placeholder="optional"></label>
+                    <label><span>Notes</span><input type="text" name="notes" placeholder="optional"></label>
+                    <div class="form-actions"><button class="button success-button" type="submit">Save Trip</button></div>
+                </form>
+            </article>
+
+            {# Debit / loan / advance #}
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Debit</span><h2>Add Debit</h2></div></div>
+                <form method="post" class="desk-form-grid" style="gap:8px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_debit">
+                    <label><span>Debit No</span><input type="text" name="debit_no" value="{{ cash_debit_no }}" style="font-weight:800;font-size:0.82rem;"></label>
+                    <label><span>Date</span><input type="date" name="entry_date" id="debit_date" required></label>
+                    <label><span>Type</span>
+                        <select name="debit_type">
+                            <option value="Advance">Advance</option>
+                            <option value="Loan">Loan / Qarza</option>
+                            <option value="Visa">Visa Expense</option>
+                            <option value="Transfer">Transfer</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </label>
+                    <label><span>Amount (AED)</span><input type="number" step="0.01" min="0.01" name="amount" placeholder="0.00" required></label>
+                    <label><span>Description</span><input type="text" name="description" placeholder="details"></label>
+                    <label><span>Notes</span><input type="text" name="notes" placeholder="optional"></label>
+                    <div class="form-actions"><button class="button" type="submit" style="background:var(--color-danger,#dc2626);color:#fff;">Save Debit</button></div>
+                </form>
+            </article>
+
+            {# Payment #}
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Payment</span><h2>Cash Payment</h2></div></div>
+                <form method="post" class="desk-form-grid" style="gap:8px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_cash_payment">
+                    <label><span>Payment No</span><input type="text" name="payment_no" value="{{ cash_payment_no }}" style="font-weight:800;font-size:0.82rem;"></label>
+                    <label><span>Date</span><input type="date" name="entry_date" id="pay_date" required></label>
+                    <label><span>Amount (AED)</span><input type="number" step="0.01" min="0.01" name="amount" placeholder="0.00" required></label>
+                    <label><span>Method</span>
+                        <select name="payment_method">
+                            <option value="Cash">Cash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Cheque">Cheque</option>
+                        </select>
+                    </label>
+                    <label><span>Reference</span><input type="text" name="reference" placeholder="optional"></label>
+                    <label><span>Notes</span><input type="text" name="notes" placeholder="optional"></label>
+                    <div class="form-actions"><button class="button success-button" type="submit">Save Payment</button></div>
+                </form>
+            </article>
+        </section>
+
+        {# ── Running statement / kata ── #}
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Kata</span><h2>Running Statement</h2></div></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Ref</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th style="text-align:right;">Earned</th>
+                            <th style="text-align:right;">Debit</th>
+                            <th style="text-align:right;">Paid</th>
+                            <th style="text-align:right;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in kata_rows %}
+                        <tr>
+                            <td>{{ row.entry_date }}</td>
+                            <td><strong>{{ row.reference }}</strong></td>
+                            <td><span class="status-chip {% if row.entry_type == 'Trip' %}approved{% elif row.entry_type == 'Payment' %}pending{% else %}rejected{% endif %}">{{ row.entry_type }}</span></td>
+                            <td>{{ row.description }}</td>
+                            <td style="text-align:right;">{% if row.earned %}{{ "%.2f"|format(row.earned) }}{% endif %}</td>
+                            <td style="text-align:right;color:var(--color-danger,#dc2626);">{% if row.debit %}{{ "%.2f"|format(row.debit) }}{% endif %}</td>
+                            <td style="text-align:right;color:var(--color-info,#2563eb);">{% if row.paid %}{{ "%.2f"|format(row.paid) }}{% endif %}</td>
+                            <td style="text-align:right;font-weight:700;color:{% if row.running_balance >= 0 %}var(--color-success,#16a34a){% else %}var(--color-danger,#dc2626){% endif %};">{{ "%.2f"|format(row.running_balance) }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% if not kata_rows %}
+                        <tr><td colspan="8">No entries yet. Add a trip, debit, or payment above.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <script>
+        (function(){
+            var today = new Date().toISOString().slice(0,10);
+            ['trip_date','debit_date','pay_date'].forEach(function(id){
+                var el = document.getElementById(id);
+                if(el && !el.value) el.value = today;
+            });
+        })();
+        function calcTrip(){
+            var cnt = parseFloat(document.getElementById('t_cnt').value)||0;
+            var rate = parseFloat(document.getElementById('t_rate').value)||0;
+            document.getElementById('t_total').value = (cnt*rate).toFixed(2);
+        }
+        </script>
+
     {% elif active_screen == "statement" %}
         <article class="card desk-panel-card">
-            <div class="desk-panel-head"><div><span class="admin-desk-label">Screen 5</span><h2>Statement of Account</h2></div></div>
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Statement</span><h2>Statement of Account</h2></div></div>
             {% if supplier_mode == "Normal" %}
                 <div class="supplier-overview-grid supplier-statement-grid">
                     <div class="directory-line"><strong>All Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.all_submitted) }}</small></div>
@@ -516,7 +666,7 @@
     {% elif supplier_mode == "Partnership" and active_screen == "partnership" %}
         <section class="compact-content-grid">
             <article class="card desk-panel-card" id="partnership-form">
-                <div class="desk-panel-head"><div><span class="admin-desk-label">Screen 5</span><h2>{% if partnership_values.original_entry_no %}Edit Expense or Salary{% else %}Expenses & Salary Split{% endif %}</h2></div></div>
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Partnership</span><h2>{% if partnership_values.original_entry_no %}Edit Expense or Salary{% else %}Expenses & Salary Split{% endif %}</h2></div></div>
                 <form method="post" class="desk-form-grid">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="save_partnership_entry">

@@ -7,7 +7,18 @@
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
                 <a class="button" href="#supplier-register">New Supplier</a>
+                <a class="button button-secondary" href="{{ url_for('supplier_registrations') }}">Registrations</a>
+                <a class="button button-secondary" href="{{ url_for('admin_supplier_quotations') }}">Quotation Review</a>
                 <a class="button button-secondary" href="{{ url_for(counterpart_endpoint) }}">{{ counterpart_label }}</a>
+                {% if supplier_mode != "Managed" %}
+                    <a class="button button-secondary" href="{{ url_for('managed_suppliers') }}">Managed Desk</a>
+                {% endif %}
+                {% if supplier_mode != "Cash" %}
+                    <a class="button button-secondary" href="{{ url_for('cash_suppliers') }}">Cash Desk</a>
+                {% endif %}
+                {% if supplier_mode in ("Managed", "Cash") %}
+                    <a class="button button-secondary" href="{{ url_for('partnership_suppliers') }}">Partnership Desk</a>
+                {% endif %}
             </div>
             <div class="admin-mini-stats">
                 <span><strong>{{ summary.supplier_count }}</strong><small>Suppliers</small></span>
@@ -56,7 +67,7 @@
                 <label>
                     <span>Kind</span>
                     <select name="party_kind">
-                        <option value="Company" {% if values.party_kind == 'Company' %}selected{% endif %}>Company</option>
+                        <option value="Company"    {% if values.party_kind == 'Company'    %}selected{% endif %}>Company</option>
                         <option value="Individual" {% if values.party_kind == 'Individual' %}selected{% endif %}>Individual</option>
                     </select>
                 </label>
@@ -155,7 +166,7 @@
                 <label>
                     <span>Status</span>
                     <select name="status">
-                        <option value="Active" {% if values.status == 'Active' %}selected{% endif %}>Active</option>
+                        <option value="Active"   {% if values.status == 'Active'   %}selected{% endif %}>Active</option>
                         <option value="Inactive" {% if values.status == 'Inactive' %}selected{% endif %}>Inactive</option>
                     </select>
                 </label>
@@ -172,7 +183,7 @@
             <article class="card desk-panel-card compact-side-card">
                 <div class="desk-panel-head">
                     <div>
-                        <span class="admin-desk-label">Focus</span>
+                        <span class="admin-desk-label">Workflow</span>
                         <h2>{{ desk_title }}</h2>
                     </div>
                 </div>
@@ -180,7 +191,7 @@
                     <span>Register supplier</span>
                     <span>Add fleet units</span>
                     <span>Post timesheets</span>
-                    <span>Invoice intake & payment</span>
+                    <span>Invoice intake &amp; payment</span>
                     <span>Statement of account</span>
                     {% if supplier_mode == "Partnership" %}<span>Partnership result</span>{% endif %}
                 </div>
@@ -188,13 +199,16 @@
             <article class="card desk-panel-card compact-side-card">
                 <div class="desk-panel-head">
                     <div>
-                        <span class="admin-desk-label">Quick</span>
+                        <span class="admin-desk-label">Quick Access</span>
                         <h2>Shortcuts</h2>
                     </div>
                 </div>
                 <div class="mini-link-stack">
+                    <a class="mini-link-pill" href="{{ url_for('supplier_registrations') }}">Supplier Registrations</a>
+                    <a class="mini-link-pill" href="{{ url_for('admin_supplier_quotations') }}">Quotation Review</a>
                     <a class="mini-link-pill" href="{{ url_for('invoice_center') }}">Invoice Center</a>
                     <a class="mini-link-pill" href="{{ url_for('party_list') }}">Party Master</a>
+                    <a class="mini-link-pill" href="{{ url_for('reports_center') }}">Reports</a>
                 </div>
             </article>
         </div>

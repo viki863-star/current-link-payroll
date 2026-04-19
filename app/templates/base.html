@@ -1,121 +1,192 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ config["COMPANY_NAME"] }} Driver Payroll</title>
-    <meta name="theme-color" content="#1c568b">
+    <title>{% block title %}{{ config["COMPANY_NAME"] }}{% endblock %} — ERP Portal</title>
+    <meta name="theme-color" content="#1a2d55">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest', v='20260415a') }}">
     <link rel="icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260416d') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260419k') }}">
 </head>
 <body class="{% block body_class %}{% endblock %} {% if is_admin and current_admin_workspace %}workspace-{{ current_admin_workspace }}{% endif %}">
-    <div class="brand-shell">
-        {% block shell_header %}
-            <header class="hero">
-                <div class="hero-aura hero-aura-left"></div>
-                <div class="hero-aura hero-aura-right"></div>
-                <div class="brand-banner-shell">
-                    <img class="brand-banner" src="{{ url_for('static', filename='current-link-header-premium.png') }}" alt="{{ config['COMPANY_NAME'] }} banner">
+<div class="brand-shell">
+
+    {% block shell_header %}
+
+    {# ══ BRAND HEADER ═══════════════════════════════════════════════════ #}
+    <div class="bh">
+        {# Animated background particles #}
+        <div class="bh-bg">
+            <div class="bh-circle bh-circle-1"></div>
+            <div class="bh-circle bh-circle-2"></div>
+            <div class="bh-circle bh-circle-3"></div>
+        </div>
+
+        <div class="bh-inner">
+            {# Left — Logo + Brand #}
+            <a class="bh-brand" href="{% if is_admin %}{{ url_for('dashboard') }}{% elif current_role %}{{ url_for('home') }}{% else %}/{% endif %}">
+                <div class="bh-logo-wrap">
+                    <img class="bh-logo" src="{{ url_for('static', filename='logo.png') }}" alt="{{ config['COMPANY_NAME'] }}">
+                    <div class="bh-logo-ring"></div>
                 </div>
-                <div class="hero-stage">
-                    <div class="hero-copy compact-copy">
-                        <p class="eyebrow">{{ current_workspace_meta.eyebrow if current_workspace_meta else config["COMPANY_NAME"] }}</p>
-                        <h1>
-                            {% if is_admin %}
-                                {{ current_workspace_meta.title }}
-                            {% elif is_owner %}
-                                {{ current_workspace_meta.title }}
-                            {% elif is_driver %}
-                                {{ current_workspace_meta.title }}
-                            {% else %}
-                                {{ current_workspace_meta.title if current_workspace_meta else "Portal" }}
-                            {% endif %}
-                        </h1>
-                        {% if current_workspace_meta and current_workspace_meta.summary %}
-                            <p class="workspace-lead">{{ current_workspace_meta.summary }}</p>
-                        {% endif %}
+                <div class="bh-brand-text">
+                    <div class="bh-brand-name">
+                        <span class="bh-name-current">CURRENT</span>
+                        <span class="bh-name-link">LINK</span>
                     </div>
-                    <div class="topbar-meta">
-                        {% if current_role %}
-                            <span class="user-chip">{{ current_user_name or current_role|title }}</span>
-                        {% endif %}
+                    <div class="bh-brand-tagline">TRANSPORT AND GENERAL CONTRACTING LLC SPC</div>
+                </div>
+            </a>
+
+            {# Center spacer #}
+            <div class="bh-spacer"></div>
+
+            {# Right — SVG Graphic (swoosh) #}
+            <div class="bh-graphic" aria-hidden="true">
+                <svg class="bh-swoosh" viewBox="0 0 420 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Orange top swoosh -->
+                    <path d="M0 0 C80 0 160 10 260 30 C320 42 370 55 420 45 L420 0 Z" fill="#f5a83a" opacity="0.95"/>
+                    <!-- Orange mid triangle accent -->
+                    <path d="M200 15 C260 25 330 38 420 28 L420 58 C340 68 260 52 200 38 Z" fill="#e6871f" opacity="0.85"/>
+                    <!-- Dark navy swoosh -->
+                    <path d="M0 45 C70 35 160 55 260 68 C320 76 370 80 420 72 L420 110 L0 110 Z" fill="#1a2d55" opacity="0.96"/>
+                    <!-- Navy lighter stripe -->
+                    <path d="M140 58 C210 66 300 78 420 70 L420 78 C300 86 210 74 140 66 Z" fill="#253d72" opacity="0.80"/>
+                    <!-- White highlight stripe on orange -->
+                    <path d="M200 8 C270 18 340 28 420 22 L420 26 C340 32 270 22 200 12 Z" fill="rgba(255,255,255,0.35)"/>
+                    <!-- Arrow/chevron accent -->
+                    <path d="M310 38 L340 52 L310 66 L318 52 Z" fill="#fff" opacity="0.90"/>
+                    <path d="M326 34 L358 52 L326 70 L335 52 Z" fill="#fff" opacity="0.60"/>
+                </svg>
+            </div>
+        </div>
+
+        {# Divider line #}
+        <div class="bh-divider"></div>
+
+        {# ── Navigation bar ── #}
+        <nav class="bh-nav" id="bhNav">
+            <div class="bh-nav-inner">
+                {# Workspace label #}
+                {% if current_workspace_meta %}
+                    <span class="bh-nav-workspace">
+                        <span class="bh-nav-ws-dot"></span>
+                        {{ current_workspace_meta.title }}
+                    </span>
+                    <span class="bh-nav-sep"></span>
+                {% endif %}
+
+                {# Nav links #}
+                <div class="bh-nav-links">
+                    {% if current_role %}
                         {% if is_admin %}
-                            <span class="workspace-chip">{{ current_workspace_meta.label }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                {% if current_role %}
-                    {% if is_admin %}
-                        <nav class="actions-row tight-actions hero-nav workspace-nav simple-admin-nav">
-                            <a class="button {% if request.endpoint == 'dashboard' %}workspace-button-active{% else %}button-secondary{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
+                            <a class="bh-link {% if request.endpoint == 'dashboard' %}bh-active{% endif %}"
+                               href="{{ url_for('dashboard') }}">Dashboard</a>
                             {% if admin_workspace_home_url and admin_workspace_home_label %}
-                                <a class="button {% if request.endpoint == admin_workspace_home_endpoint %}workspace-button-active{% else %}button-secondary{% endif %}" href="{{ admin_workspace_home_url }}">{{ admin_workspace_home_label }}</a>
+                                <a class="bh-link {% if request.endpoint == admin_workspace_home_endpoint %}bh-active{% endif %}"
+                                   href="{{ admin_workspace_home_url }}">{{ admin_workspace_home_label }}</a>
                             {% endif %}
-                            <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
-                        </nav>
-                    {% elif is_owner %}
-                        <nav class="actions-row tight-actions hero-nav">
-                            <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
-                            <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Owner Fund</a>
-                            <a class="button button-secondary" href="{{ url_for('owner_fund_pdf') }}">Owner Fund PDF</a>
-                            <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
-                        </nav>
-                    {% elif is_driver %}
-                        <nav class="actions-row tight-actions hero-nav">
-                            <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
-                            <a class="button button-secondary" href="{{ url_for('driver_portal') }}">My Portal</a>
-                            <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
-                        </nav>
-                    {% elif is_supplier %}
-                        <nav class="actions-row tight-actions hero-nav">
-                            <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
-                            <a class="button button-secondary" href="{{ url_for('supplier_portal') }}">My Portal</a>
-                            <a class="button danger-button" href="{{ url_for('logout') }}">Logout</a>
-                        </nav>
+                            {% if current_admin_workspace in ('suppliers-normal', 'suppliers-partnership', 'suppliers-managed', 'suppliers-cash') %}
+                                <a class="bh-link {% if request.endpoint == 'supplier_registrations' %}bh-active{% endif %}"
+                                   href="{{ url_for('supplier_registrations') }}">Registrations</a>
+                                <a class="bh-link {% if request.endpoint == 'admin_supplier_quotations' %}bh-active{% endif %}"
+                                   href="{{ url_for('admin_supplier_quotations') }}">Quotations</a>
+                            {% endif %}
+                        {% elif is_owner %}
+                            <a class="bh-link" href="{{ url_for('home') }}">Home</a>
+                            <a class="bh-link" href="{{ url_for('owner_fund') }}">Owner Fund</a>
+                            <a class="bh-link" href="{{ url_for('owner_fund_pdf') }}">Fund PDF</a>
+                        {% elif is_driver %}
+                            <a class="bh-link" href="{{ url_for('home') }}">Home</a>
+                            <a class="bh-link" href="{{ url_for('driver_portal') }}">My Portal</a>
+                        {% elif is_supplier %}
+                            <a class="bh-link {% if request.endpoint == 'supplier_portal' and not request.args.get('tab') %}bh-active{% endif %}"
+                               href="{{ url_for('supplier_portal') }}">Dashboard</a>
+                            <a class="bh-link {% if request.endpoint == 'supplier_quotations' %}bh-active{% endif %}"
+                               href="{{ url_for('supplier_quotations') }}">Quotations</a>
+                            <a class="bh-link" href="{{ url_for('supplier_portal') }}#lpos">LPOs</a>
+                            <a class="bh-link" href="{{ url_for('supplier_portal') }}#invoices">Invoices</a>
+                            <a class="bh-link" href="{{ url_for('supplier_portal') }}#statement">Statement</a>
+                        {% endif %}
+                    {% else %}
+                        <a class="bh-link" href="{{ url_for('supplier_login') }}">Supplier Login</a>
+                        <a class="bh-link" href="{{ url_for('login') }}">Portal Login</a>
                     {% endif %}
-                {% else %}
-                    <nav class="actions-row tight-actions hero-nav">
-                        <a class="button" href="{{ url_for('login') }}">Portal Login</a>
-                    </nav>
-                {% endif %}
-            </header>
-        {% endblock %}
-
-        <main class="page">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <section class="flash-stack">
-                        {% for category, message in messages %}
-                            <div class="flash flash-{{ category }}">{{ message }}</div>
-                        {% endfor %}
-                    </section>
-                {% endif %}
-            {% endwith %}
-
-            {% block content %}{% endblock %}
-        </main>
-
-        {% block shell_footer %}
-            <footer class="footer-wrap">
-                <div class="footer-strip">
-                    <img src="{{ url_for('static', filename='current-link-footer.png') }}" alt="{{ config['COMPANY_NAME'] }} contact details">
                 </div>
-                <div class="footer-note-bar">
-                    <span>{{ config["COMPANY_NAME"] }}</span>
+
+                <div class="bh-nav-right">
+                    {% if current_role %}
+                        <div class="bh-user">
+                            <div class="bh-avatar">
+                                {% if is_admin %}A{% elif is_driver %}D{% elif is_supplier %}S{% elif is_owner %}O{% else %}U{% endif %}
+                            </div>
+                            <div class="bh-user-meta">
+                                <span class="bh-user-name">{{ current_user_name or current_role|title }}</span>
+                                <span class="bh-user-role">{% if is_admin and current_workspace_meta %}{{ current_workspace_meta.label }}{% else %}{{ current_role|title }}{% endif %}</span>
+                            </div>
+                        </div>
+                        <a class="bh-logout" href="{{ url_for('logout') }}">
+                            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                                <path d="M3 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h5a1 1 0 1 0 0-2H4V5h4a1 1 0 1 0 0-2H3z"/>
+                                <path d="M13.293 14.707a1 1 0 0 0 1.414 0l4-4a1 1 0 0 0 0-1.414l-4-4a1 1 0 1 0-1.414 1.414L15.586 9H7a1 1 0 1 0 0 2h8.586l-2.293 2.293a1 1 0 0 0 0 1.414z"/>
+                            </svg>
+                            Logout
+                        </a>
+                    {% endif %}
                 </div>
-            </footer>
-        {% endblock %}
+            </div>
+        </nav>
     </div>
-    <script>
-        if ("serviceWorker" in navigator) {
-            window.addEventListener("load", () => {
-                navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js', v='20260416d') }}");
-            });
-        }
-    </script>
+
+    {% endblock %}
+
+    <main class="page">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="flash-stack">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block shell_footer %}
+        <footer class="site-footer">
+            <div class="site-footer-bar">
+                <div class="site-footer-inner">
+                    <span class="site-footer-name">
+                        <strong>{{ config["COMPANY_NAME"] }}</strong>
+                        &mdash; {{ config.get("COMPANY_SUBTITLE", "Transport & General Contracting") }}
+                    </span>
+                    <span class="site-footer-copy">Internal ERP &copy; {{ config["COMPANY_NAME"] }} 2026</span>
+                </div>
+            </div>
+        </footer>
+    {% endblock %}
+
+</div>
+<script>
+(function(){
+    const nav = document.getElementById('bhNav');
+    if (!nav) return;
+    window.addEventListener('scroll', function(){
+        nav.classList.toggle('bh-nav-stuck', window.scrollY > 5);
+    }, { passive: true });
+})();
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js', v='20260416d') }}");
+    });
+}
+</script>
 </body>
 </html>

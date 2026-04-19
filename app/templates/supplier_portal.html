@@ -1,19 +1,393 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+{# â”â” Page-scoped styles for the workflow stepper â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â” #}
+<style>
+/* Supplier Workflow Stepper */
+.workflow-stepper {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    padding: 8px 0 4px;
+    position: relative;
+}
+.workflow-step {
+    flex: 1;
+    display: grid;
+    gap: 6px;
+    align-items: start;
+    justify-items: center;
+    position: relative;
+}
+/* Connector line between steps */
+.workflow-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: 21px;
+    left: calc(50% + 24px);
+    right: calc(-50% + 24px);
+    height: 2px;
+    background: rgba(21, 51, 93, 0.12);
+    z-index: 0;
+    transition: background 0.3s ease;
+}
+.workflow-step.step-done:not(:last-child)::after {
+    background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+.workflow-step.step-active:not(:last-child)::after {
+    background: linear-gradient(90deg, var(--primary, #1c568b), rgba(21,51,93,0.12));
+}
+/* Step icon bubble */
+.step-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1rem;
+    position: relative;
+    z-index: 1;
+    background: rgba(21, 51, 93, 0.07);
+    color: rgba(21, 51, 93, 0.35);
+    border: 2px solid rgba(21, 51, 93, 0.10);
+    transition: background 0.3s ease, color 0.3s ease;
+}
+.step-done .step-icon {
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 8px 16px rgba(22, 163, 74, 0.22);
+}
+.step-active .step-icon {
+    background: linear-gradient(135deg, #1c568b, #2b6eae);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 8px 18px rgba(28, 86, 139, 0.28);
+    animation: stepPulse 2.4s ease-in-out infinite;
+}
+@keyframes stepPulse {
+    0%, 100% { box-shadow: 0 8px 18px rgba(28, 86, 139, 0.28); }
+    50%       { box-shadow: 0 10px 26px rgba(28, 86, 139, 0.44); }
+}
+/* Labels */
+.step-num {
+    font-size: 0.70rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: rgba(21, 51, 93, 0.38);
+    text-align: center;
+}
+.step-done .step-num   { color: #15803d; }
+.step-active .step-num { color: var(--primary-dark, #173f66); }
+
+.step-label {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: rgba(21, 51, 93, 0.40);
+    text-align: center;
+}
+.step-done .step-label   { color: #15803d; }
+.step-active .step-label { color: var(--primary-dark, #173f66); }
+
+.step-sub {
+    font-size: 0.78rem;
+    color: rgba(21, 51, 93, 0.40);
+    text-align: center;
+    line-height: 1.35;
+}
+.step-done .step-sub   { color: #15803d; }
+.step-active .step-sub { color: var(--ink, #1a2535); font-weight: 600; }
+
+/* Status alert bar */
+.portal-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    font-size: 0.90rem;
+    font-weight: 700;
+    margin-top: 14px;
+}
+.portal-status-bar.status-info {
+    background: rgba(28, 86, 139, 0.07);
+    color: #1c3f6e;
+    border: 1px solid rgba(28, 86, 139, 0.14);
+}
+.portal-status-bar.status-success {
+    background: rgba(22, 163, 74, 0.08);
+    color: #14532d;
+    border: 1px solid rgba(22, 163, 74, 0.18);
+}
+.portal-status-bar.status-warn {
+    background: rgba(202, 138, 4, 0.08);
+    color: #78350f;
+    border: 1px solid rgba(202, 138, 4, 0.18);
+}
+.portal-status-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+/* KPI stat figures */
+.portal-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+}
+.portal-kpi-cell {
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(21, 51, 93, 0.07);
+}
+.portal-kpi-cell strong {
+    font-size: 1.22rem;
+    font-weight: 800;
+    color: var(--primary-dark, #173f66);
+    line-height: 1.1;
+}
+.portal-kpi-cell small {
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted, #6b7280);
+}
+</style>
+
 <section class="admin-desk-shell supplier-portal-shell">
-    <section class="compact-content-grid">
-        <article class="card desk-panel-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Submit Invoice</span>
-                    <h2>New supplier submission</h2>
-                </div>
+
+    {# ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+       WORKFLOW PROGRESS INDICATOR
+       Derived purely from available_lpos + submissions â”
+       no DB change required.
+    ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ #}
+    {# Compute step states #}
+    {% set has_lpo      = available_lpos|length > 0 %}
+    {% set has_invoice  = submissions|length > 0 %}
+
+    {# Step 1: Done if LPO was issued (implies quotation was approved) #}
+    {% set step1 = "done"   if has_lpo else "active" %}
+    {# Step 2: Active if LPO exists but no invoice yet; Done if invoice submitted #}
+    {% set step2 = "done"   if (has_lpo and has_invoice) else ("active" if has_lpo else "waiting") %}
+    {# Step 3: Active if any invoice submitted #}
+    {% set step3 = "active" if has_invoice else "waiting" %}
+
+    <article class="card desk-panel-card">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">Procurement Workflow</span>
+                <h2>Your Progress</h2>
             </div>
+        </div>
+        <div class="workflow-stepper">
+
+            {# â”â” Step 1: Quotation â”â” #}
+            <div class="workflow-step step-{{ step1 }}">
+                <div class="step-icon">{% if step1 == "done" %}â“{% else %}1{% endif %}</div>
+                <span class="step-num">Step 1</span>
+                <span class="step-label">Quotation</span>
+                <span class="step-sub">
+                    {% if step1 == "done" %}
+                        Approved
+                    {% else %}
+                        Submit &amp; await approval
+                    {% endif %}
+                </span>
+            </div>
+
+            {# â”â” Step 2: LPO â”â” #}
+            <div class="workflow-step step-{{ step2 }}">
+                <div class="step-icon">{% if step2 == "done" %}â“{% else %}2{% endif %}</div>
+                <span class="step-num">Step 2</span>
+                <span class="step-label">LPO</span>
+                <span class="step-sub">
+                    {% if step2 == "done" %}
+                        Issued &amp; used
+                    {% elif step2 == "active" %}
+                        {{ available_lpos|length }} open LPO{{ "s" if available_lpos|length != 1 }}
+                    {% else %}
+                        Awaiting LPO
+                    {% endif %}
+                </span>
+            </div>
+
+            {# â”â” Step 3: Invoice â”â” #}
+            <div class="workflow-step step-{{ step3 }}">
+                <div class="step-icon">{% if step3 == "done" %}â“{% else %}3{% endif %}</div>
+                <span class="step-num">Step 3</span>
+                <span class="step-label">Invoice</span>
+                <span class="step-sub">
+                    {% if step3 == "active" %}
+                        {{ submissions|length }} submission{{ "s" if submissions|length != 1 }}
+                    {% elif has_lpo %}
+                        Ready to submit
+                    {% else %}
+                        Waiting for LPO
+                    {% endif %}
+                </span>
+            </div>
+
+        </div>
+
+        {# â”â” Contextual status bar â”â” #}
+        {% if not has_lpo and not has_invoice %}
+            <div class="portal-status-bar status-info">
+                <span class="portal-status-icon">â¹</span>
+                <span>Submit a quotation to begin. Admin will review and issue an LPO before you can invoice.</span>
+            </div>
+        {% elif has_lpo and not has_invoice %}
+            <div class="portal-status-bar status-success">
+                <span class="portal-status-icon">â“</span>
+                <span>You have {{ available_lpos|length }} open LPO{{ "s" if available_lpos|length != 1 }}. Scroll to <strong>Step 3 â” Invoice</strong> below to submit your invoice.</span>
+            </div>
+        {% elif has_lpo and has_invoice %}
+            <div class="portal-status-bar status-info">
+                <span class="portal-status-icon">â»</span>
+                <span>Invoice submitted and under review. You may also submit additional invoices against open LPOs.</span>
+            </div>
+        {% elif has_invoice and not has_lpo %}
+            <div class="portal-status-bar status-warn">
+                <span class="portal-status-icon">â </span>
+                <span>Invoice(s) submitted. No open LPOs remain â” contact admin if more work is expected.</span>
+            </div>
+        {% endif %}
+    </article>
+
+
+    {# ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+       WELCOME BANNER
+    ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ #}
+    <article class="card desk-panel-card supplier-welcome-card">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">Supplier Portal</span>
+                <h2>Welcome, {{ party.party_name }}</h2>
+                <p class="workspace-lead">
+                    Use the navigation above to submit quotations, view LPOs, upload invoices and review
+                    your statement of account.
+                </p>
+            </div>
+            <div class="admin-toolbar-actions">
+                <span class="mini-link-pill">{{ party.party_code }}</span>
+                <span class="mini-link-pill status-{{ (party.status or 'active')|lower }}">{{ party.status }}</span>
+            </div>
+        </div>
+
+        {# KPI summary #}
+        <div class="portal-kpi-grid">
+            <div class="portal-kpi-cell">
+                <strong>{{ available_lpos|length }}</strong>
+                <small>Open LPOs</small>
+            </div>
+            <div class="portal-kpi-cell">
+                <strong>AED {{ "%.0f"|format(statement_summary.approved_total) }}</strong>
+                <small>Approved</small>
+            </div>
+            <div class="portal-kpi-cell">
+                <strong>AED {{ "%.0f"|format(statement_summary.total_paid) }}</strong>
+                <small>Paid</small>
+            </div>
+            <div class="portal-kpi-cell">
+                <strong>AED {{ "%.0f"|format(statement_summary.approved_outstanding) }}</strong>
+                <small>Outstanding</small>
+            </div>
+            <div class="portal-kpi-cell">
+                <strong>AED {{ "%.0f"|format(statement_summary.pending_submitted) }}</strong>
+                <small>Pending Review</small>
+            </div>
+        </div>
+    </article>
+
+
+    {# ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+       STEP 1 â” QUOTATIONS PANEL
+    ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ #}
+    <article class="card desk-panel-card" id="quotations">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">Step 1 â” Quotation</span>
+                <h2>My Quotations</h2>
+                <p class="workspace-lead">Submit a quotation first. Admin will approve and issue an LPO before you can submit an invoice.</p>
+            </div>
+            <div class="admin-toolbar-actions">
+                <a class="button" href="{{ url_for('supplier_quotations') }}">View &amp; Submit Quotations</a>
+            </div>
+        </div>
+        {% if step1 == "done" %}
+            <div class="portal-status-bar status-success" style="margin-top:4px;">
+                <span class="portal-status-icon">â“</span>
+                <span>At least one quotation has been approved. An LPO has been issued.</span>
+            </div>
+        {% else %}
+            <div class="portal-status-bar status-info" style="margin-top:4px;">
+                <span class="portal-status-icon">â’</span>
+                <span>No LPO issued yet. <a href="{{ url_for('supplier_quotations') }}" style="font-weight:800;color:inherit;text-decoration:underline;">Submit a quotation</a> to begin the process.</span>
+            </div>
+        {% endif %}
+    </article>
+
+
+    
+    {# Step 2 LPO Panel #}
+    <article class="card desk-panel-card" id="lpos">
+        <div class="desk-panel-head"><div>
+            <span class="admin-desk-label">Step 2 — LPO</span>
+            <h2>Purchase Orders</h2>
+            <p class="workspace-lead">{% if available_lpos %}{{ available_lpos|length }} LPO(s) issued. Select one in Step 3 to submit your invoice.{% else %}No LPOs yet. Submit a quotation first.{% endif %}</p>
+        </div></div>
+        {% if available_lpos %}
+        <div class="table-wrap"><table>
+            <thead><tr><th>LPO No</th><th>Issue Date</th><th>Quotation Ref</th><th>Description</th><th>Amount (AED)</th><th>Status</th><th>PDF</th></tr></thead>
+            <tbody>{% for lpo in available_lpos %}<tr>
+                <td><strong>{{ lpo.lpo_no }}</strong></td>
+                <td>{{ lpo.issue_date }}</td>
+                <td>{{ lpo.quotation_no or "&mdash;" }}</td>
+                <td>{% if lpo.description %}{{ lpo.description[:55] }}{% if lpo.description|length > 55 %}&hellip;{% endif %}{% else %}<span class="muted-text">&mdash;</span>{% endif %}</td>
+                <td>{{ "%.2f"|format(lpo.amount) }}</td>
+                <td><span class="mini-link-pill">{{ lpo.status }}</span></td>
+                <td>{% if lpo.pdf_path %}<a href="{{ url_for('generated_file', filename=lpo.pdf_path) }}" target="_blank" class="mini-link-pill status-approved" style="font-size:0.80rem;">&#x2B07; LPO PDF</a>{% else %}<span class="muted-text">&mdash;</span>{% endif %}</td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}
+        <div class="compact-step-list" style="padding:0.5rem 0;">
+            <span>1. Submit quotation &rarr; Admin approves &rarr; LPO issued &rarr; Download PDF</span>
+        </div>
+        {% endif %}
+    </article>
+
+    {# Step 3 Invoice Section #}
+    <section class="compact-content-grid" id="invoices">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div>
+                <span class="admin-desk-label">Step 3 &mdash; Invoice</span>
+                <h2>New supplier submission</h2>
+                {% if available_lpos %}<p class="workspace-lead">Select the LPO and fill in all fields.</p>
+                {% else %}<p class="workspace-lead" style="color:var(--color-warn,#b45309);">&#9888; No LPO available yet. Wait for admin to issue one.</p>{% endif %}
+            </div></div>
+            {% if available_lpos %}
             <form method="post" enctype="multipart/form-data" class="desk-form-grid">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="submit_invoice">
                 <input type="hidden" name="submission_no" value="{{ submission_values.submission_no }}">
+                <label class="full-span"><span>Purchase Order (LPO) <small>required</small></span>
+                    <select name="lpo_no" required>
+                        <option value="">&#8212; Select LPO &#8212;</option>
+                        {% for lpo in available_lpos %}
+                        <option value="{{ lpo.lpo_no }}" {% if submission_values.lpo_no == lpo.lpo_no %}selected{% endif %}>
+                            {{ lpo.lpo_no }} &#8212; AED {{ "%.2f"|format(lpo.amount) }} ({{ lpo.issue_date }}) [{{ lpo.status }}]
+                        </option>
+                        {% endfor %}
+                    </select>
+                </label>
                 <label><span>Submission No</span><input type="text" value="{{ submission_values.submission_no }}" readonly></label>
                 <label><span>Invoice No</span><input type="text" name="external_invoice_no" value="{{ submission_values.external_invoice_no }}" required></label>
                 <label><span>Invoice Date</span><input type="date" name="invoice_date" value="{{ submission_values.invoice_date }}" required></label>
@@ -28,67 +402,85 @@
                     <button class="button success-button" type="submit">Submit Invoice</button>
                 </div>
             </form>
+            {% else %}
+            <div class="compact-step-list" style="padding:1rem 0;">
+                <span>Submit quotation &rarr; Admin approves &rarr; LPO issued &rarr; Invoice here</span>
+            </div>
+            {% endif %}
         </article>
-
         <article class="card desk-panel-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Status</span>
-                    <h2>Submission status</h2>
-                    <p class="workspace-lead">Rejected invoices stay here only. Correct them and submit again.</p>
-                </div>
-            </div>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>Invoice</th><th>Date</th><th>Total</th><th>Status</th><th>Files</th><th>Action</th></tr></thead>
-                    <tbody>
-                        {% for item in submissions %}
-                            <tr>
-                                <td>{{ item.external_invoice_no }}<div class="muted-text">{{ item.submission_no }}</div></td>
-                                <td>{{ item.invoice_date }}</td>
-                                <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
-                                <td><span class="mini-link-pill supplier-status-pill status-{{ item.status_bucket }}">{{ item.display_status }}</span>{% if item.review_note %}<div class="muted-text">{{ item.review_note }}</div>{% endif %}</td>
-                                <td>
-                                    {% if item.invoice_attachment_path %}<a class="mini-action-link" href="{{ url_for('generated_file', filename=item.invoice_attachment_path) }}">Invoice</a>{% endif %}
-                                    {% if item.timesheet_attachment_path %}<a class="mini-action-link" href="{{ url_for('generated_file', filename=item.timesheet_attachment_path) }}">Timesheet</a>{% endif %}
-                                </td>
-                                <td>
-                                    {% if item.status_bucket == "rejected" %}
-                                        <a class="mini-action-link" href="{{ url_for('supplier_portal', resubmit_submission=item.submission_no) }}">Resubmit</a>
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% else %}
-                            <tr><td colspan="6">No submissions yet.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            <div class="desk-panel-head"><div>
+                <span class="admin-desk-label">Status</span>
+                <h2>Submission history</h2>
+                <p class="workspace-lead">Rejected invoices stay here &mdash; correct and resubmit.</p>
+            </div></div>
+            <div class="table-wrap"><table>
+                <thead><tr><th>LPO</th><th>Invoice</th><th>Date</th><th>Total</th><th>Status</th><th>Files</th><th>Action</th></tr></thead>
+                <tbody>{% for item in submissions %}<tr>
+                    <td>{{ item.lpo_no or "&mdash;" }}</td>
+                    <td>{{ item.external_invoice_no }}<div class="muted-text">{{ item.submission_no }}</div></td>
+                    <td>{{ item.invoice_date }}</td>
+                    <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                    <td><span class="mini-link-pill supplier-status-pill status-{{ item.status_bucket }}">{{ item.display_status }}</span>{% if item.review_note %}<div class="muted-text">{{ item.review_note }}</div>{% endif %}</td>
+                    <td>{% if item.invoice_attachment_path %}<a class="mini-action-link" href="{{ url_for('generated_file', filename=item.invoice_attachment_path) }}">Invoice</a>{% endif %}{% if item.timesheet_attachment_path %}<a class="mini-action-link" href="{{ url_for('generated_file', filename=item.timesheet_attachment_path) }}">Timesheet</a>{% endif %}</td>
+                    <td>{% if item.status_bucket == "rejected" %}<a class="mini-action-link" href="{{ url_for('supplier_portal', resubmit_submission=item.submission_no) }}">Resubmit</a>{% else %}&mdash;{% endif %}</td>
+                </tr>{% else %}<tr><td colspan="7">No submissions yet.</td></tr>{% endfor %}</tbody>
+            </table></div>
         </article>
     </section>
 
-    <article class="card desk-panel-card">
-        <div class="desk-panel-head">
-            <div>
+
+    <article class="card desk-panel-card supplier-statement-card" id="statement">
+        <div class="supplier-statement-header">
+            <div class="supplier-statement-copy">
                 <span class="admin-desk-label">Statement</span>
-                <h2>Statement of account</h2>
-                <p class="workspace-lead">Submitted invoices, approval status, and real payable balance.</p>
+                <h2>{{ party.party_name }}</h2>
+                <p class="supplier-statement-subtitle">Statement of account</p>
             </div>
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ statement_pdf_url }}">Download PDF</a>
             </div>
+        </div>
+        <div class="supplier-soa-meta">
+            <span><strong>Supplier Code</strong><small>{{ party.party_code }}</small></span>
+            <span><strong>Type</strong><small>{{ party.party_kind }}</small></span>
+            <span><strong>Status</strong><small>{{ party.status }}</small></span>
+            <span><strong>SOA View</strong><small>Approved, pending and paid invoices only</small></span>
+        </div>
+        <div class="portal-kpi-grid" style="margin-top:12px;">
+            <div class="portal-kpi-cell">
+                <strong>AED {{ "%.0f"|format(statement_summary.all_submitted) }}</strong>
+                <small>All Submitted</small>
             </div>
-            <div class="supplier-overview-grid supplier-statement-grid">
-                <div class="directory-line"><strong>All Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.all_submitted) }}</small></div>
-                <div class="directory-line"><strong>Approved</strong><small>AED {{ "%.2f"|format(statement_summary.approved_total) }}</small></div>
-                <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(statement_summary.approved_outstanding) }}</small></div>
-                <div class="directory-line"><strong>Pending</strong><small>AED {{ "%.2f"|format(statement_summary.pending_submitted) }}</small></div>
+            <div class="portal-kpi-cell">
+                <strong>AED {{ "%.0f"|format(statement_summary.approved_total) }}</strong>
+                <small>Approved</small>
             </div>
-        <div class="table-wrap">
+            <div class="portal-kpi-cell">
+                <strong>AED {{ "%.0f"|format(statement_summary.total_paid) }}</strong>
+                <small>Paid</small>
+            </div>
+            <div class="portal-kpi-cell">
+                <strong>AED {{ "%.0f"|format(statement_summary.pending_submitted) }}</strong>
+                <small>Pending</small>
+            </div>
+            <div class="portal-kpi-cell">
+                <strong>AED {{ "%.0f"|format(statement_summary.approved_outstanding) }}</strong>
+                <small>Outstanding</small>
+            </div>
+        </div>
+        <div class="table-wrap" style="margin-top:14px;">
             <table>
-                <thead><tr><th>Invoice Date</th><th>Invoice No</th><th>Total Amount</th><th>Paid Amount</th><th>Balance Amount</th><th>Status</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Invoice Date</th>
+                        <th>Invoice No</th>
+                        <th>Total Amount</th>
+                        <th>Paid Amount</th>
+                        <th>Balance Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for item in statement_rows %}
                         <tr>
@@ -106,5 +498,6 @@
             </table>
         </div>
     </article>
+
 </section>
 {% endblock %}
