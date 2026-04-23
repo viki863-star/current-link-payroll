@@ -263,7 +263,7 @@
                             <td>{{ job.paper_no }}</td>
                             <td>{{ job.technician_name }}</td>
                             <td>AED {{ "%.2f"|format(job.total_amount - (job.paid_amount or 0)) }}</td>
-                            <td>{{ job.approved_at[:10] if job.approved_at else '-' }}</td>
+                            <td>{{ (job.approved_at|string)[:10] if job.approved_at else '-' }}</td>
                             <td>
                                 <form method="post" class="inline-form">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

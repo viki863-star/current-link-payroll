@@ -124,7 +124,7 @@
                                             {{ tech.status }}
                                         </span>
                                     </td>
-                                    <td>{{ tech.created_at[:10] if tech.created_at else '-' }}</td>
+                                    <td>{{ (tech.created_at|string)[:10] if tech.created_at else '-' }}</td>
                                     <td>
                                         <div class="table-actions">
                                             <a class="mini-action-link" href="{{ url_for('technicians', edit=tech.technician_code) }}">Edit</a>
