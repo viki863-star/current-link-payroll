@@ -5041,6 +5041,8 @@ def register_routes(app: Flask) -> None:
             "balance_amount": sum(float(item["balance_amount"] or 0) for item in technicians_list),
         }
 
+        _, _, owner_fund_balance = _owner_fund_totals(db)
+
         recent_payments = db.execute(
             """
             SELECT
@@ -5073,7 +5075,7 @@ def register_routes(app: Flask) -> None:
             "status": "Active",
         }
         payment_values = {
-            "technician_code": "",
+            "technician_code": request.args.get("pay", "").strip(),
             "entry_date": date.today().isoformat(),
             "funding_source": "Owner Fund",
             "amount": "",
@@ -5299,6 +5301,7 @@ def register_routes(app: Flask) -> None:
             payment_values=payment_values,
             recent_payments=recent_payments,
             summary=summary,
+            owner_fund_balance=owner_fund_balance,
             edit_technician_code=edit_technician_code,
             status_filter=status_filter,
             search_q=search_q,
@@ -12469,7 +12472,12 @@ def _owner_fund_totals(db):
     outgoing_salary = float(
         db.execute("SELECT COALESCE(SUM(net_payable), 0) FROM salary_slips WHERE payment_source = 'Owner Fund'").fetchone()[0]
     )
-    outgoing = outgoing_owner_fund + outgoing_transactions + outgoing_salary
+    outgoing_field_staff = float(
+        db.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM maintenance_staff_advances WHERE funding_source = 'Owner Fund'"
+        ).fetchone()[0]
+    )
+    outgoing = outgoing_owner_fund + outgoing_transactions + outgoing_salary + outgoing_field_staff
     return incoming, outgoing, incoming - outgoing
 
 
@@ -12569,6 +12577,35 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "details": f"Salary {entry['salary_month']}",
                 "incoming": 0.0,
                 "outgoing": float(entry["net_payable"]),
+                "movement": "Outgoing",
+            }
+        )
+    for entry in db.execute(
+        """
+        SELECT
+            adv.entry_date,
+            adv.staff_code,
+            adv.reference,
+            adv.notes,
+            adv.amount,
+            staff.staff_name,
+            tech.specialization
+        FROM maintenance_staff_advances adv
+        LEFT JOIN maintenance_staff staff ON staff.staff_code = adv.staff_code
+        LEFT JOIN technicians tech ON tech.technician_code = adv.staff_code
+        WHERE adv.funding_source = 'Owner Fund'
+        ORDER BY adv.entry_date ASC, adv.id ASC
+        """
+    ).fetchall():
+        staff_name = entry["staff_name"] or entry["specialization"] or entry["staff_code"]
+        rows.append(
+            {
+                "entry_date": entry["entry_date"],
+                "reference": f"Field Staff Payment / {staff_name}",
+                "party": "Owner Fund",
+                "details": entry["reference"] or entry["notes"] or "Field staff amount issued",
+                "incoming": 0.0,
+                "outgoing": float(entry["amount"]),
                 "movement": "Outgoing",
             }
         )

@@ -15,6 +15,7 @@
                 <span><strong>AED {{ "%.0f"|format(summary.given_amount) }}</strong><small>Given</small></span>
                 <span><strong>AED {{ "%.0f"|format(summary.spent_amount) }}</strong><small>Spent</small></span>
                 <span><strong>AED {{ "%.0f"|format(summary.balance_amount) }}</strong><small>Balance</small></span>
+                <span><strong>AED {{ "%.0f"|format(owner_fund_balance) }}</strong><small>Owner Fund</small></span>
             </div>
         </div>
         <form method="get" class="admin-filter-grid desk-single-filter">
@@ -92,11 +93,15 @@
             </form>
         </article>
 
-        <article class="card desk-panel-card">
+        <article class="card desk-panel-card" id="payment-form">
             <div class="desk-panel-head">
                 <div>
                     <p class="eyebrow">Owner Payment</p>
                     <h2>Issue Amount To Field Staff</h2>
+                    <p class="muted-text">Owner direct ya Owner Fund se diya gaya amount yahan save hoga.</p>
+                </div>
+                <div class="table-actions">
+                    <a class="mini-action-link" href="{{ url_for('owner_fund') }}">Open Owner Fund</a>
                 </div>
             </div>
             <form method="post" class="entry-form two-column-form">
@@ -190,6 +195,7 @@
                                     <td>
                                         <div class="table-actions">
                                             <a class="mini-action-link" href="{{ url_for('technicians', edit=tech.technician_code) }}">Edit</a>
+                                            <a class="mini-action-link" href="{{ url_for('technicians', pay=tech.technician_code) }}#payment-form">Pay</a>
                                             <a class="mini-action-link" href="{{ url_for('technician_jobs') }}?technician_code={{ tech.technician_code }}">Jobs</a>
                                             <form method="post" class="inline-form" onsubmit="return confirm('Delete this field staff account? Linked records will be kept inactive instead.');">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
