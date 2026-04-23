@@ -5,8 +5,8 @@
     <article class="card admin-desk-toolbar">
         <div class="admin-toolbar-row">
             <div class="admin-toolbar-actions">
-                <h1>Technician Jobs</h1>
-                <p class="admin-toolbar-subtitle">Review, approve, and track technician maintenance jobs</p>
+                <h1>Field Staff Entries</h1>
+                <p class="admin-toolbar-subtitle">Review, approve, and track workshop and fuel expense entries</p>
             </div>
             <div class="admin-mini-stats">
                 <div class="admin-mini-stat">
@@ -35,9 +35,9 @@
                 </select>
             </label>
             <label>
-                <span>Technician</span>
+                    <span>Field Staff</span>
                 <select name="technician_code">
-                    <option value="">All Technicians</option>
+                    <option value="">All Field Staff</option>
                     {% for tech in technicians %}
                     <option value="{{ tech.technician_code }}" {% if filters.technician_code == tech.technician_code %}selected{% endif %}>
                         {{ tech.party_name }} ({{ tech.technician_code }})
@@ -87,7 +87,7 @@
         </article>
         <article class="card accounts-link-card">
             <strong>{{ stats.technician_count }}</strong>
-            <span>Active Technicians</span>
+                    <span>Active Staff</span>
         </article>
     </section>
 
@@ -95,8 +95,8 @@
         <article class="card desk-panel-card">
             <div class="desk-panel-head">
                 <div>
-                    <span class="admin-desk-label">Job Management</span>
-                    <h2>Technician Jobs List</h2>
+                    <span class="admin-desk-label">Entry Management</span>
+                    <h2>Field Staff Entry List</h2>
                 </div>
             </div>
             
@@ -105,10 +105,10 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Job No</th>
+                            <th>Entry No</th>
                             <th>Date</th>
                             <th>Vehicle</th>
-                            <th>Technician</th>
+                            <th>Field Staff</th>
                             <th>Amount</th>
                             <th>Status</th>
                             <th>Payment</th>
@@ -188,7 +188,7 @@
             </div>
             {% else %}
             <div class="empty-state">
-                <p>No technician jobs found matching the current filters.</p>
+                <p>No field staff entries found matching the current filters.</p>
                 <a class="button" href="{{ url_for('technician_jobs') }}">Clear filters</a>
             </div>
             {% endif %}
@@ -206,9 +206,9 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="batch_approve">
                     <label class="full-span">
-                        <span>Approve all pending jobs for selected technician:</span>
+                        <span>Approve all pending entries for selected field staff:</span>
                         <select name="batch_technician_code">
-                            <option value="">All Technicians</option>
+                            <option value="">All Field Staff</option>
                             {% for tech in technicians %}
                             <option value="{{ tech.technician_code }}">{{ tech.party_name }}</option>
                             {% endfor %}

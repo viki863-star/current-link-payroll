@@ -6,12 +6,12 @@
         <div class="admin-toolbar-row">
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                <span class="button button-primary" style="background-color: #4a6fa5; border-color: #4a6fa5; cursor: default;">Technician Management</span>
-                <a class="button" href="{{ url_for('technicians') }}">All Technicians</a>
-                <a class="button button-secondary" href="{{ url_for('technician_jobs') }}">Technician Jobs</a>
+                <span class="button button-primary" style="background-color: #4a6fa5; border-color: #4a6fa5; cursor: default;">Field Staff Management</span>
+                <a class="button" href="{{ url_for('technicians') }}">All Field Staff</a>
+                <a class="button button-secondary" href="{{ url_for('technician_jobs') }}">Field Staff Entries</a>
             </div>
             <div class="admin-mini-stats">
-                <span><strong>{{ technicians|length }}</strong><small>Technicians</small></span>
+                <span><strong>{{ technicians|length }}</strong><small>Field Staff</small></span>
                 <span><strong>{{ technicians|selectattr('status', 'equalto', 'Active')|list|length }}</strong><small>Active</small></span>
                 <span><strong>{{ technicians|selectattr('status', 'equalto', 'Inactive')|list|length }}</strong><small>Inactive</small></span>
             </div>
@@ -27,7 +27,7 @@
             </label>
             <label>
                 <span>Search</span>
-                <input type="search" name="search" value="{{ search_q }}" placeholder="Technician code, user ID, name, specialization">
+                    <input type="search" name="search" value="{{ search_q }}" placeholder="Staff code, user ID, name, role">
             </label>
             <div class="admin-filter-actions">
                 <button class="button" type="submit">Filter</button>
@@ -42,8 +42,8 @@
         <article class="card desk-panel-card" id="technician-form">
             <div class="desk-panel-head">
                 <div>
-                    <p class="eyebrow">Technician Account</p>
-                    <h2>{% if edit_technician_code %}Edit Technician{% else %}Create New Technician{% endif %}</h2>
+                    <p class="eyebrow">Field Staff Account</p>
+                    <h2>{% if edit_technician_code %}Edit Field Staff{% else %}Create New Field Staff{% endif %}</h2>
                 </div>
             </div>
             <form method="post" class="entry-form two-column-form">
@@ -82,10 +82,10 @@
                 </label>
                 <div class="form-actions full-span">
                     {% if edit_technician_code %}
-                        <button class="button" type="submit" name="action" value="update">Update Technician</button>
+                        <button class="button" type="submit" name="action" value="update">Update Field Staff</button>
                         <a class="button button-secondary" href="{{ url_for('technicians') }}">Cancel Edit</a>
                     {% else %}
-                        <button class="button" type="submit" name="action" value="create">Create Technician</button>
+                        <button class="button" type="submit" name="action" value="create">Create Field Staff</button>
                     {% endif %}
                 </div>
             </form>
@@ -94,8 +94,8 @@
         <article class="card desk-panel-card">
             <div class="desk-panel-head">
                 <div>
-                    <p class="eyebrow">Technician Directory</p>
-                    <h2>All Technicians</h2>
+                    <p class="eyebrow">Field Staff Directory</p>
+                    <h2>All Field Staff</h2>
                 </div>
             </div>
             {% if technicians %}
@@ -138,8 +138,8 @@
                 </div>
             {% else %}
                 <div class="empty-state">
-                    <p>No technicians found.</p>
-                    <p>Create your first technician using the form on the left.</p>
+                <p>No field staff found.</p>
+                <p>Create your first field staff account using the form on the left.</p>
                 </div>
             {% endif %}
         </article>

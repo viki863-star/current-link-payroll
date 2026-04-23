@@ -5,8 +5,8 @@
     <article class="card admin-desk-toolbar">
         <div class="admin-toolbar-row">
             <div class="admin-toolbar-actions">
-                <span class="admin-desk-label">Technician Portal</span>
-                <h1>{{ technician.specialization or "Technician Desk" }}</h1>
+                <span class="admin-desk-label">Field Staff Portal</span>
+                <h1>{{ technician.specialization or "Field Staff Desk" }}</h1>
                 <p class="admin-toolbar-subtitle">
                     {{ technician.technician_code }}
                     {% if party and party.party_name %}
@@ -18,7 +18,7 @@
             <div class="admin-mini-stats">
                 <div class="admin-mini-stat">
                     <strong>{{ total_jobs }}</strong>
-                    <span>Total Jobs</span>
+                    <span>Total Entries</span>
                 </div>
                 <div class="admin-mini-stat">
                     <strong>AED {{ "%.0f"|format(total_approved) }}</strong>
@@ -39,7 +39,7 @@
     <section class="accounts-link-grid maintenance-summary-grid">
         <article class="card accounts-link-card">
             <strong>{{ total_jobs }}</strong>
-            <span>Submitted Jobs</span>
+            <span>Submitted Entries</span>
         </article>
         <article class="card accounts-link-card">
             <strong>AED {{ "%.2f"|format(total_approved) }}</strong>
@@ -60,7 +60,7 @@
             <div class="desk-panel-head">
                 <div>
                     <span class="admin-desk-label">New Entry</span>
-                    <h2>Submit Technician Job</h2>
+                    <h2>Submit Expense Entry</h2>
                 </div>
             </div>
 
@@ -75,8 +75,8 @@
 
                 <label>
                     <span>Vehicle</span>
-                    <select name="vehicle_id" required>
-                        <option value="">Select Vehicle</option>
+                    <select name="vehicle_id">
+                        <option value="" {% if not form_values.vehicle_id %}selected{% endif %}>General Entry / No Vehicle</option>
                         <option value="GENERAL" {% if form_values.vehicle_id == 'GENERAL' %}selected{% endif %}>General Entry</option>
                         {% for vehicle in vehicle_options %}
                         <option value="{{ vehicle.vehicle_id }}" {% if form_values.vehicle_id == vehicle.vehicle_id %}selected{% endif %}>
@@ -93,7 +93,7 @@
 
                 <label>
                     <span>Bill Number</span>
-                    <input type="text" name="bill_no" value="{{ form_values.bill_no }}" placeholder="Bill number" required>
+                    <input type="text" name="bill_no" value="{{ form_values.bill_no }}" placeholder="Workshop or fuel bill no" required>
                 </label>
 
                 <label>
@@ -104,13 +104,14 @@
                         <option value="Maintenance" {% if form_values.work_type == 'Maintenance' %}selected{% endif %}>Maintenance</option>
                         <option value="Service" {% if form_values.work_type == 'Service' %}selected{% endif %}>Service</option>
                         <option value="Parts Replacement" {% if form_values.work_type == 'Parts Replacement' %}selected{% endif %}>Parts Replacement</option>
+                        <option value="Fuel" {% if form_values.work_type == 'Fuel' %}selected{% endif %}>Fuel</option>
                         <option value="Other" {% if form_values.work_type == 'Other' %}selected{% endif %}>Other</option>
                     </select>
                 </label>
 
                 <label class="full-span">
                     <span>Details</span>
-                    <textarea name="details" rows="3" placeholder="Describe the work">{{ form_values.details }}</textarea>
+                    <textarea name="details" rows="3" placeholder="What was done, where, and for which vehicle if general">{{ form_values.details }}</textarea>
                 </label>
 
                 <label class="full-span">
@@ -157,7 +158,7 @@
                 </label>
 
                 <div class="form-actions full-span">
-                    <button type="submit" class="button">Submit Job</button>
+                    <button type="submit" class="button">Submit Entry</button>
                     <a href="{{ url_for('technician_portal') }}" class="button button-outline">Clear</a>
                 </div>
             </form>
@@ -217,7 +218,7 @@
         <article class="card desk-panel-card">
             <div class="desk-panel-head">
                 <div>
-                    <span class="admin-desk-label">Recent Jobs</span>
+                    <span class="admin-desk-label">Recent Entries</span>
                     <h2>Latest Submissions</h2>
                 </div>
             </div>
@@ -227,7 +228,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Job No</th>
+                            <th>Entry No</th>
                             <th>Date</th>
                             <th>Vehicle</th>
                             <th>Workshop</th>

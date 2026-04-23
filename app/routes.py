@@ -1116,7 +1116,7 @@ def register_routes(app: Flask) -> None:
         
         if not technician_code:
             session.clear()
-            flash("Technician session expired. Please login again.", "error")
+            flash("Field staff session expired. Please login again.", "error")
             return redirect(url_for("technician_login"))
         
         # Fetch technician details
@@ -1132,7 +1132,7 @@ def register_routes(app: Flask) -> None:
         
         if technician is None or (technician["status"] or "") != "Active":
             session.clear()
-            flash("Technician account is no longer active.", "error")
+            flash("Field staff account is no longer active.", "error")
             return redirect(url_for("technician_login"))
         
         # Fetch party information
@@ -1318,10 +1318,11 @@ def register_routes(app: Flask) -> None:
                 selected_vehicle = None
                 if not form_values["entry_date"]:
                     errors.append("Date is required")
-                if not form_values["vehicle_id"]:
-                    errors.append("Vehicle selection is required")
-                elif form_values["vehicle_id"] == "GENERAL":
-                    form_values["vehicle_id"] = ""
+                if form_values["vehicle_id"] == "GENERAL":
+                    form_values["vehicle_id"] = None
+                    form_values["vehicle_no"] = "GENERAL"
+                elif not form_values["vehicle_id"]:
+                    form_values["vehicle_id"] = None
                     form_values["vehicle_no"] = "GENERAL"
                 else:
                     selected_vehicle = db.execute(
@@ -1401,11 +1402,11 @@ def register_routes(app: Flask) -> None:
                         )
                         
                         db.commit()
-                        flash(f"Job {paper_no} submitted successfully. Waiting for admin review.", "success")
+                        flash(f"Entry {paper_no} submitted successfully. Waiting for admin review.", "success")
                         return redirect(url_for("technician_portal"))
                     except Exception as exc:
                         db.rollback()
-                        flash(f"Error submitting technician job: {exc}", "error")
+                        flash(f"Error submitting field staff entry: {exc}", "error")
         
         return render_template(
             "technician_portal.html",
@@ -4514,7 +4515,7 @@ def register_routes(app: Flask) -> None:
                     db.execute(
                         """
                         UPDATE maintenance_papers
-                        SET review_status = 'Rejected',
+                        SET review_status = 'Rejected'
                         WHERE paper_no = ?
                         """,
                         (paper_no,)
