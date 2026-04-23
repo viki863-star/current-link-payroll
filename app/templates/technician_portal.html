@@ -1,70 +1,55 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="admin-desk-shell maintenance-workspace-shell">
-    <article class="card admin-desk-toolbar">
-        <div class="admin-toolbar-row">
-            <div class="admin-toolbar-actions">
-                <span class="admin-desk-label">Field Staff Portal</span>
-                <h1>{{ technician.specialization or "Field Staff Desk" }}</h1>
-                <p class="admin-toolbar-subtitle">
-                    {{ technician.technician_code }}
-                    {% if party and party.party_name %}
-                    | {{ party.party_name }}
-                    {% endif %}
-                    | {{ technician.status }}
-                </p>
-            </div>
-            <div class="admin-mini-stats">
-                <div class="admin-mini-stat">
-                    <strong>{{ total_jobs }}</strong>
-                    <span>Total Entries</span>
-                </div>
-                <div class="admin-mini-stat">
-                    <strong>AED {{ "%.0f"|format(total_approved) }}</strong>
-                    <span>Approved</span>
-                </div>
-                <div class="admin-mini-stat">
-                    <strong>AED {{ "%.0f"|format(total_paid) }}</strong>
-                    <span>Paid</span>
-                </div>
-                <div class="admin-mini-stat">
-                    <strong>AED {{ "%.0f"|format(pending_payment) }}</strong>
-                    <span>Pending</span>
-                </div>
-            </div>
+<section class="admin-desk-shell maintenance-workspace-shell field-staff-portal-shell">
+    <article class="card field-staff-mobile-hero">
+        <div class="field-staff-mobile-topline">
+            <span class="admin-desk-label">Field Staff Portal</span>
+            <span class="status-chip {{ (technician.status or 'Active')|lower }}">{{ technician.status or "Active" }}</span>
+        </div>
+        <h1>{{ technician.specialization or "Field Staff Desk" }}</h1>
+        <p>
+            {{ technician.technician_code }}
+            {% if party and party.party_name %}
+            | {{ party.party_name }}
+            {% endif %}
+        </p>
+        <div class="field-staff-mobile-stat-strip">
+            <article class="field-staff-mini-card">
+                <strong>{{ total_jobs }}</strong>
+                <span>Entries</span>
+            </article>
+            <article class="field-staff-mini-card">
+                <strong>AED {{ "%.0f"|format(total_approved) }}</strong>
+                <span>Approved</span>
+            </article>
+            <article class="field-staff-mini-card">
+                <strong>AED {{ "%.0f"|format(total_paid) }}</strong>
+                <span>Paid</span>
+            </article>
+            <article class="field-staff-mini-card">
+                <strong>AED {{ "%.0f"|format(pending_payment) }}</strong>
+                <span>Pending</span>
+            </article>
         </div>
     </article>
 
-    <section class="accounts-link-grid maintenance-summary-grid">
-        <article class="card accounts-link-card">
-            <strong>{{ total_jobs }}</strong>
-            <span>Submitted Entries</span>
-        </article>
-        <article class="card accounts-link-card">
-            <strong>AED {{ "%.2f"|format(total_approved) }}</strong>
-            <span>Approved Amount</span>
-        </article>
-        <article class="card accounts-link-card">
-            <strong>AED {{ "%.2f"|format(total_paid) }}</strong>
-            <span>Paid Amount</span>
-        </article>
-        <article class="card accounts-link-card">
-            <strong>AED {{ "%.2f"|format(pending_payment) }}</strong>
-            <span>Balance Due</span>
-        </article>
-    </section>
+    <div class="mobile-shortcuts field-staff-mobile-shortcuts">
+        <a class="button" href="#field-staff-submit">New Entry</a>
+        <a class="button button-secondary" href="#field-staff-recent">Recent</a>
+        <a class="button button-secondary" href="#field-staff-monthly">Monthly</a>
+    </div>
 
-    <section class="desk-content-grid compact-content-grid">
-        <article class="card desk-panel-card">
+    <section class="desk-content-grid compact-content-grid field-staff-mobile-grid">
+        <article class="card desk-panel-card field-staff-submit-card" id="field-staff-submit">
             <div class="desk-panel-head">
                 <div>
-                    <span class="admin-desk-label">New Entry</span>
+                    <span class="admin-desk-label">Quick Entry</span>
                     <h2>Submit Expense Entry</h2>
                 </div>
             </div>
 
-            <form method="post" class="form-grid" enctype="multipart/form-data">
+            <form method="post" class="form-grid field-staff-mobile-form" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="submit_job">
 
@@ -148,10 +133,10 @@
 
                 <label class="full-span">
                     <span>VAT Helper</span>
-                    <div class="form-inline-actions">
+                    <div class="form-inline-actions field-staff-vat-helper">
                         <input type="hidden" id="technician-vat-rate" value="5">
                         <button type="button" class="button button-outline" id="technician-apply-vat">Add 5% VAT</button>
-                        <small class="muted-text">Click to auto-calculate 5% VAT on amount.</small>
+                        <small class="muted-text">Tap once to auto-calculate 5% VAT on amount.</small>
                     </div>
                 </label>
 
@@ -160,65 +145,74 @@
                     <textarea name="remarks" rows="2" placeholder="Optional remarks">{{ form_values.remarks }}</textarea>
                 </label>
 
-                <div class="form-actions full-span">
+                <div class="form-actions full-span field-staff-sticky-actions">
                     <button type="submit" class="button">Submit Entry</button>
                     <a href="{{ url_for('technician_portal') }}" class="button button-outline">Clear</a>
                 </div>
             </form>
         </article>
 
-        <article class="card desk-panel-card compact-side-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Work Mix</span>
-                    <h2>Overview</h2>
+        <div class="desk-side-stack field-staff-mobile-stack">
+            <article class="card desk-panel-card compact-side-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Work Mix</span>
+                        <h2>Top Vehicles</h2>
+                    </div>
                 </div>
-            </div>
 
-            <div class="mini-ledger-list">
-                {% if top_vehicles %}
-                    {% for vehicle in top_vehicles %}
-                    <div class="mini-ledger-row">
-                        <strong>{{ vehicle.vehicle_no }}</strong>
-                        <span>AED {{ "%.0f"|format(vehicle.total_spent) }}</span>
-                        <div class="mini-ledger-subrow">
-                            <span>{{ vehicle.vehicle_name }}</span>
-                            <span>{{ vehicle.job_count }} jobs</span>
+                <div class="mini-ledger-list">
+                    {% if top_vehicles %}
+                        {% for vehicle in top_vehicles %}
+                        <div class="mini-ledger-row">
+                            <strong>{{ vehicle.vehicle_no }}</strong>
+                            <span>AED {{ "%.0f"|format(vehicle.total_spent) }}</span>
+                            <div class="mini-ledger-subrow">
+                                <span>{{ vehicle.vehicle_name }}</span>
+                                <span>{{ vehicle.job_count }} jobs</span>
+                            </div>
                         </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <p>No vehicle activity yet.</p>
-                    </div>
-                {% endif %}
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="mini-ledger-list">
-                {% if work_type_distribution %}
-                    {% for work in work_type_distribution %}
-                    <div class="mini-ledger-row">
-                        <strong>{{ work.work_type }}</strong>
-                        <span>AED {{ "%.0f"|format(work.total_amount) }}</span>
-                        <div class="mini-ledger-subrow">
-                            <span>{{ work.job_count }} jobs</span>
-                            <span>Type total</span>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <p>No vehicle activity yet.</p>
                         </div>
+                    {% endif %}
+                </div>
+            </article>
+
+            <article class="card desk-panel-card compact-side-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Expense Types</span>
+                        <h2>Work Type Mix</h2>
                     </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <p>No work type summary yet.</p>
-                    </div>
-                {% endif %}
-            </div>
-        </article>
+                </div>
+
+                <div class="mini-ledger-list">
+                    {% if work_type_distribution %}
+                        {% for work in work_type_distribution %}
+                        <div class="mini-ledger-row">
+                            <strong>{{ work.work_type }}</strong>
+                            <span>AED {{ "%.0f"|format(work.total_amount) }}</span>
+                            <div class="mini-ledger-subrow">
+                                <span>{{ work.job_count }} jobs</span>
+                                <span>Type total</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <p>No work type summary yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </article>
+        </div>
     </section>
 
     <section class="desk-content-grid compact-content-grid">
-        <article class="card desk-panel-card">
+        <article class="card desk-panel-card" id="field-staff-recent">
             <div class="desk-panel-head">
                 <div>
                     <span class="admin-desk-label">Recent Entries</span>
@@ -227,7 +221,32 @@
             </div>
 
             {% if recent_jobs %}
-            <div class="table-wrap">
+            <div class="field-staff-mobile-cards">
+                {% for job in recent_jobs %}
+                <article class="field-staff-entry-card">
+                    <div class="field-staff-entry-top">
+                        <div>
+                            <strong>{{ job.paper_no }}</strong>
+                            <span>{{ job.entry_date }}</span>
+                        </div>
+                        <span class="status-chip {{ (job.review_status or 'Pending')|lower|replace(' ', '-') }}">{{ job.review_status }}</span>
+                    </div>
+                    <div class="field-staff-entry-grid">
+                        <span><strong>Vehicle</strong><small>{{ job.vehicle_id or 'General Entry' }}</small></span>
+                        <span><strong>Workshop</strong><small>{{ job.workshop_name or '-' }}</small></span>
+                        <span><strong>Total</strong><small>AED {{ "%.2f"|format(job.total_amount or 0) }}</small></span>
+                        <span><strong>Payment</strong><small>{{ job.payment_status }}</small></span>
+                    </div>
+                    {% if job.bill_image %}
+                    <div class="field-staff-entry-actions">
+                        <a class="mini-link-pill" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">Open Bill</a>
+                    </div>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+
+            <div class="table-wrap field-staff-desktop-table">
                 <table>
                     <thead>
                         <tr>
@@ -270,7 +289,7 @@
             {% endif %}
         </article>
 
-        <article class="card desk-panel-card compact-side-card">
+        <article class="card desk-panel-card compact-side-card" id="field-staff-monthly">
             <div class="desk-panel-head">
                 <div>
                     <span class="admin-desk-label">Monthly Summary</span>
@@ -318,10 +337,9 @@
             amountInput.focus();
             return;
         }
-        const taxAmount = (amount * rate) / 100;
-        const totalAmount = amount + taxAmount;
-        taxInput.value = taxAmount.toFixed(2);
-        totalInput.value = totalAmount.toFixed(2);
+        const tax = (amount * rate) / 100;
+        taxInput.value = tax.toFixed(2);
+        totalInput.value = (amount + tax).toFixed(2);
     });
 })();
 </script>
