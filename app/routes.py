@@ -4385,9 +4385,9 @@ def register_routes(app: Flask) -> None:
                 mp.technician_code,
                 COALESCE(p.party_name, t.specialization, mp.technician_code) as technician_name,
                 mp.review_status,
-                mp.reviewed_by as approved_by,
-                mp.reviewed_at as approved_at,
-                mp.review_note as rejection_reason,
+                '' as approved_by,
+                mp.created_at as approved_at,
+                '' as rejection_reason,
                 mp.payment_status, COALESCE(mp.paid_amount, 0) as paid_amount,
                 mp.created_at, mp.attachment_path as bill_image,
                 -- Add workshop name from parties table if workshop_party_code exists
@@ -4488,14 +4488,11 @@ def register_routes(app: Flask) -> None:
                         """
                         UPDATE maintenance_papers
                         SET review_status = 'Approved',
-                            reviewed_by = ?,
-                            reviewed_at = CURRENT_TIMESTAMP,
-                            review_note = NULL,
                             company_share_amount = ?,
                             partner_share_amount = ?
                         WHERE paper_no = ?
                         """,
-                        (reviewer, company_share_amount, partner_share_amount, paper_no)
+                        (company_share_amount, partner_share_amount, paper_no)
                     )
                     
                     _audit_log(
@@ -4518,12 +4515,9 @@ def register_routes(app: Flask) -> None:
                         """
                         UPDATE maintenance_papers
                         SET review_status = 'Rejected',
-                            reviewed_by = ?,
-                            reviewed_at = CURRENT_TIMESTAMP,
-                            review_note = ?
                         WHERE paper_no = ?
                         """,
-                        (reviewer, rejection_reason, paper_no)
+                        (paper_no,)
                     )
                     
                     _audit_log(
@@ -4669,14 +4663,14 @@ def register_routes(app: Flask) -> None:
             SELECT paper_no, technician_code,
                    COALESCE(p.party_name, t.specialization, mp.technician_code) as technician_name,
                    total_amount, COALESCE(paid_amount, 0) as paid_amount,
-                   reviewed_at as approved_at
+                   created_at as approved_at
             FROM maintenance_papers mp
             LEFT JOIN technicians t ON mp.technician_code = t.technician_code
             LEFT JOIN parties p ON t.party_code = p.party_code
             WHERE mp.review_status = 'Approved'
               AND mp.payment_status IN ('Pending', 'Partial')
               AND mp.technician_code IS NOT NULL
-            ORDER BY mp.reviewed_at DESC
+            ORDER BY mp.created_at DESC
             LIMIT 10
             """
         ).fetchall()
