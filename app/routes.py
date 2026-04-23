@@ -4660,10 +4660,10 @@ def register_routes(app: Flask) -> None:
         # Get pending payments (approved but not fully paid)
         pending_payments = db.execute(
             """
-            SELECT paper_no, technician_code,
+            SELECT mp.paper_no, mp.technician_code,
                    COALESCE(p.party_name, t.specialization, mp.technician_code) as technician_name,
-                   total_amount, COALESCE(paid_amount, 0) as paid_amount,
-                   created_at as approved_at
+                   mp.total_amount, COALESCE(mp.paid_amount, 0) as paid_amount,
+                   mp.created_at as approved_at
             FROM maintenance_papers mp
             LEFT JOIN technicians t ON mp.technician_code = t.technician_code
             LEFT JOIN parties p ON t.party_code = p.party_code
