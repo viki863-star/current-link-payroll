@@ -63,6 +63,24 @@
         </form>
     </article>
 
+    {% if current_screen == 'overview' and focus_vehicle %}
+    <article class="card fleet-smart-focus-card">
+        <div class="fleet-smart-focus-head">
+            <div>
+                <span class="admin-desk-label">Search Result</span>
+                <h2>{{ focus_vehicle.vehicle_no }}</h2>
+                <p>{{ focus_vehicle.vehicle_type }} | {{ focus_vehicle.make_model or 'No model added' }} | {{ focus_vehicle.shift_mode }}</p>
+            </div>
+            <div class="fleet-focus-pills">
+                <span class="status-chip {{ focus_vehicle.status|lower }}">{{ focus_vehicle.status }}</span>
+                {% if (focus_vehicle.ownership_mode or '') == 'Partnership' %}
+                    <span class="mini-link-pill">This Vehicle Is On Partnership</span>
+                {% endif %}
+            </div>
+        </div>
+    </article>
+    {% endif %}
+
     <section class="fleet-smart-actions">
         <a class="fleet-smart-action-card {% if current_screen == 'overview' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
             <span class="fleet-action-kicker">Overview</span>
@@ -207,7 +225,7 @@
                 </div>
             </div>
             <section class="directory-card-grid">
-                {% for item in vehicle_rows %}
+                {% for item in fleet_vehicle_rows %}
                     <article class="card directory-card customer-directory-card fleet-showcase-card">
                         <div class="directory-card-head">
                             <span class="vehicle-icon-chip" aria-hidden="true">V</span>
@@ -224,11 +242,15 @@
                             <div class="table-actions">
                                 <a class="mini-action-link" href="{{ url_for('fleet_vehicle_detail', vehicle_id=item.vehicle_id) }}">Maintenance History</a>
                                 <a class="mini-action-link" href="{{ url_for('fleet_maintenance', screen='vehicles', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search, edit_vehicle=item.vehicle_id) }}">Edit</a>
+                                <form method="post" action="{{ url_for('delete_fleet_vehicle', vehicle_id=item.vehicle_id) }}" onsubmit="return confirm('Delete this vehicle?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="mini-action-button" type="submit">Delete</button>
+                                </form>
                             </div>
                         </div>
                     </article>
                 {% else %}
-                    <article class="card directory-empty"><h2>No Vehicles Yet</h2><p>Add company fleet first.</p></article>
+                    <article class="card directory-empty"><h2>No Matching Vehicle</h2><p>Try another search or clear the current filter.</p></article>
                 {% endfor %}
             </section>
         </article>

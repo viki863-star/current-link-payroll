@@ -4337,6 +4337,7 @@ def register_routes(app: Flask) -> None:
 
         summary = _fleet_maintenance_summary(db, filters["month"])
         vehicle_rows = _fleet_vehicle_rows(db)
+        fleet_vehicle_rows = _fleet_vehicle_directory_rows(db, filters)
         filter_vehicle_rows = _maintenance_target_vehicle_rows(db)
         staff_rows = _maintenance_staff_rows(db)
         advance_rows = _maintenance_advance_rows(db)
@@ -4346,6 +4347,11 @@ def register_routes(app: Flask) -> None:
         partnership_rows = _maintenance_partnership_rows(db, filters)
         technician_ledgers = _maintenance_staff_ledger_rows(db)
         recent_vehicle_imports = _fleet_vehicle_import_rows(app)
+        focus_vehicle = None
+        if filters["vehicle_id"]:
+            focus_vehicle = next((item for item in fleet_vehicle_rows if item["vehicle_id"] == filters["vehicle_id"]), None)
+        elif filters["search"] and len(fleet_vehicle_rows) == 1:
+            focus_vehicle = fleet_vehicle_rows[0]
 
         return render_template(
             "fleet_maintenance.html",
@@ -4358,6 +4364,7 @@ def register_routes(app: Flask) -> None:
             paper_values=paper_values,
             paper_line_rows=paper_line_rows,
             vehicle_rows=vehicle_rows,
+            fleet_vehicle_rows=fleet_vehicle_rows,
             filter_vehicle_rows=filter_vehicle_rows,
             staff_rows=staff_rows,
             advance_rows=advance_rows,
@@ -4367,6 +4374,7 @@ def register_routes(app: Flask) -> None:
             partnership_rows=partnership_rows,
             technician_ledgers=technician_ledgers,
             recent_vehicle_imports=recent_vehicle_imports,
+            focus_vehicle=focus_vehicle,
             shift_mode_options=FLEET_SHIFT_MODE_OPTIONS,
             ownership_mode_options=FLEET_OWNERSHIP_MODE_OPTIONS,
             tax_mode_options=MAINTENANCE_TAX_MODE_OPTIONS,
@@ -4378,6 +4386,39 @@ def register_routes(app: Flask) -> None:
             target_class_options=MAINTENANCE_TARGET_CLASS_OPTIONS,
             partnership_supplier_assets=_partnership_supplier_asset_options(db),
         )
+
+    @app.post("/fleet-maintenance/vehicles/<vehicle_id>/delete")
+    @_login_required("admin")
+    def delete_fleet_vehicle(vehicle_id: str):
+        db = open_db()
+        vehicle = db.execute(
+            """
+            SELECT vehicle_id, vehicle_no, ownership_mode, source_type
+            FROM vehicle_master
+            WHERE vehicle_id = ?
+            """,
+            (vehicle_id,),
+        ).fetchone()
+        if vehicle is None:
+            flash("Vehicle was not found.", "error")
+            return redirect(url_for("fleet_maintenance", screen="overview"))
+        linked_count = int(
+            db.execute("SELECT COUNT(*) FROM maintenance_papers WHERE vehicle_id = ?", (vehicle_id,)).fetchone()[0]
+        )
+        if linked_count:
+            flash(f"Vehicle cannot be deleted because {linked_count} maintenance paper(s) are linked.", "error")
+            return redirect(url_for("fleet_maintenance", screen="overview", vehicle_id=vehicle_id))
+        db.execute("DELETE FROM vehicle_master WHERE vehicle_id = ?", (vehicle_id,))
+        _audit_log(
+            db,
+            "fleet_vehicle_deleted",
+            entity_type="fleet_vehicle",
+            entity_id=vehicle_id,
+            details=f"{vehicle['vehicle_no']} / {vehicle['ownership_mode'] or vehicle['source_type'] or 'Fleet'}",
+        )
+        db.commit()
+        flash(f"Vehicle {vehicle['vehicle_no']} deleted successfully.", "success")
+        return redirect(url_for("fleet_maintenance", screen="overview"))
 
     @app.get("/fleet-maintenance/vehicles/<vehicle_id>")
     @_login_required("admin")
@@ -11806,6 +11847,52 @@ def _fleet_vehicle_rows(db):
         WHERE COALESCE(v.source_type, 'Own Fleet Vehicle') = 'Own Fleet Vehicle'
         ORDER BY CASE WHEN v.status = 'Active' THEN 0 ELSE 1 END, v.vehicle_no ASC, v.id DESC
         """
+    ).fetchall()
+
+
+def _fleet_vehicle_directory_rows(db, filters):
+    clauses = []
+    params = []
+    if filters.get("vehicle_id"):
+        clauses.append("v.vehicle_id = ?")
+        params.append(filters["vehicle_id"])
+    if filters.get("search"):
+        needle = f"%{filters['search'].lower()}%"
+        clauses.append(
+            """
+            (
+                LOWER(COALESCE(v.vehicle_id, '')) LIKE ? OR
+                LOWER(COALESCE(v.vehicle_no, '')) LIKE ? OR
+                LOWER(COALESCE(v.vehicle_type, '')) LIKE ? OR
+                LOWER(COALESCE(v.make_model, '')) LIKE ? OR
+                LOWER(COALESCE(partner.party_name, v.partner_name, '')) LIKE ?
+            )
+            """
+        )
+        params.extend([needle] * 5)
+    where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    return db.execute(
+        f"""
+        SELECT
+            v.vehicle_id,
+            v.vehicle_no,
+            v.vehicle_type,
+            v.make_model,
+            v.status,
+            v.shift_mode,
+            v.ownership_mode,
+            COALESCE(v.source_type, 'Own Fleet Vehicle') AS source_type,
+            COALESCE(partner.party_name, v.partner_name) AS partner_name
+        FROM vehicle_master v
+        LEFT JOIN parties partner ON partner.party_code = v.partner_party_code
+        {where_sql}
+        ORDER BY
+            CASE WHEN COALESCE(v.ownership_mode, 'Company') = 'Partnership' THEN 0 ELSE 1 END,
+            CASE WHEN v.status = 'Active' THEN 0 ELSE 1 END,
+            v.vehicle_no ASC,
+            v.id DESC
+        """,
+        params,
     ).fetchall()
 
 

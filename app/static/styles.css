@@ -6707,6 +6707,38 @@ html {
     animation: fleetFloatIn 0.45s ease;
 }
 
+.fleet-smart-focus-card {
+    padding: 18px 20px;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(242, 164, 50, 0.14), transparent 22%),
+        linear-gradient(140deg, rgba(255, 252, 246, 0.99), rgba(245, 248, 255, 0.97));
+    border: 1px solid rgba(242, 164, 50, 0.18);
+    animation: fleetFloatIn 0.45s ease;
+}
+
+.fleet-smart-focus-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: start;
+}
+
+.fleet-smart-focus-head h2 {
+    margin: 4px 0 6px;
+}
+
+.fleet-smart-focus-head p {
+    margin: 0;
+}
+
+.fleet-focus-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
 @keyframes fleetFloatIn {
     from {
         opacity: 0;
@@ -6781,6 +6813,14 @@ html {
 
     .fleet-smart-actions {
         grid-template-columns: 1fr;
+    }
+
+    .fleet-smart-focus-head {
+        flex-direction: column;
+    }
+
+    .fleet-focus-pills {
+        justify-content: flex-start;
     }
 }
 
