@@ -1,13 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="admin-desk-shell maintenance-workspace-shell">
-    <article class="card admin-desk-toolbar">
+<section class="admin-desk-shell maintenance-workspace-shell fleet-smart-shell">
+    <article class="card fleet-smart-hero">
         <div class="admin-toolbar-row">
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
                 <a class="button button-secondary" href="{{ url_for('reports_center') }}">Accounts Desk</a>
-                <a class="button" href="#paper-entry">Add Maintenance Paper</a>
             </div>
             <div class="admin-mini-stats">
                 <span><strong>{{ summary.vehicle_count }}</strong><small>Fleet Vehicles</small></span>
@@ -16,12 +15,25 @@
                 <span><strong>AED {{ "%.0f"|format(summary.month_tax) }}</strong><small>Month VAT</small></span>
             </div>
         </div>
-        <div class="section-heading-block">
-            <span class="admin-desk-label">Fleet Maintenance</span>
-            <h1>Vehicle Control And Maintenance History</h1>
-            <p>Keep this desk focused on fleet vehicles, manual maintenance papers, workshop bills, and vehicle-wise spend history.</p>
+
+        <div class="fleet-smart-head">
+            <div>
+                <span class="admin-desk-label">Fleet Maintenance</span>
+                <h1>Smart Vehicle Control Desk</h1>
+                <p>Search fast, open vehicle history instantly, and use separate clean screens for vehicles, imports, and maintenance papers.</p>
+            </div>
+            <div class="fleet-smart-search-chip">
+                <strong>{{ filters.search or "No search yet" }}</strong>
+                <span>Search tracks vehicle no, workshop, paper no, bill and work summary.</span>
+            </div>
         </div>
-        <form method="get" class="admin-filter-grid maintenance-filter-grid">
+
+        <form method="get" class="admin-filter-grid maintenance-filter-grid fleet-smart-filter">
+            <input type="hidden" name="screen" value="{{ current_screen }}">
+            <label>
+                <span>Search Fleet</span>
+                <input type="text" name="search" value="{{ filters.search }}" placeholder="Type vehicle no, workshop, bill or paper no">
+            </label>
             <label>
                 <span>Month</span>
                 <input type="month" name="month" value="{{ filters.month }}">
@@ -44,96 +56,102 @@
                     {% endfor %}
                 </select>
             </label>
-            <label>
-                <span>Search</span>
-                <input type="text" name="search" value="{{ filters.search }}" placeholder="Paper, vehicle, workshop, bill">
-            </label>
             <div class="admin-filter-actions">
-                <button class="button" type="submit">Apply</button>
-                <a class="button button-secondary" href="{{ url_for('fleet_maintenance') }}">Clear</a>
+                <button class="button" type="submit">Search Now</button>
+                <a class="button button-secondary" href="{{ url_for('fleet_maintenance', screen=current_screen) }}">Reset</a>
             </div>
         </form>
-        <div class="mini-link-stack inline-link-stack">
-            <a class="mini-link-pill" href="#vehicle-master">Vehicle Master</a>
-            <a class="mini-link-pill" href="#vehicle-import">Import Vehicle List From PDF</a>
-            <a class="mini-link-pill" href="#paper-entry">Maintenance Paper</a>
-            <a class="mini-link-pill" href="#recent-papers">Recent Papers</a>
-        </div>
     </article>
 
-    <section class="accounts-link-grid maintenance-summary-grid">
-        <article class="card accounts-link-card"><strong>{{ summary.double_shift_count }}</strong><span>Double Shift Fleet</span></article>
-        <article class="card accounts-link-card"><strong>{{ summary.partnership_count }}</strong><span>Partnership Vehicles</span></article>
-        <article class="card accounts-link-card"><strong>AED {{ "%.0f"|format(summary.workshop_credit_balance) }}</strong><span>Workshop Credit</span></article>
-        <article class="card accounts-link-card"><strong>{{ vehicle_statement_rows|length }}</strong><span>Vehicles With Spend</span></article>
+    <section class="fleet-smart-actions">
+        <a class="fleet-smart-action-card {% if current_screen == 'overview' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
+            <span class="fleet-action-kicker">Overview</span>
+            <strong>Search And History</strong>
+            <small>See spend, vehicle cards, workshop payable and recent papers.</small>
+        </a>
+        <a class="fleet-smart-action-card {% if current_screen == 'vehicles' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='vehicles', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
+            <span class="fleet-action-kicker">Add New</span>
+            <strong>Vehicle Master</strong>
+            <small>Register or edit a vehicle on its own clean screen.</small>
+        </a>
+        <a class="fleet-smart-action-card {% if current_screen == 'import' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='import', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
+            <span class="fleet-action-kicker">Import</span>
+            <strong>Vehicle PDF</strong>
+            <small>Upload PDF and auto-register fleet vehicles.</small>
+        </a>
+        <a class="fleet-smart-action-card {% if current_screen == 'papers' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='papers', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
+            <span class="fleet-action-kicker">Add Paper</span>
+            <strong>Maintenance Entry</strong>
+            <small>Save manual maintenance paper with bill and split details.</small>
+        </a>
     </section>
 
-    <section class="desk-content-grid compact-content-grid">
-        <article class="card desk-panel-card" id="vehicle-master">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Admin Control</span>
-                    <h2>Vehicle Master</h2>
-                </div>
-            </div>
-            <form method="post" class="desk-form-grid">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="action" value="save_vehicle">
-                <input type="hidden" name="original_vehicle_id" value="{{ vehicle_values.original_vehicle_id }}">
-
-                <label><span>Vehicle ID</span><input type="text" name="vehicle_id" value="{{ vehicle_values.vehicle_id }}"></label>
-                <label><span>Vehicle No</span><input type="text" name="vehicle_no" value="{{ vehicle_values.vehicle_no }}" placeholder="Plate / fleet number"></label>
-                <label><span>Vehicle Type</span><input type="text" name="vehicle_type" value="{{ vehicle_values.vehicle_type }}" placeholder="Tanker / Trailer / Pickup"></label>
-                <label><span>Make / Model</span><input type="text" name="make_model" value="{{ vehicle_values.make_model }}"></label>
-                <label><span>Shift Mode</span><select name="shift_mode">{% for item in shift_mode_options %}<option value="{{ item }}" {% if vehicle_values.shift_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-                <label><span>Ownership</span><select name="ownership_mode">{% for item in ownership_mode_options %}<option value="{{ item }}" {% if vehicle_values.ownership_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-                <label><span>Partner Party</span><select name="partner_party_code"><option value="">Optional</option>{% for item in partner_parties %}<option value="{{ item.party_code }}" {% if vehicle_values.partner_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>{% endfor %}</select></label>
-                <label><span>Partner Name</span><input type="text" name="partner_name" value="{{ vehicle_values.partner_name }}" placeholder="If party not registered"></label>
-                <label><span>Company Share %</span><input type="number" step="0.01" name="company_share_percent" value="{{ vehicle_values.company_share_percent }}"></label>
-                <label><span>Partner Share %</span><input type="number" step="0.01" name="partner_share_percent" value="{{ vehicle_values.partner_share_percent }}"></label>
-                <label><span>Status</span><select name="status"><option value="Active" {% if vehicle_values.status == 'Active' %}selected{% endif %}>Active</option><option value="Inactive" {% if vehicle_values.status == 'Inactive' %}selected{% endif %}>Inactive</option></select></label>
-                <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ vehicle_values.notes }}</textarea></label>
-                <div class="form-actions left-actions full-span">
-                    <button class="button" type="submit">{% if vehicle_values.original_vehicle_id %}Update Vehicle{% else %}Save Vehicle{% endif %}</button>
-                    {% if vehicle_values.original_vehicle_id %}
-                        <a class="button button-secondary" href="{{ url_for('fleet_maintenance', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Cancel Edit</a>
-                    {% endif %}
-                </div>
-            </form>
-        </article>
-
-        <article class="card desk-panel-card" id="vehicle-import">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Import Option</span>
-                    <h2>Import Vehicle List From PDF</h2>
-                </div>
-            </div>
-            <form method="post" enctype="multipart/form-data" class="desk-form-grid">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="action" value="import_vehicle_pdf">
-                <label class="full-span"><span>PDF File</span><input type="file" name="vehicle_pdf" accept=".pdf"></label>
-                <label class="full-span"><span>How It Works</span><textarea rows="4" readonly>Upload the source PDF here, then review it and register or update vehicles from Vehicle Master. This keeps the final control with admin.</textarea></label>
-                <div class="form-actions left-actions full-span"><button class="button" type="submit">Upload PDF</button></div>
-            </form>
-            <div class="mini-ledger-list">
-                {% for item in recent_vehicle_imports %}
-                    <div class="mini-ledger-row stacked-row">
-                        <strong>{{ item.filename }}</strong>
-                        <span>{{ item.updated_at }}</span>
-                        <a class="mini-link-pill" href="{{ url_for('generated_file', filename=item.relative_path) }}">Open PDF</a>
-                    </div>
-                {% else %}
-                    <p class="muted-text">No vehicle import PDFs uploaded yet.</p>
-                {% endfor %}
-            </div>
-        </article>
-    </section>
-
-    <article class="card desk-panel-card" id="paper-entry">
+    {% if current_screen == 'vehicles' %}
+    <article class="card desk-panel-card fleet-screen-card" id="vehicle-master">
         <div class="desk-panel-head">
             <div>
-                <span class="admin-desk-label">Manual Control</span>
+                <span class="admin-desk-label">Separate Screen</span>
+                <h2>Vehicle Master</h2>
+            </div>
+        </div>
+        <form method="post" class="desk-form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_vehicle">
+            <input type="hidden" name="original_vehicle_id" value="{{ vehicle_values.original_vehicle_id }}">
+
+            <label><span>Vehicle ID</span><input type="text" name="vehicle_id" value="{{ vehicle_values.vehicle_id }}"></label>
+            <label><span>Vehicle No</span><input type="text" name="vehicle_no" value="{{ vehicle_values.vehicle_no }}" placeholder="Plate / fleet number"></label>
+            <label><span>Vehicle Type</span><input type="text" name="vehicle_type" value="{{ vehicle_values.vehicle_type }}" placeholder="Tanker / Trailer / Pickup"></label>
+            <label><span>Make / Model</span><input type="text" name="make_model" value="{{ vehicle_values.make_model }}"></label>
+            <label><span>Shift Mode</span><select name="shift_mode">{% for item in shift_mode_options %}<option value="{{ item }}" {% if vehicle_values.shift_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+            <label><span>Ownership</span><select name="ownership_mode">{% for item in ownership_mode_options %}<option value="{{ item }}" {% if vehicle_values.ownership_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+            <label><span>Partner Party</span><select name="partner_party_code"><option value="">Optional</option>{% for item in partner_parties %}<option value="{{ item.party_code }}" {% if vehicle_values.partner_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>{% endfor %}</select></label>
+            <label><span>Partner Name</span><input type="text" name="partner_name" value="{{ vehicle_values.partner_name }}" placeholder="If party not registered"></label>
+            <label><span>Company Share %</span><input type="number" step="0.01" name="company_share_percent" value="{{ vehicle_values.company_share_percent }}"></label>
+            <label><span>Partner Share %</span><input type="number" step="0.01" name="partner_share_percent" value="{{ vehicle_values.partner_share_percent }}"></label>
+            <label><span>Status</span><select name="status"><option value="Active" {% if vehicle_values.status == 'Active' %}selected{% endif %}>Active</option><option value="Inactive" {% if vehicle_values.status == 'Inactive' %}selected{% endif %}>Inactive</option></select></label>
+            <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ vehicle_values.notes }}</textarea></label>
+            <div class="form-actions left-actions full-span">
+                <button class="button" type="submit">{% if vehicle_values.original_vehicle_id %}Update Vehicle{% else %}Save Vehicle{% endif %}</button>
+                <a class="button button-secondary" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Back To Overview</a>
+            </div>
+        </form>
+    </article>
+    {% elif current_screen == 'import' %}
+    <article class="card desk-panel-card fleet-screen-card" id="vehicle-import">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">Separate Screen</span>
+                <h2>Import Vehicle List From PDF</h2>
+            </div>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="desk-form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="import_vehicle_pdf">
+            <label class="full-span"><span>PDF File</span><input type="file" name="vehicle_pdf" accept=".pdf"></label>
+            <label class="full-span"><span>Smart Import</span><textarea rows="4" readonly>Upload PDF, let the system auto-register matching vehicles, and then open fleet history directly from Overview.</textarea></label>
+            <div class="form-actions left-actions full-span">
+                <button class="button" type="submit">Import And Register Vehicles</button>
+                <a class="button button-secondary" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Back To Overview</a>
+            </div>
+        </form>
+        <div class="mini-ledger-list">
+            {% for item in recent_vehicle_imports %}
+                <div class="mini-ledger-row stacked-row">
+                    <strong>{{ item.filename }}</strong>
+                    <span>{{ item.updated_at }}</span>
+                    <a class="mini-link-pill" href="{{ url_for('generated_file', filename=item.relative_path) }}">Open PDF</a>
+                </div>
+            {% else %}
+                <p class="muted-text">No vehicle import PDFs uploaded yet.</p>
+            {% endfor %}
+        </div>
+    </article>
+    {% elif current_screen == 'papers' %}
+    <article class="card desk-panel-card fleet-screen-card" id="paper-entry">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">Separate Screen</span>
                 <h2>Maintenance Paper Entry</h2>
             </div>
         </div>
@@ -168,15 +186,20 @@
             <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ paper_values.notes }}</textarea></label>
             <div class="form-actions left-actions full-span">
                 <button class="button" type="submit">{% if paper_values.original_paper_no %}Update Paper{% else %}Save Paper{% endif %}</button>
-                {% if paper_values.original_paper_no %}
-                    <a class="button button-secondary" href="{{ url_for('fleet_maintenance', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Cancel</a>
-                {% endif %}
+                <a class="button button-secondary" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Back To Overview</a>
             </div>
         </form>
     </article>
+    {% else %}
+    <section class="accounts-link-grid maintenance-summary-grid">
+        <article class="card accounts-link-card"><strong>{{ summary.double_shift_count }}</strong><span>Double Shift Fleet</span></article>
+        <article class="card accounts-link-card"><strong>{{ summary.partnership_count }}</strong><span>Partnership Vehicles</span></article>
+        <article class="card accounts-link-card"><strong>AED {{ "%.0f"|format(summary.workshop_credit_balance) }}</strong><span>Workshop Credit</span></article>
+        <article class="card accounts-link-card"><strong>{{ vehicle_statement_rows|length }}</strong><span>Vehicles With Spend</span></article>
+    </section>
 
     <section class="desk-content-grid compact-content-grid">
-        <article class="card desk-panel-card">
+        <article class="card desk-panel-card fleet-overview-card">
             <div class="desk-panel-head">
                 <div>
                     <span class="admin-desk-label">Fleet</span>
@@ -185,7 +208,7 @@
             </div>
             <section class="directory-card-grid">
                 {% for item in vehicle_rows %}
-                    <article class="card directory-card customer-directory-card">
+                    <article class="card directory-card customer-directory-card fleet-showcase-card">
                         <div class="directory-card-head">
                             <span class="vehicle-icon-chip" aria-hidden="true">V</span>
                             <span class="status-chip {{ item.status|lower }}">{{ item.status }}</span>
@@ -197,11 +220,10 @@
                                 <span class="directory-line"><strong>Shift</strong><small>{{ item.shift_mode }}</small></span>
                                 <span class="directory-line"><strong>Mode</strong><small>{{ item.ownership_mode }}</small></span>
                                 <span class="directory-line"><strong>Model</strong><small>{{ item.make_model or '-' }}</small></span>
-                                {% if item.partner_name %}<span class="directory-line"><strong>Partner</strong><small>{{ item.partner_name }}</small></span>{% endif %}
                             </div>
                             <div class="table-actions">
                                 <a class="mini-action-link" href="{{ url_for('fleet_vehicle_detail', vehicle_id=item.vehicle_id) }}">Maintenance History</a>
-                                <a class="mini-action-link" href="{{ url_for('fleet_maintenance', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search, edit_vehicle=item.vehicle_id) }}">Edit</a>
+                                <a class="mini-action-link" href="{{ url_for('fleet_maintenance', screen='vehicles', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search, edit_vehicle=item.vehicle_id) }}">Edit</a>
                             </div>
                         </div>
                     </article>
@@ -211,7 +233,7 @@
             </section>
         </article>
 
-        <article class="card desk-panel-card">
+        <article class="card desk-panel-card fleet-overview-card">
             <div class="desk-panel-head">
                 <div>
                     <span class="admin-desk-label">Spend Overview</span>
@@ -317,7 +339,7 @@
                                     {% if item.vehicle_id %}
                                         <a class="mini-action-link" href="{{ url_for('fleet_vehicle_detail', vehicle_id=item.vehicle_id) }}">History</a>
                                     {% endif %}
-                                    <a class="mini-action-link" href="{{ url_for('fleet_maintenance', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search, edit_paper=item.paper_no) }}">Edit</a>
+                                    <a class="mini-action-link" href="{{ url_for('fleet_maintenance', screen='papers', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search, edit_paper=item.paper_no) }}">Edit</a>
                                     <form method="post" action="{{ url_for('delete_maintenance_paper', paper_no=item.paper_no) }}" onsubmit="return confirm('Delete this maintenance paper?');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button class="mini-action-button" type="submit">Delete</button>
@@ -332,5 +354,6 @@
             </table>
         </div>
     </article>
+    {% endif %}
 </section>
 {% endblock %}

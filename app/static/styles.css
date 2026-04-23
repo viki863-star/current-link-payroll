@@ -6579,6 +6579,145 @@ html {
     display: block;
 }
 
+.fleet-smart-shell {
+    gap: 18px;
+}
+
+.fleet-smart-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 30px;
+    padding: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(242, 164, 50, 0.18), transparent 22%),
+        radial-gradient(circle at bottom left, rgba(36, 107, 168, 0.14), transparent 24%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(241, 247, 255, 0.98));
+    animation: fleetFloatIn 0.55s ease;
+}
+
+.fleet-smart-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+    gap: 18px;
+    align-items: end;
+    margin-top: 14px;
+}
+
+.fleet-smart-head h1 {
+    margin: 0 0 8px;
+    font-size: clamp(1.9rem, 3vw, 2.8rem);
+}
+
+.fleet-smart-head p {
+    margin: 0;
+}
+
+.fleet-smart-search-chip {
+    display: grid;
+    gap: 6px;
+    padding: 16px 18px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(20, 60, 112, 0.96), rgba(38, 91, 144, 0.96));
+    color: #fff;
+    box-shadow: 0 18px 34px rgba(19, 56, 104, 0.16);
+}
+
+.fleet-smart-search-chip strong {
+    font-size: 1rem;
+    color: #fff;
+}
+
+.fleet-smart-search-chip span {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.82rem;
+}
+
+.fleet-smart-filter {
+    margin-top: 14px;
+}
+
+.fleet-smart-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.fleet-smart-action-card {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    gap: 6px;
+    padding: 18px;
+    border-radius: 24px;
+    text-decoration: none;
+    color: #173f66;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(245, 248, 255, 0.97));
+    border: 1px solid rgba(21, 51, 93, 0.10);
+    box-shadow: 0 14px 28px rgba(19, 56, 104, 0.08);
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+    animation: fleetFloatIn 0.5s ease;
+}
+
+.fleet-smart-action-card::after {
+    content: "";
+    position: absolute;
+    inset: auto -24px -44px auto;
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    background: rgba(242, 164, 50, 0.12);
+}
+
+.fleet-smart-action-card:hover,
+.fleet-smart-action-card.active {
+    transform: translateY(-4px);
+    border-color: rgba(242, 164, 50, 0.28);
+    box-shadow: 0 24px 42px rgba(19, 56, 104, 0.14);
+}
+
+.fleet-smart-action-card.active {
+    background:
+        radial-gradient(circle at top right, rgba(242, 164, 50, 0.12), transparent 24%),
+        linear-gradient(155deg, rgba(255, 252, 246, 0.995), rgba(243, 248, 255, 0.98));
+}
+
+.fleet-action-kicker {
+    font-size: 0.73rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #d3821d;
+    font-weight: 800;
+}
+
+.fleet-smart-action-card strong {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.25rem;
+    line-height: 1.05;
+}
+
+.fleet-smart-action-card small {
+    font-size: 0.84rem;
+    color: #5f7491;
+}
+
+.fleet-screen-card,
+.fleet-overview-card,
+.fleet-showcase-card {
+    animation: fleetFloatIn 0.45s ease;
+}
+
+@keyframes fleetFloatIn {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
 @media (max-width: 640px) {
     .field-staff-mobile-hero {
         padding: 18px;
@@ -6628,6 +6767,20 @@ html {
 
     .field-staff-desktop-table {
         display: none;
+    }
+
+    .fleet-smart-hero {
+        padding: 18px;
+        border-radius: 24px;
+    }
+
+    .fleet-smart-head {
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
+    .fleet-smart-actions {
+        grid-template-columns: 1fr;
     }
 }
 

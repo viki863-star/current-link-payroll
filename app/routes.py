@@ -4011,6 +4011,7 @@ def register_routes(app: Flask) -> None:
         _touch_admin_workspace("accounts")
         db = open_db()
         filters = _fleet_maintenance_filter_values(request)
+        current_screen = _fleet_maintenance_screen_value(request.args.get("screen", "overview"))
         vehicle_values = _default_fleet_vehicle_form(db)
         staff_values = _default_maintenance_staff_form(db)
         advance_values = _default_maintenance_advance_form(db)
@@ -4024,6 +4025,7 @@ def register_routes(app: Flask) -> None:
             if existing_paper is not None:
                 paper_values = _maintenance_paper_form_from_row(existing_paper)
                 paper_line_rows = _maintenance_paper_line_rows_for_form(db, edit_paper_no)
+                current_screen = "papers"
         if edit_vehicle_id:
             existing_vehicle = db.execute(
                 """
@@ -4035,6 +4037,7 @@ def register_routes(app: Flask) -> None:
             ).fetchone()
             if existing_vehicle is not None:
                 vehicle_values = _fleet_vehicle_form_from_row(existing_vehicle)
+                current_screen = "vehicles"
 
         if request.method == "POST":
             action = request.form.get("action", "").strip()
@@ -4083,7 +4086,7 @@ def register_routes(app: Flask) -> None:
                     )
                     db.commit()
                     flash(message, "success")
-                    return redirect(url_for("fleet_maintenance", month=filters["month"]))
+                    return redirect(url_for("fleet_maintenance", screen="vehicles", month=filters["month"]))
 
                 if action == "import_vehicle_pdf":
                     uploaded_pdf = request.files.get("vehicle_pdf")
@@ -4106,7 +4109,7 @@ def register_routes(app: Flask) -> None:
                     )
                     db.commit()
                     flash(f"Imported or updated {imported} fleet vehicles from PDF.", "success")
-                    return redirect(url_for("fleet_maintenance", month=filters["month"]))
+                    return redirect(url_for("fleet_maintenance", screen="import", month=filters["month"]))
 
                 if action == "save_staff":
                     staff_values = _maintenance_staff_form_data(request)
@@ -4148,7 +4151,7 @@ def register_routes(app: Flask) -> None:
                     )
                     db.commit()
                     flash(message, "success")
-                    return redirect(url_for("fleet_maintenance", month=filters["month"]))
+                    return redirect(url_for("fleet_maintenance", screen="overview", month=filters["month"]))
 
                 if action == "save_advance":
                     advance_values = _maintenance_advance_form_data(request)
@@ -4192,7 +4195,7 @@ def register_routes(app: Flask) -> None:
                     )
                     db.commit()
                     flash(message, "success")
-                    return redirect(url_for("fleet_maintenance", month=filters["month"]))
+                    return redirect(url_for("fleet_maintenance", screen="overview", month=filters["month"]))
 
                 if action == "save_paper":
                     paper_values = _maintenance_paper_form_data(request)
@@ -4328,7 +4331,7 @@ def register_routes(app: Flask) -> None:
                     )
                     db.commit()
                     flash("Maintenance paper saved successfully.", "success")
-                    return redirect(url_for("fleet_maintenance", month=prepared["view_month"], vehicle_id=filters["vehicle_id"], funding_source=filters["funding_source"], search=filters["search"]))
+                    return redirect(url_for("fleet_maintenance", screen="papers", month=prepared["view_month"], vehicle_id=filters["vehicle_id"], funding_source=filters["funding_source"], search=filters["search"]))
             except ValidationError as exc:
                 flash(str(exc), "error")
 
@@ -4346,6 +4349,7 @@ def register_routes(app: Flask) -> None:
 
         return render_template(
             "fleet_maintenance.html",
+            current_screen=current_screen,
             filters=filters,
             summary=summary,
             vehicle_values=vehicle_values,
@@ -11710,6 +11714,13 @@ def _fleet_maintenance_filter_values(request):
         "funding_source": funding_source,
         "search": request.args.get("search", "").strip() or request.form.get("search", "").strip(),
     }
+
+
+def _fleet_maintenance_screen_value(value: str) -> str:
+    selected = (value or "").strip().lower()
+    if selected in {"overview", "vehicles", "import", "papers"}:
+        return selected
+    return "overview"
 
 
 def _maintenance_paper_filter_clause(filters):
