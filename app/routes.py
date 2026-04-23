@@ -1114,7 +1114,7 @@ def register_routes(app: Flask) -> None:
         technician_code = session.get("technician_code", "")
         party_code = session.get("technician_party_code", "")
         
-        if not technician_code or not party_code:
+        if not technician_code:
             session.clear()
             flash("Technician session expired. Please login again.", "error")
             return redirect(url_for("technician_login"))
@@ -1136,14 +1136,16 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("technician_login"))
         
         # Fetch party information
-        party = db.execute(
-            """
-            SELECT party_code, party_name, party_kind, party_roles
-            FROM parties
-            WHERE party_code = ?
-            """,
-            (party_code,)
-        ).fetchone()
+        party = None
+        if party_code:
+            party = db.execute(
+                """
+                SELECT party_code, party_name, party_kind, party_roles
+                FROM parties
+                WHERE party_code = ?
+                """,
+                (party_code,)
+            ).fetchone()
         
         # Calculate technician statistics
         # Total jobs
@@ -1208,36 +1210,44 @@ def register_routes(app: Flask) -> None:
         top_vehicles = db.execute(
             """
             SELECT
-                COALESCE(vm.plate_no, 'General Entry') as plate_no,
-                COALESCE(vm.vehicle_name, 'General Work') as vehicle_name,
+                COALESCE(vm.vehicle_no, 'General Entry') as vehicle_no,
+                COALESCE(vm.make_model, mp.vehicle_id, 'General Work') as vehicle_name,
+                COALESCE(vm.ownership_mode, 'General') as ownership_mode,
                 COUNT(*) as job_count,
                 COALESCE(SUM(mp.total_amount), 0) as total_spent
             FROM maintenance_papers mp
             LEFT JOIN vehicle_master vm ON mp.vehicle_id = vm.vehicle_id
             WHERE mp.technician_code = ? AND mp.vehicle_id IS NOT NULL AND mp.vehicle_id != ''
-            GROUP BY mp.vehicle_id, vm.plate_no, vm.vehicle_name
+            GROUP BY mp.vehicle_id, vm.vehicle_no, vm.make_model, vm.ownership_mode
             ORDER BY job_count DESC, total_spent DESC
             LIMIT 5
             """,
             (technician_code,)
         ).fetchall()
         
-        # Monthly expense analysis
-        monthly_expenses = db.execute(
+        # Monthly expense analysis kept backend-neutral for SQLite/Postgres.
+        monthly_rows = db.execute(
             """
-            SELECT
-                strftime('%Y-%m', paper_date) as month,
-                COUNT(*) as job_count,
-                COALESCE(SUM(total_amount), 0) as total_amount,
-                COALESCE(SUM(paid_amount), 0) as paid_amount
+            SELECT paper_date, total_amount, COALESCE(paid_amount, 0) as paid_amount
             FROM maintenance_papers
             WHERE technician_code = ?
-            GROUP BY strftime('%Y-%m', paper_date)
-            ORDER BY month DESC
-            LIMIT 6
             """,
             (technician_code,)
         ).fetchall()
+        monthly_map = {}
+        for row in monthly_rows:
+            month_key = (row["paper_date"] or "")[:7]
+            if not month_key:
+                continue
+            bucket = monthly_map.setdefault(
+                month_key,
+                {"month": month_key, "job_count": 0, "total_amount": 0.0, "paid_amount": 0.0},
+            )
+            bucket["job_count"] += 1
+            bucket["total_amount"] += float(row["total_amount"] or 0)
+            bucket["paid_amount"] += float(row["paid_amount"] or 0)
+        monthly_expenses = sorted(monthly_map.values(), key=lambda item: item["month"], reverse=True)[:6]
+        max_monthly_amount = max((item["total_amount"] for item in monthly_expenses), default=0.0)
         
         # Work type distribution
         work_type_distribution = db.execute(
@@ -1258,10 +1268,10 @@ def register_routes(app: Flask) -> None:
         # Vehicle options for new job form
         vehicle_options = db.execute(
             """
-            SELECT vehicle_id, plate_no, vehicle_name, ownership_mode
+            SELECT vehicle_id, vehicle_no, make_model as vehicle_name, ownership_mode
             FROM vehicle_master
             WHERE status = 'Active'
-            ORDER BY plate_no
+            ORDER BY vehicle_no
             """
         ).fetchall()
         
@@ -1335,43 +1345,46 @@ def register_routes(app: Flask) -> None:
                         tax_amount = 0.0
                         total_amount = 0.0
                     
-                    # Insert maintenance paper - updated to match actual schema
-                    db.execute(
-                        """
-                        INSERT INTO maintenance_papers (
-                            paper_no, paper_date, vehicle_id, workshop_party_code, supplier_bill_no,
-                            work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
-                            notes, technician_code, review_status, payment_status, created_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', CURRENT_TIMESTAMP)
-                        """,
-                        (
-                            paper_no,
-                            form_values["entry_date"],  # stored as paper_date
-                            form_values["vehicle_id"],
-                            form_values["workshop_name"],  # workshop_party_code stores workshop name as text
-                            form_values["bill_no"],  # stored as supplier_bill_no
-                            form_values["work_type"],  # work_type column
-                            form_values["details"],  # stored as work_summary
-                            amount,  # stored as subtotal
-                            form_values["tax_mode"],
-                            tax_amount,
-                            total_amount,
-                            form_values["remarks"],  # stored as notes
-                            technician_code,
+                    try:
+                        db.execute(
+                            """
+                            INSERT INTO maintenance_papers (
+                                paper_no, paper_date, vehicle_id, workshop_party_code, supplier_bill_no,
+                                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                                notes, technician_code, review_status, payment_status, created_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', CURRENT_TIMESTAMP)
+                            """,
+                            (
+                                paper_no,
+                                form_values["entry_date"],
+                                form_values["vehicle_id"],
+                                form_values["workshop_name"],
+                                form_values["bill_no"],
+                                form_values["work_type"],
+                                form_values["details"],
+                                amount,
+                                form_values["tax_mode"],
+                                tax_amount,
+                                total_amount,
+                                form_values["remarks"],
+                                technician_code,
+                            )
                         )
-                    )
-                    
-                    _audit_log(
-                        db,
-                        "technician_job_submitted",
-                        entity_type="maintenance_paper",
-                        entity_id=paper_no,
-                        details=f"Technician {technician_code} submitted job {paper_no}",
-                    )
-                    
-                    db.commit()
-                    flash(f"Job {paper_no} submitted successfully. Waiting for admin review.", "success")
-                    return redirect(url_for("technician_portal"))
+                        
+                        _audit_log(
+                            db,
+                            "technician_job_submitted",
+                            entity_type="maintenance_paper",
+                            entity_id=paper_no,
+                            details=f"Technician {technician_code} submitted job {paper_no}",
+                        )
+                        
+                        db.commit()
+                        flash(f"Job {paper_no} submitted successfully. Waiting for admin review.", "success")
+                        return redirect(url_for("technician_portal"))
+                    except Exception as exc:
+                        db.rollback()
+                        flash(f"Error submitting technician job: {exc}", "error")
         
         return render_template(
             "technician_portal.html",
@@ -1381,6 +1394,10 @@ def register_routes(app: Flask) -> None:
             total_approved=total_approved,
             total_paid=total_paid,
             pending_payment=pending_payment,
+            top_vehicles=top_vehicles,
+            monthly_expenses=monthly_expenses,
+            max_monthly_amount=max_monthly_amount,
+            work_type_distribution=work_type_distribution,
             recent_jobs=recent_jobs,
             vehicle_options=vehicle_options,
             form_values=form_values,
@@ -4347,7 +4364,8 @@ def register_routes(app: Flask) -> None:
                 mp.technician_code,
                 COALESCE(p.party_name, t.specialization, mp.technician_code) as technician_name,
                 mp.review_status, mp.approved_by, mp.approved_at, mp.rejection_reason,
-                mp.payment_status, mp.created_at, mp.attachment_path as bill_image,
+                mp.payment_status, COALESCE(mp.paid_amount, 0) as paid_amount,
+                mp.created_at, mp.attachment_path as bill_image,
                 -- Add workshop name from parties table if workshop_party_code exists
                 COALESCE(wp.party_name, mp.workshop_party_code) as workshop_name,
                 mp.work_type
@@ -4383,21 +4401,23 @@ def register_routes(app: Flask) -> None:
         # Get technician list for filter (with party names)
         technicians = db.execute(
             """
-            SELECT t.technician_code, t.specialization, p.party_name
+            SELECT t.technician_code,
+                   t.specialization,
+                   COALESCE(p.party_name, t.specialization, t.technician_code) as party_name
             FROM technicians t
             LEFT JOIN parties p ON t.party_code = p.party_code
             WHERE t.status = 'Active'
-            ORDER BY p.party_name, t.technician_code
+            ORDER BY COALESCE(p.party_name, t.specialization, t.technician_code), t.technician_code
             """
         ).fetchall()
         
         # Get vehicle list for filter
         vehicles = db.execute(
             """
-            SELECT vehicle_id, plate_no as vehicle_no, vehicle_name
+            SELECT vehicle_id, vehicle_no, make_model as vehicle_name
             FROM vehicle_master
             WHERE status = 'Active'
-            ORDER BY plate_no
+            ORDER BY vehicle_no
             """
         ).fetchall()
         
@@ -4498,7 +4518,9 @@ def register_routes(app: Flask) -> None:
                     db.execute(
                         """
                         UPDATE maintenance_papers
-                        SET payment_status = 'Paid'
+                        SET payment_status = 'Paid',
+                            paid_amount = total_amount,
+                            company_paid_amount = total_amount
                         WHERE paper_no = ?
                         """,
                         (paper_no,)
@@ -4573,8 +4595,10 @@ def register_routes(app: Flask) -> None:
                         flash(f"Payment of AED {payment_amount:.2f} processed for job {paper_no}.", "success")
                 
             except ValidationError as exc:
+                db.rollback()
                 flash(str(exc), "error")
             except Exception as exc:
+                db.rollback()
                 flash(f"Error processing action: {str(exc)}", "error")
             
             return redirect(url_for("technician_jobs", **filters))
@@ -4863,6 +4887,7 @@ def register_routes(app: Flask) -> None:
                         return redirect(url_for("technicians"))
                 
                 except Exception as e:
+                    db.rollback()
                     flash(f"Error saving technician: {str(e)}", "error")
         
         return render_template(

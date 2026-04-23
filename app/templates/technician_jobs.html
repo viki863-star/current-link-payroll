@@ -147,9 +147,9 @@
                                     {{ job.payment_status }}
                                 </span>
                                 {% if job.payment_status == 'Paid' %}
-                                <div class="mini-badge">✅ {{ job.paid_amount|default(0)|format_currency }}</div>
+                                <div class="mini-badge">Paid AED {{ "%.2f"|format(job.paid_amount or 0) }}</div>
                                 {% elif job.payment_status == 'Partial' %}
-                                <div class="mini-badge">⚠️ {{ job.paid_amount|default(0)|format_currency }} of {{ job.total_amount|format_currency }}</div>
+                                <div class="mini-badge">Partial AED {{ "%.2f"|format(job.paid_amount or 0) }} of AED {{ "%.2f"|format(job.total_amount or 0) }}</div>
                                 {% endif %}
                             </td>
                             <td>
@@ -302,7 +302,7 @@
                     <div class="mini-ledger-subrow">
                         <span>{{ tech.job_count }} jobs</span>
                         <span class="{% if tech.balance_due > 0 %}text-warning{% else %}text-success{% endif %}">
-                            {{ tech.balance_due|format_currency }} due
+                            AED {{ "%.2f"|format(tech.balance_due or 0) }} due
                         </span>
                     </div>
                 </div>
