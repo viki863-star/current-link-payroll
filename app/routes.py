@@ -1363,6 +1363,7 @@ def register_routes(app: Flask) -> None:
                         total_amount = 0.0
                     
                     try:
+                        workshop_party_code = _ensure_workshop_party(db, form_values["workshop_name"])
                         attachment_path = _save_maintenance_attachment(app, paper_no, request.files.get("attachment"))
                         db.execute(
                             """
@@ -1377,7 +1378,7 @@ def register_routes(app: Flask) -> None:
                                 form_values["entry_date"],
                                 form_values["vehicle_id"],
                                 form_values["vehicle_no"],
-                                form_values["workshop_name"],
+                                workshop_party_code,
                                 form_values["bill_no"],
                                 form_values["work_type"],
                                 form_values["details"],
@@ -4383,7 +4384,10 @@ def register_routes(app: Flask) -> None:
                 mp.notes as remarks,
                 mp.technician_code,
                 COALESCE(p.party_name, t.specialization, mp.technician_code) as technician_name,
-                mp.review_status, mp.approved_by, mp.approved_at, mp.rejection_reason,
+                mp.review_status,
+                mp.reviewed_by as approved_by,
+                mp.reviewed_at as approved_at,
+                mp.review_note as rejection_reason,
                 mp.payment_status, COALESCE(mp.paid_amount, 0) as paid_amount,
                 mp.created_at, mp.attachment_path as bill_image,
                 -- Add workshop name from parties table if workshop_party_code exists
@@ -4484,9 +4488,9 @@ def register_routes(app: Flask) -> None:
                         """
                         UPDATE maintenance_papers
                         SET review_status = 'Approved',
-                            approved_by = ?,
-                            approved_at = CURRENT_TIMESTAMP,
-                            rejection_reason = NULL,
+                            reviewed_by = ?,
+                            reviewed_at = CURRENT_TIMESTAMP,
+                            review_note = NULL,
                             company_share_amount = ?,
                             partner_share_amount = ?
                         WHERE paper_no = ?
@@ -4514,9 +4518,9 @@ def register_routes(app: Flask) -> None:
                         """
                         UPDATE maintenance_papers
                         SET review_status = 'Rejected',
-                            approved_by = ?,
-                            approved_at = CURRENT_TIMESTAMP,
-                            rejection_reason = ?
+                            reviewed_by = ?,
+                            reviewed_at = CURRENT_TIMESTAMP,
+                            review_note = ?
                         WHERE paper_no = ?
                         """,
                         (reviewer, rejection_reason, paper_no)
@@ -4665,14 +4669,14 @@ def register_routes(app: Flask) -> None:
             SELECT paper_no, technician_code,
                    COALESCE(p.party_name, t.specialization, mp.technician_code) as technician_name,
                    total_amount, COALESCE(paid_amount, 0) as paid_amount,
-                   approved_at
+                   reviewed_at as approved_at
             FROM maintenance_papers mp
             LEFT JOIN technicians t ON mp.technician_code = t.technician_code
             LEFT JOIN parties p ON t.party_code = p.party_code
             WHERE mp.review_status = 'Approved'
               AND mp.payment_status IN ('Pending', 'Partial')
               AND mp.technician_code IS NOT NULL
-            ORDER BY mp.approved_at DESC
+            ORDER BY mp.reviewed_at DESC
             LIMIT 10
             """
         ).fetchall()
@@ -7012,6 +7016,41 @@ def _preview_next_party_code() -> str:
         return _next_party_code(open_db())
     except Exception:
         return "PTY-0001"
+
+
+def _ensure_workshop_party(db, workshop_name: str) -> str:
+    normalized_name = (workshop_name or "").strip()
+    if not normalized_name:
+        raise ValidationError("Workshop / shop name is required.")
+    existing = db.execute(
+        """
+        SELECT party_code
+        FROM parties
+        WHERE LOWER(party_name) = LOWER(?)
+        ORDER BY party_code ASC
+        LIMIT 1
+        """,
+        (normalized_name,),
+    ).fetchone()
+    if existing is not None:
+        return existing["party_code"]
+
+    party_code = _next_party_code(db)
+    db.execute(
+        """
+        INSERT INTO parties (
+            party_code, party_name, party_kind, party_roles, contact_person,
+            phone_number, email, trn_no, trade_license_no, address, notes, status
+        ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', ?, 'Active')
+        """,
+        (
+            party_code,
+            normalized_name,
+            _serialize_party_roles(["Supplier"]),
+            "Auto-created from technician portal",
+        ),
+    )
+    return party_code
 
 
 

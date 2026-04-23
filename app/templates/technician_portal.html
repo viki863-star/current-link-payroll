@@ -134,12 +134,21 @@
 
                 <label>
                     <span>Tax Amount</span>
-                    <input type="number" step="0.01" name="tax_amount" value="{{ form_values.tax_amount }}" placeholder="0.00">
+                    <input type="number" step="0.01" name="tax_amount" id="technician-tax-amount" value="{{ form_values.tax_amount }}" placeholder="0.00">
                 </label>
 
                 <label>
                     <span>Total Amount</span>
-                    <input type="number" step="0.01" name="total_amount" value="{{ form_values.total_amount }}" placeholder="0.00">
+                    <input type="number" step="0.01" name="total_amount" id="technician-total-amount" value="{{ form_values.total_amount }}" placeholder="0.00">
+                </label>
+
+                <label class="full-span">
+                    <span>VAT Helper</span>
+                    <div class="form-inline-actions">
+                        <input type="hidden" id="technician-vat-rate" value="5">
+                        <button type="button" class="button button-outline" id="technician-apply-vat">Add 5% VAT</button>
+                        <small class="muted-text">Click to auto-calculate 5% VAT on amount.</small>
+                    </div>
                 </label>
 
                 <label class="full-span">
@@ -286,4 +295,30 @@
         </article>
     </section>
 </section>
+<script>
+(() => {
+    const amountInput = document.querySelector('input[name="amount"]');
+    const taxInput = document.getElementById('technician-tax-amount');
+    const totalInput = document.getElementById('technician-total-amount');
+    const applyVatButton = document.getElementById('technician-apply-vat');
+    const vatRateInput = document.getElementById('technician-vat-rate');
+
+    if (!amountInput || !taxInput || !totalInput || !applyVatButton || !vatRateInput) {
+        return;
+    }
+
+    applyVatButton.addEventListener('click', () => {
+        const amount = parseFloat(amountInput.value || '0');
+        const rate = parseFloat(vatRateInput.value || '5');
+        if (!amount || amount <= 0) {
+            amountInput.focus();
+            return;
+        }
+        const taxAmount = (amount * rate) / 100;
+        const totalAmount = amount + taxAmount;
+        taxInput.value = taxAmount.toFixed(2);
+        totalInput.value = totalAmount.toFixed(2);
+    });
+})();
+</script>
 {% endblock %}
