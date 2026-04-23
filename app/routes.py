@@ -4742,6 +4742,8 @@ def register_routes(app: Flask) -> None:
                     flash(f"Job {paper_no} marked as paid.", "success")
 
                 elif action == "delete":
+                    if not paper_no:
+                        raise ValidationError("Select a field staff entry to delete.")
                     job = _maintenance_paper_row(db, paper_no)
                     if not job:
                         raise ValidationError(f"Job {paper_no} was not found.")
@@ -5335,6 +5337,16 @@ def register_routes(app: Flask) -> None:
                 try:
                     if not advance_no:
                         raise ValidationError("Payment reference is required for delete.")
+                    payment_row = db.execute(
+                        """
+                        SELECT advance_no
+                        FROM maintenance_staff_advances
+                        WHERE advance_no = ?
+                        """,
+                        (advance_no,),
+                    ).fetchone()
+                    if payment_row is None:
+                        raise ValidationError("Payment record was not found.")
                     linked_papers = int(
                         db.execute(
                             "SELECT COUNT(*) FROM maintenance_papers WHERE advance_no = ?",
@@ -5344,12 +5356,10 @@ def register_routes(app: Flask) -> None:
                     )
                     if linked_papers > 0:
                         raise ValidationError("This payment is linked with expense entries and cannot be deleted.")
-                    deleted = db.execute(
+                    db.execute(
                         "DELETE FROM maintenance_staff_advances WHERE advance_no = ?",
                         (advance_no,),
-                    ).rowcount
-                    if not deleted:
-                        raise ValidationError("Payment record was not found.")
+                    )
                     db.commit()
                     flash("Field staff payment deleted successfully.", "success")
                     return redirect(url_for("technicians"))
