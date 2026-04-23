@@ -16,6 +16,24 @@
         </p>
         <div class="field-staff-mobile-stat-strip">
             <article class="field-staff-mini-card">
+                <strong>AED {{ "%.0f"|format(total_received) }}</strong>
+                <span>Received</span>
+            </article>
+            <article class="field-staff-mini-card">
+                <strong>AED {{ "%.0f"|format(total_spent) }}</strong>
+                <span>Spent</span>
+            </article>
+            <article class="field-staff-mini-card">
+                <strong>AED {{ "%.0f"|format(balance_available) }}</strong>
+                <span>Balance</span>
+            </article>
+            <article class="field-staff-mini-card">
+                <strong>AED {{ "%.0f"|format(pending_review) }}</strong>
+                <span>In Review</span>
+            </article>
+        </div>
+        <div class="field-staff-mobile-stat-strip">
+            <article class="field-staff-mini-card">
                 <strong>{{ total_jobs }}</strong>
                 <span>Entries</span>
             </article>
@@ -25,11 +43,7 @@
             </article>
             <article class="field-staff-mini-card">
                 <strong>AED {{ "%.0f"|format(total_paid) }}</strong>
-                <span>Paid</span>
-            </article>
-            <article class="field-staff-mini-card">
-                <strong>AED {{ "%.0f"|format(pending_payment) }}</strong>
-                <span>Pending</span>
+                <span>Paid Out</span>
             </article>
         </div>
     </article>

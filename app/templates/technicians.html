@@ -237,6 +237,7 @@
                             <th>Source</th>
                             <th>Amount</th>
                             <th>Reference</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -248,9 +249,17 @@
                             <td>{{ item.funding_source }}</td>
                             <td>AED {{ "%.2f"|format(item.amount or 0) }}</td>
                             <td>{{ item.reference or item.notes or '-' }}</td>
+                            <td>
+                                <form method="post" class="inline-form" onsubmit="return confirm('Delete this field staff payment?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="delete_payment">
+                                    <input type="hidden" name="advance_no" value="{{ item.advance_no }}">
+                                    <button type="submit" class="mini-action-link danger-link">Delete</button>
+                                </form>
+                            </td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="6">No owner-to-staff payments recorded yet.</td></tr>
+                        <tr><td colspan="7">No owner-to-staff payments recorded yet.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

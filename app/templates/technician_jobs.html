@@ -179,6 +179,12 @@
                                     {% endif %}
                                     
                                     <a class="button button-small button-outline" href="{{ url_for('fleet_maintenance') }}?paper_no={{ job.paper_no }}">Edit</a>
+                                    <form method="post" class="inline-form" style="display: inline;" onsubmit="return confirm('Delete this field staff entry? This will remove the job record.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                                        <button class="button button-small button-danger" type="submit">Delete</button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

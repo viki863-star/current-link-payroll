@@ -1159,6 +1159,15 @@ def register_routes(app: Flask) -> None:
             (technician_code,)
         ).fetchone()["count"] or 0
         
+        total_received = db.execute(
+            """
+            SELECT COALESCE(SUM(amount), 0) as total
+            FROM maintenance_staff_advances
+            WHERE staff_code = ?
+            """,
+            (technician_code,),
+        ).fetchone()["total"] or 0
+
         # Total approved amount
         total_approved = db.execute(
             """
@@ -1168,9 +1177,17 @@ def register_routes(app: Flask) -> None:
             """,
             (technician_code,)
         ).fetchone()["total"] or 0
-        
-        # Total paid amount (sum of paid_amount field for all jobs)
-        total_paid = db.execute(
+
+        total_spent = db.execute(
+            """
+            SELECT COALESCE(SUM(total_amount), 0) as total
+            FROM maintenance_papers
+            WHERE technician_code = ?
+            """,
+            (technician_code,)
+        ).fetchone()["total"] or 0
+
+        total_paid_to_vendors = db.execute(
             """
             SELECT COALESCE(SUM(paid_amount), 0) as total
             FROM maintenance_papers
@@ -1178,16 +1195,17 @@ def register_routes(app: Flask) -> None:
             """,
             (technician_code,)
         ).fetchone()["total"] or 0
-        
-        # Pending payment (approved but not fully paid)
-        pending_payment = db.execute(
+
+        pending_review = db.execute(
             """
-            SELECT COALESCE(SUM(total_amount - paid_amount), 0) as total
+            SELECT COALESCE(SUM(total_amount), 0) as total
             FROM maintenance_papers
-            WHERE technician_code = ? AND review_status = 'Approved' AND (payment_status = 'Pending' OR payment_status = 'Partial')
+            WHERE technician_code = ? AND review_status = 'Pending'
             """,
-            (technician_code,)
+            (technician_code,),
         ).fetchone()["total"] or 0
+
+        balance_available = float(total_received or 0) - float(total_spent or 0)
         
         # Recent jobs (last 10) - updated to match actual schema
         recent_jobs = db.execute(
@@ -1414,9 +1432,12 @@ def register_routes(app: Flask) -> None:
             technician=technician,
             party=party,
             total_jobs=total_jobs,
+            total_received=total_received,
+            total_spent=total_spent,
+            balance_available=balance_available,
+            pending_review=pending_review,
             total_approved=total_approved,
-            total_paid=total_paid,
-            pending_payment=pending_payment,
+            total_paid=total_paid_to_vendors,
             top_vehicles=top_vehicles,
             monthly_expenses=monthly_expenses,
             max_monthly_amount=max_monthly_amount,
@@ -4719,6 +4740,22 @@ def register_routes(app: Flask) -> None:
                     
                     db.commit()
                     flash(f"Job {paper_no} marked as paid.", "success")
+
+                elif action == "delete":
+                    job = _maintenance_paper_row(db, paper_no)
+                    if not job:
+                        raise ValidationError(f"Job {paper_no} was not found.")
+                    _reverse_maintenance_paper_effects(db, job)
+                    db.execute("DELETE FROM maintenance_papers WHERE paper_no = ?", (paper_no,))
+                    _audit_log(
+                        db,
+                        "technician_job_deleted",
+                        entity_type="maintenance_paper",
+                        entity_id=paper_no,
+                        details=f"Job {paper_no} deleted by {reviewer}",
+                    )
+                    db.commit()
+                    flash(f"Job {paper_no} deleted successfully.", "success")
                     
                 elif action == "process_payment":
                     payment_amount = float(request.form.get("payment_amount", "0").strip() or 0)
@@ -5292,6 +5329,36 @@ def register_routes(app: Flask) -> None:
                 except Exception as exc:
                     db.rollback()
                     flash(f"Error deleting field staff: {exc}", "error")
+
+            elif action == "delete_payment":
+                advance_no = request.form.get("advance_no", "").strip().upper()
+                try:
+                    if not advance_no:
+                        raise ValidationError("Payment reference is required for delete.")
+                    linked_papers = int(
+                        db.execute(
+                            "SELECT COUNT(*) FROM maintenance_papers WHERE advance_no = ?",
+                            (advance_no,),
+                        ).fetchone()[0]
+                        or 0
+                    )
+                    if linked_papers > 0:
+                        raise ValidationError("This payment is linked with expense entries and cannot be deleted.")
+                    deleted = db.execute(
+                        "DELETE FROM maintenance_staff_advances WHERE advance_no = ?",
+                        (advance_no,),
+                    ).rowcount
+                    if not deleted:
+                        raise ValidationError("Payment record was not found.")
+                    db.commit()
+                    flash("Field staff payment deleted successfully.", "success")
+                    return redirect(url_for("technicians"))
+                except ValidationError as exc:
+                    db.rollback()
+                    flash(str(exc), "error")
+                except Exception as exc:
+                    db.rollback()
+                    flash(f"Error deleting field staff payment: {exc}", "error")
         
         return render_template(
             "technicians.html",
