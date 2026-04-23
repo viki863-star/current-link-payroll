@@ -240,6 +240,81 @@
         <article class="card desk-panel-card">
             <div class="desk-panel-head">
                 <div>
+                    <span class="admin-desk-label">Vehicle Report</span>
+                    <h2>Expense by Vehicle</h2>
+                </div>
+            </div>
+
+            {% if vehicle_expense_report %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Vehicle</th>
+                            <th>Mode</th>
+                            <th>Jobs</th>
+                            <th>Total</th>
+                            <th>Company Share</th>
+                            <th>Partner Share</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in vehicle_expense_report %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.vehicle_no }}</strong>
+                                <div class="mini-badge">{{ item.vehicle_name }}</div>
+                            </td>
+                            <td>{{ item.ownership_mode }}</td>
+                            <td>{{ item.job_count }}</td>
+                            <td>AED {{ "%.2f"|format(item.total_amount or 0) }}</td>
+                            <td>AED {{ "%.2f"|format(item.company_share_amount or 0) }}</td>
+                            <td>AED {{ "%.2f"|format(item.partner_share_amount or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No vehicle expense report available yet.</p>
+            </div>
+            {% endif %}
+        </article>
+
+        <article class="card desk-panel-card compact-side-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Partnership Impact</span>
+                    <h2>50 / 50 Vehicles</h2>
+                </div>
+            </div>
+
+            <div class="mini-ledger-list">
+                {% if partnership_report %}
+                    {% for item in partnership_report %}
+                    <div class="mini-ledger-row">
+                        <strong>{{ item.vehicle_no }}</strong>
+                        <span>AED {{ "%.0f"|format(item.total_amount or 0) }}</span>
+                        <div class="mini-ledger-subrow">
+                            <span>Company AED {{ "%.0f"|format(item.company_share_amount or 0) }}</span>
+                            <span>Partner AED {{ "%.0f"|format(item.partner_share_amount or 0) }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <p>No partnership vehicle expense posted yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </article>
+    </section>
+
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
                     <span class="admin-desk-label">Payment Processing</span>
                     <h2>Pending Payments</h2>
                 </div>

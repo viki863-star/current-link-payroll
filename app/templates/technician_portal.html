@@ -64,7 +64,7 @@
                 </div>
             </div>
 
-            <form method="post" class="form-grid">
+            <form method="post" class="form-grid" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="submit_job">
 
@@ -111,6 +111,11 @@
                 <label class="full-span">
                     <span>Details</span>
                     <textarea name="details" rows="3" placeholder="Describe the work">{{ form_values.details }}</textarea>
+                </label>
+
+                <label class="full-span">
+                    <span>Bill / Paper Image</span>
+                    <input type="file" name="attachment" accept="image/*,.pdf">
                 </label>
 
                 <label>
@@ -218,6 +223,7 @@
                             <th>Vehicle</th>
                             <th>Workshop</th>
                             <th>Total</th>
+                            <th>Bill</th>
                             <th>Status</th>
                             <th>Payment</th>
                         </tr>
@@ -230,6 +236,13 @@
                             <td>{{ job.vehicle_id or 'General Entry' }}</td>
                             <td>{{ job.workshop_name or '-' }}</td>
                             <td>AED {{ "%.2f"|format(job.total_amount or 0) }}</td>
+                            <td>
+                                {% if job.bill_image %}
+                                <a class="mini-action-link" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">Open</a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
                             <td>{{ job.review_status }}</td>
                             <td>{{ job.payment_status }}</td>
                         </tr>

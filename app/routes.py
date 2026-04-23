@@ -1196,6 +1196,7 @@ def register_routes(app: Flask) -> None:
                    supplier_bill_no as bill_no,
                    total_amount, review_status, payment_status,
                    work_type,
+                   attachment_path as bill_image,
                    COALESCE(wp.party_name, workshop_party_code) as workshop_name
             FROM maintenance_papers mp
             LEFT JOIN parties wp ON mp.workshop_party_code = wp.party_code
@@ -1279,6 +1280,7 @@ def register_routes(app: Flask) -> None:
         default_form = {
             "entry_date": datetime.now().strftime("%Y-%m-%d"),
             "vehicle_id": "",
+            "vehicle_no": "",
             "workshop_name": "",
             "bill_no": "",
             "work_type": "",
@@ -1299,6 +1301,7 @@ def register_routes(app: Flask) -> None:
                 form_values = {
                     "entry_date": request.form.get("entry_date", "").strip(),
                     "vehicle_id": request.form.get("vehicle_id", "").strip(),
+                    "vehicle_no": "",
                     "workshop_name": request.form.get("workshop_name", "").strip(),
                     "bill_no": request.form.get("bill_no", "").strip(),
                     "work_type": request.form.get("work_type", "").strip(),
@@ -1312,13 +1315,27 @@ def register_routes(app: Flask) -> None:
                 
                 # Basic validation
                 errors = []
+                selected_vehicle = None
                 if not form_values["entry_date"]:
                     errors.append("Date is required")
                 if not form_values["vehicle_id"]:
                     errors.append("Vehicle selection is required")
                 elif form_values["vehicle_id"] == "GENERAL":
-                    # For general entry, we'll store NULL or empty string
                     form_values["vehicle_id"] = ""
+                    form_values["vehicle_no"] = "GENERAL"
+                else:
+                    selected_vehicle = db.execute(
+                        """
+                        SELECT vehicle_id, vehicle_no, make_model, ownership_mode, source_type
+                        FROM vehicle_master
+                        WHERE vehicle_id = ?
+                        """,
+                        (form_values["vehicle_id"],),
+                    ).fetchone()
+                    if selected_vehicle is None:
+                        errors.append("Selected vehicle was not found")
+                    else:
+                        form_values["vehicle_no"] = selected_vehicle["vehicle_no"] or form_values["vehicle_id"]
                 if not form_values["workshop_name"]:
                     errors.append("Workshop/Shop name is required")
                 if not form_values["bill_no"]:
@@ -1346,18 +1363,20 @@ def register_routes(app: Flask) -> None:
                         total_amount = 0.0
                     
                     try:
+                        attachment_path = _save_maintenance_attachment(app, paper_no, request.files.get("attachment"))
                         db.execute(
                             """
                             INSERT INTO maintenance_papers (
-                                paper_no, paper_date, vehicle_id, workshop_party_code, supplier_bill_no,
+                                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
                                 work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
-                                notes, technician_code, review_status, payment_status, created_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', CURRENT_TIMESTAMP)
+                                attachment_path, notes, technician_code, review_status, payment_status, created_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', CURRENT_TIMESTAMP)
                             """,
                             (
                                 paper_no,
                                 form_values["entry_date"],
                                 form_values["vehicle_id"],
+                                form_values["vehicle_no"],
                                 form_values["workshop_name"],
                                 form_values["bill_no"],
                                 form_values["work_type"],
@@ -1366,6 +1385,7 @@ def register_routes(app: Flask) -> None:
                                 form_values["tax_mode"],
                                 tax_amount,
                                 total_amount,
+                                attachment_path,
                                 form_values["remarks"],
                                 technician_code,
                             )
@@ -4680,6 +4700,50 @@ def register_routes(app: Flask) -> None:
         # Current month for export
         from datetime import datetime
         current_month = datetime.now().strftime("%Y-%m")
+
+        vehicle_expense_report = db.execute(
+            """
+            SELECT
+                mp.vehicle_id,
+                COALESCE(vm.vehicle_no, mp.vehicle_no, mp.vehicle_id, 'General Entry') as vehicle_no,
+                COALESCE(vm.make_model, mp.vehicle_id, 'General Work') as vehicle_name,
+                COALESCE(vm.ownership_mode, 'Standard') as ownership_mode,
+                COUNT(*) as job_count,
+                COALESCE(SUM(mp.total_amount), 0) as total_amount,
+                COALESCE(SUM(mp.company_share_amount), 0) as company_share_amount,
+                COALESCE(SUM(mp.partner_share_amount), 0) as partner_share_amount,
+                COALESCE(SUM(mp.company_paid_amount), 0) as company_paid_amount,
+                COALESCE(SUM(mp.partner_paid_amount), 0) as partner_paid_amount
+            FROM maintenance_papers mp
+            LEFT JOIN vehicle_master vm ON mp.vehicle_id = vm.vehicle_id
+            WHERE mp.technician_code IS NOT NULL
+            GROUP BY mp.vehicle_id, vm.vehicle_no, mp.vehicle_no, vm.make_model, vm.ownership_mode
+            ORDER BY total_amount DESC, job_count DESC
+            LIMIT 12
+            """
+        ).fetchall()
+
+        partnership_report = db.execute(
+            """
+            SELECT
+                mp.vehicle_id,
+                COALESCE(vm.vehicle_no, mp.vehicle_no, mp.vehicle_id) as vehicle_no,
+                COALESCE(vm.make_model, mp.vehicle_id, 'Vehicle') as vehicle_name,
+                COUNT(*) as job_count,
+                COALESCE(SUM(mp.total_amount), 0) as total_amount,
+                COALESCE(SUM(mp.company_share_amount), 0) as company_share_amount,
+                COALESCE(SUM(mp.partner_share_amount), 0) as partner_share_amount,
+                COALESCE(SUM(mp.company_paid_amount), 0) as company_paid_amount,
+                COALESCE(SUM(mp.partner_paid_amount), 0) as partner_paid_amount
+            FROM maintenance_papers mp
+            LEFT JOIN vehicle_master vm ON mp.vehicle_id = vm.vehicle_id
+            WHERE mp.technician_code IS NOT NULL
+              AND COALESCE(vm.ownership_mode, '') = 'Partnership'
+            GROUP BY mp.vehicle_id, vm.vehicle_no, mp.vehicle_no, vm.make_model
+            ORDER BY total_amount DESC, job_count DESC
+            LIMIT 12
+            """
+        ).fetchall()
         
         return render_template(
             "technician_jobs.html",
@@ -4691,6 +4755,8 @@ def register_routes(app: Flask) -> None:
             pending_payments=pending_payments,
             technician_summary=technician_summary,
             current_month=current_month,
+            vehicle_expense_report=vehicle_expense_report,
+            partnership_report=partnership_report,
         )
     
     @app.get("/tax")
