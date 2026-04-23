@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Enhanced Technician Dashboard -->
+<div class="technician-dashboard-hero">
+    <div class="technician-hero-content">
+        <div class="technician-avatar">
+            {{ technician.technician_code[0] if technician.technician_code else 'T' }}
+        </div>
+        <div class="technician-hero-info">
+            <h1>Welcome, {{ technician.technician_code }}</h1>
+            <p>{{ technician.specialization or "General Technician" }} | {{ technician.status }}</p>
+            <div class="technician-hero-stats">
+                <div class="technician-hero-stat">
+                    <span class="value">{{ total_jobs }}</span>
+                    <span class="label">Total Jobs</span>
+                </div>
+                <div class="technician-hero-stat">
+                    <span class="value">AED {{ "%.2f"|format(total_approved) }}</span>
+                    <span class="label">Approved Amount</span>
+                </div>
+                <div class="technician-hero-stat">
+                    <span class="value">AED {{ "%.2f"|format(total_paid) }}</span>
+                    <span class="label">Paid Amount</span>
+                </div>
+                <div class="technician-hero-stat">
+                    <span class="value">AED {{ "%.2f"|format(pending_payment) }}</span>
+                    <span class="label">Pending Payment</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats Cards -->
+<div class="technician-stats-grid">
+    <article class="technician-stat-card blue-card">
+        <div class="stat-header">
+            <h3 class="stat-title">Active Jobs</h3>
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+            </div>
+        </div>
+        <p class="stat-value">{{ total_jobs }}</p>
+        <div class="stat-change positive">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+            <span>View All</span>
+        </div>
+    </article>
+
+    <article class="technician-stat-card green-card">
+        <div class="stat-header">
+            <h3 class="stat-title">Approved Amount</h3>
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+        </div>
+        <p class="stat-value">AED {{ "%.2f"|format(total_approved) }}</p>
+        <div class="stat-change">
+            <span>Total approved by admin</span>
+        </div>
+    </article>
+
+    <article class="technician-stat-card orange-card">
+        <div class="stat-header">
+            <h3 class="stat-title">Paid Amount</h3>
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+        </div>
+        <p class="stat-value">AED {{ "%.2f"|format(total_paid) }}</p>
+        <div class="stat-change">
+            <span>Amount received</span>
+        </div>
+    </article>
+
+    <article class="technician-stat-card purple-card">
+        <div class="stat-header">
+            <h3 class="stat-title">Balance Due</h3>
+            <div class="stat-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+        </div>
+        <p class="stat-value">AED {{ "%.2f"|format(total_approved - total_paid) }}</p>
+        <div class="stat-change negative">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            </svg>
+            <span>Pending payment</span>
+        </div>
+    </article>
+</div>
+
+<!-- Dashboard Grid -->
+<div class="technician-dashboard-grid">
+    <!-- Top Vehicles Section -->
+    <section class="technician-dashboard-card">
+        <div class="card-header">
+            <h3>Top Vehicles</h3>
+            <a href="#" class="card-action">View All</a>
+        </div>
+        <div class="card-body">
+            {% if top_vehicles %}
+            <div class="vehicle-list">
+                {% for vehicle in top_vehicles %}
+                <div class="vehicle-list-item">
+                    <div class="vehicle-info">
+                        <div class="vehicle-name">{{ vehicle.vehicle_name }}</div>
+                        <div class="vehicle-details">
+                            <span>{{ vehicle.plate_no }}</span>
+                            <span>{{ vehicle.ownership_mode }}</span>
+                        </div>
+                    </div>
+                    <div class="vehicle-stats">
+                        <div class="vehicle-amount">AED {{ "%.2f"|format(vehicle.total_spent) }}</div>
+                        <div class="vehicle-count">{{ vehicle.job_count }} jobs</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No vehicle data yet. Start by submitting your first job!</p>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Monthly Expenses Section -->
+    <section class="technician-dashboard-card">
+        <div class="card-header">
+            <h3>Monthly Expenses</h3>
+            <a href="#" class="card-action">6 Months</a>
+        </div>
+        <div class="card-body">
+            {% if monthly_expenses %}
+            <div class="expense-chart-container">
+                <div class="expense-bar">
+                    {% for month in monthly_expenses %}
+                    <div class="expense-bar-item" style="height: {{ (month.total_amount / max_monthly_amount * 100)|default(20) }}%"
+                         title="{{ month.month }}: AED {{ "%.2f"|format(month.total_amount) }}">
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="expense-bar-labels">
+                    {% for month in monthly_expenses %}
+                    <div class="expense-bar-label">{{ month.month[:3] }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="expense-summary">
+                {% for month in monthly_expenses %}
+                <div class="expense-item">
+                    <div class="month-info">
+                        <strong>{{ month.month }}</strong>
+                        <span>{{ month.job_count }} jobs</span>
+                    </div>
+                    <div class="expense-stats">
+                        <span class="amount total">AED {{ "%.2f"|format(month.total_amount) }}</span>
+                        <span class="amount paid">Paid: AED {{ "%.2f"|format(month.paid_amount) }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No expense data available</p>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+</div>
+
+<!-- Work Type Distribution & Quick Actions -->
+<div class="technician-dashboard-grid">
+    <!-- Work Type Distribution -->
+    <section class="technician-dashboard-card">
+        <div class="card-header">
+            <h3>Work Type Distribution</h3>
+            <a href="#" class="card-action">Details</a>
+        </div>
+        <div class="card-body">
+            {% if work_type_distribution %}
+            <div class="worktype-list">
+                {% for work in work_type_distribution %}
+                <div class="worktype-item">
+                    <div class="worktype-info">
+                        <strong>{{ work.work_type }}</strong>
+                        <span>{{ work.job_count }} jobs</span>
+                    </div>
+                    <div class="worktype-stats">
+                        <span class="amount">AED {{ "%.2f"|format(work.total_amount) }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No work type data yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="technician-dashboard-card">
+        <div class="card-header">
+            <h3>Quick Actions</h3>
+            <span class="card-action">Fast Access</span>
+        </div>
+        <div class="card-body">
+            <div class="quick-actions-grid">
+                <a href="#submit-job" class="quick-action">
+                    <div class="action-icon">➕</div>
+                    <div class="action-label">New Job</div>
+                </a>
+                <a href="#recent-jobs" class="quick-action">
+                    <div class="action-icon">📋</div>
+                    <div class="action-label">View Jobs</div>
+                </a>
+                <a href="#" class="quick-action">
+                    <div class="action-icon">📊</div>
+                    <div class="action-label">Reports</div>
+                </a>
+                <a href="#" class="quick-action">
+                    <div class="action-icon">⚙️</div>
+                    <div class="action-label">Settings</div>
+                </a>
+            </div>
+            <div class="quick-tips">
+                <p><strong>Tip:</strong> Use "General Entry" for non-vehicle tasks like bringing food or general maintenance.</p>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Submit New Job Form -->
+<div class="content-grid two-column-grid" id="submit-job">
+    <section class="card form-card">
+        <div class="card-header">
+            <h3>Submit New Job</h3>
+            <p>Enter work/job details for admin review</p>
+        </div>
+        
+        <form method="post" class="form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="submit_job">
+            
+            <label>
+                <span>Date <span class="required">*</span></span>
+                <input type="date" name="entry_date" value="{{ form_values.entry_date }}" required>
+            </label>
+            
+            <label>
+                <span>Vehicle <span class="required">*</span></span>
+                <select name="vehicle_id" required>
+                    <option value="">Select Vehicle</option>
+                    <option value="GENERAL" {% if form_values.vehicle_id == 'GENERAL' %}selected{% endif %}>General Entry (No Vehicle)</option>
+                    {% for vehicle in vehicle_options %}
+                    <option value="{{ vehicle.vehicle_id }}" {% if form_values.vehicle_id == vehicle.vehicle_id %}selected{% endif %}>
+                        {{ vehicle.plate_no }} - {{ vehicle.vehicle_name }} ({{ vehicle.ownership_mode }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </label>
+            
+            <label class="full-span">
+                <span>Workshop/Shop Name <span class="required">*</span></span>
+                <input type="text" name="workshop_name" value="{{ form_values.workshop_name }}" placeholder="Enter workshop name" required>
+            </label>
+            
+            <label>
+                <span>Bill Number <span class="required">*</span></span>
+                <input type="text" name="bill_no" value="{{ form_values.bill_no }}" placeholder="Bill number" required>
+            </label>
+            
+            <label>
+                <span>Work Type <span class="required">*</span></span>
+                <select name="work_type" required>
+                    <option value="">Select work type</option>
+                    <option value="Repair" {% if form_values.work_type == 'Repair' %}selected{% endif %}>Repair</option>
+                    <option value="Maintenance" {% if form_values.work_type == 'Maintenance' %}selected{% endif %}>Maintenance</option>
+                    <option value="Service" {% if form_values.work_type == 'Service' %}selected{% endif %}>Service</option>
+                    <option value="Parts Replacement" {% if form_values.work_type == 'Parts Replacement' %}selected{% endif %}>Parts Replacement</option>
+                    <option value="Other" {% if form_values.work_type == 'Other' %}selected{% endif %}>Other</option>
+                </select>
+            </label>
+            
+            <label class="full-span">
+                <span>Details</span>
+                <textarea name="details" rows="3" placeholder="Work details...">{{ form_values.details }}</textarea>
+            </label>
+            
+            <label>
+                <span>Amount (AED) <span class="required">*</span></span>
+                <input type="number" step="0.01" name="amount" value="{{ form_values.amount }}" placeholder="0.00" required>
+            </label>
+            
+            <label>
+                <span>Tax Mode</span>
+                <select name="tax_mode">
+                    <option value="Inclusive" {% if form_values.tax_mode == 'Inclusive' %}selected{% endif %}>Tax Inclusive</option>
+                    <option value="Exclusive" {% if form_values.tax_mode == 'Exclusive' %}selected{% endif %}>Tax Exclusive</option>
+                    <option value="Zero" {% if form_values.tax_mode == 'Zero' %}selected{% endif %}>Zero Tax</option>
+                </select>
+            </label>
+            
+            <label>
+                <span>Tax Amount (AED)</span>
+                <input type="number" step="0.01" name="tax_amount" value="{{ form_values.tax_amount }}" placeholder="0.00">
+            </label>
+            
+            <label>
+                <span>Total Amount (AED)</span>
+                <input type="number" step="0.01" name="total_amount" value="{{ form_values.total_amount }}" placeholder="0.00">
+            </label>
+            
+            <label class="full-span">
+                <span>Remarks</span>
+                <textarea name="remarks" rows="2" placeholder="Any remarks...">{{ form_values.remarks }}</textarea>
+            </label>
+            
+            <div class="form-actions full-span">
+                <button type="submit" class="button button-primary">Submit Job for Review</button>
+                <a href="{{ url_for('technician_portal') }}" class="button button-secondary">Clear Form</a>
+            </div>
+        </form>
+    </section>
+    
+    <!-- Recent Jobs Table -->
+    <section class="card table-card" id="recent-jobs">
+        <div class="card-header">
+            <h3>Recent Jobs</h3>
+            <p>Last 10 submitted jobs</p>
+        </div>
+        
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Job No</th>
+                        <th>Date</th>
+                        <th>Vehicle</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Payment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in recent_jobs %}
+                    <tr>
+                        <td><strong>{{ job.paper_no }}</strong></td>
+                        <td>{{ job.entry_date }}</td>
+                        <td>{{ job.vehicle_id }}</td>
+                        <td>AED {{ "%.2f"|format(job.total_amount or 0) }}</td>
+                        <td>
+                            <span class="status-badge 
+                                {% if job.review_status == 'Approved' %}status-approved
+                                {% elif job.review_status == 'Rejected' %}status-rejected
+                                {% else %}status-pending{% endif %}">
+                                {{ job.review_status }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class

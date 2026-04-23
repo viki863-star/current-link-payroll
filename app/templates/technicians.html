@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <span class="button button-primary" style="background-color: #4a6fa5; border-color: #4a6fa5; cursor: default;">Technician Management</span>
+                <a class="button" href="{{ url_for('technicians') }}">All Technicians</a>
+                <a class="button button-secondary" href="{{ url_for('technician_jobs') }}">Technician Jobs</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ technicians|length }}</strong><small>Technicians</small></span>
+                <span><strong>{{ technicians|selectattr('status', 'equalto', 'Active')|list|length }}</strong><small>Active</small></span>
+                <span><strong>{{ technicians|selectattr('status', 'equalto', 'Inactive')|list|length }}</strong><small>Inactive</small></span>
+            </div>
+        </div>
+        <form method="get" class="admin-filter-grid desk-single-filter">
+            <label>
+                <span>Status</span>
+                <select name="status">
+                    <option value="">All</option>
+                    <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </label>
+            <label>
+                <span>Search</span>
+                <input type="search" name="search" value="{{ search_q }}" placeholder="Technician code, user ID, name, specialization">
+            </label>
+            <div class="admin-filter-actions">
+                <button class="button" type="submit">Filter</button>
+                {% if status_filter or search_q %}
+                    <a class="button button-secondary" href="{{ url_for('technicians') }}">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </article>
+
+    <section class="desk-content-grid">
+        <article class="card desk-panel-card" id="technician-form">
+            <div class="desk-panel-head">
+                <div>
+                    <p class="eyebrow">Technician Account</p>
+                    <h2>{% if edit_technician_code %}Edit Technician{% else %}Create New Technician{% endif %}</h2>
+                </div>
+            </div>
+            <form method="post" class="entry-form two-column-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if edit_technician_code %}
+                <input type="hidden" name="technician_code" value="{{ values.technician_code }}">
+                {% endif %}
+                
+                <label>
+                    <span>User ID (Login) *</span>
+                    <input type="text" name="user_id" value="{{ values.user_id }}" required>
+                </label>
+                <label>
+                    <span>Password {% if not edit_technician_code %}*{% else %}(leave blank to keep current){% endif %}</span>
+                    <input type="password" name="password" value="{{ values.password }}">
+                </label>
+                <label>
+                    <span>Confirm Password</span>
+                    <input type="password" name="confirm_password" value="{{ values.confirm_password }}">
+                </label>
+                <label>
+                    <span>Phone Number</span>
+                    <input type="tel" name="phone_number" value="{{ values.phone_number }}">
+                </label>
+                <label>
+                    <span>Specialization</span>
+                    <input type="text" name="specialization" value="{{ values.specialization }}" 
+                           placeholder="e.g., Mechanic, Electrician, Body Work">
+                </label>
+                <label>
+                    <span>Status</span>
+                    <select name="status">
+                        <option value="Active" {% if values.status == 'Active' %}selected{% endif %}>Active</option>
+                        <option value="Inactive" {% if values.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </label>
+                <div class="form-actions full-span">
+                    {% if edit_technician_code %}
+                        <button class="button" type="submit" name="action" value="update">Update Technician</button>
+                        <a class="button button-secondary" href="{{ url_for('technicians') }}">Cancel Edit</a>
+                    {% else %}
+                        <button class="button" type="submit" name="action" value="create">Create Technician</button>
+                    {% endif %}
+                </div>
+            </form>
+        </article>
+
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <p class="eyebrow">Technician Directory</p>
+                    <h2>All Technicians</h2>
+                </div>
+            </div>
+            {% if technicians %}
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>User ID</th>
+                                <th>Specialization</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tech in technicians %}
+                                <tr>
+                                    <td><strong>{{ tech.technician_code }}</strong></td>
+                                    <td>{{ tech.user_id or '-' }}</td>
+                                    <td>{{ tech.specialization or '-' }}</td>
+                                    <td>{{ tech.phone_number or '-' }}</td>
+                                    <td>
+                                        <span class="status-badge {% if tech.status == 'Active' %}status-badge-success{% else %}status-badge-warning{% endif %}">
+                                            {{ tech.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ tech.created_at[:10] if tech.created_at else '-' }}</td>
+                                    <td>
+                                        <div class="table-actions">
+                                            <a class="mini-action-link" href="{{ url_for('technicians', edit=tech.technician_code) }}">Edit</a>
+                                            <a class="mini-action-link" href="{{ url_for('technician_jobs') }}?technician_code={{ tech.technician_code }}">Jobs</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <p>No technicians found.</p>
+                    <p>Create your first technician using the form on the left.</p>
+                </div>
+            {% endif %}
+        </article>
+    </section>
+</section>
+{% endblock %}
