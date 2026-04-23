@@ -11,9 +11,10 @@
                 <a class="button button-secondary" href="{{ url_for('technician_jobs') }}">Field Staff Entries</a>
             </div>
             <div class="admin-mini-stats">
-                <span><strong>{{ technicians|length }}</strong><small>Field Staff</small></span>
-                <span><strong>{{ technicians|selectattr('status', 'equalto', 'Active')|list|length }}</strong><small>Active</small></span>
-                <span><strong>{{ technicians|selectattr('status', 'equalto', 'Inactive')|list|length }}</strong><small>Inactive</small></span>
+                <span><strong>{{ summary.staff_count }}</strong><small>Field Staff</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.given_amount) }}</strong><small>Given</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.spent_amount) }}</strong><small>Spent</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.balance_amount) }}</strong><small>Balance</small></span>
             </div>
         </div>
         <form method="get" class="admin-filter-grid desk-single-filter">
@@ -69,9 +70,9 @@
                     <input type="tel" name="phone_number" value="{{ values.phone_number }}">
                 </label>
                 <label>
-                    <span>Specialization</span>
+                    <span>Name / Role</span>
                     <input type="text" name="specialization" value="{{ values.specialization }}" 
-                           placeholder="e.g., Mechanic, Electrician, Body Work">
+                           placeholder="e.g., Amjad / Workshop Runner">
                 </label>
                 <label>
                     <span>Status</span>
@@ -94,6 +95,58 @@
         <article class="card desk-panel-card">
             <div class="desk-panel-head">
                 <div>
+                    <p class="eyebrow">Owner Payment</p>
+                    <h2>Issue Amount To Field Staff</h2>
+                </div>
+            </div>
+            <form method="post" class="entry-form two-column-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="issue_payment">
+                <label>
+                    <span>Field Staff</span>
+                    <select name="payment_technician_code" required>
+                        <option value="">Select field staff</option>
+                        {% for tech in technicians %}
+                        <option value="{{ tech.technician_code }}" {% if payment_values.technician_code == tech.technician_code %}selected{% endif %}>
+                            {{ tech.specialization or tech.technician_code }} ({{ tech.technician_code }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>Date</span>
+                    <input type="date" name="payment_entry_date" value="{{ payment_values.entry_date }}" required>
+                </label>
+                <label>
+                    <span>Source</span>
+                    <select name="payment_funding_source">
+                        <option value="Owner Fund" {% if payment_values.funding_source == 'Owner Fund' %}selected{% endif %}>Owner Fund</option>
+                        <option value="Owner Direct" {% if payment_values.funding_source == 'Owner Direct' %}selected{% endif %}>Owner Direct</option>
+                        <option value="Cash" {% if payment_values.funding_source == 'Cash' %}selected{% endif %}>Cash</option>
+                        <option value="Bank" {% if payment_values.funding_source == 'Bank' %}selected{% endif %}>Bank</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Amount</span>
+                    <input type="number" step="0.01" name="payment_amount" value="{{ payment_values.amount }}" placeholder="0.00" required>
+                </label>
+                <label class="full-span">
+                    <span>Reference</span>
+                    <input type="text" name="payment_reference" value="{{ payment_values.reference }}" placeholder="WhatsApp message, transfer ref, cash note">
+                </label>
+                <label class="full-span">
+                    <span>Notes</span>
+                    <textarea name="payment_notes" rows="3" placeholder="Why amount was given">{{ payment_values.notes }}</textarea>
+                </label>
+                <div class="form-actions full-span">
+                    <button class="button" type="submit">Issue Payment</button>
+                </div>
+            </form>
+        </article>
+
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
                     <p class="eyebrow">Field Staff Directory</p>
                     <h2>All Field Staff</h2>
                 </div>
@@ -108,6 +161,9 @@
                                 <th>Specialization</th>
                                 <th>Phone</th>
                                 <th>Status</th>
+                                <th>Given</th>
+                                <th>Spent</th>
+                                <th>Balance</th>
                                 <th>Created</th>
                                 <th>Actions</th>
                             </tr>
@@ -124,11 +180,23 @@
                                             {{ tech.status }}
                                         </span>
                                     </td>
+                                    <td>AED {{ "%.2f"|format(tech.given_amount or 0) }}</td>
+                                    <td>
+                                        AED {{ "%.2f"|format(tech.total_spent or 0) }}
+                                        <div class="mini-badge">Vehicle {{ "%.0f"|format(tech.vehicle_spent or 0) }} / General {{ "%.0f"|format(tech.general_spent or 0) }}</div>
+                                    </td>
+                                    <td>AED {{ "%.2f"|format(tech.balance_amount or 0) }}</td>
                                     <td>{{ (tech.created_at|string)[:10] if tech.created_at else '-' }}</td>
                                     <td>
                                         <div class="table-actions">
                                             <a class="mini-action-link" href="{{ url_for('technicians', edit=tech.technician_code) }}">Edit</a>
                                             <a class="mini-action-link" href="{{ url_for('technician_jobs') }}?technician_code={{ tech.technician_code }}">Jobs</a>
+                                            <form method="post" class="inline-form" onsubmit="return confirm('Delete this field staff account? Linked records will be kept inactive instead.');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="action" value="delete">
+                                                <input type="hidden" name="technician_code" value="{{ tech.technician_code }}">
+                                                <button type="submit" class="mini-action-link danger-link">Delete</button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>
@@ -142,6 +210,45 @@
                 <p>Create your first field staff account using the form on the left.</p>
                 </div>
             {% endif %}
+        </article>
+    </section>
+
+    <section class="desk-content-grid">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <p class="eyebrow">Recent Payments</p>
+                    <h2>Owner To Staff Amount History</h2>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Payment No</th>
+                            <th>Date</th>
+                            <th>Field Staff</th>
+                            <th>Source</th>
+                            <th>Amount</th>
+                            <th>Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in recent_payments %}
+                        <tr>
+                            <td>{{ item.advance_no }}</td>
+                            <td>{{ item.entry_date }}</td>
+                            <td>{{ item.technician_name }}</td>
+                            <td>{{ item.funding_source }}</td>
+                            <td>AED {{ "%.2f"|format(item.amount or 0) }}</td>
+                            <td>{{ item.reference or item.notes or '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6">No owner-to-staff payments recorded yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </article>
     </section>
 </section>

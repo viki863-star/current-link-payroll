@@ -113,6 +113,9 @@
                             <a class="bh-link" href="{{ url_for('supplier_portal') }}#lpos">LPOs</a>
                             <a class="bh-link" href="{{ url_for('supplier_portal') }}#invoices">Invoices</a>
                             <a class="bh-link" href="{{ url_for('supplier_portal') }}#statement">Statement</a>
+                        {% elif current_role == 'technician' %}
+                            <a class="bh-link" href="{{ url_for('home') }}">Home</a>
+                            <a class="bh-link" href="{{ url_for('technician_portal') }}">Field Staff Portal</a>
                         {% endif %}
                     {% else %}
                         <a class="bh-link" href="{{ url_for('supplier_login') }}">Supplier Login</a>
@@ -124,7 +127,7 @@
                     {% if current_role %}
                         <div class="bh-user">
                             <div class="bh-avatar">
-                                {% if is_admin %}A{% elif is_driver %}D{% elif is_supplier %}S{% elif is_owner %}O{% else %}U{% endif %}
+                                {% if is_admin %}A{% elif is_driver %}D{% elif is_supplier %}S{% elif is_owner %}O{% elif current_role == 'technician' %}F{% else %}U{% endif %}
                             </div>
                             <div class="bh-user-meta">
                                 <span class="bh-user-name">{{ current_user_name or current_role|title }}</span>

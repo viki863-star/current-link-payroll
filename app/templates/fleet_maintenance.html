@@ -50,7 +50,7 @@
         </form>
         <div class="mini-link-stack inline-link-stack">
             <a class="mini-link-pill" href="#vehicle-master">Vehicle Master</a>
-            <a class="mini-link-pill" href="#technicians">Technicians</a>
+            <a class="mini-link-pill" href="#technicians">Field Staff</a>
             <a class="mini-link-pill" href="#advance-ledger">Advance Ledger</a>
             <a class="mini-link-pill" href="#paper-entry">Maintenance Papers</a>
         </div>
@@ -59,7 +59,7 @@
     <section class="accounts-link-grid maintenance-summary-grid">
         <article class="card accounts-link-card"><strong>{{ summary.double_shift_count }}</strong><span>Double Shift Fleet</span></article>
         <article class="card accounts-link-card"><strong>{{ summary.partnership_count }}</strong><span>Partnership Vehicles</span></article>
-        <article class="card accounts-link-card"><strong>AED {{ "%.0f"|format(summary.open_advance_balance) }}</strong><span>Technician Balance</span></article>
+        <article class="card accounts-link-card"><strong>AED {{ "%.0f"|format(summary.open_advance_balance) }}</strong><span>Field Staff Balance</span></article>
         <article class="card accounts-link-card"><strong>AED {{ "%.0f"|format(summary.month_tax) }}</strong><span>Month VAT</span></article>
     </section>
 
@@ -96,34 +96,34 @@
             <div class="desk-panel-head">
                 <div>
                     <span class="admin-desk-label">Maintenance Team</span>
-                    <h2>Technicians</h2>
+                    <h2>Field Staff</h2>
                 </div>
             </div>
             <form method="post" class="desk-form-grid">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="save_staff">
                 <input type="hidden" name="original_staff_code" value="{{ staff_values.original_staff_code }}">
-                <label><span>Technician ID</span><input type="text" name="staff_code" value="{{ staff_values.staff_code }}"></label>
+                <label><span>Field Staff ID</span><input type="text" name="staff_code" value="{{ staff_values.staff_code }}"></label>
                 <label><span>Name</span><input type="text" name="staff_name" value="{{ staff_values.staff_name }}"></label>
                 <label><span>Phone</span><input type="text" name="phone_number" value="{{ staff_values.phone_number }}"></label>
                 <label><span>Status</span><select name="status"><option value="Active" {% if staff_values.status == 'Active' %}selected{% endif %}>Active</option><option value="Inactive" {% if staff_values.status == 'Inactive' %}selected{% endif %}>Inactive</option></select></label>
                 <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ staff_values.notes }}</textarea></label>
-                <div class="form-actions left-actions full-span"><button class="button" type="submit">Save Technician</button></div>
+                <div class="form-actions left-actions full-span"><button class="button" type="submit">Save Field Staff</button></div>
             </form>
         </article>
     </section>
 
     <section class="desk-content-grid compact-content-grid">
         <article class="card desk-panel-card" id="advance-ledger">
-            <div class="desk-panel-head"><div><span class="admin-desk-label">Advance Ledger</span><h2>Issue Technician Advance</h2></div></div>
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Advance Ledger</span><h2>Issue Field Staff Payment</h2></div></div>
             <form method="post" class="desk-form-grid">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="save_advance">
                 <input type="hidden" name="original_advance_no" value="{{ advance_values.original_advance_no }}">
                 <label><span>Advance No</span><input type="text" name="advance_no" value="{{ advance_values.advance_no }}"></label>
-                <label><span>Technician</span><select name="staff_code"><option value="">Select</option>{% for item in staff_rows %}<option value="{{ item.staff_code }}" {% if advance_values.staff_code == item.staff_code %}selected{% endif %}>{{ item.staff_name }}</option>{% endfor %}</select></label>
+                <label><span>Field Staff</span><select name="staff_code"><option value="">Select</option>{% for item in staff_rows %}<option value="{{ item.staff_code }}" {% if advance_values.staff_code == item.staff_code %}selected{% endif %}>{{ item.staff_name }}</option>{% endfor %}</select></label>
                 <label><span>Date</span><input type="date" name="entry_date" value="{{ advance_values.entry_date }}"></label>
-                <label><span>Source</span><select name="funding_source">{% for item in advance_source_options %}<option value="{{ item }}" {% if advance_values.funding_source == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                <label><span>Source</span><select name="funding_source">{% for item in advance_source_options %}<option value="{{ item }}" {% if advance_values.funding_source == item %}selected{% endif %}>{{ 'Field Staff Advance' if item == 'Technician Advance' else item }}</option>{% endfor %}</select></label>
                 <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ advance_values.amount }}"></label>
                 <label><span>Reference</span><input type="text" name="reference" value="{{ advance_values.reference }}"></label>
                 <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ advance_values.notes }}</textarea></label>
@@ -136,7 +136,7 @@
                 <div class="desk-panel-head"><div><span class="admin-desk-label">Workflow</span><h2>How It Runs</h2></div></div>
                 <div class="compact-step-list">
                     <span>Register vehicle</span>
-                    <span>Issue technician advance</span>
+                    <span>Issue field staff payment</span>
                     <span>Attach maintenance paper</span>
                     <span>Split partnership cost</span>
                 </div>
@@ -166,10 +166,10 @@
             <label><span>Own Fleet Vehicle</span><select name="vehicle_id"><option value="">Select own fleet</option>{% for item in vehicle_rows %}<option value="{{ item.vehicle_id }}" {% if paper_values.vehicle_id == item.vehicle_id %}selected{% endif %}>{{ item.vehicle_no }} | {{ item.vehicle_type }} | {{ item.shift_mode }}</option>{% endfor %}</select></label>
             <label><span>Partnership Supplier Vehicle</span><select name="target_asset_code"><option value="">Select supplier vehicle</option>{% for item in partnership_supplier_assets %}<option value="{{ item.asset_code }}" {% if paper_values.target_asset_code == item.asset_code %}selected{% endif %}>{{ item.party_name }} | {{ item.asset_name }}{% if item.vehicle_no %} | {{ item.vehicle_no }}{% endif %}</option>{% endfor %}</select></label>
             <label><span>Workshop / Auto Shop</span><select name="workshop_party_code"><option value="">Optional</option>{% for item in workshop_parties %}<option value="{{ item.party_code }}" {% if paper_values.workshop_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>{% endfor %}</select></label>
-            <label><span>Technician</span><select name="staff_code"><option value="">Optional</option>{% for item in staff_rows %}<option value="{{ item.staff_code }}" {% if paper_values.staff_code == item.staff_code %}selected{% endif %}>{{ item.staff_name }}</option>{% endfor %}</select></label>
+            <label><span>Field Staff</span><select name="staff_code"><option value="">Optional</option>{% for item in staff_rows %}<option value="{{ item.staff_code }}" {% if paper_values.staff_code == item.staff_code %}selected{% endif %}>{{ item.staff_name }}</option>{% endfor %}</select></label>
             <label><span>Advance</span><select name="advance_no"><option value="">Optional</option>{% for item in advance_rows %}<option value="{{ item.advance_no }}" {% if paper_values.advance_no == item.advance_no %}selected{% endif %}>{{ item.advance_no }} | {{ item.staff_name }} | AED {{ "%.2f"|format(item.balance_amount) }}</option>{% endfor %}</select></label>
             <label><span>Tax Mode</span><select name="tax_mode">{% for item in tax_mode_options %}<option value="{{ item }}" {% if paper_values.tax_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-            <label><span>Funding Source</span><select name="funding_source">{% for item in funding_source_options %}<option value="{{ item }}" {% if paper_values.funding_source == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+            <label><span>Funding Source</span><select name="funding_source">{% for item in funding_source_options %}<option value="{{ item }}" {% if paper_values.funding_source == item %}selected{% endif %}>{{ 'Field Staff Advance' if item == 'Technician Advance' else item }}</option>{% endfor %}</select></label>
             <label><span>Supplier Bill No</span><input type="text" name="supplier_bill_no" value="{{ paper_values.supplier_bill_no }}"></label>
             <label><span>Paid By</span><select name="paid_by">{% for item in paid_by_options %}<option value="{{ item }}" {% if paper_values.paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
             <label><span>VAT Amount</span><input type="number" step="0.01" name="tax_amount" value="{{ paper_values.tax_amount }}"></label>
@@ -215,7 +215,7 @@
         </article>
 
         <article class="card desk-panel-card">
-            <div class="desk-panel-head"><div><span class="admin-desk-label">Technicians</span><h2>Maintenance Team Ledger</h2></div></div>
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Field Staff</span><h2>Maintenance Team Ledger</h2></div></div>
             <section class="directory-card-grid">
                 {% for item in staff_rows %}
                     <article class="card directory-card customer-directory-card">
@@ -231,7 +231,7 @@
                         </div>
                     </article>
                 {% else %}
-                    <article class="card directory-empty"><h2>No Technicians Yet</h2><p>Register Amjad, Mansoor and team.</p></article>
+                    <article class="card directory-empty"><h2>No Field Staff Yet</h2><p>Register Amjad, Mansoor and team.</p></article>
                 {% endfor %}
             </section>
         </article>
@@ -239,10 +239,10 @@
 
     <section class="desk-content-grid compact-content-grid">
         <article class="card desk-panel-card">
-            <div class="desk-panel-head"><div><span class="admin-desk-label">Advance Ledger</span><h2>Technician Balance</h2></div></div>
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Advance Ledger</span><h2>Field Staff Balance</h2></div></div>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Advance</th><th>Technician</th><th>Date</th><th>Source</th><th>Given</th><th>Settled</th><th>Balance</th></tr></thead>
+                    <thead><tr><th>Advance</th><th>Field Staff</th><th>Date</th><th>Source</th><th>Given</th><th>Settled</th><th>Balance</th></tr></thead>
                     <tbody>
                         {% for item in advance_rows %}
                             <tr>
@@ -250,7 +250,7 @@
                                 <td>AED {{ "%.2f"|format(item.amount) }}</td><td>AED {{ "%.2f"|format(item.settled_amount) }}</td><td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
                             </tr>
                         {% else %}
-                            <tr><td colspan="7">No technician advance rows yet.</td></tr>
+                            <tr><td colspan="7">No field staff payment rows yet.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -267,12 +267,12 @@
                 {% endfor %}
             </div>
 
-            <div class="desk-panel-head maintenance-subhead"><div><span class="admin-desk-label">Settlement</span><h2>Technician Net</h2></div></div>
+            <div class="desk-panel-head maintenance-subhead"><div><span class="admin-desk-label">Settlement</span><h2>Field Staff Net</h2></div></div>
             <div class="mini-ledger-list">
                 {% for item in technician_ledgers %}
                     <div class="mini-ledger-row stacked-row"><strong>{{ item.staff_name }}</strong><span>Given AED {{ "%.0f"|format(item.given_amount) }} / Settled AED {{ "%.0f"|format(item.settled_amount) }}</span><span>AED {{ "%.2f"|format(item.balance_amount) }}</span></div>
                 {% else %}
-                    <p class="muted-text">No technician balance yet.</p>
+                    <p class="muted-text">No field staff balance yet.</p>
                 {% endfor %}
             </div>
         </article>

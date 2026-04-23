@@ -136,10 +136,10 @@ ADMIN_WORKSPACE_META = {
         "summary": "Fund, tax, reports and fleet.",
     },
     "technicians": {
-        "label": "Technicians",
-        "eyebrow": "Technician Desk",
-        "title": "Technician Desk",
-        "summary": "Manage technicians, assign passwords, and track job submissions.",
+        "label": "Field Staff",
+        "eyebrow": "Field Staff Desk",
+        "title": "Field Staff Desk",
+        "summary": "Manage field staff, give owner cash, and review workshop, fuel, and general expense entries.",
     },
 }
 
@@ -862,16 +862,16 @@ def register_routes(app: Flask) -> None:
                 technician, party = _technician_login_target(db, values["user_id"])
                 
                 if (technician["status"] or "") != "Active":
-                    raise ValidationError("Your technician account is not active.")
+                    raise ValidationError("Your field staff account is not active.")
                 
                 if not password:
-                    raise ValidationError("Technician password is required.")
+                    raise ValidationError("Field staff password is required.")
                 
                 if not technician["password_hash"]:
-                    raise ValidationError("Technician account password is not set yet.")
+                    raise ValidationError("Field staff password is not set yet.")
                 
                 if not check_password_hash(technician["password_hash"], password):
-                    raise ValidationError("Technician password is not correct.")
+                    raise ValidationError("Field staff password is not correct.")
                 
                 _clear_failed_login(db, "technician", identifier)
                 
@@ -880,19 +880,19 @@ def register_routes(app: Flask) -> None:
                     "login_success",
                     entity_type="auth",
                     entity_id=technician["technician_code"],
-                    details=f"Technician login / {technician.get('specialization', 'Technician')}",
+                    details=f"Field staff login / {technician.get('specialization', 'Field Staff')}",
                 )
                 
                 db.commit()
                 
                 _set_session(
                     "technician",
-                    display_name=f"Technician {technician['technician_code']}",
+                    display_name=f"Field Staff {technician['technician_code']}",
                 )
                 session["technician_code"] = technician["technician_code"]
                 session["technician_party_code"] = technician["party_code"]
                 
-                flash(f"Welcome Technician {technician['technician_code']}.", "success")
+                flash(f"Welcome Field Staff {technician['technician_code']}.", "success")
                 
                 return redirect(url_for("technician_portal"))
                 
@@ -4135,7 +4135,7 @@ def register_routes(app: Flask) -> None:
                             """,
                             payload + (advance_values["original_advance_no"],),
                         )
-                        message = "Technician advance updated successfully."
+                        message = "Field staff payment updated successfully."
                     else:
                         db.execute(
                             """
@@ -4146,7 +4146,7 @@ def register_routes(app: Flask) -> None:
                             """,
                             payload,
                         )
-                        message = "Technician advance saved successfully."
+                        message = "Field staff payment saved successfully."
                     _audit_log(
                         db,
                         "maintenance_advance_saved",
@@ -4791,9 +4791,37 @@ def register_routes(app: Flask) -> None:
     @app.route("/technicians", methods=["GET", "POST"])
     @_login_required("admin")
     def technicians():
-        """Technician management - list, create, edit technicians."""
+        """Field staff management - list, create, edit, delete and issue payments."""
         _touch_admin_workspace("technicians")
         db = open_db()
+
+        def _sync_field_staff_profile(staff_code: str, staff_name: str, phone_number: str, status: str):
+            existing_staff = db.execute(
+                """
+                SELECT staff_code
+                FROM maintenance_staff
+                WHERE staff_code = ?
+                """,
+                (staff_code,),
+            ).fetchone()
+            if existing_staff:
+                db.execute(
+                    """
+                    UPDATE maintenance_staff
+                    SET staff_name = ?, phone_number = ?, status = ?
+                    WHERE staff_code = ?
+                    """,
+                    (staff_name, phone_number or None, status, staff_code),
+                )
+            else:
+                db.execute(
+                    """
+                    INSERT INTO maintenance_staff (
+                        staff_code, staff_name, phone_number, status, notes
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (staff_code, staff_name, phone_number or None, status, "Auto-synced from Field Staff Desk"),
+                )
         
         # Get filter values
         status_filter = request.args.get("status", "").strip()
@@ -4802,8 +4830,28 @@ def register_routes(app: Flask) -> None:
         # Build query
         query = """
             SELECT t.id, t.technician_code, t.user_id,
-                   t.phone_number, t.specialization, t.status, t.created_at
+                   t.phone_number, t.specialization, t.status, t.created_at,
+                   COALESCE(pay.given_amount, 0) as given_amount,
+                   COALESCE(spend.vehicle_spent, 0) as vehicle_spent,
+                   COALESCE(spend.general_spent, 0) as general_spent,
+                   COALESCE(spend.total_spent, 0) as total_spent,
+                   COALESCE(pay.given_amount, 0) - COALESCE(spend.total_spent, 0) as balance_amount
             FROM technicians t
+            LEFT JOIN (
+                SELECT staff_code, COALESCE(SUM(amount), 0) as given_amount
+                FROM maintenance_staff_advances
+                GROUP BY staff_code
+            ) pay ON pay.staff_code = t.technician_code
+            LEFT JOIN (
+                SELECT
+                    technician_code,
+                    COALESCE(SUM(CASE WHEN vehicle_id IS NOT NULL AND vehicle_id != '' THEN total_amount ELSE 0 END), 0) as vehicle_spent,
+                    COALESCE(SUM(CASE WHEN vehicle_id IS NULL OR vehicle_id = '' THEN total_amount ELSE 0 END), 0) as general_spent,
+                    COALESCE(SUM(total_amount), 0) as total_spent
+                FROM maintenance_papers
+                WHERE technician_code IS NOT NULL
+                GROUP BY technician_code
+            ) spend ON spend.technician_code = t.technician_code
             WHERE 1=1
         """
         params = []
@@ -4821,7 +4869,32 @@ def register_routes(app: Flask) -> None:
         
         technicians_list = db.execute(query, params).fetchall()
         
-        # No longer need parties dropdown since technicians are not linked to parties
+        summary = {
+            "staff_count": len(technicians_list),
+            "active_count": len([item for item in technicians_list if (item["status"] or "") == "Active"]),
+            "given_amount": sum(float(item["given_amount"] or 0) for item in technicians_list),
+            "spent_amount": sum(float(item["total_spent"] or 0) for item in technicians_list),
+            "balance_amount": sum(float(item["balance_amount"] or 0) for item in technicians_list),
+        }
+
+        recent_payments = db.execute(
+            """
+            SELECT
+                adv.advance_no,
+                adv.staff_code as technician_code,
+                COALESCE(t.specialization, adv.staff_code) as technician_name,
+                adv.entry_date,
+                adv.funding_source,
+                adv.amount,
+                adv.reference,
+                adv.notes
+            FROM maintenance_staff_advances adv
+            LEFT JOIN technicians t ON t.technician_code = adv.staff_code
+            ORDER BY adv.entry_date DESC, adv.id DESC
+            LIMIT 12
+            """
+        ).fetchall()
+
         parties = []
         
         # Handle form submission for create/edit
@@ -4834,6 +4907,14 @@ def register_routes(app: Flask) -> None:
             "phone_number": "",
             "specialization": "",
             "status": "Active",
+        }
+        payment_values = {
+            "technician_code": "",
+            "entry_date": date.today().isoformat(),
+            "funding_source": "Owner Fund",
+            "amount": "",
+            "reference": "",
+            "notes": "",
         }
         
         if edit_technician_code:
@@ -4856,110 +4937,204 @@ def register_routes(app: Flask) -> None:
         
         if request.method == "POST":
             action = request.form.get("action", "").strip()
-            values = {
-                "technician_code": "",  # Will be auto-generated
-                "user_id": request.form.get("user_id", "").strip(),
-                "password": request.form.get("password", "").strip(),
-                "confirm_password": request.form.get("confirm_password", "").strip(),
-                "phone_number": request.form.get("phone_number", "").strip(),
-                "specialization": request.form.get("specialization", "").strip(),
-                "status": request.form.get("status", "Active").strip(),
-            }
-            
-            # Validate
-            errors = []
-            if not values["user_id"]:
-                errors.append("User ID is required")
-            if not values["password"] and action == "create":
-                errors.append("Password is required for new technician")
-            if values["password"] != values["confirm_password"]:
-                errors.append("Password and confirmation do not match")
-            
-            # Always auto-generate technician code for new technicians
-            if action == "create":
-                # Generate a technician code like TECH-001
-                last_tech = db.execute(
-                    "SELECT technician_code FROM technicians WHERE technician_code LIKE 'TECH-%%' ORDER BY technician_code DESC LIMIT 1"
-                ).fetchone()
-                if last_tech:
-                    last_num = int(last_tech["technician_code"].split("-")[1])
-                    values["technician_code"] = f"TECH-{last_num + 1:03d}"
+            if action in {"create", "update"}:
+                values = {
+                    "technician_code": "",  # Will be auto-generated
+                    "user_id": request.form.get("user_id", "").strip(),
+                    "password": request.form.get("password", "").strip(),
+                    "confirm_password": request.form.get("confirm_password", "").strip(),
+                    "phone_number": request.form.get("phone_number", "").strip(),
+                    "specialization": request.form.get("specialization", "").strip(),
+                    "status": request.form.get("status", "Active").strip(),
+                }
+
+                errors = []
+                if not values["user_id"]:
+                    errors.append("User ID is required")
+                if not values["specialization"]:
+                    errors.append("Field staff name is required")
+                if not values["password"] and action == "create":
+                    errors.append("Password is required for new field staff")
+                if values["password"] != values["confirm_password"]:
+                    errors.append("Password and confirmation do not match")
+
+                if action == "create":
+                    last_tech = db.execute(
+                        "SELECT technician_code FROM technicians WHERE technician_code LIKE 'TECH-%%' ORDER BY technician_code DESC LIMIT 1"
+                    ).fetchone()
+                    if last_tech:
+                        last_num = int(last_tech["technician_code"].split("-")[1])
+                        values["technician_code"] = f"TECH-{last_num + 1:03d}"
+                    else:
+                        values["technician_code"] = "TECH-001"
                 else:
-                    values["technician_code"] = "TECH-001"
-            else:
-                # For updates, get technician_code from hidden field
-                values["technician_code"] = request.form.get("technician_code", "").strip()
-                if not values["technician_code"]:
-                    errors.append("Technician code is required for updates")
-            
-            if errors:
-                for err in errors:
-                    flash(err, "error")
-            else:
-                try:
-                    if action == "create":
-                        # Check if technician_code already exists
-                        existing = db.execute(
-                            "SELECT technician_code FROM technicians WHERE technician_code = ?",
-                            (values["technician_code"],)
-                        ).fetchone()
-                        if existing:
-                            flash("Technician Code already exists", "error")
-                        else:
-                            # Create technician (party_code is NULL)
-                            password_hash = generate_password_hash(values["password"]) if values["password"] else ""
+                    values["technician_code"] = request.form.get("technician_code", "").strip()
+                    if not values["technician_code"]:
+                        errors.append("Field staff code is required for updates")
+
+                if errors:
+                    for err in errors:
+                        flash(err, "error")
+                else:
+                    try:
+                        if action == "create":
+                            existing = db.execute(
+                                "SELECT technician_code FROM technicians WHERE technician_code = ?",
+                                (values["technician_code"],)
+                            ).fetchone()
+                            if existing:
+                                flash("Field staff code already exists", "error")
+                            else:
+                                password_hash = generate_password_hash(values["password"]) if values["password"] else ""
+                                db.execute("""
+                                    INSERT INTO technicians
+                                    (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+                                    VALUES (?, NULL, ?, ?, ?, ?, ?)
+                                """, (
+                                    values["technician_code"],
+                                    values["user_id"],
+                                    password_hash,
+                                    values["phone_number"],
+                                    values["specialization"],
+                                    values["status"],
+                                ))
+                                _sync_field_staff_profile(
+                                    values["technician_code"],
+                                    values["specialization"],
+                                    values["phone_number"],
+                                    values["status"],
+                                )
+                                db.commit()
+                                flash("Field staff created successfully", "success")
+                                return redirect(url_for("technicians"))
+
+                        elif action == "update":
                             db.execute("""
-                                INSERT INTO technicians
-                                (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
-                                VALUES (?, NULL, ?, ?, ?, ?, ?)
+                                UPDATE technicians
+                                SET user_id = ?, phone_number = ?,
+                                    specialization = ?, status = ?
+                                WHERE technician_code = ?
                             """, (
-                                values["technician_code"],
                                 values["user_id"],
-                                password_hash,
                                 values["phone_number"],
                                 values["specialization"],
                                 values["status"],
+                                values["technician_code"],
                             ))
+                            if values["password"]:
+                                password_hash = generate_password_hash(values["password"])
+                                db.execute("""
+                                    UPDATE technicians
+                                    SET password_hash = ?
+                                    WHERE technician_code = ?
+                                """, (password_hash, values["technician_code"]))
+                            _sync_field_staff_profile(
+                                values["technician_code"],
+                                values["specialization"],
+                                values["phone_number"],
+                                values["status"],
+                            )
                             db.commit()
-                            flash("Technician created successfully", "success")
+                            flash("Field staff updated successfully", "success")
                             return redirect(url_for("technicians"))
-                    
-                    elif action == "update":
-                        # Update technician (party_code remains NULL)
-                        db.execute("""
-                            UPDATE technicians
-                            SET user_id = ?, phone_number = ?,
-                                specialization = ?, status = ?
-                            WHERE technician_code = ?
-                        """, (
-                            values["user_id"],
-                            values["phone_number"],
-                            values["specialization"],
-                            values["status"],
-                            values["technician_code"],
-                        ))
-                        # Update password if provided
-                        if values["password"]:
-                            password_hash = generate_password_hash(values["password"])
-                            db.execute("""
-                                UPDATE technicians
-                                SET password_hash = ?
-                                WHERE technician_code = ?
-                            """, (password_hash, values["technician_code"]))
-                        
-                        db.commit()
-                        flash("Technician updated successfully", "success")
-                        return redirect(url_for("technicians"))
-                
-                except Exception as e:
+
+                    except Exception as e:
+                        db.rollback()
+                        flash(f"Error saving field staff: {str(e)}", "error")
+
+            elif action == "issue_payment":
+                payment_values = {
+                    "technician_code": request.form.get("payment_technician_code", "").strip(),
+                    "entry_date": request.form.get("payment_entry_date", "").strip() or date.today().isoformat(),
+                    "funding_source": request.form.get("payment_funding_source", "Owner Fund").strip() or "Owner Fund",
+                    "amount": request.form.get("payment_amount", "").strip(),
+                    "reference": request.form.get("payment_reference", "").strip(),
+                    "notes": request.form.get("payment_notes", "").strip(),
+                }
+                try:
+                    if not payment_values["technician_code"]:
+                        raise ValidationError("Select field staff for payment.")
+                    staff_row = db.execute(
+                        """
+                        SELECT technician_code, specialization, phone_number, status
+                        FROM technicians
+                        WHERE technician_code = ?
+                        """,
+                        (payment_values["technician_code"],),
+                    ).fetchone()
+                    if staff_row is None:
+                        raise ValidationError("Selected field staff was not found.")
+                    amount = float(payment_values["amount"] or 0)
+                    if amount <= 0:
+                        raise ValidationError("Payment amount must be greater than 0.")
+                    _sync_field_staff_profile(
+                        staff_row["technician_code"],
+                        staff_row["specialization"] or staff_row["technician_code"],
+                        staff_row["phone_number"] or "",
+                        staff_row["status"] or "Active",
+                    )
+                    advance_no = _next_reference_code(db, "maintenance_staff_advances", "advance_no", "ADV")
+                    db.execute(
+                        """
+                        INSERT INTO maintenance_staff_advances (
+                            advance_no, staff_code, entry_date, funding_source,
+                            amount, settled_amount, balance_amount, reference, notes
+                        ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
+                        """,
+                        (
+                            advance_no,
+                            payment_values["technician_code"],
+                            payment_values["entry_date"],
+                            payment_values["funding_source"],
+                            amount,
+                            amount,
+                            payment_values["reference"] or None,
+                            payment_values["notes"] or None,
+                        ),
+                    )
+                    db.commit()
+                    flash(f"Payment of AED {amount:.2f} issued to {staff_row['specialization'] or staff_row['technician_code']}.", "success")
+                    return redirect(url_for("technicians"))
+                except ValidationError as exc:
                     db.rollback()
-                    flash(f"Error saving technician: {str(e)}", "error")
+                    flash(str(exc), "error")
+                except Exception as exc:
+                    db.rollback()
+                    flash(f"Error issuing field staff payment: {exc}", "error")
+
+            elif action == "delete":
+                technician_code = request.form.get("technician_code", "").strip()
+                try:
+                    if not technician_code:
+                        raise ValidationError("Field staff code is required for delete.")
+                    linked_jobs = int(db.execute("SELECT COUNT(*) FROM maintenance_papers WHERE technician_code = ?", (technician_code,)).fetchone()[0] or 0)
+                    linked_advances = int(db.execute("SELECT COUNT(*) FROM maintenance_staff_advances WHERE staff_code = ?", (technician_code,)).fetchone()[0] or 0)
+                    if linked_jobs > 0 or linked_advances > 0:
+                        db.execute("UPDATE technicians SET status = 'Inactive' WHERE technician_code = ?", (technician_code,))
+                        db.execute("UPDATE maintenance_staff SET status = 'Inactive' WHERE staff_code = ?", (technician_code,))
+                        db.commit()
+                        flash("Field staff has linked entries, so the account was set to Inactive instead of being deleted.", "warning")
+                    else:
+                        db.execute("DELETE FROM maintenance_staff WHERE staff_code = ?", (technician_code,))
+                        db.execute("DELETE FROM technicians WHERE technician_code = ?", (technician_code,))
+                        db.commit()
+                        flash("Field staff deleted successfully.", "success")
+                    return redirect(url_for("technicians"))
+                except ValidationError as exc:
+                    db.rollback()
+                    flash(str(exc), "error")
+                except Exception as exc:
+                    db.rollback()
+                    flash(f"Error deleting field staff: {exc}", "error")
         
         return render_template(
             "technicians.html",
             technicians=technicians_list,
             parties=parties,
             values=values,
+            payment_values=payment_values,
+            recent_payments=recent_payments,
+            summary=summary,
             edit_technician_code=edit_technician_code,
             status_filter=status_filter,
             search_q=search_q,
@@ -6695,6 +6870,14 @@ def _current_workspace_meta() -> dict[str, str]:
             "title": "Supplier Procurement Portal",
             "summary": "Submit quotations, track LPOs, manage invoices and review your statement of account.",
         }
+    if role == "technician":
+        return {
+            "key": "technician",
+            "label": "Field Staff",
+            "eyebrow": "Field Staff Portal",
+            "title": "Field Staff Self Service",
+            "summary": "Submit workshop, fuel and general expense entries with bill photos from mobile.",
+        }
     return {
         "key": "public",
         "label": "Portal",
@@ -6756,9 +6939,9 @@ def _admin_module_links(workspace: str):
             {"label": "Tax", "endpoint": "tax_center"},
         ],
         "technicians": [
-            {"label": "Technicians", "endpoint": "technicians", "primary": True},
-            {"label": "Technician Jobs", "endpoint": "technician_jobs"},
-            {"label": "Technician Portal", "endpoint": "technician_portal"},
+            {"label": "Field Staff", "endpoint": "technicians", "primary": True},
+            {"label": "Field Staff Entries", "endpoint": "technician_jobs"},
+            {"label": "Field Staff Portal", "endpoint": "technician_portal"},
         ],
     }
     return [
@@ -7042,7 +7225,7 @@ def _ensure_workshop_party(db, workshop_name: str) -> str:
             party_code,
             normalized_name,
             _serialize_party_roles(["Supplier"]),
-            "Auto-created from technician portal",
+            "Auto-created from field staff portal",
         ),
     )
     return party_code
@@ -7224,7 +7407,7 @@ def _maintenance_advance_row(db, advance_no: str, *, required: bool = False):
         (advance_no,),
     ).fetchone()
     if row is None and required:
-        raise ValidationError("Selected technician advance was not found.")
+        raise ValidationError("Selected field staff advance was not found.")
     return row
 
 
@@ -8028,9 +8211,9 @@ def _prepare_maintenance_paper_payload(db, values, line_rows):
 
     if values["funding_source"] == "Technician Advance":
         if not staff_code:
-            raise ValidationError("Select a technician for technician advance settlement.")
+            raise ValidationError("Select field staff for field staff advance settlement.")
         if advance_row is None:
-            raise ValidationError("Select the technician advance that will settle this paper.")
+            raise ValidationError("Select the field staff advance that will settle this paper.")
     if values["funding_source"] == "Workshop Credit" and not workshop_party_code:
         raise ValidationError("Select workshop / auto shop for workshop credit paper.")
 
@@ -8959,7 +9142,7 @@ def _technician_login_target(db, user_id: str):
     ).fetchone()
     
     if technician is None:
-        raise ValidationError("Technician account was not found.")
+        raise ValidationError("Field staff account was not found.")
     
     # Fetch party information if party_code exists
     party = None
@@ -8977,16 +9160,16 @@ def _technician_login_target(db, user_id: str):
     if party is None:
         party = {
             "party_code": technician["party_code"] or "",
-            "party_name": technician["specialization"] or "Independent Technician",
-            "party_kind": "Technician",
-            "party_roles": ["Technician"],
+            "party_name": technician["specialization"] or "Independent Field Staff",
+            "party_kind": "Individual",
+            "party_roles": ["Field Staff"],
         }
     
     if (technician["status"] or "").strip() != "Active":
-        raise ValidationError("Technician account is not active.")
+        raise ValidationError("Field staff account is not active.")
     
     if not technician["password_hash"]:
-        raise ValidationError("Technician account password is not set yet.")
+        raise ValidationError("Field staff account password is not set yet.")
     
     return technician, party
 

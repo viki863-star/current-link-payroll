@@ -325,8 +325,8 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Job No</th>
-                            <th>Technician</th>
+                            <th>Entry No</th>
+                            <th>Field Staff</th>
                             <th>Amount Due</th>
                             <th>Approved Date</th>
                             <th>Process Payment</th>
@@ -365,8 +365,8 @@
         <article class="card desk-panel-card compact-side-card">
             <div class="desk-panel-head">
                 <div>
-                    <span class="admin-desk-label">Technician Details</span>
-                    <h2>Technician Summary</h2>
+                    <span class="admin-desk-label">Field Staff Details</span>
+                    <h2>Field Staff Summary</h2>
                 </div>
             </div>
             <div class="mini-ledger-list">
@@ -375,7 +375,7 @@
                     <strong>{{ tech.technician_name }}</strong>
                     <span>AED {{ "%.0f"|format(tech.total_approved) }}</span>
                     <div class="mini-ledger-subrow">
-                        <span>{{ tech.job_count }} jobs</span>
+                        <span>{{ tech.job_count }} entries</span>
                         <span class="{% if tech.balance_due > 0 %}text-warning{% else %}text-success{% endif %}">
                             AED {{ "%.2f"|format(tech.balance_due or 0) }} due
                         </span>

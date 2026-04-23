@@ -87,8 +87,8 @@
                 </label>
 
                 <label class="full-span">
-                    <span>Workshop / Shop</span>
-                    <input type="text" name="workshop_name" value="{{ form_values.workshop_name }}" placeholder="Workshop or shop name" required>
+                    <span>Shop / Vendor / Place</span>
+                    <input type="text" name="workshop_name" value="{{ form_values.workshop_name }}" placeholder="Workshop, fuel station, restaurant or site" required>
                 </label>
 
                 <label>
@@ -105,13 +105,16 @@
                         <option value="Service" {% if form_values.work_type == 'Service' %}selected{% endif %}>Service</option>
                         <option value="Parts Replacement" {% if form_values.work_type == 'Parts Replacement' %}selected{% endif %}>Parts Replacement</option>
                         <option value="Fuel" {% if form_values.work_type == 'Fuel' %}selected{% endif %}>Fuel</option>
+                        <option value="Food" {% if form_values.work_type == 'Food' %}selected{% endif %}>Food</option>
+                        <option value="Site Expense" {% if form_values.work_type == 'Site Expense' %}selected{% endif %}>Site Expense</option>
+                        <option value="Cash Payment" {% if form_values.work_type == 'Cash Payment' %}selected{% endif %}>Cash Payment</option>
                         <option value="Other" {% if form_values.work_type == 'Other' %}selected{% endif %}>Other</option>
                     </select>
                 </label>
 
                 <label class="full-span">
                     <span>Details</span>
-                    <textarea name="details" rows="3" placeholder="What was done, where, and for which vehicle if general">{{ form_values.details }}</textarea>
+                    <textarea name="details" rows="3" placeholder="What was done, where, and for which vehicle or general work">{{ form_values.details }}</textarea>
                 </label>
 
                 <label class="full-span">

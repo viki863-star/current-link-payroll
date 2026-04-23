@@ -16,8 +16,8 @@
             <div class="public-page-topline">
                 <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
             </div>
-            <p class="eyebrow">Technician Access</p>
-            <h2>Technician portal login</h2>
+            <p class="eyebrow">Field Staff Access</p>
+            <h2>Field staff portal login</h2>
         </div>
     </article>
 
@@ -30,7 +30,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <label>
-                <span>User ID / Technician Code</span>
+                <span>User ID / Staff Code</span>
                 <input type="text" name="user_id" value="{{ values.user_id }}" placeholder="tech.001" required>
             </label>
 
@@ -40,8 +40,8 @@
             </label>
 
             <div class="login-stage-footer">
-                <div class="login-tip">Only active technician accounts can log in.</div>
-                <button class="button login-submit-button" type="submit">Enter Technician Portal</button>
+                <div class="login-tip">Only active field staff accounts can log in.</div>
+                <button class="button login-submit-button" type="submit">Enter Field Staff Portal</button>
             </div>
         </form>
     </article>
