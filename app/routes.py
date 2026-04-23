@@ -26,6 +26,7 @@ from flask_wtf.csrf import CSRFError
 from .database import open_db
 from .excel_import import load_driver_records, upsert_driver_records
 from .pdf_driver_import import load_driver_records_from_pdf, load_driver_records_from_pdf_bytes
+from .pdf_vehicle_import import load_vehicle_records_from_pdf_bytes
 from .pdf_service import (
     format_month_label,
     generate_kata_pdf,
@@ -4086,9 +4087,16 @@ def register_routes(app: Flask) -> None:
 
                 if action == "import_vehicle_pdf":
                     uploaded_pdf = request.files.get("vehicle_pdf")
-                    stored_path = _save_fleet_vehicle_import_pdf(app, uploaded_pdf)
-                    if not stored_path:
+                    if uploaded_pdf is None or not getattr(uploaded_pdf, "filename", ""):
                         raise ValidationError("Upload a vehicle list PDF before importing.")
+                    pdf_bytes = uploaded_pdf.read()
+                    file_name = uploaded_pdf.filename or "vehicle-list.pdf"
+                    records = load_vehicle_records_from_pdf_bytes(pdf_bytes)
+                    if not records:
+                        raise ValidationError("No vehicle rows were found in the uploaded PDF.")
+                    stored_path = _save_fleet_vehicle_import_pdf(app, uploaded_pdf, pdf_bytes)
+                    imported = _upsert_fleet_vehicle_records(db, records)
+                    _log_import_history(db, "Fleet Vehicle PDF", file_name, imported, notes=f"Stored at {stored_path}")
                     _audit_log(
                         db,
                         "fleet_vehicle_pdf_uploaded",
@@ -4097,7 +4105,7 @@ def register_routes(app: Flask) -> None:
                         details=stored_path,
                     )
                     db.commit()
-                    flash("Vehicle list PDF uploaded successfully. Review it and then register vehicles from Vehicle Master.", "success")
+                    flash(f"Imported or updated {imported} fleet vehicles from PDF.", "success")
                     return redirect(url_for("fleet_maintenance", month=filters["month"]))
 
                 if action == "save_staff":
@@ -12755,7 +12763,7 @@ def _save_maintenance_attachment(app: Flask, paper_no: str, upload_file) -> str 
     return output_path.relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
 
 
-def _save_fleet_vehicle_import_pdf(app: Flask, upload_file) -> str | None:
+def _save_fleet_vehicle_import_pdf(app: Flask, upload_file, pdf_bytes: bytes | None = None) -> str | None:
     if upload_file is None or not getattr(upload_file, "filename", ""):
         return None
     safe_name = secure_filename(upload_file.filename)
@@ -12765,7 +12773,10 @@ def _save_fleet_vehicle_import_pdf(app: Flask, upload_file) -> str | None:
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     output_path = output_dir / f"{timestamp}-{safe_name}"
-    upload_file.save(output_path)
+    if pdf_bytes is not None:
+        output_path.write_bytes(pdf_bytes)
+    else:
+        upload_file.save(output_path)
     return output_path.relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
 
 
@@ -12783,6 +12794,92 @@ def _fleet_vehicle_import_rows(app: Flask):
             }
         )
     return rows
+
+
+def _upsert_fleet_vehicle_records(db, records):
+    imported = 0
+    existing_rows = db.execute(
+        """
+        SELECT vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode,
+               ownership_mode, partner_party_code, partner_name, company_share_percent,
+               partner_share_percent, notes
+        FROM vehicle_master
+        WHERE COALESCE(source_type, 'Own Fleet Vehicle') = 'Own Fleet Vehicle'
+        """
+    ).fetchall()
+    by_vehicle_no = {(row["vehicle_no"] or "").strip().upper(): row for row in existing_rows if row["vehicle_no"]}
+    next_number = _reference_max_number(db, "vehicle_master", "vehicle_id", "VEH")
+
+    for record in records:
+        vehicle_no = (record.vehicle_no or "").strip().upper()
+        if not vehicle_no:
+            continue
+        existing = by_vehicle_no.get(vehicle_no)
+        if existing is not None:
+            db.execute(
+                """
+                UPDATE vehicle_master
+                SET vehicle_type = ?, status = ?
+                WHERE vehicle_id = ?
+                """,
+                (
+                    record.vehicle_type or existing["vehicle_type"] or "General",
+                    record.status or existing["status"] or "Active",
+                    existing["vehicle_id"],
+                ),
+            )
+        else:
+            next_number += 1
+            vehicle_id = f"VEH-{next_number:04d}"
+            payload = (
+                vehicle_id,
+                vehicle_no,
+                record.vehicle_type or "General",
+                None,
+                record.status or "Active",
+                FLEET_SHIFT_MODE_OPTIONS[0],
+                FLEET_OWNERSHIP_MODE_OPTIONS[0],
+                "Own Fleet Vehicle",
+                None,
+                None,
+                None,
+                None,
+                100.0,
+                0.0,
+                "Imported from fleet vehicle PDF",
+            )
+            db.execute(
+                """
+                INSERT INTO vehicle_master (
+                    vehicle_id, vehicle_no, vehicle_type, make_model, status,
+                    shift_mode, ownership_mode, source_type, source_party_code, source_asset_code,
+                    partner_party_code, partner_name, company_share_percent, partner_share_percent, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                payload,
+            )
+            by_vehicle_no[vehicle_no] = {
+                "vehicle_id": vehicle_id,
+                "vehicle_no": vehicle_no,
+                "vehicle_type": record.vehicle_type,
+                "status": record.status,
+            }
+        imported += 1
+    return imported
+
+
+def _reference_max_number(db, table_name: str, field_name: str, prefix: str) -> int:
+    rows = db.execute(f"SELECT {field_name} FROM {table_name} WHERE {field_name} LIKE ? ORDER BY {field_name} ASC", (f"{prefix}-%",)).fetchall()
+    max_number = 0
+    for row in rows:
+        code = (row[field_name] or "").strip().upper()
+        if not code.startswith(f"{prefix}-"):
+            continue
+        try:
+            max_number = max(max_number, int(code.split("-", 1)[1]))
+        except (IndexError, ValueError):
+            continue
+    return max_number
 
 
 def _save_maintenance_paper_lines(db, paper_no: str, line_payloads):
