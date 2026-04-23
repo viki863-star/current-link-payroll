@@ -4790,7 +4790,7 @@ def register_routes(app: Flask) -> None:
             if action == "create":
                 # Generate a technician code like TECH-001
                 last_tech = db.execute(
-                    "SELECT technician_code FROM technicians WHERE technician_code LIKE 'TECH-%' ORDER BY technician_code DESC LIMIT 1"
+                    "SELECT technician_code FROM technicians WHERE technician_code LIKE 'TECH-%%' ORDER BY technician_code DESC LIMIT 1"
                 ).fetchone()
                 if last_tech:
                     last_num = int(last_tech["technician_code"].split("-")[1])
@@ -4818,6 +4818,7 @@ def register_routes(app: Flask) -> None:
                             flash("Technician Code already exists", "error")
                         else:
                             # Create technician (party_code is NULL)
+                            password_hash = generate_password_hash(values["password"]) if values["password"] else ""
                             db.execute("""
                                 INSERT INTO technicians
                                 (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
@@ -4825,8 +4826,7 @@ def register_routes(app: Flask) -> None:
                             """, (
                                 values["technician_code"],
                                 values["user_id"],
-                                # For now, store plain text (in real app, use hashing)
-                                values["password"],
+                                password_hash,
                                 values["phone_number"],
                                 values["specialization"],
                                 values["status"],
@@ -4851,11 +4851,12 @@ def register_routes(app: Flask) -> None:
                         ))
                         # Update password if provided
                         if values["password"]:
+                            password_hash = generate_password_hash(values["password"])
                             db.execute("""
                                 UPDATE technicians
                                 SET password_hash = ?
                                 WHERE technician_code = ?
-                            """, (values["password"], values["technician_code"]))
+                            """, (password_hash, values["technician_code"]))
                         
                         db.commit()
                         flash("Technician updated successfully", "success")
