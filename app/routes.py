@@ -4016,12 +4016,24 @@ def register_routes(app: Flask) -> None:
         paper_values = _default_maintenance_paper_form(db)
         paper_line_rows = _default_maintenance_paper_lines()
         edit_paper_no = request.args.get("edit_paper", "").strip().upper()
+        edit_vehicle_id = request.args.get("edit_vehicle", "").strip().upper()
 
         if edit_paper_no:
             existing_paper = _maintenance_paper_row(db, edit_paper_no)
             if existing_paper is not None:
                 paper_values = _maintenance_paper_form_from_row(existing_paper)
                 paper_line_rows = _maintenance_paper_line_rows_for_form(db, edit_paper_no)
+        if edit_vehicle_id:
+            existing_vehicle = db.execute(
+                """
+                SELECT *
+                FROM vehicle_master
+                WHERE vehicle_id = ?
+                """,
+                (edit_vehicle_id,),
+            ).fetchone()
+            if existing_vehicle is not None:
+                vehicle_values = _fleet_vehicle_form_from_row(existing_vehicle)
 
         if request.method == "POST":
             action = request.form.get("action", "").strip()
@@ -4070,6 +4082,22 @@ def register_routes(app: Flask) -> None:
                     )
                     db.commit()
                     flash(message, "success")
+                    return redirect(url_for("fleet_maintenance", month=filters["month"]))
+
+                if action == "import_vehicle_pdf":
+                    uploaded_pdf = request.files.get("vehicle_pdf")
+                    stored_path = _save_fleet_vehicle_import_pdf(app, uploaded_pdf)
+                    if not stored_path:
+                        raise ValidationError("Upload a vehicle list PDF before importing.")
+                    _audit_log(
+                        db,
+                        "fleet_vehicle_pdf_uploaded",
+                        entity_type="fleet_vehicle_import",
+                        entity_id=Path(stored_path).name,
+                        details=stored_path,
+                    )
+                    db.commit()
+                    flash("Vehicle list PDF uploaded successfully. Review it and then register vehicles from Vehicle Master.", "success")
                     return redirect(url_for("fleet_maintenance", month=filters["month"]))
 
                 if action == "save_staff":
@@ -4306,6 +4334,7 @@ def register_routes(app: Flask) -> None:
         vehicle_statement_rows = _vehicle_maintenance_statement_rows(db, filters)
         partnership_rows = _maintenance_partnership_rows(db, filters)
         technician_ledgers = _maintenance_staff_ledger_rows(db)
+        recent_vehicle_imports = _fleet_vehicle_import_rows(app)
 
         return render_template(
             "fleet_maintenance.html",
@@ -4325,6 +4354,7 @@ def register_routes(app: Flask) -> None:
             vehicle_statement_rows=vehicle_statement_rows,
             partnership_rows=partnership_rows,
             technician_ledgers=technician_ledgers,
+            recent_vehicle_imports=recent_vehicle_imports,
             shift_mode_options=FLEET_SHIFT_MODE_OPTIONS,
             ownership_mode_options=FLEET_OWNERSHIP_MODE_OPTIONS,
             tax_mode_options=MAINTENANCE_TAX_MODE_OPTIONS,
@@ -4335,6 +4365,87 @@ def register_routes(app: Flask) -> None:
             partner_parties=_parties_by_role(db, "Partner"),
             target_class_options=MAINTENANCE_TARGET_CLASS_OPTIONS,
             partnership_supplier_assets=_partnership_supplier_asset_options(db),
+        )
+
+    @app.get("/fleet-maintenance/vehicles/<vehicle_id>")
+    @_login_required("admin")
+    def fleet_vehicle_detail(vehicle_id: str):
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        vehicle = db.execute(
+            """
+            SELECT
+                v.vehicle_id,
+                v.vehicle_no,
+                v.vehicle_type,
+                v.make_model,
+                v.status,
+                v.shift_mode,
+                v.ownership_mode,
+                v.notes,
+                COALESCE(partner.party_name, v.partner_name, '-') AS partner_name
+            FROM vehicle_master v
+            LEFT JOIN parties partner ON partner.party_code = v.partner_party_code
+            WHERE v.vehicle_id = ?
+            """,
+            (vehicle_id,),
+        ).fetchone()
+        if vehicle is None:
+            flash("Vehicle was not found.", "error")
+            return redirect(url_for("fleet_maintenance"))
+
+        detail_filters = {
+            "month": request.args.get("month", "").strip() or "",
+            "vehicle_id": vehicle_id,
+            "funding_source": request.args.get("funding_source", "").strip(),
+            "search": request.args.get("search", "").strip(),
+        }
+        if detail_filters["month"]:
+            detail_filters["month"] = _normalize_month(detail_filters["month"])
+        history_rows = _maintenance_paper_rows(db, detail_filters, limit=200)
+        month_statement = _vehicle_maintenance_statement_rows(db, detail_filters)
+        month_summary = month_statement[0] if month_statement else {
+            "paper_count": 0,
+            "subtotal": 0.0,
+            "tax_amount": 0.0,
+            "total_amount": 0.0,
+            "company_paid_amount": 0.0,
+            "partner_paid_amount": 0.0,
+        }
+        lifetime_summary = db.execute(
+            """
+            SELECT
+                COUNT(*) AS paper_count,
+                COALESCE(SUM(subtotal), 0) AS subtotal,
+                COALESCE(SUM(tax_amount), 0) AS tax_amount,
+                COALESCE(SUM(total_amount), 0) AS total_amount
+            FROM maintenance_papers
+            WHERE vehicle_id = ?
+            """,
+            (vehicle_id,),
+        ).fetchone()
+        monthly_rows = db.execute(
+            """
+            SELECT
+                SUBSTR(paper_date, 1, 7) AS period_month,
+                COUNT(*) AS paper_count,
+                COALESCE(SUM(total_amount), 0) AS total_amount
+            FROM maintenance_papers
+            WHERE vehicle_id = ?
+            GROUP BY SUBSTR(paper_date, 1, 7)
+            ORDER BY period_month DESC
+            LIMIT 12
+            """,
+            (vehicle_id,),
+        ).fetchall()
+        return render_template(
+            "fleet_vehicle_detail.html",
+            vehicle=vehicle,
+            filters=detail_filters,
+            history_rows=history_rows,
+            month_summary=month_summary,
+            lifetime_summary=lifetime_summary,
+            monthly_rows=monthly_rows,
         )
 
     @app.post("/fleet-maintenance/<paper_no>/delete")
@@ -7952,6 +8063,24 @@ def _maintenance_paper_form_from_row(row):
         "funding_source": row["funding_source"] or MAINTENANCE_FUNDING_SOURCE_OPTIONS[0],
         "paid_by": row["paid_by"] or MAINTENANCE_PAID_BY_OPTIONS[0],
         "tax_amount": f"{float(row['tax_amount'] or 0.0):.2f}",
+        "notes": row["notes"] or "",
+    }
+
+
+def _fleet_vehicle_form_from_row(row):
+    return {
+        "original_vehicle_id": row["vehicle_id"],
+        "vehicle_id": row["vehicle_id"],
+        "vehicle_no": row["vehicle_no"] or "",
+        "vehicle_type": row["vehicle_type"] or "",
+        "make_model": row["make_model"] or "",
+        "status": row["status"] or "Active",
+        "shift_mode": row["shift_mode"] or FLEET_SHIFT_MODE_OPTIONS[0],
+        "ownership_mode": row["ownership_mode"] or FLEET_OWNERSHIP_MODE_OPTIONS[0],
+        "partner_party_code": row["partner_party_code"] or "",
+        "partner_name": row["partner_name"] or "",
+        "company_share_percent": f"{float(row['company_share_percent'] or 100.0):.2f}".rstrip("0").rstrip("."),
+        "partner_share_percent": f"{float(row['partner_share_percent'] or 0.0):.2f}".rstrip("0").rstrip("."),
         "notes": row["notes"] or "",
     }
 
@@ -12624,6 +12753,36 @@ def _save_maintenance_attachment(app: Flask, paper_no: str, upload_file) -> str 
     output_path = output_dir / safe_name
     upload_file.save(output_path)
     return output_path.relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
+
+
+def _save_fleet_vehicle_import_pdf(app: Flask, upload_file) -> str | None:
+    if upload_file is None or not getattr(upload_file, "filename", ""):
+        return None
+    safe_name = secure_filename(upload_file.filename)
+    if not safe_name or not safe_name.lower().endswith(".pdf"):
+        raise ValidationError("Vehicle import only accepts PDF files.")
+    output_dir = Path(app.config["GENERATED_DIR"]) / "fleet_vehicle_imports"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    output_path = output_dir / f"{timestamp}-{safe_name}"
+    upload_file.save(output_path)
+    return output_path.relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
+
+
+def _fleet_vehicle_import_rows(app: Flask):
+    folder = Path(app.config["GENERATED_DIR"]) / "fleet_vehicle_imports"
+    if not folder.exists():
+        return []
+    rows = []
+    for item in sorted(folder.glob("*.pdf"), key=lambda path: path.stat().st_mtime, reverse=True)[:8]:
+        rows.append(
+            {
+                "filename": item.name,
+                "relative_path": item.relative_to(Path(app.config["GENERATED_DIR"])).as_posix(),
+                "updated_at": datetime.fromtimestamp(item.stat().st_mtime).strftime("%Y-%m-%d %H:%M"),
+            }
+        )
+    return rows
 
 
 def _save_maintenance_paper_lines(db, paper_no: str, line_payloads):
