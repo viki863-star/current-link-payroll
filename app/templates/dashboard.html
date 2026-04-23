@@ -24,7 +24,7 @@
         <div class="db-header-badges">
             <div class="db-kpi-pill">
                 <span class="db-kpi-dot db-kpi-green"></span>
-                <span>5 Workspaces Active</span>
+                <span>6 Workspaces Active</span>
             </div>
             <div class="db-kpi-pill">
                 <span class="db-kpi-dot db-kpi-orange"></span>
@@ -55,7 +55,7 @@
             </div>
             <div class="wc-body">
                 <h2 class="wc-title">Driver Desk</h2>
-                <p class="wc-desc">Payroll management, trip records, advances &amp; driver control panel.</p>
+                <p class="wc-desc">Payroll management, trip records, advances & driver control panel.</p>
             </div>
             <div class="wc-footer">
                 <div class="wc-quick-stats">
@@ -73,7 +73,7 @@
         </a>
 
         {# ── Supplier Desk ── #}
-        <a class="wc wc-supplier" href="{{ url_for('switch_workspace', workspace_key='suppliers-normal') }}">
+        <a class="wc wc-supplier" href="{{ url_for('supplier_desk_home') }}">
             <div class="wc-shimmer"></div>
             <div class="wc-bg-icon">🏢</div>
             <div class="wc-top">
@@ -91,53 +91,17 @@
             </div>
             <div class="wc-body">
                 <h2 class="wc-title">Supplier Desk</h2>
-                <p class="wc-desc">Fleet payables, LPO approval, invoice management &amp; payment tracking.</p>
+                <p class="wc-desc">All supplier types: Online, Cash, Managed & Partnership accounts with unified ledger and editable transactions.</p>
             </div>
             <div class="wc-footer">
                 <div class="wc-quick-stats">
-                    <span class="wc-stat wc-stat-supplier">LPOs</span>
-                    <span class="wc-stat wc-stat-supplier">Invoices</span>
-                    <span class="wc-stat wc-stat-supplier">Payments</span>
+                    <span class="wc-stat wc-stat-supplier">Online</span>
+                    <span class="wc-stat wc-stat-supplier">Cash</span>
+                    <span class="wc-stat wc-stat-supplier">Managed</span>
+                    <span class="wc-stat wc-stat-supplier">Partner</span>
                 </div>
                 <div class="wc-cta">
-                    <span class="wc-cta-text">Open</span>
-                    <span class="wc-cta-arrow">
-                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
-                    </span>
-                </div>
-            </div>
-        </a>
-
-        {# ── Partnership Supplier Desk ── #}
-        <a class="wc wc-partner" href="{{ url_for('switch_workspace', workspace_key='suppliers-partnership') }}">
-            <div class="wc-shimmer"></div>
-            <div class="wc-bg-icon">🤝</div>
-            <div class="wc-top">
-                <div class="wc-icon-badge wc-badge-partner">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                </div>
-                <div class="wc-meta">
-                    <span class="wc-tag">Workspace</span>
-                    <span class="wc-category">Partnership</span>
-                </div>
-            </div>
-            <div class="wc-body">
-                <h2 class="wc-title">Partnership Desk</h2>
-                <p class="wc-desc">Partner split calculations, settlement reports &amp; joint account management.</p>
-            </div>
-            <div class="wc-footer">
-                <div class="wc-quick-stats">
-                    <span class="wc-stat wc-stat-partner">Splits</span>
-                    <span class="wc-stat wc-stat-partner">Settlement</span>
-                    <span class="wc-stat wc-stat-partner">Reports</span>
-                </div>
-                <div class="wc-cta">
-                    <span class="wc-cta-text">Open</span>
+                    <span class="wc-cta-text">Open Supplier Desk</span>
                     <span class="wc-cta-arrow">
                         <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
                     </span>
@@ -166,7 +130,7 @@
             </div>
             <div class="wc-body">
                 <h2 class="wc-title">Customer Desk</h2>
-                <p class="wc-desc">Customer invoices, statements, receivables &amp; contract management.</p>
+                <p class="wc-desc">Customer invoices, statements, receivables & contract management.</p>
             </div>
             <div class="wc-footer">
                 <div class="wc-quick-stats">
@@ -201,13 +165,47 @@
             </div>
             <div class="wc-body">
                 <h2 class="wc-title">Accounts Desk</h2>
-                <p class="wc-desc">Fund management, tax records, financial reports &amp; full audit trails.</p>
+                <p class="wc-desc">Fund management, tax records, financial reports & full audit trails.</p>
             </div>
             <div class="wc-footer">
                 <div class="wc-quick-stats">
                     <span class="wc-stat wc-stat-accounts">Funds</span>
                     <span class="wc-stat wc-stat-accounts">Tax</span>
                     <span class="wc-stat wc-stat-accounts">Reports</span>
+                </div>
+                <div class="wc-cta">
+                    <span class="wc-cta-text">Open</span>
+                    <span class="wc-cta-arrow">
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
+                    </span>
+                </div>
+            </div>
+        </a>
+
+        {# ── Technician Desk ── #}
+        <a class="wc wc-technician" href="{{ url_for('switch_workspace', workspace_key='technicians') }}">
+            <div class="wc-shimmer"></div>
+            <div class="wc-bg-icon">🔧</div>
+            <div class="wc-top">
+                <div class="wc-icon-badge wc-badge-technician">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </svg>
+                </div>
+                <div class="wc-meta">
+                    <span class="wc-tag">Workspace</span>
+                    <span class="wc-category">Technicians</span>
+                </div>
+            </div>
+            <div class="wc-body">
+                <h2 class="wc-title">Technician Desk</h2>
+                <p class="wc-desc">Manage technicians, assign passwords, track job submissions and review maintenance work.</p>
+            </div>
+            <div class="wc-footer">
+                <div class="wc-quick-stats">
+                    <span class="wc-stat wc-stat-technician">Technicians</span>
+                    <span class="wc-stat wc-stat-technician">Jobs</span>
+                    <span class="wc-stat wc-stat-technician">Portal</span>
                 </div>
                 <div class="wc-cta">
                     <span class="wc-cta-text">Open</span>

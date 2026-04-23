@@ -601,8 +601,8 @@ CREATE TABLE IF NOT EXISTS maintenance_papers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     paper_no TEXT NOT NULL UNIQUE,
     paper_date TEXT NOT NULL,
-    vehicle_id TEXT NOT NULL,
-    vehicle_no TEXT NOT NULL,
+    vehicle_id TEXT,
+    vehicle_no TEXT,
     target_class TEXT NOT NULL DEFAULT 'Own Fleet Vehicle',
     target_party_code TEXT,
     target_asset_code TEXT,
@@ -621,10 +621,18 @@ CREATE TABLE IF NOT EXISTS maintenance_papers (
     partner_share_amount REAL NOT NULL DEFAULT 0,
     company_paid_amount REAL NOT NULL DEFAULT 0,
     partner_paid_amount REAL NOT NULL DEFAULT 0,
+    paid_amount REAL NOT NULL DEFAULT 0,
     linked_partnership_entry_no TEXT,
+    technician_code TEXT,
+    review_status TEXT NOT NULL DEFAULT 'Pending',
+    approved_by TEXT,
+    approved_at TEXT,
+    rejection_reason TEXT,
+    payment_status TEXT NOT NULL DEFAULT 'Pending',
     attachment_path TEXT,
     notes TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(technician_code) REFERENCES technicians(technician_code),
     FOREIGN KEY(vehicle_id) REFERENCES vehicle_master(vehicle_id),
     FOREIGN KEY(workshop_party_code) REFERENCES parties(party_code),
     FOREIGN KEY(staff_code) REFERENCES maintenance_staff(staff_code),
@@ -679,6 +687,19 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     details TEXT,
     ip_address TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS technicians (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    technician_code TEXT UNIQUE,
+    party_code TEXT,
+    user_id TEXT UNIQUE,
+    password_hash TEXT,
+    phone_number TEXT,
+    specialization TEXT,
+    status TEXT DEFAULT 'Active',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS auth_rate_limits (
@@ -1225,8 +1246,8 @@ CREATE TABLE IF NOT EXISTS maintenance_papers (
     id BIGSERIAL PRIMARY KEY,
     paper_no TEXT NOT NULL UNIQUE,
     paper_date TEXT NOT NULL,
-    vehicle_id TEXT NOT NULL,
-    vehicle_no TEXT NOT NULL,
+    vehicle_id TEXT,
+    vehicle_no TEXT,
     target_class TEXT NOT NULL DEFAULT 'Own Fleet Vehicle',
     target_party_code TEXT,
     target_asset_code TEXT,
@@ -1245,14 +1266,22 @@ CREATE TABLE IF NOT EXISTS maintenance_papers (
     partner_share_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     company_paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     partner_paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     linked_partnership_entry_no TEXT,
+    technician_code TEXT,
+    review_status TEXT NOT NULL DEFAULT 'Pending',
+    approved_by TEXT,
+    approved_at TEXT,
+    rejection_reason TEXT,
+    payment_status TEXT NOT NULL DEFAULT 'Pending',
     attachment_path TEXT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(vehicle_id) REFERENCES vehicle_master(vehicle_id),
     FOREIGN KEY(workshop_party_code) REFERENCES parties(party_code),
     FOREIGN KEY(staff_code) REFERENCES maintenance_staff(staff_code),
-    FOREIGN KEY(advance_no) REFERENCES maintenance_staff_advances(advance_no)
+    FOREIGN KEY(advance_no) REFERENCES maintenance_staff_advances(advance_no),
+    FOREIGN KEY(technician_code) REFERENCES technicians(technician_code)
 );
 
 CREATE TABLE IF NOT EXISTS maintenance_paper_lines (
@@ -1303,6 +1332,19 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     details TEXT,
     ip_address TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS technicians (
+    id BIGSERIAL PRIMARY KEY,
+    technician_code TEXT UNIQUE,
+    party_code TEXT,
+    user_id TEXT UNIQUE,
+    password_hash TEXT,
+    phone_number TEXT,
+    specialization TEXT,
+    status TEXT DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS auth_rate_limits (
@@ -1445,6 +1487,14 @@ REQUIRED_COLUMNS = {
         "target_party_code": "TEXT",
         "target_asset_code": "TEXT",
         "linked_partnership_entry_no": "TEXT",
+        "paid_amount": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "work_type": "TEXT",
+        "technician_code": "TEXT",
+        "review_status": "TEXT NOT NULL DEFAULT 'Pending'",
+        "payment_status": "TEXT NOT NULL DEFAULT 'Pending'",
+    },
+    "owner_fund_entries": {
+        "transaction_type": "TEXT NOT NULL DEFAULT 'IN'",
     },
 }
 

@@ -88,6 +88,13 @@
                         {% endfor %}
                     </select>
                 </label>
+                <label>
+                    <span>Transaction Type</span>
+                    <select name="transaction_type">
+                        <option value="IN" {% if values.transaction_type == 'IN' %}selected{% endif %}>IN (Money In)</option>
+                        <option value="OUT" {% if values.transaction_type == 'OUT' %}selected{% endif %}>OUT (Money Out)</option>
+                    </select>
+                </label>
                 <label class="full-span">
                     <span>Details</span>
                     <textarea name="details" rows="4">{{ values.details }}</textarea>
@@ -111,7 +118,7 @@
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">Recent</p>
-                <h2>Incoming Entries</h2>
+                <h2>Owner Fund Entries</h2>
             </div>
         </div>
         {% if entries %}
@@ -121,6 +128,7 @@
                         <tr>
                             <th>Date</th>
                             <th>Owner</th>
+                            <th>Type</th>
                             <th>Amount</th>
                             <th>Received By</th>
                             <th>Method</th>
@@ -132,6 +140,11 @@
                             <tr>
                                 <td>{{ item.entry_date }}</td>
                                 <td>{{ item.owner_name }}</td>
+                                <td>
+                                    <span class="status-badge {% if item.transaction_type == 'IN' %}status-badge-success{% else %}status-badge-warning{% endif %}">
+                                        {{ item.transaction_type or 'IN' }}
+                                    </span>
+                                </td>
                                 <td>AED {{ "%.2f"|format(item.amount) }}</td>
                                 <td>{{ item.received_by or "-" }}</td>
                                 <td>{{ item.payment_method or "-" }}</td>

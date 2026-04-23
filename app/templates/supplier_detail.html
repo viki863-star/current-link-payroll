@@ -38,7 +38,7 @@
     <article class="card desk-panel-card supplier-overview-card">
         <div class="desk-panel-head">
             <div>
-                <span class="admin-desk-label">{% if supplier_mode == "Partnership" %}Partnership Supplier{% elif supplier_mode == "Managed" %}Managed Supplier{% elif supplier_mode == "Cash" %}Cash Supplier{% else %}Supplier{% endif %}</span>
+                <span class="admin-desk-label">{% if supplier_mode == "Partnership" %}Partnership Supplier{% elif supplier_mode == "Managed" %}Managed Supplier{% elif supplier_mode == "Cash" %}Cash Supplier{% elif supplier_mode == "Loan" %}Loan Supplier{% else %}Supplier{% endif %}</span>
                 <h2>{{ party.party_name }}</h2>
                 <p class="workspace-lead">{{ party.party_code }}{% if party.contact_person %} | {{ party.contact_person }}{% endif %}{% if party.phone_number %} | {{ party.phone_number }}{% endif %}</p>
             </div>
@@ -480,7 +480,9 @@
             </article>
             <article class="card" style="padding:16px;text-align:center;">
                 <small style="color:var(--color-muted);">Balance</small>
-                <div style="font-size:1.35rem;font-weight:800;color:{% if kata_summary.balance >= 0 %}var(--color-success,#16a34a){% else %}var(--color-danger,#dc2626){% endif %};">AED {{ "%.2f"|format(kata_summary.balance) }}</div>
+                <div style="font-size:1.35rem;font-weight:800;">
+                    <span style="{% if kata_summary.balance >= 0 %}color:#16a34a;{% else %}color:#dc2626;{% endif %}">AED {{ "%.2f"|format(kata_summary.balance) }}</span>
+                </div>
             </article>
         </section>
 
@@ -562,10 +564,10 @@
                             <th>Ref</th>
                             <th>Type</th>
                             <th>Description</th>
-                            <th style="text-align:right;">Earned</th>
-                            <th style="text-align:right;">Debit</th>
-                            <th style="text-align:right;">Paid</th>
+                            <th style="text-align:right;">Added</th>
+                            <th style="text-align:right;">Deducted</th>
                             <th style="text-align:right;">Balance</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -575,10 +577,44 @@
                             <td><strong>{{ row.reference }}</strong></td>
                             <td><span class="status-chip {% if row.entry_type == 'Trip' %}approved{% elif row.entry_type == 'Payment' %}pending{% else %}rejected{% endif %}">{{ row.entry_type }}</span></td>
                             <td>{{ row.description }}</td>
-                            <td style="text-align:right;">{% if row.earned %}{{ "%.2f"|format(row.earned) }}{% endif %}</td>
-                            <td style="text-align:right;color:var(--color-danger,#dc2626);">{% if row.debit %}{{ "%.2f"|format(row.debit) }}{% endif %}</td>
-                            <td style="text-align:right;color:var(--color-info,#2563eb);">{% if row.paid %}{{ "%.2f"|format(row.paid) }}{% endif %}</td>
-                            <td style="text-align:right;font-weight:700;color:{% if row.running_balance >= 0 %}var(--color-success,#16a34a){% else %}var(--color-danger,#dc2626){% endif %};">{{ "%.2f"|format(row.running_balance) }}</td>
+                            <td style="text-align:right;color:var(--color-success,#16a34a);">
+                                {% if row.earned %}{{ "%.2f"|format(row.earned) }}{% endif %}
+                            </td>
+                            <td style="text-align:right;color:var(--color-danger,#dc2626);">
+                                {% if row.debit or row.paid %}
+                                    {% set deducted = (row.debit or 0) + (row.paid or 0) %}
+                                    {{ "%.2f"|format(deducted) }}
+                                {% endif %}
+                            </td>
+                            <td style="text-align:right;font-weight:700;">
+                                <span style="{% if row.running_balance >= 0 %}color:#16a34a;{% else %}color:#dc2626;{% endif %}">{{ "%.2f"|format(row.running_balance) }}</span>
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    {% if row.entry_type == 'Trip' %}
+                                        <form method="post" action="{{ url_for('edit_cash_trip', trip_no=row.reference) }}" style="display:inline;">
+                                            <button type="submit" class="btn btn-xs btn-outline" title="Edit Trip">✏️</button>
+                                        </form>
+                                        <form method="post" action="{{ url_for('delete_cash_trip', trip_no=row.reference) }}" onsubmit="return confirm('Delete this trip?');" style="display:inline;">
+                                            <button type="submit" class="btn btn-xs btn-outline btn-danger" title="Delete">🗑️</button>
+                                        </form>
+                                    {% elif row.entry_type == 'Debit' or row.entry_type in ['Advance', 'Loan', 'Visa', 'Transfer', 'Other'] %}
+                                        <form method="post" action="{{ url_for('edit_cash_debit', debit_no=row.reference) }}" style="display:inline;">
+                                            <button type="submit" class="btn btn-xs btn-outline" title="Edit Debit">✏️</button>
+                                        </form>
+                                        <form method="post" action="{{ url_for('delete_cash_debit', debit_no=row.reference) }}" onsubmit="return confirm('Delete this debit?');" style="display:inline;">
+                                            <button type="submit" class="btn btn-xs btn-outline btn-danger" title="Delete">🗑️</button>
+                                        </form>
+                                    {% elif row.entry_type == 'Payment' %}
+                                        <form method="post" action="{{ url_for('edit_cash_payment', payment_no=row.reference) }}" style="display:inline;">
+                                            <button type="submit" class="btn btn-xs btn-outline" title="Edit Payment">✏️</button>
+                                        </form>
+                                        <form method="post" action="{{ url_for('delete_cash_payment', payment_no=row.reference) }}" onsubmit="return confirm('Delete this payment?');" style="display:inline;">
+                                            <button type="submit" class="btn btn-xs btn-outline btn-danger" title="Delete">🗑️</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
                         </tr>
                         {% endfor %}
                         {% if not kata_rows %}

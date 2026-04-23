@@ -50,6 +50,7 @@ PARTY_ROLE_OPTIONS = [
     "Visa Holder",
     "Vehicle Holder",
     "Partner",
+    "Technician",
 ]
 VAT_STATUS_OPTIONS = ["Registered", "Not Registered", "Exempt"]
 SALARY_MODE_OPTIONS = [("full", "Full Salary (30-Day Basis)"), ("prorata", "Prorata From Duty Start")]
@@ -68,7 +69,7 @@ SUPPLIER_RATE_BASIS_OPTIONS = ["Hours", "Days", "Trips", "Monthly", "Fixed"]
 SUPPLIER_VOUCHER_STATUS_OPTIONS = ["Open", "Partially Paid", "Paid"]
 SUPPLIER_SHIFT_MODE_OPTIONS = ["Single Shift", "Double Shift"]
 SUPPLIER_PARTNERSHIP_MODE_OPTIONS = ["Standard", "Partnership"]
-SUPPLIER_MODE_OPTIONS = ["Normal", "Partnership", "Managed", "Cash"]
+SUPPLIER_MODE_OPTIONS = ["Normal", "Partnership", "Managed", "Cash", "Loan"]
 PARTNERSHIP_ENTRY_KIND_OPTIONS = ["Vehicle Expense", "Driver Salary", "OT / Allowance", "Other"]
 PARTNERSHIP_PAID_BY_OPTIONS = ["Company", "Partner"]
 PARTNERSHIP_SHIFT_OPTIONS = ["General", "Day", "Night"]
@@ -84,7 +85,7 @@ MAINTENANCE_LINE_SLOTS = 4
 BRANCH_STATUS_OPTIONS = ["Active", "Inactive"]
 FINANCIAL_YEAR_STATUS_OPTIONS = ["Open", "Closed", "Archived"]
 INVOICE_LINE_SLOTS = 4
-ADMIN_WORKSPACE_ORDER = ["universal", "drivers", "suppliers-normal", "suppliers-partnership", "suppliers-managed", "suppliers-cash", "customers", "accounts"]
+ADMIN_WORKSPACE_ORDER = ["universal", "drivers", "suppliers-normal", "suppliers-partnership", "suppliers-managed", "suppliers-cash", "customers", "accounts", "technicians"]
 ADMIN_WORKSPACE_META = {
     "universal": {
         "label": "Universal",
@@ -133,6 +134,12 @@ ADMIN_WORKSPACE_META = {
         "eyebrow": "Accounts Desk",
         "title": "Accounts Desk",
         "summary": "Fund, tax, reports and fleet.",
+    },
+    "technicians": {
+        "label": "Technicians",
+        "eyebrow": "Technician Desk",
+        "title": "Technician Desk",
+        "summary": "Manage technicians, assign passwords, and track job submissions.",
     },
 }
 
@@ -822,6 +829,91 @@ def register_routes(app: Flask) -> None:
                 flash(str(exc), "error")
 
         return render_template("supplier_forgot_password.html", values=values)
+    
+    @app.route("/technician-login", methods=["GET", "POST"])
+    def technician_login():
+        if _current_role():
+            return redirect(url_for(_role_home_endpoint()))
+        
+        values = {"user_id": ""}
+        
+        if request.method == "POST":
+            values["user_id"] = request.form.get("user_id", "").strip()
+            password = request.form.get("password", "").strip()
+            
+            db = open_db()
+            identifier = _auth_identifier("technician", technician_code=values["user_id"])
+            lock_info = _get_login_lock(db, "technician", identifier)
+            
+            if lock_info["locked"]:
+                flash(lock_info["message"], "error")
+                _audit_log(
+                    db,
+                    "login_blocked",
+                    entity_type="auth",
+                    entity_id=values["user_id"] or "technician",
+                    status="blocked",
+                    details=lock_info["message"],
+                )
+                db.commit()
+                return render_template("technician_login.html", values=values)
+            
+            try:
+                technician, party = _technician_login_target(db, values["user_id"])
+                
+                if (technician["status"] or "") != "Active":
+                    raise ValidationError("Your technician account is not active.")
+                
+                if not password:
+                    raise ValidationError("Technician password is required.")
+                
+                if not technician["password_hash"]:
+                    raise ValidationError("Technician account password is not set yet.")
+                
+                if not check_password_hash(technician["password_hash"], password):
+                    raise ValidationError("Technician password is not correct.")
+                
+                _clear_failed_login(db, "technician", identifier)
+                
+                _audit_log(
+                    db,
+                    "login_success",
+                    entity_type="auth",
+                    entity_id=technician["technician_code"],
+                    details=f"Technician login / {technician.get('specialization', 'Technician')}",
+                )
+                
+                db.commit()
+                
+                _set_session(
+                    "technician",
+                    display_name=f"Technician {technician['technician_code']}",
+                )
+                session["technician_code"] = technician["technician_code"]
+                session["technician_party_code"] = technician["party_code"]
+                
+                flash(f"Welcome Technician {technician['technician_code']}.", "success")
+                
+                return redirect(url_for("technician_portal"))
+                
+            except ValidationError as exc:
+                _record_failed_login(db, "technician", identifier)
+                
+                _audit_log(
+                    db,
+                    "login_failed",
+                    entity_type="auth",
+                    entity_id=values["user_id"] or "technician",
+                    status="failed",
+                    details=str(exc),
+                )
+                
+                db.commit()
+                
+                flash(_latest_login_error(db, "technician", identifier, str(exc)), "error")
+        
+        return render_template("technician_login.html", values=values)
+    
     @app.route("/admin/supplier-registrations", methods=["GET", "POST"])
     @_login_required("admin")
     def supplier_registrations():
@@ -1015,6 +1107,285 @@ def register_routes(app: Flask) -> None:
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
+    @app.route("/portal/technician", methods=["GET", "POST"])
+    @_login_required("technician")
+    def technician_portal():
+        db = open_db()
+        technician_code = session.get("technician_code", "")
+        party_code = session.get("technician_party_code", "")
+        
+        if not technician_code or not party_code:
+            session.clear()
+            flash("Technician session expired. Please login again.", "error")
+            return redirect(url_for("technician_login"))
+        
+        # Fetch technician details
+        technician = db.execute(
+            """
+            SELECT technician_code, party_code, user_id, phone_number,
+                   specialization, status, created_at
+            FROM technicians
+            WHERE technician_code = ?
+            """,
+            (technician_code,)
+        ).fetchone()
+        
+        if technician is None or (technician["status"] or "") != "Active":
+            session.clear()
+            flash("Technician account is no longer active.", "error")
+            return redirect(url_for("technician_login"))
+        
+        # Fetch party information
+        party = db.execute(
+            """
+            SELECT party_code, party_name, party_kind, party_roles
+            FROM parties
+            WHERE party_code = ?
+            """,
+            (party_code,)
+        ).fetchone()
+        
+        # Calculate technician statistics
+        # Total jobs
+        total_jobs = db.execute(
+            """
+            SELECT COUNT(*) as count
+            FROM maintenance_papers
+            WHERE technician_code = ?
+            """,
+            (technician_code,)
+        ).fetchone()["count"] or 0
+        
+        # Total approved amount
+        total_approved = db.execute(
+            """
+            SELECT COALESCE(SUM(total_amount), 0) as total
+            FROM maintenance_papers
+            WHERE technician_code = ? AND review_status = 'Approved'
+            """,
+            (technician_code,)
+        ).fetchone()["total"] or 0
+        
+        # Total paid amount (sum of paid_amount field for all jobs)
+        total_paid = db.execute(
+            """
+            SELECT COALESCE(SUM(paid_amount), 0) as total
+            FROM maintenance_papers
+            WHERE technician_code = ?
+            """,
+            (technician_code,)
+        ).fetchone()["total"] or 0
+        
+        # Pending payment (approved but not fully paid)
+        pending_payment = db.execute(
+            """
+            SELECT COALESCE(SUM(total_amount - paid_amount), 0) as total
+            FROM maintenance_papers
+            WHERE technician_code = ? AND review_status = 'Approved' AND (payment_status = 'Pending' OR payment_status = 'Partial')
+            """,
+            (technician_code,)
+        ).fetchone()["total"] or 0
+        
+        # Recent jobs (last 10) - updated to match actual schema
+        recent_jobs = db.execute(
+            """
+            SELECT paper_no, paper_date as entry_date, vehicle_id,
+                   work_summary as details,
+                   supplier_bill_no as bill_no,
+                   total_amount, review_status, payment_status,
+                   work_type,
+                   COALESCE(wp.party_name, workshop_party_code) as workshop_name
+            FROM maintenance_papers mp
+            LEFT JOIN parties wp ON mp.workshop_party_code = wp.party_code
+            WHERE technician_code = ?
+            ORDER BY paper_date DESC, paper_no DESC
+            LIMIT 10
+            """,
+            (technician_code,)
+        ).fetchall()
+        
+        # Top vehicles (most worked on) - vehicles with most jobs
+        top_vehicles = db.execute(
+            """
+            SELECT
+                COALESCE(vm.plate_no, 'General Entry') as plate_no,
+                COALESCE(vm.vehicle_name, 'General Work') as vehicle_name,
+                COUNT(*) as job_count,
+                COALESCE(SUM(mp.total_amount), 0) as total_spent
+            FROM maintenance_papers mp
+            LEFT JOIN vehicle_master vm ON mp.vehicle_id = vm.vehicle_id
+            WHERE mp.technician_code = ? AND mp.vehicle_id IS NOT NULL AND mp.vehicle_id != ''
+            GROUP BY mp.vehicle_id, vm.plate_no, vm.vehicle_name
+            ORDER BY job_count DESC, total_spent DESC
+            LIMIT 5
+            """,
+            (technician_code,)
+        ).fetchall()
+        
+        # Monthly expense analysis
+        monthly_expenses = db.execute(
+            """
+            SELECT
+                strftime('%Y-%m', paper_date) as month,
+                COUNT(*) as job_count,
+                COALESCE(SUM(total_amount), 0) as total_amount,
+                COALESCE(SUM(paid_amount), 0) as paid_amount
+            FROM maintenance_papers
+            WHERE technician_code = ?
+            GROUP BY strftime('%Y-%m', paper_date)
+            ORDER BY month DESC
+            LIMIT 6
+            """,
+            (technician_code,)
+        ).fetchall()
+        
+        # Work type distribution
+        work_type_distribution = db.execute(
+            """
+            SELECT
+                work_type,
+                COUNT(*) as job_count,
+                COALESCE(SUM(total_amount), 0) as total_amount
+            FROM maintenance_papers
+            WHERE technician_code = ? AND work_type IS NOT NULL AND work_type != ''
+            GROUP BY work_type
+            ORDER BY total_amount DESC
+            LIMIT 8
+            """,
+            (technician_code,)
+        ).fetchall()
+        
+        # Vehicle options for new job form
+        vehicle_options = db.execute(
+            """
+            SELECT vehicle_id, plate_no, vehicle_name, ownership_mode
+            FROM vehicle_master
+            WHERE status = 'Active'
+            ORDER BY plate_no
+            """
+        ).fetchall()
+        
+        # Default form for new job
+        default_form = {
+            "entry_date": datetime.now().strftime("%Y-%m-%d"),
+            "vehicle_id": "",
+            "workshop_name": "",
+            "bill_no": "",
+            "work_type": "",
+            "details": "",
+            "amount": "",
+            "tax_mode": "Inclusive",
+            "tax_amount": "",
+            "total_amount": "",
+            "remarks": "",
+        }
+        
+        form_values = default_form.copy()
+        
+        if request.method == "POST":
+            action = request.form.get("action", "").strip()
+            if action == "submit_job":
+                # Handle job submission
+                form_values = {
+                    "entry_date": request.form.get("entry_date", "").strip(),
+                    "vehicle_id": request.form.get("vehicle_id", "").strip(),
+                    "workshop_name": request.form.get("workshop_name", "").strip(),
+                    "bill_no": request.form.get("bill_no", "").strip(),
+                    "work_type": request.form.get("work_type", "").strip(),
+                    "details": request.form.get("details", "").strip(),
+                    "amount": request.form.get("amount", "").strip(),
+                    "tax_mode": request.form.get("tax_mode", "").strip(),
+                    "tax_amount": request.form.get("tax_amount", "").strip(),
+                    "total_amount": request.form.get("total_amount", "").strip(),
+                    "remarks": request.form.get("remarks", "").strip(),
+                }
+                
+                # Basic validation
+                errors = []
+                if not form_values["entry_date"]:
+                    errors.append("Date is required")
+                if not form_values["vehicle_id"]:
+                    errors.append("Vehicle selection is required")
+                elif form_values["vehicle_id"] == "GENERAL":
+                    # For general entry, we'll store NULL or empty string
+                    form_values["vehicle_id"] = ""
+                if not form_values["workshop_name"]:
+                    errors.append("Workshop/Shop name is required")
+                if not form_values["bill_no"]:
+                    errors.append("Bill number is required")
+                if not form_values["work_type"]:
+                    errors.append("Work type is required")
+                if not form_values["amount"]:
+                    errors.append("Amount is required")
+                
+                if errors:
+                    for error in errors:
+                        flash(error, "error")
+                else:
+                    # Generate paper_no
+                    paper_no = _next_reference_code(db, "maintenance_papers", "paper_no", "MT")
+                    
+                    # Calculate amounts
+                    try:
+                        amount = float(form_values["amount"] or 0)
+                        tax_amount = float(form_values["tax_amount"] or 0)
+                        total_amount = float(form_values["total_amount"] or amount + tax_amount)
+                    except ValueError:
+                        amount = 0.0
+                        tax_amount = 0.0
+                        total_amount = 0.0
+                    
+                    # Insert maintenance paper - updated to match actual schema
+                    db.execute(
+                        """
+                        INSERT INTO maintenance_papers (
+                            paper_no, paper_date, vehicle_id, workshop_party_code, supplier_bill_no,
+                            work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                            notes, technician_code, review_status, payment_status, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', CURRENT_TIMESTAMP)
+                        """,
+                        (
+                            paper_no,
+                            form_values["entry_date"],  # stored as paper_date
+                            form_values["vehicle_id"],
+                            form_values["workshop_name"],  # workshop_party_code stores workshop name as text
+                            form_values["bill_no"],  # stored as supplier_bill_no
+                            form_values["work_type"],  # work_type column
+                            form_values["details"],  # stored as work_summary
+                            amount,  # stored as subtotal
+                            form_values["tax_mode"],
+                            tax_amount,
+                            total_amount,
+                            form_values["remarks"],  # stored as notes
+                            technician_code,
+                        )
+                    )
+                    
+                    _audit_log(
+                        db,
+                        "technician_job_submitted",
+                        entity_type="maintenance_paper",
+                        entity_id=paper_no,
+                        details=f"Technician {technician_code} submitted job {paper_no}",
+                    )
+                    
+                    db.commit()
+                    flash(f"Job {paper_no} submitted successfully. Waiting for admin review.", "success")
+                    return redirect(url_for("technician_portal"))
+        
+        return render_template(
+            "technician_portal.html",
+            technician=technician,
+            party=party,
+            total_jobs=total_jobs,
+            total_approved=total_approved,
+            total_paid=total_paid,
+            pending_payment=pending_payment,
+            recent_jobs=recent_jobs,
+            vehicle_options=vehicle_options,
+            form_values=form_values,
+        )
+    
     @app.get("/services")
     def services():
         return render_template("services.html")
@@ -1550,6 +1921,207 @@ def register_routes(app: Flask) -> None:
         flash(f"{party['party_name']} marked as {next_status}.", "success")
         return redirect(url_for("party_list"))
 
+    @app.route("/supplier-desk", methods=["GET"])
+    @_login_required("admin")
+    def supplier_desk_home():
+        """Supplier Desk Home Page - shows 4 cards for different supplier types"""
+        db = open_db()
+        query = request.args.get("q", "").strip()
+        
+        # Get stats for each supplier type
+        stats = {
+            "total_suppliers": 0,
+            "online_count": 0,
+            "cash_count": 0,
+            "managed_count": 0,
+            "partnership_count": 0,
+            "total_outstanding": 0.0,
+            # Detailed stats for each card
+            "online_registrations": 0,
+            "online_quotations": 0,
+            "online_lpos": 0,
+            "cash_trips": 0,
+            "cash_advances": 0,
+            "cash_balance": 0.0,
+            "managed_quotations": 0,
+            "managed_lpos": 0,
+            "managed_invoices": 0,
+            "partnership_splits": 0,
+            "partnership_vouchers": 0,
+            "partnership_statements": 0
+        }
+        
+        # Helper function to get count for a specific supplier mode
+        def get_supplier_count(mode):
+            normalized_mode = mode if mode in SUPPLIER_MODE_OPTIONS else "Normal"
+            result = db.execute(
+                """
+                SELECT COUNT(*)
+                FROM parties p
+                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+                WHERE p.party_roles LIKE ? AND COALESCE(profile.supplier_mode, 'Normal') = ?
+                """,
+                ("%Supplier%", normalized_mode),
+            ).fetchone()[0]
+            return int(result) if result else 0
+        
+        # Get counts for each type
+        stats["online_count"] = get_supplier_count("Normal")
+        stats["cash_count"] = get_supplier_count("Cash")
+        stats["managed_count"] = get_supplier_count("Managed")
+        stats["partnership_count"] = get_supplier_count("Partnership")
+        stats["total_suppliers"] = sum([
+            stats["online_count"],
+            stats["cash_count"],
+            stats["managed_count"],
+            stats["partnership_count"]
+        ])
+        
+        # Get total outstanding (simplified - sum of all supplier outstanding)
+        total_outstanding_result = db.execute(
+            """
+            SELECT COALESCE(SUM(balance_amount), 0)
+            FROM supplier_vouchers
+            WHERE status IN ('Open', 'Partially Paid')
+            """
+        ).fetchone()[0]
+        stats["total_outstanding"] = float(total_outstanding_result or 0.0)
+        
+        # Get detailed statistics for Online Suppliers
+        # Count supplier registrations (pending approval)
+        registrations_result = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM supplier_registration_requests
+            WHERE approval_status = 'Pending Approval'
+            """
+        ).fetchone()[0]
+        stats["online_registrations"] = int(registrations_result or 0)
+        
+        # Count quotations for online suppliers
+        quotations_result = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM supplier_quotation_submissions
+            WHERE review_status IN ('Pending', 'Submitted')
+            """
+        ).fetchone()[0]
+        stats["online_quotations"] = int(quotations_result or 0)
+        
+        # Count LPOs for online suppliers
+        lpos_result = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM lpos
+            WHERE status IN ('Issued', 'Pending')
+            """
+        ).fetchone()[0]
+        stats["online_lpos"] = int(lpos_result or 0)
+        
+        # Get cash/loan supplier statistics (trips, advances, balance)
+        # Count cash/loan supplier trips (timesheets)
+        cash_trips_result = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM supplier_timesheets st
+            JOIN supplier_profile p ON st.party_code = p.party_code
+            WHERE p.supplier_mode IN ('Cash', 'Loan')
+            """
+        ).fetchone()[0]
+        stats["cash_trips"] = int(cash_trips_result or 0)
+        
+        # Count cash/loan supplier advances
+        cash_advances_result = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM supplier_vouchers sv
+            JOIN supplier_profile p ON sv.party_code = p.party_code
+            WHERE p.supplier_mode IN ('Cash', 'Loan') AND 1=0
+            """
+        ).fetchone()[0]
+        stats["cash_advances"] = int(cash_advances_result or 0)
+        
+        # Calculate cash/loan supplier total balance
+        cash_balance_result = db.execute(
+            """
+            SELECT COALESCE(SUM(sv.balance_amount), 0)
+            FROM supplier_vouchers sv
+            JOIN supplier_profile p ON sv.party_code = p.party_code
+            WHERE p.supplier_mode IN ('Cash', 'Loan') AND sv.status IN ('Open', 'Partially Paid')
+            """
+        ).fetchone()[0]
+        stats["cash_balance"] = float(cash_balance_result or 0.0)
+        
+        # Get managed supplier statistics
+        # Count managed supplier quotations
+        managed_quotations_result = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM supplier_quotation_submissions q
+            JOIN supplier_profile p ON q.party_code = p.party_code
+            WHERE p.supplier_mode = 'Managed'
+            """
+        ).fetchone()[0]
+        stats["managed_quotations"] = int(managed_quotations_result or 0)
+        
+        # Count managed supplier LPOs
+        managed_lpos_result = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM lpos l
+            JOIN supplier_profile p ON l.party_code = p.party_code
+            WHERE p.supplier_mode = 'Managed'
+            """
+        ).fetchone()[0]
+        stats["managed_lpos"] = int(managed_lpos_result or 0)
+        
+        # Count managed supplier invoices
+        managed_invoices_result = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM account_invoices i
+            JOIN supplier_profile p ON i.party_code = p.party_code
+            WHERE p.supplier_mode = 'Managed'
+            """
+        ).fetchone()[0]
+        stats["managed_invoices"] = int(managed_invoices_result or 0)
+        
+        # Get partnership supplier statistics
+        # Count partnership entries
+        partnership_splits_result = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM supplier_partnership_entries
+            """
+        ).fetchone()[0]
+        stats["partnership_splits"] = int(partnership_splits_result or 0)
+        
+        # Count partnership vouchers
+        partnership_vouchers_result = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM supplier_vouchers sv
+            JOIN supplier_profile p ON sv.party_code = p.party_code
+            WHERE p.supplier_mode = 'Partnership'
+            """
+        ).fetchone()[0]
+        stats["partnership_vouchers"] = int(partnership_vouchers_result or 0)
+        
+        # Count partnership statements (distinct months with entries)
+        partnership_statements_result = db.execute(
+            """
+            SELECT COUNT(DISTINCT strftime('%Y-%m', entry_date))
+            FROM supplier_partnership_entries
+            """
+        ).fetchone()[0]
+        stats["partnership_statements"] = int(partnership_statements_result or 0)
+        
+        return render_template(
+            "supplier_desk_home.html",
+            stats=stats,
+            query=query
+        )
+
     @app.route("/suppliers", methods=["GET", "POST"])
     @_login_required("admin")
     def suppliers():
@@ -1846,15 +2418,21 @@ def register_routes(app: Flask) -> None:
                 current_app.logger.exception("Cash supplier save failed")
                 flash("Supplier save failed.", "error")
 
+        # Get both Cash and Loan suppliers for the unified cash/loan desk
+        cash_suppliers_list = _supplier_directory_rows(db, query=query, supplier_mode="Cash")
+        loan_suppliers_list = _supplier_directory_rows(db, query=query, supplier_mode="Loan")
+        # Combine lists, preserving order (cash first, then loan)
+        all_suppliers = list(cash_suppliers_list) + list(loan_suppliers_list)
+        
         return render_template(
-            "suppliers.html",
+            "cash_suppliers_clean.html",
             values=values,
             query=query,
             summary=_supplier_hub_summary(db, supplier_mode),
-            suppliers=_supplier_directory_rows(db, query=query, supplier_mode=supplier_mode),
+            suppliers=all_suppliers,
             role_options=[item for item in PARTY_ROLE_OPTIONS if item != "Supplier"],
             supplier_mode=supplier_mode,
-            desk_title="Cash Supplier Desk",
+            desk_title="Cash & Loan Supplier Desk",
             detail_endpoint="supplier_detail",
             desk_endpoint="cash_suppliers",
             counterpart_endpoint="suppliers",
@@ -2331,8 +2909,8 @@ def register_routes(app: Flask) -> None:
             except ValidationError as exc:
                 flash(str(exc), "error")
 
-            # ── Cash supplier actions ──────────────────────────────────
-            if supplier_mode == "Cash" and action in ("save_trip", "save_debit", "save_cash_payment"):
+            # ── Cash/Loan supplier actions ─────────────────────────────
+            if supplier_mode in ("Cash", "Loan") and action in ("save_trip", "save_debit", "save_cash_payment"):
                 try:
                     if action == "save_trip":
                         trip_no = request.form.get("trip_no", "").strip().upper() or _next_reference_code(db, "cash_supplier_trips", "trip_no", "TRP")
@@ -2403,10 +2981,10 @@ def register_routes(app: Flask) -> None:
         partnership_assets = _supplier_partnership_asset_rows(db, party_code, partnership_month) if supplier_mode == "Partnership" else []
         statement_rows, statement_summary = _supplier_statement_data(db, party_code, supplier_mode=supplier_mode)
 
-        # ── Cash supplier kata data ──────────────────────────────────
+        # ── Cash/Loan supplier kata data ─────────────────────────────
         kata_rows = []
         kata_summary = {"total_earned": 0.0, "total_debits": 0.0, "total_paid": 0.0, "balance": 0.0}
-        if supplier_mode == "Cash":
+        if supplier_mode in ("Cash", "Loan"):
             kata_rows, kata_summary = _cash_supplier_kata(db, party_code)
 
         return render_template(
@@ -2445,9 +3023,9 @@ def register_routes(app: Flask) -> None:
             desk_endpoint=_supplier_desk_endpoint(supplier_mode),
             kata_rows=kata_rows,
             kata_summary=kata_summary,
-            cash_trip_no=_next_reference_code(db, "cash_supplier_trips", "trip_no", "TRP") if supplier_mode == "Cash" else "",
-            cash_debit_no=_next_reference_code(db, "cash_supplier_debits", "debit_no", "DEB") if supplier_mode == "Cash" else "",
-            cash_payment_no=_next_reference_code(db, "cash_supplier_payments", "payment_no", "CPY") if supplier_mode == "Cash" else "",
+            cash_trip_no=_next_reference_code(db, "cash_supplier_trips", "trip_no", "TRP") if supplier_mode in ("Cash", "Loan") else "",
+            cash_debit_no=_next_reference_code(db, "cash_supplier_debits", "debit_no", "DEB") if supplier_mode in ("Cash", "Loan") else "",
+            cash_payment_no=_next_reference_code(db, "cash_supplier_payments", "payment_no", "CPY") if supplier_mode in ("Cash", "Loan") else "",
         )
 
     @app.get("/suppliers/<party_code>/statement")
@@ -3741,6 +4319,356 @@ def register_routes(app: Flask) -> None:
         flash("Maintenance paper deleted successfully.", "success")
         return redirect(url_for("fleet_maintenance", month=(paper["paper_date"] or "")[:7]))
 
+    @app.route("/admin/technician-jobs", methods=["GET", "POST"])
+    @_login_required("admin")
+    def technician_jobs():
+        _touch_admin_workspace("technicians")
+        db = open_db()
+        
+        # Get filter values from request
+        filters = {
+            "status": request.args.get("status", "").strip(),
+            "technician_code": request.args.get("technician_code", "").strip(),
+            "vehicle_id": request.args.get("vehicle_id", "").strip(),
+            "payment_status": request.args.get("payment_status", "").strip(),
+        }
+        
+        # Build query for jobs - updated to match actual schema
+        query = """
+            SELECT
+                mp.paper_no, mp.paper_date as entry_date, mp.vehicle_id,
+                COALESCE(vm.vehicle_no, mp.vehicle_id) as vehicle_no,
+                COALESCE(vm.make_model, mp.vehicle_id) as vehicle_name,
+                mp.work_summary as details,
+                mp.supplier_bill_no as bill_no,
+                mp.subtotal as amount,
+                mp.tax_amount, mp.total_amount,
+                mp.notes as remarks,
+                mp.technician_code,
+                COALESCE(p.party_name, t.specialization, mp.technician_code) as technician_name,
+                mp.review_status, mp.approved_by, mp.approved_at, mp.rejection_reason,
+                mp.payment_status, mp.created_at, mp.attachment_path as bill_image,
+                -- Add workshop name from parties table if workshop_party_code exists
+                COALESCE(wp.party_name, mp.workshop_party_code) as workshop_name,
+                mp.work_type
+            FROM maintenance_papers mp
+            LEFT JOIN vehicle_master vm ON mp.vehicle_id = vm.vehicle_id
+            LEFT JOIN technicians t ON mp.technician_code = t.technician_code
+            LEFT JOIN parties p ON t.party_code = p.party_code
+            LEFT JOIN parties wp ON mp.workshop_party_code = wp.party_code
+            WHERE mp.technician_code IS NOT NULL
+        """
+        params = []
+        
+        if filters["status"]:
+            query += " AND mp.review_status = ?"
+            params.append(filters["status"])
+        
+        if filters["technician_code"]:
+            query += " AND mp.technician_code = ?"
+            params.append(filters["technician_code"])
+        
+        if filters["vehicle_id"]:
+            query += " AND mp.vehicle_id = ?"
+            params.append(filters["vehicle_id"])
+        
+        if filters["payment_status"]:
+            query += " AND mp.payment_status = ?"
+            params.append(filters["payment_status"])
+        
+        query += " ORDER BY mp.paper_date DESC, mp.paper_no DESC LIMIT 50"
+        
+        jobs = db.execute(query, params).fetchall()
+        
+        # Get technician list for filter (with party names)
+        technicians = db.execute(
+            """
+            SELECT t.technician_code, t.specialization, p.party_name
+            FROM technicians t
+            LEFT JOIN parties p ON t.party_code = p.party_code
+            WHERE t.status = 'Active'
+            ORDER BY p.party_name, t.technician_code
+            """
+        ).fetchall()
+        
+        # Get vehicle list for filter
+        vehicles = db.execute(
+            """
+            SELECT vehicle_id, plate_no as vehicle_no, vehicle_name
+            FROM vehicle_master
+            WHERE status = 'Active'
+            ORDER BY plate_no
+            """
+        ).fetchall()
+        
+        # Handle POST actions
+        if request.method == "POST":
+            action = request.form.get("action", "").strip()
+            paper_no = request.form.get("paper_no", "").strip().upper()
+            reviewer = session.get("display_name", "") or "Admin"
+            
+            try:
+                if action == "approve":
+                    # Get job details to calculate split
+                    job = db.execute(
+                        """
+                        SELECT mp.total_amount, mp.vehicle_id, vm.ownership_mode,
+                               vm.company_share_percent, vm.partner_share_percent
+                        FROM maintenance_papers mp
+                        LEFT JOIN vehicle_master vm ON mp.vehicle_id = vm.vehicle_id
+                        WHERE mp.paper_no = ?
+                        """,
+                        (paper_no,)
+                    ).fetchone()
+                    
+                    if not job:
+                        raise ValidationError(f"Job {paper_no} not found.")
+                    
+                    total_amount = float(job["total_amount"] or 0)
+                    ownership_mode = job["ownership_mode"] or "Standard"
+                    company_share_percent = float(job["company_share_percent"] or 100)
+                    partner_share_percent = float(job["partner_share_percent"] or 0)
+                    
+                    # Calculate split amounts
+                    if ownership_mode in ["Standard", "Own Fleet"]:
+                        # Company vehicle - 100% company expense
+                        company_share_amount = total_amount
+                        partner_share_amount = 0.0
+                    else:
+                        # Partnership or supplier vehicle - split based on percentages
+                        company_share_amount = total_amount * (company_share_percent / 100)
+                        partner_share_amount = total_amount * (partner_share_percent / 100)
+                    
+                    # Update job status to Approved with split amounts
+                    db.execute(
+                        """
+                        UPDATE maintenance_papers
+                        SET review_status = 'Approved',
+                            approved_by = ?,
+                            approved_at = CURRENT_TIMESTAMP,
+                            rejection_reason = NULL,
+                            company_share_amount = ?,
+                            partner_share_amount = ?
+                        WHERE paper_no = ?
+                        """,
+                        (reviewer, company_share_amount, partner_share_amount, paper_no)
+                    )
+                    
+                    _audit_log(
+                        db,
+                        "technician_job_approved",
+                        entity_type="maintenance_paper",
+                        entity_id=paper_no,
+                        details=f"Job {paper_no} approved by {reviewer}. Split: Company AED {company_share_amount:.2f}, Partner AED {partner_share_amount:.2f}",
+                    )
+                    
+                    db.commit()
+                    flash(f"Job {paper_no} approved successfully. Split calculated: Company AED {company_share_amount:.2f}, Partner AED {partner_share_amount:.2f}", "success")
+                    
+                elif action == "reject":
+                    rejection_reason = request.form.get("rejection_reason", "").strip()
+                    if not rejection_reason:
+                        rejection_reason = "No reason provided"
+                    
+                    db.execute(
+                        """
+                        UPDATE maintenance_papers
+                        SET review_status = 'Rejected',
+                            approved_by = ?,
+                            approved_at = CURRENT_TIMESTAMP,
+                            rejection_reason = ?
+                        WHERE paper_no = ?
+                        """,
+                        (reviewer, rejection_reason, paper_no)
+                    )
+                    
+                    _audit_log(
+                        db,
+                        "technician_job_rejected",
+                        entity_type="maintenance_paper",
+                        entity_id=paper_no,
+                        details=f"Job {paper_no} rejected: {rejection_reason}",
+                    )
+                    
+                    db.commit()
+                    flash(f"Job {paper_no} rejected.", "success")
+                    
+                elif action == "mark_paid":
+                    # Mark job as fully paid
+                    db.execute(
+                        """
+                        UPDATE maintenance_papers
+                        SET payment_status = 'Paid'
+                        WHERE paper_no = ?
+                        """,
+                        (paper_no,)
+                    )
+                    
+                    _audit_log(
+                        db,
+                        "technician_job_paid",
+                        entity_type="maintenance_paper",
+                        entity_id=paper_no,
+                        details=f"Job {paper_no} marked as paid",
+                    )
+                    
+                    db.commit()
+                    flash(f"Job {paper_no} marked as paid.", "success")
+                    
+                elif action == "process_payment":
+                    payment_amount = float(request.form.get("payment_amount", "0").strip() or 0)
+                    if payment_amount <= 0:
+                        raise ValidationError("Payment amount must be greater than 0")
+                    
+                    # Get current payment details including split amounts
+                    job = db.execute(
+                        """
+                        SELECT total_amount, paid_amount,
+                               company_paid_amount, partner_paid_amount,
+                               company_share_amount, partner_share_amount
+                        FROM maintenance_papers
+                        WHERE paper_no = ?
+                        """,
+                        (paper_no,)
+                    ).fetchone()
+                    
+                    if job:
+                        total_amount = float(job["total_amount"] or 0)
+                        paid_amount = float(job["paid_amount"] or 0)
+                        company_paid_amount = float(job["company_paid_amount"] or 0)
+                        partner_paid_amount = float(job["partner_paid_amount"] or 0)
+                        
+                        # For now, assume payment is made by company
+                        # In future, we could add a paid_by field to the form
+                        new_company_paid = company_paid_amount + payment_amount
+                        new_paid = new_company_paid + partner_paid_amount
+                        
+                        if new_paid >= total_amount:
+                            payment_status = "Paid"
+                        elif new_paid > 0:
+                            payment_status = "Partial"
+                        else:
+                            payment_status = "Pending"
+                        
+                        db.execute(
+                            """
+                            UPDATE maintenance_papers
+                            SET payment_status = ?,
+                                paid_amount = ?,
+                                company_paid_amount = ?
+                            WHERE paper_no = ?
+                            """,
+                            (payment_status, new_paid, new_company_paid, paper_no)
+                        )
+                        
+                        _audit_log(
+                            db,
+                            "technician_payment_processed",
+                            entity_type="maintenance_paper",
+                            entity_id=paper_no,
+                            details=f"Payment of AED {payment_amount:.2f} processed for job {paper_no} (Company paid)",
+                        )
+                        
+                        db.commit()
+                        flash(f"Payment of AED {payment_amount:.2f} processed for job {paper_no}.", "success")
+                
+            except ValidationError as exc:
+                flash(str(exc), "error")
+            except Exception as exc:
+                flash(f"Error processing action: {str(exc)}", "error")
+            
+            return redirect(url_for("technician_jobs", **filters))
+        
+        # Calculate summary statistics
+        stats = {}
+        
+        # Pending count
+        stats["pending_count"] = db.execute(
+            "SELECT COUNT(*) FROM maintenance_papers WHERE review_status = 'Pending' AND technician_code IS NOT NULL"
+        ).fetchone()[0] or 0
+        
+        # Approved amount
+        stats["approved_amount"] = float(db.execute(
+            "SELECT COALESCE(SUM(total_amount), 0) FROM maintenance_papers WHERE review_status = 'Approved' AND technician_code IS NOT NULL"
+        ).fetchone()[0] or 0)
+        
+        # Paid amount
+        stats["paid_amount"] = float(db.execute(
+            "SELECT COALESCE(SUM(COALESCE(paid_amount, 0)), 0) FROM maintenance_papers WHERE technician_code IS NOT NULL"
+        ).fetchone()[0] or 0)
+        
+        # Total jobs
+        stats["total_jobs"] = db.execute(
+            "SELECT COUNT(*) FROM maintenance_papers WHERE technician_code IS NOT NULL"
+        ).fetchone()[0] or 0
+        
+        # Total amount
+        stats["total_amount"] = float(db.execute(
+            "SELECT COALESCE(SUM(total_amount), 0) FROM maintenance_papers WHERE technician_code IS NOT NULL"
+        ).fetchone()[0] or 0)
+        
+        # Balance due
+        stats["balance_due"] = stats["total_amount"] - stats["paid_amount"]
+        
+        # Technician count
+        stats["technician_count"] = db.execute(
+            "SELECT COUNT(*) FROM technicians WHERE status = 'Active'"
+        ).fetchone()[0] or 0
+        
+        # Get pending payments (approved but not fully paid)
+        pending_payments = db.execute(
+            """
+            SELECT paper_no, technician_code,
+                   COALESCE(p.party_name, t.specialization, mp.technician_code) as technician_name,
+                   total_amount, COALESCE(paid_amount, 0) as paid_amount,
+                   approved_at
+            FROM maintenance_papers mp
+            LEFT JOIN technicians t ON mp.technician_code = t.technician_code
+            LEFT JOIN parties p ON t.party_code = p.party_code
+            WHERE mp.review_status = 'Approved'
+              AND mp.payment_status IN ('Pending', 'Partial')
+              AND mp.technician_code IS NOT NULL
+            ORDER BY mp.approved_at DESC
+            LIMIT 10
+            """
+        ).fetchall()
+        
+        # Get technician summary
+        technician_summary = db.execute(
+            """
+            SELECT
+                mp.technician_code,
+                COALESCE(p.party_name, t.specialization, mp.technician_code) as technician_name,
+                COUNT(*) as job_count,
+                SUM(CASE WHEN mp.review_status = 'Approved' THEN mp.total_amount ELSE 0 END) as total_approved,
+                SUM(COALESCE(mp.paid_amount, 0)) as total_paid,
+                SUM(CASE WHEN mp.review_status = 'Approved' THEN mp.total_amount ELSE 0 END) - SUM(COALESCE(mp.paid_amount, 0)) as balance_due
+            FROM maintenance_papers mp
+            LEFT JOIN technicians t ON mp.technician_code = t.technician_code
+            LEFT JOIN parties p ON t.party_code = p.party_code
+            WHERE mp.technician_code IS NOT NULL
+            GROUP BY mp.technician_code, p.party_name, t.specialization
+            ORDER BY total_approved DESC
+            LIMIT 10
+            """
+        ).fetchall()
+        
+        # Current month for export
+        from datetime import datetime
+        current_month = datetime.now().strftime("%Y-%m")
+        
+        return render_template(
+            "technician_jobs.html",
+            jobs=jobs,
+            technicians=technicians,
+            vehicles=vehicles,
+            filters=filters,
+            stats=stats,
+            pending_payments=pending_payments,
+            technician_summary=technician_summary,
+            current_month=current_month,
+        )
+    
     @app.get("/tax")
     @_login_required("admin")
     def tax_center():
@@ -3771,6 +4699,181 @@ def register_routes(app: Flask) -> None:
             recent_loans=_loan_rows(db, limit=6),
         )
 
+    @app.route("/technicians", methods=["GET", "POST"])
+    @_login_required("admin")
+    def technicians():
+        """Technician management - list, create, edit technicians."""
+        _touch_admin_workspace("technicians")
+        db = open_db()
+        
+        # Get filter values
+        status_filter = request.args.get("status", "").strip()
+        search_q = request.args.get("search", "").strip()
+        
+        # Build query
+        query = """
+            SELECT t.id, t.technician_code, t.user_id,
+                   t.phone_number, t.specialization, t.status, t.created_at
+            FROM technicians t
+            WHERE 1=1
+        """
+        params = []
+        
+        if status_filter:
+            query += " AND t.status = ?"
+            params.append(status_filter)
+        
+        if search_q:
+            query += " AND (t.technician_code LIKE ? OR t.user_id LIKE ? OR t.specialization LIKE ?)"
+            search_term = f"%{search_q}%"
+            params.extend([search_term, search_term, search_term])
+        
+        query += " ORDER BY t.created_at DESC"
+        
+        technicians_list = db.execute(query, params).fetchall()
+        
+        # No longer need parties dropdown since technicians are not linked to parties
+        parties = []
+        
+        # Handle form submission for create/edit
+        edit_technician_code = request.args.get("edit", "").strip()
+        values = {
+            "technician_code": "",
+            "user_id": "",
+            "password": "",
+            "confirm_password": "",
+            "phone_number": "",
+            "specialization": "",
+            "status": "Active",
+        }
+        
+        if edit_technician_code:
+            # Load existing technician for editing
+            tech = db.execute("""
+                SELECT technician_code, user_id, phone_number, specialization, status
+                FROM technicians
+                WHERE technician_code = ?
+            """, (edit_technician_code,)).fetchone()
+            if tech:
+                values = {
+                    "technician_code": tech["technician_code"],
+                    "user_id": tech["user_id"] or "",
+                    "password": "",
+                    "confirm_password": "",
+                    "phone_number": tech["phone_number"] or "",
+                    "specialization": tech["specialization"] or "",
+                    "status": tech["status"] or "Active",
+                }
+        
+        if request.method == "POST":
+            action = request.form.get("action", "").strip()
+            values = {
+                "technician_code": "",  # Will be auto-generated
+                "user_id": request.form.get("user_id", "").strip(),
+                "password": request.form.get("password", "").strip(),
+                "confirm_password": request.form.get("confirm_password", "").strip(),
+                "phone_number": request.form.get("phone_number", "").strip(),
+                "specialization": request.form.get("specialization", "").strip(),
+                "status": request.form.get("status", "Active").strip(),
+            }
+            
+            # Validate
+            errors = []
+            if not values["user_id"]:
+                errors.append("User ID is required")
+            if not values["password"] and action == "create":
+                errors.append("Password is required for new technician")
+            if values["password"] != values["confirm_password"]:
+                errors.append("Password and confirmation do not match")
+            
+            # Always auto-generate technician code for new technicians
+            if action == "create":
+                # Generate a technician code like TECH-001
+                last_tech = db.execute(
+                    "SELECT technician_code FROM technicians WHERE technician_code LIKE 'TECH-%' ORDER BY technician_code DESC LIMIT 1"
+                ).fetchone()
+                if last_tech:
+                    last_num = int(last_tech["technician_code"].split("-")[1])
+                    values["technician_code"] = f"TECH-{last_num + 1:03d}"
+                else:
+                    values["technician_code"] = "TECH-001"
+            else:
+                # For updates, get technician_code from hidden field
+                values["technician_code"] = request.form.get("technician_code", "").strip()
+                if not values["technician_code"]:
+                    errors.append("Technician code is required for updates")
+            
+            if errors:
+                for err in errors:
+                    flash(err, "error")
+            else:
+                try:
+                    if action == "create":
+                        # Check if technician_code already exists
+                        existing = db.execute(
+                            "SELECT technician_code FROM technicians WHERE technician_code = ?",
+                            (values["technician_code"],)
+                        ).fetchone()
+                        if existing:
+                            flash("Technician Code already exists", "error")
+                        else:
+                            # Create technician (party_code is NULL)
+                            db.execute("""
+                                INSERT INTO technicians
+                                (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+                                VALUES (?, NULL, ?, ?, ?, ?, ?)
+                            """, (
+                                values["technician_code"],
+                                values["user_id"],
+                                # For now, store plain text (in real app, use hashing)
+                                values["password"],
+                                values["phone_number"],
+                                values["specialization"],
+                                values["status"],
+                            ))
+                            db.commit()
+                            flash("Technician created successfully", "success")
+                            return redirect(url_for("technicians"))
+                    
+                    elif action == "update":
+                        # Update technician (party_code remains NULL)
+                        db.execute("""
+                            UPDATE technicians
+                            SET user_id = ?, phone_number = ?,
+                                specialization = ?, status = ?
+                            WHERE technician_code = ?
+                        """, (
+                            values["user_id"],
+                            values["phone_number"],
+                            values["specialization"],
+                            values["status"],
+                            values["technician_code"],
+                        ))
+                        # Update password if provided
+                        if values["password"]:
+                            db.execute("""
+                                UPDATE technicians
+                                SET password_hash = ?
+                                WHERE technician_code = ?
+                            """, (values["password"], values["technician_code"]))
+                        
+                        db.commit()
+                        flash("Technician updated successfully", "success")
+                        return redirect(url_for("technicians"))
+                
+                except Exception as e:
+                    flash(f"Error saving technician: {str(e)}", "error")
+        
+        return render_template(
+            "technicians.html",
+            technicians=technicians_list,
+            parties=parties,
+            values=values,
+            edit_technician_code=edit_technician_code,
+            status_filter=status_filter,
+            search_q=search_q,
+        )
+
     @app.route("/owner-fund", methods=["GET", "POST"])
     @_login_required("admin", "owner")
     def owner_fund():
@@ -3787,13 +4890,14 @@ def register_routes(app: Flask) -> None:
             "amount": "",
             "received_by": "",
             "payment_method": "Cash",
+            "transaction_type": "IN",
             "details": "",
         }
 
         if edit_entry_id:
             existing_entry = db.execute(
                 """
-                SELECT id, owner_name, entry_date, amount, received_by, payment_method, details
+                SELECT id, owner_name, entry_date, amount, received_by, payment_method, transaction_type, details
                 FROM owner_fund_entries
                 WHERE id = ?
                 """,
@@ -3807,6 +4911,7 @@ def register_routes(app: Flask) -> None:
                     "amount": f"{float(existing_entry['amount']):.2f}",
                     "received_by": existing_entry["received_by"] or "",
                     "payment_method": existing_entry["payment_method"] or "Cash",
+                    "transaction_type": existing_entry["transaction_type"] or "IN",
                     "details": existing_entry["details"] or "",
                 }
 
@@ -3822,6 +4927,7 @@ def register_routes(app: Flask) -> None:
                 "amount": request.form.get("amount", "").strip(),
                 "received_by": request.form.get("received_by", "").strip(),
                 "payment_method": request.form.get("payment_method", "Cash").strip() or "Cash",
+                "transaction_type": request.form.get("transaction_type", "IN").strip() or "IN",
                 "details": request.form.get("details", "").strip(),
             }
             try:
@@ -3836,7 +4942,7 @@ def register_routes(app: Flask) -> None:
                         db.execute(
                             """
                             UPDATE owner_fund_entries
-                            SET owner_name = ?, entry_date = ?, amount = ?, received_by = ?, payment_method = ?, details = ?
+                            SET owner_name = ?, entry_date = ?, amount = ?, received_by = ?, payment_method = ?, transaction_type = ?, details = ?
                             WHERE id = ?
                             """,
                             (
@@ -3845,6 +4951,7 @@ def register_routes(app: Flask) -> None:
                                 amount,
                                 values["received_by"],
                                 values["payment_method"],
+                                values["transaction_type"],
                                 values["details"],
                                 values["entry_id"],
                             ),
@@ -3860,8 +4967,8 @@ def register_routes(app: Flask) -> None:
                     else:
                         db.execute(
                             """
-                            INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, details)
-                            VALUES (?, ?, ?, ?, ?, ?)
+                            INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
                             """,
                             (
                                 values["owner_name"],
@@ -3869,6 +4976,7 @@ def register_routes(app: Flask) -> None:
                                 amount,
                                 values["received_by"],
                                 values["payment_method"],
+                                values["transaction_type"],
                                 values["details"],
                             ),
                         )
@@ -3889,7 +4997,7 @@ def register_routes(app: Flask) -> None:
         view_incoming, view_outgoing, view_net, view_closing = _owner_fund_view_totals(view_rows)
         entries = db.execute(
             """
-            SELECT id, owner_name, entry_date, amount, received_by, payment_method, details
+            SELECT id, owner_name, entry_date, amount, received_by, payment_method, transaction_type, details
             FROM owner_fund_entries
             ORDER BY entry_date DESC, id DESC
             LIMIT 20
@@ -5289,12 +6397,14 @@ def _client_ip() -> str:
     return forwarded_for or request.remote_addr or "unknown"
 
 
-def _auth_identifier(role: str, phone_number: str = "", supplier_code: str = "") -> str:
+def _auth_identifier(role: str, phone_number: str = "", supplier_code: str = "", technician_code: str = "") -> str:
     if role == "driver":
         normalized_phone = _normalize_phone(phone_number)
         return normalized_phone or _client_ip()
     if role == "supplier":
         return (supplier_code or "").strip().upper() or _client_ip()
+    if role == "technician":
+        return (technician_code or "").strip().upper() or _client_ip()
     return _client_ip()
 
 
@@ -5423,6 +6533,8 @@ def _role_home_endpoint() -> str:
         return "driver_portal"
     if role == "supplier":
         return "supplier_portal"
+    if role == "technician":
+        return "technician_portal"
     return "login"
 
 
@@ -5459,6 +6571,7 @@ def _workspace_home_endpoint(workspace: str) -> str:
         "suppliers-cash": "cash_suppliers",
         "customers": "customers",
         "accounts": "reports_center",
+        "technicians": "technicians",
     }.get(workspace, "dashboard")
 
 
@@ -5550,6 +6663,11 @@ def _admin_module_links(workspace: str):
             {"label": "Owner Fund", "endpoint": "owner_fund", "primary": True},
             {"label": "Fleet Maintenance", "endpoint": "fleet_maintenance"},
             {"label": "Tax", "endpoint": "tax_center"},
+        ],
+        "technicians": [
+            {"label": "Technicians", "endpoint": "technicians", "primary": True},
+            {"label": "Technician Jobs", "endpoint": "technician_jobs"},
+            {"label": "Technician Portal", "endpoint": "technician_portal"},
         ],
     }
     return [
@@ -7348,7 +8466,7 @@ def _supplier_detail_endpoint(supplier_mode: str) -> str:
 
 
 def _supplier_screen_options(supplier_mode: str):
-    if supplier_mode == "Cash":
+    if supplier_mode in ("Cash", "Loan"):
         return [
             {"key": "kata", "label": "Kata / Statement"},
         ]
@@ -7364,7 +8482,7 @@ def _supplier_screen_options(supplier_mode: str):
 
 
 def _default_supplier_screen(supplier_mode: str) -> str:
-    return "kata" if supplier_mode == "Cash" else "vehicles"
+    return "kata" if supplier_mode in ("Cash", "Loan") else "vehicles"
 
 
 def _normalize_supplier_screen(screen: str, supplier_mode: str) -> str:
@@ -7695,6 +8813,56 @@ def _supplier_reset_target(db, user_id: str, email: str):
     if (account["activation_status"] or "") not in {"Approved", "Active"}:
         raise ValidationError("Password reset is only available for approved supplier accounts.")
     return account, party
+
+
+def _technician_login_target(db, user_id: str):
+    normalized_user_id = (user_id or "").strip()
+    if not normalized_user_id:
+        raise ValidationError("User ID is required.")
+    
+    # Try to find technician by technician_code or user_id
+    technician = db.execute(
+        """
+        SELECT
+            technician_code, party_code, user_id, password_hash,
+            phone_number, specialization, status, created_at
+        FROM technicians
+        WHERE technician_code = ? OR user_id = ?
+        """,
+        (normalized_user_id, normalized_user_id),
+    ).fetchone()
+    
+    if technician is None:
+        raise ValidationError("Technician account was not found.")
+    
+    # Fetch party information if party_code exists
+    party = None
+    if technician["party_code"]:
+        party = db.execute(
+            """
+            SELECT party_code, party_name, party_kind, party_roles
+            FROM parties
+            WHERE party_code = ?
+            """,
+            (technician["party_code"],),
+        ).fetchone()
+    
+    # Create a dummy party object if party_code is NULL
+    if party is None:
+        party = {
+            "party_code": technician["party_code"] or "",
+            "party_name": technician["specialization"] or "Independent Technician",
+            "party_kind": "Technician",
+            "party_roles": ["Technician"],
+        }
+    
+    if (technician["status"] or "").strip() != "Active":
+        raise ValidationError("Technician account is not active.")
+    
+    if not technician["password_hash"]:
+        raise ValidationError("Technician account password is not set yet.")
+    
+    return technician, party
 
 
 def _default_supplier_registration_form(db=None):
@@ -9340,8 +10508,8 @@ def _supplier_statement_data(db, party_code: str, supplier_mode: str = "Normal")
         }
         return rows, summary
 
-    # Cash suppliers use the dedicated kata view — statement is not applicable
-    if supplier_mode == "Cash":
+    # Cash/Loan suppliers use the dedicated kata view — statement is not applicable
+    if supplier_mode in ("Cash", "Loan"):
         return [], {
             "work_logged": 0.0, "total_vouchers": 0.0,
             "total_paid": 0.0, "outstanding": 0.0,
@@ -10749,14 +11917,15 @@ def _outstanding_advance(db, driver_id: str, exclude_salary_store_id: int | None
 
 
 def _owner_fund_totals(db):
-    incoming = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM owner_fund_entries").fetchone()[0])
+    incoming = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM owner_fund_entries WHERE transaction_type = 'IN'").fetchone()[0])
+    outgoing_owner_fund = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM owner_fund_entries WHERE transaction_type = 'OUT'").fetchone()[0])
     outgoing_transactions = float(
         db.execute("SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE source = 'Owner Fund'").fetchone()[0]
     )
     outgoing_salary = float(
         db.execute("SELECT COALESCE(SUM(net_payable), 0) FROM salary_slips WHERE payment_source = 'Owner Fund'").fetchone()[0]
     )
-    outgoing = outgoing_transactions + outgoing_salary
+    outgoing = outgoing_owner_fund + outgoing_transactions + outgoing_salary
     return incoming, outgoing, incoming - outgoing
 
 
@@ -10785,22 +11954,36 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     rows = []
     for entry in db.execute(
         """
-        SELECT owner_name, entry_date, amount, received_by, details
+        SELECT owner_name, entry_date, amount, received_by, transaction_type, details
         FROM owner_fund_entries
         ORDER BY entry_date ASC, id ASC
         """
     ).fetchall():
-        rows.append(
-            {
-                "entry_date": entry["entry_date"],
-                "reference": f"Owner Fund / {entry['owner_name']}",
-                "party": entry["received_by"] or "-",
-                "details": entry["details"] or "-",
-                "incoming": float(entry["amount"]),
-                "outgoing": 0.0,
-                "movement": "Incoming",
-            }
-        )
+        transaction_type = entry["transaction_type"] or "IN"
+        if transaction_type == "IN":
+            rows.append(
+                {
+                    "entry_date": entry["entry_date"],
+                    "reference": f"Owner Fund / {entry['owner_name']}",
+                    "party": entry["received_by"] or "-",
+                    "details": entry["details"] or "-",
+                    "incoming": float(entry["amount"]),
+                    "outgoing": 0.0,
+                    "movement": "Incoming",
+                }
+            )
+        else:  # OUT
+            rows.append(
+                {
+                    "entry_date": entry["entry_date"],
+                    "reference": f"Owner Fund / {entry['owner_name']}",
+                    "party": entry["received_by"] or "-",
+                    "details": entry["details"] or "-",
+                    "incoming": 0.0,
+                    "outgoing": float(entry["amount"]),
+                    "movement": "Outgoing",
+                }
+            )
     for entry in db.execute(
         """
         SELECT driver_transactions.entry_date, driver_transactions.driver_id, driver_transactions.given_by,
