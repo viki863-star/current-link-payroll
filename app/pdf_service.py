@@ -852,12 +852,19 @@ def generate_cash_supplier_kata_pdf(
             )
 
         table_header_top = PAGE_HEIGHT - 106 * mm
-        _draw_table_header(
-            pdf_obj,
-            table_header_top,
-            ["Date", "Month", "Ref", "Type", "Description", "Earned", "Debit", "Paid", "Balance"],
-            [18, 35, 54, 72, 94, 148, 164, 178, 189],
-        )
+        pdf_obj.setFillColor(BLUE)
+        pdf_obj.roundRect(16 * mm, table_header_top, 178 * mm, 8 * mm, 2 * mm, fill=1, stroke=0)
+        pdf_obj.setFillColor(colors.white)
+        pdf_obj.setFont("Helvetica-Bold", 7.0)
+        pdf_obj.drawString(18 * mm, table_header_top + 2.6 * mm, "Date")
+        pdf_obj.drawString(34 * mm, table_header_top + 2.6 * mm, "Month")
+        pdf_obj.drawString(50 * mm, table_header_top + 2.6 * mm, "Ref")
+        pdf_obj.drawString(65 * mm, table_header_top + 2.6 * mm, "Type")
+        pdf_obj.drawString(84 * mm, table_header_top + 2.6 * mm, "Description")
+        pdf_obj.drawRightString(158 * mm, table_header_top + 2.6 * mm, "Earned")
+        pdf_obj.drawRightString(171 * mm, table_header_top + 2.6 * mm, "Debit")
+        pdf_obj.drawRightString(183 * mm, table_header_top + 2.6 * mm, "Paid")
+        pdf_obj.drawRightString(194 * mm, table_header_top + 2.6 * mm, "Balance")
         return table_header_top - 4.6 * mm, 24 * mm
 
     row_height = 10.0 * mm
@@ -888,8 +895,8 @@ def generate_cash_supplier_kata_pdf(
             type_text = str(row.get("entry_type") or "-")
             if row.get("earning_basis"):
                 type_text = f"{type_text} / {row.get('earning_basis')}"
-            type_lines = _wrap_text_lines(pdf, type_text, "Helvetica", 6.0, 19 * mm, max_lines=2, min_size=5.4)
-            desc_lines = _wrap_text_lines(pdf, str(row.get("description") or "-"), "Helvetica", 6.1, 50 * mm, max_lines=2, min_size=5.4)
+            type_lines = _wrap_text_lines(pdf, type_text, "Helvetica", 5.9, 17 * mm, max_lines=2, min_size=5.2)
+            desc_lines = _wrap_text_lines(pdf, str(row.get("description") or "-"), "Helvetica", 5.9, 58 * mm, max_lines=2, min_size=5.2)
 
             top_line_y = current_y + 1.4 * mm
             second_line_y = current_y - 2.4 * mm
@@ -897,24 +904,24 @@ def generate_cash_supplier_kata_pdf(
             pdf.setFillColor(TEXT)
             pdf.setFont("Helvetica", 6.3)
             pdf.drawString(18 * mm, top_line_y, format_date_label(row.get("entry_date")))
-            month_text, month_size = _fit_text(pdf, str(row.get("period_month_display") or "-"), "Helvetica", 6.1, 15 * mm, min_size=5.4)
+            month_text, month_size = _fit_text(pdf, str(row.get("period_month_display") or "-"), "Helvetica", 6.0, 13 * mm, min_size=5.2)
             pdf.setFont("Helvetica", month_size)
-            pdf.drawString(35 * mm, top_line_y, month_text)
-            ref_text, ref_size = _fit_text(pdf, str(row.get("reference") or "-"), "Helvetica-Bold", 6.3, 16 * mm, min_size=5.5)
+            pdf.drawString(34 * mm, top_line_y, month_text)
+            ref_text, ref_size = _fit_text(pdf, str(row.get("reference") or "-"), "Helvetica-Bold", 6.1, 13 * mm, min_size=5.2)
             pdf.setFont("Helvetica-Bold", ref_size)
-            pdf.drawString(54 * mm, top_line_y, ref_text)
+            pdf.drawString(50 * mm, top_line_y, ref_text)
 
             pdf.setFillColor(TEXT)
             pdf.setFont("Helvetica", 5.9)
             for line_index, line in enumerate(type_lines[:2]):
-                pdf.drawString(72 * mm, top_line_y - line_index * 3.8 * mm, line)
+                pdf.drawString(65 * mm, top_line_y - line_index * 3.8 * mm, line)
             for line_index, line in enumerate(desc_lines[:2]):
-                pdf.drawString(94 * mm, top_line_y - line_index * 3.8 * mm, line)
+                pdf.drawString(84 * mm, top_line_y - line_index * 3.8 * mm, line)
 
             pdf.setFont("Helvetica-Bold", 6.2)
-            pdf.drawRightString(162 * mm, second_line_y, format_currency(float(row.get("earned") or 0.0)))
-            pdf.drawRightString(176 * mm, second_line_y, format_currency(float(row.get("debit") or 0.0)))
-            pdf.drawRightString(188 * mm, second_line_y, format_currency(float(row.get("paid") or 0.0)))
+            pdf.drawRightString(158 * mm, second_line_y, format_currency(float(row.get("earned") or 0.0)))
+            pdf.drawRightString(171 * mm, second_line_y, format_currency(float(row.get("debit") or 0.0)))
+            pdf.drawRightString(183 * mm, second_line_y, format_currency(float(row.get("paid") or 0.0)))
             pdf.drawRightString(194 * mm, second_line_y, format_currency(float(row.get("running_balance") or 0.0)))
             current_y -= row_height
 
