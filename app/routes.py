@@ -2048,7 +2048,8 @@ def register_routes(app: Flask) -> None:
         
         # Get counts for each type
         stats["online_count"] = get_supplier_count("Normal", "supplier desk online count")
-        stats["cash_count"] = get_supplier_count(("Cash", "Loan"), "supplier desk cash count")
+        cash_directory_summary = _cash_supplier_directory_summary(_cash_supplier_directory_rows(db, active_only=True))
+        stats["cash_count"] = int(cash_directory_summary["supplier_count"])
         stats["managed_count"] = get_supplier_count("Managed", "supplier desk managed count")
         stats["partnership_count"] = get_supplier_count("Partnership", "supplier desk partnership count")
         stats["total_suppliers"] = sum([
@@ -2117,9 +2118,10 @@ def register_routes(app: Flask) -> None:
             db,
             """
             SELECT COUNT(*)
-            FROM supplier_timesheets st
+            FROM cash_supplier_trips st
             JOIN supplier_profile p ON st.party_code = p.party_code
-            WHERE p.supplier_mode IN ('Cash', 'Loan')
+            JOIN parties party ON party.party_code = st.party_code
+            WHERE p.supplier_mode IN ('Cash', 'Loan') AND party.status = 'Active'
             """,
             default=0,
             label="supplier desk cash trips",
@@ -2131,9 +2133,10 @@ def register_routes(app: Flask) -> None:
             db,
             """
             SELECT COUNT(*)
-            FROM supplier_vouchers sv
-            JOIN supplier_profile p ON sv.party_code = p.party_code
-            WHERE p.supplier_mode IN ('Cash', 'Loan') AND 1=0
+            FROM cash_supplier_debits debit
+            JOIN supplier_profile p ON debit.party_code = p.party_code
+            JOIN parties party ON party.party_code = debit.party_code
+            WHERE p.supplier_mode IN ('Cash', 'Loan') AND party.status = 'Active'
             """,
             default=0,
             label="supplier desk cash advances",
@@ -2141,18 +2144,7 @@ def register_routes(app: Flask) -> None:
         stats["cash_advances"] = int(cash_advances_result or 0)
         
         # Calculate cash/loan supplier total balance
-        cash_balance_result = _safe_dashboard_scalar(
-            db,
-            """
-            SELECT COALESCE(SUM(sv.balance_amount), 0)
-            FROM supplier_vouchers sv
-            JOIN supplier_profile p ON sv.party_code = p.party_code
-            WHERE p.supplier_mode IN ('Cash', 'Loan') AND sv.status IN ('Open', 'Partially Paid')
-            """,
-            default=0.0,
-            label="supplier desk cash balance",
-        )
-        stats["cash_balance"] = float(cash_balance_result or 0.0)
+        stats["cash_balance"] = float(cash_directory_summary["outstanding_total"] or 0.0)
         
         # Get managed supplier statistics
         # Count managed supplier quotations
@@ -2538,18 +2530,13 @@ def register_routes(app: Flask) -> None:
                 current_app.logger.exception("Cash supplier save failed")
                 flash("Supplier save failed.", "error")
 
-        # Get both Cash and Loan suppliers for the unified cash/loan desk
-        cash_suppliers_list = _supplier_directory_rows(db, query=query, supplier_mode="Cash")
-        loan_suppliers_list = _supplier_directory_rows(db, query=query, supplier_mode="Loan")
-        # Combine lists, preserving order (cash first, then loan)
-        all_suppliers = list(cash_suppliers_list) + list(loan_suppliers_list)
-        
+        cash_supplier_rows = _cash_supplier_directory_rows(db, active_only=True)
+        summary = _cash_supplier_directory_summary(cash_supplier_rows)
         return render_template(
             "cash_suppliers_clean.html",
             values=values,
             query=query,
-            summary=_supplier_hub_summary(db, supplier_mode),
-            suppliers=all_suppliers,
+            summary=summary,
             role_options=[item for item in PARTY_ROLE_OPTIONS if item != "Supplier"],
             supplier_mode=supplier_mode,
             desk_title="Cash & Loan Supplier Desk",
@@ -2558,6 +2545,21 @@ def register_routes(app: Flask) -> None:
             counterpart_endpoint="suppliers",
             counterpart_label="Portal Desk",
             partner_parties=_supplier_partner_parties(db),
+        )
+
+    @app.route("/suppliers/cash/cards", methods=["GET"])
+    @_login_required("admin")
+    def cash_supplier_cards():
+        _touch_admin_workspace(_supplier_mode_workspace_key("Cash"))
+        db = open_db()
+        query = request.args.get("q", "").strip()
+        suppliers = _cash_supplier_directory_rows(db, query=query, active_only=True)
+        summary = _cash_supplier_directory_summary(suppliers)
+        return render_template(
+            "cash_supplier_cards.html",
+            query=query,
+            suppliers=suppliers,
+            summary=summary,
         )
 
     @app.route("/suppliers/<party_code>", methods=["GET", "POST"])
@@ -7469,6 +7471,7 @@ def _admin_module_links(workspace: str):
         ],
         "suppliers-cash": [
             {"label": "New Cash Supplier", "endpoint": "cash_suppliers", "primary": True},
+            {"label": "Supplier Cards", "endpoint": "cash_supplier_cards"},
             {"label": "Portal Desk", "endpoint": "suppliers"},
         ],
         "customers": [
@@ -11192,6 +11195,144 @@ def _supplier_hub_summary(db, supplier_mode: str = "Normal"):
                 (normalized_mode,),
             ).fetchone()[0]
         ),
+    }
+
+
+def _cash_supplier_balance_meta(closing_balance: float):
+    balance_value = round(float(closing_balance or 0.0), 2)
+    if balance_value > 0.009:
+        return "Balance Due", "due", balance_value
+    if balance_value < -0.009:
+        return "Advance Given", "advance", abs(balance_value)
+    return "Settled", "settled", 0.0
+
+
+def _cash_supplier_directory_rows(db, query: str = "", limit: int | None = None, active_only: bool = True):
+    filters = ["p.party_roles LIKE ?", "COALESCE(profile.supplier_mode, 'Normal') IN (?, ?)"]
+    params = ["%Supplier%", "Cash", "Loan"]
+    if active_only:
+        filters.append("p.status = 'Active'")
+    if query:
+        needle = f"%{query.strip().lower()}%"
+        filters.append(
+            """
+            (
+                LOWER(p.party_code) LIKE ? OR
+                LOWER(p.party_name) LIKE ? OR
+                LOWER(COALESCE(p.contact_person, '')) LIKE ? OR
+                LOWER(COALESCE(p.phone_number, '')) LIKE ?
+            )
+            """
+        )
+        params.extend([needle, needle, needle, needle])
+
+    rows = db.execute(
+        f"""
+        SELECT
+            p.party_code,
+            p.party_name,
+            p.party_kind,
+            p.party_roles,
+            p.contact_person,
+            p.phone_number,
+            p.email,
+            p.trn_no,
+            p.trade_license_no,
+            p.status,
+            COALESCE(profile.supplier_mode, 'Cash') AS supplier_mode,
+            COALESCE(asset_totals.asset_count, 0) AS asset_count,
+            COALESCE(asset_totals.double_shift_count, 0) AS double_shift_count,
+            COALESCE(trip_totals.trip_count, 0) AS trip_count,
+            COALESCE(trip_totals.earned_total, 0) AS earned_total,
+            COALESCE(debit_totals.debit_count, 0) AS debit_count,
+            COALESCE(debit_totals.debit_total, 0) AS debit_total,
+            COALESCE(payment_totals.payment_count, 0) AS payment_count,
+            COALESCE(payment_totals.paid_total, 0) AS paid_total
+        FROM parties p
+        LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+        LEFT JOIN (
+            SELECT
+                party_code,
+                COUNT(*) AS asset_count,
+                SUM(CASE WHEN double_shift_mode = 'Double Shift' THEN 1 ELSE 0 END) AS double_shift_count
+            FROM supplier_assets
+            GROUP BY party_code
+        ) asset_totals ON asset_totals.party_code = p.party_code
+        LEFT JOIN (
+            SELECT
+                party_code,
+                COUNT(*) AS trip_count,
+                COALESCE(SUM(total_amount), 0) AS earned_total
+            FROM cash_supplier_trips
+            GROUP BY party_code
+        ) trip_totals ON trip_totals.party_code = p.party_code
+        LEFT JOIN (
+            SELECT
+                party_code,
+                COUNT(*) AS debit_count,
+                COALESCE(SUM(amount), 0) AS debit_total
+            FROM cash_supplier_debits
+            GROUP BY party_code
+        ) debit_totals ON debit_totals.party_code = p.party_code
+        LEFT JOIN (
+            SELECT
+                party_code,
+                COUNT(*) AS payment_count,
+                COALESCE(SUM(amount), 0) AS paid_total
+            FROM cash_supplier_payments
+            GROUP BY party_code
+        ) payment_totals ON payment_totals.party_code = p.party_code
+        WHERE {" AND ".join(filters)}
+        """,
+        params,
+    ).fetchall()
+
+    prepared_rows = []
+    for row in rows:
+        item = dict(row)
+        item["asset_count"] = int(item.get("asset_count") or 0)
+        item["double_shift_count"] = int(item.get("double_shift_count") or 0)
+        item["trip_count"] = int(item.get("trip_count") or 0)
+        item["debit_count"] = int(item.get("debit_count") or 0)
+        item["payment_count"] = int(item.get("payment_count") or 0)
+        item["earned_total"] = round(float(item.get("earned_total") or 0.0), 2)
+        item["debit_total"] = round(float(item.get("debit_total") or 0.0), 2)
+        item["paid_total"] = round(float(item.get("paid_total") or 0.0), 2)
+        item["closing_balance"] = round(item["earned_total"] - item["debit_total"] - item["paid_total"], 2)
+        balance_label, balance_state, display_balance_amount = _cash_supplier_balance_meta(item["closing_balance"])
+        item["balance_label"] = balance_label
+        item["balance_state"] = balance_state
+        item["display_balance_amount"] = round(display_balance_amount, 2)
+        prepared_rows.append(item)
+
+    prepared_rows.sort(
+        key=lambda item: (
+            0 if item.get("status") == "Active" else 1,
+            0 if item.get("balance_state") == "due" else 1 if item.get("balance_state") == "advance" else 2,
+            -abs(float(item.get("closing_balance") or 0.0)),
+            str(item.get("party_name") or "").lower(),
+        )
+    )
+    if limit:
+        return prepared_rows[: int(limit)]
+    return prepared_rows
+
+
+def _cash_supplier_directory_summary(rows) -> dict:
+    directory_rows = list(rows or [])
+    return {
+        "supplier_count": len(directory_rows),
+        "asset_count": sum(int(item.get("asset_count") or 0) for item in directory_rows),
+        "double_shift_count": sum(int(item.get("double_shift_count") or 0) for item in directory_rows),
+        "trip_count": sum(int(item.get("trip_count") or 0) for item in directory_rows),
+        "debit_count": sum(int(item.get("debit_count") or 0) for item in directory_rows),
+        "payment_count": sum(int(item.get("payment_count") or 0) for item in directory_rows),
+        "total_earned": round(sum(float(item.get("earned_total") or 0.0) for item in directory_rows), 2),
+        "total_debits": round(sum(float(item.get("debit_total") or 0.0) for item in directory_rows), 2),
+        "total_paid": round(sum(float(item.get("paid_total") or 0.0) for item in directory_rows), 2),
+        "outstanding_total": round(sum(max(float(item.get("closing_balance") or 0.0), 0.0) for item in directory_rows), 2),
+        "advance_total": round(sum(max(-(float(item.get("closing_balance") or 0.0)), 0.0) for item in directory_rows), 2),
+        "settled_count": sum(1 for item in directory_rows if item.get("balance_state") == "settled"),
     }
 
 

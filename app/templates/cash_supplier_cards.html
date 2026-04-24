@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Cash Supplier Cards — Current Link ERP{% endblock %}
+
+{% block content %}
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button button-secondary" href="{{ url_for('cash_suppliers') }}">Cash Desk</a>
+                <span class="button button-primary" style="background-color: #1f8f4c; border-color: #1f8f4c; cursor: default;">Supplier Cards</span>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ summary.supplier_count }}</strong><small>Shown Suppliers</small></span>
+                <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Total Due</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.advance_total) }}</strong><small>Total Advance Given</small></span>
+            </div>
+        </div>
+        <form method="get" class="admin-filter-grid desk-single-filter">
+            <label>
+                <span>Search Cash/Loan Suppliers</span>
+                <input type="search" name="q" value="{{ query }}" placeholder="Name, code, phone, contact">
+            </label>
+            <div class="admin-filter-actions">
+                <button class="button" type="submit">Search</button>
+                {% if query %}
+                    <a class="button button-secondary" href="{{ url_for('cash_supplier_cards') }}">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </article>
+
+    <section class="db-grid driver-card-wall cash-card-wall">
+        {% for item in suppliers %}
+            <article class="wc wc-cash cash-directory-card{% if item.status == 'Inactive' %} inactive{% endif %}">
+                <div class="wc-shimmer"></div>
+                <div class="wc-bg-icon">{% if item.supplier_mode == "Loan" %}💳{% else %}💵{% endif %}</div>
+
+                <div class="wc-top cash-card-top">
+                    <div class="wc-icon-badge wc-badge-cash">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                            <rect x="2" y="6" width="20" height="12" rx="2"/>
+                            <circle cx="12" cy="12" r="2"/>
+                            <path d="M6 12h.01M18 12h.01"/>
+                        </svg>
+                    </div>
+                    <div class="wc-meta">
+                        <span class="wc-tag">{{ item.supplier_mode }} Supplier</span>
+                        <span class="wc-category">{{ item.party_code }}</span>
+                    </div>
+                    <span class="status-chip {{ item.status|lower }} cash-card-status">{{ item.status }}</span>
+                </div>
+
+                <div class="wc-body">
+                    <h2 class="wc-title">{{ item.party_name }}</h2>
+                    <div class="cash-card-copy">
+                        <span><strong>Contact:</strong> {{ item.contact_person or item.phone_number or "-" }}</span>
+                        <span><strong>Phone:</strong> {{ item.phone_number or "-" }}</span>
+                        <span><strong>Fleet:</strong> {{ item.asset_count }} units</span>
+                    </div>
+                    <div class="cash-balance-strip {{ item.balance_state }}">
+                        <span class="cash-balance-label">{{ item.balance_label }}</span>
+                        <strong class="cash-balance-value">AED {{ "%.2f"|format(item.display_balance_amount) }}</strong>
+                    </div>
+                </div>
+
+                <div class="wc-footer cash-card-footer">
+                    <div class="wc-quick-stats">
+                        <span class="wc-stat wc-stat-cash">{{ item.supplier_mode }}</span>
+                        <span class="wc-stat wc-stat-cash">{{ item.trip_count }} Trips</span>
+                        <span class="wc-stat wc-stat-cash">{{ item.payment_count }} Payments</span>
+                    </div>
+                </div>
+
+                <div class="cash-card-actions">
+                    <a class="cash-card-link" href="{{ url_for('supplier_detail', party_code=item.party_code) }}">Open</a>
+                    <a class="cash-card-link" href="{{ url_for('cash_suppliers', edit=item.party_code) }}">Edit</a>
+                    <a class="cash-card-link" href="{{ url_for('supplier_detail', party_code=item.party_code) }}?screen=statement">Statement</a>
+                </div>
+            </article>
+        {% else %}
+            <article class="card directory-empty cash-directory-empty">
+                <h2>No Cash/Loan Supplier Found</h2>
+                <p>Change your search or open the cash desk to add a new supplier.</p>
+                <a class="button" href="{{ url_for('cash_suppliers') }}">Register Cash/Loan Supplier</a>
+            </article>
+        {% endfor %}
+    </section>
+</section>
+
+<style>
+.cash-card-wall {
+    grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+    margin-top: 24px;
+}
+
+.cash-directory-card {
+    min-height: 335px;
+    cursor: default;
+}
+
+.cash-directory-card.inactive {
+    opacity: 0.76;
+}
+
+.cash-card-top {
+    align-items: center;
+}
+
+.cash-card-top .wc-meta {
+    flex: 1;
+}
+
+.cash-card-status {
+    flex-shrink: 0;
+}
+
+.cash-card-copy {
+    display: grid;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.cash-card-copy strong {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.cash-balance-strip {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.cash-balance-strip.due {
+    background: rgba(96, 165, 250, 0.14);
+    border-color: rgba(96, 165, 250, 0.22);
+}
+
+.cash-balance-strip.advance {
+    background: rgba(251, 191, 36, 0.14);
+    border-color: rgba(251, 191, 36, 0.24);
+}
+
+.cash-balance-strip.settled {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.cash-balance-label {
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.cash-balance-value {
+    font-size: 1.05rem;
+    color: #ffffff;
+}
+
+.cash-card-footer {
+    margin-top: 16px;
+}
+
+.cash-card-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.cash-card-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 700;
+    transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease;
+}
+
+.cash-card-link:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.24);
+}
+
+.cash-directory-empty {
+    grid-column: 1 / -1;
+    padding: 42px 28px;
+}
+
+@media (max-width: 720px) {
+    .cash-card-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .cash-balance-strip {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+{% endblock %}
