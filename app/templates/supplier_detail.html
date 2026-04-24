@@ -593,23 +593,29 @@
                                 <div class="table-actions">
                                     {% if row.entry_type == 'Trip' %}
                                         <form method="post" action="{{ url_for('edit_cash_trip', trip_no=row.reference) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-xs btn-outline" title="Edit Trip">✏️</button>
                                         </form>
                                         <form method="post" action="{{ url_for('delete_cash_trip', trip_no=row.reference) }}" onsubmit="return confirm('Delete this trip?');" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-xs btn-outline btn-danger" title="Delete">🗑️</button>
                                         </form>
                                     {% elif row.entry_type == 'Debit' or row.entry_type in ['Advance', 'Loan', 'Visa', 'Transfer', 'Other'] %}
                                         <form method="post" action="{{ url_for('edit_cash_debit', debit_no=row.reference) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-xs btn-outline" title="Edit Debit">✏️</button>
                                         </form>
                                         <form method="post" action="{{ url_for('delete_cash_debit', debit_no=row.reference) }}" onsubmit="return confirm('Delete this debit?');" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-xs btn-outline btn-danger" title="Delete">🗑️</button>
                                         </form>
                                     {% elif row.entry_type == 'Payment' %}
                                         <form method="post" action="{{ url_for('edit_cash_payment', payment_no=row.reference) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-xs btn-outline" title="Edit Payment">✏️</button>
                                         </form>
                                         <form method="post" action="{{ url_for('delete_cash_payment', payment_no=row.reference) }}" onsubmit="return confirm('Delete this payment?');" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-xs btn-outline btn-danger" title="Delete">🗑️</button>
                                         </form>
                                     {% endif %}
