@@ -2220,7 +2220,7 @@ def register_routes(app: Flask) -> None:
         partnership_statements_result = _safe_dashboard_scalar(
             db,
             """
-            SELECT COUNT(DISTINCT strftime('%Y-%m', entry_date))
+            SELECT COUNT(DISTINCT SUBSTR(entry_date, 1, 7))
             FROM supplier_partnership_entries
             """,
             default=0,
@@ -3083,21 +3083,96 @@ def register_routes(app: Flask) -> None:
                 except ValidationError as exc:
                     flash(str(exc), "error")
 
-        supplier_assets = _supplier_asset_rows(db, party_code)
-        supplier_timesheets = _supplier_timesheet_rows(db, party_code)
-        supplier_vouchers = _supplier_voucher_rows(db, party_code)
-        supplier_payments = _supplier_payment_rows(db, party_code)
-        supplier_submissions = _supplier_submission_rows(db, party_code, limit=30) if supplier_mode in ("Normal", "Managed") else []
-        partnership_entries = _supplier_partnership_rows(db, party_code) if supplier_mode == "Partnership" else []
-        partnership_summary = _supplier_partnership_summary(db, party_code, partnership_month) if supplier_mode == "Partnership" else {"work_total": 0.0, "company_paid": 0.0, "partner_paid": 0.0, "total_cost": 0.0}
-        partnership_assets = _supplier_partnership_asset_rows(db, party_code, partnership_month) if supplier_mode == "Partnership" else []
-        statement_rows, statement_summary = _supplier_statement_data(db, party_code, supplier_mode=supplier_mode)
+        supplier_assets = _safe_supplier_view_value("supplier assets", [], _supplier_asset_rows, db, party_code)
+        supplier_timesheets = _safe_supplier_view_value("supplier timesheets", [], _supplier_timesheet_rows, db, party_code)
+        supplier_vouchers = _safe_supplier_view_value("supplier vouchers", [], _supplier_voucher_rows, db, party_code)
+        supplier_payments = _safe_supplier_view_value("supplier payments", [], _supplier_payment_rows, db, party_code)
+        supplier_submissions = _safe_supplier_view_value("supplier submissions", [], _supplier_submission_rows, db, party_code, 30) if supplier_mode in ("Normal", "Managed") else []
+        partnership_entries = _safe_supplier_view_value("supplier partnership entries", [], _supplier_partnership_rows, db, party_code) if supplier_mode == "Partnership" else []
+        partnership_summary = _safe_supplier_view_value(
+            "supplier partnership summary",
+            {
+                "period_month": partnership_month,
+                "work_total": 0.0,
+                "company_paid": 0.0,
+                "partner_paid": 0.0,
+                "company_salary": 0.0,
+                "partner_salary": 0.0,
+                "company_maintenance": 0.0,
+                "partner_maintenance": 0.0,
+                "total_salary_cost": 0.0,
+                "total_maintenance_cost": 0.0,
+                "total_cost": 0.0,
+                "net_profit": 0.0,
+                "company_profit_share": 0.0,
+                "partner_profit_share": 0.0,
+                "company_should_receive": 0.0,
+                "partner_should_receive": 0.0,
+            },
+            _supplier_partnership_summary,
+            db,
+            party_code,
+            partnership_month,
+        ) if supplier_mode == "Partnership" else {"work_total": 0.0, "company_paid": 0.0, "partner_paid": 0.0, "total_cost": 0.0}
+        partnership_assets = _safe_supplier_view_value("supplier partnership assets", [], _supplier_partnership_asset_rows, db, party_code, partnership_month) if supplier_mode == "Partnership" else []
+        statement_rows, statement_summary = _safe_supplier_view_value(
+            "supplier statement data",
+            (
+                [],
+                {
+                    "all_submitted": 0.0,
+                    "approved_total": 0.0,
+                    "approved_outstanding": 0.0,
+                    "pending_submitted": 0.0,
+                    "total_paid": 0.0,
+                    "work_logged": 0.0,
+                    "total_vouchers": 0.0,
+                    "outstanding": 0.0,
+                },
+            ),
+            _supplier_statement_data,
+            db,
+            party_code,
+            supplier_mode,
+        )
 
         # ── Cash/Loan supplier kata data ─────────────────────────────
         kata_rows = []
         kata_summary = {"total_earned": 0.0, "total_debits": 0.0, "total_paid": 0.0, "balance": 0.0}
         if supplier_mode in ("Cash", "Loan"):
-            kata_rows, kata_summary = _cash_supplier_kata(db, party_code)
+            kata_rows, kata_summary = _safe_supplier_view_value(
+                "cash supplier kata",
+                ([], {"total_earned": 0.0, "total_debits": 0.0, "total_paid": 0.0, "balance": 0.0}),
+                _cash_supplier_kata,
+                db,
+                party_code,
+            )
+
+        detail_summary = _safe_supplier_view_value(
+            "supplier detail summary",
+            {
+                "asset_count": 0,
+                "double_shift_count": 0,
+                "partnership_count": 0,
+                "unbilled_count": 0,
+                "unbilled_amount": 0.0,
+                "voucher_total": 0.0,
+                "paid_total": 0.0,
+                "outstanding_total": 0.0,
+                "open_voucher_count": 0,
+            },
+            _supplier_detail_summary,
+            db,
+            party_code,
+        )
+
+        cash_trip_no = ""
+        cash_debit_no = ""
+        cash_payment_no = ""
+        if supplier_mode in ("Cash", "Loan"):
+            cash_trip_no = _safe_supplier_view_value("cash trip number", "", _next_reference_code, db, "cash_supplier_trips", "trip_no", "TRP")
+            cash_debit_no = _safe_supplier_view_value("cash debit number", "", _next_reference_code, db, "cash_supplier_debits", "debit_no", "DEB")
+            cash_payment_no = _safe_supplier_view_value("cash payment number", "", _next_reference_code, db, "cash_supplier_payments", "payment_no", "CPY")
 
         return render_template(
             "supplier_detail.html",
@@ -3109,7 +3184,7 @@ def register_routes(app: Flask) -> None:
             submission_values=submission_values,
             partnership_values=partnership_values,
             portal_account=portal_account,
-            summary=_supplier_detail_summary(db, party_code),
+            summary=detail_summary,
             statement_rows=statement_rows,
             statement_summary=statement_summary,
             submissions=supplier_submissions,
@@ -3135,15 +3210,108 @@ def register_routes(app: Flask) -> None:
             desk_endpoint=_supplier_desk_endpoint(supplier_mode),
             kata_rows=kata_rows,
             kata_summary=kata_summary,
-            cash_trip_no=_next_reference_code(db, "cash_supplier_trips", "trip_no", "TRP") if supplier_mode in ("Cash", "Loan") else "",
-            cash_debit_no=_next_reference_code(db, "cash_supplier_debits", "debit_no", "DEB") if supplier_mode in ("Cash", "Loan") else "",
-            cash_payment_no=_next_reference_code(db, "cash_supplier_payments", "payment_no", "CPY") if supplier_mode in ("Cash", "Loan") else "",
+            cash_trip_no=cash_trip_no,
+            cash_debit_no=cash_debit_no,
+            cash_payment_no=cash_payment_no,
         )
 
     @app.get("/suppliers/<party_code>/statement")
     @_login_required("admin")
     def supplier_statement(party_code: str):
         return redirect(url_for("supplier_detail", party_code=party_code, screen="statement"))
+
+    @app.post("/cash-trips/<trip_no>/edit")
+    @_login_required("admin")
+    def edit_cash_trip(trip_no: str):
+        db = open_db()
+        row = db.execute(
+            "SELECT trip_no, party_code FROM cash_supplier_trips WHERE trip_no = ?",
+            ((trip_no or "").strip().upper(),),
+        ).fetchone()
+        if row is None:
+            flash("Cash trip was not found.", "error")
+            return redirect(url_for("cash_suppliers"))
+        flash("Cash trip editing is not available yet. Please recreate the entry if needed.", "error")
+        return redirect(url_for("supplier_detail", party_code=row["party_code"], screen="kata"))
+
+    @app.post("/cash-trips/<trip_no>/delete")
+    @_login_required("admin")
+    def delete_cash_trip(trip_no: str):
+        db = open_db()
+        row = db.execute(
+            "SELECT trip_no, party_code FROM cash_supplier_trips WHERE trip_no = ?",
+            ((trip_no or "").strip().upper(),),
+        ).fetchone()
+        if row is None:
+            flash("Cash trip was not found.", "error")
+            return redirect(url_for("cash_suppliers"))
+        db.execute("DELETE FROM cash_supplier_trips WHERE trip_no = ?", (row["trip_no"],))
+        _audit_log(db, "cash_supplier_trip_deleted", entity_type="cash_supplier_trip", entity_id=row["trip_no"], details=row["party_code"])
+        db.commit()
+        flash("Cash trip deleted successfully.", "success")
+        return redirect(url_for("supplier_detail", party_code=row["party_code"], screen="kata"))
+
+    @app.post("/cash-debits/<debit_no>/edit")
+    @_login_required("admin")
+    def edit_cash_debit(debit_no: str):
+        db = open_db()
+        row = db.execute(
+            "SELECT debit_no, party_code FROM cash_supplier_debits WHERE debit_no = ?",
+            ((debit_no or "").strip().upper(),),
+        ).fetchone()
+        if row is None:
+            flash("Cash debit was not found.", "error")
+            return redirect(url_for("cash_suppliers"))
+        flash("Cash debit editing is not available yet. Please recreate the entry if needed.", "error")
+        return redirect(url_for("supplier_detail", party_code=row["party_code"], screen="kata"))
+
+    @app.post("/cash-debits/<debit_no>/delete")
+    @_login_required("admin")
+    def delete_cash_debit(debit_no: str):
+        db = open_db()
+        row = db.execute(
+            "SELECT debit_no, party_code FROM cash_supplier_debits WHERE debit_no = ?",
+            ((debit_no or "").strip().upper(),),
+        ).fetchone()
+        if row is None:
+            flash("Cash debit was not found.", "error")
+            return redirect(url_for("cash_suppliers"))
+        db.execute("DELETE FROM cash_supplier_debits WHERE debit_no = ?", (row["debit_no"],))
+        _audit_log(db, "cash_supplier_debit_deleted", entity_type="cash_supplier_debit", entity_id=row["debit_no"], details=row["party_code"])
+        db.commit()
+        flash("Cash debit deleted successfully.", "success")
+        return redirect(url_for("supplier_detail", party_code=row["party_code"], screen="kata"))
+
+    @app.post("/cash-payments/<payment_no>/edit")
+    @_login_required("admin")
+    def edit_cash_payment(payment_no: str):
+        db = open_db()
+        row = db.execute(
+            "SELECT payment_no, party_code FROM cash_supplier_payments WHERE payment_no = ?",
+            ((payment_no or "").strip().upper(),),
+        ).fetchone()
+        if row is None:
+            flash("Cash payment was not found.", "error")
+            return redirect(url_for("cash_suppliers"))
+        flash("Cash payment editing is not available yet. Please recreate the entry if needed.", "error")
+        return redirect(url_for("supplier_detail", party_code=row["party_code"], screen="kata"))
+
+    @app.post("/cash-payments/<payment_no>/delete")
+    @_login_required("admin")
+    def delete_cash_payment(payment_no: str):
+        db = open_db()
+        row = db.execute(
+            "SELECT payment_no, party_code FROM cash_supplier_payments WHERE payment_no = ?",
+            ((payment_no or "").strip().upper(),),
+        ).fetchone()
+        if row is None:
+            flash("Cash payment was not found.", "error")
+            return redirect(url_for("cash_suppliers"))
+        db.execute("DELETE FROM cash_supplier_payments WHERE payment_no = ?", (row["payment_no"],))
+        _audit_log(db, "cash_supplier_payment_deleted", entity_type="cash_supplier_payment", entity_id=row["payment_no"], details=row["party_code"])
+        db.commit()
+        flash("Cash payment deleted successfully.", "success")
+        return redirect(url_for("supplier_detail", party_code=row["party_code"], screen="kata"))
 
     @app.get("/suppliers/<party_code>/statement-pdf")
     @_login_required("admin")
@@ -10795,6 +10963,14 @@ def _safe_dashboard_scalar(db, sql: str, params=(), *, default=0, label: str = "
         return default
     value = row[0]
     return default if value is None else value
+
+
+def _safe_supplier_view_value(label: str, fallback, loader, *args, **kwargs):
+    try:
+        return loader(*args, **kwargs)
+    except Exception:
+        current_app.logger.warning("Failed to load %s", label, exc_info=True)
+        return fallback
 
 
 def _generated_backup_root(app: Flask) -> Path | None:
