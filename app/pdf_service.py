@@ -744,76 +744,179 @@ def generate_partnership_supplier_statement_pdf(party, period_month: str, asset_
     return str(output_path)
 
 
-def generate_cash_supplier_kata_pdf(party, rows, summary, output_dir: str, assets_dir: str, title: str = "Cash Supplier Kata") -> str:
+def generate_cash_supplier_kata_pdf(
+    party,
+    rows,
+    summary,
+    output_dir: str,
+    assets_dir: str,
+    title: str = "Cash Supplier Kata",
+    filter_caption: str = "",
+) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_code = str(party["party_code"]).replace("/", "-")
     output_path = Path(output_dir) / f"{safe_code}_kata_{timestamp}.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    party_keys = set(party.keys()) if hasattr(party, "keys") else set()
 
-    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+    def _party_value(key: str, default: str = "-"):
+        if hasattr(party, "get"):
+            return party.get(key, default)
+        if key in party_keys:
+            return party[key]
+        return default
+
     table_rows = list(rows or [])
     if not table_rows:
-        table_rows = [{
-            "entry_date": "-",
-            "period_month_display": "-",
-            "reference": "No entry",
-            "entry_type": "-",
-            "earning_basis": "",
-            "description": "No cash supplier entries available.",
-            "earned": 0.0,
-            "debit": 0.0,
-            "paid": 0.0,
-            "running_balance": 0.0,
-        }]
+        table_rows = [
+            {
+                "entry_date": "-",
+                "period_month_display": "-",
+                "reference": "No entry",
+                "entry_type": "-",
+                "earning_basis": "",
+                "description": "No cash supplier entries available.",
+                "earned": 0.0,
+                "debit": 0.0,
+                "paid": 0.0,
+                "running_balance": 0.0,
+            }
+        ]
 
-    table_top = PAGE_HEIGHT - 96 * mm
-    row_height = 7.0 * mm
+    def _draw_page_frame(pdf_obj: canvas.Canvas, page_number: int, page_count: int) -> tuple[float, float]:
+        pdf_obj.setFillColor(colors.white)
+        pdf_obj.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
+        _draw_header(pdf_obj, assets_dir)
+
+        title_text, title_size = _fit_text(pdf_obj, title, "Helvetica-Bold", 15.5, 120 * mm, min_size=11.5)
+        pdf_obj.setFillColor(BLUE_DARK)
+        pdf_obj.setFont("Helvetica-Bold", title_size)
+        pdf_obj.drawString(16 * mm, PAGE_HEIGHT - 58 * mm, title_text)
+
+        supplier_name, supplier_size = _fit_text(
+            pdf_obj,
+            str(_party_value("party_name") or "-"),
+            "Helvetica-Bold",
+            11.0,
+            126 * mm,
+            min_size=8.4,
+        )
+        pdf_obj.setFillColor(TEXT)
+        pdf_obj.setFont("Helvetica-Bold", supplier_size)
+        pdf_obj.drawString(16 * mm, PAGE_HEIGHT - 65.5 * mm, supplier_name)
+
+        meta_parts = [str(_party_value("party_code") or "-")]
+        if _party_value("phone_number", ""):
+            meta_parts.append(str(_party_value("phone_number", "")))
+        if _party_value("contact_person", ""):
+            meta_parts.append(str(_party_value("contact_person", "")))
+        meta_line = " | ".join(part for part in meta_parts if part)
+        meta_text, meta_size = _fit_text(pdf_obj, meta_line, "Helvetica", 7.6, 126 * mm, min_size=6.4)
+        pdf_obj.setFillColor(MUTED)
+        pdf_obj.setFont("Helvetica", meta_size)
+        pdf_obj.drawString(16 * mm, PAGE_HEIGHT - 71 * mm, meta_text)
+
+        if filter_caption:
+            filter_text, filter_size = _fit_text(
+                pdf_obj,
+                f"Filtered View: {filter_caption}",
+                "Helvetica",
+                7.2,
+                126 * mm,
+                min_size=6.0,
+            )
+            pdf_obj.setFont("Helvetica", filter_size)
+            pdf_obj.drawString(16 * mm, PAGE_HEIGHT - 76 * mm, filter_text)
+
+        stats_y = PAGE_HEIGHT - 86 * mm
+        box_gap = 3 * mm
+        box_width = (178 * mm - (box_gap * 3)) / 4
+        stat_boxes = [
+            ("Earned", f"AED {format_currency(float(summary.get('total_earned', 0.0)))}", colors.white, TEXT, LINE),
+            ("Debits", f"AED {format_currency(float(summary.get('total_debits', 0.0)))}", SOFT, TEXT, LINE),
+            ("Paid", f"AED {format_currency(float(summary.get('total_paid', 0.0)))}", colors.HexColor("#EDF5FF"), BLUE_DARK, colors.HexColor("#C8DBF4")),
+            ("Balance", f"AED {format_currency(float(summary.get('balance', 0.0)))}", colors.HexColor("#EEF6FF"), BLUE_DARK, BLUE),
+        ]
+        for index, (label, value, fill, text_color, border) in enumerate(stat_boxes):
+            _draw_stat_box(
+                pdf_obj,
+                16 * mm + index * (box_width + box_gap),
+                stats_y,
+                box_width,
+                14 * mm,
+                label,
+                value,
+                fill_color=fill,
+                text_color=text_color,
+                border_color=border,
+            )
+
+        table_header_top = PAGE_HEIGHT - 106 * mm
+        _draw_table_header(
+            pdf_obj,
+            table_header_top,
+            ["Date", "Month", "Ref", "Type", "Description", "Earned", "Debit", "Paid", "Balance"],
+            [18, 35, 54, 72, 94, 148, 164, 178, 189],
+        )
+        return table_header_top - 4.6 * mm, 24 * mm
+
+    row_height = 10.0 * mm
+    working_rows = []
+    pages = []
+    current_y = PAGE_HEIGHT - 110.6 * mm
     bottom_limit = 24 * mm
-    rows_per_page = max(1, int((table_top - bottom_limit) // row_height) - 1)
-    pages = [table_rows[index:index + rows_per_page] for index in range(0, len(table_rows), rows_per_page)] or [table_rows]
+    for row in table_rows:
+        if current_y - row_height < bottom_limit:
+            pages.append(working_rows)
+            working_rows = []
+            current_y = PAGE_HEIGHT - 110.6 * mm
+        working_rows.append(row)
+        current_y -= row_height
+    if working_rows or not pages:
+        pages.append(working_rows)
 
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
     for page_number, page_rows in enumerate(pages, start=1):
-        pdf.setFillColor(colors.white)
-        pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
-        _draw_header(pdf, assets_dir)
-        _draw_title(pdf, title, f"{party['party_name']} | {party['party_code']}")
-        stats_y = PAGE_HEIGHT - 68 * mm
-        _draw_stat_box(pdf, 16 * mm, stats_y, 42 * mm, 14 * mm, "Earned", f"AED {format_currency(float(summary.get('total_earned', 0.0)))}")
-        _draw_stat_box(pdf, 61 * mm, stats_y, 42 * mm, 14 * mm, "Debits", f"AED {format_currency(float(summary.get('total_debits', 0.0)))}", fill_color=SOFT)
-        _draw_stat_box(pdf, 106 * mm, stats_y, 42 * mm, 14 * mm, "Paid", f"AED {format_currency(float(summary.get('total_paid', 0.0)))}", fill_color=SOFT)
-        _draw_stat_box(pdf, 151 * mm, stats_y, 43 * mm, 14 * mm, "Balance", f"AED {format_currency(float(summary.get('balance', 0.0)))}", fill_color=colors.HexColor("#EEF6FF"), text_color=BLUE_DARK, border_color=BLUE)
-
-        header_top = table_top - 18 * mm
-        _draw_table_header(pdf, header_top, ["Date", "Month", "Ref", "Type", "Description", "In", "Out", "Balance"], [18, 34, 56, 76, 95, 162, 178, 194])
-        y = header_top - 6.2 * mm
+        start_y, bottom_limit = _draw_page_frame(pdf, page_number, len(pages))
+        current_y = start_y
         for index, row in enumerate(page_rows):
+            card_y = current_y - 5.0 * mm
             if index % 2 == 0:
                 pdf.setFillColor(SOFT)
-                pdf.roundRect(16 * mm, y - 2.2 * mm, 178 * mm, 6.2 * mm, 1.6 * mm, fill=1, stroke=0)
-            pdf.setFillColor(TEXT)
-            pdf.setFont("Helvetica", 6.7)
-            pdf.drawString(18 * mm, y, format_date_label(row.get("entry_date")))
-            month_text, month_size = _fit_text(pdf, str(row.get("period_month_display") or "-"), "Helvetica", 6.7, 16 * mm, min_size=5.6)
-            pdf.setFont("Helvetica", month_size)
-            pdf.drawString(34 * mm, y, month_text)
-            ref_text, ref_size = _fit_text(pdf, str(row.get("reference") or "-"), "Helvetica-Bold", 6.8, 18 * mm, min_size=5.8)
-            pdf.setFont("Helvetica-Bold", ref_size)
-            pdf.drawString(56 * mm, y, ref_text)
+                pdf.roundRect(16 * mm, card_y, 178 * mm, 8.5 * mm, 1.8 * mm, fill=1, stroke=0)
+
             type_text = str(row.get("entry_type") or "-")
             if row.get("earning_basis"):
-                type_text = f"{type_text}/{row.get('earning_basis')}"
-            type_text, type_size = _fit_text(pdf, type_text, "Helvetica", 6.6, 18 * mm, min_size=5.5)
-            pdf.setFont("Helvetica", type_size)
-            pdf.drawString(76 * mm, y, type_text)
-            desc_text, desc_size = _fit_text(pdf, str(row.get("description") or "-"), "Helvetica", 6.5, 62 * mm, min_size=5.4)
-            pdf.setFont("Helvetica", desc_size)
-            pdf.drawString(95 * mm, y, desc_text)
-            outgoing = float(row.get("debit") or 0.0) + float(row.get("paid") or 0.0)
-            pdf.setFont("Helvetica-Bold", 6.7)
-            pdf.drawRightString(172 * mm, y, format_currency(float(row.get("earned") or 0.0)))
-            pdf.drawRightString(188 * mm, y, format_currency(outgoing))
-            pdf.drawRightString(194 * mm, y, format_currency(float(row.get("running_balance") or 0.0)))
-            y -= row_height
+                type_text = f"{type_text} / {row.get('earning_basis')}"
+            type_lines = _wrap_text_lines(pdf, type_text, "Helvetica", 6.0, 19 * mm, max_lines=2, min_size=5.4)
+            desc_lines = _wrap_text_lines(pdf, str(row.get("description") or "-"), "Helvetica", 6.1, 50 * mm, max_lines=2, min_size=5.4)
+
+            top_line_y = current_y + 1.4 * mm
+            second_line_y = current_y - 2.4 * mm
+
+            pdf.setFillColor(TEXT)
+            pdf.setFont("Helvetica", 6.3)
+            pdf.drawString(18 * mm, top_line_y, format_date_label(row.get("entry_date")))
+            month_text, month_size = _fit_text(pdf, str(row.get("period_month_display") or "-"), "Helvetica", 6.1, 15 * mm, min_size=5.4)
+            pdf.setFont("Helvetica", month_size)
+            pdf.drawString(35 * mm, top_line_y, month_text)
+            ref_text, ref_size = _fit_text(pdf, str(row.get("reference") or "-"), "Helvetica-Bold", 6.3, 16 * mm, min_size=5.5)
+            pdf.setFont("Helvetica-Bold", ref_size)
+            pdf.drawString(54 * mm, top_line_y, ref_text)
+
+            pdf.setFillColor(TEXT)
+            pdf.setFont("Helvetica", 5.9)
+            for line_index, line in enumerate(type_lines[:2]):
+                pdf.drawString(72 * mm, top_line_y - line_index * 3.8 * mm, line)
+            for line_index, line in enumerate(desc_lines[:2]):
+                pdf.drawString(94 * mm, top_line_y - line_index * 3.8 * mm, line)
+
+            pdf.setFont("Helvetica-Bold", 6.2)
+            pdf.drawRightString(162 * mm, second_line_y, format_currency(float(row.get("earned") or 0.0)))
+            pdf.drawRightString(176 * mm, second_line_y, format_currency(float(row.get("debit") or 0.0)))
+            pdf.drawRightString(188 * mm, second_line_y, format_currency(float(row.get("paid") or 0.0)))
+            pdf.drawRightString(194 * mm, second_line_y, format_currency(float(row.get("running_balance") or 0.0)))
+            current_y -= row_height
 
         pdf.setFillColor(MUTED)
         pdf.setFont("Helvetica", 7.0)

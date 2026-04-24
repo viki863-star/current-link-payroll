@@ -17,7 +17,7 @@
                 {% else %}
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Invoice Intake</a>
                 {% endif %}
-                <a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, month=partnership_month) }}">{% if supplier_mode in ("Cash", "Loan") %}Kata PDF{% else %}Statement PDF{% endif %}</a>
+                <a class="button button-secondary" href="{% if supplier_mode in ('Cash', 'Loan') %}{{ url_for('supplier_statement_pdf', party_code=party.party_code, kata_month=kata_filters.month, kata_type=kata_filters.type, kata_search=kata_filters.search) }}{% else %}{{ url_for('supplier_statement_pdf', party_code=party.party_code, month=partnership_month) }}{% endif %}">{% if supplier_mode in ("Cash", "Loan") %}Kata PDF{% else %}Statement PDF{% endif %}</a>
             </div>
             <div class="admin-mini-stats">
                 <span><strong>{{ summary.asset_count }}</strong><small>Vehicles</small></span>
@@ -471,7 +471,7 @@
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
                     <span class="mini-link-pill" style="background:rgba(255,255,255,.12);color:#fff;border:none;">Trips / Hours / Monthly</span>
                     <span class="mini-link-pill" style="background:rgba(255,255,255,.12);color:#fff;border:none;">Running Balance</span>
-                    <a class="mini-link-pill" style="background:#fff;color:#15335d;border:none;text-decoration:none;" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code) }}">Download PDF</a>
+                    <a class="mini-link-pill" style="background:#fff;color:#15335d;border:none;text-decoration:none;" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, kata_month=kata_filters.month, kata_type=kata_filters.type, kata_search=kata_filters.search) }}">Download PDF</a>
                 </div>
             </article>
             <article class="card" style="padding:16px;text-align:center;">
@@ -564,7 +564,18 @@
 
         {# ── Running statement / kata ── #}
         <article class="card desk-panel-card">
-            <div class="desk-panel-head"><div><span class="admin-desk-label">Kata</span><h2>Running Statement</h2></div><div class="admin-toolbar-actions"><a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code) }}">Download PDF</a></div></div>
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Kata</span><h2>Running Statement</h2></div><div class="admin-toolbar-actions"><a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, kata_month=kata_filters.month, kata_type=kata_filters.type, kata_search=kata_filters.search) }}">Download PDF</a></div></div>
+            <form method="get" class="desk-form-grid" style="gap:10px;margin-bottom:14px;">
+                <input type="hidden" name="screen" value="kata">
+                <label><span>Month</span><input type="month" name="kata_month" value="{{ kata_filters.month }}"></label>
+                <label><span>Type</span><select name="kata_type">{% for option_value, option_label in cash_kata_type_options %}<option value="{{ option_value }}" {% if kata_filters.type == option_value %}selected{% endif %}>{{ option_label }}</option>{% endfor %}</select></label>
+                <label style="grid-column:span 2;"><span>Search</span><input type="text" name="kata_search" value="{{ kata_filters.search }}" placeholder="Ref, month, vehicle, notes"></label>
+                <div class="form-actions" style="align-self:end;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="button button-secondary" type="submit">Apply Filter</button>
+                    <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata') }}">Reset</a>
+                </div>
+            </form>
+            <div class="muted-text" style="margin:0 0 12px 2px;">Payments stay on their own rows so partial payments across different months remain clear instead of merging into one earning line.</div>
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -574,8 +585,9 @@
                             <th>Ref</th>
                             <th>Type</th>
                             <th>Description</th>
-                            <th style="text-align:right;">Added</th>
-                            <th style="text-align:right;">Deducted</th>
+                            <th style="text-align:right;">Earned</th>
+                            <th style="text-align:right;">Debit</th>
+                            <th style="text-align:right;">Paid</th>
                             <th style="text-align:right;">Balance</th>
                             <th>Actions</th>
                         </tr>
@@ -592,10 +604,10 @@
                                 {% if row.earned %}{{ "%.2f"|format(row.earned) }}{% endif %}
                             </td>
                             <td style="text-align:right;color:var(--color-danger,#dc2626);">
-                                {% if row.debit or row.paid %}
-                                    {% set deducted = (row.debit or 0) + (row.paid or 0) %}
-                                    {{ "%.2f"|format(deducted) }}
-                                {% endif %}
+                                {% if row.debit %}{{ "%.2f"|format(row.debit) }}{% endif %}
+                            </td>
+                            <td style="text-align:right;color:var(--color-info,#2563eb);">
+                                {% if row.paid %}{{ "%.2f"|format(row.paid) }}{% endif %}
                             </td>
                             <td style="text-align:right;font-weight:700;">
                                 <span style="{% if row.running_balance >= 0 %}color:#16a34a;{% else %}color:#dc2626;{% endif %}">{{ "%.2f"|format(row.running_balance) }}</span>
@@ -635,7 +647,7 @@
                         </tr>
                         {% endfor %}
                         {% if not kata_rows %}
-                        <tr><td colspan="9">No entries yet. Add an earning, debit, or payment above.</td></tr>
+                        <tr><td colspan="10">No entries yet. Add an earning, debit, or payment above.</td></tr>
                         {% endif %}
                     </tbody>
                 </table>

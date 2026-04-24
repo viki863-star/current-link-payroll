@@ -65,6 +65,12 @@ INVOICE_DOCUMENT_OPTIONS = ["Tax Invoice", "Simplified Tax Invoice", "Credit Not
 PAYMENT_KIND_OPTIONS = ["Received", "Paid"]
 PAYMENT_METHOD_OPTIONS = ["Bank", "Cash", "Owner Fund", "Cheque", "Transfer", "Other"]
 SUPPLIER_CASH_EARNING_BASIS_OPTIONS = ["Trips", "Hours", "Monthly", "Fixed"]
+SUPPLIER_CASH_KATA_TYPE_OPTIONS = [
+    ("all", "All Entries"),
+    ("earning", "Earnings"),
+    ("debit", "Debits / Loans"),
+    ("payment", "Payments"),
+]
 LOAN_TYPE_OPTIONS = ["Given", "Recovered"]
 FEE_TYPE_OPTIONS = ["Visa", "Vehicle"]
 OWNER_FUND_MOVEMENT_OPTIONS = ["All", "Incoming", "Outgoing"]
@@ -2581,6 +2587,13 @@ def register_routes(app: Flask) -> None:
         edit_payment_no = request.args.get("edit_payment", "").strip().upper()
         edit_entry_no = request.args.get("edit_entry", "").strip().upper()
         partnership_month = _normalize_month(request.args.get("partnership_month", "").strip() or _current_month_value())
+        kata_month_filter = request.args.get("kata_month", "").strip()
+        try:
+            kata_month_filter = datetime.strptime(kata_month_filter, "%Y-%m").strftime("%Y-%m") if kata_month_filter else ""
+        except ValueError:
+            kata_month_filter = ""
+        kata_type_filter = request.args.get("kata_type", "all").strip().lower() or "all"
+        kata_search = request.args.get("kata_search", "").strip()
 
         if edit_asset_code:
             row = db.execute("SELECT * FROM supplier_assets WHERE asset_code = ? AND party_code = ?", (edit_asset_code, party_code)).fetchone()
@@ -3152,6 +3165,12 @@ def register_routes(app: Flask) -> None:
         # ── Cash/Loan supplier kata data ─────────────────────────────
         kata_rows = []
         kata_summary = {"total_earned": 0.0, "total_debits": 0.0, "total_paid": 0.0, "balance": 0.0}
+        kata_filters = {
+            "month": kata_month_filter,
+            "type": kata_type_filter,
+            "search": kata_search,
+            "active": bool(kata_month_filter or kata_search or (kata_type_filter and kata_type_filter != "all")),
+        }
         if supplier_mode in ("Cash", "Loan"):
             kata_rows, kata_summary = _safe_supplier_view_value(
                 "cash supplier kata",
@@ -3160,6 +3179,13 @@ def register_routes(app: Flask) -> None:
                 db,
                 party_code,
             )
+            kata_rows = _filter_cash_supplier_kata_rows(
+                kata_rows,
+                month_filter=kata_month_filter,
+                type_filter=kata_type_filter,
+                search_text=kata_search,
+            )
+            kata_summary = _cash_supplier_kata_summary(kata_rows)
 
         detail_summary = _safe_supplier_view_value(
             "supplier detail summary",
@@ -3217,6 +3243,7 @@ def register_routes(app: Flask) -> None:
             partnership_shift_options=PARTNERSHIP_SHIFT_OPTIONS,
             payment_method_options=PAYMENT_METHOD_OPTIONS,
             cash_earning_basis_options=SUPPLIER_CASH_EARNING_BASIS_OPTIONS,
+            cash_kata_type_options=SUPPLIER_CASH_KATA_TYPE_OPTIONS,
             voucher_status_options=SUPPLIER_VOUCHER_STATUS_OPTIONS,
             supplier_mode=supplier_mode,
             active_screen=active_screen,
@@ -3224,6 +3251,7 @@ def register_routes(app: Flask) -> None:
             desk_endpoint=_supplier_desk_endpoint(supplier_mode),
             kata_rows=kata_rows,
             kata_summary=kata_summary,
+            kata_filters=kata_filters,
             cash_trip_no=cash_trip_no,
             cash_debit_no=cash_debit_no,
             cash_payment_no=cash_payment_no,
@@ -3339,6 +3367,27 @@ def register_routes(app: Flask) -> None:
         output_dir = _supplier_output_dir(app, party_code) / "statements"
         if supplier_mode in ("Cash", "Loan"):
             kata_rows, kata_summary = _cash_supplier_kata(db, party_code)
+            kata_month_filter = request.args.get("kata_month", "").strip()
+            try:
+                kata_month_filter = datetime.strptime(kata_month_filter, "%Y-%m").strftime("%Y-%m") if kata_month_filter else ""
+            except ValueError:
+                kata_month_filter = ""
+            kata_type_filter = request.args.get("kata_type", "all").strip().lower() or "all"
+            kata_search = request.args.get("kata_search", "").strip()
+            kata_rows = _filter_cash_supplier_kata_rows(
+                kata_rows,
+                month_filter=kata_month_filter,
+                type_filter=kata_type_filter,
+                search_text=kata_search,
+            )
+            kata_summary = _cash_supplier_kata_summary(kata_rows)
+            filter_parts = []
+            if kata_month_filter:
+                filter_parts.append(f"Month: {format_month_label(kata_month_filter)}")
+            if kata_type_filter and kata_type_filter != "all":
+                filter_parts.append(f"Type: {kata_type_filter.title()}")
+            if kata_search:
+                filter_parts.append(f"Search: {kata_search}")
             pdf_path = generate_cash_supplier_kata_pdf(
                 party,
                 kata_rows,
@@ -3346,6 +3395,7 @@ def register_routes(app: Flask) -> None:
                 str(output_dir),
                 app.config["STATIC_ASSETS_DIR"],
                 title="Cash Supplier Kata" if supplier_mode == "Cash" else "Loan Supplier Kata",
+                filter_caption=" | ".join(filter_parts),
             )
         else:
             statement_rows, statement_summary = _supplier_statement_data(db, party_code, supplier_mode=supplier_mode)
@@ -11589,6 +11639,64 @@ def _cash_supplier_kata(db, party_code: str):
         "balance": round(total_earned - total_debits - total_paid, 2),
     }
     return rows, summary
+
+
+def _cash_supplier_kata_entry_group(row: dict) -> str:
+    entry_type = str(row.get("entry_type") or "").strip()
+    if entry_type == "Earning":
+        return "earning"
+    if entry_type == "Payment":
+        return "payment"
+    return "debit"
+
+
+def _cash_supplier_kata_summary(rows) -> dict:
+    rows = list(rows or [])
+    total_earned = round(sum(float(item.get("earned") or 0.0) for item in rows), 2)
+    total_debits = round(sum(float(item.get("debit") or 0.0) for item in rows), 2)
+    total_paid = round(sum(float(item.get("paid") or 0.0) for item in rows), 2)
+    return {
+        "total_earned": total_earned,
+        "total_debits": total_debits,
+        "total_paid": total_paid,
+        "balance": round(total_earned - total_debits - total_paid, 2),
+    }
+
+
+def _filter_cash_supplier_kata_rows(rows, *, month_filter: str = "", type_filter: str = "all", search_text: str = ""):
+    filtered_rows = []
+    type_value = (type_filter or "all").strip().lower()
+    if type_value not in {item[0] for item in SUPPLIER_CASH_KATA_TYPE_OPTIONS}:
+        type_value = "all"
+    search_value = (search_text or "").strip().lower()
+
+    for row in rows or []:
+        entry_group = _cash_supplier_kata_entry_group(row)
+        entry_month = str(row.get("period_month") or "").strip() or str(row.get("entry_date") or "")[:7]
+        if month_filter and entry_month != month_filter:
+            continue
+        if type_value != "all" and entry_group != type_value:
+            continue
+        if search_value:
+            haystack = " ".join(
+                [
+                    str(row.get("entry_date") or ""),
+                    str(row.get("period_month_display") or ""),
+                    str(row.get("reference") or ""),
+                    str(row.get("entry_type") or ""),
+                    str(row.get("earning_basis") or ""),
+                    str(row.get("description") or ""),
+                    f"{float(row.get('earned') or 0.0):.2f}",
+                    f"{float(row.get('debit') or 0.0):.2f}",
+                    f"{float(row.get('paid') or 0.0):.2f}",
+                    f"{float(row.get('running_balance') or 0.0):.2f}",
+                ]
+            ).lower()
+            if search_value not in haystack:
+                continue
+        filtered_rows.append(row)
+
+    return filtered_rows
 
 
 def _supplier_partnership_summary(db, party_code: str, period_month: str):
