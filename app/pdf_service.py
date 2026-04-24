@@ -857,17 +857,14 @@ def generate_cash_supplier_kata_pdf(
         pdf_obj.setFillColor(colors.white)
         pdf_obj.setFont("Helvetica-Bold", 7.0)
         pdf_obj.drawString(18 * mm, table_header_top + 2.6 * mm, "Date")
-        pdf_obj.drawString(34 * mm, table_header_top + 2.6 * mm, "Month")
-        pdf_obj.drawString(50 * mm, table_header_top + 2.6 * mm, "Ref")
-        pdf_obj.drawString(65 * mm, table_header_top + 2.6 * mm, "Type")
-        pdf_obj.drawString(84 * mm, table_header_top + 2.6 * mm, "Description")
+        pdf_obj.drawString(38 * mm, table_header_top + 2.6 * mm, "Reference / Narrative")
         pdf_obj.drawRightString(158 * mm, table_header_top + 2.6 * mm, "Earned")
         pdf_obj.drawRightString(171 * mm, table_header_top + 2.6 * mm, "Debit")
         pdf_obj.drawRightString(183 * mm, table_header_top + 2.6 * mm, "Paid")
         pdf_obj.drawRightString(194 * mm, table_header_top + 2.6 * mm, "Balance")
         return table_header_top - 4.6 * mm, 24 * mm
 
-    row_height = 10.0 * mm
+    row_height = 13.0 * mm
     working_rows = []
     pages = []
     current_y = PAGE_HEIGHT - 110.6 * mm
@@ -887,42 +884,56 @@ def generate_cash_supplier_kata_pdf(
         start_y, bottom_limit = _draw_page_frame(pdf, page_number, len(pages))
         current_y = start_y
         for index, row in enumerate(page_rows):
-            card_y = current_y - 5.0 * mm
+            card_y = current_y - 8.0 * mm
             if index % 2 == 0:
                 pdf.setFillColor(SOFT)
-                pdf.roundRect(16 * mm, card_y, 178 * mm, 8.5 * mm, 1.8 * mm, fill=1, stroke=0)
+                pdf.roundRect(16 * mm, card_y, 178 * mm, 11.5 * mm, 1.8 * mm, fill=1, stroke=0)
 
-            type_text = str(row.get("entry_type") or "-")
+            entry_type = str(row.get("entry_type") or "-")
+            type_text = entry_type
             if row.get("earning_basis"):
                 type_text = f"{type_text} / {row.get('earning_basis')}"
-            type_lines = _wrap_text_lines(pdf, type_text, "Helvetica", 5.9, 17 * mm, max_lines=2, min_size=5.2)
-            desc_lines = _wrap_text_lines(pdf, str(row.get("description") or "-"), "Helvetica", 5.9, 58 * mm, max_lines=2, min_size=5.2)
+            month_text = str(row.get("period_month_display") or "-")
+            detail_text = str(row.get("description") or "-")
+            narrative_title = f"{row.get('reference') or '-'} | {type_text}"
+            narrative_line_1 = _wrap_text_lines(pdf, narrative_title, "Helvetica-Bold", 6.4, 93 * mm, max_lines=1, min_size=5.5)[0]
+            narrative_line_2 = _wrap_text_lines(pdf, f"Month: {month_text}", "Helvetica", 5.9, 93 * mm, max_lines=1, min_size=5.2)[0]
+            narrative_line_3 = _wrap_text_lines(pdf, detail_text, "Helvetica", 5.8, 93 * mm, max_lines=1, min_size=5.0)[0]
 
-            top_line_y = current_y + 1.4 * mm
-            second_line_y = current_y - 2.4 * mm
+            top_line_y = current_y + 2.4 * mm
+            mid_line_y = current_y - 1.1 * mm
+            bottom_line_y = current_y - 4.8 * mm
 
             pdf.setFillColor(TEXT)
-            pdf.setFont("Helvetica", 6.3)
+            pdf.setFont("Helvetica", 6.2)
             pdf.drawString(18 * mm, top_line_y, format_date_label(row.get("entry_date")))
-            month_text, month_size = _fit_text(pdf, str(row.get("period_month_display") or "-"), "Helvetica", 6.0, 13 * mm, min_size=5.2)
-            pdf.setFont("Helvetica", month_size)
-            pdf.drawString(34 * mm, top_line_y, month_text)
-            ref_text, ref_size = _fit_text(pdf, str(row.get("reference") or "-"), "Helvetica-Bold", 6.1, 13 * mm, min_size=5.2)
-            pdf.setFont("Helvetica-Bold", ref_size)
-            pdf.drawString(50 * mm, top_line_y, ref_text)
-
-            pdf.setFillColor(TEXT)
+            pdf.setFillColor(BLUE_DARK)
+            pdf.setFont("Helvetica-Bold", 6.4)
+            pdf.drawString(38 * mm, top_line_y, narrative_line_1)
+            pdf.setFillColor(MUTED)
             pdf.setFont("Helvetica", 5.9)
-            for line_index, line in enumerate(type_lines[:2]):
-                pdf.drawString(65 * mm, top_line_y - line_index * 3.8 * mm, line)
-            for line_index, line in enumerate(desc_lines[:2]):
-                pdf.drawString(84 * mm, top_line_y - line_index * 3.8 * mm, line)
+            pdf.drawString(38 * mm, mid_line_y, narrative_line_2)
+            pdf.setFillColor(TEXT)
+            pdf.setFont("Helvetica", 5.8)
+            pdf.drawString(38 * mm, bottom_line_y, narrative_line_3)
+
+            earned = float(row.get("earned") or 0.0)
+            debit = float(row.get("debit") or 0.0)
+            paid = float(row.get("paid") or 0.0)
+            balance = float(row.get("running_balance") or 0.0)
 
             pdf.setFont("Helvetica-Bold", 6.2)
-            pdf.drawRightString(158 * mm, second_line_y, format_currency(float(row.get("earned") or 0.0)))
-            pdf.drawRightString(171 * mm, second_line_y, format_currency(float(row.get("debit") or 0.0)))
-            pdf.drawRightString(183 * mm, second_line_y, format_currency(float(row.get("paid") or 0.0)))
-            pdf.drawRightString(194 * mm, second_line_y, format_currency(float(row.get("running_balance") or 0.0)))
+            if earned:
+                pdf.setFillColor(GREEN)
+                pdf.drawRightString(158 * mm, mid_line_y, format_currency(earned))
+            if debit:
+                pdf.setFillColor(RED)
+                pdf.drawRightString(171 * mm, mid_line_y, format_currency(debit))
+            if paid:
+                pdf.setFillColor(BLUE_DARK)
+                pdf.drawRightString(183 * mm, mid_line_y, format_currency(paid))
+            pdf.setFillColor(BLUE_DARK if balance >= 0 else RED)
+            pdf.drawRightString(194 * mm, mid_line_y, format_currency(balance))
             current_y -= row_height
 
         pdf.setFillColor(MUTED)
