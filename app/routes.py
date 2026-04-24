@@ -2234,18 +2234,48 @@ def register_routes(app: Flask) -> None:
             query=query
         )
 
-    @app.route("/suppliers", methods=["GET", "POST"])
+    @app.route("/suppliers", methods=["GET"])
     @_login_required("admin")
     def suppliers():
         supplier_mode = "Normal"
         _touch_admin_workspace(_supplier_mode_workspace_key(supplier_mode))
         db = open_db()
-        values = _default_supplier_form(supplier_mode)
         query = request.args.get("q", "").strip()
+        edit_party_code = request.args.get("edit", "").strip().upper()
+        if edit_party_code:
+            return redirect(url_for("admin_supplier_register", mode=supplier_mode, edit=edit_party_code))
+
+        context = _supplier_cards_context(db, supplier_mode, query=query)
+        context.update(
+            {
+                "desk_title": "Online Supplier Workspace",
+                "supplier_type_label": "Online Supplier",
+                "toolbar_links": [
+                    {"label": "Add New Supplier", "href": url_for("admin_supplier_register", mode=supplier_mode), "primary": True},
+                    {"label": "Registrations", "href": url_for("supplier_registrations")},
+                    {"label": "Quotations", "href": url_for("admin_supplier_quotations")},
+                    {"label": "LPO Workspace", "href": url_for("agreements_lpos")},
+                    {"label": "Invoices", "href": url_for("invoice_center")},
+                    {"label": "Reports", "href": url_for("reports_center")},
+                ],
+                "empty_title": "No Online Suppliers Found",
+                "empty_copy": "Add your first online supplier to get started.",
+            }
+        )
+        return render_template("supplier_mode_cards.html", **context)
+
+    @app.route("/suppliers/admin/register", methods=["GET", "POST"])
+    @_login_required("admin")
+    def admin_supplier_register():
+        requested_mode = (request.args.get("mode", "Normal").strip().title() or "Normal")
+        supplier_mode = requested_mode if requested_mode in {"Normal", "Managed", "Partnership"} else "Normal"
+        db = open_db()
+        values = _default_supplier_form(supplier_mode)
         edit_party_code = request.args.get("edit", "").strip().upper()
         if edit_party_code:
             existing_party = _fetch_party(db, edit_party_code)
             if existing_party is not None and "Supplier" in _deserialize_party_roles(existing_party["party_roles"] or ""):
+                supplier_mode = _supplier_mode_for_party(db, edit_party_code)
                 values = _supplier_form_from_party(
                     existing_party,
                     _supplier_profile_row(db, edit_party_code),
@@ -2255,51 +2285,10 @@ def register_routes(app: Flask) -> None:
         if request.method == "POST":
             values = _supplier_form_data(request, supplier_mode)
             try:
-                payload = _prepare_supplier_party_payload(db, values)
-                if values["original_party_code"]:
-                    db.execute(
-                        """
-                        UPDATE parties
-                        SET party_name = ?, party_kind = ?, party_roles = ?, contact_person = ?,
-                            phone_number = ?, email = ?, trn_no = ?, trade_license_no = ?,
-                            address = ?, notes = ?, status = ?
-                        WHERE party_code = ?
-                        """,
-                        payload[1:] + (values["original_party_code"],),
-                    )
-                    _upsert_supplier_profile(db, payload[0], values)
-                    _upsert_supplier_portal_account(db, payload[0], values)
-                    _audit_log(
-                        db,
-                        "supplier_updated",
-                        entity_type="supplier",
-                        entity_id=payload[0],
-                        details=f"{payload[1]} / {values['supplier_mode']}",
-                    )
-                    message = "Supplier updated successfully."
-                else:
-                    db.execute(
-                        """
-                        INSERT INTO parties (
-                            party_code, party_name, party_kind, party_roles, contact_person,
-                            phone_number, email, trn_no, trade_license_no, address, notes, status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        payload,
-                    )
-                    _upsert_supplier_profile(db, payload[0], values)
-                    _upsert_supplier_portal_account(db, payload[0], values)
-                    _audit_log(
-                        db,
-                        "supplier_created",
-                        entity_type="supplier",
-                        entity_id=payload[0],
-                        details=f"{payload[1]} / {values['supplier_mode']}",
-                    )
-                    message = "Supplier registered successfully."
+                message = _save_admin_supplier_record(db, values)
                 db.commit()
                 flash(message, "success")
-                return redirect(url_for(_supplier_desk_endpoint(values["supplier_mode"])))
+                return redirect(url_for(_supplier_cards_endpoint(values["supplier_mode"])))
             except ValidationError as exc:
                 flash(str(exc), "error")
             except Exception:
@@ -2307,18 +2296,23 @@ def register_routes(app: Flask) -> None:
                 flash("Supplier save failed. Please check portal email and supplier details, then try again.", "error")
 
         return render_template(
-            "suppliers.html",
+            "supplier_mode_register.html",
             values=values,
-            query=query,
-            summary=_supplier_hub_summary(db, supplier_mode),
-            suppliers=_supplier_directory_rows(db, query=query, supplier_mode=supplier_mode),
-            role_options=[item for item in PARTY_ROLE_OPTIONS if item != "Supplier"],
             supplier_mode=supplier_mode,
-            desk_title="Supplier Desk",
-            detail_endpoint="supplier_detail",
+            summary=_supplier_hub_summary(db, supplier_mode),
+            role_options=[item for item in PARTY_ROLE_OPTIONS if item != "Supplier"],
+            desk_title="Online Supplier Workspace",
+            supplier_type_label="Online Supplier",
             desk_endpoint="suppliers",
-            counterpart_endpoint="partnership_suppliers",
-            counterpart_label="Partnership Desk",
+            cards_endpoint=_supplier_cards_endpoint(supplier_mode),
+            toolbar_links=[
+                {"label": "Supplier Cards", "href": url_for(_supplier_cards_endpoint(supplier_mode))},
+                {"label": "Registrations", "href": url_for("supplier_registrations")},
+                {"label": "Quotations", "href": url_for("admin_supplier_quotations")},
+                {"label": "LPO Workspace", "href": url_for("agreements_lpos")},
+                {"label": "Invoices", "href": url_for("invoice_center")},
+                {"label": "Reports", "href": url_for("reports_center")},
+            ],
             partner_parties=_supplier_partner_parties(db),
         )
 
@@ -2343,39 +2337,10 @@ def register_routes(app: Flask) -> None:
         if request.method == "POST":
             values = _supplier_form_data(request, supplier_mode)
             try:
-                payload = _prepare_supplier_party_payload(db, values)
-                if values["original_party_code"]:
-                    db.execute(
-                        """
-                        UPDATE parties
-                        SET party_name = ?, party_kind = ?, party_roles = ?, contact_person = ?,
-                            phone_number = ?, email = ?, trn_no = ?, trade_license_no = ?,
-                            address = ?, notes = ?, status = ?
-                        WHERE party_code = ?
-                        """,
-                        payload[1:] + (values["original_party_code"],),
-                    )
-                    _upsert_supplier_profile(db, payload[0], values)
-                    _upsert_supplier_portal_account(db, payload[0], values)
-                    _audit_log(db, "supplier_updated", entity_type="supplier", entity_id=payload[0], details=f"{payload[1]} / Partnership")
-                    message = "Supplier updated successfully."
-                else:
-                    db.execute(
-                        """
-                        INSERT INTO parties (
-                            party_code, party_name, party_kind, party_roles, contact_person,
-                            phone_number, email, trn_no, trade_license_no, address, notes, status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        payload,
-                    )
-                    _upsert_supplier_profile(db, payload[0], values)
-                    _upsert_supplier_portal_account(db, payload[0], values)
-                    _audit_log(db, "supplier_created", entity_type="supplier", entity_id=payload[0], details=f"{payload[1]} / Partnership")
-                    message = "Supplier registered successfully."
+                message = _save_admin_supplier_record(db, values)
                 db.commit()
                 flash(message, "success")
-                return redirect(url_for("partnership_suppliers"))
+                return redirect(url_for("partnership_supplier_cards"))
             except ValidationError as exc:
                 flash(str(exc), "error")
             except Exception:
@@ -2383,18 +2348,19 @@ def register_routes(app: Flask) -> None:
                 flash("Supplier save failed. Please review the partnership details and try again.", "error")
 
         return render_template(
-            "suppliers.html",
+            "supplier_mode_register.html",
             values=values,
-            query=query,
             summary=_supplier_hub_summary(db, supplier_mode),
-            suppliers=_supplier_directory_rows(db, query=query, supplier_mode=supplier_mode),
             role_options=[item for item in PARTY_ROLE_OPTIONS if item != "Supplier"],
             supplier_mode=supplier_mode,
             desk_title="Partnership Supplier Desk",
-            detail_endpoint="supplier_detail",
             desk_endpoint="partnership_suppliers",
-            counterpart_endpoint="suppliers",
-            counterpart_label="Supplier Desk",
+            cards_endpoint="partnership_supplier_cards",
+            supplier_type_label="Partnership Supplier",
+            toolbar_links=[
+                {"label": "Supplier Cards", "href": url_for("partnership_supplier_cards")},
+                {"label": "Reports", "href": url_for("reports_center")},
+            ],
             partner_parties=_supplier_partner_parties(db),
         )
 
@@ -2419,37 +2385,10 @@ def register_routes(app: Flask) -> None:
         if request.method == "POST":
             values = _supplier_form_data(request, supplier_mode)
             try:
-                payload = _prepare_supplier_party_payload(db, values)
-                if values["original_party_code"]:
-                    db.execute(
-                        """
-                        UPDATE parties
-                        SET party_name = ?, party_kind = ?, party_roles = ?, contact_person = ?,
-                            phone_number = ?, email = ?, trn_no = ?, trade_license_no = ?,
-                            address = ?, notes = ?, status = ?
-                        WHERE party_code = ?
-                        """,
-                        payload[1:] + (values["original_party_code"],),
-                    )
-                    _upsert_supplier_profile(db, payload[0], values)
-                    _audit_log(db, "supplier_updated", entity_type="supplier", entity_id=payload[0], details=f"{payload[1]} / Managed")
-                    message = "Managed supplier updated successfully."
-                else:
-                    db.execute(
-                        """
-                        INSERT INTO parties (
-                            party_code, party_name, party_kind, party_roles, contact_person,
-                            phone_number, email, trn_no, trade_license_no, address, notes, status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        payload,
-                    )
-                    _upsert_supplier_profile(db, payload[0], values)
-                    _audit_log(db, "supplier_created", entity_type="supplier", entity_id=payload[0], details=f"{payload[1]} / Managed")
-                    message = "Managed supplier registered successfully."
+                message = _save_admin_supplier_record(db, values)
                 db.commit()
                 flash(message, "success")
-                return redirect(url_for("managed_suppliers"))
+                return redirect(url_for("managed_supplier_cards"))
             except ValidationError as exc:
                 flash(str(exc), "error")
             except Exception:
@@ -2457,20 +2396,69 @@ def register_routes(app: Flask) -> None:
                 flash("Supplier save failed. Please review the details and try again.", "error")
 
         return render_template(
-            "suppliers.html",
+            "supplier_mode_register.html",
             values=values,
-            query=query,
             summary=_supplier_hub_summary(db, supplier_mode),
-            suppliers=_supplier_directory_rows(db, query=query, supplier_mode=supplier_mode),
             role_options=[item for item in PARTY_ROLE_OPTIONS if item != "Supplier"],
             supplier_mode=supplier_mode,
             desk_title="Managed Supplier Desk",
-            detail_endpoint="supplier_detail",
             desk_endpoint="managed_suppliers",
-            counterpart_endpoint="suppliers",
-            counterpart_label="Portal Desk",
+            cards_endpoint="managed_supplier_cards",
+            supplier_type_label="Managed Supplier",
+            toolbar_links=[
+                {"label": "Supplier Cards", "href": url_for("managed_supplier_cards")},
+                {"label": "Quotation Review", "href": url_for("admin_supplier_quotations")},
+                {"label": "LPO Workspace", "href": url_for("agreements_lpos")},
+                {"label": "Invoices", "href": url_for("invoice_center")},
+            ],
             partner_parties=_supplier_partner_parties(db),
         )
+
+    @app.route("/suppliers/managed/cards", methods=["GET"])
+    @_login_required("admin")
+    def managed_supplier_cards():
+        supplier_mode = "Managed"
+        _touch_admin_workspace(_supplier_mode_workspace_key(supplier_mode))
+        db = open_db()
+        query = request.args.get("q", "").strip()
+        context = _supplier_cards_context(db, supplier_mode, query=query)
+        context.update(
+            {
+                "desk_title": "Managed Supplier Desk",
+                "supplier_type_label": "Managed Supplier",
+                "toolbar_links": [
+                    {"label": "Add New Supplier", "href": url_for("managed_suppliers"), "primary": True},
+                    {"label": "Quotation Review", "href": url_for("admin_supplier_quotations")},
+                    {"label": "LPO Workspace", "href": url_for("agreements_lpos")},
+                    {"label": "Invoices", "href": url_for("invoice_center")},
+                ],
+                "empty_title": "No Managed Suppliers Found",
+                "empty_copy": "Register your first managed supplier to start quotations and invoices.",
+            }
+        )
+        return render_template("supplier_mode_cards.html", **context)
+
+    @app.route("/suppliers/partnership/cards", methods=["GET"])
+    @_login_required("admin")
+    def partnership_supplier_cards():
+        supplier_mode = "Partnership"
+        _touch_admin_workspace(_supplier_mode_workspace_key(supplier_mode))
+        db = open_db()
+        query = request.args.get("q", "").strip()
+        context = _supplier_cards_context(db, supplier_mode, query=query)
+        context.update(
+            {
+                "desk_title": "Partnership Supplier Desk",
+                "supplier_type_label": "Partnership Supplier",
+                "toolbar_links": [
+                    {"label": "Add New Supplier", "href": url_for("partnership_suppliers"), "primary": True},
+                    {"label": "Reports", "href": url_for("reports_center")},
+                ],
+                "empty_title": "No Partnership Suppliers Found",
+                "empty_copy": "Register your first partnership supplier to track split results and statements.",
+            }
+        )
+        return render_template("supplier_mode_cards.html", **context)
 
     @app.route("/suppliers/cash", methods=["GET", "POST"])
     @_login_required("admin")
@@ -2523,7 +2511,7 @@ def register_routes(app: Flask) -> None:
                     message = "Cash supplier created."
                 db.commit()
                 flash(message, "success")
-                return redirect(url_for("cash_suppliers"))
+                return redirect(url_for("cash_supplier_cards"))
             except ValidationError as exc:
                 flash(str(exc), "error")
             except Exception:
@@ -3443,6 +3431,23 @@ def register_routes(app: Flask) -> None:
         db.commit()
         flash(f"{party['party_name']} marked as {next_status}.", "success")
         return redirect(url_for(_supplier_desk_endpoint(_supplier_mode_for_party(db, party_code))))
+
+    @app.post("/suppliers/<party_code>/delete")
+    @_login_required("admin")
+    def delete_supplier(party_code: str):
+        db = open_db()
+        try:
+            party_name, supplier_mode = _delete_supplier_cascade(db, party_code)
+            db.commit()
+            _delete_supplier_generated_files(current_app, party_code)
+            flash(f"{party_name} and all linked supplier data deleted successfully.", "success")
+            return redirect(url_for(_supplier_cards_endpoint(supplier_mode)))
+        except ValidationError as exc:
+            flash(str(exc), "error")
+        except Exception:
+            current_app.logger.exception("Supplier delete failed for %s", party_code)
+            flash("Supplier delete failed. Please try again.", "error")
+        return redirect(url_for("supplier_desk_home"))
 
     @app.post("/supplier-assets/<asset_code>/delete")
     @_login_required("admin")
@@ -9332,6 +9337,28 @@ def _supplier_desk_endpoint(supplier_mode: str) -> str:
     return "suppliers"
 
 
+def _supplier_cards_endpoint(supplier_mode: str) -> str:
+    mode = supplier_mode or "Normal"
+    if mode == "Partnership":
+        return "partnership_supplier_cards"
+    if mode == "Managed":
+        return "managed_supplier_cards"
+    if mode == "Cash":
+        return "cash_supplier_cards"
+    return "suppliers"
+
+
+def _supplier_register_endpoint(supplier_mode: str) -> str:
+    mode = supplier_mode or "Normal"
+    if mode == "Partnership":
+        return "partnership_suppliers"
+    if mode == "Managed":
+        return "managed_suppliers"
+    if mode == "Cash":
+        return "cash_suppliers"
+    return "admin_supplier_register"
+
+
 def _supplier_detail_endpoint(supplier_mode: str) -> str:
     return "supplier_detail"
 
@@ -9444,6 +9471,22 @@ def _supplier_form_data(request, supplier_mode: str = "Normal"):
     }
 
 
+def _supplier_cards_context(db, supplier_mode: str, query: str = "") -> dict:
+    normalized_mode = supplier_mode if supplier_mode in SUPPLIER_MODE_OPTIONS else "Normal"
+    return {
+        "query": query,
+        "suppliers": _supplier_directory_rows(db, query=query, supplier_mode=normalized_mode),
+        "summary": _supplier_hub_summary(db, normalized_mode),
+        "supplier_mode": normalized_mode,
+        "detail_endpoint": "supplier_detail",
+        "desk_endpoint": _supplier_desk_endpoint(normalized_mode),
+        "cards_endpoint": _supplier_cards_endpoint(normalized_mode),
+        "register_endpoint": _supplier_register_endpoint(normalized_mode),
+        "statement_endpoint": "supplier_statement",
+        "delete_endpoint": "delete_supplier",
+    }
+
+
 def _supplier_form_from_party(record, profile=None, portal_account=None):
     values = _party_values_from_record(record)
     profile = dict(profile) if profile else {}
@@ -9462,6 +9505,100 @@ def _supplier_form_from_party(record, profile=None, portal_account=None):
     values["portal_activation_status"] = portal_account.get("activation_status") or "Invited"
     values["portal_last_login_at"] = portal_account.get("last_login_at") or ""
     return values
+
+
+def _save_admin_supplier_record(db, values) -> str:
+    payload = _prepare_supplier_party_payload(db, values)
+    if values["original_party_code"]:
+        db.execute(
+            """
+            UPDATE parties
+            SET party_name = ?, party_kind = ?, party_roles = ?, contact_person = ?,
+                phone_number = ?, email = ?, trn_no = ?, trade_license_no = ?,
+                address = ?, notes = ?, status = ?
+            WHERE party_code = ?
+            """,
+            payload[1:] + (values["original_party_code"],),
+        )
+        _upsert_supplier_profile(db, payload[0], values)
+        _upsert_supplier_portal_account(db, payload[0], values)
+        _audit_log(
+            db,
+            "supplier_updated",
+            entity_type="supplier",
+            entity_id=payload[0],
+            details=f"{payload[1]} / {values['supplier_mode']}",
+        )
+        return "Supplier updated successfully."
+
+    db.execute(
+        """
+        INSERT INTO parties (
+            party_code, party_name, party_kind, party_roles, contact_person,
+            phone_number, email, trn_no, trade_license_no, address, notes, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        payload,
+    )
+    _upsert_supplier_profile(db, payload[0], values)
+    _upsert_supplier_portal_account(db, payload[0], values)
+    _audit_log(
+        db,
+        "supplier_created",
+        entity_type="supplier",
+        entity_id=payload[0],
+        details=f"{payload[1]} / {values['supplier_mode']}",
+    )
+    return "Supplier registered successfully."
+
+
+def _delete_supplier_generated_files(app: Flask, party_code: str) -> None:
+    generated_root = Path(app.config["GENERATED_DIR"]) / "suppliers" / party_code
+    if generated_root.exists():
+        shutil.rmtree(generated_root, ignore_errors=True)
+
+
+def _delete_supplier_cascade(db, party_code: str) -> tuple[str, str]:
+    party = _fetch_supplier_party(db, party_code)
+    if party is None:
+        raise ValidationError("Supplier was not found.")
+
+    supplier_mode = _supplier_mode_for_party(db, party_code)
+    party_name = party["party_name"]
+
+    db.execute(
+        "DELETE FROM account_invoice_lines WHERE invoice_no IN (SELECT invoice_no FROM account_invoices WHERE party_code = ?)",
+        (party_code,),
+    )
+    db.execute("DELETE FROM account_payments WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM account_invoices WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM hire_records WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM lpos WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM agreements WHERE party_code = ?", (party_code,))
+
+    db.execute("DELETE FROM supplier_invoice_submissions WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM supplier_payments WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM supplier_vouchers WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM supplier_timesheets WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM supplier_partnership_entries WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM supplier_assets WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM supplier_quotation_submissions WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM cash_supplier_payments WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM cash_supplier_debits WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM cash_supplier_trips WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM supplier_registration_requests WHERE approved_party_code = ?", (party_code,))
+    db.execute("DELETE FROM supplier_portal_accounts WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM supplier_profile WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM parties WHERE party_code = ?", (party_code,))
+
+    _audit_log(
+        db,
+        "supplier_deleted",
+        entity_type="supplier",
+        entity_id=party_code,
+        details=f"{party_name} / {supplier_mode}",
+    )
+    return party_name, supplier_mode
 
 
 def _prepare_supplier_party_payload(db, values):

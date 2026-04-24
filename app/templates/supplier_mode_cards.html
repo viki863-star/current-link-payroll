@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% block title %}Cash Supplier Cards — Current Link ERP{% endblock %}
 
 {% block content %}
 <section class="admin-desk-shell">
@@ -7,25 +6,27 @@
         <div class="admin-toolbar-row">
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a class="button button-secondary" href="{{ url_for('cash_suppliers') }}">Cash Desk</a>
-                <span class="button button-primary" style="background-color: #1f8f4c; border-color: #1f8f4c; cursor: default;">Supplier Cards</span>
+                <span class="button button-primary" style="background-color: #2f6ca4; border-color: #2f6ca4; cursor: default;">{{ desk_title }}</span>
+                {% for link in toolbar_links %}
+                    <a class="button {% if not link.primary %}button-secondary{% endif %}" href="{{ link.href }}">{{ link.label }}</a>
+                {% endfor %}
             </div>
             <div class="admin-mini-stats">
-                <span><strong>{{ summary.supplier_count }}</strong><small>Shown Suppliers</small></span>
+                <span><strong>{{ summary.supplier_count }}</strong><small>{{ supplier_type_label }}s</small></span>
                 <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
-                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Total Due</small></span>
-                <span><strong>AED {{ "%.0f"|format(summary.advance_total) }}</strong><small>Total Advance Given</small></span>
+                <span><strong>{{ summary.double_shift_count }}</strong><small>Double Shift</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
             </div>
         </div>
         <form method="get" class="admin-filter-grid desk-single-filter">
             <label>
-                <span>Search Cash/Loan Suppliers</span>
+                <span>Search {{ supplier_type_label }}s</span>
                 <input type="search" name="q" value="{{ query }}" placeholder="Name, code, phone, contact">
             </label>
             <div class="admin-filter-actions">
                 <button class="button" type="submit">Search</button>
                 {% if query %}
-                    <a class="button button-secondary" href="{{ url_for('cash_supplier_cards') }}">Clear</a>
+                    <a class="button button-secondary" href="{{ url_for(cards_endpoint) }}">Clear</a>
                 {% endif %}
             </div>
         </form>
@@ -33,9 +34,9 @@
 
     <section class="db-grid driver-card-wall cash-card-wall">
         {% for item in suppliers %}
-            <article class="wc wc-cash cash-directory-card{% if item.status == 'Inactive' %} inactive{% endif %}">
+            <article class="wc wc-cash cash-directory-card supplier-mode-card supplier-mode-{{ supplier_mode|lower }}{% if item.status == 'Inactive' %} inactive{% endif %}">
                 <div class="wc-shimmer"></div>
-                <div class="wc-bg-icon">{% if item.supplier_mode == "Loan" %}💳{% else %}💵{% endif %}</div>
+                <div class="wc-bg-icon">S</div>
 
                 <div class="wc-top cash-card-top">
                     <div class="wc-icon-badge wc-badge-cash">
@@ -46,7 +47,7 @@
                         </svg>
                     </div>
                     <div class="wc-meta">
-                        <span class="wc-tag">{{ item.supplier_mode }} Supplier</span>
+                        <span class="wc-tag">{{ supplier_type_label }}</span>
                         <span class="wc-category">{{ item.party_code }}</span>
                     </div>
                     <span class="status-chip {{ item.status|lower }} cash-card-status">{{ item.status }}</span>
@@ -55,29 +56,29 @@
                 <div class="wc-body">
                     <h2 class="wc-title">{{ item.party_name }}</h2>
                     <div class="cash-card-copy">
-                        <span><strong>Contact:</strong> {{ item.contact_person or item.phone_number or "-" }}</span>
+                        <span><strong>Contact:</strong> {{ item.contact_person or "-" }}</span>
                         <span><strong>Phone:</strong> {{ item.phone_number or "-" }}</span>
                         <span><strong>Fleet:</strong> {{ item.asset_count }} units</span>
                     </div>
-                    <div class="cash-balance-strip {{ item.balance_state }}">
-                        <span class="cash-balance-label">{{ item.balance_label }}</span>
-                        <strong class="cash-balance-value">AED {{ "%.2f"|format(item.display_balance_amount) }}</strong>
+                    <div class="cash-balance-strip due">
+                        <span class="cash-balance-label">Balance Due</span>
+                        <strong class="cash-balance-value">AED {{ "%.2f"|format(item.outstanding_total) }}</strong>
                     </div>
                 </div>
 
                 <div class="wc-footer cash-card-footer">
                     <div class="wc-quick-stats">
-                        <span class="wc-stat wc-stat-cash">{{ item.supplier_mode }}</span>
-                        <span class="wc-stat wc-stat-cash">{{ item.trip_count }} Trips</span>
-                        <span class="wc-stat wc-stat-cash">{{ item.payment_count }} Payments</span>
+                        <span class="wc-stat wc-stat-cash">{{ supplier_mode }}</span>
+                        <span class="wc-stat wc-stat-cash">{{ item.asset_count }} Fleet</span>
+                        <span class="wc-stat wc-stat-cash">{{ item.voucher_count or 0 }} Vouchers</span>
                     </div>
                 </div>
 
-                <div class="cash-card-actions">
-                    <a class="cash-card-link" href="{{ url_for('supplier_detail', party_code=item.party_code) }}">Open</a>
-                    <a class="cash-card-link" href="{{ url_for('cash_suppliers', edit=item.party_code) }}">Edit</a>
-                    <a class="cash-card-link" href="{{ url_for('supplier_detail', party_code=item.party_code) }}?screen=statement">Statement</a>
-                    <form method="post" action="{{ url_for('delete_supplier', party_code=item.party_code) }}" onsubmit="return confirm('Delete this supplier and all linked data permanently?');">
+                <div class="cash-card-actions supplier-mode-actions">
+                    <a class="cash-card-link" href="{{ url_for(detail_endpoint, party_code=item.party_code) }}">Open</a>
+                    <a class="cash-card-link" href="{% if supplier_mode == 'Normal' %}{{ url_for(register_endpoint, mode=supplier_mode, edit=item.party_code) }}{% else %}{{ url_for(register_endpoint, edit=item.party_code) }}{% endif %}">Edit</a>
+                    <a class="cash-card-link" href="{{ url_for(statement_endpoint, party_code=item.party_code) }}">Statement</a>
+                    <form method="post" action="{{ url_for(delete_endpoint, party_code=item.party_code) }}" onsubmit="return confirm('Delete this supplier and all linked data permanently?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button class="cash-card-link danger-link" type="submit">Delete</button>
                     </form>
@@ -85,9 +86,9 @@
             </article>
         {% else %}
             <article class="card directory-empty cash-directory-empty">
-                <h2>No Cash/Loan Supplier Found</h2>
-                <p>Change your search or open the cash desk to add a new supplier.</p>
-                <a class="button" href="{{ url_for('cash_suppliers') }}">Register Cash/Loan Supplier</a>
+                <h2>{{ empty_title }}</h2>
+                <p>{{ empty_copy }}</p>
+                <a class="button" href="{{ toolbar_links[0].href if toolbar_links else url_for(desk_endpoint) }}">Add Supplier</a>
             </article>
         {% endfor %}
     </section>
@@ -100,11 +101,23 @@
 }
 
 .cash-directory-card {
-    min-height: 335px;
+    min-height: 360px;
     cursor: default;
 }
 
-.cash-directory-card.inactive {
+.supplier-mode-normal {
+    background: linear-gradient(180deg, rgba(8, 108, 168, 0.98) 0%, rgba(11, 86, 145, 0.98) 100%);
+}
+
+.supplier-mode-managed {
+    background: linear-gradient(180deg, rgba(91, 59, 168, 0.98) 0%, rgba(72, 40, 146, 0.98) 100%);
+}
+
+.supplier-mode-partnership {
+    background: linear-gradient(180deg, rgba(176, 105, 24, 0.98) 0%, rgba(145, 80, 10, 0.98) 100%);
+}
+
+.supplier-mode-card.inactive {
     opacity: 0.76;
 }
 
@@ -141,21 +154,8 @@
     justify-content: space-between;
     align-items: center;
     gap: 12px;
-}
-
-.cash-balance-strip.due {
     background: rgba(96, 165, 250, 0.14);
     border-color: rgba(96, 165, 250, 0.22);
-}
-
-.cash-balance-strip.advance {
-    background: rgba(251, 191, 36, 0.14);
-    border-color: rgba(251, 191, 36, 0.24);
-}
-
-.cash-balance-strip.settled {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.12);
 }
 
 .cash-balance-label {
@@ -175,21 +175,27 @@
     margin-top: 16px;
 }
 
+.supplier-mode-actions {
+    grid-template-columns: repeat(4, 1fr);
+}
+
 .cash-card-actions {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
     gap: 10px;
     margin-top: 16px;
     position: relative;
     z-index: 1;
 }
 
+.cash-card-link,
 .cash-card-actions form {
     display: block;
 }
 
-.cash-card-link {
+.cash-card-link,
+.danger-link {
     display: flex;
+    width: 100%;
     align-items: center;
     justify-content: center;
     min-height: 42px;
@@ -202,21 +208,21 @@
     transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease;
 }
 
-.cash-card-link:hover {
+.danger-link {
+    cursor: pointer;
+    background: rgba(185, 28, 28, 0.24);
+    border-color: rgba(254, 202, 202, 0.24);
+}
+
+.cash-card-link:hover,
+.danger-link:hover {
     transform: translateY(-2px);
     background: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.24);
 }
 
-.danger-link {
-    width: 100%;
-    cursor: pointer;
-    background: rgba(185, 28, 28, 0.22);
-    border-color: rgba(254, 202, 202, 0.24);
-}
-
 .danger-link:hover {
-    background: rgba(185, 28, 28, 0.36);
+    background: rgba(185, 28, 28, 0.38);
 }
 
 .cash-directory-empty {
@@ -224,8 +230,14 @@
     padding: 42px 28px;
 }
 
+@media (max-width: 880px) {
+    .supplier-mode-actions {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
 @media (max-width: 720px) {
-    .cash-card-actions {
+    .supplier-mode-actions {
         grid-template-columns: 1fr;
     }
 
