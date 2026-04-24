@@ -9,27 +9,47 @@
     <section class="supplier-hero">
         <div class="supplier-hero-glow supplier-hero-glow-a"></div>
         <div class="supplier-hero-glow supplier-hero-glow-b"></div>
+        <div class="supplier-hero-glow supplier-hero-glow-c"></div>
+        <div class="supplier-hero-shimmer"></div>
         <div class="supplier-hero-grid">
             <div class="supplier-hero-main">
                 <div class="supplier-hero-title-row">
                     <div class="supplier-hero-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="28" height="28">
-                            <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
-                            <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
-                        </svg>
+                        <div class="supplier-hero-icon-inner">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="28" height="28">
+                                <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                                <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                            </svg>
+                        </div>
+                        <div class="supplier-hero-icon-glow"></div>
                     </div>
                     <div class="supplier-hero-copy">
-                        <span class="supplier-hero-label">Supplier Command Center</span>
+                        <span class="supplier-hero-label">
+                            <span class="supplier-hero-label-text">Supplier Command Center</span>
+                            <span class="supplier-hero-label-dot"></span>
+                        </span>
                         <h1 class="supplier-hero-title">Supplier Desk</h1>
                         <p class="supplier-hero-subtitle">Manage online, cash, managed, and partnership suppliers from one live workspace with cleaner cards, statements, and workflow control.</p>
                     </div>
                 </div>
 
                 <div class="supplier-hero-ribbon">
-                    <span class="supplier-ribbon-pill">Online Workflow</span>
-                    <span class="supplier-ribbon-pill">Cash Control</span>
-                    <span class="supplier-ribbon-pill">Managed Billing</span>
-                    <span class="supplier-ribbon-pill">Partnership Splits</span>
+                    <span class="supplier-ribbon-pill" data-shimmer>
+                        <span class="supplier-ribbon-pill-text">Online Workflow</span>
+                        <span class="supplier-ribbon-pill-glow"></span>
+                    </span>
+                    <span class="supplier-ribbon-pill" data-shimmer>
+                        <span class="supplier-ribbon-pill-text">Cash Control</span>
+                        <span class="supplier-ribbon-pill-glow"></span>
+                    </span>
+                    <span class="supplier-ribbon-pill" data-shimmer>
+                        <span class="supplier-ribbon-pill-text">Managed Billing</span>
+                        <span class="supplier-ribbon-pill-glow"></span>
+                    </span>
+                    <span class="supplier-ribbon-pill" data-shimmer>
+                        <span class="supplier-ribbon-pill-text">Partnership Splits</span>
+                        <span class="supplier-ribbon-pill-glow"></span>
+                    </span>
                 </div>
             </div>
 
@@ -37,23 +57,37 @@
                 <div class="supplier-hero-pill success">
                     <span class="supplier-hero-pill-dot"></span>
                     <span>4 Supplier Types Active</span>
+                    <span class="supplier-hero-pill-pulse"></span>
                 </div>
                 <div class="supplier-hero-pill live">
                     <span class="supplier-hero-pill-dot"></span>
                     <span>ERP Live</span>
+                    <span class="supplier-hero-pill-pulse"></span>
                 </div>
                 <div class="supplier-hero-metrics">
                     <div class="supplier-hero-metric">
-                        <strong>{{ stats.total_suppliers }}</strong>
+                        <div class="supplier-hero-metric-value">
+                            <strong>{{ stats.total_suppliers }}</strong>
+                            <span class="supplier-hero-metric-trend"></span>
+                        </div>
                         <span>Total Suppliers</span>
+                        <div class="supplier-hero-metric-bar"></div>
                     </div>
                     <div class="supplier-hero-metric">
-                        <strong>AED {{ "%.0f"|format(stats.total_outstanding) }}</strong>
+                        <div class="supplier-hero-metric-value">
+                            <strong>AED {{ "%.0f"|format(stats.total_outstanding) }}</strong>
+                            <span class="supplier-hero-metric-trend"></span>
+                        </div>
                         <span>Total Outstanding</span>
+                        <div class="supplier-hero-metric-bar"></div>
                     </div>
                     <div class="supplier-hero-metric">
-                        <strong>{{ stats.online_quotations + stats.managed_quotations }}</strong>
+                        <div class="supplier-hero-metric-value">
+                            <strong>{{ stats.online_quotations + stats.managed_quotations }}</strong>
+                            <span class="supplier-hero-metric-trend"></span>
+                        </div>
                         <span>Quotation Flow</span>
+                        <div class="supplier-hero-metric-bar"></div>
                     </div>
                 </div>
             </aside>
