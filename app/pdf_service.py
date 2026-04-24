@@ -759,9 +759,19 @@ def generate_cash_supplier_kata_pdf(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     party_keys = set(party.keys()) if hasattr(party, "keys") else set()
     summary = summary or {}
-    total_work_done = float(summary.get("earned") or 0.0)
-    total_paid = float(summary.get("paid") or 0.0)
+    total_work_done = float(summary.get("total_earned") or summary.get("earned") or 0.0)
+    total_paid = float(summary.get("total_paid") or summary.get("paid") or 0.0)
     closing_balance = float(summary.get("balance") or 0.0)
+    if not total_work_done:
+        total_work_done = round(
+            sum(float(item.get("total_amount") or item.get("earned") or 0.0) for item in rows or []),
+            2,
+        )
+    if not total_paid:
+        total_paid = round(
+            sum(float(item.get("paid") or item.get("pdf_paid_amount") or 0.0) for item in rows or []),
+            2,
+        )
 
     def _party_value(key: str, default: str = "-"):
         if hasattr(party, "get"):
@@ -796,6 +806,8 @@ def generate_cash_supplier_kata_pdf(
         col_lefts.append(col_lefts[-1] + width_mm * mm)
     col_rights = [left + width_mm * mm for left, width_mm in zip(col_lefts, col_widths_mm)]
     row_fill_alt = colors.HexColor("#F6F9FD")
+    row_fill_payment = colors.HexColor("#EEF8F0")
+    row_fill_payment_band = colors.HexColor("#D9F0DF")
     grid_color = colors.HexColor("#6E7B8B")
     header_height = 9 * mm
     page_bottom_limit = 26 * mm
@@ -898,8 +910,8 @@ def generate_cash_supplier_kata_pdf(
             pdf_obj.line(divider_x, report_y + 2.2 * mm, divider_x, report_y + report_h - 7.3 * mm)
 
         metric_specs = [
-            ("WORK DONE", total_work_done, GREEN),
-            ("PAID", total_paid, BLUE_DARK),
+            ("TOTAL WORK", total_work_done, GREEN),
+            ("TOTAL PAID", total_paid, BLUE_DARK),
             ("BALANCE", closing_balance, BLUE_DARK if closing_balance >= 0 else RED),
         ]
         for idx, (label, value, color) in enumerate(metric_specs):
@@ -970,11 +982,18 @@ def generate_cash_supplier_kata_pdf(
         for row_index, row in enumerate(page_rows):
             row_height = row["row_height"]
             row_bottom = current_top - row_height
-            fill_color = row_fill_alt if row_index % 2 == 0 else colors.white
+            if row["kind"] == "payment":
+                fill_color = row_fill_payment
+            else:
+                fill_color = row_fill_alt if row_index % 2 == 0 else colors.white
             pdf.setFillColor(fill_color)
             pdf.setStrokeColor(grid_color)
             pdf.setLineWidth(0.45)
             pdf.rect(table_x, row_bottom, table_width, row_height, fill=1, stroke=1)
+            if row["kind"] == "payment":
+                pdf.setFillColor(row_fill_payment_band)
+                pdf.rect(table_x, row_bottom + row_height - (2.2 * mm), table_width, 2.2 * mm, fill=1, stroke=0)
+                pdf.setStrokeColor(grid_color)
             for x in col_rights[:-1]:
                 pdf.line(x, row_bottom, x, row_bottom + row_height)
 
@@ -1004,7 +1023,9 @@ def generate_cash_supplier_kata_pdf(
             total_color = RED if row["kind"] == "debit" and row["total_text"] else TEXT
             total_text = f"-{row['total_text']}" if row["kind"] == "debit" and row["total_text"] else row["total_text"]
             _draw_cell_right(pdf, total_text, col_lefts[5], col_rights[5], middle_y, "Times-Roman", 8.5, text_color=total_color)
-            _draw_cell_right(pdf, row["paid_text"], col_lefts[6], col_rights[6], middle_y, "Times-Roman", 8.5)
+            paid_color = BLUE_DARK if row["kind"] == "payment" and row["paid_text"] else TEXT
+            paid_font = "Times-Bold" if row["kind"] == "payment" and row["paid_text"] else "Times-Roman"
+            _draw_cell_right(pdf, row["paid_text"], col_lefts[6], col_rights[6], middle_y, paid_font, 8.5, text_color=paid_color)
             balance_color = TEXT if row["balance_value"] >= 0 else RED
             _draw_cell_right(pdf, row["balance_text"], col_lefts[7], col_rights[7], middle_y, "Times-Bold", 8.6, text_color=balance_color)
             current_top = row_bottom
