@@ -12,14 +12,12 @@
                 {% elif supplier_mode == "Managed" %}
                     <a class="button" href="{{ url_for('admin_managed_quotation', party_code=party.party_code) }}">+ Quotation</a>
                     <a class="button" href="{{ url_for('admin_managed_invoice', party_code=party.party_code) }}">+ Invoice</a>
-                {% elif supplier_mode == "Cash" %}
+                {% elif supplier_mode in ("Cash", "Loan") %}
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata') }}">Kata / Statement</a>
                 {% else %}
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Invoice Intake</a>
                 {% endif %}
-                {% if supplier_mode != "Cash" %}
-                    <a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, month=partnership_month) }}">Statement PDF</a>
-                {% endif %}
+                <a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, month=partnership_month) }}">{% if supplier_mode in ("Cash", "Loan") %}Kata PDF{% else %}Statement PDF{% endif %}</a>
             </div>
             <div class="admin-mini-stats">
                 <span><strong>{{ summary.asset_count }}</strong><small>Vehicles</small></span>
@@ -465,7 +463,17 @@
         {% endif %}
     {% elif supplier_mode in ("Cash", "Loan") and active_screen == "kata" %}
         {# ── Summary cards ── #}
-        <section class="compact-content-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;">
+        <section class="compact-content-grid" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px;">
+            <article class="card" style="padding:18px;background:linear-gradient(135deg,#0f2d52 0%,#1c568b 100%);color:#fff;">
+                <small style="opacity:.8;">Kata Overview</small>
+                <div style="font-size:1.4rem;font-weight:800;margin-top:6px;">{{ party.party_name }}</div>
+                <div style="opacity:.82;margin-top:4px;">{{ party.party_code }}{% if party.phone_number %} | {{ party.phone_number }}{% endif %}</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                    <span class="mini-link-pill" style="background:rgba(255,255,255,.12);color:#fff;border:none;">Trips / Hours / Monthly</span>
+                    <span class="mini-link-pill" style="background:rgba(255,255,255,.12);color:#fff;border:none;">Running Balance</span>
+                    <a class="mini-link-pill" style="background:#fff;color:#15335d;border:none;text-decoration:none;" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code) }}">Download PDF</a>
+                </div>
+            </article>
             <article class="card" style="padding:16px;text-align:center;">
                 <small style="color:var(--color-muted);">Earned</small>
                 <div style="font-size:1.35rem;font-weight:800;color:var(--color-success,#16a34a);">AED {{ "%.2f"|format(kata_summary.total_earned) }}</div>
@@ -490,19 +498,20 @@
         <section class="compact-content-grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px;">
             {# Trip earning #}
             <article class="card desk-panel-card">
-                <div class="desk-panel-head"><div><span class="admin-desk-label">Earning</span><h2>Add Trip</h2></div></div>
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Earning</span><h2>Add Earning</h2></div></div>
                 <form method="post" class="desk-form-grid" style="gap:8px;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="save_trip">
-                    <label><span>Trip No</span><input type="text" name="trip_no" value="{{ cash_trip_no }}" style="font-weight:800;font-size:0.82rem;"></label>
+                    <label><span>Earning No</span><input type="text" name="trip_no" value="{{ cash_trip_no }}" style="font-weight:800;font-size:0.82rem;"></label>
                     <label><span>Date</span><input type="date" name="entry_date" id="trip_date" required></label>
-                    <label><span>Period</span><input type="month" name="period_month"></label>
-                    <label><span>Trips</span><input type="number" step="0.5" min="0" name="trip_count" value="1" required id="t_cnt" oninput="calcTrip()"></label>
-                    <label><span>Rate</span><input type="number" step="0.01" min="0" name="rate" placeholder="0.00" required id="t_rate" oninput="calcTrip()"></label>
+                    <label><span>Period Month</span><input type="month" name="period_month" id="period_month"></label>
+                    <label><span>Basis</span><select name="earning_basis" id="earning_basis" onchange="updateEarningLabels();calcTrip();">{% for item in cash_earning_basis_options %}<option value="{{ item }}">{{ item }}</option>{% endfor %}</select></label>
+                    <label><span id="earning_qty_label">Trips</span><input type="number" step="0.5" min="0" name="trip_count" value="1" required id="t_cnt" oninput="calcTrip()"></label>
+                    <label><span id="earning_rate_label">Rate Per Trip</span><input type="number" step="0.01" min="0" name="rate" placeholder="0.00" required id="t_rate" oninput="calcTrip()"></label>
                     <label><span>Total</span><input type="number" step="0.01" name="total_display" id="t_total" readonly style="font-weight:800;"></label>
                     <label><span>Vehicle</span><input type="text" name="vehicle_no" placeholder="optional"></label>
-                    <label><span>Notes</span><input type="text" name="notes" placeholder="optional"></label>
-                    <div class="form-actions"><button class="button success-button" type="submit">Save Trip</button></div>
+                    <label><span>Notes / Detail</span><input type="text" name="notes" placeholder="e.g. April monthly payment or 180 duty hours"></label>
+                    <div class="form-actions"><button class="button success-button" type="submit">Save Earning</button></div>
                 </form>
             </article>
 
@@ -555,12 +564,13 @@
 
         {# ── Running statement / kata ── #}
         <article class="card desk-panel-card">
-            <div class="desk-panel-head"><div><span class="admin-desk-label">Kata</span><h2>Running Statement</h2></div></div>
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Kata</span><h2>Running Statement</h2></div><div class="admin-toolbar-actions"><a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code) }}">Download PDF</a></div></div>
             <div class="table-wrap">
                 <table>
                     <thead>
                         <tr>
                             <th>Date</th>
+                            <th>Month</th>
                             <th>Ref</th>
                             <th>Type</th>
                             <th>Description</th>
@@ -574,8 +584,9 @@
                         {% for row in kata_rows %}
                         <tr>
                             <td>{{ row.entry_date }}</td>
+                            <td>{{ row.period_month_display or '-' }}</td>
                             <td><strong>{{ row.reference }}</strong></td>
-                            <td><span class="status-chip {% if row.entry_type == 'Trip' %}approved{% elif row.entry_type == 'Payment' %}pending{% else %}rejected{% endif %}">{{ row.entry_type }}</span></td>
+                            <td><span class="status-chip {% if row.entry_type == 'Earning' %}approved{% elif row.entry_type == 'Payment' %}pending{% else %}rejected{% endif %}">{{ row.entry_type }}{% if row.earning_basis %} / {{ row.earning_basis }}{% endif %}</span></td>
                             <td>{{ row.description }}</td>
                             <td style="text-align:right;color:var(--color-success,#16a34a);">
                                 {% if row.earned %}{{ "%.2f"|format(row.earned) }}{% endif %}
@@ -591,12 +602,12 @@
                             </td>
                             <td>
                                 <div class="table-actions">
-                                    {% if row.entry_type == 'Trip' %}
+                                    {% if row.entry_type == 'Earning' %}
                                         <form method="post" action="{{ url_for('edit_cash_trip', trip_no=row.reference) }}" style="display:inline;">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-xs btn-outline" title="Edit Trip">✏️</button>
                                         </form>
-                                        <form method="post" action="{{ url_for('delete_cash_trip', trip_no=row.reference) }}" onsubmit="return confirm('Delete this trip?');" style="display:inline;">
+                                        <form method="post" action="{{ url_for('delete_cash_trip', trip_no=row.reference) }}" onsubmit="return confirm('Delete this earning?');" style="display:inline;">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-xs btn-outline btn-danger" title="Delete">🗑️</button>
                                         </form>
@@ -624,7 +635,7 @@
                         </tr>
                         {% endfor %}
                         {% if not kata_rows %}
-                        <tr><td colspan="8">No entries yet. Add a trip, debit, or payment above.</td></tr>
+                        <tr><td colspan="9">No entries yet. Add an earning, debit, or payment above.</td></tr>
                         {% endif %}
                     </tbody>
                 </table>
@@ -634,16 +645,29 @@
         <script>
         (function(){
             var today = new Date().toISOString().slice(0,10);
+            var currentMonth = today.slice(0,7);
             ['trip_date','debit_date','pay_date'].forEach(function(id){
                 var el = document.getElementById(id);
                 if(el && !el.value) el.value = today;
             });
+            var periodMonth = document.getElementById('period_month');
+            if(periodMonth && !periodMonth.value) periodMonth.value = currentMonth;
         })();
         function calcTrip(){
             var cnt = parseFloat(document.getElementById('t_cnt').value)||0;
             var rate = parseFloat(document.getElementById('t_rate').value)||0;
             document.getElementById('t_total').value = (cnt*rate).toFixed(2);
         }
+        function updateEarningLabels(){
+            var basis = document.getElementById('earning_basis');
+            var qty = document.getElementById('earning_qty_label');
+            var rate = document.getElementById('earning_rate_label');
+            if(!basis || !qty || !rate) return;
+            var selected = basis.value;
+            qty.textContent = selected === 'Trips' ? 'Trips' : (selected === 'Hours' ? 'Hours' : (selected === 'Monthly' ? 'Months' : 'Units'));
+            rate.textContent = selected === 'Hours' ? 'Rate Per Hour' : (selected === 'Monthly' ? 'Rate Per Month' : (selected === 'Trips' ? 'Rate Per Trip' : 'Amount Per Unit'));
+        }
+        updateEarningLabels();
         </script>
 
     {% elif active_screen == "statement" %}

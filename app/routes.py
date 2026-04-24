@@ -29,6 +29,7 @@ from .pdf_driver_import import load_driver_records_from_pdf, load_driver_records
 from .pdf_vehicle_import import load_vehicle_records_from_pdf_bytes
 from .pdf_service import (
     format_month_label,
+    generate_cash_supplier_kata_pdf,
     generate_kata_pdf,
     generate_lpo_pdf,
     generate_owner_fund_pdf,
@@ -63,6 +64,7 @@ INVOICE_KIND_OPTIONS = ["Sales", "Purchase"]
 INVOICE_DOCUMENT_OPTIONS = ["Tax Invoice", "Simplified Tax Invoice", "Credit Note", "Debit Note", "Supplier Bill"]
 PAYMENT_KIND_OPTIONS = ["Received", "Paid"]
 PAYMENT_METHOD_OPTIONS = ["Bank", "Cash", "Owner Fund", "Cheque", "Transfer", "Other"]
+SUPPLIER_CASH_EARNING_BASIS_OPTIONS = ["Trips", "Hours", "Monthly", "Fixed"]
 LOAN_TYPE_OPTIONS = ["Given", "Recovered"]
 FEE_TYPE_OPTIONS = ["Visa", "Vehicle"]
 OWNER_FUND_MOVEMENT_OPTIONS = ["All", "Incoming", "Outgoing"]
@@ -3028,20 +3030,31 @@ def register_routes(app: Flask) -> None:
                         trip_no = request.form.get("trip_no", "").strip().upper() or _next_reference_code(db, "cash_supplier_trips", "trip_no", "TRP")
                         entry_date = request.form.get("entry_date", "").strip()
                         period_month = request.form.get("period_month", "").strip()
-                        trip_count = _parse_decimal(request.form.get("trip_count", "1"), "Trip count", minimum=0.0)
+                        earning_basis = request.form.get("earning_basis", "Trips").strip() or "Trips"
+                        if earning_basis not in SUPPLIER_CASH_EARNING_BASIS_OPTIONS:
+                            earning_basis = "Trips"
+                        quantity_label = {
+                            "Trips": "Trip count",
+                            "Hours": "Hours",
+                            "Monthly": "Months",
+                            "Fixed": "Units",
+                        }.get(earning_basis, "Quantity")
+                        trip_count = _parse_decimal(request.form.get("trip_count", "1"), quantity_label, minimum=0.0)
                         rate = _parse_decimal(request.form.get("rate", "0"), "Rate", minimum=0.0)
                         total_amount = round(trip_count * rate, 2)
                         vehicle_no = request.form.get("vehicle_no", "").strip()
                         notes = request.form.get("notes", "").strip()
                         if not entry_date:
                             raise ValidationError("Entry date is required.")
+                        if not period_month and len(entry_date) >= 7:
+                            period_month = entry_date[:7]
                         _ensure_reference_available(db, "cash_supplier_trips", "trip_no", trip_no, "", "Trip number")
                         db.execute("""
-                            INSERT INTO cash_supplier_trips (trip_no, party_code, entry_date, period_month, trip_count, rate, total_amount, vehicle_no, notes, created_by)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (trip_no, party_code, entry_date, period_month or None, trip_count, rate, total_amount, vehicle_no or None, notes or None, session.get("display_name", "") or "Admin"))
+                            INSERT INTO cash_supplier_trips (trip_no, party_code, entry_date, period_month, earning_basis, trip_count, rate, total_amount, vehicle_no, notes, created_by)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (trip_no, party_code, entry_date, period_month or None, earning_basis, trip_count, rate, total_amount, vehicle_no or None, notes or None, session.get("display_name", "") or "Admin"))
                         db.commit()
-                        flash(f"Trip {trip_no} saved — AED {total_amount}", "success")
+                        flash(f"{earning_basis} earning {trip_no} saved - AED {total_amount}", "success")
                         return redirect(url_for("supplier_detail", party_code=party_code, screen="kata"))
 
                     elif action == "save_debit":
@@ -3203,6 +3216,7 @@ def register_routes(app: Flask) -> None:
             partnership_paid_by_options=PARTNERSHIP_PAID_BY_OPTIONS,
             partnership_shift_options=PARTNERSHIP_SHIFT_OPTIONS,
             payment_method_options=PAYMENT_METHOD_OPTIONS,
+            cash_earning_basis_options=SUPPLIER_CASH_EARNING_BASIS_OPTIONS,
             voucher_status_options=SUPPLIER_VOUCHER_STATUS_OPTIONS,
             supplier_mode=supplier_mode,
             active_screen=active_screen,
@@ -3322,26 +3336,37 @@ def register_routes(app: Flask) -> None:
             flash("Supplier was not found.", "error")
             return redirect(url_for("suppliers"))
         supplier_mode = _supplier_mode_for_party(db, party_code)
-        statement_rows, statement_summary = _supplier_statement_data(db, party_code, supplier_mode=supplier_mode)
         output_dir = _supplier_output_dir(app, party_code) / "statements"
-        if supplier_mode == "Partnership":
-            partnership_month = _normalize_month(request.args.get("month", "").strip() or _current_month_value())
-            asset_rows = _supplier_partnership_asset_rows(db, party_code, partnership_month)
-            pdf_path = generate_partnership_supplier_statement_pdf(
+        if supplier_mode in ("Cash", "Loan"):
+            kata_rows, kata_summary = _cash_supplier_kata(db, party_code)
+            pdf_path = generate_cash_supplier_kata_pdf(
                 party,
-                partnership_month,
-                asset_rows,
-                statement_summary,
+                kata_rows,
+                kata_summary,
                 str(output_dir),
+                app.config["STATIC_ASSETS_DIR"],
+                title="Cash Supplier Kata" if supplier_mode == "Cash" else "Loan Supplier Kata",
             )
         else:
-            pdf_path = generate_plain_supplier_statement_pdf(
-                party,
-                statement_rows,
-                statement_summary,
-                str(output_dir),
-                title="Supplier Statement of Account",
-            )
+            statement_rows, statement_summary = _supplier_statement_data(db, party_code, supplier_mode=supplier_mode)
+            if supplier_mode == "Partnership":
+                partnership_month = _normalize_month(request.args.get("month", "").strip() or _current_month_value())
+                asset_rows = _supplier_partnership_asset_rows(db, party_code, partnership_month)
+                pdf_path = generate_partnership_supplier_statement_pdf(
+                    party,
+                    partnership_month,
+                    asset_rows,
+                    statement_summary,
+                    str(output_dir),
+                )
+            else:
+                pdf_path = generate_plain_supplier_statement_pdf(
+                    party,
+                    statement_rows,
+                    statement_summary,
+                    str(output_dir),
+                    title="Supplier Statement of Account",
+                )
         _mirror_generated_file(app, pdf_path)
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
@@ -11455,17 +11480,42 @@ def _cash_supplier_kata(db, party_code: str):
 
     # 1. Trip earnings (credit to supplier)
     trips = db.execute("""
-        SELECT trip_no, entry_date, period_month, trip_count, rate, total_amount, vehicle_no, notes
+        SELECT trip_no, entry_date, period_month, earning_basis, trip_count, rate, total_amount, vehicle_no, notes
         FROM cash_supplier_trips
         WHERE party_code = ?
         ORDER BY entry_date ASC, id ASC
     """, (party_code,)).fetchall()
     for row in trips:
+        earning_basis = row["earning_basis"] or "Trips"
+        period_month = row["period_month"] or ""
+        quantity_label = {
+            "Trips": "Trips",
+            "Hours": "Hours",
+            "Monthly": "Months",
+            "Fixed": "Units",
+        }.get(earning_basis, earning_basis)
+        rate_label = {
+            "Trips": "Rate/Trip",
+            "Hours": "Rate/Hour",
+            "Monthly": "Rate/Month",
+            "Fixed": "Rate/Unit",
+        }.get(earning_basis, "Rate")
+        period_text = format_month_label(period_month) if period_month else "-"
+        details = [f"{quantity_label}: {row['trip_count']}", f"{rate_label}: {row['rate']}"]
+        if period_month:
+            details.append(f"Month: {period_text}")
+        if row["vehicle_no"]:
+            details.append(str(row["vehicle_no"]))
+        if row["notes"]:
+            details.append(str(row["notes"]))
         rows.append({
             "entry_date": row["entry_date"],
+            "period_month": period_month,
+            "period_month_display": period_text,
             "reference": row["trip_no"],
-            "entry_type": "Trip",
-            "description": f"{row['trip_count']}x @ {row['rate']}" + (f" / {row['vehicle_no']}" if row["vehicle_no"] else "") + (f" / {row['notes']}" if row["notes"] else ""),
+            "entry_type": "Earning",
+            "earning_basis": earning_basis,
+            "description": " / ".join(details),
             "earned": float(row["total_amount"] or 0.0),
             "debit": 0.0,
             "paid": 0.0,
@@ -11481,8 +11531,11 @@ def _cash_supplier_kata(db, party_code: str):
     for row in debits:
         rows.append({
             "entry_date": row["entry_date"],
+            "period_month": "",
+            "period_month_display": "-",
             "reference": row["debit_no"],
             "entry_type": row["debit_type"] or "Debit",
+            "earning_basis": "",
             "description": (row["description"] or row["debit_type"] or "Debit") + (f" / {row['notes']}" if row["notes"] else ""),
             "earned": 0.0,
             "debit": float(row["amount"] or 0.0),
@@ -11499,8 +11552,11 @@ def _cash_supplier_kata(db, party_code: str):
     for row in payments:
         rows.append({
             "entry_date": row["entry_date"],
+            "period_month": "",
+            "period_month_display": "-",
             "reference": row["payment_no"],
             "entry_type": "Payment",
+            "earning_basis": "",
             "description": (row["payment_method"] or "Cash") + (f" / Ref: {row['reference']}" if row["reference"] else "") + (f" / {row['notes']}" if row["notes"] else ""),
             "earned": 0.0,
             "debit": 0.0,
@@ -11508,7 +11564,7 @@ def _cash_supplier_kata(db, party_code: str):
         })
 
     # Sort chronologically
-    sort_order = {"Trip": 0, "Advance": 1, "Loan": 1, "Visa": 1, "Transfer": 1, "Debit": 1, "Other": 1, "Payment": 2}
+    sort_order = {"Earning": 0, "Advance": 1, "Loan": 1, "Visa": 1, "Transfer": 1, "Debit": 1, "Other": 1, "Payment": 2}
     rows.sort(key=lambda item: (item["entry_date"], sort_order.get(item["entry_type"], 1), item["reference"]))
 
     # Running balance: earned builds up, debits add to owed, payments reduce owed

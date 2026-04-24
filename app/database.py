@@ -408,6 +408,7 @@ CREATE TABLE IF NOT EXISTS cash_supplier_trips (
     party_code TEXT NOT NULL,
     entry_date TEXT NOT NULL,
     period_month TEXT,
+    earning_basis TEXT NOT NULL DEFAULT 'Trips',
     trip_count REAL NOT NULL DEFAULT 1,
     rate REAL NOT NULL DEFAULT 0,
     total_amount REAL NOT NULL DEFAULT 0,
@@ -1065,6 +1066,7 @@ CREATE TABLE IF NOT EXISTS cash_supplier_trips (
     party_code TEXT NOT NULL,
     entry_date TEXT NOT NULL,
     period_month TEXT,
+    earning_basis TEXT NOT NULL DEFAULT 'Trips',
     trip_count DOUBLE PRECISION NOT NULL DEFAULT 1,
     rate DOUBLE PRECISION NOT NULL DEFAULT 0,
     total_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -1459,6 +1461,9 @@ REQUIRED_COLUMNS = {
     "supplier_vouchers": {
         "source_type": "TEXT NOT NULL DEFAULT 'Timesheet'",
         "source_reference": "TEXT",
+    },
+    "cash_supplier_trips": {
+        "earning_basis": "TEXT NOT NULL DEFAULT 'Trips'",
     },
     "supplier_invoice_submissions": {
         "source_channel": "TEXT NOT NULL DEFAULT 'By Hand'",
