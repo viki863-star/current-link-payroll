@@ -758,6 +758,10 @@ def generate_cash_supplier_kata_pdf(
     output_path = Path(output_dir) / f"{safe_code}_kata_{timestamp}.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     party_keys = set(party.keys()) if hasattr(party, "keys") else set()
+    summary = summary or {}
+    total_work_done = float(summary.get("earned") or 0.0)
+    total_paid = float(summary.get("paid") or 0.0)
+    closing_balance = float(summary.get("balance") or 0.0)
 
     def _party_value(key: str, default: str = "-"):
         if hasattr(party, "get"):
@@ -795,7 +799,7 @@ def generate_cash_supplier_kata_pdf(
     grid_color = colors.HexColor("#6E7B8B")
     header_height = 9 * mm
     page_bottom_limit = 26 * mm
-    table_top_base = PAGE_HEIGHT - (84 * mm if filter_caption else 80 * mm)
+    table_top_base = PAGE_HEIGHT - (98 * mm if filter_caption else 92 * mm)
     body_top = table_top_base - header_height - (2 * mm)
     table_inner_pad = 1.6 * mm
     measure_pdf = canvas.Canvas(BytesIO(), pagesize=A4)
@@ -854,25 +858,85 @@ def generate_cash_supplier_kata_pdf(
         _draw_header(pdf_obj, assets_dir)
 
         pdf_obj.setFillColor(BLUE_DARK)
-        title_text, title_size = _fit_text(pdf_obj, title, "Times-Bold", 14.5, 120 * mm, min_size=12.0)
+        title_text, title_size = _fit_text(pdf_obj, title, "Times-Bold", 14.5, 88 * mm, min_size=12.0)
         pdf_obj.setFont("Times-Bold", title_size)
         pdf_obj.drawString(16 * mm, PAGE_HEIGHT - 57 * mm, title_text)
+
+        pdf_obj.setFillColor(MUTED)
+        pdf_obj.setFont("Helvetica-Bold", 7.4)
+        pdf_obj.drawString(16 * mm, PAGE_HEIGHT - 62.2 * mm, "Statement of Account (SOA)")
 
         supplier_name, supplier_name_size = _fit_text(pdf_obj, str(_party_value("party_name") or "-"), "Times-Bold", 11.5, 120 * mm, min_size=9.5)
         pdf_obj.setFillColor(TEXT)
         pdf_obj.setFont("Times-Bold", supplier_name_size)
-        pdf_obj.drawString(16 * mm, PAGE_HEIGHT - 64 * mm, supplier_name)
+        pdf_obj.drawString(16 * mm, PAGE_HEIGHT - 67.8 * mm, supplier_name)
 
         supplier_code_text = f"Supplier Code: {_party_value('party_code') or '-'}"
         code_text, code_size = _fit_text(pdf_obj, supplier_code_text, "Times-Roman", 8.6, 120 * mm, min_size=7.6)
         pdf_obj.setFillColor(MUTED)
         pdf_obj.setFont("Times-Roman", code_size)
-        pdf_obj.drawString(16 * mm, PAGE_HEIGHT - 69.5 * mm, code_text)
+        pdf_obj.drawString(16 * mm, PAGE_HEIGHT - 73.2 * mm, code_text)
+
+        report_x = 108 * mm
+        report_y = PAGE_HEIGHT - 79 * mm
+        report_w = 87 * mm
+        report_h = 21 * mm
+        pdf_obj.setFillColor(colors.white)
+        pdf_obj.setStrokeColor(BLUE)
+        pdf_obj.setLineWidth(0.8)
+        pdf_obj.roundRect(report_x, report_y, report_w, report_h, 3.5 * mm, fill=1, stroke=1)
+        pdf_obj.setFillColor(BLUE_SOFT)
+        pdf_obj.roundRect(report_x, report_y + report_h - 6.2 * mm, report_w, 6.2 * mm, 3.5 * mm, fill=1, stroke=0)
+        pdf_obj.setFillColor(BLUE_DARK)
+        pdf_obj.setFont("Helvetica-Bold", 7.2)
+        pdf_obj.drawString(report_x + 3.2 * mm, report_y + report_h - 4.3 * mm, "OVERALL REPORT")
+        pdf_obj.setStrokeColor(LINE)
+        pdf_obj.setLineWidth(0.5)
+        metric_w = report_w / 3
+        for idx in range(1, 3):
+            divider_x = report_x + idx * metric_w
+            pdf_obj.line(divider_x, report_y + 2.2 * mm, divider_x, report_y + report_h - 7.3 * mm)
+
+        metric_specs = [
+            ("WORK DONE", total_work_done, GREEN),
+            ("PAID", total_paid, BLUE_DARK),
+            ("BALANCE", closing_balance, BLUE_DARK if closing_balance >= 0 else RED),
+        ]
+        for idx, (label, value, color) in enumerate(metric_specs):
+            left_x = report_x + idx * metric_w
+            center_x = left_x + (metric_w / 2)
+            pdf_obj.setFillColor(MUTED)
+            pdf_obj.setFont("Helvetica-Bold", 5.8)
+            pdf_obj.drawCentredString(center_x, report_y + 8.2 * mm, label)
+            value_text, value_size = _fit_text(
+                pdf_obj,
+                format_currency(value),
+                "Helvetica-Bold",
+                8.9,
+                metric_w - (4 * mm),
+                min_size=6.8,
+            )
+            pdf_obj.setFillColor(color)
+            pdf_obj.setFont("Helvetica-Bold", value_size)
+            pdf_obj.drawCentredString(center_x, report_y + 3.4 * mm, value_text)
 
         if filter_caption:
-            filter_text, filter_size = _fit_text(pdf_obj, f"Filtered View: {filter_caption}", "Times-Roman", 8.0, 132 * mm, min_size=7.2)
-            pdf_obj.setFont("Times-Roman", filter_size)
-            pdf_obj.drawString(16 * mm, PAGE_HEIGHT - 75 * mm, filter_text)
+            filter_box_y = PAGE_HEIGHT - 84.5 * mm
+            pdf_obj.setFillColor(SOFT)
+            pdf_obj.setStrokeColor(LINE)
+            pdf_obj.setLineWidth(0.45)
+            pdf_obj.roundRect(16 * mm, filter_box_y - 2.0 * mm, 178 * mm, 5.8 * mm, 2.0 * mm, fill=1, stroke=1)
+            filter_text, filter_size = _fit_text(
+                pdf_obj,
+                f"Filtered View: {filter_caption}",
+                "Helvetica",
+                7.2,
+                172 * mm,
+                min_size=6.6,
+            )
+            pdf_obj.setFillColor(MUTED)
+            pdf_obj.setFont("Helvetica", filter_size)
+            pdf_obj.drawString(18 * mm, filter_box_y, filter_text)
 
         pdf_obj.setFillColor(BLUE)
         pdf_obj.setStrokeColor(BLUE)
@@ -949,7 +1013,7 @@ def generate_cash_supplier_kata_pdf(
         pdf.setFont("Helvetica", 7.0)
         pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
         pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number} / {len(pages)}")
-        _draw_footer_banner(pdf, assets_dir)
+        _draw_footer_banner(pdf, assets_dir, show_top_rule=False)
         pdf.showPage()
 
     pdf.save()
@@ -1550,10 +1614,11 @@ def _draw_kata_statement_table(pdf: canvas.Canvas, entries) -> None:
             break
 
 
-def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str) -> None:
+def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str, show_top_rule: bool = True) -> None:
     footer = Path(assets_dir) / "current-link-footer.png"
-    pdf.setFillColor(ORANGE)
-    pdf.rect(15 * mm, 30 * mm, 180 * mm, 1.2 * mm, fill=1, stroke=0)
+    if show_top_rule:
+        pdf.setFillColor(ORANGE)
+        pdf.rect(15 * mm, 30 * mm, 180 * mm, 1.2 * mm, fill=1, stroke=0)
     if footer.exists():
         image = ImageReader(str(footer))
         image_width, image_height = image.getSize()
