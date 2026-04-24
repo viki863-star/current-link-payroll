@@ -2013,24 +2013,32 @@ def register_routes(app: Flask) -> None:
         }
         
         # Helper function to get count for a specific supplier mode
-        def get_supplier_count(mode):
-            normalized_mode = mode if mode in SUPPLIER_MODE_OPTIONS else "Normal"
-            result = db.execute(
-                """
+        def get_supplier_count(modes, label):
+            if isinstance(modes, str):
+                normalized_modes = [modes]
+            else:
+                normalized_modes = list(modes)
+            normalized_modes = [mode if mode in SUPPLIER_MODE_OPTIONS else "Normal" for mode in normalized_modes] or ["Normal"]
+            placeholders = ", ".join("?" for _ in normalized_modes)
+            result = _safe_dashboard_scalar(
+                db,
+                f"""
                 SELECT COUNT(*)
                 FROM parties p
                 LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE p.party_roles LIKE ? AND COALESCE(profile.supplier_mode, 'Normal') = ?
+                WHERE p.party_roles LIKE ? AND COALESCE(profile.supplier_mode, 'Normal') IN ({placeholders})
                 """,
-                ("%Supplier%", normalized_mode),
-            ).fetchone()[0]
-            return int(result) if result else 0
+                ("%Supplier%", *normalized_modes),
+                default=0,
+                label=label,
+            )
+            return int(result or 0)
         
         # Get counts for each type
-        stats["online_count"] = get_supplier_count("Normal")
-        stats["cash_count"] = get_supplier_count("Cash")
-        stats["managed_count"] = get_supplier_count("Managed")
-        stats["partnership_count"] = get_supplier_count("Partnership")
+        stats["online_count"] = get_supplier_count("Normal", "supplier desk online count")
+        stats["cash_count"] = get_supplier_count(("Cash", "Loan"), "supplier desk cash count")
+        stats["managed_count"] = get_supplier_count("Managed", "supplier desk managed count")
+        stats["partnership_count"] = get_supplier_count("Partnership", "supplier desk partnership count")
         stats["total_suppliers"] = sum([
             stats["online_count"],
             stats["cash_count"],
@@ -2039,142 +2047,181 @@ def register_routes(app: Flask) -> None:
         ])
         
         # Get total outstanding (simplified - sum of all supplier outstanding)
-        total_outstanding_result = db.execute(
+        total_outstanding_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COALESCE(SUM(balance_amount), 0)
             FROM supplier_vouchers
             WHERE status IN ('Open', 'Partially Paid')
-            """
-        ).fetchone()[0]
+            """,
+            default=0.0,
+            label="supplier desk total outstanding",
+        )
         stats["total_outstanding"] = float(total_outstanding_result or 0.0)
         
         # Get detailed statistics for Online Suppliers
         # Count supplier registrations (pending approval)
-        registrations_result = db.execute(
+        registrations_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COUNT(*)
             FROM supplier_registration_requests
             WHERE approval_status = 'Pending Approval'
-            """
-        ).fetchone()[0]
+            """,
+            default=0,
+            label="supplier desk online registrations",
+        )
         stats["online_registrations"] = int(registrations_result or 0)
         
         # Count quotations for online suppliers
-        quotations_result = db.execute(
+        quotations_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COUNT(*)
             FROM supplier_quotation_submissions
             WHERE review_status IN ('Pending', 'Submitted')
-            """
-        ).fetchone()[0]
+            """,
+            default=0,
+            label="supplier desk online quotations",
+        )
         stats["online_quotations"] = int(quotations_result or 0)
         
         # Count LPOs for online suppliers
-        lpos_result = db.execute(
+        lpos_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COUNT(*)
             FROM lpos
             WHERE status IN ('Issued', 'Pending')
-            """
-        ).fetchone()[0]
+            """,
+            default=0,
+            label="supplier desk online lpos",
+        )
         stats["online_lpos"] = int(lpos_result or 0)
         
         # Get cash/loan supplier statistics (trips, advances, balance)
         # Count cash/loan supplier trips (timesheets)
-        cash_trips_result = db.execute(
+        cash_trips_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COUNT(*)
             FROM supplier_timesheets st
             JOIN supplier_profile p ON st.party_code = p.party_code
             WHERE p.supplier_mode IN ('Cash', 'Loan')
-            """
-        ).fetchone()[0]
+            """,
+            default=0,
+            label="supplier desk cash trips",
+        )
         stats["cash_trips"] = int(cash_trips_result or 0)
         
         # Count cash/loan supplier advances
-        cash_advances_result = db.execute(
+        cash_advances_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COUNT(*)
             FROM supplier_vouchers sv
             JOIN supplier_profile p ON sv.party_code = p.party_code
             WHERE p.supplier_mode IN ('Cash', 'Loan') AND 1=0
-            """
-        ).fetchone()[0]
+            """,
+            default=0,
+            label="supplier desk cash advances",
+        )
         stats["cash_advances"] = int(cash_advances_result or 0)
         
         # Calculate cash/loan supplier total balance
-        cash_balance_result = db.execute(
+        cash_balance_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COALESCE(SUM(sv.balance_amount), 0)
             FROM supplier_vouchers sv
             JOIN supplier_profile p ON sv.party_code = p.party_code
             WHERE p.supplier_mode IN ('Cash', 'Loan') AND sv.status IN ('Open', 'Partially Paid')
-            """
-        ).fetchone()[0]
+            """,
+            default=0.0,
+            label="supplier desk cash balance",
+        )
         stats["cash_balance"] = float(cash_balance_result or 0.0)
         
         # Get managed supplier statistics
         # Count managed supplier quotations
-        managed_quotations_result = db.execute(
+        managed_quotations_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COUNT(*)
             FROM supplier_quotation_submissions q
             JOIN supplier_profile p ON q.party_code = p.party_code
             WHERE p.supplier_mode = 'Managed'
-            """
-        ).fetchone()[0]
+            """,
+            default=0,
+            label="supplier desk managed quotations",
+        )
         stats["managed_quotations"] = int(managed_quotations_result or 0)
         
         # Count managed supplier LPOs
-        managed_lpos_result = db.execute(
+        managed_lpos_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COUNT(*)
             FROM lpos l
             JOIN supplier_profile p ON l.party_code = p.party_code
             WHERE p.supplier_mode = 'Managed'
-            """
-        ).fetchone()[0]
+            """,
+            default=0,
+            label="supplier desk managed lpos",
+        )
         stats["managed_lpos"] = int(managed_lpos_result or 0)
         
         # Count managed supplier invoices
-        managed_invoices_result = db.execute(
+        managed_invoices_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COUNT(*)
             FROM account_invoices i
             JOIN supplier_profile p ON i.party_code = p.party_code
             WHERE p.supplier_mode = 'Managed'
-            """
-        ).fetchone()[0]
+            """,
+            default=0,
+            label="supplier desk managed invoices",
+        )
         stats["managed_invoices"] = int(managed_invoices_result or 0)
         
         # Get partnership supplier statistics
         # Count partnership entries
-        partnership_splits_result = db.execute(
+        partnership_splits_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COUNT(*)
             FROM supplier_partnership_entries
-            """
-        ).fetchone()[0]
+            """,
+            default=0,
+            label="supplier desk partnership splits",
+        )
         stats["partnership_splits"] = int(partnership_splits_result or 0)
         
         # Count partnership vouchers
-        partnership_vouchers_result = db.execute(
+        partnership_vouchers_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COUNT(*)
             FROM supplier_vouchers sv
             JOIN supplier_profile p ON sv.party_code = p.party_code
             WHERE p.supplier_mode = 'Partnership'
-            """
-        ).fetchone()[0]
+            """,
+            default=0,
+            label="supplier desk partnership vouchers",
+        )
         stats["partnership_vouchers"] = int(partnership_vouchers_result or 0)
         
         # Count partnership statements (distinct months with entries)
-        partnership_statements_result = db.execute(
+        partnership_statements_result = _safe_dashboard_scalar(
+            db,
             """
             SELECT COUNT(DISTINCT strftime('%Y-%m', entry_date))
             FROM supplier_partnership_entries
-            """
-        ).fetchone()[0]
+            """,
+            default=0,
+            label="supplier desk partnership statements",
+        )
         stats["partnership_statements"] = int(partnership_statements_result or 0)
         
         return render_template(
@@ -4530,8 +4577,7 @@ def register_routes(app: Flask) -> None:
         if paper is None:
             flash("Maintenance paper was not found.", "error")
             return redirect(url_for("fleet_maintenance"))
-        _reverse_maintenance_paper_effects(db, paper)
-        db.execute("DELETE FROM maintenance_papers WHERE paper_no = ?", (paper_no,))
+        _delete_maintenance_paper_record(db, app, paper)
         _audit_log(
             db,
             "maintenance_paper_deleted",
@@ -4747,8 +4793,7 @@ def register_routes(app: Flask) -> None:
                     job = _maintenance_paper_row(db, paper_no)
                     if not job:
                         raise ValidationError(f"Job {paper_no} was not found.")
-                    _reverse_maintenance_paper_effects(db, job)
-                    db.execute("DELETE FROM maintenance_papers WHERE paper_no = ?", (paper_no,))
+                    _delete_maintenance_paper_record(db, app, job)
                     _audit_log(
                         db,
                         "technician_job_deleted",
@@ -10729,6 +10774,18 @@ def _supplier_sync_voucher_balance(db, voucher_no: str):
     )
 
 
+def _safe_dashboard_scalar(db, sql: str, params=(), *, default=0, label: str = "dashboard metric"):
+    try:
+        row = db.execute(sql, params).fetchone()
+    except Exception:
+        current_app.logger.warning("Failed to load %s", label, exc_info=True)
+        return default
+    if row is None:
+        return default
+    value = row[0]
+    return default if value is None else value
+
+
 def _supplier_hub_summary(db, supplier_mode: str = "Normal"):
     normalized_mode = supplier_mode if supplier_mode in SUPPLIER_MODE_OPTIONS else "Normal"
     return {
@@ -12040,6 +12097,23 @@ def _reverse_maintenance_paper_effects(db, paper_row):
             (paper_row["linked_partnership_entry_no"],),
         )
     db.execute("DELETE FROM maintenance_paper_lines WHERE paper_no = ?", (paper_row["paper_no"],))
+
+
+def _delete_maintenance_paper_record(db, app, paper_row):
+    _reverse_maintenance_paper_effects(db, paper_row)
+    attachment_path = (paper_row["attachment_path"] or "").strip() if paper_row else ""
+    db.execute("DELETE FROM maintenance_papers WHERE paper_no = ?", (paper_row["paper_no"],))
+    if _maintenance_paper_row(db, paper_row["paper_no"]) is not None:
+        raise ValidationError(f"Maintenance paper {paper_row['paper_no']} could not be deleted.")
+    if attachment_path:
+        try:
+            attachment_file = Path(app.config["GENERATED_DIR"]) / attachment_path
+            attachment_file = attachment_file.resolve()
+            generated_root = Path(app.config["GENERATED_DIR"]).resolve()
+            if generated_root in attachment_file.parents and attachment_file.exists():
+                attachment_file.unlink()
+        except OSError:
+            pass
 
 
 def _maintenance_staff_rows(db):
