@@ -21,6 +21,10 @@ def create_app(test_config: dict | None = None) -> Flask:
     driver_files_root = Path(
         os.getenv("DRIVER_FILES_DIR", str(generated_root / "drivers"))
     ).expanduser()
+    default_backup_root = "F:/Current Link Backup/generated" if os.name == "nt" else ""
+    generated_backup_root = Path(
+        os.getenv("GENERATED_BACKUP_DIR", default_backup_root)
+    ).expanduser() if os.getenv("GENERATED_BACKUP_DIR", default_backup_root).strip() else None
 
     app.config.update(
         DATABASE=os.getenv("DATABASE_FILE", "payroll.db"),
@@ -38,6 +42,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         CURRENTLINK_FILE=str(Path.home() / "Downloads" / "Currentlink.xlsm"),
         DRIVER_PDF_FILE=str(Path.home() / "Downloads" / "Driver.pdf"),
         GENERATED_DIR=str(generated_root),
+        GENERATED_BACKUP_DIR=str(generated_backup_root) if generated_backup_root else "",
         DRIVER_FILES_DIR=str(driver_files_root),
         STATIC_ASSETS_DIR=str(project_root / "app" / "static"),
         SESSION_COOKIE_HTTPONLY=True,
@@ -61,6 +66,11 @@ def create_app(test_config: dict | None = None) -> Flask:
             raise RuntimeError("OWNER_PASSWORD or OWNER_PASSWORD_HASH is missing. Set it in .env or the environment.")
 
     Path(app.config["DRIVER_FILES_DIR"]).mkdir(parents=True, exist_ok=True)
+    if app.config["GENERATED_BACKUP_DIR"]:
+        try:
+            Path(app.config["GENERATED_BACKUP_DIR"]).mkdir(parents=True, exist_ok=True)
+        except OSError:
+            app.config["GENERATED_BACKUP_DIR"] = ""
 
     csrf.init_app(app)
     init_db(app)

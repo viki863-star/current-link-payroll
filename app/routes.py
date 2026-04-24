@@ -512,6 +512,7 @@ def register_routes(app: Flask) -> None:
                     assets_dir=current_app.config["STATIC_ASSETS_DIR"],
                     output_dir=str(output_dir),
                 )
+                _mirror_generated_file(current_app, pdf_path)
                 relative_pdf = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
                 db.execute("UPDATE lpos SET pdf_path = ? WHERE lpo_no = ?", (relative_pdf, lpo_no))
 
@@ -648,6 +649,7 @@ def register_routes(app: Flask) -> None:
                     ext = Path(inv_attach.filename).suffix.lower()
                     inv_path = str(inv_dir / f"{submission_values['submission_no'].lower()}_invoice{ext}")
                     inv_attach.save(inv_path)
+                    _mirror_generated_file(current_app, inv_path)
                     inv_path = Path(inv_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
                 if ts_attach and ts_attach.filename:
                     ts_dir = Path(current_app.config["GENERATED_DIR"]) / "supplier_invoices" / party_code.lower()
@@ -655,6 +657,7 @@ def register_routes(app: Flask) -> None:
                     ext = Path(ts_attach.filename).suffix.lower()
                     ts_path = str(ts_dir / f"{submission_values['submission_no'].lower()}_timesheet{ext}")
                     ts_attach.save(ts_path)
+                    _mirror_generated_file(current_app, ts_path)
                     ts_path = Path(ts_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
 
                 db.execute(
@@ -1105,6 +1108,7 @@ def register_routes(app: Flask) -> None:
             str(output_dir),
             title="Supplier Portal Statement",
         )
+        _mirror_generated_file(app, pdf_path)
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
@@ -3170,6 +3174,7 @@ def register_routes(app: Flask) -> None:
                 str(output_dir),
                 title="Supplier Statement of Account",
             )
+        _mirror_generated_file(app, pdf_path)
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
@@ -3309,6 +3314,7 @@ def register_routes(app: Flask) -> None:
             str(output_dir),
             app.config["STATIC_ASSETS_DIR"],
         )
+        _mirror_generated_file(app, pdf_path)
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
@@ -5637,6 +5643,7 @@ def register_routes(app: Flask) -> None:
             app.config["STATIC_ASSETS_DIR"],
             filters=filters,
         )
+        _mirror_generated_file(app, pdf_path)
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
@@ -6725,6 +6732,7 @@ def register_routes(app: Flask) -> None:
                             app.config["STATIC_ASSETS_DIR"],
                             app.config["GENERATED_DIR"],
                         )
+                        _mirror_generated_file(app, pdf_path)
                         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
                         if existing_slip is not None:
                             db.execute(
@@ -6883,6 +6891,7 @@ def register_routes(app: Flask) -> None:
             app.config["STATIC_ASSETS_DIR"],
             app.config["GENERATED_DIR"],
         )
+        _mirror_generated_file(app, pdf_path)
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
@@ -9835,6 +9844,7 @@ def _save_supplier_quotation_attachment(quotation_no: str, party_code: str, uplo
     extension = Path(safe_name).suffix.lower()
     target = _supplier_quotation_attachment_dir(party_code) / f"{quotation_no.lower()}_quotation{extension or '.bin'}"
     upload.save(target)
+    _mirror_generated_file(current_app, target)
     return target.relative_to(Path(current_app.config["GENERATED_DIR"])).as_posix()
 
 
@@ -10071,6 +10081,7 @@ def _save_supplier_submission_attachment(submission_no: str, party_code: str, up
     filename = f"{submission_no.lower()}_{attachment_kind.replace(' ', '_').lower()}{extension or '.bin'}"
     target = _supplier_submission_attachment_dir(party_code) / filename
     upload.save(target)
+    _mirror_generated_file(current_app, target)
     return target.relative_to(Path(current_app.config["GENERATED_DIR"])).as_posix()
 
 
@@ -10784,6 +10795,36 @@ def _safe_dashboard_scalar(db, sql: str, params=(), *, default=0, label: str = "
         return default
     value = row[0]
     return default if value is None else value
+
+
+def _generated_backup_root(app: Flask) -> Path | None:
+    backup_root = (app.config.get("GENERATED_BACKUP_DIR") or "").strip()
+    if not backup_root:
+        return None
+    return Path(backup_root)
+
+
+def _mirror_generated_file(app: Flask, file_path: str | Path) -> None:
+    backup_root = _generated_backup_root(app)
+    if backup_root is None:
+        return
+    source_path = Path(file_path)
+    generated_root = Path(app.config["GENERATED_DIR"])
+    try:
+        source_resolved = source_path.resolve()
+        generated_resolved = generated_root.resolve()
+        relative_path = source_resolved.relative_to(generated_resolved)
+    except Exception:
+        app.logger.warning("Generated backup skipped for %s", source_path)
+        return
+    if not source_path.exists() or not source_path.is_file():
+        return
+    backup_target = backup_root / relative_path
+    try:
+        backup_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_path, backup_target)
+    except OSError:
+        app.logger.warning("Generated backup failed for %s", source_path, exc_info=True)
 
 
 def _supplier_hub_summary(db, supplier_mode: str = "Normal"):
@@ -12902,7 +12943,9 @@ def _regenerate_kata_for_driver(app: Flask, db, driver):
     if not salary_rows and not transactions and not salary_slips:
         return None
     output_dir = _driver_output_dir(app, driver["driver_id"], driver=driver) / "kata_pdfs"
-    return generate_kata_pdf(driver, salary_rows, transactions, salary_slips, str(output_dir), app.config["STATIC_ASSETS_DIR"])
+    pdf_path = generate_kata_pdf(driver, salary_rows, transactions, salary_slips, str(output_dir), app.config["STATIC_ASSETS_DIR"])
+    _mirror_generated_file(app, pdf_path)
+    return pdf_path
 
 
 def _save_driver_photo(app: Flask, driver_id: str, full_name: str, photo_file):
@@ -12917,6 +12960,7 @@ def _save_driver_photo(app: Flask, driver_id: str, full_name: str, photo_file):
     if not photo_bytes:
         return None
     target.write_bytes(photo_bytes)
+    _mirror_generated_file(app, target)
     return {
         "photo_name": target.relative_to(app.config["GENERATED_DIR"]).as_posix(),
         "photo_data": base64.b64encode(photo_bytes).decode("ascii"),
@@ -12992,12 +13036,14 @@ def _restore_generated_file(app: Flask, db, filename: str) -> str | None:
         incoming, outgoing, balance = _owner_fund_totals(db)
         statement = _owner_fund_statement(db, reverse=False)
         output_dir = Path(app.config["GENERATED_DIR"]) / "owner_fund"
-        return generate_owner_fund_pdf(
+        pdf_path = generate_owner_fund_pdf(
             statement,
             {"incoming": incoming, "outgoing": outgoing, "balance": balance},
             str(output_dir),
             app.config["STATIC_ASSETS_DIR"],
         )
+        _mirror_generated_file(app, pdf_path)
+        return pdf_path
 
     return None
 
@@ -13021,7 +13067,7 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         "net_payable": float(slip["net_payable"]),
     }
     output_dir = _driver_output_dir(app, slip["driver_id"], driver=driver) / "salary_slips"
-    return generate_salary_slip_pdf(
+    pdf_path = generate_salary_slip_pdf(
         driver,
         salary_row,
         slip_payload,
@@ -13029,6 +13075,8 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         app.config["STATIC_ASSETS_DIR"],
         app.config["GENERATED_DIR"],
     )
+    _mirror_generated_file(app, pdf_path)
+    return pdf_path
 
 
 def _maintenance_output_dir(app: Flask, paper_no: str) -> Path:
@@ -13046,6 +13094,7 @@ def _save_maintenance_attachment(app: Flask, paper_no: str, upload_file) -> str 
     output_dir = _maintenance_output_dir(app, paper_no)
     output_path = output_dir / safe_name
     upload_file.save(output_path)
+    _mirror_generated_file(app, output_path)
     return output_path.relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
 
 
@@ -13063,6 +13112,7 @@ def _save_fleet_vehicle_import_pdf(app: Flask, upload_file, pdf_bytes: bytes | N
         output_path.write_bytes(pdf_bytes)
     else:
         upload_file.save(output_path)
+    _mirror_generated_file(app, output_path)
     return output_path.relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
 
 
@@ -13275,6 +13325,7 @@ def _regenerate_invoice_pdf(app: Flask, db, invoice_no: str) -> str | None:
         str(_invoice_output_dir(app)),
         app.config["STATIC_ASSETS_DIR"],
     )
+    _mirror_generated_file(app, output_path)
     relative_path = Path(output_path).relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
     db.execute("UPDATE account_invoices SET pdf_path = ? WHERE invoice_no = ?", (relative_path, invoice_no))
     db.commit()
