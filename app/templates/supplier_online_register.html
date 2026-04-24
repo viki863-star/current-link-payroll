@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button button-secondary" href="{{ url_for(desk_endpoint) }}">Online Supplier Desk</a>
+                <span class="button button-primary" style="background-color: #4a6fa5; border-color: #4a6fa5; cursor: default;">{% if values.original_party_code %}Edit Online Supplier{% else %}Add New Online Supplier{% endif %}</span>
+            </div>
+        </div>
+    </article>
+
+    <section class="desk-content-grid online-supplier-register-layout">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Online Supplier Master</span>
+                    <h2>{% if values.original_party_code %}Edit Online Supplier{% else %}Register Online Supplier{% endif %}</h2>
+                </div>
+            </div>
+            <form method="post" class="desk-form-grid supplier-entry-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="original_party_code" value="{{ values.original_party_code }}">
+                <input type="hidden" name="supplier_mode" value="{{ supplier_mode }}">
+
+                <label>
+                    <span>Supplier Code</span>
+                    <input type="text" name="party_code" value="{{ values.party_code }}" placeholder="Auto if left blank" {% if values.original_party_code %}readonly{% endif %}>
+                </label>
+                <label>
+                    <span>Supplier Name</span>
+                    <input type="text" name="party_name" value="{{ values.party_name }}" required>
+                </label>
+                <label>
+                    <span>Kind</span>
+                    <select name="party_kind">
+                        <option value="Company" {% if values.party_kind == 'Company' %}selected{% endif %}>Company</option>
+                        <option value="Individual" {% if values.party_kind == 'Individual' %}selected{% endif %}>Individual</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Contact</span>
+                    <input type="text" name="contact_person" value="{{ values.contact_person }}">
+                </label>
+                <label>
+                    <span>Phone</span>
+                    <input type="text" name="phone_number" value="{{ values.phone_number }}">
+                </label>
+                <label>
+                    <span>Email</span>
+                    <input type="email" name="email" value="{{ values.email }}">
+                </label>
+
+                <label>
+                    <span>Portal Login Email</span>
+                    <input type="email" name="portal_login_email" value="{{ values.portal_login_email }}" placeholder="Only for company supplier portal">
+                </label>
+                <div class="portal-toggle-field">
+                    <span>Portal Access</span>
+                    <label class="check-tile inline-check-tile">
+                        <input type="checkbox" name="portal_enabled" value="1" {% if values.portal_enabled %}checked{% endif %}>
+                        <span>Enable supplier portal</span>
+                    </label>
+                    <small class="muted-text">
+                        {% if values.party_kind == "Individual" %}
+                            Individual suppliers stay admin-managed only.
+                        {% else %}
+                            Company supplier can activate with Supplier Code and invited email.
+                        {% endif %}
+                    </small>
+                </div>
+
+                {% if values.original_party_code %}
+                    <label>
+                        <span>Portal Status</span>
+                        <input type="text" value="{{ values.portal_activation_status }}" readonly>
+                    </label>
+                    <label>
+                        <span>Last Login</span>
+                        <input type="text" value="{{ values.portal_last_login_at or '-' }}" readonly>
+                    </label>
+                {% endif %}
+
+                <label>
+                    <span>TRN / VAT</span>
+                    <input type="text" name="trn_no" value="{{ values.trn_no }}">
+                </label>
+                <label>
+                    <span>Trade License</span>
+                    <input type="text" name="trade_license_no" value="{{ values.trade_license_no }}">
+                </label>
+                <label class="full-span">
+                    <span>Additional Tags</span>
+                    <div class="check-grid compact-check-grid">
+                        {% for item in role_options %}
+                            <label class="check-tile">
+                                <input type="checkbox" name="party_roles" value="{{ item }}" {% if item in values.party_roles %}checked{% endif %}>
+                                <span>{{ item }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </label>
+                <label class="full-span">
+                    <span>Address</span>
+                    <textarea name="address" rows="3">{{ values.address }}</textarea>
+                </label>
+                <label class="full-span">
+                    <span>Notes</span>
+                    <textarea name="notes" rows="3">{{ values.notes }}</textarea>
+                </label>
+                <label>
+                    <span>Status</span>
+                    <select name="status">
+                        <option value="Active" {% if values.status == 'Active' %}selected{% endif %}>Active</option>
+                        <option value="Inactive" {% if values.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </label>
+
+                <div class="form-actions left-actions full-span">
+                    <button class="button" type="submit">{% if values.original_party_code %}Update Supplier{% else %}Save Supplier{% endif %}</button>
+                    <a class="button button-secondary" href="{{ url_for(desk_endpoint) }}">Cancel</a>
+                </div>
+            </form>
+        </article>
+
+        <article class="card desk-panel-card compact-side-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Registration Guide</span>
+                    <h2>Online Supplier Rules</h2>
+                </div>
+            </div>
+            <div class="workflow-steps">
+                <div class="workflow-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Create Supplier Master</h3>
+                        <p>Admin controls the supplier master and keeps names, contacts, and status clean.</p>
+                    </div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Portal For Company Suppliers</h3>
+                        <p>Enable portal only for company suppliers when portal access is actually needed.</p>
+                    </div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Individual Suppliers Stay Admin-Managed</h3>
+                        <p>Individual suppliers can be registered here, but portal use remains admin-controlled only.</p>
+                    </div>
+                </div>
+            </div>
+        </article>
+    </section>
+</section>
+
+<style>
+.online-supplier-register-layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.workflow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.workflow-step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.step-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.step-content h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+}
+
+.step-content p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 980px) {
+    .online-supplier-register-layout {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

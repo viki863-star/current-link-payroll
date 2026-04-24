@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <span class="button button-primary" style="background-color: #4a6fa5; border-color: #4a6fa5; cursor: default;">Online Suppliers</span>
+                <a class="button" href="{{ url_for(register_endpoint) }}">Add New Supplier</a>
+                <a class="button button-secondary" href="{{ url_for('supplier_registrations') }}">Registrations</a>
+                <a class="button button-secondary" href="{{ url_for('admin_supplier_quotations') }}">Quotation Review</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ summary.supplier_count }}</strong><small>Online Suppliers</small></span>
+                <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
+                <span><strong>{{ summary.double_shift_count }}</strong><small>Double Shift</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
+            </div>
+        </div>
+        <form method="get" class="admin-filter-grid desk-single-filter">
+            <label>
+                <span>Search Online Suppliers</span>
+                <input type="search" name="q" value="{{ query }}" placeholder="Name, code, phone, contact">
+            </label>
+            <div class="admin-filter-actions">
+                <button class="button" type="submit">Search</button>
+                {% if query %}
+                    <a class="button button-secondary" href="{{ url_for(desk_endpoint) }}">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </article>
+
+    <section class="desk-content-grid online-supplier-cards-layout">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Directory</span>
+                    <h2>All Online Suppliers</h2>
+                </div>
+                <div class="mini-link-stack inline-link-stack">
+                    <a class="mini-link-pill" href="{{ url_for(register_endpoint) }}">+ Add New Supplier</a>
+                </div>
+            </div>
+
+            {% if suppliers %}
+                <div class="cash-supplier-directory online-supplier-directory">
+                    {% for item in suppliers %}
+                        <div class="cash-supplier-card online-supplier-card {% if item.status == 'Inactive' %}inactive{% endif %}">
+                            <div class="cash-supplier-header">
+                                <span class="cash-supplier-code">ONLINE SUPPLIER {{ item.party_code }}</span>
+                                <span class="status-chip {{ item.status|lower }}">{{ item.status }}</span>
+                            </div>
+                            <div class="cash-supplier-body">
+                                <h3>{{ item.party_name }}</h3>
+                                <div class="cash-supplier-info">
+                                    <span><strong>Contact:</strong> {{ item.contact_person or '-' }}</span>
+                                    <span><strong>Phone:</strong> {{ item.phone_number or '-' }}</span>
+                                    <span><strong>Fleet:</strong> {{ item.asset_count }} units</span>
+                                </div>
+                                <div class="cash-supplier-balance">
+                                    <span class="balance-label">Balance Due</span>
+                                    <span class="balance-amount">AED {{ "%.2f"|format(item.outstanding_total) }}</span>
+                                </div>
+                            </div>
+                            <div class="cash-supplier-actions">
+                                <a class="button button-secondary" href="{{ url_for(detail_endpoint, party_code=item.party_code) }}">Open</a>
+                                <a class="button button-secondary" href="{{ url_for(register_endpoint, edit=item.party_code) }}">Edit</a>
+                                <a class="button button-secondary" href="{{ url_for(statement_endpoint, party_code=item.party_code) }}">Statement</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-directory">
+                    <h3>No Online Suppliers Found</h3>
+                    <p>Add your first online supplier to get started.</p>
+                    <a class="button" href="{{ url_for(register_endpoint) }}">Add Online Supplier</a>
+                </div>
+            {% endif %}
+        </article>
+
+        <article class="card desk-panel-card compact-side-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Online Workflow</span>
+                    <h2>How This Desk Works</h2>
+                </div>
+            </div>
+            <div class="workflow-steps">
+                <div class="workflow-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Register Supplier</h3>
+                        <p>Create supplier master in a separate registration screen.</p>
+                    </div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Enable Portal If Needed</h3>
+                        <p>Company suppliers can get portal access with invited login email.</p>
+                    </div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Manage Supplier Desk</h3>
+                        <p>Open supplier detail for vehicles, timesheets, billing, and statements.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="quick-stats-grid online-stats-grid">
+                <div class="quick-stat">
+                    <span class="stat-value">{{ summary.supplier_count }}</span>
+                    <span class="stat-label">Active Suppliers</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="stat-value">{{ summary.asset_count }}</span>
+                    <span class="stat-label">Fleet Units</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="stat-value">{{ summary.double_shift_count }}</span>
+                    <span class="stat-label">Double Shift</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="stat-value">AED {{ "%.0f"|format(summary.outstanding_total) }}</span>
+                    <span class="stat-label">Total Due</span>
+                </div>
+            </div>
+        </article>
+    </section>
+</section>
+
+<style>
+.online-supplier-cards-layout {
+    grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+.cash-supplier-directory {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 780px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.cash-supplier-card {
+    background: linear-gradient(180deg, rgba(5, 125, 83, 0.98) 0%, rgba(4, 111, 74, 0.98) 100%);
+    border-radius: 18px;
+    padding: 20px;
+    border: 1px solid rgba(149, 229, 189, 0.18);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14);
+    color: #f5fffb;
+}
+
+.online-supplier-card {
+    background: linear-gradient(180deg, rgba(8, 108, 168, 0.98) 0%, rgba(11, 86, 145, 0.98) 100%);
+    border-color: rgba(148, 212, 255, 0.22);
+}
+
+.cash-supplier-card.inactive {
+    opacity: 0.7;
+}
+
+.cash-supplier-header,
+.cash-supplier-actions,
+.cash-supplier-balance {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.cash-supplier-header {
+    margin-bottom: 12px;
+}
+
+.cash-supplier-code {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: rgba(245, 255, 251, 0.82);
+}
+
+.cash-supplier-body h3 {
+    margin: 0 0 10px;
+    font-size: 20px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.cash-supplier-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+    color: rgba(245, 255, 251, 0.9);
+}
+
+.cash-supplier-balance {
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.12);
+    margin-bottom: 14px;
+}
+
+.balance-label {
+    color: rgba(245, 255, 251, 0.8);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.balance-amount {
+    font-weight: 800;
+    font-size: 17px;
+    color: #ffffff;
+}
+
+.cash-supplier-actions {
+    gap: 10px;
+}
+
+.cash-supplier-actions .button {
+    flex: 1;
+}
+
+.workflow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.workflow-step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.step-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.step-content h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+}
+
+.step-content p,
+.empty-directory p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.quick-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.quick-stat {
+    background: var(--surface-subtle);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+}
+
+.stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--accent-primary);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.empty-directory {
+    text-align: center;
+    padding: 48px 20px;
+}
+
+@media (max-width: 980px) {
+    .online-supplier-cards-layout {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
