@@ -1059,6 +1059,50 @@ CREATE TABLE IF NOT EXISTS supplier_partnership_entries (
     FOREIGN KEY(asset_code) REFERENCES supplier_assets(asset_code)
 );
 
+CREATE TABLE IF NOT EXISTS cash_supplier_trips (
+    id BIGSERIAL PRIMARY KEY,
+    trip_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    period_month TEXT,
+    trip_count DOUBLE PRECISION NOT NULL DEFAULT 1,
+    rate DOUBLE PRECISION NOT NULL DEFAULT 0,
+    total_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    vehicle_no TEXT,
+    notes TEXT,
+    created_by TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS cash_supplier_debits (
+    id BIGSERIAL PRIMARY KEY,
+    debit_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    debit_type TEXT NOT NULL DEFAULT 'Advance',
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    description TEXT,
+    notes TEXT,
+    created_by TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS cash_supplier_payments (
+    id BIGSERIAL PRIMARY KEY,
+    payment_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    entry_date TEXT NOT NULL,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    payment_method TEXT NOT NULL DEFAULT 'Cash',
+    reference TEXT,
+    notes TEXT,
+    created_by TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS agreements (
     id BIGSERIAL PRIMARY KEY,
     agreement_no TEXT NOT NULL UNIQUE,
@@ -1491,6 +1535,9 @@ REQUIRED_COLUMNS = {
         "work_type": "TEXT",
         "technician_code": "TEXT",
         "review_status": "TEXT NOT NULL DEFAULT 'Pending'",
+        "approved_by": "TEXT",
+        "approved_at": "TEXT",
+        "rejection_reason": "TEXT",
         "payment_status": "TEXT NOT NULL DEFAULT 'Pending'",
     },
     "owner_fund_entries": {
