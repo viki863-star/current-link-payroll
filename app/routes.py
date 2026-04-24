@@ -11519,6 +11519,37 @@ def _supplier_statement_data(db, party_code: str, supplier_mode: str = "Normal")
     return rows, summary
 
 
+def _statement_pdf_date(value: str) -> str:
+    if not value:
+        return ""
+    for pattern in ("%Y-%m-%d", "%Y-%m"):
+        try:
+            return datetime.strptime(str(value), pattern).strftime("%d/%m/%Y")
+        except ValueError:
+            continue
+    return str(value)
+
+
+def _statement_pdf_month(value: str) -> str:
+    if not value:
+        return ""
+    try:
+        return datetime.strptime(str(value), "%Y-%m").strftime("%b-%y")
+    except ValueError:
+        return str(value)
+
+
+def _statement_pdf_quantity(value) -> str:
+    number = float(value or 0.0)
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.2f}".rstrip("0").rstrip(".")
+
+
+def _statement_pdf_amount(value) -> str:
+    return f"{float(value or 0.0):.2f}"
+
+
 def _cash_supplier_kata(db, party_code: str):
     """Build a running statement (kata) for a cash supplier.
 
@@ -11566,6 +11597,15 @@ def _cash_supplier_kata(db, party_code: str):
             "entry_type": "Earning",
             "earning_basis": earning_basis,
             "description": " / ".join(details),
+            "pdf_date": _statement_pdf_date(row["entry_date"]),
+            "pdf_vehicle_no": str(row["vehicle_no"] or ""),
+            "pdf_month_label": _statement_pdf_month(period_month) if period_month else "",
+            "pdf_qty_or_note": _statement_pdf_quantity(row["trip_count"]),
+            "pdf_rate": _statement_pdf_amount(row["rate"]),
+            "pdf_total_amount": _statement_pdf_amount(row["total_amount"]),
+            "pdf_paid_amount": "",
+            "pdf_balance": "",
+            "pdf_row_kind": "earning",
             "earned": float(row["total_amount"] or 0.0),
             "debit": 0.0,
             "paid": 0.0,
@@ -11579,6 +11619,9 @@ def _cash_supplier_kata(db, party_code: str):
         ORDER BY entry_date ASC, id ASC
     """, (party_code,)).fetchall()
     for row in debits:
+        debit_text = row["description"] or row["debit_type"] or "Debit"
+        if row["notes"]:
+            debit_text = f"{debit_text} / {row['notes']}"
         rows.append({
             "entry_date": row["entry_date"],
             "period_month": "",
@@ -11586,7 +11629,16 @@ def _cash_supplier_kata(db, party_code: str):
             "reference": row["debit_no"],
             "entry_type": row["debit_type"] or "Debit",
             "earning_basis": "",
-            "description": (row["description"] or row["debit_type"] or "Debit") + (f" / {row['notes']}" if row["notes"] else ""),
+            "description": debit_text,
+            "pdf_date": _statement_pdf_date(row["entry_date"]),
+            "pdf_vehicle_no": "",
+            "pdf_month_label": "",
+            "pdf_qty_or_note": debit_text,
+            "pdf_rate": "",
+            "pdf_total_amount": _statement_pdf_amount(row["amount"]),
+            "pdf_paid_amount": "",
+            "pdf_balance": "",
+            "pdf_row_kind": "debit",
             "earned": 0.0,
             "debit": float(row["amount"] or 0.0),
             "paid": 0.0,
@@ -11600,6 +11652,7 @@ def _cash_supplier_kata(db, party_code: str):
         ORDER BY entry_date ASC, id ASC
     """, (party_code,)).fetchall()
     for row in payments:
+        payment_note = (row["notes"] or "").strip() or (row["reference"] or "").strip() or (row["payment_method"] or "Payment").strip()
         rows.append({
             "entry_date": row["entry_date"],
             "period_month": "",
@@ -11608,6 +11661,15 @@ def _cash_supplier_kata(db, party_code: str):
             "entry_type": "Payment",
             "earning_basis": "",
             "description": (row["payment_method"] or "Cash") + (f" / Ref: {row['reference']}" if row["reference"] else "") + (f" / {row['notes']}" if row["notes"] else ""),
+            "pdf_date": _statement_pdf_date(row["entry_date"]),
+            "pdf_vehicle_no": "",
+            "pdf_month_label": "",
+            "pdf_qty_or_note": payment_note,
+            "pdf_rate": "",
+            "pdf_total_amount": "",
+            "pdf_paid_amount": _statement_pdf_amount(row["amount"]),
+            "pdf_balance": "",
+            "pdf_row_kind": "payment",
             "earned": 0.0,
             "debit": 0.0,
             "paid": float(row["amount"] or 0.0),
@@ -11627,6 +11689,7 @@ def _cash_supplier_kata(db, party_code: str):
         running -= item["debit"]
         running -= item["paid"]
         item["running_balance"] = round(running, 2)
+        item["pdf_balance"] = _statement_pdf_amount(item["running_balance"])
 
     total_earned = round(sum(r["earned"] for r in rows), 2)
     total_debits = round(sum(r["debit"] for r in rows), 2)
