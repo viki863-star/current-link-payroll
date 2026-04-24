@@ -9567,6 +9567,18 @@ def _delete_supplier_cascade(db, party_code: str) -> tuple[str, str]:
     party_name = party["party_name"]
 
     db.execute(
+        "UPDATE supplier_profile SET partner_party_code = NULL WHERE partner_party_code = ?",
+        (party_code,),
+    )
+    db.execute(
+        "UPDATE maintenance_papers SET workshop_party_code = NULL WHERE workshop_party_code = ?",
+        (party_code,),
+    )
+    db.execute(
+        "UPDATE maintenance_settlements SET party_code = NULL WHERE party_code = ?",
+        (party_code,),
+    )
+    db.execute(
         "DELETE FROM account_invoice_lines WHERE invoice_no IN (SELECT invoice_no FROM account_invoices WHERE party_code = ?)",
         (party_code,),
     )
@@ -9586,6 +9598,8 @@ def _delete_supplier_cascade(db, party_code: str) -> tuple[str, str]:
     db.execute("DELETE FROM cash_supplier_payments WHERE party_code = ?", (party_code,))
     db.execute("DELETE FROM cash_supplier_debits WHERE party_code = ?", (party_code,))
     db.execute("DELETE FROM cash_supplier_trips WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM loan_entries WHERE party_code = ?", (party_code,))
+    db.execute("DELETE FROM annual_fee_entries WHERE party_code = ?", (party_code,))
     db.execute("DELETE FROM supplier_registration_requests WHERE approved_party_code = ?", (party_code,))
     db.execute("DELETE FROM supplier_portal_accounts WHERE party_code = ?", (party_code,))
     db.execute("DELETE FROM supplier_profile WHERE party_code = ?", (party_code,))
