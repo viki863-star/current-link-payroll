@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell">
+    {# ── Toolbar with stats and navigation ── #}
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <span class="button button-primary" style="background-color: #4a6fa5; border-color: #4a6fa5; cursor: default;">Cash Suppliers</span>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ summary.supplier_count }}</strong><small>Cash/Loan Suppliers</small></span>
+                <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
+                <span><strong>{{ summary.double_shift_count }}</strong><small>Double Shift</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
+            </div>
+        </div>
+        <form method="get" class="admin-filter-grid desk-single-filter">
+            <label>
+                <span>Search Cash/Loan Suppliers</span>
+                <input type="search" name="q" value="{{ query }}" placeholder="Name, code, phone">
+            </label>
+            <div class="admin-filter-actions">
+                <button class="button" type="submit">Search</button>
+                {% if query %}
+                    <a class="button button-secondary" href="{{ url_for('cash_suppliers') }}">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </article>
+
+    <div class="desk-content-split">
+        {# ── Left: Simplified Registration Form ── #}
+        <section class="desk-main-panel">
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Cash/Loan Supplier</span>
+                        <h2>{% if values.original_party_code %}Edit Cash/Loan Supplier{% else %}Register Cash/Loan Supplier{% endif %}</h2>
+                    </div>
+                    <div class="mini-link-stack inline-link-stack">
+                        <a class="mini-link-pill" href="{{ url_for('cash_suppliers') }}">All Cash/Loan Suppliers</a>
+                    </div>
+                </div>
+                <form method="post" class="desk-form-grid cash-supplier-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="original_party_code" value="{{ values.original_party_code }}">
+                    <input type="hidden" name="supplier_mode" value="Cash">
+                    
+                    <div class="form-section">
+                        <h3 class="form-section-title">Basic Information</h3>
+                        <div class="form-grid-2">
+                            <label>
+                                <span>Supplier Code</span>
+                                <input type="text" name="party_code" value="{{ values.party_code }}" placeholder="Auto-generate if blank" {% if values.original_party_code %}readonly{% endif %}>
+                            </label>
+                            <label>
+                                <span>Supplier Name *</span>
+                                <input type="text" name="party_name" value="{{ values.party_name }}" required>
+                            </label>
+                            <label>
+                                <span>Contact Person</span>
+                                <input type="text" name="contact_person" value="{{ values.contact_person }}">
+                            </label>
+                            <label>
+                                <span>Phone Number *</span>
+                                <input type="text" name="phone_number" value="{{ values.phone_number }}" required>
+                            </label>
+                            <label>
+                                <span>Kind</span>
+                                <select name="party_kind">
+                                    <option value="Individual" {% if values.party_kind == 'Individual' %}selected{% endif %}>Individual</option>
+                                    <option value="Company" {% if values.party_kind == 'Company' %}selected{% endif %}>Company</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Status</span>
+                                <select name="status">
+                                    <option value="Active" {% if values.status == 'Active' %}selected{% endif %}>Active</option>
+                                    <option value="Inactive" {% if values.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3 class="form-section-title">Additional Details</h3>
+                        <div class="form-grid-2">
+                            <label>
+                                <span>Email (Optional)</span>
+                                <input type="email" name="email" value="{{ values.email }}">
+                            </label>
+                            <label>
+                                <span>TRN / VAT (Optional)</span>
+                                <input type="text" name="trn_no" value="{{ values.trn_no }}">
+                            </label>
+                        </div>
+                        <label class="full-span">
+                            <span>Address</span>
+                            <textarea name="address" rows="2">{{ values.address }}</textarea>
+                        </label>
+                        <label class="full-span">
+                            <span>Notes</span>
+                            <textarea name="notes" rows="2">{{ values.notes }}</textarea>
+                        </label>
+                    </div>
+
+                    <div class="form-actions left-actions full-span">
+                        <button class="button" type="submit">
+                            {% if values.original_party_code %}Update Cash/Loan Supplier{% else %}Save Cash/Loan Supplier{% endif %}
+                        </button>
+                        {% if values.original_party_code %}
+                            <a class="button button-secondary" href="{{ url_for('cash_suppliers') }}">Cancel</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </article>
+
+            {# ── Cash/Loan Supplier Workflow Guide ── #}
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Cash Workflow</span>
+                        <h2>How Cash/Loan Suppliers Work</h2>
+                    </div>
+                </div>
+                <div class="workflow-steps">
+                    <div class="workflow-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Register Cash/Loan Supplier</h3>
+                            <p>Add supplier with basic contact info. No portal access needed.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Add Fleet Units</h3>
+                            <p>Assign vehicles to the supplier for daily operations.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Track Daily Operations</h3>
+                            <p>Record timesheets, fuel, maintenance, and other expenses.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>View Cash Statement</h3>
+                            <p>Check balance, payments, and generate cash supplier kata.</p>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        {# ── Right: Cash/Loan Supplier Directory ── #}
+        <aside class="desk-side-panel">
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Directory</span>
+                        <h2>Cash/Loan Suppliers</h2>
+                    </div>
+                    <div class="mini-link-stack inline-link-stack">
+                        <a class="mini-link-pill" href="#supplier-register">+ New</a>
+                    </div>
+                </div>
+                
+                {% if suppliers %}
+                    <div class="cash-supplier-directory">
+                        {% for item in suppliers %}
+                            <div class="cash-supplier-card {% if item.status == 'Inactive' %}inactive{% endif %}">
+                                <div class="cash-supplier-header">
+                                    <span class="cash-supplier-code">{{ item.party_code }}</span>
+                                    <span class="status-chip {{ item.status|lower }}">{{ item.status }}</span>
+                                </div>
+                                <div class="cash-supplier-body">
+                                    <h3>{{ item.party_name }}</h3>
+                                    <div class="cash-supplier-info">
+                                        <span><strong>Contact:</strong> {{ item.contact_person or item.phone_number or '-' }}</span>
+                                        <span><strong>Fleet:</strong> {{ item.asset_count }} units</span>
+                                    </div>
+                                    <div class="cash-supplier-balance">
+                                        <span class="balance-label">Balance Due</span>
+                                        <span class="balance-amount">AED {{ "%.2f"|format(item.outstanding_total) }}</span>
+                                    </div>
+                                </div>
+                                <div class="cash-supplier-actions">
+                                    <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=item.party_code) }}">Open</a>
+                                    <a class="button button-secondary" href="{{ url_for('cash_suppliers', edit=item.party_code) }}">Edit</a>
+                                    <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=item.party_code) }}?screen=statement">Statement</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-directory">
+                        <h3>No Cash/Loan Suppliers Found</h3>
+                        <p>Register your first cash/loan supplier to get started.</p>
+                        <a class="button" href="#supplier-register">Add Cash/Loan Supplier</a>
+                    </div>
+                {% endif %}
+            </article>
+
+            {# ── Quick Stats ── #}
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Overview</span>
+                        <h2>Cash Desk Stats</h2>
+                    </div>
+                </div>
+                <div class="quick-stats-grid">
+                    <div class="quick-stat">
+                        <span class="stat-value">{{ summary.supplier_count }}</span>
+                        <span class="stat-label">Active Suppliers</span>
+                    </div>
+                    <div class="quick-stat">
+                        <span class="stat-value">{{ summary.asset_count }}</span>
+                        <span class="stat-label">Fleet Units</span>
+                    </div>
+                    <div class="quick-stat">
+                        <span class="stat-value">{{ summary.double_shift_count }}</span>
+                        <span class="stat-label">Double Shift</span>
+                    </div>
+                    <div class="quick-stat">
+                        <span class="stat-value">AED {{ "%.0f"|format(summary.outstanding_total) }}</span>
+                        <span class="stat-label">Total Due</span>
+                    </div>
+                </div>
+            </article>
+        </aside>
+    </div>
+</section>
+
+<style>
+.desk-content-split {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.form-section {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+}
+
+.form-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.workflow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.workflow-step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.step-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.step-content h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.step-content p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.cash-supplier-directory {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.cash-supplier-card {
+    background: var(--surface-subtle);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid var(--border-subtle);
+}
+
+.cash-supplier-card.inactive {
+    opacity: 0.7;
+    background: var(--surface-disabled);
+}
+
+.cash-supplier-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.cash-supplier-code {
+    font-family: monospace;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.cash-supplier-body h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.cash-supplier-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.cash-supplier-balance {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: var(--surface-raised);
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+
+.balance-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.balance-amount {
+    font-weight: 700;
+    color: var(--accent-primary);
+}
+
+.cash-supplier-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.cash-supplier-actions .button {
+    flex: 1;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.empty-directory {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.empty-directory h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+}
+
+.empty-directory p {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+
+.quick-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.quick-stat {
+    background: var(--surface-subtle);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+
+.stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent-primary);
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+</style>
+{% endblock %}
