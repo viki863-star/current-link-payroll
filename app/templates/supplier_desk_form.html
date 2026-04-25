@@ -1,0 +1,504 @@
+{% extends "base.html" %}
+{% block title %}{{ desk_title }} - Current Link ERP{% endblock %}
+
+{% block content %}
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <span class="button button-primary supplier-mode-chip supplier-mode-{{ supplier_mode|lower }}" style="cursor: default;">{{ ui.desk_short_label }}</span>
+                <a class="button button-secondary" href="{{ url_for(cards_endpoint) }}">Supplier Cards</a>
+                {% if supplier_mode == "Normal" %}
+                    <a class="button button-secondary" href="{{ url_for('supplier_registrations') }}">Registrations</a>
+                    <a class="button button-secondary" href="{{ url_for('admin_supplier_quotations') }}">Quotation Review</a>
+                {% endif %}
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ summary.supplier_count }}</strong><small>{{ ui.type_label }} Suppliers</small></span>
+                <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
+                {% if supplier_mode == "Partnership" %}
+                    <span><strong>{{ summary.partnership_count }}</strong><small>Split Entries</small></span>
+                {% else %}
+                    <span><strong>{{ summary.voucher_count }}</strong><small>Vouchers</small></span>
+                {% endif %}
+                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
+            </div>
+        </div>
+    </article>
+
+    <div class="desk-content-split">
+        <section class="desk-main-panel">
+            <article class="card desk-panel-card" id="supplier-register">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">{{ ui.type_label }} Supplier</span>
+                        <h2>{% if values.original_party_code %}Edit {{ ui.type_label }} Supplier{% else %}{{ ui.register_title }}{% endif %}</h2>
+                    </div>
+                    <div class="mini-link-stack inline-link-stack">
+                        <a class="mini-link-pill" href="{{ url_for(cards_endpoint) }}">Open Supplier Cards</a>
+                    </div>
+                </div>
+                <form method="post" class="desk-form-grid supplier-entry-form supplier-entry-form-modern">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="original_party_code" value="{{ values.original_party_code }}">
+                    <input type="hidden" name="supplier_mode" value="{{ supplier_mode }}">
+
+                    <div class="form-section">
+                        <h3 class="form-section-title">Basic Information</h3>
+                        <div class="form-grid-2">
+                            <label>
+                                <span>Supplier Code</span>
+                                <input type="text" name="party_code" value="{{ values.party_code }}" placeholder="Auto-generate if blank" {% if values.original_party_code %}readonly{% endif %}>
+                            </label>
+                            <label>
+                                <span>Supplier Name *</span>
+                                <input type="text" name="party_name" value="{{ values.party_name }}" required>
+                            </label>
+                            <label>
+                                <span>Kind</span>
+                                <select name="party_kind">
+                                    <option value="Company" {% if values.party_kind == 'Company' %}selected{% endif %}>Company</option>
+                                    <option value="Individual" {% if values.party_kind == 'Individual' %}selected{% endif %}>Individual</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Status</span>
+                                <select name="status">
+                                    <option value="Active" {% if values.status == 'Active' %}selected{% endif %}>Active</option>
+                                    <option value="Inactive" {% if values.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Contact Person</span>
+                                <input type="text" name="contact_person" value="{{ values.contact_person }}">
+                            </label>
+                            <label>
+                                <span>Phone Number</span>
+                                <input type="text" name="phone_number" value="{{ values.phone_number }}">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3 class="form-section-title">Additional Details</h3>
+                        <div class="form-grid-2">
+                            <label>
+                                <span>Email</span>
+                                <input type="email" name="email" value="{{ values.email }}">
+                            </label>
+                            <label>
+                                <span>TRN / VAT</span>
+                                <input type="text" name="trn_no" value="{{ values.trn_no }}">
+                            </label>
+                            <label>
+                                <span>Trade License</span>
+                                <input type="text" name="trade_license_no" value="{{ values.trade_license_no }}">
+                            </label>
+                            <label class="{% if supplier_mode == 'Partnership' %}partnership-placeholder{% endif %}">
+                                <span>{% if supplier_mode == "Partnership" %}Partner Link{% else %}Mode{% endif %}</span>
+                                <input type="text" value="{% if supplier_mode == 'Partnership' %}Split-based supplier profile{% else %}{{ ui.type_label }} supplier workflow{% endif %}" readonly>
+                            </label>
+                        </div>
+                        <label class="full-span">
+                            <span>Additional Tags</span>
+                            <div class="check-grid compact-check-grid">
+                                {% for item in role_options %}
+                                    <label class="check-tile">
+                                        <input type="checkbox" name="party_roles" value="{{ item }}" {% if item in values.party_roles %}checked{% endif %}>
+                                        <span>{{ item }}</span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        </label>
+                        <label class="full-span">
+                            <span>Address</span>
+                            <textarea name="address" rows="2">{{ values.address }}</textarea>
+                        </label>
+                        <label class="full-span">
+                            <span>Notes</span>
+                            <textarea name="notes" rows="2">{{ values.notes }}</textarea>
+                        </label>
+                    </div>
+
+                    {% if supplier_mode == "Normal" %}
+                        <div class="form-section">
+                            <h3 class="form-section-title">Portal Access</h3>
+                            <div class="form-grid-2">
+                                <label>
+                                    <span>Portal Login Email</span>
+                                    <input type="email" name="portal_login_email" value="{{ values.portal_login_email }}" placeholder="Only for company portal access">
+                                </label>
+                                <div class="portal-toggle-field modern-portal-toggle">
+                                    <span>Portal Access</span>
+                                    <label class="check-tile inline-check-tile">
+                                        <input type="checkbox" name="portal_enabled" value="1" {% if values.portal_enabled %}checked{% endif %}>
+                                        <span>Enable supplier portal</span>
+                                    </label>
+                                    <small class="muted-text">
+                                        {% if values.party_kind == "Individual" %}
+                                            Individual suppliers stay admin-managed only.
+                                        {% else %}
+                                            Company suppliers can activate with Supplier Code and invited email.
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                {% if values.original_party_code %}
+                                    <label>
+                                        <span>Portal Status</span>
+                                        <input type="text" value="{{ values.portal_activation_status }}" readonly>
+                                    </label>
+                                    <label>
+                                        <span>Last Login</span>
+                                        <input type="text" value="{{ values.portal_last_login_at or '-' }}" readonly>
+                                    </label>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if supplier_mode == "Partnership" %}
+                        <div class="form-section">
+                            <h3 class="form-section-title">Partnership Setup</h3>
+                            <div class="form-grid-2">
+                                <label>
+                                    <span>Partner Party</span>
+                                    <select name="partner_party_code">
+                                        <option value="">Optional select</option>
+                                        {% for item in partner_parties %}
+                                            <option value="{{ item.party_code }}" {% if values.partner_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Partner Name</span>
+                                    <input type="text" name="partner_name" value="{{ values.partner_name }}" placeholder="Used if no partner party selected">
+                                </label>
+                                <label>
+                                    <span>Company Share %</span>
+                                    <input type="number" step="0.01" name="default_company_share_percent" value="{{ values.default_company_share_percent }}">
+                                </label>
+                                <label>
+                                    <span>Partner Share %</span>
+                                    <input type="number" step="0.01" name="default_partner_share_percent" value="{{ values.default_partner_share_percent }}">
+                                </label>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <div class="form-actions left-actions full-span">
+                        <button class="button" type="submit">
+                            {% if values.original_party_code %}Update {{ ui.type_label }} Supplier{% else %}Save {{ ui.type_label }} Supplier{% endif %}
+                        </button>
+                        {% if values.original_party_code %}
+                            <a class="button button-secondary" href="{{ url_for(desk_endpoint) }}">Cancel</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </article>
+
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Workflow</span>
+                        <h2>{{ desk_title }}</h2>
+                    </div>
+                </div>
+                <div class="workflow-steps">
+                    {% for step in ui.workflow_steps %}
+                        <div class="workflow-step">
+                            <div class="step-number">{{ loop.index }}</div>
+                            <div class="step-content">
+                                <h3>{{ step.title }}</h3>
+                                <p>{{ step.copy }}</p>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </article>
+        </section>
+
+        <aside class="desk-side-panel">
+            <article class="card desk-panel-card desk-side-feature">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Directory</span>
+                        <h2>{{ ui.cards_title }}</h2>
+                    </div>
+                </div>
+                <p class="desk-side-copy">{{ ui.cards_copy }}</p>
+                <div class="desk-feature-metrics">
+                    <div class="desk-feature-stat">
+                        <strong>{{ summary.supplier_count }}</strong>
+                        <span>Active Suppliers</span>
+                    </div>
+                    <div class="desk-feature-stat">
+                        <strong>{{ summary.asset_count }}</strong>
+                        <span>Fleet Units</span>
+                    </div>
+                    <div class="desk-feature-stat">
+                        <strong>{{ summary.settled_count }}</strong>
+                        <span>Settled Suppliers</span>
+                    </div>
+                    <div class="desk-feature-stat">
+                        <strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong>
+                        <span>Current Due</span>
+                    </div>
+                </div>
+                <form method="get" action="{{ url_for(cards_endpoint) }}" class="desk-side-search">
+                    <label>
+                        <span>Search Supplier Cards</span>
+                        <input type="search" name="q" value="{{ query }}" placeholder="{{ ui.search_placeholder }}">
+                    </label>
+                    <button class="button" type="submit">Open Search</button>
+                </form>
+                <div class="desk-side-actions">
+                    <a class="button" href="{{ url_for(cards_endpoint) }}">Open Supplier Cards</a>
+                    <a class="button button-secondary" href="{{ url_for('supplier_desk_home') }}">Supplier Desk Home</a>
+                </div>
+            </article>
+
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Snapshot</span>
+                        <h2>{{ ui.type_label }} Desk Totals</h2>
+                    </div>
+                </div>
+                <div class="cash-side-balance-grid">
+                    <div class="cash-side-balance-card due">
+                        <span>Outstanding Due</span>
+                        <strong>AED {{ "%.2f"|format(summary.outstanding_total) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card neutral">
+                        <span>Total Paid</span>
+                        <strong>AED {{ "%.2f"|format(summary.paid_total) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card neutral">
+                        <span>Voucher Total</span>
+                        <strong>AED {{ "%.2f"|format(summary.voucher_total) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card neutral">
+                        <span>{% if supplier_mode == "Partnership" %}Split Entries{% else %}Unbilled Amount{% endif %}</span>
+                        <strong>{% if supplier_mode == "Partnership" %}{{ summary.partnership_count }}{% else %}AED {{ "%.2f"|format(summary.unbilled_amount) }}{% endif %}</strong>
+                    </div>
+                </div>
+            </article>
+
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Quick Access</span>
+                        <h2>Shortcuts</h2>
+                    </div>
+                </div>
+                <div class="mini-link-stack">
+                    {% for link in ui.shortcut_links %}
+                        <a class="mini-link-pill" href="{{ url_for(link.endpoint) }}">{{ link.label }}</a>
+                    {% endfor %}
+                </div>
+            </article>
+        </aside>
+    </div>
+</section>
+
+<style>
+.desk-content-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.supplier-mode-chip {
+    cursor: default;
+}
+
+.supplier-mode-normal {
+    background-color: #d6861f;
+    border-color: #d6861f;
+}
+
+.supplier-mode-managed {
+    background-color: #2f6ca4;
+    border-color: #2f6ca4;
+}
+
+.supplier-mode-partnership {
+    background-color: #6d3fd1;
+    border-color: #6d3fd1;
+}
+
+.form-section {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+}
+
+.form-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.supplier-entry-form-modern .portal-toggle-field,
+.supplier-entry-form-modern .check-grid {
+    margin-top: 0;
+}
+
+.workflow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.workflow-step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.step-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.step-content h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.step-content p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.desk-side-feature {
+    background:
+        radial-gradient(circle at top right, rgba(47, 108, 164, 0.16), transparent 40%),
+        var(--surface-base);
+}
+
+.desk-side-copy {
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin-bottom: 18px;
+}
+
+.desk-feature-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.desk-feature-stat {
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-subtle);
+    display: grid;
+    gap: 4px;
+}
+
+.desk-feature-stat strong {
+    font-size: 1.15rem;
+    color: var(--accent-primary);
+}
+
+.desk-feature-stat span {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.desk-side-search {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.desk-side-actions {
+    display: grid;
+    gap: 10px;
+}
+
+.cash-side-balance-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.cash-side-balance-card {
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid var(--border-subtle);
+    display: grid;
+    gap: 5px;
+}
+
+.cash-side-balance-card span {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+}
+
+.cash-side-balance-card strong {
+    font-size: 1.08rem;
+    color: var(--text-primary);
+}
+
+.cash-side-balance-card.due {
+    background: rgba(47, 108, 164, 0.08);
+    border-color: rgba(47, 108, 164, 0.18);
+}
+
+.cash-side-balance-card.neutral {
+    background: var(--surface-subtle);
+}
+
+.modern-portal-toggle {
+    display: grid;
+    gap: 10px;
+}
+
+.partnership-placeholder input {
+    color: var(--text-secondary);
+}
+
+@media (max-width: 1100px) {
+    .desk-content-split {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .form-grid-2,
+    .desk-feature-metrics {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
