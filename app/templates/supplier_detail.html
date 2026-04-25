@@ -637,6 +637,7 @@
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-xs btn-outline" title="Edit Payment">✏️</button>
                                         </form>
+                                        <a class="btn btn-xs btn-outline" href="{{ url_for('cash_supplier_payment_voucher', payment_no=row.reference) }}" title="Voucher PDF">PDF</a>
                                         <form method="post" action="{{ url_for('delete_cash_payment', payment_no=row.reference) }}" onsubmit="return confirm('Delete this payment?');" style="display:inline;">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-xs btn-outline btn-danger" title="Delete">🗑️</button>
@@ -846,4 +847,7 @@
     {% endif %}
 </section>
 {% endblock %}
+
+
+
 

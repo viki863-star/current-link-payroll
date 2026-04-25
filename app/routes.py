@@ -30,6 +30,7 @@ from .pdf_vehicle_import import load_vehicle_records_from_pdf_bytes
 from .pdf_service import (
     format_month_label,
     generate_cash_supplier_kata_pdf,
+    generate_cash_supplier_payment_voucher_pdf,
     generate_kata_pdf,
     generate_lpo_pdf,
     generate_owner_fund_pdf,
@@ -2967,7 +2968,11 @@ def register_routes(app: Flask) -> None:
                         )
                         message = "Supplier payment saved successfully."
                     db.commit()
-                    flash(message, "success")
+                    try:
+                        _ensure_supplier_payment_voucher_pdf(app, db, payment_values["payment_no"])
+                        flash(f"{message} Payment voucher PDF is ready.", "success")
+                    except Exception:
+                        flash(message, "success")
                     return redirect(url_for("supplier_detail", party_code=party_code, screen="billing", partnership_month=partnership_month))
 
                 if action == "save_partnership_entry":
@@ -3093,7 +3098,11 @@ def register_routes(app: Flask) -> None:
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """, (payment_no, party_code, entry_date, amount, payment_method, reference or None, notes or None, session.get("display_name", "") or "Admin"))
                         db.commit()
-                        flash(f"Payment {payment_no} saved — AED {amount}", "success")
+                        try:
+                            _ensure_cash_supplier_payment_voucher_pdf(app, db, payment_no)
+                            flash(f"Payment {payment_no} saved - AED {amount}. Voucher PDF is ready.", "success")
+                        except Exception:
+                            flash(f"Payment {payment_no} saved - AED {amount}", "success")
                         return redirect(url_for("supplier_detail", party_code=party_code, screen="kata"))
 
                 except ValidationError as exc:
@@ -3552,19 +3561,23 @@ def register_routes(app: Flask) -> None:
     @_login_required("admin")
     def supplier_payment_voucher(payment_no: str):
         db = open_db()
-        payment = _supplier_payment_with_context(db, payment_no)
-        if payment is None:
+        try:
+            pdf_path = _ensure_supplier_payment_voucher_pdf(app, db, payment_no)
+        except ValidationError:
             flash("Supplier payment voucher was not found.", "error")
             return redirect(url_for("suppliers"))
-        output_dir = _supplier_output_dir(app, payment["party_code"]) / "payment_vouchers"
-        pdf_path = generate_supplier_payment_voucher_pdf(
-            payment,
-            payment,
-            payment,
-            str(output_dir),
-            app.config["STATIC_ASSETS_DIR"],
-        )
-        _mirror_generated_file(app, pdf_path)
+        relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+        return redirect(url_for("generated_file", filename=relative_path))
+
+    @app.get("/cash-payments/<payment_no>/voucher")
+    @_login_required("admin")
+    def cash_supplier_payment_voucher(payment_no: str):
+        db = open_db()
+        try:
+            pdf_path = _ensure_cash_supplier_payment_voucher_pdf(app, db, (payment_no or "").strip().upper())
+        except ValidationError:
+            flash("Cash supplier payment voucher was not found.", "error")
+            return redirect(url_for("cash_suppliers"))
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
@@ -12332,6 +12345,60 @@ def _supplier_payment_with_context(db, payment_no: str):
     ).fetchone()
 
 
+def _cash_supplier_payment_with_context(db, payment_no: str):
+    payment = db.execute(
+        """
+        SELECT
+            pay.payment_no,
+            pay.party_code,
+            pay.entry_date,
+            pay.amount,
+            pay.payment_method,
+            pay.reference,
+            pay.notes,
+            pay.created_by,
+            party.party_name,
+            party.contact_person,
+            party.phone_number,
+            COALESCE(profile.supplier_mode, 'Cash') AS supplier_mode
+        FROM cash_supplier_payments pay
+        LEFT JOIN parties party ON party.party_code = pay.party_code
+        LEFT JOIN supplier_profile profile ON profile.party_code = pay.party_code
+        WHERE pay.payment_no = ?
+        """,
+        (payment_no,),
+    ).fetchone()
+    if payment is None:
+        return None
+    summary = {
+        "total_earned": float(db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM cash_supplier_trips WHERE party_code = ?", (payment["party_code"],)).fetchone()[0] or 0.0),
+        "total_debits": float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM cash_supplier_debits WHERE party_code = ?", (payment["party_code"],)).fetchone()[0] or 0.0),
+        "total_paid": float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM cash_supplier_payments WHERE party_code = ?", (payment["party_code"],)).fetchone()[0] or 0.0),
+    }
+    summary["balance"] = round(summary["total_earned"] - summary["total_debits"] - summary["total_paid"], 2)
+    return {**dict(payment), **summary}
+
+
+def _ensure_supplier_payment_voucher_pdf(app, db, payment_no: str) -> str:
+    payment = _supplier_payment_with_context(db, payment_no)
+    if payment is None:
+        raise ValidationError("Supplier payment voucher was not found.")
+    output_dir = _supplier_output_dir(app, payment["party_code"]) / "payment_vouchers"
+    pdf_path = generate_supplier_payment_voucher_pdf(payment, payment, payment, str(output_dir), app.config["STATIC_ASSETS_DIR"])
+    _mirror_generated_file(app, pdf_path)
+    return pdf_path
+
+
+def _ensure_cash_supplier_payment_voucher_pdf(app, db, payment_no: str) -> str:
+    payment = _cash_supplier_payment_with_context(db, payment_no)
+    if payment is None:
+        raise ValidationError("Cash supplier payment voucher was not found.")
+    output_dir = _supplier_output_dir(app, payment["party_code"]) / "payment_vouchers"
+    pdf_path = generate_cash_supplier_payment_voucher_pdf(payment, payment, payment, str(output_dir), app.config["STATIC_ASSETS_DIR"])
+    _mirror_generated_file(app, pdf_path)
+    return pdf_path
+
+
 def _supplier_output_dir(app, party_code: str) -> Path:
     return Path(app.config["GENERATED_DIR"]) / "suppliers" / party_code
 
@@ -14127,4 +14194,6 @@ def _recent_generated_files(folder: Path, prefix: str):
         reverse=True,
     )
     return [f"owner_fund/{item.name}" for item in files[:6]]
+
+
 
