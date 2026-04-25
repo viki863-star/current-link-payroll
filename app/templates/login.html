@@ -1,161 +1,279 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block body_class %}login-page-body{% endblock %}
-{% block shell_header %}{% endblock %}
+{% block title %}Current Link Portal Access{% endblock %}
+{% block body_class %}portal-access-body{% endblock %}
 
 {% block content %}
-<section class="login-page-shell">
-    <article class="card login-page-brand-card">
-        <div class="login-page-brand-css">
-            <img class="lpb-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
-            <div class="lpb-text">
-                <div class="lpb-name"><span>CURRENT</span><span class="lpb-link">LINK</span></div>
-                <div class="lpb-tagline">TRANSPORT AND GENERAL CONTRACTING LLC SPC</div>
+<section class="portal-access-shell">
+    <article class="portal-access-stage">
+        <div class="portal-access-scene" aria-hidden="true">
+            <div class="portal-access-scene-glow portal-access-scene-glow-one"></div>
+            <div class="portal-access-scene-glow portal-access-scene-glow-two"></div>
+            <div class="portal-access-scene-grid"></div>
+            <div class="portal-access-scene-illustration">
+                <div class="scene-sun"></div>
+                <div class="scene-dune scene-dune-back"></div>
+                <div class="scene-dune scene-dune-front"></div>
+                <div class="scene-crane">
+                    <span class="scene-crane-arm"></span>
+                    <span class="scene-crane-cable"></span>
+                    <span class="scene-crane-hook"></span>
+                </div>
+                <div class="scene-truck">
+                    <span class="scene-truck-cabin"></span>
+                    <span class="scene-truck-trailer"></span>
+                    <span class="scene-truck-wheel scene-truck-wheel-left"></span>
+                    <span class="scene-truck-wheel scene-truck-wheel-right"></span>
+                </div>
+                <div class="scene-tanker">
+                    <span class="scene-tanker-body"></span>
+                    <span class="scene-tanker-wheel scene-tanker-wheel-left"></span>
+                    <span class="scene-tanker-wheel scene-tanker-wheel-right"></span>
+                </div>
             </div>
         </div>
-        <div class="login-page-copy">
-            <div class="public-page-topline">
+
+        <div class="portal-access-copy">
+            <div class="portal-access-topline">
+                <span class="portal-access-chip">Current Link Internal ERP</span>
                 <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
             </div>
-            <p class="eyebrow">Portal</p>
-            <h2>Choose your portal.</h2>
+
+            <div class="portal-access-brand">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
+                <div>
+                    <p class="eyebrow">Current Link</p>
+                    <h1>One secure portal for transport, payroll, supplier operations and field expense control.</h1>
+                </div>
+            </div>
+
+            <p class="portal-access-lead">
+                Open the right workspace fast. Admin, owner, driver and field staff each get a focused entry flow
+                without mixing dashboards, money control or mobile operations.
+            </p>
+
+            <div class="portal-access-pills">
+                <span>Live ERP Control</span>
+                <span>Role-safe access</span>
+                <span>Mobile-ready workflows</span>
+            </div>
+
+            <div class="portal-access-metrics">
+                <div class="portal-metric-card">
+                    <strong>4</strong>
+                    <span>Core access lanes</span>
+                </div>
+                <div class="portal-metric-card">
+                    <strong>24/7</strong>
+                    <span>Operations visibility</span>
+                </div>
+                <div class="portal-metric-card">
+                    <strong>UAE</strong>
+                    <span>Transport-first system</span>
+                </div>
+            </div>
+
+            <div class="portal-access-shortcuts">
+                <a href="{{ url_for('supplier_login') }}">Supplier Portal</a>
+                <a href="{{ url_for('supplier_register') }}">Supplier Register</a>
+                <a href="{{ url_for('technician_login') }}">Field Staff Login</a>
+            </div>
         </div>
     </article>
 
-    <section class="card portal-section-card">
-        <div class="portal-section-top">
-            <div>
-                <p class="eyebrow">Step 1</p>
-                <h2>Select access type</h2>
-            </div>
+    <article class="portal-access-panel">
+        <div class="portal-access-panel-head">
+            <p class="eyebrow">Portal Access</p>
+            <h2>Choose your portal.</h2>
+            <p>
+                Select the access lane first, then enter the matching credentials. Admin and owner use secure codes,
+                drivers use phone and PIN, and field staff move into the mobile expense workspace.
+            </p>
         </div>
 
-        <div class="login-stage-shell">
-            <article class="card login-role-card">
-                <div class="login-role-head">
-                    <p class="eyebrow">Role</p>
-                    <h3>Select Role</h3>
+        <form method="post" class="portal-access-form" id="portalAccessForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="role" id="roleInput" value="{{ selected_role or 'admin' }}">
+
+            <div class="portal-step-card">
+                <div class="portal-step-head">
+                    <span class="portal-step-no">Step 1</span>
+                    <div>
+                        <h3>Select access type</h3>
+                        <p>Pick the role you want to open right now.</p>
+                    </div>
                 </div>
-                <div class="login-role-grid" data-role-grid>
-                    <button class="role-tile {% if selected_role == 'admin' %}active{% endif %}" type="button" data-role="admin">
-                        <span class="role-icon">A</span>
+
+                <div class="portal-role-grid">
+                    <button type="button" class="portal-role-tile is-admin" data-role="admin">
+                        <span class="portal-role-badge">A</span>
                         <strong>Admin Portal</strong>
                         <small>Full control</small>
                     </button>
-                    <button class="role-tile owner-tile {% if selected_role == 'owner' %}active{% endif %}" type="button" data-role="owner">
-                        <span class="role-icon">O</span>
+                    <button type="button" class="portal-role-tile is-owner" data-role="owner">
+                        <span class="portal-role-badge">O</span>
                         <strong>Owner Portal</strong>
                         <small>Owner fund</small>
                     </button>
-                    <button class="role-tile driver-tile {% if selected_role == 'driver' %}active{% endif %}" type="button" data-role="driver">
-                        <span class="role-icon">D</span>
+                    <button type="button" class="portal-role-tile is-driver" data-role="driver">
+                        <span class="portal-role-badge">D</span>
                         <strong>Driver Portal</strong>
                         <small>Phone and PIN</small>
                     </button>
-                    <a href="{{ url_for('technician_login') }}" class="role-tile technician-tile" style="text-decoration: none; display: block;">
-                        <span class="role-icon">T</span>
+                    <button type="button" class="portal-role-tile is-technician" data-role="technician">
+                        <span class="portal-role-badge">F</span>
                         <strong>Field Staff Portal</strong>
                         <small>Fuel, workshop and cash entries</small>
-                    </a>
+                    </button>
                 </div>
-            </article>
+            </div>
 
-            <article class="card login-stage-card">
-                <div class="login-stage-head">
-                    <p class="eyebrow">Step 2</p>
-                    <h3>Enter credentials</h3>
+            <div class="portal-step-card portal-credentials-card">
+                <div class="portal-step-head">
+                    <span class="portal-step-no">Step 2</span>
+                    <div>
+                        <h3 id="credentialTitle">Enter credentials</h3>
+                        <p id="credentialSubtitle">Admin password enter karke dashboard aur full control access karein.</p>
+                    </div>
                 </div>
 
-                <form method="post" action="{{ url_for('login') }}" class="stage-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="role" id="selected-role-input" value="{{ selected_role }}">
-
-                    <section class="credential-group {% if selected_role == 'admin' %}active{% endif %}" data-credential="admin">
+                <div class="portal-credentials-stack">
+                    <div class="portal-credential-group" data-group="admin owner">
                         <label>
-                            <span>Admin Password</span>
-                            <input type="password" name="password" autocomplete="current-password" placeholder="Enter admin password" {% if selected_role != 'admin' %}disabled{% endif %}>
+                            <span id="passwordLabel">Admin Password</span>
+                            <input type="password" name="password" id="passwordInput" placeholder="Enter admin password">
                         </label>
-                    </section>
+                    </div>
 
-                    <section class="credential-group {% if selected_role == 'owner' %}active{% endif %}" data-credential="owner">
-                        <label>
-                            <span>Owner Access Code</span>
-                            <input type="password" name="password" autocomplete="current-password" placeholder="Enter owner access code" {% if selected_role != 'owner' %}disabled{% endif %}>
-                        </label>
-                    </section>
-
-                    <section class="credential-group {% if selected_role == 'driver' %}active{% endif %}" data-credential="driver">
+                    <div class="portal-credential-group" data-group="driver">
                         <label>
                             <span>Driver Phone Number</span>
-                            <input type="tel" name="phone_number" inputmode="tel" placeholder="Enter registered phone number" {% if selected_role != 'driver' %}disabled{% endif %}>
+                            <input type="text" name="phone_number" id="phoneInput" placeholder="0501234567">
                         </label>
                         <label>
                             <span>Driver PIN</span>
-                            <input type="password" name="driver_pin" inputmode="numeric" minlength="4" placeholder="Enter driver PIN" {% if selected_role != 'driver' %}disabled{% endif %}>
+                            <input type="password" name="driver_pin" id="driverPinInput" placeholder="Enter driver PIN" inputmode="numeric">
                         </label>
-                    </section>
-
-                    <div class="login-stage-footer">
-                        <div class="login-tip" id="login-tip">
-                            {% if selected_role == 'owner' %}
-                                Owner portal khulne ke liye access code enter karein.
-                            {% elif selected_role == 'driver' %}
-                                Driver apna registered phone number aur PIN likhe aur self-service portal open kare.
-                            {% else %}
-                                Admin password enter karke dashboard aur full control access karein.
-                            {% endif %}
-                        </div>
-                        <button class="button login-submit-button" type="submit">Enter Portal</button>
                     </div>
-                </form>
-            </article>
-        </div>
-    </section>
+
+                    <div class="portal-credential-group portal-route-group" data-group="technician">
+                        <div class="portal-route-card">
+                            <strong>Field staff use a mobile-first sign-in.</strong>
+                            <p>Open the field staff portal to submit fuel, workshop and general cash entries with bill photos.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="portal-access-actions">
+                    <div class="portal-access-note" id="portalAccessNote">
+                        Admin password enter karke dashboard aur full control access karein.
+                    </div>
+                    <button type="submit" class="button portal-submit-button" id="portalSubmitButton">Enter Portal</button>
+                    <a href="{{ url_for('technician_login') }}" class="button portal-secondary-button" id="portalFieldStaffButton" hidden>
+                        Enter Field Staff Portal
+                    </a>
+                </div>
+            </div>
+        </form>
+    </article>
 </section>
 
 <script>
-    (() => {
-        const roleTiles = document.querySelectorAll("[data-role]");
-        const credentialGroups = document.querySelectorAll("[data-credential]");
-        const roleInput = document.getElementById("selected-role-input");
-        const tip = document.getElementById("login-tip");
-        const tips = {
-            admin: "Admin password enter karke dashboard aur full control access karein.",
-            owner: "Owner portal khulne ke liye access code enter karein.",
-            driver: "Driver apna registered phone number aur PIN likhe aur self-service portal open kare."
-        };
+(function () {
+    const roleInput = document.getElementById("roleInput");
+    const form = document.getElementById("portalAccessForm");
+    if (!roleInput || !form) return;
 
-        function activateRole(role) {
-            roleTiles.forEach((tile) => {
-                tile.classList.toggle("active", tile.dataset.role === role);
-            });
+    const tiles = Array.from(document.querySelectorAll(".portal-role-tile"));
+    const groups = Array.from(document.querySelectorAll(".portal-credential-group"));
+    const title = document.getElementById("credentialTitle");
+    const subtitle = document.getElementById("credentialSubtitle");
+    const note = document.getElementById("portalAccessNote");
+    const passwordLabel = document.getElementById("passwordLabel");
+    const passwordInput = document.getElementById("passwordInput");
+    const phoneInput = document.getElementById("phoneInput");
+    const driverPinInput = document.getElementById("driverPinInput");
+    const submitButton = document.getElementById("portalSubmitButton");
+    const fieldStaffButton = document.getElementById("portalFieldStaffButton");
 
-            credentialGroups.forEach((group) => {
-                const isActive = group.dataset.credential === role;
-                group.classList.toggle("active", isActive);
-                group.querySelectorAll("input").forEach((field) => {
-                    field.disabled = !isActive;
-                });
-                if (isActive) {
-                    const firstField = group.querySelector("input");
-                    window.setTimeout(() => firstField && firstField.focus(), 60);
-                }
-            });
-
-            if (roleInput) {
-                roleInput.value = role;
-            }
-            if (tip && tips[role]) {
-                tip.textContent = tips[role];
-            }
+    const copy = {
+        admin: {
+            title: "Enter credentials",
+            subtitle: "Admin password enter karke dashboard aur full control access karein.",
+            note: "Admin password enter karke dashboard aur full control access karein.",
+            passwordLabel: "Admin Password",
+            passwordPlaceholder: "Enter admin password"
+        },
+        owner: {
+            title: "Enter credentials",
+            subtitle: "Owner code se owner fund aur top-level money control access khulega.",
+            note: "Owner access code sirf owner fund aur senior money visibility ke liye hai.",
+            passwordLabel: "Owner Access Code",
+            passwordPlaceholder: "Enter owner access code"
+        },
+        driver: {
+            title: "Enter credentials",
+            subtitle: "Driver phone number aur PIN se salary, trips aur slips access hongi.",
+            note: "Driver lane phone number aur PIN par based hai. Driver master me number hona zaroori hai.",
+            passwordLabel: "Password"
+        },
+        technician: {
+            title: "Open mobile workspace",
+            subtitle: "Field staff fuel, workshop aur cash expense entries mobile-friendly portal se submit karte hain.",
+            note: "Field staff lane alag mobile portal par khulti hai taake entry fast aur simple rahe.",
+            passwordLabel: "Password"
         }
+    };
 
-        roleTiles.forEach((tile) => {
-            tile.addEventListener("click", () => activateRole(tile.dataset.role));
+    function toggleGroups(role) {
+        groups.forEach((group) => {
+            const enabled = (group.dataset.group || "").split(" ").includes(role);
+            group.classList.toggle("active", enabled);
         });
+    }
 
-        activateRole(roleInput?.value || "admin");
-    })();
+    function setRequirements(role) {
+        if (passwordInput) {
+            passwordInput.required = role === "admin" || role === "owner";
+            passwordInput.disabled = !(role === "admin" || role === "owner");
+            if (role !== "admin" && role !== "owner") passwordInput.value = "";
+        }
+        if (phoneInput) {
+            phoneInput.required = role === "driver";
+            phoneInput.disabled = role !== "driver";
+            if (role !== "driver") phoneInput.value = "";
+        }
+        if (driverPinInput) {
+            driverPinInput.required = role === "driver";
+            driverPinInput.disabled = role !== "driver";
+            if (role !== "driver") driverPinInput.value = "";
+        }
+    }
+
+    function applyRole(role) {
+        const meta = copy[role] || copy.admin;
+        roleInput.value = role;
+        tiles.forEach((tile) => tile.classList.toggle("active", tile.dataset.role === role));
+        toggleGroups(role);
+        setRequirements(role);
+        if (title) title.textContent = meta.title;
+        if (subtitle) subtitle.textContent = meta.subtitle;
+        if (note) note.textContent = meta.note;
+        if (passwordLabel) passwordLabel.textContent = meta.passwordLabel;
+        if (passwordInput && meta.passwordPlaceholder) passwordInput.placeholder = meta.passwordPlaceholder;
+
+        const technicianSelected = role === "technician";
+        if (submitButton) submitButton.hidden = technicianSelected;
+        if (fieldStaffButton) fieldStaffButton.hidden = !technicianSelected;
+    }
+
+    tiles.forEach((tile) => {
+        tile.addEventListener("click", function () {
+            applyRole(this.dataset.role || "admin");
+        });
+    });
+
+    applyRole(roleInput.value || "{{ selected_role or 'admin' }}");
+})();
 </script>
 {% endblock %}
-
