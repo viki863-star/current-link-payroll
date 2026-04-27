@@ -179,6 +179,8 @@
 .cl-right {
   display:flex;align-items:center;justify-content:center;
   padding:32px 28px;
+  /* ensure the right column fills height so panel can size itself */
+  min-height:100vh;
 }
 
 .cl-panel {
@@ -189,7 +191,9 @@
   border:1px solid rgba(255,255,255,0.9);
   box-shadow:0 32px 80px rgba(11,31,58,0.22),0 2px 8px rgba(11,31,58,0.08);
   position:relative;
-  overflow:hidden;
+  /* REMOVED overflow:hidden — it clipped the absolutely-positioned form */
+  /* Use overflow:visible so the form can size the panel correctly */
+  overflow:visible;
   animation:panelSlideIn 0.7s cubic-bezier(0.22,1,0.36,1) 0.15s both;
 }
 @keyframes panelSlideIn {
@@ -351,10 +355,17 @@
 
 /* ── LOGIN FORM SECTION ── */
 .cl-form-wrap {
-  display:none;position:absolute;inset:0;
-  background:var(--white);border-radius:28px;
-  padding:0;overflow-y:auto;
-  opacity:0;transform:translateY(24px);
+  /* NOT absolute: let it be a normal block so the panel sizes around it */
+  display:none;
+  position:relative;
+  width:100%;
+  min-height:420px;
+  background:var(--white);
+  border-radius:28px;
+  padding:0;
+  overflow:hidden;
+  opacity:0;
+  transform:translateY(24px);
   transition:opacity 0.4s ease,transform 0.4s cubic-bezier(0.22,1,0.36,1);
 }
 .cl-form-wrap.is-open {opacity:1;transform:translateY(0);}

@@ -387,9 +387,9 @@
 
     if(!animate){
       SEC_C.style.display = 'none';
-      SEC_F.style.display = 'block';
       SEC_F.style.opacity = '1';
       SEC_F.style.transform = 'translateY(0)';
+      SEC_F.style.display = 'block';
       SEC_F.classList.add('is-open');
       return;
     }
@@ -405,22 +405,31 @@
       }
     });
 
-    // Step 3: cards section fades out, form slides up
+    // Step 3: cards section fades out, then form slides in
     setTimeout(function(){
       SEC_C.classList.add('is-exiting');
       setTimeout(function(){
+        // Hide cards
         SEC_C.style.display = 'none';
         SEC_C.classList.remove('is-exiting');
-        // Show form with transition via inline styles
+
+        // Reset form to starting (invisible) state, then show it
+        SEC_F.classList.remove('is-open');
         SEC_F.style.transition = 'none';
-        SEC_F.style.display = 'block';
         SEC_F.style.opacity = '0';
         SEC_F.style.transform = 'translateY(24px)';
-        void SEC_F.offsetHeight; // Force reflow
-        SEC_F.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.22,1,0.36,1)';
-        SEC_F.style.opacity = '1';
-        SEC_F.style.transform = 'translateY(0)';
-        SEC_F.classList.add('is-open');
+        SEC_F.style.display = 'block';
+
+        // Double rAF ensures browser has painted the initial state
+        // before we apply the transition (avoids flash / no-animation)
+        requestAnimationFrame(function(){
+          requestAnimationFrame(function(){
+            SEC_F.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.22,1,0.36,1)';
+            SEC_F.style.opacity = '1';
+            SEC_F.style.transform = 'translateY(0)';
+            SEC_F.classList.add('is-open');
+          });
+        });
       }, 300);
     }, 250);
   }
