@@ -47,11 +47,17 @@
 }
 .cl-bg-overlay {
   position:absolute;inset:0;
-  background:linear-gradient(105deg,
-    rgba(11,31,58,0.92) 0%,
-    rgba(30,47,79,0.80) 35%,
-    rgba(30,47,79,0.40) 60%,
-    rgba(30,47,79,0.05) 100%);
+  /* Stronger navy on left for text readability, dissolves right */
+  background:
+    linear-gradient(110deg,
+      rgba(8,18,38,0.96)  0%,
+      rgba(11,27,55,0.90) 25%,
+      rgba(15,35,70,0.75) 50%,
+      rgba(20,40,80,0.30) 75%,
+      rgba(20,40,80,0.05) 100%),
+    radial-gradient(ellipse 70% 60% at 20% 50%,
+      rgba(47,93,159,0.18) 0%,
+      transparent 70%);
 }
 
 /* ── GRID ── */
@@ -63,115 +69,200 @@
 }
 
 /* ══════════════════════════════════════════
-   LEFT PANEL
+   LEFT PANEL — Cinematic Brand Hero
 ══════════════════════════════════════════ */
 .cl-left {
   display:flex;flex-direction:column;
   justify-content:space-between;
-  padding:40px 52px 44px;
+  padding:44px 56px 48px;
   color:var(--white);
+  position:relative;
 }
 
-/* Home button */
+/* ── Home button ── */
 .cl-home-btn {
-  display:inline-flex;align-items:center;gap:8px;
-  color:rgba(255,255,255,0.85);
-  font-size:0.84rem;font-weight:600;
+  display:inline-flex;align-items:center;gap:9px;
+  color:rgba(255,255,255,0.80);
+  font-size:0.82rem;font-weight:600;
+  letter-spacing:0.03em;
   text-decoration:none;
-  border:1px solid rgba(255,255,255,0.18);
-  background:rgba(255,255,255,0.07);
-  backdrop-filter:blur(8px);
-  padding:9px 20px;border-radius:50px;
-  transition:all 0.3s ease;
+  border:1px solid rgba(255,255,255,0.16);
+  background:rgba(255,255,255,0.05);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  padding:9px 22px;border-radius:50px;
+  transition:background 0.35s ease, border-color 0.35s ease,
+             color 0.25s ease, transform 0.3s ease, box-shadow 0.35s ease;
   width:fit-content;
+  animation:cl-fade-in 0.7s ease 0.1s both;
 }
 .cl-home-btn:hover {
-  background:rgba(247,147,30,0.22);
-  border-color:rgba(247,147,30,0.5);
+  background:rgba(255,255,255,0.10);
+  border-color:rgba(255,255,255,0.32);
   color:var(--white);
-  box-shadow:0 0 20px rgba(247,147,30,0.25);
-  transform:translateY(-2px);
+  box-shadow:0 4px 24px rgba(0,0,0,0.18);
+  transform:translateX(-3px);
 }
-.cl-home-btn i { font-size:0.82rem; }
+.cl-home-btn i { font-size:0.80rem;opacity:0.85; }
 
-/* Center branding */
+/* ── Brand center ── */
 .cl-brand {
   flex:1;display:flex;flex-direction:column;justify-content:center;
-  padding:20px 0;
+  padding:28px 0;
+  position:relative;
 }
 
-/* Logo mark */
-.cl-logo-mark {
-  width:54px;height:54px;
-  border-radius:14px;
-  background:linear-gradient(135deg,var(--navy),var(--blue));
-  border:2px solid rgba(247,147,30,0.5);
-  display:flex;align-items:center;justify-content:center;
-  margin-bottom:28px;
-  box-shadow:0 8px 24px rgba(247,147,30,0.25);
-  animation:fadeInUp 0.8s ease both;
+/* Radial glow behind hero text */
+.cl-brand-glow {
+  position:absolute;
+  top:50%;left:-10%;
+  width:480px;height:360px;
+  transform:translateY(-50%);
+  background:radial-gradient(ellipse at center,
+    rgba(47,93,159,0.22) 0%,
+    rgba(247,147,30,0.06) 45%,
+    transparent 70%);
+  pointer-events:none;
+  animation:cl-glow-pulse 6s ease-in-out infinite;
+  z-index:0;
 }
-.cl-logo-mark i { color:var(--orange);font-size:1.4rem; }
 
+/* ── Company name ── */
 .cl-company-name {
-  font-size:clamp(2.8rem,3.8vw,4.4rem);
+  position:relative;z-index:1;
+  font-size:clamp(3.2rem,4.2vw,5.2rem);
   font-weight:900;
   line-height:1.0;
-  letter-spacing:-0.03em;
-  margin-bottom:6px;
-  animation:fadeInUp 0.8s ease 0.1s both;
+  letter-spacing:-0.02em;
+  margin-bottom:0;
 }
-.cl-current { color:var(--white); }
-.cl-link    { color:var(--orange); }
 
+/* CURRENT — fade up */
+.cl-current {
+  display:inline-block;
+  color:#FFFFFF;
+  letter-spacing:0.04em;
+}
+.cl-anim-word-1 {
+  animation:cl-word-rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.3s both;
+}
+
+/* LINK — slide from left + orange glow */
+.cl-link {
+  display:inline-block;
+  color:#F7931E;
+  letter-spacing:0.08em;
+  /* Soft persistent glow on the word */
+  text-shadow:
+    0 0 28px rgba(247,147,30,0.35),
+    0 0 60px rgba(247,147,30,0.12);
+}
+.cl-anim-word-2 {
+  animation:
+    cl-link-enter 0.65s cubic-bezier(0.22,1,0.36,1) 0.52s both,
+    cl-link-glow  3.5s ease-in-out 1.3s infinite;
+}
+
+/* Whole name micro-float */
+.cl-company-name {
+  animation:cl-float 8s ease-in-out 1.4s infinite;
+}
+/* Override the entrance animations on individual spans so float starts after entries settle */
+
+/* ── Accent rule ── */
 .cl-rule {
-  width:60px;height:3px;
-  background:linear-gradient(90deg,var(--orange),transparent);
+  width:52px;height:2.5px;
+  background:linear-gradient(90deg,var(--orange) 0%,rgba(247,147,30,0.0) 100%);
   border-radius:2px;
-  margin:18px 0 20px;
-  animation:fadeInUp 0.8s ease 0.2s both;
+  margin:22px 0 22px;
+  position:relative;z-index:1;
+}
+.cl-anim-rule {
+  animation:cl-rule-grow 0.6s cubic-bezier(0.22,1,0.36,1) 0.7s both;
 }
 
+/* ── Tagline ── */
 .cl-tagline {
-  font-size:0.82rem;font-weight:700;
-  letter-spacing:0.12em;text-transform:uppercase;
-  color:rgba(255,255,255,0.55);
-  margin-bottom:6px;
-  animation:fadeInUp 0.8s ease 0.25s both;
+  font-size:0.73rem;font-weight:400;
+  letter-spacing:0.18em;text-transform:uppercase;
+  color:rgba(255,255,255,0.52);
+  margin-bottom:14px;
+  position:relative;z-index:1;
 }
-.cl-description {
-  font-size:0.95rem;font-weight:400;
-  color:rgba(255,255,255,0.78);
-  line-height:1.65;margin-bottom:28px;
-  max-width:440px;
-  animation:fadeInUp 0.8s ease 0.3s both;
+.cl-anim-tagline {
+  animation:cl-fade-in-up 0.65s ease 0.8s both;
 }
 
+/* ── Description ── */
+.cl-description {
+  font-size:0.94rem;font-weight:400;
+  color:rgba(229,231,235,0.82);
+  line-height:1.72;margin-bottom:32px;
+  max-width:400px;
+  position:relative;z-index:1;
+}
+.cl-anim-desc {
+  animation:cl-fade-in-up 0.65s ease 1.0s both;
+}
+
+/* ── Features ── */
 .cl-features {
-  display:flex;flex-direction:column;gap:14px;
-  animation:fadeInUp 0.8s ease 0.4s both;
+  display:flex;flex-direction:column;gap:13px;
+  position:relative;z-index:1;
 }
 .cl-feat {
-  display:flex;align-items:center;gap:12px;
-  font-size:0.9rem;color:rgba(255,255,255,0.78);
+  display:flex;align-items:center;gap:13px;
+  font-size:0.88rem;font-weight:400;
+  color:rgba(255,255,255,0.75);
+  letter-spacing:0.01em;
 }
-.cl-feat-dot {
-  width:32px;height:32px;border-radius:9px;
-  background:rgba(255,255,255,0.07);
-  border:1px solid rgba(255,255,255,0.12);
-  display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;
-}
-.cl-feat-dot i { color:var(--orange);font-size:0.85rem; }
 
-.cl-bottom-badge {
-  display:inline-flex;align-items:center;gap:8px;
-  font-size:0.75rem;font-weight:600;
-  color:rgba(255,255,255,0.45);
-  letter-spacing:0.04em;
-  animation:fadeInUp 0.8s ease 0.5s both;
+/* Minimal orange check dot */
+.cl-feat-check {
+  flex-shrink:0;
+  display:inline-block;
+  width:18px;height:18px;
+  border-radius:50%;
+  border:1.5px solid rgba(247,147,30,0.55);
+  position:relative;
 }
-.cl-bottom-badge i { color:rgba(247,147,30,0.6); }
+.cl-feat-check::after {
+  content:'';
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:7px;height:7px;
+  border-radius:50%;
+  background:var(--orange);
+  opacity:0.85;
+}
+
+/* Stagger each feature line */
+.cl-anim-feat-1 { animation:cl-feat-slide 0.55s cubic-bezier(0.22,1,0.36,1) 1.10s both; }
+.cl-anim-feat-2 { animation:cl-feat-slide 0.55s cubic-bezier(0.22,1,0.36,1) 1.22s both; }
+.cl-anim-feat-3 { animation:cl-feat-slide 0.55s cubic-bezier(0.22,1,0.36,1) 1.34s both; }
+
+/* ── Bottom badge ── */
+.cl-bottom-badge {
+  display:inline-flex;align-items:center;gap:9px;
+  font-size:0.72rem;font-weight:500;
+  color:rgba(255,255,255,0.38);
+  letter-spacing:0.07em;
+  text-transform:uppercase;
+}
+.cl-anim-badge {
+  animation:cl-fade-in 0.6s ease 1.5s both;
+}
+
+/* Small pulsing dot indicator */
+.cl-badge-dot {
+  flex-shrink:0;
+  display:inline-block;
+  width:6px;height:6px;
+  border-radius:50%;
+  background:rgba(247,147,30,0.50);
+  animation:cl-dot-pulse 2.5s ease-in-out 1.5s infinite;
+}
 
 /* ══════════════════════════════════════════
    RIGHT PANEL
@@ -526,7 +617,71 @@
 .cl-flash.success {background:rgba(22,163,74,0.08);border:1px solid rgba(22,163,74,0.2);color:#16a34a;}
 .cl-flash.warning {background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);color:#b45309;}
 
-/* ── KEYFRAMES ── */
+/* ══════════════════════════════════════════
+   KEYFRAMES
+══════════════════════════════════════════ */
+
+/* CURRENT: fade + rise */
+@keyframes cl-word-rise {
+  from { opacity:0; transform:translateY(22px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* LINK: slide from left + fade */
+@keyframes cl-link-enter {
+  from { opacity:0; transform:translateX(-18px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+
+/* LINK glow pulse (subtle, infinite) */
+@keyframes cl-link-glow {
+  0%,100% { text-shadow: 0 0 24px rgba(247,147,30,0.30), 0 0 56px rgba(247,147,30,0.10); }
+  50%     { text-shadow: 0 0 36px rgba(247,147,30,0.50), 0 0 80px rgba(247,147,30,0.18); }
+}
+
+/* Name micro-float */
+@keyframes cl-float {
+  0%,100% { transform:translateY(0px); }
+  50%     { transform:translateY(-6px); }
+}
+
+/* Radial glow orb pulse */
+@keyframes cl-glow-pulse {
+  0%,100% { opacity:1;   transform:translateY(-50%) scale(1); }
+  50%     { opacity:0.7; transform:translateY(-50%) scale(1.08); }
+}
+
+/* Rule grow from left */
+@keyframes cl-rule-grow {
+  from { width:0; opacity:0; }
+  to   { width:52px; opacity:1; }
+}
+
+/* Generic fade in up */
+@keyframes cl-fade-in-up {
+  from { opacity:0; transform:translateY(14px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* Generic fade in */
+@keyframes cl-fade-in {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
+
+/* Feature lines slide from left */
+@keyframes cl-feat-slide {
+  from { opacity:0; transform:translateX(-14px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+
+/* Badge dot pulse */
+@keyframes cl-dot-pulse {
+  0%,100% { opacity:0.5; transform:scale(1); }
+  50%     { opacity:1;   transform:scale(1.4); }
+}
+
+/* Panel entrance (right side unchanged) */
 @keyframes fadeInUp {
   from{opacity:0;transform:translateY(20px);}
   to{opacity:1;transform:translateY(0);}
@@ -538,15 +693,19 @@
 /* ── RESPONSIVE ── */
 @media(max-width:1024px){
   .cl-grid{grid-template-columns:1fr;}
-  .cl-left{padding:36px 32px 28px;text-align:center;align-items:center;}
-  .cl-rule{margin:14px auto;}
+  .cl-left{padding:36px 40px 32px;text-align:center;align-items:center;}
+  .cl-brand{align-items:center;}
+  .cl-brand-glow{left:50%;transform:translate(-50%,-50%);}
+  .cl-rule{margin:18px auto 20px;}
   .cl-description{text-align:center;margin-left:auto;margin-right:auto;}
   .cl-features{align-items:center;}
+  .cl-feat{justify-content:center;}
   .cl-right{padding:0 20px 44px;}
+  .cl-bottom-badge{margin:0 auto;}
 }
 @media(max-width:600px){
-  .cl-left{padding:28px 20px 20px;}
-  .cl-company-name{font-size:2.5rem;}
+  .cl-left{padding:28px 20px 24px;}
+  .cl-company-name{font-size:clamp(2.8rem,10vw,3.6rem);}
   .cl-right{padding:0 12px 36px;}
   .cl-form-header,.cl-form-body{padding-left:22px;padding-right:22px;}
   .cl-cards{padding:32px 20px 28px;}
