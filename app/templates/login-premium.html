@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Login — Current Link</title>
+  <meta name="description" content="Current Link Transport & General Contracting LLC SPC — Secure payroll and fleet management portal login.">
+  <link rel="stylesheet" href="{{ url_for('static', filename='premium-portal.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="premium-portal-body">
+
+  <!-- Background: /static/portal-new.png ONLY -->
+  <div class="premium-background">
+    <div class="premium-overlay"></div>
+  </div>
+
+  <!-- Main layout grid -->
+  <div class="premium-container">
+
+    <!-- ══════════════════════════════════════════════════════
+         LEFT — Company Branding
+    ══════════════════════════════════════════════════════ -->
+    <div class="premium-left">
+      <div class="branding-content">
+        <h1 class="company-title">
+          <span class="current-text">CURRENT</span><span class="link-text">LINK</span>
+        </h1>
+        <p class="company-subtitle">Transport and General Contracting LLC SPC</p>
+        <p class="company-tagline">Smart Payroll &amp; Fleet Management System</p>
+
+        <div class="branding-features">
+          <div class="feature-item">
+            <i class="fas fa-shield-alt"></i>
+            <span>Enterprise-Grade Security</span>
+          </div>
+          <div class="feature-item">
+            <i class="fas fa-bolt"></i>
+            <span>Real-time Processing</span>
+          </div>
+          <div class="feature-item">
+            <i class="fas fa-industry"></i>
+            <span>Industrial Grade Portal</span>
+          </div>
+          <div class="feature-item">
+            <i class="fas fa-clock"></i>
+            <span>24 / 7 Availability</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         RIGHT — UI Panel (Cards → Form)
+    ══════════════════════════════════════════════════════ -->
+    <div class="premium-right">
+      <div class="premium-ui-container" id="ui-container">
+
+        <!-- ── Flash messages (shown in form view) ── -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-messages" id="flash-messages" style="position:absolute;top:0;left:0;right:0;padding:20px 36px 0;z-index:50;">
+              {% for category, message in messages %}
+                <div class="flash-msg {{ category }}">
+                  <i class="fas {% if category == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %}"></i>
+                  {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- ════════════════════════════════════════════
+             SECTION A — ROLE CARDS
+        ════════════════════════════════════════════ -->
+        <div class="cards-section" id="cards-section">
+          <div class="cards-header">
+            <h2>SELECT YOUR ACCESS ROLE</h2>
+            <p>Choose your role to access the login form</p>
+          </div>
+
+          <div class="cards-grid" id="cards-grid">
+
+            <!-- Admin -->
+            <div class="premium-card" id="card-admin" data-role="admin" tabindex="0" role="button" aria-label="Admin login">
+              <div class="card-icon">
+                <i class="fas fa-user-shield"></i>
+              </div>
+              <h3>Admin</h3>
+              <p>Full control</p>
+              <div class="card-hint">
+                <i class="fas fa-arrow-right"></i> Click to login
+              </div>
+            </div>
+
+            <!-- Driver -->
+            <div class="premium-card" id="card-driver" data-role="driver" tabindex="0" role="button" aria-label="Driver login">
+              <div class="card-icon">
+                <i class="fas fa-truck-moving"></i>
+              </div>
+              <h3>Driver</h3>
+              <p>Transport ops</p>
+              <div class="card-hint">
+                <i class="fas fa-arrow-right"></i> Click to login
+              </div>
+            </div>
+
+            <!-- Supplier -->
+            <div class="premium-card" id="card-supplier" data-role="supplier" tabindex="0" role="button" aria-label="Supplier login">
+              <div class="card-icon">
+                <i class="fas fa-box-open"></i>
+              </div>
+              <h3>Supplier</h3>
+              <p>Supply chain</p>
+              <div class="card-hint">
+                <i class="fas fa-arrow-right"></i> Click to login
+              </div>
+            </div>
+
+            <!-- Staff -->
+            <div class="premium-card" id="card-staff" data-role="staff" tabindex="0" role="button" aria-label="Staff login">
+              <div class="card-icon">
+                <i class="fas fa-hard-hat"></i>
+              </div>
+              <h3>Staff</h3>
+              <p>Field ops</p>
+              <div class="card-hint">
+                <i class="fas fa-arrow-right"></i> Click to login
+              </div>
+            </div>
+
+          </div><!-- /cards-grid -->
+
+          <div class="cards-footer">
+            <p class="security-note">
+              <i class="fas fa-lock"></i>
+              All connections are secured with 256-bit SSL encryption
+            </p>
+          </div>
+        </div><!-- /cards-section -->
+
+        <!-- ════════════════════════════════════════════
+             SECTION B — LOGIN FORM
+        ════════════════════════════════════════════ -->
+        <div class="login-form-section" id="login-form-section">
+
+          <div class="form-header">
+            <button class="back-to-cards" id="back-to-cards" type="button">
+              <i class="fas fa-arrow-left"></i> Back to Roles
+            </button>
+            <div class="role-badge" id="role-badge">
+              <i class="fas fa-user-shield" id="role-badge-icon"></i>
+              <span id="role-badge-label">Admin</span>
+            </div>
+            <h3 id="form-title">Admin Login</h3>
+            <p id="form-subtitle">Enter your credentials to access the portal</p>
+          </div>
+
+          <!-- ── FORM — preserves all existing backend fields ── -->
+          <form method="post"
+                action="{{ url_for('login') }}"
+                class="premium-login-form"
+                id="premium-login-form"
+                novalidate>
+
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="role" id="selected-role-input" value="{{ selected_role or 'admin' }}">
+
+            <!-- ── Admin credentials ── -->
+            <div class="credential-group active" data-credential="admin">
+              <div class="form-group">
+                <label for="admin-password">Admin Password</label>
+                <div class="input-with-icon">
+                  <i class="fas fa-key"></i>
+                  <input type="password"
+                         id="admin-password"
+                         name="password"
+                         placeholder="Enter admin password"
+                         autocomplete="current-password"
+                         required>
+                  <button type="button" class="toggle-password" data-target="admin-password" aria-label="Toggle password">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Driver credentials ── -->
+            <div class="credential-group" data-credential="driver">
+              <div class="form-group">
+                <label for="driver-phone">Phone Number</label>
+                <div class="input-with-icon">
+                  <i class="fas fa-phone"></i>
+                  <input type="tel"
+                         id="driver-phone"
+                         name="phone_number"
+                         placeholder="Enter registered phone number"
+                         inputmode="tel"
+                         autocomplete="tel">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="driver-pin">Driver PIN</label>
+                <div class="input-with-icon">
+                  <i class="fas fa-lock"></i>
+                  <input type="password"
+                         id="driver-pin"
+                         name="driver_pin"
+                         placeholder="Enter 4-digit PIN"
+                         inputmode="numeric"
+                         minlength="4"
+                         maxlength="8"
+                         autocomplete="current-password">
+                  <button type="button" class="toggle-password" data-target="driver-pin" aria-label="Toggle PIN">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Supplier credentials ── -->
+            <div class="credential-group" data-credential="supplier">
+              <div class="form-group">
+                <label for="supplier-user-id">Supplier User ID</label>
+                <div class="input-with-icon">
+                  <i class="fas fa-user"></i>
+                  <input type="text"
+                         id="supplier-user-id"
+                         name="user_id"
+                         placeholder="Enter your user ID"
+                         autocomplete="username">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="supplier-password">Supplier Password</label>
+                <div class="input-with-icon">
+                  <i class="fas fa-key"></i>
+                  <input type="password"
+                         id="supplier-password"
+                         name="password"
+                         placeholder="Enter your password"
+                         autocomplete="current-password">
+                  <button type="button" class="toggle-password" data-target="supplier-password" aria-label="Toggle password">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Staff credentials ── -->
+            <div class="credential-group" data-credential="staff">
+              <div class="form-group">
+                <label for="staff-username">Staff Username</label>
+                <div class="input-with-icon">
+                  <i class="fas fa-user"></i>
+                  <input type="text"
+                         id="staff-username"
+                         name="username"
+                         placeholder="Enter your username"
+                         autocomplete="username">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="staff-password">Staff Password</label>
+                <div class="input-with-icon">
+                  <i class="fas fa-key"></i>
+                  <input type="password"
+                         id="staff-password"
+                         name="password"
+                         placeholder="Enter your password"
+                         autocomplete="current-password">
+                  <button type="button" class="toggle-password" data-target="staff-password" aria-label="Toggle password">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Options row ── -->
+            <div class="form-options">
+              <label class="checkbox-container">
+                <input type="checkbox" name="remember" id="remember-me">
+                Remember me
+              </label>
+              <a href="#" class="forgot-link">Forgot Password?</a>
+            </div>
+
+            <!-- ── Submit ── -->
+            <button type="submit" class="login-button" id="login-submit-btn">
+              <span class="button-text">Sign In</span>
+              <i class="fas fa-arrow-right"></i>
+            </button>
+
+            <div class="form-footer">
+              <p id="form-tip">Enter your credentials to access the Current Link portal.</p>
+            </div>
+
+          </form>
+        </div><!-- /login-form-section -->
+
+      </div><!-- /premium-ui-container -->
+    </div><!-- /premium-right -->
+  </div><!-- /premium-container -->
+
+  <script>
+  (() => {
+    // ── DOM refs ──────────────────────────────────────────
+    const cards        = document.querySelectorAll('.premium-card');
+    const cardsSection = document.getElementById('cards-section');
+    const formSection  = document.getElementById('login-form-section');
+    const roleInput    = document.getElementById('selected-role-input');
+    const loginForm    = document.getElementById('premium-login-form');
+    const formTitle    = document.getElementById('form-title');
+    const formSubtitle = document.getElementById('form-subtitle');
+    const formTip      = document.getElementById('form-tip');
+    const badgeLabel   = document.getElementById('role-badge-label');
+    const badgeIcon    = document.getElementById('role-badge-icon');
+    const backBtn      = document.getElementById('back-to-cards');
+    const submitBtn    = document.getElementById('login-submit-btn');
+    const credGroups   = document.querySelectorAll('[data-credential]');
+    const toggleBtns   = document.querySelectorAll('.toggle-password');
+    const flashBox     = document.getElementById('flash-messages');
+
+    // ── Role config ───────────────────────────────────────
+    const ROLES = {
+      admin: {
+        title:    'Admin Login',
+        subtitle: 'Enter your admin password for full system access',
+        tip:      'Use the admin password to access the dashboard and full control panel.',
+        icon:     'fas fa-user-shield',
+        label:    'Admin',
+        action:   '{{ url_for("login") }}'
+      },
+      driver: {
+        title:    'Driver Login',
+        subtitle: 'Use your registered phone number and PIN',
+        tip:      'Enter your registered phone number and 4-digit driver PIN.',
+        icon:     'fas fa-truck-moving',
+        label:    'Driver',
+        action:   '{{ url_for("login") }}'
+      },
+      supplier: {
+        title:    'Supplier Login',
+        subtitle: 'Access the supply chain portal with your credentials',
+        tip:      'Enter your supplier user ID and password to access your portal.',
+        icon:     'fas fa-box-open',
+        label:    'Supplier',
+        action:   '{{ url_for("supplier_login") }}'
+      },
+      staff: {
+        title:    'Staff Login',
+        subtitle: 'Field operations access with your staff credentials',
+        tip:      'Enter your staff username and password for field operations access.',
+        icon:     'fas fa-hard-hat',
+        label:    'Staff',
+        action:   '{{ url_for("technician_login") }}'
+      }
+    };
+
+    // ── Initial card entrance animation ──────────────────
+    function initCardEntrance() {
+      cards.forEach((card, i) => {
+        card.classList.remove('visible', 'fading-out');
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(22px) scale(0.97)';
+        card.style.filter = '';
+        setTimeout(() => {
+          card.style.transition = 'opacity 0.45s ease, transform 0.45s cubic-bezier(0.4,0,0.2,1)';
+          card.classList.add('visible');
+        }, 320 + i * 80);
+      });
+    }
+    initCardEntrance();
+
+    // Move flash messages into form if role was pre-selected
+    if (flashBox) {
+      const role = roleInput.value || 'admin';
+      const cfg  = ROLES[role];
+      if (cfg) {
+        // Flash present → open form immediately on role from server
+        openForm(role, false);
+        // Append flash inside form section
+        formSection.insertBefore(flashBox, formSection.firstChild);
+        flashBox.style.position = 'relative';
+        flashBox.style.padding  = '0 0 4px';
+      }
+    }
+
+    // ── Password toggle ───────────────────────────────────
+    toggleBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const icon  = btn.querySelector('i');
+        if (!input) return;
+        if (input.type === 'password') {
+          input.type = 'text';
+          icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+          input.type = 'password';
+          icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+      });
+    });
+
+    // ── Activate credential group ─────────────────────────
+    function activateCredentials(role) {
+      credGroups.forEach(g => {
+        const active = g.dataset.credential === role;
+        g.classList.toggle('active', active);
+        g.querySelectorAll('input').forEach(inp => {
+          if (active) {
+            inp.removeAttribute('disabled');
+          } else {
+            inp.setAttribute('disabled', 'disabled');
+            inp.value = '';
+          }
+        });
+        if (active) {
+          const first = g.querySelector('input');
+          if (first) setTimeout(() => first.focus(), 420);
+        }
+      });
+    }
+
+    // ── Open form (core logic) ────────────────────────────
+    function openForm(role, animate) {
+      const cfg = ROLES[role];
+      if (!cfg) return;
+
+      // Update meta
+      roleInput.value      = role;
+      formTitle.textContent   = cfg.title;
+      formSubtitle.textContent = cfg.subtitle;
+      formTip.textContent     = cfg.tip;
+      badgeLabel.textContent  = cfg.label;
+      badgeIcon.className     = cfg.icon;
+      loginForm.action        = cfg.action;
+
+      activateCredentials(role);
+
+      if (!animate) {
+        cardsSection.style.display = 'none';
+        formSection.style.display  = 'block';
+        formSection.style.opacity  = '1';
+        formSection.style.transform = 'translateX(0)';
+        return;
+      }
+
+      // Step 1: selected card zooms
+      const selectedCard = document.querySelector(`[data-role="${role}"]`);
+      if (selectedCard) {
+        selectedCard.classList.add('selected');
+      }
+
+      // Step 2: other cards fade out
+      cards.forEach(c => {
+        if (c !== selectedCard) {
+          c.classList.add('fading-out');
+        }
+      });
+
+      // Step 3: after 260ms hide cards, show form
+      setTimeout(() => {
+        cardsSection.classList.add('exiting');
+
+        setTimeout(() => {
+          cardsSection.style.display = 'none';
+          cardsSection.classList.remove('exiting');
+
+          formSection.style.display   = 'block';
+          formSection.style.opacity   = '0';
+          formSection.style.transform = 'translateX(28px)';
+
+          // Trigger reflow then slide in
+          void formSection.offsetHeight;
+          formSection.classList.add('slide-in');
+        }, 340);
+      }, 260);
+    }
+
+    // ── Card click handler ────────────────────────────────
+    cards.forEach(card => {
+      card.addEventListener('click', () => openForm(card.dataset.role, true));
+      card.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openForm(card.dataset.role, true);
+        }
+      });
+    });
+
+    // ── Back button ───────────────────────────────────────
+    backBtn.addEventListener('click', () => {
+      // Step 1: form slides out
+      formSection.classList.remove('slide-in');
+      formSection.style.opacity   = '0';
+      formSection.style.transform = 'translateY(16px)';
+
+      setTimeout(() => {
+        formSection.style.display = 'none';
+
+        // Reset form
+        loginForm.reset();
+        credGroups.forEach(g => {
+          g.classList.remove('active');
+          g.querySelectorAll('input').forEach(inp => {
+            inp.setAttribute('disabled', 'disabled');
+          });
+        });
+
+        // Remove any flash moved into form
+        const movedFlash = formSection.querySelector('#flash-messages');
+        if (movedFlash) movedFlash.remove();
+
+        // Show cards section
+        cardsSection.style.display = 'block';
+
+        // Step 2: reset all cards to hidden state
+        cards.forEach(c => {
+          c.classList.remove('selected', 'visible', 'fading-out');
+          c.style.opacity   = '0';
+          c.style.transform = 'translateY(22px) scale(0.95)';
+          c.style.filter    = 'blur(0)';
+          c.style.transition = 'none';
+        });
+
+        // Step 3: staggered card return animation
+        const cardOrder = ['admin', 'driver', 'supplier', 'staff'];
+        cardOrder.forEach((role, i) => {
+          const card = document.querySelector(`[data-role="${role}"]`);
+          if (!card) return;
+          setTimeout(() => {
+            card.style.transition = 'opacity 0.45s cubic-bezier(0.4,0,0.2,1), transform 0.45s cubic-bezier(0.4,0,0.2,1), filter 0.45s ease';
+            card.style.opacity    = '1';
+            card.style.transform  = 'translateY(0) scale(1)';
+            card.style.filter     = 'blur(0)';
+            card.classList.add('visible');
+          }, 60 + i * 95); // 95ms stagger: Admin→Driver→Supplier→Staff
+        });
+
+        // Reset form title & action to default
+        formTitle.textContent    = 'Admin Login';
+        formSubtitle.textContent = 'Enter your credentials to access the portal';
+        loginForm.action         = '{{ url_for("login") }}';
+        roleInput.value          = 'admin';
+      }, 300);
+    });
+
+    // ── Form submit loading state ─────────────────────────
+    loginForm.addEventListener('submit', () => {
+      const btnText = submitBtn.querySelector('.button-text');
+      btnText.textContent = 'Signing In…';
+      submitBtn.disabled  = true;
+    });
+
+    // ── Keyboard shortcut: Escape → back ─────────────────
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && formSection.style.display === 'block') {
+        backBtn.click();
+      }
+    });
+
+  })();
+  </script>
+
+</body>
+</html>

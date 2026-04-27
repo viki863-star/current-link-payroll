@@ -1,754 +1,512 @@
-{% extends "base.html" %}
-{% block title %}Portal Login{% endblock %}
-{% block body_class %}cl-login-page{% endblock %}
-{% block shell_header %}{% endblock %}
-{% block shell_footer %}{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Portal Login — Current Link</title>
+<meta name="description" content="Current Link Transport & General Contracting — Secure enterprise login portal.">
+<link rel="stylesheet" href="{{ url_for('static', filename='premium-portal.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="cl-portal-body">
 
-{% block content %}
-{% set initial_role = selected_role if request.method == "POST" else "" %}
-<style>
-html,
-body.cl-login-page {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-}
+<!-- Background: /static/portal-new.png ONLY -->
+<div class="cl-bg"><div class="cl-bg-overlay"></div></div>
 
-body.cl-login-page .brand-shell {
-    display: contents;
-}
+<div class="cl-grid">
 
-body.cl-login-page .page {
-    margin: 0;
-    padding: 0;
-    max-width: none;
-    min-height: 100vh;
-}
+  <!-- ══════════════════════════════════════════
+       LEFT — Premium Company Branding
+  ══════════════════════════════════════════ -->
+  <div class="cl-left">
 
-body.cl-login-page .site-footer {
-    display: none;
-}
+    <!-- Home button -->
+    <a href="{{ url_for('home') }}" class="cl-home-btn" id="home-btn">
+      <i class="fas fa-arrow-left"></i> Back to Home
+    </a>
 
-body.cl-login-page .flash-stack {
-    position: fixed;
-    top: 18px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 40;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: min(92vw, 520px);
-}
+    <!-- Main branding -->
+    <div class="cl-brand">
+      <!-- Logo mark -->
+      <div class="cl-logo-mark">
+        <i class="fas fa-link"></i>
+      </div>
 
-body.cl-login-page .flash {
-    border-radius: 12px;
-    padding: 12px 16px;
-    box-shadow: 0 18px 40px rgba(11, 31, 58, 0.24);
-    font-size: 0.92rem;
-    font-weight: 600;
-}
+      <!-- Company name -->
+      <h1 class="cl-company-name">
+        <span class="cl-current">CURRENT</span><br>
+        <span class="cl-link">LINK</span>
+      </h1>
 
-body.cl-login-page .flash-error { background: #dc2626; color: #fff; }
-body.cl-login-page .flash-success { background: #059669; color: #fff; }
-body.cl-login-page .flash-warning { background: #d97706; color: #fff; }
-body.cl-login-page .flash-info { background: #1d4ed8; color: #fff; }
+      <!-- Decorative accent rule -->
+      <div class="cl-rule"></div>
 
-.portal-screen {
-    position: relative;
-    min-height: 100vh;
-    height: 100vh;
-    overflow: hidden;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: clamp(18px, 3vw, 42px);
-    font-family: "Segoe UI", "Inter", sans-serif;
-}
+      <!-- Subheading -->
+      <p class="cl-tagline">Transport &amp; General Contracting LLC SPC</p>
 
-.portal-screen::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: url("{{ url_for('static', filename='portal-bg.png') }}") center center / cover no-repeat;
-}
+      <!-- Description -->
+      <p class="cl-description">
+        A smart digital platform for managing workforce, transport operations, and payroll systems with efficiency, accuracy, and real-time control.
+      </p>
 
-.portal-screen::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, rgba(9, 23, 43, 0.04) 0%, rgba(9, 23, 43, 0.02) 48%, rgba(9, 23, 43, 0.12) 100%);
-}
+      <!-- Feature list -->
+      <div class="cl-features">
+        <div class="cl-feat">
+          <div class="cl-feat-dot"><i class="fas fa-shield-halved"></i></div>
+          <span>Secure &amp; Encrypted Access</span>
+        </div>
+        <div class="cl-feat">
+          <div class="cl-feat-dot"><i class="fas fa-bolt"></i></div>
+          <span>Real-time Updates &amp; Reports</span>
+        </div>
+        <div class="cl-feat">
+          <div class="cl-feat-dot"><i class="fas fa-clock-rotate-left"></i></div>
+          <span>24/7 System Availability</span>
+        </div>
+      </div>
+    </div>
 
-.portal-panel {
-    position: relative;
-    z-index: 2;
-    width: min(376px, 100%);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.98);
-    border: 1px solid rgba(229, 231, 235, 0.95);
-    box-shadow: 0 30px 80px rgba(11, 31, 58, 0.22);
-    padding: 22px 20px 18px;
-    color: #0B1F3A;
-}
+    <!-- Bottom security badge -->
+    <div class="cl-bottom-badge">
+      <i class="fas fa-lock"></i>
+      256-bit SSL &nbsp;·&nbsp; SECURE ENTERPRISE PORTAL
+    </div>
 
-.portal-head {
-    margin-bottom: 14px;
-}
+  </div><!-- /cl-left -->
 
-.portal-eyebrow {
-    display: block;
-    margin: 0;
-    color: #243a5a;
-    font-size: 0.74rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
+  <!-- ══════════════════════════════════════════
+       RIGHT — Interactive UI Panel
+  ══════════════════════════════════════════ -->
+  <div class="cl-right">
+    <div class="cl-panel" id="cl-panel">
 
-.portal-divider {
-    height: 1px;
-    background: #e8edf4;
-    margin: 2px 0 0;
-}
+      <!-- ══ CARDS SECTION ══ -->
+      <div class="cl-cards" id="cl-cards">
 
-.portal-form {
-    display: grid;
-    gap: 14px;
-}
-
-.role-grid {
-    display: flex;
-    gap: 8px;
-}
-
-.role-card {
-    appearance: none;
-    flex: 1 1 0;
-    min-height: 86px;
-    border: 1px solid #e5e7eb;
-    background: #fff;
-    border-radius: 10px;
-    padding: 10px 8px 8px;
-    display: grid;
-    gap: 6px;
-    justify-items: center;
-    text-align: center;
-    cursor: pointer;
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.role-card:hover {
-    transform: translateY(-1px);
-    border-color: rgba(245, 158, 11, 0.5);
-    box-shadow: 0 10px 22px rgba(11, 31, 58, 0.08);
-}
-
-.role-card.is-active {
-    border-color: #F59E0B;
-    background: linear-gradient(180deg, #ffb21f 0%, #f59e0b 100%);
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14), 0 12px 26px rgba(245, 158, 11, 0.26);
-}
-
-.role-badge {
-    width: 30px;
-    height: 30px;
-    border-radius: 9px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #f8fafc;
-    color: #0B1F3A;
-    border: 1px solid #e5e7eb;
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-}
-
-.role-badge svg {
-    width: 16px;
-    height: 16px;
-}
-
-.role-card.is-active .role-badge {
-    background: rgba(255, 255, 255, 0.18);
-    border-color: rgba(255, 255, 255, 0.28);
-    color: #111827;
-}
-
-.role-name {
-    font-size: 0.92rem;
-    font-weight: 700;
-    color: #0B1F3A;
-}
-
-.role-card.is-active .role-name {
-    color: #111827;
-}
-
-.role-copy {
-    font-size: 0.7rem;
-    color: #7b8aa0;
-    line-height: 1.35;
-}
-
-.role-card.is-active .role-copy {
-    color: rgba(17, 24, 39, 0.82);
-}
-
-.portal-stage {
-    display: none;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.24s ease, transform 0.24s ease;
-}
-
-.portal-stage.is-visible {
-    display: grid;
-    gap: 14px;
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.portal-role-note {
-    margin: 0;
-    color: #243a5a;
-    font-size: 0.74rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
-.portal-group-note {
-    margin: -6px 0 0;
-    font-size: 0.72rem;
-    line-height: 1.45;
-    color: #7b8aa0;
-}
-
-.portal-group {
-    display: none;
-    gap: 14px;
-}
-
-.portal-group.is-active {
-    display: grid;
-    animation: portalFadeIn 0.24s ease both;
-}
-
-@keyframes portalFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.field-wrap {
-    display: grid;
-    gap: 7px;
-}
-
-.field-wrap label {
-    font-size: 0.84rem;
-    font-weight: 700;
-    color: #283c58;
-}
-
-.field-input {
-    position: relative;
-}
-
-.field-icon,
-.field-tail-icon {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #66788f;
-    pointer-events: none;
-}
-
-.field-icon {
-    left: 13px;
-}
-
-.field-tail-icon {
-    right: 13px;
-}
-
-.field-icon svg,
-.field-tail-icon svg {
-    width: 15px;
-    height: 15px;
-}
-
-.field-wrap input {
-    width: 100%;
-    min-height: 34px;
-    border-radius: 12px;
-    border: 1px solid #dde4ee;
-    background: #fff;
-    padding: 0 40px 0 38px;
-    font-size: 0.88rem;
-    color: #0B1F3A;
-    outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    box-sizing: border-box;
-}
-
-.field-wrap input::placeholder {
-    color: #95a4b8;
-}
-
-.field-wrap input:focus {
-    border-color: #F59E0B;
-    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.14);
-}
-
-.portal-tools {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: -2px;
-}
-
-.remember-check {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 0.8rem;
-    color: #44566f;
-}
-
-.remember-check input {
-    width: 13px;
-    height: 13px;
-    accent-color: #F59E0B;
-}
-
-.portal-help-link {
-    font-size: 0.76rem;
-    font-weight: 700;
-    color: #F59E0B;
-    text-decoration: none;
-    transition: color 0.2s ease;
-}
-
-.portal-help-link:hover {
-    color: #d98d08;
-}
-
-.portal-submit {
-    width: 100%;
-    min-height: 44px;
-    border: none;
-    border-radius: 12px;
-    background: linear-gradient(90deg, #ffb21f 0%, #f59e0b 100%);
-    color: #fff;
-    font-size: 0.92rem;
-    font-weight: 800;
-    letter-spacing: 0.01em;
-    cursor: pointer;
-    position: relative;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 14px 28px rgba(245, 158, 11, 0.24);
-}
-
-.portal-submit:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 18px 34px rgba(245, 158, 11, 0.28);
-}
-
-.portal-submit::after {
-    content: "→";
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1rem;
-}
-
-.portal-submit[hidden] {
-    display: none;
-}
-
-.portal-footnote {
-    margin-top: 0;
-    font-size: 0.72rem;
-    color: #7b8aa0;
-    text-align: center;
-    line-height: 1.45;
-}
-
-@media (max-width: 900px) {
-    .portal-screen {
-        justify-content: center;
-        padding: 16px;
-    }
-
-    .portal-screen::after {
-        background: linear-gradient(180deg, rgba(11, 31, 58, 0.08) 0%, rgba(11, 31, 58, 0.1) 100%);
-    }
-
-    .portal-panel {
-        width: min(376px, 100%);
-    }
-}
-
-@media (max-width: 560px) {
-    .portal-panel {
-        border-radius: 12px;
-        padding: 16px;
-    }
-
-    .role-grid {
-        flex-wrap: wrap;
-    }
-
-    .role-card {
-        min-width: calc(50% - 4px);
-    }
-}
-</style>
-
-<section class="portal-screen">
-    <article class="portal-panel" aria-label="Portal login">
-        <div class="portal-head">
-            <span class="portal-eyebrow">Select your access role</span>
+        <div class="cl-cards-head">
+          <h2>SELECT YOUR ACCESS ROLE</h2>
+          <p>Choose your role to continue</p>
         </div>
 
-        <form method="post" class="portal-form" id="portalLoginForm" autocomplete="off">
+        <div class="cl-grid-2">
+
+          <!-- Admin -->
+          <div class="cl-card" id="c-admin" data-role="admin" tabindex="0" role="button" aria-label="Admin login">
+            <div class="cl-card-bar"></div>
+            <div class="cl-card-body">
+              <div class="cl-card-icon"><i class="fas fa-user-shield"></i></div>
+              <h3>Admin</h3>
+              <p>Full control</p>
+              <div class="cl-card-accent"></div>
+            </div>
+          </div>
+
+          <!-- Driver -->
+          <div class="cl-card" id="c-driver" data-role="driver" tabindex="0" role="button" aria-label="Driver login">
+            <div class="cl-card-bar"></div>
+            <div class="cl-card-body">
+              <div class="cl-card-icon"><i class="fas fa-truck-moving"></i></div>
+              <h3>Driver</h3>
+              <p>Transport ops</p>
+              <div class="cl-card-accent"></div>
+            </div>
+          </div>
+
+          <!-- Supplier -->
+          <div class="cl-card" id="c-supplier" data-role="supplier" tabindex="0" role="button" aria-label="Supplier login">
+            <div class="cl-card-bar"></div>
+            <div class="cl-card-body">
+              <div class="cl-card-icon"><i class="fas fa-box-open"></i></div>
+              <h3>Supplier</h3>
+              <p>Supply chain</p>
+              <div class="cl-card-accent"></div>
+            </div>
+          </div>
+
+          <!-- Staff -->
+          <div class="cl-card" id="c-staff" data-role="staff" tabindex="0" role="button" aria-label="Staff login">
+            <div class="cl-card-bar"></div>
+            <div class="cl-card-body">
+              <div class="cl-card-icon"><i class="fas fa-hard-hat"></i></div>
+              <h3>Staff</h3>
+              <p>Field ops</p>
+              <div class="cl-card-accent"></div>
+            </div>
+          </div>
+
+        </div><!-- /cl-grid-2 -->
+
+        <div class="cl-cards-foot">
+          <p class="cl-secure-note">
+            <i class="fas fa-lock"></i>
+            All connections encrypted &nbsp;·&nbsp; Session secured
+          </p>
+        </div>
+
+      </div><!-- /cl-cards -->
+
+      <!-- ══ LOGIN FORM SECTION ══ -->
+      <div class="cl-form-wrap" id="cl-form-wrap">
+
+        <!-- Coloured accent strip -->
+        <div class="cl-form-accent" id="cl-accent"></div>
+
+        <div class="cl-form-header">
+
+          <button class="cl-back-btn" id="cl-back" type="button">
+            <i class="fas fa-chevron-left"></i> ← Back to Roles
+          </button>
+
+          <!-- Role pill badge -->
+          <div class="cl-role-pill" id="cl-pill">
+            <i id="cl-pill-icon" class="fas fa-user-shield"></i>
+            <span id="cl-pill-label">Admin</span>
+          </div>
+
+          <h3 id="cl-form-title">Admin Login</h3>
+          <p id="cl-form-sub">Enter your credentials to access the portal</p>
+
+          <!-- Flash messages inside form -->
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              <div class="cl-flash-box" id="cl-flash-box" style="margin-top:14px;">
+                {% for cat, msg in messages %}
+                  <div class="cl-flash {{ cat }}">
+                    <i class="fas {% if cat=='error' %}fa-circle-exclamation{% elif cat=='success' %}fa-circle-check{% else %}fa-circle-info{% endif %}"></i>
+                    {{ msg }}
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
+
+        </div><!-- /cl-form-header -->
+
+        <div class="cl-form-body">
+          <form id="cl-form"
+                method="post"
+                action="{{ url_for('login') }}"
+                class="cl-login-form"
+                data-focus="admin"
+                novalidate>
+
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="role" id="portalRoleInput" value="{{ initial_role }}">
+            <input type="hidden" name="role" id="cl-role-val" value="{{ selected_role or 'admin' }}">
 
-            <div class="role-grid" role="group" aria-label="Select role">
-                <button type="button" class="role-card" data-role="admin">
-                    <span class="role-badge">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 3l7 4v5c0 5-3.4 8.7-7 10-3.6-1.3-7-5-7-10V7l7-4z"/>
-                            <path d="M12 8v8"/>
-                            <path d="M9 11h6"/>
-                        </svg>
-                    </span>
-                    <span class="role-name">Admin</span>
-                    <span class="role-copy">Full control</span>
-                </button>
-                <button type="button" class="role-card" data-role="driver">
-                    <span class="role-badge">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="7.5" cy="16.5" r="2.5"/>
-                            <circle cx="16.5" cy="16.5" r="2.5"/>
-                            <path d="M5 16V9l2-3h10l2 3v7"/>
-                            <path d="M5 11h14"/>
-                            <path d="M12 11v-2"/>
-                        </svg>
-                    </span>
-                    <span class="role-name">Driver</span>
-                    <span class="role-copy">Transport ops</span>
-                </button>
-                <button type="button" class="role-card" data-role="supplier">
-                    <span class="role-badge">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/>
-                            <path d="M4 7.5L12 12l8-4.5"/>
-                            <path d="M12 12v9"/>
-                        </svg>
-                    </span>
-                    <span class="role-name">Supplier</span>
-                    <span class="role-copy">Supply chain</span>
-                </button>
-                <button type="button" class="role-card" data-role="technician">
-                    <span class="role-badge">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 3v5"/>
-                            <path d="M7 8h10"/>
-                            <path d="M9 8V6.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6.5V8"/>
-                            <path d="M6 10h12l-1.2 6.1A3 3 0 0 1 13.9 19H10.1a3 3 0 0 1-2.9-2.9L6 10z"/>
-                        </svg>
-                    </span>
-                    <span class="role-name">Staff</span>
-                    <span class="role-copy">Field ops</span>
-                </button>
+            <!-- ── Admin ── -->
+            <div class="cl-cred-group is-active" data-cred="admin">
+              <div class="cl-field">
+                <label for="f-admin-pw">Admin Password</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-key"></i>
+                  <input type="password" id="f-admin-pw" name="password"
+                         placeholder="Enter admin password"
+                         autocomplete="current-password">
+                  <button type="button" class="cl-eye-btn" data-t="f-admin-pw">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div class="portal-divider"></div>
-
-            <div class="portal-stage" id="portalStage">
-                <div class="portal-role-note">Enter your credentials</div>
-                <p id="portalRoleNote" class="portal-group-note"></p>
-
-                <div class="portal-group" data-group="admin">
-                    <div class="field-wrap">
-                        <label for="adminPassword">Password</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="5" y="11" width="14" height="10" rx="2"/>
-                                    <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
-                                </svg>
-                            </span>
-                            <input type="password" id="adminPassword" name="password" placeholder="Enter your password" autocomplete="current-password">
-                            <span class="field-tail-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/>
-                                    <circle cx="12" cy="12" r="2.5"/>
-                                </svg>
-                            </span>
-                        </div>
-                    </div>
+            <!-- ── Driver ── -->
+            <div class="cl-cred-group" data-cred="driver">
+              <div class="cl-field">
+                <label for="f-drv-phone">Registered Phone</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-phone"></i>
+                  <input type="tel" id="f-drv-phone" name="phone_number"
+                         placeholder="e.g. +971 50 000 0000"
+                         autocomplete="tel" disabled>
                 </div>
-
-                <div class="portal-group" data-group="driver">
-                    <div class="field-wrap">
-                        <label for="driverPhone">Phone Number</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1A19.5 19.5 0 0 1 5.2 12.8 19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.4 2.6a2 2 0 0 1-.6 1.7L7.2 9.7a16 16 0 0 0 7.1 7.1l1.7-1.7a2 2 0 0 1 1.7-.6l2.6.4A2 2 0 0 1 22 16.9z"/>
-                                </svg>
-                            </span>
-                            <input type="text" id="driverPhone" name="phone_number" placeholder="Enter your phone number" inputmode="tel">
-                        </div>
-                    </div>
-                    <div class="field-wrap">
-                        <label for="driverPin">Password / PIN</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="5" y="11" width="14" height="10" rx="2"/>
-                                    <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
-                                </svg>
-                            </span>
-                            <input type="password" id="driverPin" name="driver_pin" placeholder="Enter your password" inputmode="numeric">
-                            <span class="field-tail-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/>
-                                    <circle cx="12" cy="12" r="2.5"/>
-                                </svg>
-                            </span>
-                        </div>
-                    </div>
+              </div>
+              <div class="cl-field">
+                <label for="f-drv-pin">Driver PIN</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-lock"></i>
+                  <input type="password" id="f-drv-pin" name="driver_pin"
+                         placeholder="4-digit PIN" inputmode="numeric"
+                         maxlength="8" disabled>
+                  <button type="button" class="cl-eye-btn" data-t="f-drv-pin">
+                    <i class="fas fa-eye"></i>
+                  </button>
                 </div>
-
-                <div class="portal-group" data-group="supplier">
-                    <div class="field-wrap">
-                        <label for="supplierUser">Username / Email</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M20 21a8 8 0 0 0-16 0"/>
-                                    <circle cx="12" cy="8" r="4"/>
-                                </svg>
-                            </span>
-                            <input type="text" id="supplierUser" name="user_id" placeholder="Enter your username or email">
-                        </div>
-                    </div>
-                    <div class="field-wrap">
-                        <label for="supplierPassword">Password</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="5" y="11" width="14" height="10" rx="2"/>
-                                    <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
-                                </svg>
-                            </span>
-                            <input type="password" id="supplierPassword" name="password" placeholder="Enter your password" autocomplete="current-password">
-                            <span class="field-tail-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/>
-                                    <circle cx="12" cy="12" r="2.5"/>
-                                </svg>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="portal-group" data-group="technician">
-                    <div class="field-wrap">
-                        <label for="staffUser">Username / Email</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M20 21a8 8 0 0 0-16 0"/>
-                                    <circle cx="12" cy="8" r="4"/>
-                                </svg>
-                            </span>
-                            <input type="text" id="staffUser" name="user_id" placeholder="Enter your username or email">
-                        </div>
-                    </div>
-                    <div class="field-wrap">
-                        <label for="staffPassword">Password</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="5" y="11" width="14" height="10" rx="2"/>
-                                    <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
-                                </svg>
-                            </span>
-                            <input type="password" id="staffPassword" name="password" placeholder="Enter your password" autocomplete="current-password">
-                            <span class="field-tail-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/>
-                                    <circle cx="12" cy="12" r="2.5"/>
-                                </svg>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="portal-tools">
-                    <label class="remember-check">
-                        <input type="checkbox" name="remember_me" value="1">
-                        <span>Remember me</span>
-                    </label>
-                    <a class="portal-help-link" id="portalHelpLink" href="#">Forgot Password?</a>
-                </div>
-
-                <button class="portal-submit" type="submit" id="portalSubmit">Access Portal</button>
-                <p class="portal-footnote" id="portalFootnote">Choose a role first to continue.</p>
+              </div>
             </div>
-        </form>
-    </article>
-</section>
+
+            <!-- ── Supplier ── -->
+            <div class="cl-cred-group" data-cred="supplier">
+              <div class="cl-field">
+                <label for="f-sup-id">Supplier User ID</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-id-card"></i>
+                  <input type="text" id="f-sup-id" name="user_id"
+                         placeholder="Your supplier user ID"
+                         autocomplete="username" disabled>
+                </div>
+              </div>
+              <div class="cl-field">
+                <label for="f-sup-pw">Password</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-key"></i>
+                  <input type="password" id="f-sup-pw" name="password"
+                         placeholder="Your password" disabled>
+                  <button type="button" class="cl-eye-btn" data-t="f-sup-pw">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Staff ── -->
+            <div class="cl-cred-group" data-cred="staff">
+              <div class="cl-field">
+                <label for="f-stf-usr">Username</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-user"></i>
+                  <input type="text" id="f-stf-usr" name="username"
+                         placeholder="Staff username"
+                         autocomplete="username" disabled>
+                </div>
+              </div>
+              <div class="cl-field">
+                <label for="f-stf-pw">Password</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-key"></i>
+                  <input type="password" id="f-stf-pw" name="password"
+                         placeholder="Your password" disabled>
+                  <button type="button" class="cl-eye-btn" data-t="f-stf-pw">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="cl-form-row">
+              <label class="cl-remember">
+                <input type="checkbox" name="remember"> Remember me
+              </label>
+              <a href="#" class="cl-forgot">Forgot Password?</a>
+            </div>
+
+            <button type="submit" class="cl-submit admin" id="cl-submit">
+              <span id="cl-submit-txt">Sign In</span>
+              <i class="fas fa-arrow-right"></i>
+            </button>
+
+            <div class="cl-form-foot">
+              <p id="cl-form-tip">Enter your credentials to access Current Link.</p>
+            </div>
+
+          </form>
+        </div><!-- /cl-form-body -->
+
+      </div><!-- /cl-form-wrap -->
+
+    </div><!-- /cl-panel -->
+  </div><!-- /cl-right -->
+</div><!-- /cl-grid -->
 
 <script>
-(function () {
-    var form = document.getElementById("portalLoginForm");
-    var roleInput = document.getElementById("portalRoleInput");
-    var stage = document.getElementById("portalStage");
-    var note = document.getElementById("portalRoleNote");
-    var helpLink = document.getElementById("portalHelpLink");
-    var footnote = document.getElementById("portalFootnote");
-    var submit = document.getElementById("portalSubmit");
-    var cards = Array.from(document.querySelectorAll(".role-card"));
-    var groups = Array.from(document.querySelectorAll(".portal-group"));
+(function(){
+  var CARDS = document.querySelectorAll('.cl-card');
+  var SEC_C = document.getElementById('cl-cards');
+  var SEC_F = document.getElementById('cl-form-wrap');
+  var FORM  = document.getElementById('cl-form');
+  var RIN   = document.getElementById('cl-role-val');
+  var BACK  = document.getElementById('cl-back');
+  var SUB   = document.getElementById('cl-submit');
+  var STXT  = document.getElementById('cl-submit-txt');
+  var TITLE = document.getElementById('cl-form-title');
+  var FSUB  = document.getElementById('cl-form-sub');
+  var FTIP  = document.getElementById('cl-form-tip');
+  var PILL  = document.getElementById('cl-pill');
+  var PICO  = document.getElementById('cl-pill-icon');
+  var PLAB  = document.getElementById('cl-pill-label');
+  var ACNT  = document.getElementById('cl-accent');
+  var CREDS = document.querySelectorAll('.cl-cred-group');
+  var FLASH = document.getElementById('cl-flash-box');
 
-    if (!form || !roleInput || !stage || !note || !helpLink || !footnote || !submit) {
-        return;
+  var CFG = {
+    admin:    {title:'Admin Login',    sub:'Full system access — enter your password',       tip:'Admin password grants full dashboard and control panel access.',    icon:'fas fa-user-shield',  label:'Admin',    action:'{{ url_for("login") }}',            btnClass:'admin',    acnt:'admin'},
+    driver:   {title:'Driver Login',   sub:'Transport portal — phone number &amp; PIN',      tip:'Use your registered phone and 4-digit driver PIN to sign in.',     icon:'fas fa-truck-moving', label:'Driver',   action:'{{ url_for("login") }}',            btnClass:'driver',   acnt:'driver'},
+    supplier: {title:'Supplier Login', sub:'Supply chain portal — enter your credentials',   tip:'Use your supplier user ID and password for portal access.',        icon:'fas fa-box-open',     label:'Supplier', action:'{{ url_for("supplier_login") }}',   btnClass:'supplier', acnt:'supplier'},
+    staff:    {title:'Staff Login',    sub:'Field operations — enter your staff credentials',tip:'Enter your staff username and password to access field operations.',icon:'fas fa-hard-hat',     label:'Staff',    action:'{{ url_for("technician_login") }}', btnClass:'staff',    acnt:'staff'}
+  };
+
+  /* ── Card entrance stagger ── */
+  var STAGGER_DELAYS = [0, 120, 240, 360];
+
+  function entranceCards(){
+    CARDS.forEach(function(c,i){
+      c.classList.remove('is-visible','is-fading','is-selected');
+      c.style.cssText='opacity:0;transform:translateY(25px) scale(0.94);filter:blur(6px);transition:none;';
+      var delay = STAGGER_DELAYS[i] || (i * 120);
+      setTimeout(function(){
+        c.style.transition='opacity 0.5s ease,transform 0.5s cubic-bezier(.22,1,.36,1),filter 0.5s ease';
+        c.style.opacity='1';
+        c.style.transform='translateY(0) scale(1)';
+        c.style.filter='blur(0)';
+        c.classList.add('is-visible');
+      }, 300 + delay);
+    });
+  }
+  entranceCards();
+
+  /* ── Activate credentials ── */
+  function activateCreds(role){
+    CREDS.forEach(function(g){
+      var on = g.dataset.cred === role;
+      g.classList.toggle('is-active', on);
+      g.querySelectorAll('input').forEach(function(inp){
+        if(on){inp.removeAttribute('disabled');}
+        else  {inp.setAttribute('disabled','disabled');inp.value='';}
+      });
+      if(on){var f=g.querySelector('input');if(f)setTimeout(function(){f.focus();},440);}
+    });
+  }
+
+  /* ── Open form ── */
+  function openForm(role, animate){
+    var cfg = CFG[role]; if(!cfg) return;
+
+    // Update form metadata
+    RIN.value = role;
+    FORM.action = cfg.action;
+    FORM.setAttribute('data-focus', role);
+    TITLE.textContent = cfg.title;
+    FSUB.innerHTML = cfg.sub;
+    FTIP.textContent = cfg.tip;
+    PICO.className = cfg.icon;
+    PLAB.textContent = cfg.label;
+    PILL.className = 'cl-role-pill ' + role;
+    ACNT.className = 'cl-form-accent ' + role;
+    BACK.setAttribute('data-role', role);
+    SUB.className = 'cl-submit ' + role;
+    activateCreds(role);
+
+    if(!animate){
+      SEC_C.style.display = 'none';
+      SEC_F.style.display = 'block';
+      SEC_F.style.opacity = '1';
+      SEC_F.style.transform = 'translateY(0)';
+      SEC_F.classList.add('is-open');
+      return;
     }
 
-    var configs = {
-        admin: {
-            action: "{{ url_for('login') }}",
-            roleValue: "admin",
-            note: "Admin access uses the internal password only. No extra username is required here.",
-            helpText: "Forgot password? Contact system admin",
-            helpHref: "#"
-        },
-        driver: {
-            action: "{{ url_for('login') }}",
-            roleValue: "driver",
-            note: "Driver access is verified with phone number and PIN from the driver master profile.",
-            helpText: "Forgot password? Ask admin to reset PIN",
-            helpHref: "#"
-        },
-        supplier: {
-            action: "{{ url_for('supplier_login') }}",
-            roleValue: "supplier",
-            note: "Supplier access uses the approved portal user ID and password.",
-            helpText: "Forgot password?",
-            helpHref: "{{ url_for('supplier_forgot_password') }}"
-        },
-        technician: {
-            action: "{{ url_for('technician_login') }}",
-            roleValue: "technician",
-            note: "Field staff access uses the active staff code and password.",
-            helpText: "Forgot password? Contact admin",
-            helpHref: "#"
-        }
-    };
+    // Step 1: selected card scales to 1.08 with orange glow
+    var sel = document.querySelector('[data-role="' + role + '"]');
+    if(sel){ sel.classList.add('is-selected'); }
 
-    function resetFields() {
-        var allInputs = form.querySelectorAll(".portal-group input");
-        allInputs.forEach(function (input) {
-            input.required = false;
-            input.disabled = true;
-        });
-    }
-
-    function activateRole(role) {
-        var config = configs[role];
-        if (!config) {
-            roleInput.value = "";
-            stage.classList.remove("is-visible");
-            cards.forEach(function (card) { card.classList.remove("is-active"); });
-            groups.forEach(function (group) { group.classList.remove("is-active"); });
-            note.textContent = "";
-            submit.hidden = true;
-            footnote.textContent = "Choose a role first to continue.";
-            return;
-        }
-
-        roleInput.value = config.roleValue;
-        form.action = config.action;
-        stage.classList.add("is-visible");
-        note.textContent = config.note;
-        helpLink.textContent = config.helpText;
-        helpLink.href = config.helpHref;
-        submit.hidden = false;
-        footnote.textContent = role === "supplier"
-            ? "Only approved supplier accounts can sign in or reset password."
-            : role === "technician"
-                ? "Only active field staff accounts can sign in."
-                : role === "driver"
-                    ? "Driver access is available only when phone number and PIN are already set."
-                    : "Admin access uses the internal secure password.";
-
-        cards.forEach(function (card) {
-            card.classList.toggle("is-active", card.dataset.role === role);
-        });
-
-        resetFields();
-        groups.forEach(function (group) {
-            var isActive = group.dataset.group === role;
-            group.classList.toggle("is-active", isActive);
-            if (isActive) {
-                group.querySelectorAll("input").forEach(function (input) {
-                    input.disabled = false;
-                    input.required = true;
-                });
-            }
-        });
-
-        if (role === "admin") {
-            var adminPassword = document.getElementById("adminPassword");
-            if (adminPassword) {
-                adminPassword.focus();
-            }
-        } else if (role === "driver") {
-            var driverPhone = document.getElementById("driverPhone");
-            if (driverPhone) {
-                driverPhone.focus();
-            }
-        } else if (role === "supplier") {
-            var supplierUser = document.getElementById("supplierUser");
-            if (supplierUser) {
-                supplierUser.focus();
-            }
-        } else if (role === "technician") {
-            var staffUser = document.getElementById("staffUser");
-            if (staffUser) {
-                staffUser.focus();
-            }
-        }
-    }
-
-    cards.forEach(function (card) {
-        card.addEventListener("click", function () {
-            activateRole(card.dataset.role || "");
-        });
+    // Step 2: other cards fade out with stagger
+    CARDS.forEach(function(c, i){
+      if(c !== sel){
+        setTimeout(function(){ c.classList.add('is-fading'); }, i * 50);
+      }
     });
 
-    resetFields();
-    activateRole(roleInput.value || "{{ initial_role }}");
+    // Step 3: cards section fades out, form slides up
+    setTimeout(function(){
+      SEC_C.classList.add('is-exiting');
+      setTimeout(function(){
+        SEC_C.style.display = 'none';
+        SEC_C.classList.remove('is-exiting');
+        // Show form with transition via inline styles
+        SEC_F.style.transition = 'none';
+        SEC_F.style.display = 'block';
+        SEC_F.style.opacity = '0';
+        SEC_F.style.transform = 'translateY(24px)';
+        void SEC_F.offsetHeight; // Force reflow
+        SEC_F.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.22,1,0.36,1)';
+        SEC_F.style.opacity = '1';
+        SEC_F.style.transform = 'translateY(0)';
+        SEC_F.classList.add('is-open');
+      }, 300);
+    }, 250);
+  }
+
+  /* ── Card click & keyboard ── */
+  CARDS.forEach(function(card){
+    card.addEventListener('click', function(){ openForm(card.dataset.role, true); });
+    card.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openForm(card.dataset.role, true); }
+    });
+  });
+
+  /* ── Back button ── */
+  BACK.addEventListener('click', function(){
+    SEC_F.classList.remove('is-open');
+    SEC_F.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    SEC_F.style.opacity = '0';
+    SEC_F.style.transform = 'translateY(20px)';
+
+    setTimeout(function(){
+      SEC_F.style.display = 'none';
+      SEC_F.style.transition = '';
+      SEC_F.style.opacity = '';
+      SEC_F.style.transform = '';
+      FORM.reset();
+
+      // Reset creds
+      CREDS.forEach(function(g){
+        g.classList.remove('is-active');
+        g.querySelectorAll('input').forEach(function(i){ i.setAttribute('disabled','disabled'); });
+      });
+
+      SEC_C.style.display = 'block';
+
+      // Stagger card return with specified animation
+      var ORDER = ['admin','driver','supplier','staff'];
+      ORDER.forEach(function(role, i){
+        var card = document.querySelector('[data-role="' + role + '"]');
+        if(!card) return;
+        card.classList.remove('is-selected','is-visible','is-fading');
+        card.style.cssText = 'opacity:0;transform:translateY(25px) scale(0.94);filter:blur(6px);transition:none;';
+        var delay = STAGGER_DELAYS[i] || (i * 120);
+        setTimeout(function(){
+          card.style.transition = 'opacity 0.48s cubic-bezier(.22,1,.36,1),transform 0.48s cubic-bezier(.22,1,.36,1),filter 0.48s ease';
+          card.style.opacity = '1';
+          card.style.transform = 'translateY(0) scale(1)';
+          card.style.filter = 'blur(0)';
+          card.classList.add('is-visible');
+        }, 60 + delay);
+      });
+
+      FORM.setAttribute('data-focus','admin');
+      FORM.action = '{{ url_for("login") }}';
+      RIN.value = 'admin';
+    }, 300);
+  });
+
+  /* ── Eye toggle ── */
+  document.querySelectorAll('.cl-eye-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var inp = document.getElementById(btn.dataset.t);
+      var ico = btn.querySelector('i');
+      if(!inp) return;
+      if(inp.type === 'password'){ inp.type = 'text'; ico.className = 'fas fa-eye-slash'; }
+      else { inp.type = 'password'; ico.className = 'fas fa-eye'; }
+    });
+  });
+
+  /* ── Submit state ── */
+  FORM.addEventListener('submit', function(){
+    STXT.textContent = 'Signing in…';
+    SUB.disabled = true;
+  });
+
+  /* ── If server returned with flash (role pre-selected) open form ── */
+  var preRole = RIN.value;
+  if(FLASH && preRole && CFG[preRole]){
+    openForm(preRole, false);
+  }
+
+  /* ── Escape → back ── */
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && SEC_F.style.display === 'block') BACK.click();
+  });
+
 })();
 </script>
-{% endblock %}
+</body>
+</html>
