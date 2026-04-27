@@ -47,22 +47,24 @@
             {# Center spacer #}
             <div class="bh-spacer"></div>
 
-            {# Right — SVG Graphic (swoosh) #}
+            {# Right — Premium brand graphic #}
             <div class="bh-graphic" aria-hidden="true">
-                <svg class="bh-swoosh" viewBox="0 0 420 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-                    <!-- Orange top swoosh -->
-                    <path d="M0 0 C80 0 160 10 260 30 C320 42 370 55 420 45 L420 0 Z" fill="#f5a83a" opacity="0.95"/>
-                    <!-- Orange mid triangle accent -->
-                    <path d="M200 15 C260 25 330 38 420 28 L420 58 C340 68 260 52 200 38 Z" fill="#e6871f" opacity="0.85"/>
-                    <!-- Dark navy swoosh -->
-                    <path d="M0 45 C70 35 160 55 260 68 C320 76 370 80 420 72 L420 110 L0 110 Z" fill="#1a2d55" opacity="0.96"/>
-                    <!-- Navy lighter stripe -->
-                    <path d="M140 58 C210 66 300 78 420 70 L420 78 C300 86 210 74 140 66 Z" fill="#253d72" opacity="0.80"/>
-                    <!-- White highlight stripe on orange -->
-                    <path d="M200 8 C270 18 340 28 420 22 L420 26 C340 32 270 22 200 12 Z" fill="rgba(255,255,255,0.35)"/>
-                    <!-- Arrow/chevron accent -->
-                    <path d="M310 38 L340 52 L310 66 L318 52 Z" fill="#fff" opacity="0.90"/>
-                    <path d="M326 34 L358 52 L326 70 L335 52 Z" fill="#fff" opacity="0.60"/>
+                <svg class="bh-swoosh" viewBox="0 0 420 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Navy base fill -->
+                    <rect x="0" y="0" width="420" height="90" fill="#1a2d55"/>
+                    <!-- Orange accent band -->
+                    <polygon points="0,0 220,0 160,90 0,90" fill="#F7931E" opacity="0.92"/>
+                    <!-- Lighter orange highlight -->
+                    <polygon points="0,0 140,0 90,90 0,90" fill="#ffaa45" opacity="0.55"/>
+                    <!-- Mid navy overlap for depth -->
+                    <polygon points="160,0 420,0 420,90 260,90" fill="#1a2d55" opacity="0.98"/>
+                    <!-- Blue accent stripe -->
+                    <polygon points="140,0 180,0 130,90 90,90" fill="#2F5D9F" opacity="0.70"/>
+                    <!-- Thin white separator line -->
+                    <line x1="155" y1="0" x2="105" y2="90" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+                    <!-- Chevron accent -->
+                    <polyline points="290,28 318,45 290,62" fill="none" stroke="#F7931E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.80"/>
+                    <polyline points="310,28 338,45 310,62" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </div>
         </div>
@@ -118,7 +120,6 @@
                             <a class="bh-link" href="{{ url_for('technician_portal') }}">Field Staff Portal</a>
                         {% endif %}
                     {% else %}
-                        <a class="bh-link" href="{{ url_for('supplier_login') }}">Supplier Login</a>
                         <a class="bh-link" href="{{ url_for('login') }}">Portal Login</a>
                     {% endif %}
                 </div>
