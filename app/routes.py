@@ -11767,7 +11767,11 @@ def _supplier_hub_summary(db, supplier_mode: str = "Normal"):
         try:
             row = db.execute(sql, params).fetchone()
         except Exception:
-            # Silently fail if table doesn't exist - no logging to avoid context issues
+            # If query fails (table missing), rollback to clear aborted transaction
+            try:
+                db.rollback()
+            except Exception:
+                pass  # Ignore rollback errors
             return default
         if row is None or row[0] is None:
             return default
