@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Login — Current Link</title>
+  <meta name="description" content="Current Link Transport & General Contracting LLC SPC — Secure payroll and fleet management portal login.">
+  <link rel="stylesheet" href="{{ url_for('static', filename='premium-portal.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Additional styles for the new design */
+    .premium-portal-body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .premium-background {
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background-image: url("{{ url_for('static', filename='portal-new.png') }}");
+      background-size: cover;
+      background-position: left center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+
+    .premium-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg,
+        rgba(8, 18, 38, 0.96) 0%,
+        rgba(11, 27, 55, 0.90) 25%,
+        rgba(15, 35, 70, 0.75) 50%,
+        rgba(20, 40, 80, 0.30) 75%,
+        rgba(20, 40, 80, 0.05) 100%);
+    }
+
+    .premium-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* LEFT PANEL */
+    .premium-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 44px 56px 48px;
+      color: #FFFFFF;
+      position: relative;
+    }
+
+    .branding-content {
+      margin-top: 40px;
+    }
+
+    .company-title {
+      font-size: 4.5rem;
+      font-weight: 900;
+      line-height: 1;
+      margin: 0 0 12px 0;
+      letter-spacing: -0.02em;
+    }
+
+    .current-text {
+      color: #FFFFFF;
+    }
+
+    .link-text {
+      color: #F7931E;
+    }
+
+    .company-subtitle {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.85);
+      margin: 0 0 24px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .company-description {
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.75);
+      margin: 0 0 36px 0;
+      max-width: 520px;
+    }
+
+    .branding-features {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      margin-bottom: 48px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 1rem;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .feature-item i {
+      color: #F7931E;
+      font-size: 1.1rem;
+    }
+
+    .security-footer {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+      letter-spacing: 0.03em;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 20px;
+      margin-top: 20px;
+    }
+
+    /* RIGHT PANEL */
+    .premium-right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      background: rgba(255, 255, 255, 0.02);
+      backdrop-filter: blur(10px);
+    }
+
+    .login-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      box-shadow: 0 30px 80px rgba(11, 31, 58, 0.22);
+      width: 100%;
+      max-width: 480px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 32px 32px 24px;
+      border-bottom: 1px solid #F1F5F9;
+    }
+
+    .card-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1E2F4F;
+      margin: 0 0 8px 0;
+    }
+
+    .card-subtitle {
+      font-size: 0.95rem;
+      color: #64748B;
+      margin: 0;
+    }
+
+    .role-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 24px 32px;
+    }
+
+    .role-card {
+      background: #FFFFFF;
+      border: 2px solid #E5EAF2;
+      border-radius: 12px;
+      padding: 20px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .role-card:hover {
+      border-color: #2F5D9F;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(47, 93, 159, 0.15);
+    }
+
+    .role-card.active {
+      border-color: #F7931E;
+      background: linear-gradient(135deg, rgba(247, 147, 30, 0.05), rgba(247, 147, 30, 0.02));
+    }
+
+    .role-icon {
+      font-size: 1.8rem;
+      margin-bottom: 12px;
+      color: #1E2F4F;
+    }
+
+    .role-card.active .role-icon {
+      color: #F7931E;
+    }
+
+    .role-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1E2F4F;
+      margin: 0 0 4px 0;
+    }
+
+    .role-desc {
+      font-size: 0.85rem;
+      color: #64748B;
+      margin: 0;
+    }
+
+    .login-form-section {
+      padding: 0 32px 32px;
+      display: none;
+    }
+
+    .login-form-section.active {
+      display: block;
+    }
+
+    .form-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .back-to-roles {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #2F5D9F;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .back-to-roles:hover {
+      color: #1E2F4F;
+    }
+
+    .role-badge {
+      background: #1E2F4F;
+      color: #FFFFFF;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .form-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1E2F4F;
+      margin: 0 0 8px 0;
+    }
+
+    .form-subtitle {
+      font-size: 0.95rem;
+      color: #64748B;
+      margin: 0 0 24px 0;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #1E2F4F;
+      margin-bottom: 8px;
+    }
+
+    .input-with-icon {
+      position: relative;
+    }
+
+    .input-with-icon i {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #64748B;
+      font-size: 1.1rem;
+    }
+
+    .input-with-icon input {
+      width: 100%;
+      padding: 14px 16px 14px 48px;
+      border: 2px solid #E5EAF2;
+      border-radius: 10px;
+      font-size: 1rem;
+      color: #1E2F4F;
+      transition: border-color 0.3s ease;
+    }
+
+    .input-with-icon input:focus {
+      outline: none;
+      border-color: #2F5D9F;
+    }
+
+    .eye-toggle {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #64748B;
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+
+    .form-options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .remember-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: #64748B;
+      cursor: pointer;
+    }
+
+    .forgot-password {
+      font-size: 0.9rem;
+      color: #2F5D9F;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .forgot-password:hover {
+      text-decoration: underline;
+    }
+
+    .login-button {
+      width: 100%;
+      background: linear-gradient(135deg, #1E2F4F, #2F5D9F);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .login-button:hover {
+      background: linear-gradient(135deg, #2F5D9F, #3B6BB0);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(47, 93, 159, 0.3);
+    }
+
+    .alert-success {
+      background: #10B981;
+      color: #FFFFFF;
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-footer {
+      padding: 20px 32px;
+      border-top: 1px solid #F1F5F9;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #64748B;
+    }
+
+    .card-footer i {
+      color: #10B981;
+      margin-right: 6px;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+      .premium-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .premium-left {
+        padding: 32px 24px;
+        min-height: 40vh;
+      }
+      
+      .company-title {
+        font-size: 3.5rem;
+      }
+    }
+
+    @media (max-width: 576px) {
+      .role-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .premium-left, .premium-right {
+        padding: 24px 20px;
+      }
+      
+      .company-title {
+        font-size: 2.8rem;
+      }
+    }
+  </style>
+</head>
+<body class="premium-portal-body">
+  <!-- Background with overlay -->
+  <div class="premium-background">
+    <div class="premium-overlay"></div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="premium-container">
+    <!-- LEFT: Branding -->
+    <div class="premium-left">
+      <div class="branding-content">
+        <h1 class="company-title">
+          <span class="current-text">CURRENT</span><span class="link-text">LINK</span>
+        </h1>
+        <p class="company-subtitle">TRANSPORT & GENERAL CONTRACTING LLC SPC</p>
+        <p class="company-description">
+          A smart digital platform for managing workforce, transport operations, and payroll systems with efficiency, accuracy, and real-time control.
+        </p>
+        
+        <div class="branding-features">
+          <div class="feature-item">
+            <i class="fas fa-shield-alt"></i>
+            <span>Secure & Encrypted Access</span>
+          </div>
+          <div class="feature-item">
+            <i class="fas fa-bolt"></i>
+            <span>Real-time Updates & Reports</span>
+          </div>
+          <div class="feature-item">
+            <i class="fas fa-clock"></i>
+            <span>24/7 System Availability</span>
+          </div>
+        </div>
+        
+        <div class="security-footer">
+          <i class="fas fa-lock"></i> 256-BIT SSL · SECURE ENTERPRISE PORTAL
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Login Card -->
+    <div class="premium-right">
+      <div class="login-card">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="alert-success">
+              <i class="fas fa-check-circle"></i>
+              {% for category, message in messages %}
+                {{ message }}
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <div class="card-header">
+          <h2 class="card-title">SELECT YOUR ACCESS ROLE</h2>
+          <p class="card-subtitle">Choose your role to continue</p>
+        </div>
+
+        <!-- Role Cards Grid -->
+        <div class="role-grid" id="roleGrid">
+          <div class="role-card active" data-role="admin">
+            <div class="role-icon">
+              <i class="fas fa-user-shield"></i>
+            </div>
+            <h3 class="role-name">Admin</h3>
+            <p class="role-desc">Full control</p>
+          </div>
+          
+          <div class="role-card" data-role="driver">
+            <div class="role-icon">
+              <i class="fas fa-truck-moving"></i>
+            </div>
+            <h3 class="role-name">Driver</h3>
+            <p class="role-desc">Transport ops</p>
+          </div>
+          
+          <div class="role-card" data-role="supplier">
+            <div class="role-icon">
+              <i class="fas fa-boxes"></i>
+            </div>
+            <h3 class="role-name">Supplier</h3>
+            <p class="role-desc">Supply chain</p>
+          </div>
+          
+          <div class="role-card" data-role="staff">
+            <div class="role-icon">
+              <i class="fas fa-user-hard-hat"></i>
+            </div>
+            <h3 class="role-name">Staff</h3>
+            <p class="role-desc">Field ops</p>
+          </div>
+        </div>
+
+        <!-- Login Form Section (Admin by default) -->
+        <div class="login-form-section active" id="loginFormSection">
+          <div class="form-header">
+            <a class="back-to-roles" id="backToRoles">
+              <i class="fas fa-arrow-left"></i> Back to Roles
+            </a>
+            <span class="role-badge" id="roleBadge">ADMIN</span>
+          </div>
+          
+          <h3 class="form-title">Admin Login</h3>
+          <p class="form-subtitle">Full system access — enter your password</p>
+          
+          <form method="post" action="{{ url_for('login') }}" id="loginForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="role" id="selectedRoleInput" value="admin">
+            
+            <div class="form-group">
+              <label class="form-label">Admin Password</label>
+              <div class="input-with-icon">
+                <i class="fas fa-key"></i>
+                <input type="password" name="password" id="adminPassword" placeholder="Enter admin password" required autocomplete="current-password">
+                <i class="fas fa-eye eye-toggle" id="togglePassword"></i>
+              </div>
+            </div>
+            
+            <div class="form-options">
+              <label class="remember-check">
+                <input type="checkbox" name="remember"> Remember me
+              </label>
+              <a href="#" class="forgot-password">Forgot Password?</a>
+            </div>
+            <button type="submit" class="login-button">
+              <span>Sign In</span>
+              <i class="fas fa-arrow-right"></i>
+            </button>
+          </form>
+        </div>
+
+        <!-- Card Footer -->
+        <div class="card-footer">
+          <i class="fas fa-lock"></i> All connections encrypted · Session secured
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const roleCards = document.querySelectorAll('.role-card');
+      const roleGrid = document.getElementById('roleGrid');
+      const loginFormSection = document.getElementById('loginFormSection');
+      const backToRoles = document.getElementById('backToRoles');
+      const roleBadge = document.getElementById('roleBadge');
+      const selectedRoleInput = document.getElementById('selectedRoleInput');
+      const togglePassword = document.getElementById('togglePassword');
+      const adminPassword = document.getElementById('adminPassword');
+      
+      // Role selection
+      roleCards.forEach(card => {
+        card.addEventListener('click', function() {
+          // Remove active class from all cards
+          roleCards.forEach(c => c.classList.remove('active'));
+          // Add active class to clicked card
+          this.classList.add('active');
+          
+          const role = this.getAttribute('data-role');
+          selectedRoleInput.value = role;
+          
+          // Update role badge
+          const roleNames = {
+            'admin': 'ADMIN',
+            'driver': 'DRIVER',
+            'supplier': 'SUPPLIER',
+            'staff': 'STAFF'
+          };
+          roleBadge.textContent = roleNames[role] || 'ADMIN';
+          
+          // Show login form
+          roleGrid.style.display = 'none';
+          loginFormSection.classList.add('active');
+        });
+      });
+      
+      // Back to roles
+      backToRoles.addEventListener('click', function() {
+        roleGrid.style.display = 'grid';
+        loginFormSection.classList.remove('active');
+      });
+      
+      // Toggle password visibility
+      togglePassword.addEventListener('click', function() {
+        const type = adminPassword.getAttribute('type') === 'password' ? 'text' : 'password';
+        adminPassword.setAttribute('type', type);
+        this.classList.toggle('fa-eye');
+        this.classList.toggle('fa-eye-slash');
+      });
+      
+      // Form submission
+      document.getElementById('loginForm').addEventListener('submit', function(e) {
+        const password = adminPassword.value.trim();
+        if (!password) {
+          e.preventDefault();
+          alert('Please enter your password');
+          return;
+        }
+        // Form will submit normally
+      });
+      
+      // Auto-focus password field when form is shown
+      const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.attributeName === 'class' &&
+              loginFormSection.classList.contains('active')) {
+            adminPassword.focus();
+          }
+        });
+      });
+      observer.observe(loginFormSection, { attributes: true });
+    });
+  </script>
+</body>
+</html>
+
