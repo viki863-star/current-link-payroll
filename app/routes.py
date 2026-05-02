@@ -11761,14 +11761,13 @@ def _mirror_generated_file(app: Flask, file_path: str | Path) -> None:
 
 def _supplier_hub_summary(db, supplier_mode: str = "Normal"):
     normalized_mode = supplier_mode if supplier_mode in SUPPLIER_MODE_OPTIONS else "Normal"
-    from flask import current_app
     
     # Helper to safely get scalar values, defaulting to 0 if table doesn't exist
     def safe_scalar(sql, params=(), default=0, label="supplier summary"):
         try:
             row = db.execute(sql, params).fetchone()
         except Exception:
-            current_app.logger.warning("Failed to load %s (table may not exist)", label, exc_info=True)
+            # Silently fail if table doesn't exist - no logging to avoid context issues
             return default
         if row is None or row[0] is None:
             return default
