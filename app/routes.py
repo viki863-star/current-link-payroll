@@ -11761,168 +11761,177 @@ def _mirror_generated_file(app: Flask, file_path: str | Path) -> None:
 
 def _supplier_hub_summary(db, supplier_mode: str = "Normal"):
     normalized_mode = supplier_mode if supplier_mode in SUPPLIER_MODE_OPTIONS else "Normal"
+    from flask import current_app
+    
+    # Helper to safely get scalar values, defaulting to 0 if table doesn't exist
+    def safe_scalar(sql, params=(), default=0, label="supplier summary"):
+        try:
+            row = db.execute(sql, params).fetchone()
+        except Exception:
+            current_app.logger.warning("Failed to load %s (table may not exist)", label, exc_info=True)
+            return default
+        if row is None or row[0] is None:
+            return default
+        return row[0]
+    
     return {
-        "supplier_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM parties p
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE p.party_roles LIKE ? AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                ("%Supplier%", normalized_mode),
-            ).fetchone()[0]
-        ),
-        "asset_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM supplier_assets asset
-                JOIN parties p ON p.party_code = asset.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-        ),
-        "double_shift_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM supplier_assets asset
-                JOIN parties p ON p.party_code = asset.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE asset.double_shift_mode = 'Double Shift' AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-        ),
-        "partnership_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM supplier_assets asset
-                JOIN parties p ON p.party_code = asset.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE asset.partnership_mode = 'Partnership' AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-        ),
-        "unbilled_amount": float(
-            db.execute(
-                """
-                SELECT COALESCE(SUM(t.subtotal), 0)
-                FROM supplier_timesheets t
-                JOIN parties p ON p.party_code = t.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE COALESCE(t.voucher_no, '') = '' AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-            or 0.0
-        ),
-        "voucher_total": float(
-            db.execute(
-                """
-                SELECT COALESCE(SUM(v.total_amount), 0)
-                FROM supplier_vouchers v
-                JOIN parties p ON p.party_code = v.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-            or 0.0
-        ),
-        "paid_total": float(
-            db.execute(
-                """
-                SELECT COALESCE(SUM(pay.amount), 0)
-                FROM supplier_payments pay
-                JOIN parties p ON p.party_code = pay.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-            or 0.0
-        ),
-        "outstanding_total": float(
-            db.execute(
-                """
-                SELECT COALESCE(SUM(v.balance_amount), 0)
-                FROM supplier_vouchers v
-                JOIN parties p ON p.party_code = v.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-            or 0.0
-        ),
-        "open_vouchers": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM supplier_vouchers v
-                JOIN parties p ON p.party_code = v.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE v.balance_amount > 0.009 AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-        ),
-        "pending_inquiries_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM supplier_inquiries i
-                JOIN parties p ON p.party_code = i.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE i.status IN ('Open', 'Pending') AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-        ),
-        "pending_quotations_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM supplier_quotation_submissions q
-                JOIN parties p ON p.party_code = q.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE q.review_status = 'Pending' AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-        ),
-        "active_inquiries_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM supplier_inquiries i
-                JOIN parties p ON p.party_code = i.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE i.status = 'Active' AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-        ),
-        "portal_users_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM parties p
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                LEFT JOIN supplier_portal_accounts portal ON portal.party_code = p.party_code
-                WHERE p.party_roles LIKE ?
-                  AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                  AND portal.user_id IS NOT NULL
-                """,
-                ("%Supplier%", normalized_mode),
-            ).fetchone()[0]
-        ),
+        "supplier_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM parties p
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE p.party_roles LIKE ? AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            ("%Supplier%", normalized_mode),
+            default=0,
+            label="supplier_count"
+        )),
+        "asset_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_assets asset
+            JOIN parties p ON p.party_code = asset.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="asset_count"
+        )),
+        "double_shift_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_assets asset
+            JOIN parties p ON p.party_code = asset.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE asset.double_shift_mode = 'Double Shift' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="double_shift_count"
+        )),
+        "partnership_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_assets asset
+            JOIN parties p ON p.party_code = asset.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE asset.partnership_mode = 'Partnership' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="partnership_count"
+        )),
+        "unbilled_amount": float(safe_scalar(
+            """
+            SELECT COALESCE(SUM(t.subtotal), 0)
+            FROM supplier_timesheets t
+            JOIN parties p ON p.party_code = t.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE COALESCE(t.voucher_no, '') = '' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0.0,
+            label="unbilled_amount"
+        ) or 0.0),
+        "voucher_total": float(safe_scalar(
+            """
+            SELECT COALESCE(SUM(v.total_amount), 0)
+            FROM supplier_vouchers v
+            JOIN parties p ON p.party_code = v.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0.0,
+            label="voucher_total"
+        ) or 0.0),
+        "paid_total": float(safe_scalar(
+            """
+            SELECT COALESCE(SUM(pay.amount), 0)
+            FROM supplier_payments pay
+            JOIN parties p ON p.party_code = pay.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0.0,
+            label="paid_total"
+        ) or 0.0),
+        "outstanding_total": float(safe_scalar(
+            """
+            SELECT COALESCE(SUM(v.balance_amount), 0)
+            FROM supplier_vouchers v
+            JOIN parties p ON p.party_code = v.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0.0,
+            label="outstanding_total"
+        ) or 0.0),
+        "open_vouchers": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_vouchers v
+            JOIN parties p ON p.party_code = v.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE v.balance_amount > 0.009 AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="open_vouchers"
+        )),
+        "pending_inquiries_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_inquiries i
+            JOIN parties p ON p.party_code = i.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE i.status IN ('Open', 'Pending') AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="pending_inquiries_count"
+        )),
+        "pending_quotations_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_quotation_submissions q
+            JOIN parties p ON p.party_code = q.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE q.review_status = 'Pending' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="pending_quotations_count"
+        )),
+        "active_inquiries_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_inquiries i
+            JOIN parties p ON p.party_code = i.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE i.status = 'Active' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="active_inquiries_count"
+        )),
+        "portal_users_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM parties p
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            LEFT JOIN supplier_portal_accounts portal ON portal.party_code = p.party_code
+            WHERE p.party_roles LIKE ?
+              AND COALESCE(profile.supplier_mode, 'Normal') = ?
+              AND portal.user_id IS NOT NULL
+            """,
+            ("%Supplier%", normalized_mode),
+            default=0,
+            label="portal_users_count"
+        )),
     }
 
 
