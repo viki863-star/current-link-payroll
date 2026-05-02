@@ -92,11 +92,6 @@
             <strong>Vehicle Master</strong>
             <small>Register or edit a vehicle on its own clean screen.</small>
         </a>
-        <a class="fleet-smart-action-card {% if current_screen == 'import' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='import', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
-            <span class="fleet-action-kicker">Import</span>
-            <strong>Vehicle PDF</strong>
-            <small>Upload PDF and auto-register fleet vehicles.</small>
-        </a>
         <a class="fleet-smart-action-card {% if current_screen == 'papers' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='papers', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
             <span class="fleet-action-kicker">Add Paper</span>
             <strong>Maintenance Entry</strong>

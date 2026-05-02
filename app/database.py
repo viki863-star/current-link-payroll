@@ -70,6 +70,27 @@ CREATE TABLE IF NOT EXISTS supplier_quotation_submissions (
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
 
+CREATE TABLE IF NOT EXISTS supplier_inquiries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    inquiry_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    inquiry_date TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    description TEXT NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'Normal',
+    status TEXT NOT NULL DEFAULT 'Open',
+    assigned_to TEXT,
+    due_date TEXT,
+    response_deadline TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT,
+    closed_at TEXT,
+    closed_by TEXT,
+    closure_notes TEXT,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS salary_store (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     driver_id TEXT NOT NULL,
@@ -390,6 +411,7 @@ CREATE TABLE IF NOT EXISTS lpos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lpo_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
+    quotation_no TEXT,
     agreement_no TEXT,
     issue_date TEXT NOT NULL,
     valid_until TEXT,
@@ -1126,6 +1148,7 @@ CREATE TABLE IF NOT EXISTS lpos (
     id BIGSERIAL PRIMARY KEY,
     lpo_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
+    quotation_no TEXT,
     agreement_no TEXT,
     issue_date TEXT NOT NULL,
     valid_until TEXT,
@@ -1512,6 +1535,7 @@ REQUIRED_COLUMNS = {
         "approved_party_code": "TEXT",
     },
     "lpos": {
+        "quotation_no": "TEXT",
         # Phase 6 Part B/C — LPO release workflow extended fields.
         # Safe additive migration only. No existing data is affected.
         "job_title": "TEXT",

@@ -1,21 +1,35 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="admin-desk-shell">
-    <article class="card admin-desk-toolbar">
+<section class="admin-desk-shell supplier-cards-shell">
+    <article class="card admin-desk-toolbar supplier-cards-toolbar">
         <div class="admin-toolbar-row">
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                <span class="button button-primary" style="background-color: #2f6ca4; border-color: #2f6ca4; cursor: default;">{{ desk_title }}</span>
-                {% for link in toolbar_links %}
-                    <a class="button {% if not link.primary %}button-secondary{% endif %}" href="{{ link.href }}">{{ link.label }}</a>
-                {% endfor %}
+                <span class="button button-primary supplier-mode-badge supplier-mode-badge-{{ supplier_mode|lower }}">{{ desk_title }}</span>
+                <a class="button" href="{{ toolbar_links[0].href if toolbar_links else url_for(register_endpoint) }}">{{ toolbar_links[0].label if toolbar_links else 'Add Supplier' }}</a>
             </div>
-            <div class="admin-mini-stats">
-                <span><strong>{{ summary.supplier_count }}</strong><small>{{ supplier_type_label }}s</small></span>
-                <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
-                <span><strong>{{ summary.double_shift_count }}</strong><small>Double Shift</small></span>
-                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
+        </div>
+        <div class="supplier-cards-stats">
+            <div class="supplier-cards-stat">
+                <strong>{{ summary.supplier_count }}</strong>
+                <span>{{ supplier_type_label }} Cards</span>
+            </div>
+            <div class="supplier-cards-stat">
+                <strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong>
+                <span>Outstanding</span>
+            </div>
+            <div class="supplier-cards-stat">
+                {% if supplier_mode == "Managed" %}
+                    <strong>{{ summary.open_vouchers }}</strong>
+                    <span>Open Vouchers</span>
+                {% elif supplier_mode == "Partnership" %}
+                    <strong>{{ summary.asset_count }}</strong>
+                    <span>Fleet Units</span>
+                {% else %}
+                    <strong>{{ summary.portal_users_count }}</strong>
+                    <span>Portal Users</span>
+                {% endif %}
             </div>
         </div>
         <form method="get" class="admin-filter-grid desk-single-filter">
@@ -32,218 +46,231 @@
         </form>
     </article>
 
-    <section class="db-grid driver-card-wall cash-card-wall">
+    <section class="supplier-card-grid">
         {% for item in suppliers %}
-            <article class="wc wc-cash cash-directory-card supplier-mode-card supplier-mode-{{ supplier_mode|lower }}{% if item.status == 'Inactive' %} inactive{% endif %}">
-                <div class="wc-shimmer"></div>
-                <div class="wc-bg-icon">S</div>
-
-                <div class="wc-top cash-card-top">
-                    <div class="wc-icon-badge wc-badge-cash">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                            <rect x="2" y="6" width="20" height="12" rx="2"/>
-                            <circle cx="12" cy="12" r="2"/>
-                            <path d="M6 12h.01M18 12h.01"/>
-                        </svg>
+            <article
+                class="supplier-portal-card supplier-portal-card-{{ supplier_mode|lower }}{% if item.status == 'Inactive' %} inactive{% endif %}"
+                role="link"
+                tabindex="0"
+                onclick="if (!event.target.closest('.supplier-card-actions')) { window.location='{{ url_for(detail_endpoint, party_code=item.party_code) }}'; }"
+                onkeydown="if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('.supplier-card-actions')) { event.preventDefault(); window.location='{{ url_for(detail_endpoint, party_code=item.party_code) }}'; }"
+            >
+                <div class="supplier-card-head">
+                    <div>
+                        <span class="supplier-card-kicker">{{ supplier_type_label }}</span>
+                        <h2>{{ item.party_name }}</h2>
+                        <p>{{ item.party_code }}{% if item.contact_person %} / {{ item.contact_person }}{% endif %}</p>
                     </div>
-                    <div class="wc-meta">
-                        <span class="wc-tag">{{ supplier_type_label }}</span>
-                        <span class="wc-category">{{ item.party_code }}</span>
-                    </div>
-                    <span class="status-chip {{ item.status|lower }} cash-card-status">{{ item.status }}</span>
+                    <span class="status-chip {{ item.status|lower }}">{{ item.status }}</span>
                 </div>
 
-                <div class="wc-body">
-                    <h2 class="wc-title">{{ item.party_name }}</h2>
-                    <div class="cash-card-copy">
-                        <span><strong>Contact:</strong> {{ item.contact_person or "-" }}</span>
-                        <span><strong>Phone:</strong> {{ item.phone_number or "-" }}</span>
-                        <span><strong>Fleet:</strong> {{ item.asset_count }} units</span>
+                <div class="supplier-card-copy">
+                    <span><strong>Phone:</strong> {{ item.phone_number or "-" }}</span>
+                    <span><strong>Email:</strong> {{ item.email or "-" }}</span>
+                    <span><strong>Balance Due:</strong> AED {{ "%.2f"|format(item.outstanding_total) }}</span>
+                </div>
+
+                <div class="supplier-card-metrics">
+                    <div>
+                        <strong>{{ item.asset_count }}</strong>
+                        <span>Fleet</span>
                     </div>
-                    <div class="cash-balance-strip due">
-                        <span class="cash-balance-label">Balance Due</span>
-                        <strong class="cash-balance-value">AED {{ "%.2f"|format(item.outstanding_total) }}</strong>
+                    <div>
+                        <strong>{{ item.unbilled_count }}</strong>
+                        <span>Open Work</span>
+                    </div>
+                    <div>
+                        <strong>{{ item.voucher_count }}</strong>
+                        <span>Vouchers</span>
+                    </div>
+                    <div>
+                        <strong>AED {{ "%.0f"|format(item.paid_total) }}</strong>
+                        <span>Paid</span>
                     </div>
                 </div>
 
-                <div class="wc-footer cash-card-footer">
-                    <div class="wc-quick-stats">
-                        <span class="wc-stat wc-stat-cash">{{ supplier_mode }}</span>
-                        <span class="wc-stat wc-stat-cash">{{ item.asset_count }} Fleet</span>
-                        <span class="wc-stat wc-stat-cash">{{ item.voucher_count or 0 }} Vouchers</span>
-                    </div>
-                </div>
-
-                <div class="cash-card-actions supplier-mode-actions">
-                    <a class="cash-card-link" href="{{ url_for(detail_endpoint, party_code=item.party_code) }}">Open</a>
-                    <a class="cash-card-link" href="{% if supplier_mode == 'Normal' %}{{ url_for(register_endpoint, mode=supplier_mode, edit=item.party_code) }}{% else %}{{ url_for(register_endpoint, edit=item.party_code) }}{% endif %}">Edit</a>
-                    <a class="cash-card-link" href="{{ url_for(statement_endpoint, party_code=item.party_code) }}">Statement</a>
-                    <form method="post" action="{{ url_for(delete_endpoint, party_code=item.party_code) }}" onsubmit="return confirm('Delete this supplier and all linked data permanently?');">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button class="cash-card-link danger-link" type="submit">Delete</button>
-                    </form>
+                <div class="supplier-card-actions">
+                    <a class="button button-secondary" href="{{ url_for(detail_endpoint, party_code=item.party_code) }}">Open Portal</a>
+                    <a class="button button-secondary" href="{% if supplier_mode == 'Normal' %}{{ url_for(register_endpoint, mode=supplier_mode, edit=item.party_code) }}{% else %}{{ url_for(register_endpoint, edit=item.party_code) }}{% endif %}">Edit</a>
                 </div>
             </article>
         {% else %}
-            <article class="card directory-empty cash-directory-empty">
+            <article class="card directory-empty supplier-card-empty">
                 <h2>{{ empty_title }}</h2>
                 <p>{{ empty_copy }}</p>
-                <a class="button" href="{{ toolbar_links[0].href if toolbar_links else url_for(desk_endpoint) }}">Add Supplier</a>
+                <a class="button" href="{{ toolbar_links[0].href if toolbar_links else url_for(register_endpoint) }}">Create {{ supplier_type_label }}</a>
             </article>
         {% endfor %}
     </section>
 </section>
 
 <style>
-.cash-card-wall {
-    grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+.supplier-cards-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.supplier-cards-stat {
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.04);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    display: grid;
+    gap: 4px;
+}
+
+.supplier-cards-stat strong {
+    font-size: 1.2rem;
+}
+
+.supplier-cards-stat span {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
+.supplier-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 18px;
     margin-top: 24px;
 }
 
-.cash-directory-card {
-    min-height: 360px;
-    cursor: default;
+.supplier-portal-card {
+    padding: 22px;
+    border-radius: 22px;
+    color: #ffffff;
+    box-shadow: 0 20px 42px rgba(15, 23, 42, 0.16);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.supplier-mode-normal {
-    background: linear-gradient(180deg, rgba(8, 108, 168, 0.98) 0%, rgba(11, 86, 145, 0.98) 100%);
+.supplier-portal-card:hover,
+.supplier-portal-card:focus-visible {
+    transform: translateY(-3px);
+    box-shadow: 0 24px 52px rgba(15, 23, 42, 0.2);
 }
 
-.supplier-mode-managed {
-    background: linear-gradient(180deg, rgba(91, 59, 168, 0.98) 0%, rgba(72, 40, 146, 0.98) 100%);
+.supplier-portal-card-normal {
+    background: linear-gradient(180deg, rgba(7, 106, 164, 0.98) 0%, rgba(11, 84, 138, 0.98) 100%);
 }
 
-.supplier-mode-partnership {
-    background: linear-gradient(180deg, rgba(176, 105, 24, 0.98) 0%, rgba(145, 80, 10, 0.98) 100%);
+.supplier-portal-card-managed {
+    background: linear-gradient(180deg, rgba(44, 86, 147, 0.98) 0%, rgba(31, 67, 121, 0.98) 100%);
 }
 
-.supplier-mode-card.inactive {
-    opacity: 0.76;
+.supplier-portal-card-partnership {
+    background: linear-gradient(180deg, rgba(171, 95, 23, 0.98) 0%, rgba(139, 73, 13, 0.98) 100%);
 }
 
-.cash-card-top {
-    align-items: center;
+.supplier-portal-card.inactive {
+    opacity: 0.72;
 }
 
-.cash-card-top .wc-meta {
-    flex: 1;
-}
-
-.cash-card-status {
-    flex-shrink: 0;
-}
-
-.cash-card-copy {
-    display: grid;
-    gap: 6px;
-    color: rgba(255, 255, 255, 0.76);
-    font-size: 0.88rem;
-    line-height: 1.45;
-}
-
-.cash-card-copy strong {
-    color: rgba(255, 255, 255, 0.92);
-}
-
-.cash-balance-strip {
-    margin-top: 16px;
-    padding: 14px 16px;
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.10);
+.supplier-card-head {
     display: flex;
+    align-items: flex-start;
     justify-content: space-between;
-    align-items: center;
     gap: 12px;
-    background: rgba(96, 165, 250, 0.14);
-    border-color: rgba(96, 165, 250, 0.22);
 }
 
-.cash-balance-label {
-    font-size: 0.76rem;
+.supplier-card-head h2 {
+    margin: 4px 0 6px;
+    color: #ffffff;
+}
+
+.supplier-card-head p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.supplier-card-kicker {
+    display: inline-flex;
+    font-size: 0.74rem;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.72);
 }
 
-.cash-balance-value {
-    font-size: 1.05rem;
-    color: #ffffff;
-}
-
-.cash-card-footer {
-    margin-top: 16px;
-}
-
-.supplier-mode-actions {
-    grid-template-columns: repeat(4, 1fr);
-}
-
-.cash-card-actions {
+.supplier-card-copy {
     display: grid;
-    gap: 10px;
-    margin-top: 16px;
-    position: relative;
-    z-index: 1;
+    gap: 8px;
+    margin: 18px 0;
+    color: rgba(255, 255, 255, 0.88);
 }
 
-.cash-card-link,
-.cash-card-actions form {
-    display: block;
-}
-
-.cash-card-link,
-.danger-link {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    justify-content: center;
-    min-height: 42px;
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(255, 255, 255, 0.06);
+.supplier-card-copy strong {
     color: #ffffff;
-    text-decoration: none;
-    font-weight: 700;
-    transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease;
 }
 
-.danger-link {
-    cursor: pointer;
-    background: rgba(185, 28, 28, 0.24);
-    border-color: rgba(254, 202, 202, 0.24);
+.supplier-card-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
 }
 
-.cash-card-link:hover,
-.danger-link:hover {
-    transform: translateY(-2px);
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.24);
+.supplier-card-metrics div {
+    padding: 12px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    display: grid;
+    gap: 4px;
 }
 
-.danger-link:hover {
-    background: rgba(185, 28, 28, 0.38);
+.supplier-card-metrics strong {
+    font-size: 1rem;
 }
 
-.cash-directory-empty {
+.supplier-card-metrics span {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.76);
+}
+
+.supplier-card-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.supplier-card-actions .button {
+    width: 100%;
+}
+
+.supplier-card-empty {
     grid-column: 1 / -1;
-    padding: 42px 28px;
+    padding: 40px 28px;
 }
 
-@media (max-width: 880px) {
-    .supplier-mode-actions {
-        grid-template-columns: 1fr 1fr;
-    }
+.supplier-mode-badge {
+    cursor: default;
+}
+
+.supplier-mode-badge-normal {
+    background: #0a6aa4;
+    border-color: #0a6aa4;
+}
+
+.supplier-mode-badge-managed {
+    background: #2d5f95;
+    border-color: #2d5f95;
+}
+
+.supplier-mode-badge-partnership {
+    background: #ab5f17;
+    border-color: #ab5f17;
 }
 
 @media (max-width: 720px) {
-    .supplier-mode-actions {
+    .supplier-cards-stats {
         grid-template-columns: 1fr;
     }
 
-    .cash-balance-strip {
-        flex-direction: column;
-        align-items: flex-start;
+    .supplier-card-actions {
+        grid-template-columns: 1fr;
     }
 }
 </style>

@@ -14,6 +14,8 @@
                     <a class="button" href="{{ url_for('admin_managed_invoice', party_code=party.party_code) }}">+ Invoice</a>
                 {% elif supplier_mode in ("Cash", "Loan") %}
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata') }}">Kata / Statement</a>
+                {% elif supplier_mode == "Normal" %}
+                    {# No button for Normal mode #}
                 {% else %}
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Invoice Intake</a>
                 {% endif %}
@@ -56,7 +58,83 @@
         </div>
     </article>
 
-    {% if active_screen == "vehicles" %}
+    {% if active_screen == "portal" %}
+        <section class="compact-content-grid supplier-portal-top">
+            <article class="card desk-panel-card supplier-portal-intro">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">{{ portal_snapshot.intro_label }}</span>
+                        <h2>{{ portal_snapshot.intro_title }}</h2>
+                        <p class="workspace-lead">{{ portal_snapshot.intro_copy }}</p>
+                    </div>
+                </div>
+                <div class="supplier-overview-grid supplier-portal-summary-grid">
+                    <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(summary.outstanding_total) }}</small></div>
+                    <div class="directory-line"><strong>Paid</strong><small>AED {{ "%.2f"|format(summary.paid_total) }}</small></div>
+                    <div class="directory-line"><strong>Open Vouchers</strong><small>{{ summary.open_voucher_count }}</small></div>
+                    <div class="directory-line"><strong>Fleet</strong><small>{{ summary.asset_count }} units</small></div>
+                </div>
+            </article>
+
+            <article class="card desk-panel-card supplier-company-card" id="company-details">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Company Details</span>
+                        <h2>{{ party.party_name }}</h2>
+                    </div>
+                </div>
+                <div class="supplier-company-grid">
+                    {% for item in portal_snapshot.company_details %}
+                        <div class="directory-line">
+                            <strong>{{ item.label }}</strong>
+                            <small>{{ item.value }}</small>
+                        </div>
+                    {% endfor %}
+                </div>
+            </article>
+        </section>
+
+        <section class="supplier-portal-modules">
+            {% for module in portal_snapshot.modules %}
+                <a class="portal-module-card tone-{{ module.tone }}" href="{{ module.href }}">
+                    <span class="portal-module-kicker">{{ module.eyebrow }}</span>
+                    <h3>{{ module.title }}</h3>
+                    <strong>{{ module.value }}</strong>
+                    <p>{{ module.caption }}</p>
+                </a>
+            {% endfor %}
+        </section>
+
+        <section class="compact-content-grid portal-recent-grid">
+            {% for group in portal_snapshot.recent_groups %}
+                <article class="card desk-panel-card portal-recent-card" id="{{ group.anchor }}">
+                    <div class="desk-panel-head">
+                        <div>
+                            <span class="admin-desk-label">{{ group.eyebrow }}</span>
+                            <h2>{{ group.title }}</h2>
+                        </div>
+                    </div>
+                    <div class="portal-recent-list">
+                        {% for row in group.rows %}
+                            <div class="portal-recent-row">
+                                <div>
+                                    <strong>{{ row.headline }}</strong>
+                                    <small>{{ row.subline }}</small>
+                                </div>
+                                <div class="portal-recent-meta">
+                                    <span>{{ row.meta }}</span>
+                                    <span class="mini-link-pill">{{ row.status }}</span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="muted-text">{{ group.empty_copy }}</p>
+                        {% endfor %}
+                    </div>
+                </article>
+            {% endfor %}
+        </section>
+
+    {% elif active_screen == "vehicles" %}
         <section class="compact-content-grid">
             <article class="card desk-panel-card" id="asset-form">
                 <div class="desk-panel-head">
@@ -686,7 +764,7 @@
     {% elif active_screen == "statement" %}
         <article class="card desk-panel-card">
             <div class="desk-panel-head"><div><span class="admin-desk-label">Statement</span><h2>Statement of Account</h2></div></div>
-            {% if supplier_mode == "Normal" %}
+            {% if supplier_mode in ("Normal", "Managed") %}
                 <div class="supplier-overview-grid supplier-statement-grid">
                     <div class="directory-line"><strong>All Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.all_submitted) }}</small></div>
                     <div class="directory-line"><strong>Approved</strong><small>AED {{ "%.2f"|format(statement_summary.approved_total) }}</small></div>
@@ -846,8 +924,250 @@
         </section>
     {% endif %}
 </section>
+
+<script>
+function openInquiryModal() {
+    const modal = document.getElementById('inquiryModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Set default due date to 7 days from now
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 7);
+        document.querySelector('input[name="due_date"]').value = dueDate.toISOString().split('T')[0];
+        // Set response deadline to 3 days from now
+        const responseDate = new Date();
+        responseDate.setDate(responseDate.getDate() + 3);
+        document.querySelector('input[name="response_deadline"]').value = responseDate.toISOString().split('T')[0];
+    }
+}
+
+function closeInquiryModal() {
+    const modal = document.getElementById('inquiryModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('inquiryModal');
+    if (modal && event.target === modal) {
+        closeInquiryModal();
+    }
+});
+
+// Old sendInquiry function (kept for compatibility)
+function sendInquiry() {
+    alert('This feature has been upgraded. Please use the new inquiry form.');
+    openInquiryModal();
+}
+</script>
+
+<style>
+.supplier-portal-top {
+    margin-top: 22px;
+}
+
+.supplier-portal-summary-grid,
+.supplier-company-grid {
+    margin-top: 18px;
+}
+
+.supplier-portal-modules {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin: 22px 0;
+}
+
+.portal-module-card {
+    display: grid;
+    gap: 8px;
+    padding: 20px;
+    border-radius: 20px;
+    text-decoration: none;
+    color: #ffffff;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.portal-module-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 22px 44px rgba(15, 23, 42, 0.18);
+}
+
+.portal-module-card h3 {
+    margin: 0;
+    color: #ffffff;
+}
+
+.portal-module-card strong {
+    font-size: 1.22rem;
+}
+
+.portal-module-card p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.82);
+    line-height: 1.45;
+}
+
+.portal-module-kicker {
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.tone-normal,
+.tone-info {
+    background: linear-gradient(180deg, rgba(7, 106, 164, 0.98) 0%, rgba(11, 84, 138, 0.98) 100%);
+}
+
+.tone-managed {
+    background: linear-gradient(180deg, rgba(44, 86, 147, 0.98) 0%, rgba(31, 67, 121, 0.98) 100%);
+}
+
+.tone-partnership {
+    background: linear-gradient(180deg, rgba(171, 95, 23, 0.98) 0%, rgba(139, 73, 13, 0.98) 100%);
+}
+
+.tone-success {
+    background: linear-gradient(180deg, rgba(14, 116, 72, 0.98) 0%, rgba(15, 91, 61, 0.98) 100%);
+}
+
+.tone-warning {
+    background: linear-gradient(180deg, rgba(176, 102, 22, 0.98) 0%, rgba(145, 78, 13, 0.98) 100%);
+}
+
+.tone-neutral {
+    background: linear-gradient(180deg, rgba(71, 85, 105, 0.98) 0%, rgba(51, 65, 85, 0.98) 100%);
+}
+
+.tone-cash {
+    background: linear-gradient(180deg, rgba(7, 131, 94, 0.98) 0%, rgba(5, 108, 77, 0.98) 100%);
+}
+
+.tone-due {
+    background: linear-gradient(180deg, rgba(29, 78, 216, 0.98) 0%, rgba(30, 64, 175, 0.98) 100%);
+}
+
+.tone-advance {
+    background: linear-gradient(180deg, rgba(180, 83, 9, 0.98) 0%, rgba(146, 64, 14, 0.98) 100%);
+}
+
+.tone-settled {
+    background: linear-gradient(180deg, rgba(71, 85, 105, 0.98) 0%, rgba(51, 65, 85, 0.98) 100%);
+}
+
+.portal-recent-grid {
+    align-items: start;
+}
+
+.portal-recent-list {
+    display: grid;
+    gap: 12px;
+}
+
+.portal-recent-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.04);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.portal-recent-row strong,
+.portal-recent-row small {
+    display: block;
+}
+
+.portal-recent-row small {
+    margin-top: 4px;
+    color: var(--text-secondary);
+}
+
+.portal-recent-meta {
+    display: grid;
+    gap: 8px;
+    justify-items: end;
+    text-align: right;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 720px) {
+    .portal-recent-row {
+        flex-direction: column;
+    }
+
+    .portal-recent-meta {
+        justify-items: start;
+        text-align: left;
+    }
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+}
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+.modal-header {
+    padding: 16px 20px;
+    background: #0f2d52;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+}
+.modal-body {
+    padding: 20px;
+}
+.modal-footer {
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.full-span {
+    grid-column: 1 / -1;
+}
+.half-span {
+    grid-column: span 1;
+}
+</style>
+
 {% endblock %}
-
-
-
-
