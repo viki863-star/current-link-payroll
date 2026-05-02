@@ -283,8 +283,7 @@ def register_routes(app: Flask) -> None:
             else:
                 flash("Select a valid login type.", "error")
 
-        # Use premium login template for better UI
-        return render_template("login-premium.html", selected_role=selected_role)
+        return render_template("login.html", selected_role=selected_role)
 
     @app.get("/logout")
     def logout():
