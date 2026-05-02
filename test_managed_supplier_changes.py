@@ -4,13 +4,18 @@ Regression checks for the redesigned managed supplier workspace.
 """
 
 import re
+import shutil
 import unittest
+from pathlib import Path
+from uuid import uuid4
 
 from app import create_app
 
 
 class TestManagedSupplierDesk(unittest.TestCase):
     def setUp(self):
+        self.runtime_root = Path.cwd() / "generated" / "test-runs" / f"managed-desk-tests-{uuid4().hex}"
+        self.runtime_root.mkdir(parents=True, exist_ok=True)
         self.app = create_app(
             {
                 "TESTING": True,
@@ -18,6 +23,10 @@ class TestManagedSupplierDesk(unittest.TestCase):
                 "SECRET_KEY": "test-secret-key",
                 "ADMIN_PASSWORD": "admin-pass",
                 "OWNER_PASSWORD": "owner-pass",
+                "DATABASE": str(self.runtime_root / "managed-desk.db"),
+                "GENERATED_DIR": str(self.runtime_root / "generated"),
+                "GENERATED_BACKUP_DIR": "",
+                "DRIVER_FILES_DIR": str(self.runtime_root / "generated" / "drivers"),
             }
         )
         self.client = self.app.test_client()
@@ -25,6 +34,33 @@ class TestManagedSupplierDesk(unittest.TestCase):
         with self.client.session_transaction() as session:
             session["role"] = "admin"
             session["display_name"] = "Test Admin"
+
+    def tearDown(self):
+        shutil.rmtree(self.runtime_root, ignore_errors=True)
+
+    def _create_managed_supplier(self, party_code="PTY-MNG-01", party_name="Managed Supplier One"):
+        response = self.client.post(
+            "/suppliers/managed",
+            data={
+                "original_party_code": "",
+                "party_code": party_code,
+                "party_name": party_name,
+                "party_kind": "Company",
+                "party_roles": ["Supplier"],
+                "contact_person": "Ops Lead",
+                "phone_number": "0500000001",
+                "email": "managed@example.com",
+                "trn_no": "",
+                "trade_license_no": "",
+                "address": "Mussafah",
+                "notes": "managed supplier seed",
+                "status": "Active",
+                "supplier_mode": "Managed",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Supplier registered successfully.", response.data)
 
     def test_managed_supplier_registration_page_matches_new_flow(self):
         response = self.client.get("/suppliers/managed")
@@ -40,6 +76,7 @@ class TestManagedSupplierDesk(unittest.TestCase):
         self.assertNotIn("LPO Workspace", html)
 
     def test_managed_supplier_cards_page_uses_card_directory_labels(self):
+        self._create_managed_supplier()
         response = self.client.get("/suppliers/managed/cards")
         self.assertEqual(response.status_code, 200)
 
@@ -78,6 +115,7 @@ class TestManagedSupplierDesk(unittest.TestCase):
         self.assertEqual(_default_supplier_screen("Loan"), "portal")
 
     def test_managed_supplier_cards_use_portal_card_layout(self):
+        self._create_managed_supplier()
         response = self.client.get("/suppliers/managed/cards")
         self.assertEqual(response.status_code, 200)
 
