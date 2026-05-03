@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — Current Link ERP{% endblock %}
+{% block body_class %}dashboard-body{% endblock %}
+
+{% block content %}
+<div class="db-shell">
+
+    {# ── Dashboard Header ── #}
+    <div class="db-header">
+        <div class="db-header-left">
+            <div class="db-title-row">
+                <div class="db-title-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="db-title">Admin Dashboard</h1>
+                    <p class="db-subtitle">Select a workspace to begin your session</p>
+                </div>
+            </div>
+        </div>
+        <div class="db-header-badges">
+            <div class="db-kpi-pill">
+                <span class="db-kpi-dot db-kpi-green"></span>
+                <span>5 Workspaces Active</span>
+            </div>
+            <div class="db-kpi-pill">
+                <span class="db-kpi-dot db-kpi-orange"></span>
+                <span>ERP Live</span>
+            </div>
+        </div>
+    </div>
+
+    {# ── Workspace Cards Grid ── #}
+    <div class="db-grid">
+
+        {# ── Driver Desk ── #}
+        <a class="wc wc-driver" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">
+            <div class="wc-shimmer"></div>
+            <div class="wc-bg-icon">🚛</div>
+            <div class="wc-top">
+                <div class="wc-icon-badge wc-badge-driver">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                        <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+                        <circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>
+                        <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                    </svg>
+                </div>
+                <div class="wc-meta">
+                    <span class="wc-tag">Workspace</span>
+                    <span class="wc-category">Drivers</span>
+                </div>
+            </div>
+            <div class="wc-body">
+                <h2 class="wc-title">Driver Desk</h2>
+                <p class="wc-desc">Payroll management, trip records, advances & driver control panel.</p>
+            </div>
+            <div class="wc-footer">
+                <div class="wc-quick-stats">
+                    <span class="wc-stat wc-stat-driver">Payroll</span>
+                    <span class="wc-stat wc-stat-driver">Trips</span>
+                    <span class="wc-stat wc-stat-driver">Advances</span>
+                </div>
+                <div class="wc-cta">
+                    <span class="wc-cta-text">Open</span>
+                    <span class="wc-cta-arrow">
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
+                    </span>
+                </div>
+            </div>
+        </a>
+
+        {# ── Supplier Desk ── #}
+        <a class="wc wc-supplier" href="{{ url_for('supplier_desk_home') }}">
+            <div class="wc-shimmer"></div>
+            <div class="wc-bg-icon">🏢</div>
+            <div class="wc-top">
+                <div class="wc-icon-badge wc-badge-supplier">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                        <rect x="2" y="7" width="20" height="14" rx="2"/>
+                        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+                        <line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
+                    </svg>
+                </div>
+                <div class="wc-meta">
+                    <span class="wc-tag">Workspace</span>
+                    <span class="wc-category">Suppliers</span>
+                </div>
+            </div>
+            <div class="wc-body">
+                <h2 class="wc-title">Supplier Desk</h2>
+                <p class="wc-desc">All supplier types: Online, Cash, Managed & Partnership accounts with unified ledger.</p>
+            </div>
+            <div class="wc-footer">
+                <div class="wc-quick-stats">
+                    <span class="wc-stat wc-stat-supplier">Online</span>
+                    <span class="wc-stat wc-stat-supplier">Cash</span>
+                    <span class="wc-stat wc-stat-supplier">Managed</span>
+                    <span class="wc-stat wc-stat-supplier">Partner</span>
+                </div>
+                <div class="wc-cta">
+                    <span class="wc-cta-text">Open</span>
+                    <span class="wc-cta-arrow">
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
+                    </span>
+                </div>
+            </div>
+        </a>
+
+        {# ── Customer Desk ── #}
+        <a class="wc wc-customer" href="{{ url_for('switch_workspace', workspace_key='customers') }}">
+            <div class="wc-shimmer"></div>
+            <div class="wc-bg-icon">🎯</div>
+            <div class="wc-top">
+                <div class="wc-icon-badge wc-badge-customer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                        <path d="M20 12V22H4V12"/>
+                        <path d="M22 7H2v5h20V7z"/>
+                        <path d="M12 22V7"/>
+                        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+                        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+                    </svg>
+                </div>
+                <div class="wc-meta">
+                    <span class="wc-tag">Workspace</span>
+                    <span class="wc-category">Customers</span>
+                </div>
+            </div>
+            <div class="wc-body">
+                <h2 class="wc-title">Customer Desk</h2>
+                <p class="wc-desc">Customer invoices, statements, receivables & contract management.</p>
+            </div>
+            <div class="wc-footer">
+                <div class="wc-quick-stats">
+                    <span class="wc-stat wc-stat-customer">Invoices</span>
+                    <span class="wc-stat wc-stat-customer">Statements</span>
+                    <span class="wc-stat wc-stat-customer">Contracts</span>
+                </div>
+                <div class="wc-cta">
+                    <span class="wc-cta-text">Open</span>
+                    <span class="wc-cta-arrow">
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
+                    </span>
+                </div>
+            </div>
+        </a>
+
+        {# ── Accounts Desk ── #}
+        <a class="wc wc-accounts" href="{{ url_for('switch_workspace', workspace_key='accounts') }}">
+            <div class="wc-shimmer"></div>
+            <div class="wc-bg-icon">💰</div>
+            <div class="wc-top">
+                <div class="wc-icon-badge wc-badge-accounts">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                        <line x1="12" y1="1" x2="12" y2="23"/>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                </div>
+                <div class="wc-meta">
+                    <span class="wc-tag">Workspace</span>
+                    <span class="wc-category">Accounts</span>
+                </div>
+            </div>
+            <div class="wc-body">
+                <h2 class="wc-title">Accounts Desk</h2>
+                <p class="wc-desc">Fund management, tax records, financial reports & full audit trails.</p>
+            </div>
+            <div class="wc-footer">
+                <div class="wc-quick-stats">
+                    <span class="wc-stat wc-stat-accounts">Funds</span>
+                    <span class="wc-stat wc-stat-accounts">Tax</span>
+                    <span class="wc-stat wc-stat-accounts">Reports</span>
+                </div>
+                <div class="wc-cta">
+                    <span class="wc-cta-text">Open</span>
+                    <span class="wc-cta-arrow">
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
+                    </span>
+                </div>
+            </div>
+        </a>
+
+    </div>
+</div>
+{% endblock %}
