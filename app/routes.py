@@ -14287,23 +14287,23 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
         entries.append(
             {
                 "date": salary["entry_date"],
-                "type": "Salary",
                 "amount": float(salary["net_salary"]),
-                "given_by": "Current Link",
-                "purpose": (salary["remarks"] or f"Salary stored for {format_month_label(month_value)}").strip(),
+                "paid_by": "Current Link",
+                "reason": (salary["remarks"] or "Monthly salary").strip(),
                 "balance_after": running_balance,
                 "entry_kind": "salary",
             }
         )
     for txn in transaction_rows:
         running_balance += float(txn["amount"])
+        paid_by = (txn["source"] or txn["given_by"] or "-").strip()
+        reason = (txn["details"] or txn["given_by"] or txn["txn_type"] or "-").strip()
         entries.append(
             {
                 "date": txn["entry_date"],
-                "type": txn["txn_type"],
                 "amount": float(txn["amount"]),
-                "given_by": (txn["given_by"] or txn["source"] or "-").strip(),
-                "purpose": (txn["details"] or txn["source"] or txn["txn_type"] or "-").strip(),
+                "paid_by": paid_by,
+                "reason": reason,
                 "balance_after": max(running_balance, 0.0),
                 "entry_kind": "transaction",
             }
@@ -14315,10 +14315,9 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
             entries.append(
                 {
                     "date": str(slip["generated_at"])[:10],
-                    "type": "Deduction",
                     "amount": deduction_amount,
-                    "given_by": (slip["paid_by"] or slip["payment_source"] or "-").strip(),
-                    "purpose": f"Deducted in salary slip ({format_month_label(slip['salary_month'])})",
+                    "paid_by": (slip["payment_source"] or slip["paid_by"] or "-").strip(),
+                    "reason": "Salary deduction",
                     "balance_after": running_balance,
                     "entry_kind": "deduction",
                 }
@@ -14326,10 +14325,9 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
         entries.append(
             {
                 "date": str(slip["generated_at"])[:10],
-                "type": "Salary Paid",
                 "amount": float(slip["net_payable"] or 0.0),
-                "given_by": (slip["paid_by"] or "-").strip(),
-                "purpose": f"Paid via {slip['payment_source'] or '-'}",
+                "paid_by": (slip["payment_source"] or slip["paid_by"] or "-").strip(),
+                "reason": "Salary paid",
                 "balance_after": running_balance,
                 "entry_kind": "payment",
             }

@@ -304,9 +304,8 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
             {
                 "date": _iso_date_value(salary["entry_date"]),
                 "amount": float(salary["net_salary"]),
-                "who": "Current Link",
-                "purpose": (_row_value(salary, "remarks") or f"Salary stored for {format_month_label(salary['salary_month'])}").strip(),
-                "entry_type": "Salary",
+                "paid_by": "Current Link",
+                "reason": (_row_value(salary, "remarks") or "Monthly salary").strip(),
                 "balance_after": running_balance,
                 "sort_group": 0,
             }
@@ -317,9 +316,8 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
             {
                 "date": _iso_date_value(txn["entry_date"]),
                 "amount": float(txn["amount"]),
-                "who": (_row_value(txn, "given_by") or _row_value(txn, "source") or "-").strip(),
-                "purpose": (_row_value(txn, "details") or _row_value(txn, "source") or txn["txn_type"] or "-").strip(),
-                "entry_type": txn["txn_type"],
+                "paid_by": (_row_value(txn, "source") or _row_value(txn, "given_by") or "-").strip(),
+                "reason": (_row_value(txn, "details") or _row_value(txn, "given_by") or txn["txn_type"] or "-").strip(),
                 "balance_after": max(running_balance, 0.0),
                 "sort_group": 1,
             }
@@ -332,9 +330,8 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
                 {
                     "date": _iso_date_value(slip["generated_at"]),
                     "amount": deduction_amount,
-                    "who": (slip["paid_by"] or slip["payment_source"] or "-").strip(),
-                    "purpose": f"Deducted in salary slip ({format_month_label(slip['salary_month'])})",
-                    "entry_type": "Deduction",
+                    "paid_by": (slip["payment_source"] or slip["paid_by"] or "-").strip(),
+                    "reason": "Salary deduction",
                     "balance_after": running_balance,
                     "sort_group": 2,
                 }
@@ -343,9 +340,8 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
             {
                 "date": _iso_date_value(slip["generated_at"]),
                 "amount": float(slip["net_payable"] or 0.0),
-                "who": (slip["paid_by"] or "-").strip(),
-                "purpose": f"Paid via {slip['payment_source'] or '-'}",
-                "entry_type": "Salary Paid",
+                "paid_by": (slip["payment_source"] or slip["paid_by"] or "-").strip(),
+                "reason": "Salary paid",
                 "balance_after": running_balance,
                 "sort_group": 3,
             }
@@ -1742,8 +1738,8 @@ def _draw_kata_statement_table(pdf: canvas.Canvas, entries) -> None:
     _draw_table_header(
         pdf,
         top,
-        ["Date", "Raqam", "Kis Ne Diya", "Kis Liye Diya", "Type", "Balance"],
-        [18, 43, 69, 101, 153, 180],
+        ["Date", "Amount", "Paid By", "Reason", "Balance"],
+        [18, 47, 79, 125, 180],
     )
 
     y = top - 7 * mm
@@ -1757,19 +1753,15 @@ def _draw_kata_statement_table(pdf: canvas.Canvas, entries) -> None:
         pdf.drawString(18 * mm, y, format_date_label(item["date"]))
 
         pdf.setFont("Helvetica-Bold", 8.4)
-        pdf.drawRightString(65 * mm, y, format_currency(item["amount"]))
+        pdf.drawRightString(75 * mm, y, format_currency(item["amount"]))
 
-        who_text, who_size = _fit_text(pdf, item["who"], "Helvetica-Bold", 8.2, 28 * mm, min_size=6.8)
+        who_text, who_size = _fit_text(pdf, item["paid_by"], "Helvetica-Bold", 8.2, 42 * mm, min_size=6.8)
         pdf.setFont("Helvetica-Bold", who_size)
-        pdf.drawString(69 * mm, y, who_text)
+        pdf.drawString(79 * mm, y, who_text)
 
-        purpose_text, purpose_size = _fit_text(pdf, item["purpose"], "Helvetica-Bold", 8.2, 48 * mm, min_size=6.8)
+        purpose_text, purpose_size = _fit_text(pdf, item["reason"], "Helvetica-Bold", 8.2, 52 * mm, min_size=6.8)
         pdf.setFont("Helvetica-Bold", purpose_size)
-        pdf.drawString(101 * mm, y, purpose_text)
-
-        type_text, type_size = _fit_text(pdf, item["entry_type"], "Helvetica-Bold", 8.0, 22 * mm, min_size=6.6)
-        pdf.setFont("Helvetica-Bold", type_size)
-        pdf.drawString(153 * mm, y, type_text)
+        pdf.drawString(125 * mm, y, purpose_text)
 
         pdf.setFont("Helvetica-Bold", 8.2)
         pdf.drawRightString(193 * mm, y, format_currency(item["balance_after"]))

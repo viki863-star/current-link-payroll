@@ -217,10 +217,9 @@
                     <thead>
                         <tr>
                             <th>Date</th>
-                            <th>Raqam</th>
-                            <th>Kis Ne Diya</th>
-                            <th>Kis Liye Diya</th>
-                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Paid By</th>
+                            <th>Reason</th>
                             <th>Balance</th>
                         </tr>
                     </thead>
@@ -229,9 +228,8 @@
                             <tr>
                                 <td>{{ item.date }}</td>
                                 <td class="kata-amount-cell">AED {{ "%.2f"|format(item.amount) }}</td>
-                                <td class="kata-who-cell">{{ item.given_by or "-" }}</td>
-                                <td class="kata-purpose-cell">{{ item.purpose or "-" }}</td>
-                                <td>{{ item.type }}</td>
+                                <td class="kata-who-cell">{{ item.paid_by or "-" }}</td>
+                                <td class="kata-purpose-cell">{{ item.reason or "-" }}</td>
                                 <td class="kata-balance-cell">AED {{ "%.2f"|format(item.balance_after) }}</td>
                             </tr>
                         {% endfor %}

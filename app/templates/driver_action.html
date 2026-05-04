@@ -156,10 +156,10 @@
     <div class="detail-grid mini-detail-grid driver-kata-summary-grid">
         <div><dt>Month</dt><dd>{{ kata_summary.month_label }}</dd></div>
         <div><dt>Opening Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.opening_balance) }}</dd></div>
-        <div><dt>Monthly Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</dd></div>
-        <div><dt>Monthly Cash Received</dt><dd>AED {{ "%.2f"|format(kata_summary.cash_given) }}</dd></div>
-        <div><dt>Monthly Deductions</dt><dd>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</dd></div>
-        <div><dt>Monthly Paid</dt><dd>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</dd></div>
+        <div><dt>Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</dd></div>
+        <div><dt>Received</dt><dd>AED {{ "%.2f"|format(kata_summary.cash_given) }}</dd></div>
+        <div><dt>Deducted</dt><dd>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</dd></div>
+        <div><dt>Paid</dt><dd>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</dd></div>
         <div><dt>Closing Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.closing_balance) }}</dd></div>
     </div>
 
@@ -170,9 +170,8 @@
                     <tr>
                         <th>Date</th>
                         <th>Amount</th>
-                        <th>Given By</th>
-                        <th>Details</th>
-                        <th>Type</th>
+                        <th>Paid By</th>
+                        <th>Reason</th>
                         <th>Balance</th>
                     </tr>
                 </thead>
@@ -181,16 +180,15 @@
                         <tr>
                             <td>{{ item.date }}</td>
                             <td class="driver-kata-amount">AED {{ "%.2f"|format(item.amount) }}</td>
-                            <td class="driver-kata-who">{{ item.given_by or "-" }}</td>
-                            <td class="driver-kata-details">{{ item.purpose or "-" }}</td>
-                            <td>{{ item.type }}</td>
+                            <td class="driver-kata-who">{{ item.paid_by or "-" }}</td>
+                            <td class="driver-kata-details">{{ item.reason or "-" }}</td>
                             <td class="driver-kata-balance">AED {{ "%.2f"|format(item.balance_after) }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <p class="panel-note driver-kata-footer-note">This table shows only {{ kata_summary.month_label }}. Older months are not listed here even if their balance carries forward.</p>
+        <p class="panel-note driver-kata-footer-note">Only {{ kata_summary.month_label }} is shown here.</p>
     {% else %}
         <p class="muted-text">No KATA entries found for {{ kata_summary.month_label }}.</p>
     {% endif %}
