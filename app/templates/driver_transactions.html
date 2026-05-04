@@ -58,7 +58,7 @@
             </label>
             <label>
                 <span>Given By</span>
-                <input type="text" name="given_by" value="{{ values.given_by }}">
+                <input type="text" name="given_by" value="{{ values.given_by }}" placeholder="Owner / Office / Nasrullah">
             </label>
             <label>
                 <span>Amount</span>
@@ -66,8 +66,11 @@
             </label>
             <label class="full-span">
                 <span>Details</span>
-                <textarea name="details" rows="5">{{ values.details }}</textarea>
+                <textarea name="details" rows="5" placeholder="Visa expense / Fuel / Daman / Advance before salary">{{ values.details }}</textarea>
             </label>
+            <div class="full-span panel-note">
+                Entry ko simple rakhein: `kis ne diya` aur `kis liye diya` dono likhein taa ke driver ka month-wise KATA clear bane.
+            </div>
             <div class="form-actions split-actions">
                 <a class="button danger-button" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Close</a>
                 <button class="button success-button" type="submit">{{ 'Update Entry' if values.transaction_id else 'Save Entry' }}</button>

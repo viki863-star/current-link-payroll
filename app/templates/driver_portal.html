@@ -107,6 +107,7 @@
             </label>
             <div class="form-actions left-actions full-span">
                 <button class="button" type="submit">Open Month</button>
+                <a class="button button-secondary" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank">Download Monthly KATA</a>
                 <a class="button button-secondary" href="{{ url_for('driver_timesheet_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank">Download Timesheet PDF</a>
             </div>
         </form>
@@ -198,37 +199,78 @@
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">5</p>
-                <h2>Transactions</h2>
+                <h2>Monthly KATA</h2>
             </div>
         </div>
-        {% if recent_transactions %}
+        <div class="detail-grid mini-detail-grid" style="margin-bottom:18px;">
+            <div><dt>Month</dt><dd>{{ kata_summary.month_label }}</dd></div>
+            <div><dt>Opening Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.opening_balance) }}</dd></div>
+            <div><dt>This Month Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</dd></div>
+            <div><dt>This Month Cash Given</dt><dd>AED {{ "%.2f"|format(kata_summary.cash_given) }}</dd></div>
+            <div><dt>This Month Deduction</dt><dd>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</dd></div>
+            <div><dt>This Month Paid</dt><dd>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</dd></div>
+            <div><dt>Closing Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.closing_balance) }}</dd></div>
+        </div>
+        {% if kata_entries %}
             <div class="table-wrap">
-                <table>
+                <table class="kata-month-table">
                     <thead>
                         <tr>
                             <th>Date</th>
+                            <th>Raqam</th>
+                            <th>Kis Ne Diya</th>
+                            <th>Kis Liye Diya</th>
                             <th>Type</th>
-                            <th>Source</th>
-                            <th>Amount</th>
-                            <th>Details</th>
+                            <th>Balance</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in recent_transactions %}
+                        {% for item in kata_entries %}
                             <tr>
-                                <td>{{ item.entry_date }}</td>
-                                <td>{{ item.txn_type }}</td>
-                                <td>{{ item.source }}</td>
-                                <td>AED {{ "%.2f"|format(item.amount) }}</td>
-                                <td>{{ item.details or "-" }}</td>
+                                <td>{{ item.date }}</td>
+                                <td class="kata-amount-cell">AED {{ "%.2f"|format(item.amount) }}</td>
+                                <td class="kata-who-cell">{{ item.given_by or "-" }}</td>
+                                <td class="kata-purpose-cell">{{ item.purpose or "-" }}</td>
+                                <td>{{ item.type }}</td>
+                                <td class="kata-balance-cell">AED {{ "%.2f"|format(item.balance_after) }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            <p class="panel-note small-note">Is view mein sirf {{ kata_summary.month_label }} ki entries dikh rahi hain. Purane months ki lines yahan hide rehti hain.</p>
         {% else %}
-            <p class="muted-text">Abhi transaction history available nahi.</p>
+            <p class="muted-text">Is month ke liye abhi KATA entry available nahi.</p>
         {% endif %}
     </article>
 </section>
+
+<style>
+.kata-month-table {
+    font-size: 0.94rem;
+}
+.kata-month-table th,
+.kata-month-table td {
+    padding: 12px 10px;
+    vertical-align: top;
+}
+.kata-amount-cell,
+.kata-balance-cell,
+.kata-who-cell,
+.kata-purpose-cell {
+    font-weight: 700;
+}
+.kata-purpose-cell {
+    min-width: 220px;
+}
+@media (max-width: 720px) {
+    .kata-month-table {
+        font-size: 0.88rem;
+    }
+    .kata-month-table th,
+    .kata-month-table td {
+        padding: 10px 8px;
+    }
+}
+</style>
 {% endblock %}

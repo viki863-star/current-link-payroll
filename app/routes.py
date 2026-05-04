@@ -11,6 +11,7 @@ from flask import (
     abort,
     current_app,
     flash,
+    has_request_context,
     redirect,
     render_template,
     request,
@@ -166,24 +167,25 @@ def register_routes(app: Flask) -> None:
 
     @app.context_processor
     def inject_auth_context():
-        current_role = _current_role()
+        request_active = has_request_context()
+        current_role = _current_role() if request_active else ""
         current_workspace = _current_admin_workspace() if current_role == "admin" else ""
         workspace_home_endpoint = _workspace_home_endpoint(current_workspace) if current_role == "admin" else ""
         return {
             "current_role": current_role,
-            "current_driver_id": session.get("driver_id"),
-            "current_user_name": session.get("display_name", ""),
+            "current_driver_id": session.get("driver_id") if request_active else "",
+            "current_user_name": session.get("display_name", "") if request_active else "",
             "is_admin": current_role == "admin",
             "is_driver": current_role == "driver",
             "is_owner": current_role == "owner",
             "is_supplier": current_role == "supplier",
-            "current_supplier_party_code": session.get("supplier_party_code", ""),
+            "current_supplier_party_code": session.get("supplier_party_code", "") if request_active else "",
             "current_admin_workspace": current_workspace,
             "current_workspace_meta": _current_workspace_meta(),
             "admin_workspace_links": _admin_workspace_links() if current_role == "admin" else [],
             "admin_module_links": _admin_module_links(current_workspace) if current_role == "admin" else [],
             "admin_workspace_home_endpoint": workspace_home_endpoint,
-            "admin_workspace_home_url": url_for(workspace_home_endpoint) if workspace_home_endpoint else "",
+            "admin_workspace_home_url": url_for(workspace_home_endpoint) if request_active and workspace_home_endpoint else "",
             "admin_workspace_home_label": f"{ADMIN_WORKSPACE_META[current_workspace]['title']}" if current_role == "admin" and current_workspace in ADMIN_WORKSPACE_META and current_workspace != "universal" else "",
         }
 
@@ -281,7 +283,7 @@ def register_routes(app: Flask) -> None:
             else:
                 flash("Select a valid login type.", "error")
 
-        return render_template("login.html", selected_role=selected_role)
+        return render_template("login-premium.html", selected_role=selected_role)
 
     @app.get("/logout")
     def logout():
@@ -1008,6 +1010,7 @@ def register_routes(app: Flask) -> None:
                 SELECT
                     submission_no,
                     party_code,
+                    lpo_no,
                     external_invoice_no,
                     period_month,
                     invoice_date,
@@ -2249,15 +2252,10 @@ def register_routes(app: Flask) -> None:
         context = _supplier_cards_context(db, supplier_mode, query=query)
         context.update(
             {
-                "desk_title": "Online Supplier Workspace",
+                "desk_title": "Online Supplier Desk",
                 "supplier_type_label": "Online Supplier",
                 "toolbar_links": [
-                    {"label": "Add New Supplier", "href": url_for("admin_supplier_register", mode=supplier_mode), "primary": True},
-                    {"label": "Registrations", "href": url_for("supplier_registrations")},
-                    {"label": "Quotations", "href": url_for("admin_supplier_quotations")},
-                    {"label": "LPO Workspace", "href": url_for("agreements_lpos")},
-                    {"label": "Invoices", "href": url_for("invoice_center")},
-                    {"label": "Reports", "href": url_for("reports_center")},
+                    {"label": "Register Online Supplier", "href": url_for("admin_supplier_register", mode=supplier_mode), "primary": True},
                 ],
                 "empty_title": "No Online Suppliers Found",
                 "empty_copy": "Add your first online supplier to get started.",
@@ -2302,17 +2300,12 @@ def register_routes(app: Flask) -> None:
             supplier_mode=supplier_mode,
             summary=_supplier_hub_summary(db, supplier_mode),
             role_options=[item for item in PARTY_ROLE_OPTIONS if item != "Supplier"],
-            desk_title="Online Supplier Workspace",
+            desk_title="Online Supplier Desk",
             supplier_type_label="Online Supplier",
             desk_endpoint="suppliers",
             cards_endpoint=_supplier_cards_endpoint(supplier_mode),
             toolbar_links=[
-                {"label": "Supplier Cards", "href": url_for(_supplier_cards_endpoint(supplier_mode))},
-                {"label": "Registrations", "href": url_for("supplier_registrations")},
-                {"label": "Quotations", "href": url_for("admin_supplier_quotations")},
-                {"label": "LPO Workspace", "href": url_for("agreements_lpos")},
-                {"label": "Invoices", "href": url_for("invoice_center")},
-                {"label": "Reports", "href": url_for("reports_center")},
+                {"label": "Back to Cards", "href": url_for(_supplier_cards_endpoint(supplier_mode))},
             ],
             partner_parties=_supplier_partner_parties(db),
         )
@@ -2359,8 +2352,7 @@ def register_routes(app: Flask) -> None:
             cards_endpoint="partnership_supplier_cards",
             supplier_type_label="Partnership Supplier",
             toolbar_links=[
-                {"label": "Supplier Cards", "href": url_for("partnership_supplier_cards")},
-                {"label": "Reports", "href": url_for("reports_center")},
+                {"label": "Back to Cards", "href": url_for("partnership_supplier_cards")},
             ],
             partner_parties=_supplier_partner_parties(db),
         )
@@ -2407,10 +2399,7 @@ def register_routes(app: Flask) -> None:
             cards_endpoint="managed_supplier_cards",
             supplier_type_label="Managed Supplier",
             toolbar_links=[
-                {"label": "Supplier Cards", "href": url_for("managed_supplier_cards")},
-                {"label": "Quotation Review", "href": url_for("admin_supplier_quotations")},
-                {"label": "LPO Workspace", "href": url_for("agreements_lpos")},
-                {"label": "Invoices", "href": url_for("invoice_center")},
+                {"label": "Back to Cards", "href": url_for("managed_supplier_cards")},
             ],
             partner_parties=_supplier_partner_parties(db),
         )
@@ -2428,10 +2417,7 @@ def register_routes(app: Flask) -> None:
                 "desk_title": "Managed Supplier Desk",
                 "supplier_type_label": "Managed Supplier",
                 "toolbar_links": [
-                    {"label": "Add New Supplier", "href": url_for("managed_suppliers"), "primary": True},
-                    {"label": "Quotation Review", "href": url_for("admin_supplier_quotations")},
-                    {"label": "LPO Workspace", "href": url_for("agreements_lpos")},
-                    {"label": "Invoices", "href": url_for("invoice_center")},
+                    {"label": "Register Managed Supplier", "href": url_for("managed_suppliers"), "primary": True},
                 ],
                 "empty_title": "No Managed Suppliers Found",
                 "empty_copy": "Register your first managed supplier to start quotations and invoices.",
@@ -2452,8 +2438,7 @@ def register_routes(app: Flask) -> None:
                 "desk_title": "Partnership Supplier Desk",
                 "supplier_type_label": "Partnership Supplier",
                 "toolbar_links": [
-                    {"label": "Add New Supplier", "href": url_for("partnership_suppliers"), "primary": True},
-                    {"label": "Reports", "href": url_for("reports_center")},
+                    {"label": "Register Partnership Supplier", "href": url_for("partnership_suppliers"), "primary": True},
                 ],
                 "empty_title": "No Partnership Suppliers Found",
                 "empty_copy": "Register your first partnership supplier to track split results and statements.",
@@ -3212,6 +3197,28 @@ def register_routes(app: Flask) -> None:
             cash_debit_no = _safe_supplier_view_value("cash debit number", "", _next_reference_code, db, "cash_supplier_debits", "debit_no", "DEB")
             cash_payment_no = _safe_supplier_view_value("cash payment number", "", _next_reference_code, db, "cash_supplier_payments", "payment_no", "CPY")
 
+        portal_snapshot = {
+            "intro_label": "Supplier Portal",
+            "intro_title": "Supplier Portal",
+            "intro_copy": "",
+            "modules": [],
+            "recent_groups": [],
+            "company_details": [],
+        }
+        if active_screen == "portal":
+            try:
+                portal_snapshot = _supplier_portal_snapshot(
+                    db,
+                    party,
+                    supplier_mode,
+                    detail_summary,
+                    partnership_summary=partnership_summary,
+                    partnership_month=partnership_month,
+                    portal_account=portal_account,
+                )
+            except Exception:
+                current_app.logger.exception("Failed to build supplier portal snapshot for %s", party_code)
+
         return render_template(
             "supplier_detail.html",
             party=party,
@@ -3254,7 +3261,69 @@ def register_routes(app: Flask) -> None:
             cash_trip_no=cash_trip_no,
             cash_debit_no=cash_debit_no,
             cash_payment_no=cash_payment_no,
+            portal_snapshot=portal_snapshot,
         )
+
+    @app.route("/suppliers/<party_code>/send-inquiry", methods=["POST"])
+    @_login_required("admin")
+    def send_supplier_inquiry(party_code: str):
+        """Create a new inquiry for a supplier."""
+        db = open_db()
+        party = _fetch_supplier_party(db, party_code)
+        if party is None:
+            flash("Supplier not found.", "error")
+            return redirect(url_for("suppliers"))
+
+        subject = request.form.get("subject", "").strip()
+        description = request.form.get("description", "").strip()
+        priority = request.form.get("priority", "Normal").strip()
+        due_date = request.form.get("due_date", "").strip()
+        response_deadline = request.form.get("response_deadline", "").strip()
+
+        if not subject:
+            flash("Subject is required.", "error")
+            return redirect(url_for("supplier_detail", party_code=party_code, screen="portal"))
+        if not description:
+            flash("Description is required.", "error")
+            return redirect(url_for("supplier_detail", party_code=party_code, screen="portal"))
+
+        # Generate inquiry number
+        inquiry_no = _next_reference_code(db, "supplier_inquiries", "inquiry_no", "INQ")
+
+        db.execute(
+            """
+            INSERT INTO supplier_inquiries (
+                inquiry_no, party_code, inquiry_date, subject, description,
+                priority, status, due_date, response_deadline, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                inquiry_no,
+                party_code,
+                date.today().isoformat(),
+                subject,
+                description,
+                priority,
+                "Open",
+                due_date if due_date else None,
+                response_deadline if response_deadline else None,
+                session.get("display_name", "Admin"),
+            ),
+        )
+        db.commit()
+
+        # TODO: Send email notification to supplier
+        # For now, just log
+        _audit_log(
+            db,
+            "inquiry_created",
+            entity_type="supplier_inquiry",
+            entity_id=inquiry_no,
+            details=f"Inquiry {inquiry_no} created for {party_code}",
+        )
+
+        flash(f"Inquiry {inquiry_no} sent to supplier.", "success")
+        return redirect(url_for("supplier_detail", party_code=party_code, screen="portal"))
 
     @app.get("/suppliers/<party_code>/statement")
     @_login_required("admin")
@@ -5968,27 +6037,28 @@ def register_routes(app: Flask) -> None:
         ).fetchall()
         recent_transactions = db.execute(
             """
-            SELECT entry_date, txn_type, source, amount, details
+            SELECT entry_date, txn_type, source, given_by, amount, details
             FROM driver_transactions
-            WHERE driver_id = ?
+            WHERE driver_id = ? AND entry_date >= ? AND entry_date < ?
             ORDER BY entry_date DESC, id DESC
             LIMIT 12
             """,
-            (driver["driver_id"],),
+            (driver["driver_id"], f"{selected_month}-01", f"{_next_month_value(selected_month)}-01"),
         ).fetchall()
         salary_slips = db.execute(
             """
             SELECT salary_month, net_payable, total_deductions, pdf_path, payment_source, generated_at
             FROM salary_slips
-            WHERE driver_id = ?
+            WHERE driver_id = ? AND salary_month = ?
             ORDER BY generated_at DESC, id DESC
             LIMIT 12
             """,
-            (driver["driver_id"],),
+            (driver["driver_id"], selected_month),
         ).fetchall()
         month_hours = _timesheet_total_for_month(db, driver["driver_id"], selected_month)
         month_calendar = _driver_month_calendar(db, driver["driver_id"], selected_month)
         timesheet_summary = _timesheet_month_summary(month_calendar)
+        kata_entries, kata_summary = _driver_kata_month_data(db, driver["driver_id"], selected_month)
 
         return render_template(
             "driver_portal.html",
@@ -6002,6 +6072,8 @@ def register_routes(app: Flask) -> None:
             outstanding_advance=_outstanding_advance(db, driver["driver_id"]),
             selected_month=selected_month,
             selected_month_label=format_month_label(selected_month),
+            kata_entries=kata_entries,
+            kata_summary=kata_summary,
             month_calendar=month_calendar,
             timesheet_summary=timesheet_summary,
         )
@@ -6528,6 +6600,7 @@ def register_routes(app: Flask) -> None:
             photo_url=_driver_photo_url(app, driver),
             salary_status="Stored" if current_salary else "Not Stored",
             current_month_label=format_month_label(current_month),
+            current_month_value=current_month,
             salary_due=_driver_balance(db, driver_id),
             advance_summary=_advance_summary(db, driver_id),
             outstanding_advance=_outstanding_advance(db, driver_id),
@@ -7114,16 +7187,29 @@ def register_routes(app: Flask) -> None:
         )
 
     @app.get("/drivers/<driver_id>/kata-pdf")
-    @_login_required("admin")
+    @_login_required("admin", "driver")
     def driver_kata_pdf(driver_id: str):
+        if _current_role() == "driver" and _current_driver_id() != driver_id:
+            flash("You do not have access to that KATA.", "error")
+            return redirect(url_for("driver_portal"))
+
         db = open_db()
         driver = _fetch_driver(db, driver_id)
         if driver is None:
             flash("Driver not found.", "error")
-            return redirect(url_for("dashboard"))
-        pdf_path = _regenerate_kata_for_driver(app, db, driver)
+            return redirect(url_for(_role_home_endpoint()))
+        selected_month = _normalize_month(request.args.get("month", "").strip() or _current_month_value())
+        statement_mode = request.args.get("mode", "").strip().lower()
+        pdf_path = _regenerate_kata_for_driver(
+            app,
+            db,
+            driver,
+            month_value=None if statement_mode == "full" else selected_month,
+        )
         if pdf_path is None:
             flash("No salary or transaction data is available for this driver yet.", "error")
+            if _current_role() == "driver":
+                return redirect(url_for("driver_portal", month=selected_month))
             return redirect(url_for("driver_action", driver_id=driver_id))
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
@@ -7484,8 +7570,7 @@ def _admin_module_links(workspace: str):
         ],
         "suppliers-managed": [
             {"label": "New Managed Supplier", "endpoint": "managed_suppliers", "primary": True},
-            {"label": "Portal Desk", "endpoint": "suppliers"},
-            {"label": "Quotations", "endpoint": "admin_supplier_quotations"},
+            {"label": "Supplier Cards", "endpoint": "managed_supplier_cards"},
         ],
         "suppliers-cash": [
             {"label": "New Cash Supplier", "endpoint": "cash_suppliers", "primary": True},
@@ -9379,21 +9464,47 @@ def _supplier_detail_endpoint(supplier_mode: str) -> str:
 def _supplier_screen_options(supplier_mode: str):
     if supplier_mode in ("Cash", "Loan"):
         return [
+            {"key": "portal", "label": "Portal"},
             {"key": "kata", "label": "Kata / Statement"},
         ]
+
+    if supplier_mode == "Normal":
+        options = [
+            {"key": "portal", "label": "Portal"},
+            {"key": "statement", "label": "SOA"},
+        ]
+        return options
+
+    if supplier_mode == "Managed":
+        options = [
+            {"key": "portal", "label": "Portal"},
+            {"key": "statement", "label": "SOA"},
+        ]
+        return options
+
+    if supplier_mode == "Partnership":
+        options = [
+            {"key": "portal", "label": "Portal"},
+            {"key": "vehicles", "label": "Vehicles"},
+            {"key": "timesheets", "label": "Timesheets"},
+            {"key": "billing", "label": "Expenses & Salary Split"},
+            {"key": "statement", "label": "SOA"},
+            {"key": "partnership", "label": "Profit Result"},
+        ]
+        return options
+
     options = [
+        {"key": "portal", "label": "Portal"},
         {"key": "vehicles", "label": "Vehicles"},
         {"key": "timesheets", "label": "Timesheets"},
-        {"key": "billing", "label": "Invoice Intake & Payment" if supplier_mode in ("Normal", "Managed") else "Expenses & Salary Split"},
-        {"key": "statement", "label": "Statement"},
+        {"key": "billing", "label": "Invoice Intake & Payment"},
+        {"key": "statement", "label": "SOA"},
     ]
-    if (supplier_mode or "Normal") == "Partnership":
-        options.append({"key": "partnership", "label": "Profit Result"})
     return options
 
 
 def _default_supplier_screen(supplier_mode: str) -> str:
-    return "kata" if supplier_mode in ("Cash", "Loan") else "vehicles"
+    return "portal"
 
 
 def _normalize_supplier_screen(screen: str, supplier_mode: str) -> str:
@@ -9497,6 +9608,422 @@ def _supplier_cards_context(db, supplier_mode: str, query: str = "") -> dict:
         "register_endpoint": _supplier_register_endpoint(normalized_mode),
         "statement_endpoint": "supplier_statement",
         "delete_endpoint": "delete_supplier",
+    }
+
+
+def _supplier_portal_snapshot(
+    db,
+    party,
+    supplier_mode: str,
+    detail_summary: dict,
+    *,
+    partnership_summary: dict | None = None,
+    partnership_month: str = "",
+    portal_account=None,
+) -> dict:
+    party_code = party["party_code"]
+    normalized_mode = supplier_mode or "Normal"
+
+    def money(amount: float) -> str:
+        return f"AED {float(amount or 0.0):,.2f}"
+
+    def supplier_screen_href(screen: str = "portal", anchor: str = "") -> str:
+        href = url_for("supplier_detail", party_code=party_code, screen=screen)
+        return f"{href}#{anchor}" if anchor else href
+
+    company_details = [
+        {"label": "Supplier Code", "value": party["party_code"]},
+        {
+            "label": "Type",
+            "value": f"{normalized_mode} / {party['party_kind']}",
+        },
+        {"label": "Status", "value": party["status"] or "-"},
+        {"label": "Contact", "value": party["contact_person"] or "-"},
+        {"label": "Phone", "value": party["phone_number"] or "-"},
+        {"label": "Email", "value": party["email"] or "-"},
+        {"label": "Address", "value": party["address"] or "-"},
+    ]
+    if normalized_mode == "Partnership":
+        profile = _supplier_profile_row(db, party_code)
+        if profile is not None:
+            company_details.append({"label": "Partner", "value": profile["partner_name"] or "-"})
+            company_details.append(
+                {
+                    "label": "Split",
+                    "value": f"{float(profile['default_company_share_percent'] or 0):.0f}% / {float(profile['default_partner_share_percent'] or 0):.0f}%",
+                }
+            )
+    if normalized_mode == "Normal" and portal_account is not None:
+        company_details.append(
+            {
+                "label": "Portal Access",
+                "value": "Enabled" if portal_account["portal_enabled"] else "Disabled",
+            }
+        )
+
+    if normalized_mode in ("Cash", "Loan"):
+        trip_count = int(db.execute("SELECT COUNT(*) FROM cash_supplier_trips WHERE party_code = ?", (party_code,)).fetchone()[0] or 0)
+        debit_count = int(db.execute("SELECT COUNT(*) FROM cash_supplier_debits WHERE party_code = ?", (party_code,)).fetchone()[0] or 0)
+        payment_count = int(db.execute("SELECT COUNT(*) FROM cash_supplier_payments WHERE party_code = ?", (party_code,)).fetchone()[0] or 0)
+        total_earned = float(db.execute("SELECT COALESCE(SUM(total_amount), 0) FROM cash_supplier_trips WHERE party_code = ?", (party_code,)).fetchone()[0] or 0.0)
+        total_debits = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM cash_supplier_debits WHERE party_code = ?", (party_code,)).fetchone()[0] or 0.0)
+        total_paid = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM cash_supplier_payments WHERE party_code = ?", (party_code,)).fetchone()[0] or 0.0)
+        balance_label, balance_tone, balance_amount = _cash_supplier_balance_meta(total_earned - total_debits - total_paid)
+        trip_rows = db.execute(
+            """
+            SELECT trip_no, entry_date, total_amount, vehicle_no
+            FROM cash_supplier_trips
+            WHERE party_code = ?
+            ORDER BY entry_date DESC, id DESC
+            LIMIT 4
+            """,
+            (party_code,),
+        ).fetchall()
+        debit_rows = db.execute(
+            """
+            SELECT debit_no, entry_date, amount, debit_type
+            FROM cash_supplier_debits
+            WHERE party_code = ?
+            ORDER BY entry_date DESC, id DESC
+            LIMIT 4
+            """,
+            (party_code,),
+        ).fetchall()
+        payment_rows = db.execute(
+            """
+            SELECT payment_no, entry_date, amount, payment_method
+            FROM cash_supplier_payments
+            WHERE party_code = ?
+            ORDER BY entry_date DESC, id DESC
+            LIMIT 4
+            """,
+            (party_code,),
+        ).fetchall()
+        return {
+            "intro_label": "Supplier Portal",
+            "intro_title": "Cash Supplier Portal",
+            "intro_copy": "Open the supplier's own operating view for kata, trip earnings, debit entries and payments.",
+            "modules": [
+                {
+                    "eyebrow": "Running Position",
+                    "title": "Kata / Statement",
+                    "value": money(balance_amount),
+                    "caption": balance_label,
+                    "href": supplier_screen_href("kata"),
+                    "tone": balance_tone,
+                },
+                {
+                    "eyebrow": "Trip Earnings",
+                    "title": "Trips",
+                    "value": str(trip_count),
+                    "caption": f"Work logged {money(total_earned)}",
+                    "href": supplier_screen_href("kata", "recent-trips"),
+                    "tone": "cash",
+                },
+                {
+                    "eyebrow": "Deductions",
+                    "title": "Debit Entries",
+                    "value": str(debit_count),
+                    "caption": f"Debits total {money(total_debits)}",
+                    "href": supplier_screen_href("kata", "recent-debits"),
+                    "tone": "warning",
+                },
+                {
+                    "eyebrow": "Settlements",
+                    "title": "Payments",
+                    "value": str(payment_count),
+                    "caption": f"Paid out {money(total_paid)}",
+                    "href": supplier_screen_href("kata", "recent-payments"),
+                    "tone": "success",
+                },
+                {
+                    "eyebrow": "Fleet",
+                    "title": "Vehicles",
+                    "value": str(detail_summary.get("asset_count", 0)),
+                    "caption": "Assigned cash units",
+                    "href": supplier_screen_href("portal"),
+                    "tone": "info",
+                },
+                {
+                    "eyebrow": "Master",
+                    "title": "Company Details",
+                    "value": party["party_kind"] or "Supplier",
+                    "caption": party["contact_person"] or party["phone_number"] or "Supplier master card",
+                    "href": supplier_screen_href("portal", "company-details"),
+                    "tone": "neutral",
+                },
+            ],
+            "recent_groups": [
+                {
+                    "anchor": "recent-trips",
+                    "eyebrow": "Trips",
+                    "title": "Recent Earnings",
+                    "empty_copy": "No trip earnings have been recorded yet.",
+                    "rows": [
+                        {
+                            "headline": row["trip_no"],
+                            "subline": row["entry_date"],
+                            "meta": f"{money(row['total_amount'])} / {row['vehicle_no'] or 'No vehicle'}",
+                            "status": "Earning",
+                        }
+                        for row in trip_rows
+                    ],
+                },
+                {
+                    "anchor": "recent-debits",
+                    "eyebrow": "Debits",
+                    "title": "Recent Deductions",
+                    "empty_copy": "No debit entries have been recorded yet.",
+                    "rows": [
+                        {
+                            "headline": row["debit_no"],
+                            "subline": row["entry_date"],
+                            "meta": f"{money(row['amount'])} / {row['debit_type'] or 'Debit'}",
+                            "status": row["debit_type"] or "Debit",
+                        }
+                        for row in debit_rows
+                    ],
+                },
+                {
+                    "anchor": "recent-payments",
+                    "eyebrow": "Payments",
+                    "title": "Recent Payments",
+                    "empty_copy": "No supplier payments have been recorded yet.",
+                    "rows": [
+                        {
+                            "headline": row["payment_no"],
+                            "subline": row["entry_date"],
+                            "meta": f"{money(row['amount'])} / {row['payment_method'] or 'Payment'}",
+                            "status": row["payment_method"] or "Payment",
+                        }
+                        for row in payment_rows
+                    ],
+                },
+            ],
+            "company_details": company_details,
+        }
+
+    quotation_count = int(db.execute("SELECT COUNT(*) FROM supplier_quotation_submissions WHERE party_code = ?", (party_code,)).fetchone()[0] or 0)
+    lpo_count = int(db.execute("SELECT COUNT(*) FROM lpos WHERE party_code = ?", (party_code,)).fetchone()[0] or 0)
+    voucher_count = int(db.execute("SELECT COUNT(*) FROM supplier_vouchers WHERE party_code = ?", (party_code,)).fetchone()[0] or 0)
+
+    quotation_rows = db.execute(
+        """
+        SELECT quotation_no, quotation_date, amount, review_status
+        FROM supplier_quotation_submissions
+        WHERE party_code = ?
+        ORDER BY quotation_date DESC, id DESC
+        LIMIT 4
+        """,
+        (party_code,),
+    ).fetchall()
+    lpo_rows = db.execute(
+        """
+        SELECT lpo_no, issue_date, amount, status
+        FROM lpos
+        WHERE party_code = ?
+        ORDER BY issue_date DESC, id DESC
+        LIMIT 4
+        """,
+        (party_code,),
+    ).fetchall()
+    voucher_rows = db.execute(
+        """
+        SELECT voucher_no, issue_date, total_amount, balance_amount, status
+        FROM supplier_vouchers
+        WHERE party_code = ?
+        ORDER BY issue_date DESC, id DESC
+        LIMIT 4
+        """,
+        (party_code,),
+    ).fetchall()
+
+    if normalized_mode == "Managed":
+        invoice_count = int(db.execute("SELECT COUNT(*) FROM account_invoices WHERE party_code = ?", (party_code,)).fetchone()[0] or 0)
+        invoice_rows = db.execute(
+            """
+            SELECT invoice_no, issue_date, total_amount, balance_amount, status
+            FROM account_invoices
+            WHERE party_code = ?
+            ORDER BY issue_date DESC, id DESC
+            LIMIT 4
+            """,
+            (party_code,),
+        ).fetchall()
+        invoice_title = "Invoices"
+        invoice_caption = "Booked managed invoices"
+        invoice_anchor = "recent-invoices"
+        invoice_tone = "managed"
+        invoice_module_label = "Invoices"
+        invoice_recent_rows = [
+            {
+                "headline": row["invoice_no"],
+                "subline": row["issue_date"],
+                "meta": f"{money(row['total_amount'])} / Due {money(row['balance_amount'])}",
+                "status": row["status"] or "Open",
+            }
+            for row in invoice_rows
+        ]
+    else:
+        invoice_count = int(db.execute("SELECT COUNT(*) FROM supplier_invoice_submissions WHERE party_code = ?", (party_code,)).fetchone()[0] or 0)
+        invoice_rows = db.execute(
+            """
+            SELECT submission_no, external_invoice_no, invoice_date, total_amount, review_status
+            FROM supplier_invoice_submissions
+            WHERE party_code = ?
+            ORDER BY invoice_date DESC, created_at DESC, id DESC
+            LIMIT 4
+            """,
+            (party_code,),
+        ).fetchall()
+        invoice_title = "Invoice Submissions"
+        invoice_caption = "Submitted supplier invoices"
+        invoice_anchor = "recent-invoices"
+        invoice_tone = "normal"
+        invoice_module_label = "Invoice Submissions"
+        invoice_recent_rows = [
+            {
+                "headline": row["external_invoice_no"] or row["submission_no"],
+                "subline": row["invoice_date"],
+                "meta": f"{money(row['total_amount'])} / {row['submission_no']}",
+                "status": row["review_status"] or "Pending",
+            }
+            for row in invoice_rows
+        ]
+
+    modules = [
+        {
+            "eyebrow": "Commercial",
+            "title": "Quotations",
+            "value": str(quotation_count),
+            "caption": "Supplier quotations on record",
+            "href": supplier_screen_href("portal", "recent-quotations"),
+            "tone": "info",
+        },
+        {
+            "eyebrow": "Purchase Orders",
+            "title": "LPOs",
+            "value": str(lpo_count),
+            "caption": "Linked LPO documents",
+            "href": supplier_screen_href("portal", "recent-lpos"),
+            "tone": "normal",
+        },
+        {
+            "eyebrow": "Invoices",
+            "title": invoice_module_label,
+            "value": str(invoice_count),
+            "caption": invoice_caption,
+            "href": supplier_screen_href("portal", invoice_anchor),
+            "tone": invoice_tone,
+        },
+        {
+            "eyebrow": "Settlement",
+            "title": "Payment Vouchers",
+            "value": str(voucher_count),
+            "caption": f"{detail_summary.get('open_voucher_count', 0)} open vouchers",
+            "href": supplier_screen_href("portal", "recent-vouchers"),
+            "tone": "success",
+        },
+        {
+            "eyebrow": "SOA",
+            "title": "Statement of Account",
+            "value": money(detail_summary.get("outstanding_total", 0.0)),
+            "caption": f"Paid {money(detail_summary.get('paid_total', 0.0))}",
+            "href": supplier_screen_href("statement"),
+            "tone": "warning",
+        },
+        {
+            "eyebrow": "Master",
+            "title": "Company Details",
+            "value": party["party_kind"] or "Supplier",
+            "caption": party["contact_person"] or party["phone_number"] or "Supplier master profile",
+            "href": supplier_screen_href("portal", "company-details"),
+            "tone": "neutral",
+        },
+    ]
+    if normalized_mode == "Partnership":
+        modules.insert(
+            4,
+            {
+                "eyebrow": "Profit Result",
+                "title": "Partnership Split",
+                "value": money((partnership_summary or {}).get("net_profit", 0.0)),
+                "caption": format_month_label(partnership_month or _current_month_value()),
+                "href": supplier_screen_href("partnership"),
+                "tone": "partnership",
+            },
+        )
+
+    return {
+        "intro_label": "Supplier Portal",
+        "intro_title": (
+            "Managed Supplier Portal"
+            if normalized_mode == "Managed"
+            else "Partnership Supplier Portal"
+            if normalized_mode == "Partnership"
+            else "Online Supplier Portal"
+        ),
+        "intro_copy": (
+            "Open a clean supplier landing view for quotations, LPOs, invoices, vouchers and company details."
+            if normalized_mode != "Partnership"
+            else "Open the supplier landing view for quotations, LPOs, invoices, vouchers, profit result and company details."
+        ),
+        "modules": modules,
+        "recent_groups": [
+            {
+                "anchor": "recent-quotations",
+                "eyebrow": "Quotations",
+                "title": "Recent Quotations",
+                "empty_copy": "No quotations have been recorded yet.",
+                "rows": [
+                    {
+                        "headline": row["quotation_no"],
+                        "subline": row["quotation_date"],
+                        "meta": money(row["amount"]),
+                        "status": row["review_status"] or "Pending",
+                    }
+                    for row in quotation_rows
+                ],
+            },
+            {
+                "anchor": "recent-lpos",
+                "eyebrow": "LPOs",
+                "title": "Recent Purchase Orders",
+                "empty_copy": "No LPOs have been issued yet.",
+                "rows": [
+                    {
+                        "headline": row["lpo_no"],
+                        "subline": row["issue_date"],
+                        "meta": money(row["amount"]),
+                        "status": row["status"] or "Issued",
+                    }
+                    for row in lpo_rows
+                ],
+            },
+            {
+                "anchor": "recent-invoices",
+                "eyebrow": "Invoices",
+                "title": invoice_title,
+                "empty_copy": "No invoice activity has been recorded yet.",
+                "rows": invoice_recent_rows,
+            },
+            {
+                "anchor": "recent-vouchers",
+                "eyebrow": "Vouchers",
+                "title": "Recent Payment Vouchers",
+                "empty_copy": "No payment vouchers have been generated yet.",
+                "rows": [
+                    {
+                        "headline": row["voucher_no"],
+                        "subline": row["issue_date"],
+                        "meta": f"{money(row['total_amount'])} / Due {money(row['balance_amount'])}",
+                        "status": row["status"] or "Open",
+                    }
+                    for row in voucher_rows
+                ],
+            },
+        ],
+        "company_details": company_details,
     }
 
 
@@ -9808,7 +10335,7 @@ def _upsert_supplier_portal_account(db, party_code: str, values) -> None:
     )
 
 
-def _supplier_login_target(db, user_id: str):
+def _supplier_portal_auth_target(db, user_id: str, *, allow_incomplete_password: bool = False):
     normalized_user_id = (user_id or "").strip()
     if not normalized_user_id:
         raise ValidationError("User ID is required.")
@@ -9832,9 +10359,13 @@ def _supplier_login_target(db, user_id: str):
         raise ValidationError("Supplier portal registration was rejected.")
     if status == "Suspended":
         raise ValidationError("Supplier portal is suspended.")
-    if status == "Approved" and not account["password_hash"]:
+    if status == "Approved" and not allow_incomplete_password and not account["password_hash"]:
         raise ValidationError("Supplier account is approved but password setup is incomplete.")
     return account, party
+
+
+def _supplier_login_target(db, user_id: str):
+    return _supplier_portal_auth_target(db, user_id)
 
 
 def _supplier_reset_target(db, user_id: str, email: str):
@@ -9842,7 +10373,7 @@ def _supplier_reset_target(db, user_id: str, email: str):
     if not normalized_email:
         raise ValidationError("Email is required.")
     _validate_optional_email(normalized_email)
-    account, party = _supplier_login_target(db, user_id)
+    account, party = _supplier_portal_auth_target(db, user_id, allow_incomplete_password=True)
     if (account["login_email"] or "").strip().lower() != normalized_email:
         raise ValidationError("User ID and email do not match.")
     if (account["activation_status"] or "") not in {"Approved", "Active"}:
@@ -11247,118 +11778,180 @@ def _mirror_generated_file(app: Flask, file_path: str | Path) -> None:
 
 def _supplier_hub_summary(db, supplier_mode: str = "Normal"):
     normalized_mode = supplier_mode if supplier_mode in SUPPLIER_MODE_OPTIONS else "Normal"
+    
+    # Helper to safely get scalar values, defaulting to 0 if table doesn't exist
+    def safe_scalar(sql, params=(), default=0, label="supplier summary"):
+        try:
+            row = db.execute(sql, params).fetchone()
+        except Exception:
+            # If query fails (table missing), rollback to clear aborted transaction
+            try:
+                db.rollback()
+            except Exception:
+                pass  # Ignore rollback errors
+            return default
+        if row is None or row[0] is None:
+            return default
+        return row[0]
+    
     return {
-        "supplier_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM parties p
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE p.party_roles LIKE ? AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                ("%Supplier%", normalized_mode),
-            ).fetchone()[0]
-        ),
-        "asset_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM supplier_assets asset
-                JOIN parties p ON p.party_code = asset.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-        ),
-        "double_shift_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM supplier_assets asset
-                JOIN parties p ON p.party_code = asset.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE asset.double_shift_mode = 'Double Shift' AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-        ),
-        "partnership_count": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM supplier_assets asset
-                JOIN parties p ON p.party_code = asset.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE asset.partnership_mode = 'Partnership' AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-        ),
-        "unbilled_amount": float(
-            db.execute(
-                """
-                SELECT COALESCE(SUM(t.subtotal), 0)
-                FROM supplier_timesheets t
-                JOIN parties p ON p.party_code = t.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE COALESCE(t.voucher_no, '') = '' AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-            or 0.0
-        ),
-        "voucher_total": float(
-            db.execute(
-                """
-                SELECT COALESCE(SUM(v.total_amount), 0)
-                FROM supplier_vouchers v
-                JOIN parties p ON p.party_code = v.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-            or 0.0
-        ),
-        "paid_total": float(
-            db.execute(
-                """
-                SELECT COALESCE(SUM(pay.amount), 0)
-                FROM supplier_payments pay
-                JOIN parties p ON p.party_code = pay.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-            or 0.0
-        ),
-        "outstanding_total": float(
-            db.execute(
-                """
-                SELECT COALESCE(SUM(v.balance_amount), 0)
-                FROM supplier_vouchers v
-                JOIN parties p ON p.party_code = v.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-            or 0.0
-        ),
-        "open_vouchers": int(
-            db.execute(
-                """
-                SELECT COUNT(*)
-                FROM supplier_vouchers v
-                JOIN parties p ON p.party_code = v.party_code
-                LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
-                WHERE v.balance_amount > 0.009 AND COALESCE(profile.supplier_mode, 'Normal') = ?
-                """,
-                (normalized_mode,),
-            ).fetchone()[0]
-        ),
+        "supplier_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM parties p
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE p.party_roles LIKE ? AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            ("%Supplier%", normalized_mode),
+            default=0,
+            label="supplier_count"
+        )),
+        "asset_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_assets asset
+            JOIN parties p ON p.party_code = asset.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="asset_count"
+        )),
+        "double_shift_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_assets asset
+            JOIN parties p ON p.party_code = asset.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE asset.double_shift_mode = 'Double Shift' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="double_shift_count"
+        )),
+        "partnership_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_assets asset
+            JOIN parties p ON p.party_code = asset.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE asset.partnership_mode = 'Partnership' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="partnership_count"
+        )),
+        "unbilled_amount": float(safe_scalar(
+            """
+            SELECT COALESCE(SUM(t.subtotal), 0)
+            FROM supplier_timesheets t
+            JOIN parties p ON p.party_code = t.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE COALESCE(t.voucher_no, '') = '' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0.0,
+            label="unbilled_amount"
+        ) or 0.0),
+        "voucher_total": float(safe_scalar(
+            """
+            SELECT COALESCE(SUM(v.total_amount), 0)
+            FROM supplier_vouchers v
+            JOIN parties p ON p.party_code = v.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0.0,
+            label="voucher_total"
+        ) or 0.0),
+        "paid_total": float(safe_scalar(
+            """
+            SELECT COALESCE(SUM(pay.amount), 0)
+            FROM supplier_payments pay
+            JOIN parties p ON p.party_code = pay.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0.0,
+            label="paid_total"
+        ) or 0.0),
+        "outstanding_total": float(safe_scalar(
+            """
+            SELECT COALESCE(SUM(v.balance_amount), 0)
+            FROM supplier_vouchers v
+            JOIN parties p ON p.party_code = v.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0.0,
+            label="outstanding_total"
+        ) or 0.0),
+        "open_vouchers": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_vouchers v
+            JOIN parties p ON p.party_code = v.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE v.balance_amount > 0.009 AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="open_vouchers"
+        )),
+        "pending_inquiries_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_inquiries i
+            JOIN parties p ON p.party_code = i.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE i.status IN ('Open', 'Pending') AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="pending_inquiries_count"
+        )),
+        "pending_quotations_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_quotation_submissions q
+            JOIN parties p ON p.party_code = q.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE q.review_status = 'Pending' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="pending_quotations_count"
+        )),
+        "active_inquiries_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM supplier_inquiries i
+            JOIN parties p ON p.party_code = i.party_code
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            WHERE i.status = 'Active' AND COALESCE(profile.supplier_mode, 'Normal') = ?
+            """,
+            (normalized_mode,),
+            default=0,
+            label="active_inquiries_count"
+        )),
+        "portal_users_count": int(safe_scalar(
+            """
+            SELECT COUNT(*)
+            FROM parties p
+            LEFT JOIN supplier_profile profile ON profile.party_code = p.party_code
+            LEFT JOIN supplier_portal_accounts portal ON portal.party_code = p.party_code
+            WHERE p.party_roles LIKE ?
+              AND COALESCE(profile.supplier_mode, 'Normal') = ?
+              AND portal.user_id IS NOT NULL
+            """,
+            ("%Supplier%", normalized_mode),
+            default=0,
+            label="portal_users_count"
+        )),
     }
 
 
@@ -13620,6 +14213,137 @@ def _previous_month_value(value: str) -> str:
     return f"{month_date.year}-{month_date.month - 1:02d}"
 
 
+def _next_month_value(value: str) -> str:
+    normalized = _normalize_month(value)
+    month_date = datetime.strptime(f"{normalized}-01", "%Y-%m-%d")
+    if month_date.month == 12:
+        return f"{month_date.year + 1}-01"
+    return f"{month_date.year}-{month_date.month + 1:02d}"
+
+
+def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[dict], dict]:
+    month_value = _normalize_month(month_value)
+    next_month = _next_month_value(month_value)
+
+    opening_advance = float(
+        db.execute(
+            """
+            SELECT COALESCE(SUM(amount), 0)
+            FROM driver_transactions
+            WHERE driver_id = ? AND entry_date < ?
+            """,
+            (driver_id, f"{month_value}-01"),
+        ).fetchone()[0]
+    )
+    opening_advance -= float(
+        db.execute(
+            """
+            SELECT COALESCE(SUM(total_deductions), 0)
+            FROM salary_slips
+            WHERE driver_id = ? AND salary_month < ?
+            """,
+            (driver_id, month_value),
+        ).fetchone()[0]
+    )
+    opening_advance = max(opening_advance, 0.0)
+
+    salary_rows = db.execute(
+        """
+        SELECT entry_date, salary_month, net_salary, remarks
+        FROM salary_store
+        WHERE driver_id = ? AND salary_month = ?
+        ORDER BY entry_date ASC, id ASC
+        """,
+        (driver_id, month_value),
+    ).fetchall()
+    transaction_rows = db.execute(
+        """
+        SELECT entry_date, txn_type, source, given_by, amount, details
+        FROM driver_transactions
+        WHERE driver_id = ? AND entry_date >= ? AND entry_date < ?
+        ORDER BY entry_date ASC, id ASC
+        """,
+        (driver_id, f"{month_value}-01", f"{next_month}-01"),
+    ).fetchall()
+    slip_rows = db.execute(
+        """
+        SELECT generated_at, salary_month, total_deductions, net_payable, payment_source, paid_by, pdf_path
+        FROM salary_slips
+        WHERE driver_id = ? AND salary_month = ?
+        ORDER BY generated_at ASC, id ASC
+        """,
+        (driver_id, month_value),
+    ).fetchall()
+
+    entries = []
+    running_balance = opening_advance
+    for salary in salary_rows:
+        entries.append(
+            {
+                "date": salary["entry_date"],
+                "type": "Salary",
+                "amount": float(salary["net_salary"]),
+                "given_by": "Current Link",
+                "purpose": (salary["remarks"] or f"Salary stored for {format_month_label(month_value)}").strip(),
+                "balance_after": running_balance,
+                "entry_kind": "salary",
+            }
+        )
+    for txn in transaction_rows:
+        running_balance += float(txn["amount"])
+        entries.append(
+            {
+                "date": txn["entry_date"],
+                "type": txn["txn_type"],
+                "amount": float(txn["amount"]),
+                "given_by": (txn["given_by"] or txn["source"] or "-").strip(),
+                "purpose": (txn["details"] or txn["source"] or txn["txn_type"] or "-").strip(),
+                "balance_after": max(running_balance, 0.0),
+                "entry_kind": "transaction",
+            }
+        )
+    for slip in slip_rows:
+        deduction_amount = float(slip["total_deductions"] or 0.0)
+        if deduction_amount > 0:
+            running_balance = max(running_balance - deduction_amount, 0.0)
+            entries.append(
+                {
+                    "date": str(slip["generated_at"])[:10],
+                    "type": "Deduction",
+                    "amount": deduction_amount,
+                    "given_by": (slip["paid_by"] or slip["payment_source"] or "-").strip(),
+                    "purpose": f"Deducted in salary slip ({format_month_label(slip['salary_month'])})",
+                    "balance_after": running_balance,
+                    "entry_kind": "deduction",
+                }
+            )
+        entries.append(
+            {
+                "date": str(slip["generated_at"])[:10],
+                "type": "Salary Paid",
+                "amount": float(slip["net_payable"] or 0.0),
+                "given_by": (slip["paid_by"] or "-").strip(),
+                "purpose": f"Paid via {slip['payment_source'] or '-'}",
+                "balance_after": running_balance,
+                "entry_kind": "payment",
+            }
+        )
+
+    entries.sort(key=lambda item: (item["date"], 0 if item["entry_kind"] == "salary" else 1 if item["entry_kind"] == "transaction" else 2))
+
+    summary = {
+        "month": month_value,
+        "month_label": format_month_label(month_value),
+        "opening_balance": opening_advance,
+        "salary_amount": sum(float(row["net_salary"]) for row in salary_rows),
+        "cash_given": sum(float(row["amount"]) for row in transaction_rows),
+        "deduction_amount": sum(float(row["total_deductions"]) for row in slip_rows),
+        "paid_amount": sum(float(row["net_payable"]) for row in slip_rows),
+        "closing_balance": max(running_balance, 0.0),
+    }
+    return entries, summary
+
+
 def _salary_cutoff_day(salary_month: str) -> int:
     normalized = _normalize_month(salary_month)
     year, month = [int(part) for part in normalized.split("-")]
@@ -13674,10 +14398,10 @@ def _driver_folder_name(full_name: str, driver_id: str) -> str:
     return f"{safe}__{driver_id.lower()}"
 
 
-def _regenerate_kata_for_driver(app: Flask, db, driver):
+def _regenerate_kata_for_driver(app: Flask, db, driver, month_value: str | None = None):
     salary_rows = db.execute(
         """
-        SELECT entry_date, salary_month, net_salary
+        SELECT entry_date, salary_month, net_salary, remarks
         FROM salary_store
         WHERE driver_id = ?
         ORDER BY entry_date ASC, id ASC
@@ -13686,7 +14410,7 @@ def _regenerate_kata_for_driver(app: Flask, db, driver):
     ).fetchall()
     transactions = db.execute(
         """
-        SELECT entry_date, txn_type, source, given_by, amount
+        SELECT entry_date, txn_type, source, given_by, amount, details
         FROM driver_transactions
         WHERE driver_id = ?
         ORDER BY entry_date ASC, id ASC
@@ -13705,7 +14429,15 @@ def _regenerate_kata_for_driver(app: Flask, db, driver):
     if not salary_rows and not transactions and not salary_slips:
         return None
     output_dir = _driver_output_dir(app, driver["driver_id"], driver=driver) / "kata_pdfs"
-    pdf_path = generate_kata_pdf(driver, salary_rows, transactions, salary_slips, str(output_dir), app.config["STATIC_ASSETS_DIR"])
+    pdf_path = generate_kata_pdf(
+        driver,
+        salary_rows,
+        transactions,
+        salary_slips,
+        str(output_dir),
+        app.config["STATIC_ASSETS_DIR"],
+        month_value=month_value,
+    )
     _mirror_generated_file(app, pdf_path)
     return pdf_path
 
@@ -14194,6 +14926,3 @@ def _recent_generated_files(folder: Path, prefix: str):
         reverse=True,
     )
     return [f"owner_fund/{item.name}" for item in files[:6]]
-
-
-
