@@ -1330,6 +1330,14 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
 def _draw_header(pdf: canvas.Canvas, assets_dir: str) -> None:
     premium_banner = Path(assets_dir) / "current-link-header-premium.png"
     banner = premium_banner if premium_banner.exists() else Path(assets_dir) / "current-link-header.png"
+    header_x = 15 * mm
+    header_y = PAGE_HEIGHT - 45 * mm
+    header_w = 180 * mm
+    header_h = 39 * mm
+
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
+
     if banner.exists():
         image = ImageReader(str(banner))
         image_width, image_height = image.getSize()
@@ -1338,8 +1346,6 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str) -> None:
         banner_x = 15 * mm
         banner_y = PAGE_HEIGHT - 44 * mm
 
-        pdf.setFillColor(colors.white)
-        pdf.roundRect(15 * mm, PAGE_HEIGHT - 45 * mm, 180 * mm, 39 * mm, 4 * mm, fill=1, stroke=0)
         pdf.drawImage(
             image,
             banner_x,
@@ -1349,6 +1355,16 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str) -> None:
             preserveAspectRatio=False,
             mask="auto",
         )
+    else:
+        pdf.setFillColor(BLUE_DARK)
+        pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
+
+    pdf.setFillColor(colors.white if not banner.exists() else BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 18)
+    pdf.drawString(header_x + 8 * mm, header_y + 24 * mm, "CURRENT LINK")
+    pdf.setFont("Helvetica", 8.5)
+    pdf.drawString(header_x + 8 * mm, header_y + 17.5 * mm, "Transport, payroll and statement system")
+
     pdf.setFillColor(BLUE)
     pdf.rect(15 * mm, PAGE_HEIGHT - 46 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
 
