@@ -299,14 +299,26 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
 
     entries = []
     running_balance = opening_balance
+    if selected_month:
+        entries.append(
+            {
+                "date": f"{selected_month}-01",
+                "amount": opening_balance,
+                "paid_by": "Previous Month",
+                "reason": "Opening balance",
+                "balance_after": opening_balance,
+                "sort_group": -1,
+            }
+        )
     for salary in month_salary_rows:
+        running_balance += float(salary["net_salary"])
         entries.append(
             {
                 "date": _iso_date_value(salary["entry_date"]),
                 "amount": float(salary["net_salary"]),
                 "paid_by": "Current Link",
                 "reason": (_row_value(salary, "remarks") or "Monthly salary").strip(),
-                "balance_after": running_balance,
+                "balance_after": max(running_balance, 0.0),
                 "sort_group": 0,
             }
         )
@@ -355,38 +367,42 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
     closing_balance = max(running_balance, 0.0)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_header(pdf, assets_dir)
-    _draw_title(
-        pdf,
-        "Driver KATA Statement" if not selected_month else f"Driver Monthly KATA {normalized_month}",
-        "Advance taken, deduction details and current balance",
-    )
-    _draw_kata_driver_summary(pdf, driver)
-    _draw_kata_stat_row(
-        pdf,
-        [
-            ("Opening", format_currency(opening_balance)),
-            ("Salary", format_currency(total_salary)),
-            ("Cash Given", format_currency(total_advance)),
-            ("Deducted", format_currency(total_deducted)),
-            ("Closing", format_currency(closing_balance)),
-        ],
-    )
-    _draw_kata_stat_row(
-        pdf,
-        [
-            ("Month Paid", format_currency(total_net_paid)),
-            ("Month", normalized_month or "Full History"),
-            ("Who Paid", "See detail rows"),
-            ("Purpose", "Shown in each line"),
-            ("Net Paid", format_currency(total_net_paid)),
-        ],
-        start_y=PAGE_HEIGHT - 157 * mm,
-    )
-    _draw_kata_statement_table(pdf, entries)
-    _draw_footer_banner(pdf, assets_dir)
+    rows_per_page = 20
+    pages = [entries[index:index + rows_per_page] for index in range(0, len(entries), rows_per_page)] or [[]]
 
-    pdf.showPage()
+    for page_number, page_rows in enumerate(pages, start=1):
+        _draw_header(pdf, assets_dir)
+        _draw_title(
+            pdf,
+            "Driver Full KATA" if not selected_month else f"Driver Monthly KATA {normalized_month}",
+            "Complete history" if not selected_month else "Opening balance plus current month entries",
+        )
+        _draw_kata_driver_summary(pdf, driver)
+        _draw_kata_stat_row(
+            pdf,
+            [
+                ("Opening", format_currency(opening_balance if selected_month else 0.0)),
+                ("Salary", format_currency(total_salary)),
+                ("Received", format_currency(total_advance)),
+                ("Deducted", format_currency(total_deducted)),
+                ("Closing", format_currency(closing_balance)),
+            ],
+        )
+        _draw_kata_stat_row(
+            pdf,
+            [
+                ("Paid", format_currency(total_net_paid)),
+                ("Period", normalized_month or "Start to End"),
+                ("Entries", str(len(entries))),
+                ("Page", f"{page_number}/{len(pages)}"),
+                ("Mode", "Monthly" if selected_month else "Full"),
+            ],
+            start_y=PAGE_HEIGHT - 157 * mm,
+        )
+        _draw_kata_statement_table(pdf, page_rows)
+        _draw_footer_banner(pdf, assets_dir)
+        pdf.showPage()
+
     pdf.save()
     return str(output_path)
 

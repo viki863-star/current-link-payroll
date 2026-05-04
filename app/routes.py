@@ -14283,14 +14283,26 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
 
     entries = []
     running_balance = opening_advance
+    if month_value:
+        entries.append(
+            {
+                "date": f"{month_value}-01",
+                "amount": opening_advance,
+                "paid_by": "Previous Month",
+                "reason": "Opening balance",
+                "balance_after": opening_advance,
+                "entry_kind": "opening",
+            }
+        )
     for salary in salary_rows:
+        running_balance += float(salary["net_salary"])
         entries.append(
             {
                 "date": salary["entry_date"],
                 "amount": float(salary["net_salary"]),
                 "paid_by": "Current Link",
                 "reason": (salary["remarks"] or "Monthly salary").strip(),
-                "balance_after": running_balance,
+                "balance_after": max(running_balance, 0.0),
                 "entry_kind": "salary",
             }
         )
@@ -14333,7 +14345,16 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
             }
         )
 
-    entries.sort(key=lambda item: (item["date"], 0 if item["entry_kind"] == "salary" else 1 if item["entry_kind"] == "transaction" else 2))
+    entries.sort(
+        key=lambda item: (
+            item["date"],
+            0 if item["entry_kind"] == "opening"
+            else 1 if item["entry_kind"] == "salary"
+            else 2 if item["entry_kind"] == "transaction"
+            else 3 if item["entry_kind"] == "deduction"
+            else 4
+        )
+    )
 
     summary = {
         "month": month_value,
