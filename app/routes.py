@@ -6733,26 +6733,18 @@ def register_routes(app: Flask) -> None:
                 flash(message, "success")
                 return redirect(url_for("driver_transactions", driver_id=driver_id))
 
-        transactions = db.execute(
-            """
-            SELECT id, entry_date, txn_type, source, given_by, amount, details
-            FROM driver_transactions
-            WHERE driver_id = ?
-            ORDER BY entry_date DESC, id DESC
-            LIMIT 20
-            """,
-            (driver_id,),
-        ).fetchall()
+        history_rows = _driver_transaction_history_rows(db, driver_id)
         return render_template(
             "driver_transactions.html",
             driver=driver,
             photo_url=_driver_photo_url(app, driver),
             values=form,
-            transactions=transactions,
+            history_rows=history_rows,
             transaction_types=TRANSACTION_TYPES,
             payment_sources=PAYMENT_SOURCES,
             salary_due=_driver_balance(db, driver_id),
             advance_summary=_advance_summary(db, driver_id),
+            history_total=len(history_rows),
         )
 
     @app.post("/drivers/<driver_id>/transactions/<int:transaction_id>/delete")
@@ -6774,6 +6766,37 @@ def register_routes(app: Flask) -> None:
         db.commit()
         _regenerate_kata_for_driver(app, db, driver)
         flash("Transaction deleted and driver KATA PDF refreshed.", "success")
+        return redirect(url_for("driver_transactions", driver_id=driver_id))
+
+    @app.post("/drivers/<driver_id>/salary-slip/<int:slip_id>/delete")
+    @_login_required("admin")
+    def delete_salary_slip(driver_id: str, slip_id: int):
+        db = open_db()
+        driver = _fetch_driver(db, driver_id)
+        if driver is None:
+            flash("Driver not found.", "error")
+            return redirect(url_for("dashboard"))
+        existing_slip = db.execute(
+            "SELECT id FROM salary_slips WHERE id = ? AND driver_id = ?",
+            (slip_id, driver_id),
+        ).fetchone()
+        if existing_slip is not None:
+            db.execute(
+                "DELETE FROM salary_slips WHERE id = ? AND driver_id = ?",
+                (slip_id, driver_id),
+            )
+            _audit_log(
+                db,
+                "salary_slip_deleted",
+                entity_type="salary_slip",
+                entity_id=str(slip_id),
+                details=driver_id,
+            )
+            db.commit()
+            _regenerate_kata_for_driver(app, db, driver)
+            flash("Salary paid entry deleted and KATA refreshed.", "success")
+        else:
+            flash("Salary paid entry was not found.", "error")
         return redirect(url_for("driver_transactions", driver_id=driver_id))
 
     @app.route("/drivers/<driver_id>/salary-store", methods=["GET", "POST"])
@@ -14367,6 +14390,80 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
         "closing_balance": max(running_balance, 0.0),
     }
     return entries, summary
+
+
+def _driver_transaction_history_rows(db, driver_id: str, upto_date: str | None = None) -> list[dict]:
+    cutoff_date = upto_date or date.today().isoformat()
+    transaction_rows = db.execute(
+        """
+        SELECT id, entry_date, txn_type, source, given_by, amount, details
+        FROM driver_transactions
+        WHERE driver_id = ? AND entry_date <= ?
+        ORDER BY entry_date DESC, id DESC
+        """,
+        (driver_id, cutoff_date),
+    ).fetchall()
+    salary_paid_rows = db.execute(
+        """
+        SELECT salary_slips.id, salary_slips.salary_store_id, salary_slips.salary_month,
+               salary_slips.total_deductions, salary_slips.net_payable, salary_slips.payment_source,
+               salary_slips.paid_by, salary_slips.generated_at, salary_store.remarks
+        FROM salary_slips
+        LEFT JOIN salary_store ON salary_store.id = salary_slips.salary_store_id
+        WHERE salary_slips.driver_id = ?
+          AND SUBSTR(salary_slips.generated_at, 1, 10) <= ?
+        ORDER BY salary_slips.generated_at DESC, salary_slips.id DESC
+        """,
+        (driver_id, cutoff_date),
+    ).fetchall()
+
+    history_rows = []
+    for txn in transaction_rows:
+        history_rows.append(
+            {
+                "row_type": "transaction",
+                "id": txn["id"],
+                "date": txn["entry_date"],
+                "type_label": txn["txn_type"],
+                "amount": float(txn["amount"]),
+                "source": (txn["source"] or "-").strip(),
+                "given_by": (txn["given_by"] or "-").strip(),
+                "details": (txn["details"] or "-").strip(),
+                "edit_target": url_for("driver_transactions", driver_id=driver_id, edit=txn["id"]),
+                "delete_target": url_for("delete_driver_transaction", driver_id=driver_id, transaction_id=txn["id"]),
+                "edit_label": "Edit",
+                "delete_label": "Delete",
+                "sort_stamp": f"{txn['entry_date']}::{int(txn['id']):010d}::1",
+            }
+        )
+
+    for slip in salary_paid_rows:
+        month_label = format_month_label(slip["salary_month"])
+        deduction_amount = float(slip["total_deductions"] or 0.0)
+        remarks = (slip["remarks"] or "").strip()
+        details = remarks or f"{month_label} salary paid"
+        if deduction_amount > 0:
+            details = f"{details} | Deducted AED {deduction_amount:.2f}"
+        history_rows.append(
+            {
+                "row_type": "salary_paid",
+                "id": slip["id"],
+                "date": str(slip["generated_at"])[:10],
+                "type_label": "Salary Paid",
+                "amount": float(slip["net_payable"] or 0.0),
+                "source": (slip["payment_source"] or "-").strip(),
+                "given_by": (slip["paid_by"] or "-").strip(),
+                "details": details,
+                "edit_target": url_for("driver_salary_slip", driver_id=driver_id, salary_store_id=slip["salary_store_id"]),
+                "delete_target": url_for("delete_salary_slip", driver_id=driver_id, slip_id=slip["id"]),
+                "edit_label": "Edit Slip",
+                "delete_label": "Delete Slip",
+                "sort_stamp": f"{str(slip['generated_at'])[:10]}::{int(slip['id']):010d}::2",
+            }
+        )
+
+    history_rows.sort(key=lambda item: item["sort_stamp"], reverse=True)
+    return history_rows
 
 
 def _salary_cutoff_day(salary_month: str) -> int:

@@ -73,47 +73,55 @@
             </div>
             <div class="form-actions split-actions">
                 <a class="button danger-button" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Close</a>
+                <a class="button button-secondary" href="#all-transactions">Show All Transactions</a>
                 <button class="button success-button" type="submit">{{ 'Update Entry' if values.transaction_id else 'Save Entry' }}</button>
             </div>
         </form>
     </section>
 </section>
 
-<section class="card table-card">
+<section class="card table-card" id="all-transactions">
     <div class="section-heading slim-heading">
         <div>
             <p class="eyebrow">History</p>
-            <h2>Recent Transactions</h2>
+            <h2>All Transactions</h2>
         </div>
+        <div class="panel-note">Start se aaj tak ki sab entries yahan hain, including salary paid.</div>
     </div>
-    {% if transactions %}
+    <div class="detail-grid mini-detail-grid" style="margin-bottom: 18px;">
+        <div><dt>Total Entries</dt><dd>{{ history_total }}</dd></div>
+        <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(advance_summary.remaining_advance) }}</dd></div>
+        <div><dt>Salary After Deductions</dt><dd>AED {{ "%.2f"|format(salary_due) }}</dd></div>
+    </div>
+    {% if history_rows %}
         <div class="table-wrap">
             <table>
                 <thead>
                     <tr>
                         <th>Date</th>
                         <th>Type</th>
+                        <th>Amount</th>
                         <th>Source</th>
                         <th>Given By</th>
-                        <th>Amount</th>
                         <th>Details</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in transactions %}
+                    {% for item in history_rows %}
                         <tr>
-                            <td>{{ item.entry_date }}</td>
-                            <td>{{ item.txn_type }}</td>
-                            <td>{{ item.source }}</td>
-                            <td>{{ item.given_by or "-" }}</td>
+                            <td>{{ item.date }}</td>
+                            <td>{{ item.type_label }}</td>
                             <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                            <td>{{ item.source or "-" }}</td>
+                            <td>{{ item.given_by or "-" }}</td>
+                            <td>{{ item.details or "-" }}</td>
                             <td>
-                                <div>{{ item.details or "-" }}</div>
                                 <div class="table-actions">
-                                    <a class="mini-action-link" href="{{ url_for('driver_transactions', driver_id=driver.driver_id, edit=item.id) }}">Edit</a>
-                                    <form method="post" action="{{ url_for('delete_driver_transaction', driver_id=driver.driver_id, transaction_id=item.id) }}">
+                                    <a class="mini-action-link" href="{{ item.edit_target }}">{{ item.edit_label }}</a>
+                                    <form method="post" action="{{ item.delete_target }}" onsubmit="return confirm('Delete this entry?');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button class="mini-action-button" type="submit">Delete</button>
+                                        <button class="mini-action-button" type="submit">{{ item.delete_label }}</button>
                                     </form>
                                 </div>
                             </td>
@@ -123,7 +131,7 @@
             </table>
         </div>
     {% else %}
-        <p class="muted-text">No transactions yet.</p>
+        <p class="muted-text">No transactions or salary paid entries yet.</p>
     {% endif %}
 </section>
 {% endblock %}

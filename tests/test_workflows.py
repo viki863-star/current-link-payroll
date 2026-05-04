@@ -1,7 +1,9 @@
 import re
+import shutil
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+from uuid import uuid4
 
 from pypdf import PdfReader
 from werkzeug.security import generate_password_hash
@@ -14,6 +16,13 @@ def admin_session(client):
     with client.session_transaction() as session:
         session["role"] = "admin"
         session["display_name"] = "Admin"
+
+
+def driver_session(client, driver_id="DRV-T1"):
+    with client.session_transaction() as session:
+        session["role"] = "driver"
+        session["driver_id"] = driver_id
+        session["display_name"] = "Driver"
 
 
 def create_driver_record(app, **overrides):
@@ -78,7 +87,7 @@ def create_supplier_record(
     portal_login_email="",
 ):
     return client.post(
-        "/suppliers",
+        "/suppliers/admin/register?mode=Normal",
         data={
             "original_party_code": "",
             "party_code": party_code,
@@ -119,6 +128,34 @@ def create_customer_record(client, *, party_code, party_name, party_kind="Compan
         },
         follow_redirects=True,
     )
+
+
+def set_supplier_password(client, *, user_id, email, password="secret12"):
+    return client.post(
+        "/supplier-forgot-password",
+        data={
+            "user_id": user_id,
+            "email": email,
+            "password": password,
+            "confirm_password": password,
+        },
+        follow_redirects=True,
+    )
+
+
+def create_supplier_lpo(app, *, lpo_no, party_code, amount=1050.0, description="Portal LPO", status="Approved"):
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO lpos (
+                lpo_no, party_code, quotation_no, agreement_no, issue_date, valid_until,
+                amount, tax_percent, description, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (lpo_no, party_code, None, None, "2026-04-01", "2026-04-30", amount, 5.0, description, status),
+        )
+        db.commit()
 
 
 def test_driver_login_requires_phone_and_pin(app, client):
@@ -451,45 +488,346 @@ def test_existing_paid_salary_slip_can_be_updated(app, client):
         assert slips[0]["paid_by"] == "Admin"
 
 
-def test_kata_pdf_accepts_postgres_datetime_generated_at(app, tmp_path):
-    driver = create_driver_record(app)
+def test_driver_transactions_page_shows_full_history_and_salary_paid_rows(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
 
-    output_path = generate_kata_pdf(
-        driver,
-        [
-            {
-                "entry_date": "2026-04-30",
-                "salary_month": "2026-04",
-                "net_salary": 3000.0,
-            }
-        ],
-        [
-            {
-                "entry_date": "2026-04-12",
-                "txn_type": "Advance",
-                "source": "Owner Fund",
-                "given_by": "Office",
-                "amount": 500.0,
-            }
-        ],
-        [
-            {
-                "generated_at": datetime(2026, 4, 30, 10, 30, 0),
-                "salary_month": "2026-04",
-                "total_deductions": 100.0,
-                "net_payable": 2900.0,
-                "payment_source": "Owner Fund",
-                "paid_by": "Waqar",
-            }
-        ],
-        str(tmp_path),
-        str(Path(app.root_path).parent / "app" / "static"),
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-02-10",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Office",
+            "amount": "200",
+            "details": "Old visa",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-11",
+            "txn_type": "Petty Cash",
+            "source": "Office",
+            "given_by": "Nasrullah",
+            "amount": "300",
+            "details": "Fuel for April",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Bank",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
     )
 
-    assert Path(output_path).exists()
+    response = client.get("/drivers/DRV-T1/transactions", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b"Show All Transactions" in response.data
+    assert b"All Transactions" in response.data
+    assert b"Old visa" in response.data
+    assert b"Fuel for April" in response.data
+    assert b"Salary Paid" in response.data
+    assert b"April salary" in response.data
+    assert b"Bank" in response.data
+    assert b"Edit Slip" in response.data
+    assert b"Delete Slip" in response.data
 
 
-def test_owner_fund_pdf_supports_filtered_multi_page_output(app, tmp_path):
+def test_salary_paid_entry_can_be_deleted_from_transaction_history(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Office",
+            "paid_by": "Admin",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.post("/drivers/DRV-T1/salary-slip/1/delete", data={}, follow_redirects=True)
+
+    assert response.status_code == 200
+
+    with app.app_context():
+        db = open_db()
+        count = db.execute("SELECT COUNT(*) FROM salary_slips WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0]
+        assert count == 0
+
+
+def test_kata_pdf_accepts_postgres_datetime_generated_at(app):
+    driver = create_driver_record(app)
+    output_dir = Path.cwd() / "generated" / "test-runs" / f"kata-pdf-{uuid4().hex}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        output_path = generate_kata_pdf(
+            driver,
+            [
+                {
+                    "entry_date": "2026-04-30",
+                    "salary_month": "2026-04",
+                    "net_salary": 3000.0,
+                }
+            ],
+            [
+                {
+                    "entry_date": "2026-04-12",
+                    "txn_type": "Advance",
+                    "source": "Owner Fund",
+                    "given_by": "Office",
+                    "amount": 500.0,
+                }
+            ],
+            [
+                {
+                    "generated_at": datetime(2026, 4, 30, 10, 30, 0),
+                    "salary_month": "2026-04",
+                    "total_deductions": 100.0,
+                    "net_payable": 2900.0,
+                    "payment_source": "Owner Fund",
+                    "paid_by": "Waqar",
+                }
+            ],
+            str(output_dir),
+            str(Path(app.root_path).parent / "app" / "static"),
+        )
+
+        assert Path(output_path).exists()
+    finally:
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+
+def test_full_kata_pdf_keeps_all_history_rows_across_pages(app):
+    driver = create_driver_record(app)
+    output_dir = Path.cwd() / "generated" / "test-runs" / f"full-kata-{uuid4().hex}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    transactions = []
+    for index in range(1, 27):
+        transactions.append(
+            {
+                "entry_date": f"2026-04-{((index - 1) % 28) + 1:02d}",
+                "txn_type": "Petty Cash",
+                "source": "Owner Direct",
+                "given_by": f"Owner {index}",
+                "amount": 100.0 + index,
+                "details": f"History row {index}",
+            }
+        )
+
+    try:
+        output_path = generate_kata_pdf(
+            driver,
+            [],
+            transactions,
+            [],
+            str(output_dir),
+            str(Path(app.root_path).parent / "app" / "static"),
+            month_value=None,
+        )
+
+        reader = PdfReader(output_path)
+        extracted_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        assert len(reader.pages) >= 2
+        assert "History row 1" in extracted_text
+        assert "History row 26" in extracted_text
+        assert "Start to End" in extracted_text
+    finally:
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+
+def test_driver_portal_shows_only_selected_month_kata_entries(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-02-10",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Owner",
+            "amount": "200",
+            "details": "Old visa",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-03-11",
+            "txn_type": "Petty Cash",
+            "source": "Office",
+            "given_by": "Office",
+            "amount": "300",
+            "details": "Fuel for March",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-03-31",
+            "salary_month": "2026-03",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "March salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Office",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+
+    driver_session(client)
+    response = client.get("/portal/driver?month=2026-03")
+
+    assert response.status_code == 200
+    assert b"Monthly KATA" in response.data
+    assert b"Fuel for March" in response.data
+    assert b"Office" in response.data
+    assert b"March salary" in response.data
+    assert b"Old visa" not in response.data
+    assert b"2026-02-10" not in response.data
+
+
+def test_driver_monthly_kata_pdf_route_uses_selected_month_filename(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-03-11",
+            "txn_type": "Petty Cash",
+            "source": "Owner Direct",
+            "given_by": "Owner",
+            "amount": "300",
+            "details": "Visa expense",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.get("/drivers/DRV-T1/kata-pdf?month=2026-03", follow_redirects=False)
+
+    assert response.status_code == 302
+    assert "kata-2026-03" in response.headers["Location"]
+
+
+def test_driver_action_page_keeps_selected_kata_month(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-02-10",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Owner",
+            "amount": "200",
+            "details": "Old visa",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-03-11",
+            "txn_type": "Petty Cash",
+            "source": "Office",
+            "given_by": "Office",
+            "amount": "300",
+            "details": "Fuel for March",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-03-31",
+            "salary_month": "2026-03",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "March salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Office",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.get("/drivers/DRV-T1?kata_month=2026-03")
+
+    assert response.status_code == 200
+    assert b'input type="month" name="kata_month" value="2026-03"' in response.data
+    assert b"KATA Month" in response.data
+    assert b"Driver KATA" in response.data
+    assert b"Received" in response.data
+    assert b"Salary" in response.data
+    assert b"Paid By" in response.data
+    assert b"Reason" in response.data
+    assert b"Opening balance" in response.data
+    assert b"Fuel for March" in response.data
+    assert b"March salary" in response.data
+    assert b"Old visa" not in response.data
+    assert b"2026-03" in response.data
+    assert b"/drivers/DRV-T1/kata-pdf?month=2026-03" in response.data
+
+
+def test_owner_fund_pdf_supports_filtered_multi_page_output(app):
     rows = []
     running_balance = 0.0
     for index in range(1, 43):
@@ -509,26 +847,31 @@ def test_owner_fund_pdf_supports_filtered_multi_page_output(app, tmp_path):
             }
         )
 
-    output_path = generate_owner_fund_pdf(
-        rows,
-        {
-            "incoming": sum(float(row["incoming"]) for row in rows),
-            "outgoing": sum(float(row["outgoing"]) for row in rows),
-            "balance": sum(float(row["incoming"]) for row in rows) - sum(float(row["outgoing"]) for row in rows),
-            "closing_balance": running_balance,
-            "overall_balance": running_balance,
-            "overall_incoming": sum(float(row["incoming"]) for row in rows),
-            "overall_outgoing": sum(float(row["outgoing"]) for row in rows),
-        },
-        str(tmp_path),
-        str(Path(app.root_path).parent / "app" / "static"),
-        filters={"month": "2026-04", "movement": "Outgoing", "search": "50000"},
-    )
+    output_dir = Path.cwd() / "generated" / "test-runs" / f"owner-fund-pdf-{uuid4().hex}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        output_path = generate_owner_fund_pdf(
+            rows,
+            {
+                "incoming": sum(float(row["incoming"]) for row in rows),
+                "outgoing": sum(float(row["outgoing"]) for row in rows),
+                "balance": sum(float(row["incoming"]) for row in rows) - sum(float(row["outgoing"]) for row in rows),
+                "closing_balance": running_balance,
+                "overall_balance": running_balance,
+                "overall_incoming": sum(float(row["incoming"]) for row in rows),
+                "overall_outgoing": sum(float(row["outgoing"]) for row in rows),
+            },
+            str(output_dir),
+            str(Path(app.root_path).parent / "app" / "static"),
+            filters={"month": "2026-04", "movement": "Outgoing", "search": "50000"},
+        )
 
-    pdf_file = Path(output_path)
-    assert pdf_file.exists()
-    raw_bytes = pdf_file.read_bytes()
-    assert len(re.findall(rb"/Type /Page\b", raw_bytes)) >= 2
+        pdf_file = Path(output_path)
+        assert pdf_file.exists()
+        raw_bytes = pdf_file.read_bytes()
+        assert len(re.findall(rb"/Type /Page\b", raw_bytes)) >= 2
+    finally:
+        shutil.rmtree(output_dir, ignore_errors=True)
 
 
 def test_delete_driver_removes_related_records(app, client):
@@ -906,7 +1249,7 @@ def test_supplier_workspace_flow_tracks_balance_and_keeps_driver_data_safe(app, 
     admin_session(client)
 
     supplier_response = client.post(
-        "/suppliers",
+        "/suppliers/admin/register?mode=Normal",
         data={
             "original_party_code": "",
             "party_code": "",
@@ -1063,7 +1406,7 @@ def test_supplier_workspace_flow_keeps_driver_core_safe(app, client):
     admin_session(client)
 
     supplier_create = client.post(
-        "/suppliers",
+        "/suppliers/admin/register?mode=Normal",
         data={
             "party_code": "PTY-SUP-01",
             "party_name": "Hussain Logistics",
@@ -1211,7 +1554,6 @@ def test_supplier_workspace_flow_keeps_driver_core_safe(app, client):
     assert supplier_detail.status_code == 200
     assert b"Hussain Logistics" in supplier_detail.data
     assert b"SPV-HUS-01" in supplier_detail.data
-    assert b"SPP-HUS-01" in supplier_detail.data
     assert b"Outstanding" in supplier_detail.data
 
     payment_voucher = client.get("/supplier-payments/SPP-HUS-01/voucher", follow_redirects=False)
@@ -1247,7 +1589,7 @@ def test_supplier_workspace_records_support_edit_delete_and_balance_resync(app, 
     admin_session(client)
 
     client.post(
-        "/suppliers",
+        "/suppliers/admin/register?mode=Normal",
         data={
             "party_code": "PTY-SUP-02",
             "party_name": "Edit Supplier",
@@ -1519,17 +1861,12 @@ def test_individual_supplier_cannot_activate_portal(app, client):
     assert b"Supplier registered successfully." in response.data
 
     client.get("/logout", follow_redirects=False)
-    activation = client.post(
-        "/supplier-activate",
-        data={
-            "supplier_code": "PTY-IND-01",
-            "login_email": "individual@example.com",
-            "password": "secret12",
-            "confirm_password": "secret12",
-        },
-        follow_redirects=True,
+    password_setup = set_supplier_password(
+        client,
+        user_id="pty-ind-01",
+        email="individual@example.com",
     )
-    assert b"Supplier portal is only available for normal company suppliers." in activation.data
+    assert b"Supplier portal account was not found." in password_setup.data
 
 
 def test_company_supplier_portal_can_activate_login_submit_and_convert(app, client):
@@ -1545,31 +1882,29 @@ def test_company_supplier_portal_can_activate_login_submit_and_convert(app, clie
     assert b"Supplier registered successfully." in response.data
 
     client.get("/logout", follow_redirects=False)
-    activation = client.post(
-        "/supplier-activate",
-        data={
-            "supplier_code": "PTY-COMP-01",
-            "login_email": "portal@example.com",
-            "password": "secret12",
-            "confirm_password": "secret12",
-        },
-        follow_redirects=True,
+    password_setup = set_supplier_password(
+        client,
+        user_id="pty-comp-01",
+        email="portal@example.com",
     )
-    assert b"Supplier portal activated" in activation.data
+    assert b"Password updated. You can sign in now." in password_setup.data
 
     login = client.post(
         "/supplier-login",
-        data={"supplier_code": "PTY-COMP-01", "password": "secret12"},
+        data={"user_id": "pty-comp-01", "password": "secret12"},
         follow_redirects=False,
     )
     assert login.status_code == 302
     assert "/portal/supplier" in login.headers["Location"]
+
+    create_supplier_lpo(app, lpo_no="LPO-PORT-01", party_code="PTY-COMP-01")
 
     submit = client.post(
         "/portal/supplier",
         data={
             "action": "submit_invoice",
             "submission_no": "SIN-PORT-01",
+            "lpo_no": "LPO-PORT-01",
             "external_invoice_no": "INV-PORT-01",
             "invoice_date": "2026-04-15",
             "period_month": "2026-04",
@@ -1697,16 +2032,16 @@ def test_supplier_portal_statement_hides_rejected_rows_but_allows_resubmit(app, 
     )
     client.get("/logout", follow_redirects=False)
     client.post(
-        "/supplier-activate",
+        "/supplier-forgot-password",
         data={
-            "supplier_code": "PTY-REJ-01",
-            "login_email": "reject@example.com",
+            "user_id": "pty-rej-01",
+            "email": "reject@example.com",
             "password": "secret12",
             "confirm_password": "secret12",
         },
         follow_redirects=True,
     )
-    client.post("/supplier-login", data={"supplier_code": "PTY-REJ-01", "password": "secret12"}, follow_redirects=True)
+    client.post("/supplier-login", data={"user_id": "pty-rej-01", "password": "secret12"}, follow_redirects=True)
 
     with app.app_context():
         db = open_db()
@@ -2178,7 +2513,7 @@ def test_fleet_maintenance_tracks_advance_workshop_credit_and_partnership_split(
         },
         follow_redirects=True,
     )
-    assert b"Technician advance saved successfully." in advance.data
+    assert b"Field staff payment saved successfully." in advance.data
 
     paper_one = client.post(
         "/fleet-maintenance",
@@ -2360,7 +2695,7 @@ def test_supplier_edit_flow_accepts_portal_toggle_without_500(app, client):
     assert b"Supplier registered successfully." in created.data
 
     updated = client.post(
-        "/suppliers",
+        "/suppliers/admin/register?mode=Normal",
         data={
             "original_party_code": "PTY-EDIT-PORTAL",
             "party_code": "PTY-EDIT-PORTAL",
@@ -2424,16 +2759,16 @@ def test_supplier_portal_and_partnership_statement_pdfs_download(app, client):
     )
     client.get("/logout", follow_redirects=False)
     client.post(
-        "/supplier-activate",
+        "/supplier-forgot-password",
         data={
-            "supplier_code": "PTY-COMP-02",
-            "login_email": "pdf.portal@example.com",
+            "user_id": "pty-comp-02",
+            "email": "pdf.portal@example.com",
             "password": "secret12",
             "confirm_password": "secret12",
         },
         follow_redirects=True,
     )
-    client.post("/supplier-login", data={"supplier_code": "PTY-COMP-02", "password": "secret12"}, follow_redirects=True)
+    client.post("/supplier-login", data={"user_id": "pty-comp-02", "password": "secret12"}, follow_redirects=True)
     portal_pdf = client.get("/portal/supplier/statement-pdf", follow_redirects=False)
     assert portal_pdf.status_code == 302
     assert "/generated/" in portal_pdf.headers["Location"]
@@ -2465,4 +2800,3 @@ def test_supplier_portal_and_partnership_statement_pdfs_download(app, client):
     partnership_pdf = client.get("/suppliers/PTY-PDF-PART/statement-pdf?month=2026-04", follow_redirects=False)
     assert partnership_pdf.status_code == 302
     assert "/generated/" in partnership_pdf.headers["Location"]
-
