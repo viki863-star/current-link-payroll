@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="card action-panel compact-action-panel">
+<section class="card action-panel compact-action-panel driver-action-shell">
     <div class="panel-titlebar">
         <span>{{ config["COMPANY_NAME"] }}</span>
         <span>Driver Action Panel</span>
@@ -69,11 +69,24 @@
         </div>
     </div>
 
+    <div class="driver-kata-toolbar">
+        <form method="get" class="driver-kata-form">
+            <label class="driver-kata-field">
+                <span>KATA Month</span>
+                <input type="month" name="kata_month" value="{{ selected_kata_month }}">
+            </label>
+            <div class="form-actions driver-kata-actions">
+                <button class="button button-secondary" type="submit">Open Month</button>
+            </div>
+        </form>
+        <div class="panel-note driver-kata-note">Selected month: {{ selected_kata_month_label }}. Monthly KATA PDF isi month ka statement download karega.</div>
+    </div>
+
     <div class="action-buttons flat-action-buttons">
         <a class="button action-button navy" href="{{ url_for('driver_transactions', driver_id=driver.driver_id) }}">Transactions</a>
         <a class="button action-button orange" href="{{ url_for('driver_salary_store', driver_id=driver.driver_id) }}">Salary Store</a>
         <a class="button action-button green" href="{{ url_for('driver_salary_slip', driver_id=driver.driver_id) }}">Salary Slip</a>
-        <a class="button action-button slate" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, month=current_month_value) }}">Monthly KATA PDF</a>
+        <a class="button action-button slate" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, month=selected_kata_month) }}">Monthly KATA PDF</a>
         <a class="button action-button slate" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, mode='full') }}">Full KATA PDF</a>
         <a class="button action-button navy" href="{{ url_for('driver_timesheet_pdf', driver_id=driver.driver_id) }}" target="_blank">Timesheet PDF</a>
         <a class="button action-button orange" href="{{ url_for('edit_driver', driver_id=driver.driver_id) }}">Edit Driver</a>
@@ -131,4 +144,91 @@
         {% endif %}
     </article>
 </section>
+
+<style>
+.driver-action-shell .panel-titlebar {
+    align-items: center;
+    padding: 14px 24px;
+}
+
+.driver-action-shell .panel-titlebar span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+}
+
+.driver-action-shell .action-grid {
+    padding-bottom: 12px;
+}
+
+.driver-kata-toolbar {
+    margin: 0 18px 18px;
+    padding: 18px;
+    border: 1px solid rgba(21, 51, 93, 0.12);
+    background: linear-gradient(180deg, #fbfdff, #f3f7fc);
+}
+
+.driver-kata-form {
+    display: grid;
+    grid-template-columns: minmax(260px, 420px) auto;
+    gap: 14px 18px;
+    align-items: end;
+}
+
+.driver-kata-field {
+    display: grid;
+    gap: 8px;
+    max-width: 420px;
+}
+
+.driver-kata-field span {
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--primary-dark);
+}
+
+.driver-kata-field input {
+    width: 100%;
+    min-width: 0;
+}
+
+.driver-kata-actions {
+    justify-content: flex-start;
+    align-self: end;
+}
+
+.driver-kata-note {
+    margin-top: 14px;
+    max-width: 520px;
+}
+
+.driver-action-shell .flat-action-buttons {
+    padding-top: 0;
+}
+
+@media (max-width: 900px) {
+    .driver-kata-form {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .driver-action-shell .panel-titlebar {
+        padding: 14px 18px;
+        font-size: 0.88rem;
+    }
+
+    .driver-kata-toolbar {
+        margin: 0 14px 16px;
+        padding: 16px;
+    }
+
+    .driver-kata-field,
+    .driver-kata-note {
+        max-width: 100%;
+    }
+}
+</style>
 {% endblock %}
