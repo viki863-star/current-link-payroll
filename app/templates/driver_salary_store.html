@@ -39,7 +39,7 @@
             <div class="info-box warning-box">This month is already stored. Any save will update the same month instead of creating a second record.</div>
         {% endif %}
         {% if preview.salary_mode == "prorata" %}
-            <div class="info-box warning-box">Prorata mode is active. Salary is being calculated from {{ preview.prorata_start_date }} to day {{ preview.cutoff_day }} on a 30-day basis.</div>
+            <div class="info-box warning-box">Prorata mode is active. Salary is being calculated from {{ preview.prorata_start_date }} to {{ preview.prorata_end_date or ('%s-%02d'|format(preview.salary_month, preview.cutoff_day)) }} on a 30-day basis.</div>
         {% endif %}
         <form method="post" class="entry-form two-column-form salary-form-layout">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -68,6 +68,10 @@
                 <input type="date" name="prorata_start_date" value="{{ values.prorata_start_date }}">
             </label>
             <label>
+                <span>Duty To Date</span>
+                <input type="date" name="prorata_end_date" value="{{ values.prorata_end_date }}">
+            </label>
+            <label>
                 <span>OT Hours</span>
                 <input type="number" name="ot_hours" step="0.01" min="0" value="{{ values.ot_hours }}">
             </label>
@@ -86,6 +90,10 @@
             <label>
                 <span>Salary Days</span>
                 <input type="text" value="{{ "%.2f"|format(preview.salary_days) }}" readonly>
+            </label>
+            <label>
+                <span>Duty Period</span>
+                <input type="text" value="{% if preview.salary_mode == 'prorata' %}{{ preview.prorata_start_date }} to {{ preview.prorata_end_date }}{% else %}Full month up to day {{ preview.cutoff_day }}{% endif %}" readonly>
             </label>
             <label>
                 <span>Payable Basic Salary</span>

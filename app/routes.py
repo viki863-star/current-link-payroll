@@ -6838,6 +6838,7 @@ def register_routes(app: Flask) -> None:
                 "ot_month": "",
                 "salary_mode": (request.form.get("salary_mode", "full").strip() or "full").lower(),
                 "prorata_start_date": request.form.get("prorata_start_date", "").strip(),
+                "prorata_end_date": request.form.get("prorata_end_date", "").strip(),
                 "ot_hours": request.form.get("ot_hours", "0").strip() or "0",
                 "personal_vehicle": request.form.get("personal_vehicle", "0").strip() or "0",
                 "remarks": request.form.get("remarks", "").strip(),
@@ -13886,12 +13887,14 @@ def _driver_pin_hash_from_form(form, *, edit_mode: bool, existing_pin_hash: str 
 
 def _default_salary_form(salary_month: str, duty_start: str | None = None):
     normalized_month = _normalize_month(salary_month)
+    cutoff_day = _salary_cutoff_day(normalized_month)
     return {
         "entry_date": date.today().isoformat(),
         "salary_month": normalized_month,
         "ot_month": _previous_month_value(normalized_month),
         "salary_mode": "full",
         "prorata_start_date": (duty_start or "").strip(),
+        "prorata_end_date": f"{normalized_month}-{cutoff_day:02d}",
         "ot_hours": "0",
         "personal_vehicle": "0",
         "remarks": "",
@@ -13899,12 +13902,24 @@ def _default_salary_form(salary_month: str, duty_start: str | None = None):
 
 
 def _salary_form_from_row(row):
+    salary_month = _normalize_month(row["salary_month"])
+    prorata_start_date = _date_only_value(row["prorata_start_date"]) if row["prorata_start_date"] else ""
+    prorata_end_date = ""
+    if (row["salary_mode"] or "full").strip().lower() == "prorata" and prorata_start_date:
+        try:
+            start_date = datetime.strptime(prorata_start_date, "%Y-%m-%d").date()
+            salary_days = int(round(float(row["salary_days"] or 0)))
+            if salary_days > 0:
+                prorata_end_date = (start_date + timedelta(days=salary_days - 1)).isoformat()
+        except (TypeError, ValueError):
+            prorata_end_date = ""
     return {
         "entry_date": _date_only_value(row["entry_date"]),
-        "salary_month": row["salary_month"],
-        "ot_month": row["ot_month"] or _previous_month_value(row["salary_month"]),
+        "salary_month": salary_month,
+        "ot_month": row["ot_month"] or _previous_month_value(salary_month),
         "salary_mode": (row["salary_mode"] or "full").strip().lower(),
-        "prorata_start_date": _date_only_value(row["prorata_start_date"]) if row["prorata_start_date"] else "",
+        "prorata_start_date": prorata_start_date,
+        "prorata_end_date": prorata_end_date,
         "ot_hours": f"{float(row['ot_hours']):.2f}",
         "personal_vehicle": f"{float(row['personal_vehicle']):.2f}",
         "remarks": row["remarks"] or "",
@@ -13918,13 +13933,24 @@ def _salary_preview_from_row(row):
         salary_mode = "full"
     monthly_basic_salary = float(row["monthly_basic_salary"]) if row["monthly_basic_salary"] is not None else float(row["basic_salary"])
     daily_rate = float(row["daily_rate"]) if row["daily_rate"] is not None else round(monthly_basic_salary / 30.0, 6)
+    prorata_start_date = _date_only_value(row["prorata_start_date"]) if row["prorata_start_date"] else ""
+    prorata_end_date = ""
+    if salary_mode == "prorata" and prorata_start_date:
+        try:
+            start_date = datetime.strptime(prorata_start_date, "%Y-%m-%d").date()
+            salary_days = int(round(float(row["salary_days"] or 0)))
+            if salary_days > 0:
+                prorata_end_date = (start_date + timedelta(days=salary_days - 1)).isoformat()
+        except (TypeError, ValueError):
+            prorata_end_date = ""
     return {
         "entry_date": _date_only_value(row["entry_date"]),
         "salary_month": salary_month,
         "ot_month": row["ot_month"] or _previous_month_value(salary_month),
         "salary_mode": salary_mode,
         "salary_mode_label": _salary_mode_label(salary_mode),
-        "prorata_start_date": _date_only_value(row["prorata_start_date"]) if row["prorata_start_date"] else "",
+        "prorata_start_date": prorata_start_date,
+        "prorata_end_date": prorata_end_date,
         "salary_days": float(row["salary_days"]) if row["salary_days"] is not None else 30.0,
         "daily_rate": daily_rate,
         "monthly_basic_salary": monthly_basic_salary,
@@ -13948,21 +13974,35 @@ def _calculate_salary_preview(driver, form):
     cutoff_day = _salary_cutoff_day(salary_month)
     daily_rate = round(monthly_basic_salary / 30.0, 6)
     prorata_start_date = ""
+    prorata_end_date = ""
     salary_days = 30.0
     basic_salary = monthly_basic_salary
     if salary_mode == "prorata":
         prorata_start_date = (form.get("prorata_start_date", "") or "").strip() or (driver.get("duty_start", "") or "").strip()
+        prorata_end_date = (form.get("prorata_end_date", "") or "").strip()
         if not prorata_start_date:
             raise ValidationError("Prorata start date is required when salary mode is prorata.")
+        if not prorata_end_date:
+            raise ValidationError("Duty to date is required when salary mode is prorata.")
         try:
             start_date = datetime.strptime(prorata_start_date, "%Y-%m-%d").date()
         except ValueError as exc:
             raise ValidationError("Prorata start date is not valid.") from exc
+        try:
+            end_date = datetime.strptime(prorata_end_date, "%Y-%m-%d").date()
+        except ValueError as exc:
+            raise ValidationError("Duty to date is not valid.") from exc
         if start_date.strftime("%Y-%m") != salary_month:
             raise ValidationError("Prorata start date must be inside the selected salary month.")
+        if end_date.strftime("%Y-%m") != salary_month:
+            raise ValidationError("Duty to date must be inside the selected salary month.")
         if start_date.day > cutoff_day:
             raise ValidationError(f"Prorata start date must be on or before day {cutoff_day} for this payroll month.")
-        salary_days = float(cutoff_day - start_date.day + 1)
+        if end_date.day > cutoff_day:
+            raise ValidationError(f"Duty to date must be on or before day {cutoff_day} for this payroll month.")
+        if end_date < start_date:
+            raise ValidationError("Duty to date must be after or equal to duty from date.")
+        salary_days = float((end_date - start_date).days + 1)
         basic_salary = round(daily_rate * salary_days, 2)
     ot_rate = float(driver["ot_rate"])
     ot_hours = _parse_decimal(form.get("ot_hours", "0"), "OT hours", required=False, default=0.0, minimum=0.0)
@@ -13976,6 +14016,7 @@ def _calculate_salary_preview(driver, form):
         "salary_mode": salary_mode,
         "salary_mode_label": _salary_mode_label(salary_mode),
         "prorata_start_date": prorata_start_date,
+        "prorata_end_date": prorata_end_date,
         "salary_days": salary_days,
         "daily_rate": daily_rate,
         "monthly_basic_salary": monthly_basic_salary,
@@ -14411,7 +14452,7 @@ def _driver_transaction_history_rows(db, driver_id: str, upto_date: str | None =
         FROM salary_slips
         LEFT JOIN salary_store ON salary_store.id = salary_slips.salary_store_id
         WHERE salary_slips.driver_id = ?
-          AND SUBSTR(salary_slips.generated_at, 1, 10) <= ?
+          AND DATE(salary_slips.generated_at) <= ?
         ORDER BY salary_slips.generated_at DESC, salary_slips.id DESC
         """,
         (driver_id, cutoff_date),

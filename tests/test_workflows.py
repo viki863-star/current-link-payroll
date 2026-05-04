@@ -261,6 +261,7 @@ def test_salary_store_supports_prorata_from_duty_start(app, client):
             "salary_month": "2026-04",
             "salary_mode": "prorata",
             "prorata_start_date": "2026-04-09",
+            "prorata_end_date": "2026-04-29",
             "ot_hours": "0",
             "personal_vehicle": "0",
             "remarks": "Joined mid month",
@@ -286,11 +287,36 @@ def test_salary_store_supports_prorata_from_duty_start(app, client):
         assert row is not None
         assert row["salary_mode"] == "prorata"
         assert row["prorata_start_date"] == "2026-04-09"
-        assert float(row["salary_days"]) == 22.0
+        assert float(row["salary_days"]) == 21.0
         assert float(row["daily_rate"]) == 100.0
         assert float(row["monthly_basic_salary"]) == 3000.0
-        assert float(row["basic_salary"]) == 2200.0
-        assert float(row["net_salary"]) == 2200.0
+        assert float(row["basic_salary"]) == 2100.0
+        assert float(row["net_salary"]) == 2100.0
+
+
+def test_salary_store_prorata_uses_selected_duty_range(app, client):
+    create_driver_record(app, basic_salary=3000.0, duty_start="2026-04-01")
+    admin_session(client)
+
+    response = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "salary_mode": "prorata",
+            "prorata_start_date": "2026-04-09",
+            "prorata_end_date": "2026-04-29",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "9 to 29 duty",
+            "action": "calculate",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"21.00" in response.data
+    assert b"2026-04-09 to 2026-04-29" in response.data
 
 
 def test_transaction_rejects_invalid_amount(app, client):
