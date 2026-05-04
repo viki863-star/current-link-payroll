@@ -145,6 +145,57 @@
     </article>
 </section>
 
+<section class="card table-card driver-kata-panel">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Monthly Statement</p>
+            <h2>Driver KATA</h2>
+        </div>
+    </div>
+
+    <div class="detail-grid mini-detail-grid driver-kata-summary-grid">
+        <div><dt>Month</dt><dd>{{ kata_summary.month_label }}</dd></div>
+        <div><dt>Opening Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.opening_balance) }}</dd></div>
+        <div><dt>Monthly Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</dd></div>
+        <div><dt>Monthly Cash Received</dt><dd>AED {{ "%.2f"|format(kata_summary.cash_given) }}</dd></div>
+        <div><dt>Monthly Deductions</dt><dd>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</dd></div>
+        <div><dt>Monthly Paid</dt><dd>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</dd></div>
+        <div><dt>Closing Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.closing_balance) }}</dd></div>
+    </div>
+
+    {% if kata_entries %}
+        <div class="table-wrap">
+            <table class="driver-kata-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Given By</th>
+                        <th>Details</th>
+                        <th>Type</th>
+                        <th>Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in kata_entries %}
+                        <tr>
+                            <td>{{ item.date }}</td>
+                            <td class="driver-kata-amount">AED {{ "%.2f"|format(item.amount) }}</td>
+                            <td class="driver-kata-who">{{ item.given_by or "-" }}</td>
+                            <td class="driver-kata-details">{{ item.purpose or "-" }}</td>
+                            <td>{{ item.type }}</td>
+                            <td class="driver-kata-balance">AED {{ "%.2f"|format(item.balance_after) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="panel-note driver-kata-footer-note">This table shows only {{ kata_summary.month_label }}. Older months are not listed here even if their balance carries forward.</p>
+    {% else %}
+        <p class="muted-text">No KATA entries found for {{ kata_summary.month_label }}.</p>
+    {% endif %}
+</section>
+
 <style>
 .driver-action-shell .panel-titlebar {
     align-items: center;
@@ -208,9 +259,51 @@
     padding-top: 0;
 }
 
+.driver-kata-panel {
+    padding: 18px;
+}
+
+.driver-kata-summary-grid {
+    margin-bottom: 18px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.driver-kata-table {
+    width: 100%;
+    font-size: 0.94rem;
+}
+
+.driver-kata-table th,
+.driver-kata-table td {
+    padding: 12px 10px;
+    vertical-align: top;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+
+.driver-kata-amount,
+.driver-kata-who,
+.driver-kata-balance,
+.driver-kata-details {
+    font-weight: 700;
+}
+
+.driver-kata-details {
+    min-width: 280px;
+    max-width: 420px;
+}
+
+.driver-kata-footer-note {
+    max-width: 720px;
+}
+
 @media (max-width: 900px) {
     .driver-kata-form {
         grid-template-columns: 1fr;
+    }
+
+    .driver-kata-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -227,6 +320,28 @@
 
     .driver-kata-field,
     .driver-kata-note {
+        max-width: 100%;
+    }
+
+    .driver-kata-panel {
+        padding: 16px;
+    }
+
+    .driver-kata-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .driver-kata-table {
+        font-size: 0.88rem;
+    }
+
+    .driver-kata-table th,
+    .driver-kata-table td {
+        padding: 10px 8px;
+    }
+
+    .driver-kata-details {
+        min-width: 220px;
         max-width: 100%;
     }
 }

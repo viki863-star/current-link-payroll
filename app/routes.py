@@ -6575,6 +6575,7 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("driver_list"))
 
         current_month = _current_month_value()
+        selected_kata_month = _normalize_month(request.args.get("kata_month", "").strip() or current_month)
         current_salary = db.execute(
             "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
             (driver_id, current_month),
@@ -6593,6 +6594,7 @@ def register_routes(app: Flask) -> None:
             """,
             (driver_id,),
         ).fetchone()
+        kata_entries, kata_summary = _driver_kata_month_data(db, driver_id, selected_kata_month)
 
         return render_template(
             "driver_action.html",
@@ -6601,6 +6603,8 @@ def register_routes(app: Flask) -> None:
             salary_status="Stored" if current_salary else "Not Stored",
             current_month_label=format_month_label(current_month),
             current_month_value=current_month,
+            selected_kata_month=selected_kata_month,
+            selected_kata_month_label=format_month_label(selected_kata_month),
             salary_due=_driver_balance(db, driver_id),
             advance_summary=_advance_summary(db, driver_id),
             outstanding_advance=_outstanding_advance(db, driver_id),
@@ -6608,6 +6612,8 @@ def register_routes(app: Flask) -> None:
                 "SELECT COUNT(*) FROM driver_transactions WHERE driver_id = ?",
                 (driver_id,),
             ).fetchone()[0],
+            kata_entries=kata_entries,
+            kata_summary=kata_summary,
             salary_count=db.execute(
                 "SELECT COUNT(*) FROM salary_store WHERE driver_id = ?",
                 (driver_id,),
