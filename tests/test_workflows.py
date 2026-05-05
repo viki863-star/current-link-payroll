@@ -603,10 +603,12 @@ def test_salary_slip_supports_custom_actual_paid_and_company_balance(app, client
 
     action_page = client.get("/drivers/DRV-T1?kata_month=2026-04")
     assert action_page.status_code == 200
-    assert b"Stored Salary" in action_page.data
-    assert b"Deductions" in action_page.data
-    assert b"Paid" in action_page.data
-    assert b"Balance" in action_page.data
+    assert b"Salary" in action_page.data
+    assert b"Katai" in action_page.data
+    assert b"Mila" in action_page.data
+    assert b"Baki" in action_page.data
+    assert b"Pichla Baki" in action_page.data
+    assert b"Salary Baad Katai" in action_page.data
     assert b"Recovery trip" in action_page.data
     assert b"Advance deduction" in action_page.data
     assert b"Actual salary paid" in action_page.data
@@ -798,6 +800,65 @@ def test_kata_pdf_accepts_postgres_datetime_generated_at(app):
         shutil.rmtree(output_dir, ignore_errors=True)
 
 
+def test_monthly_kata_pdf_uses_paper_style_summary_labels(app):
+    driver = create_driver_record(app)
+    output_dir = Path.cwd() / "generated" / "test-runs" / f"monthly-paper-kata-{uuid4().hex}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        output_path = generate_kata_pdf(
+            driver,
+            [
+                {
+                    "entry_date": "2026-04-30",
+                    "salary_month": "2026-04",
+                    "basic_salary": 4500.0,
+                    "ot_amount": 300.0,
+                    "personal_vehicle": 500.0,
+                    "net_salary": 5300.0,
+                    "remarks": "April salary",
+                    "personal_vehicle_note": "Recovery trip",
+                }
+            ],
+            [
+                {
+                    "entry_date": "2026-04-10",
+                    "txn_type": "Advance",
+                    "source": "Owner Fund",
+                    "given_by": "Office",
+                    "amount": 1424.0,
+                    "details": "Advance before salary",
+                }
+            ],
+            [
+                {
+                    "generated_at": "2026-04-30 10:30:00",
+                    "salary_month": "2026-04",
+                    "total_deductions": 1424.0,
+                    "salary_after_deduction": 3876.0,
+                    "actual_paid_amount": 3500.0,
+                    "company_balance_due": 376.0,
+                    "net_payable": 3500.0,
+                    "payment_source": "Owner Fund",
+                    "paid_by": "Waqar",
+                }
+            ],
+            [],
+            str(output_dir),
+            str(Path(app.root_path).parent / "app" / "static"),
+            month_value="2026-04",
+        )
+
+        extracted_text = "\n".join(page.extract_text() or "" for page in PdfReader(output_path).pages)
+        assert "HISAAB SUMMARY" in extracted_text
+        assert "Pichla Baki" in extracted_text
+        assert "Salary Baad Katai" in extracted_text
+        assert "Mila" in extracted_text
+        assert "Baki" in extracted_text
+    finally:
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+
 def test_full_kata_pdf_keeps_all_history_rows_across_pages(app):
     driver = create_driver_record(app)
     output_dir = Path.cwd() / "generated" / "test-runs" / f"full-kata-{uuid4().hex}"
@@ -893,6 +954,10 @@ def test_driver_portal_shows_only_selected_month_kata_entries(app, client):
 
     assert response.status_code == 200
     assert b"Monthly Statement" in response.data
+    assert b"Pichla Baki" in response.data
+    assert b"Salary Baad Katai" in response.data
+    assert b"Kis Ne Diya" in response.data
+    assert b"Kis Liye" in response.data
     assert b"Fuel for March" in response.data
     assert b"Office" in response.data
     assert b"March salary" in response.data
@@ -981,10 +1046,11 @@ def test_driver_action_page_keeps_selected_kata_month(app, client):
     assert b"Statement Month" in response.data
     assert b"Driver Statement Desk" in response.data
     assert b"Deductions" in response.data
-    assert b"Stored Salary" in response.data
-    assert b"Paid By" in response.data
-    assert b"Reason" in response.data
-    assert b"Opening Balance" in response.data
+    assert b"Salary" in response.data
+    assert b"Kis Ne Diya" in response.data
+    assert b"Kis Liye" in response.data
+    assert b"Pichla Baki" in response.data
+    assert b"Salary Baad Katai" in response.data
     assert b"Fuel for March" in response.data
     assert b"March salary" in response.data
     assert b"Old visa" not in response.data

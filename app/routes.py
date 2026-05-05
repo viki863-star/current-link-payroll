@@ -14839,7 +14839,8 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
 
     salary_rows = db.execute(
         """
-        SELECT entry_date, salary_month, net_salary, remarks, personal_vehicle, personal_vehicle_note
+        SELECT entry_date, salary_month, basic_salary, ot_amount, net_salary, remarks,
+               personal_vehicle, personal_vehicle_note
         FROM salary_store
         WHERE driver_id = ? AND salary_month = ?
         ORDER BY entry_date ASC, id ASC
@@ -14962,11 +14963,16 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
         )
     )
 
+    extra_total = sum(float(row["ot_amount"] or 0.0) + float(row["personal_vehicle"] or 0.0) for row in salary_rows)
+    salary_total = max(sum(float(row["net_salary"]) for row in salary_rows) - extra_total, 0.0)
+
     summary = {
         "month": month_value,
         "month_label": format_month_label(month_value),
         "opening_balance": opening_balance,
         "salary_amount": sum(float(row["net_salary"]) for row in salary_rows),
+        "salary_total": salary_total,
+        "extra_total": extra_total,
         "cash_given": sum(float(row["amount"]) for row in transaction_rows),
         "deduction_amount": total_deduction,
         "paid_amount": sum(_payment_row_amount(row) for row in payment_rows),
@@ -15135,7 +15141,7 @@ def _driver_folder_name(full_name: str, driver_id: str) -> str:
 def _regenerate_kata_for_driver(app: Flask, db, driver, month_value: str | None = None):
     salary_rows = db.execute(
         """
-        SELECT entry_date, salary_month, net_salary, remarks, personal_vehicle, personal_vehicle_note
+        SELECT entry_date, salary_month, basic_salary, ot_amount, net_salary, remarks, personal_vehicle, personal_vehicle_note
         FROM salary_store
         WHERE driver_id = ?
         ORDER BY entry_date ASC, id ASC

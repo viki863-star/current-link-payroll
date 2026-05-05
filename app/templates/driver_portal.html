@@ -40,19 +40,19 @@
 
 <section class="stats compact-stats premium-stats">
     <article class="card stat-card premium-stat-card blue-stat">
-        <span>Stored Salary</span>
-        <strong>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</strong>
+        <span>Salary</span>
+        <strong>AED {{ "%.2f"|format(kata_summary.salary_total or kata_summary.salary_amount) }}</strong>
     </article>
     <article class="card stat-card premium-stat-card green-stat">
-        <span>Deductions</span>
+        <span>Katai</span>
         <strong>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</strong>
     </article>
     <article class="card stat-card premium-stat-card orange-stat">
-        <span>Paid</span>
+        <span>Mila</span>
         <strong>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</strong>
     </article>
     <article class="card stat-card premium-stat-card navy-stat">
-        <span>Balance</span>
+        <span>Baki</span>
         <strong>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</strong>
     </article>
 </section>
@@ -204,15 +204,22 @@
                 <h2>Monthly Statement</h2>
             </div>
         </div>
-        <div class="detail-grid mini-detail-grid" style="margin-bottom:18px;">
-            <div><dt>Month</dt><dd>{{ kata_summary.month_label }}</dd></div>
-            <div><dt>Opening Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.opening_balance) }}</dd></div>
-            <div><dt>Stored Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</dd></div>
-            <div><dt>Deductions</dt><dd>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</dd></div>
-            <div><dt>Paid</dt><dd>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</dd></div>
-            <div><dt>Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</dd></div>
-            <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(kata_summary.advance_left) }}</dd></div>
-            <div><dt>Closing Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.closing_balance) }}</dd></div>
+        <div class="portal-paper-summary">
+            <article class="portal-paper-card">
+                <div class="portal-paper-header">
+                    <span>{{ kata_summary.month_label }}</span>
+                    <span>Driver ID {{ driver.driver_id }}</span>
+                </div>
+                <div class="portal-paper-lines">
+                    <div class="portal-paper-line"><span>Pichla Baki</span><strong>AED {{ "%.2f"|format(kata_summary.opening_balance) }}</strong></div>
+                    <div class="portal-paper-line plus"><span>Salary</span><strong>AED {{ "%.2f"|format(kata_summary.salary_total or kata_summary.salary_amount) }}</strong></div>
+                    <div class="portal-paper-line plus"><span>Extra / OT</span><strong>AED {{ "%.2f"|format(kata_summary.extra_total or 0) }}</strong></div>
+                    <div class="portal-paper-line minus"><span>Katai</span><strong>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</strong></div>
+                    <div class="portal-paper-line total"><span>Salary Baad Katai</span><strong>AED {{ "%.2f"|format(kata_summary.closing_balance + kata_summary.paid_amount) }}</strong></div>
+                    <div class="portal-paper-line minus"><span>Mila</span><strong>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</strong></div>
+                    <div class="portal-paper-line balance"><span>Baki</span><strong>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</strong></div>
+                </div>
+            </article>
         </div>
         {% if kata_entries %}
             <div class="table-wrap">
@@ -220,10 +227,10 @@
                     <thead>
                         <tr>
                             <th>Date</th>
-                            <th>Amount</th>
-                            <th>Paid By</th>
-                            <th>Reason</th>
-                            <th>Balance</th>
+                            <th>Raqam</th>
+                            <th>Kis Ne Diya</th>
+                            <th>Kis Liye</th>
+                            <th>Baki</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -239,7 +246,7 @@
                     </tbody>
                 </table>
             </div>
-            <p class="panel-note small-note">Is view mein sirf {{ kata_summary.month_label }} ki lines hain. Purana unpaid amount opening balance mein aata hai.</p>
+            <p class="panel-note small-note">Is month ka sirf yahi hisaab hai. Purana unpaid amount `Pichla Baki` mein aata hai.</p>
         {% else %}
             <p class="muted-text">Is month ke liye abhi statement entry available nahi.</p>
         {% endif %}
@@ -263,6 +270,75 @@
 }
 .kata-purpose-cell {
     min-width: 220px;
+}
+
+.portal-paper-summary {
+    margin-bottom: 18px;
+}
+
+.portal-paper-card {
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(21, 51, 93, 0.10);
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,249,253,0.98)),
+        repeating-linear-gradient(
+            180deg,
+            transparent 0,
+            transparent 31px,
+            rgba(38, 86, 142, 0.06) 31px,
+            rgba(38, 86, 142, 0.06) 32px
+        );
+}
+
+.portal-paper-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(21, 51, 93, 0.18);
+    color: var(--primary);
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.portal-paper-lines {
+    display: grid;
+    gap: 10px;
+}
+
+.portal-paper-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.portal-paper-line span {
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+
+.portal-paper-line strong {
+    color: var(--primary-dark);
+    font-size: 1.02rem;
+}
+
+.portal-paper-line.plus strong { color: #1d5c99; }
+.portal-paper-line.minus strong { color: #b96d0f; }
+
+.portal-paper-line.total,
+.portal-paper-line.balance {
+    padding-top: 10px;
+    border-top: 1px solid rgba(21, 51, 93, 0.12);
+}
+
+.portal-paper-line.balance strong {
+    color: #0f5f46;
+    font-size: 1.12rem;
 }
 @media (max-width: 720px) {
     .kata-month-table {

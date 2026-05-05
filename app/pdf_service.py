@@ -387,6 +387,11 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
     entries.sort(key=lambda item: (item["date"], item["sort_group"]))
 
     total_salary = sum(float(row["net_salary"]) for row in month_salary_rows)
+    total_extra = sum(
+        float(_pdf_row_value(row, "ot_amount", 0.0) or 0.0) + float(_pdf_row_value(row, "personal_vehicle", 0.0) or 0.0)
+        for row in month_salary_rows
+    )
+    base_salary_total = max(total_salary - total_extra, 0.0)
     total_advance = sum(float(item["amount"]) for item in month_transactions)
     total_deducted = total_deduction
     total_net_paid = sum(float(_pdf_row_value(item, "amount", 0.0) or 0.0) for item in month_salary_payments)
@@ -400,32 +405,49 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         _draw_header(pdf, assets_dir)
         _draw_title(
             pdf,
-            "Driver Full KATA" if not selected_month else f"Driver Monthly KATA {normalized_month}",
-            "Complete history" if not selected_month else "Opening balance plus current month entries",
+            "Driver Full KATA" if not selected_month else f"Driver Monthly Statement {normalized_month}",
+            "Complete history" if not selected_month else "Paper-style hisaab with current month detail",
         )
         _draw_kata_driver_summary(pdf, driver)
-        _draw_kata_stat_row(
-            pdf,
-            [
-                ("Opening", format_currency(opening_balance if selected_month else 0.0)),
-                ("Salary", format_currency(total_salary)),
-                ("Transactions", format_currency(total_advance)),
-                ("Deducted", format_currency(total_deducted)),
-                ("Closing", format_currency(closing_balance)),
-            ],
-        )
-        _draw_kata_stat_row(
-            pdf,
-            [
-                ("Paid", format_currency(total_net_paid)),
-                ("Balance", format_currency(total_company_balance)),
-                ("Period", normalized_month or "Start to End"),
-                ("Entries", str(len(entries))),
-                ("Page", f"{page_number}/{len(pages)}"),
-            ],
-            start_y=PAGE_HEIGHT - 157 * mm,
-        )
-        _draw_kata_statement_table(pdf, page_rows)
+        if selected_month:
+            _draw_kata_paper_summary(
+                pdf,
+                [
+                    ("Pichla Baki", format_currency(opening_balance)),
+                    ("Salary", format_currency(base_salary_total)),
+                    ("Extra / OT", format_currency(total_extra)),
+                    ("Katai", format_currency(total_deducted)),
+                    ("Salary Baad Katai", format_currency(closing_balance + total_net_paid)),
+                    ("Mila", format_currency(total_net_paid)),
+                    ("Baki", format_currency(total_company_balance)),
+                ],
+                month_label=normalized_month,
+                driver_id=driver["driver_id"],
+            )
+        else:
+            _draw_kata_stat_row(
+                pdf,
+                [
+                    ("Opening", format_currency(opening_balance if selected_month else 0.0)),
+                    ("Salary", format_currency(total_salary)),
+                    ("Transactions", format_currency(total_advance)),
+                    ("Deducted", format_currency(total_deducted)),
+                    ("Closing", format_currency(closing_balance)),
+                ],
+            )
+            _draw_kata_stat_row(
+                pdf,
+                [
+                    ("Paid", format_currency(total_net_paid)),
+                    ("Balance", format_currency(total_company_balance)),
+                    ("Period", normalized_month or "Start to End"),
+                    ("Entries", str(len(entries))),
+                    ("Page", f"{page_number}/{len(pages)}"),
+                ],
+                start_y=PAGE_HEIGHT - 157 * mm,
+            )
+        table_top = PAGE_HEIGHT - 226 * mm if selected_month else None
+        _draw_kata_statement_table(pdf, page_rows, top=table_top)
         _draw_footer_banner(pdf, assets_dir)
         pdf.showPage()
 
@@ -1768,6 +1790,50 @@ def _draw_kata_driver_summary(pdf: canvas.Canvas, driver) -> None:
     pdf.drawString(box_x + 132 * mm, box_y + 6 * mm, f"Phone: {driver['phone_number'] if 'phone_number' in driver.keys() else '-'}")
 
 
+def _draw_kata_paper_summary(pdf: canvas.Canvas, rows, month_label: str, driver_id: str) -> None:
+    box_x = 16 * mm
+    box_y = PAGE_HEIGHT - 170 * mm
+    box_w = 178 * mm
+    box_h = 44 * mm
+    left_w = 112 * mm
+
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(box_x, box_y, box_w, box_h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(box_x, box_y, box_w, box_h, 4 * mm, fill=0, stroke=1)
+
+    pdf.setFillColor(BLUE_SOFT)
+    pdf.roundRect(box_x, box_y + box_h - 9 * mm, box_w, 9 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 8.8)
+    pdf.drawString(box_x + 4 * mm, box_y + box_h - 5.8 * mm, f"HISAAB SUMMARY | {month_label}")
+    pdf.drawRightString(box_x + box_w - 4 * mm, box_y + box_h - 5.8 * mm, f"Driver ID {driver_id}")
+
+    pdf.setStrokeColor(LINE)
+    pdf.line(box_x + left_w, box_y + 4 * mm, box_x + left_w, box_y + box_h - 11 * mm)
+
+    row_y = box_y + box_h - 15 * mm
+    left_rows = rows[:4]
+    right_rows = rows[4:]
+
+    for label, value in left_rows:
+        pdf.setFillColor(TEXT)
+        pdf.setFont("Helvetica-Bold", 8)
+        pdf.drawString(box_x + 4 * mm, row_y, label)
+        pdf.setFont("Helvetica-Bold", 8.4)
+        pdf.drawRightString(box_x + left_w - 4 * mm, row_y, f"AED {value}")
+        row_y -= 6 * mm
+
+    row_y = box_y + box_h - 15 * mm
+    for index, (label, value) in enumerate(right_rows):
+        pdf.setFillColor(BLUE_DARK if index == len(right_rows) - 1 else TEXT)
+        pdf.setFont("Helvetica-Bold", 8.2 if index == len(right_rows) - 1 else 8)
+        pdf.drawString(box_x + left_w + 4 * mm, row_y, label)
+        pdf.setFont("Helvetica-Bold", 8.8 if index == len(right_rows) - 1 else 8.4)
+        pdf.drawRightString(box_x + box_w - 4 * mm, row_y, f"AED {value}")
+        row_y -= 6 * mm
+
+
 def _draw_kata_stat_row(pdf: canvas.Canvas, items, start_y=None) -> None:
     start_x = 16 * mm
     start_y = start_y if start_y is not None else PAGE_HEIGHT - 137 * mm
@@ -1783,8 +1849,8 @@ def _draw_kata_stat_row(pdf: canvas.Canvas, items, start_y=None) -> None:
         _draw_stat_box(pdf, x, start_y, box_w, box_h, label.upper(), value, fill_color=fill, text_color=text_color, border_color=border)
 
 
-def _draw_kata_statement_table(pdf: canvas.Canvas, entries) -> None:
-    top = PAGE_HEIGHT - 180 * mm
+def _draw_kata_statement_table(pdf: canvas.Canvas, entries, top=None) -> None:
+    top = top if top is not None else PAGE_HEIGHT - 180 * mm
     _draw_table_header(
         pdf,
         top,
