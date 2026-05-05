@@ -604,9 +604,9 @@ def test_salary_slip_supports_custom_actual_paid_and_company_balance(app, client
     action_page = client.get("/drivers/DRV-T1?kata_month=2026-04")
     assert action_page.status_code == 200
     assert b"Stored Salary" in action_page.data
-    assert b"Advance Deducted" in action_page.data
-    assert b"Actual Paid" in action_page.data
-    assert b"Company Balance" in action_page.data
+    assert b"Deductions" in action_page.data
+    assert b"Paid" in action_page.data
+    assert b"Balance" in action_page.data
     assert b"Recovery trip" in action_page.data
     assert b"Advance deduction" in action_page.data
     assert b"Actual salary paid" in action_page.data
@@ -978,9 +978,9 @@ def test_driver_action_page_keeps_selected_kata_month(app, client):
 
     assert response.status_code == 200
     assert b'input type="month" name="kata_month" value="2026-03"' in response.data
-    assert b"KATA Month" in response.data
-    assert b"Driver Statement" in response.data
-    assert b"Transactions" in response.data
+    assert b"Statement Month" in response.data
+    assert b"Driver Statement Desk" in response.data
+    assert b"Deductions" in response.data
     assert b"Stored Salary" in response.data
     assert b"Paid By" in response.data
     assert b"Reason" in response.data

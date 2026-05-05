@@ -33,27 +33,27 @@
                 <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(outstanding_advance) }}</dd></div>
                 <div><dt>Status</dt><dd>{{ driver.status }}</dd></div>
             </dl>
-            <div class="panel-note small-note">Yahan se aap hours save kar sakte hain, monthly timesheet dekh sakte hain, PDF download kar sakte hain aur apni salary slip aur transactions check kar sakte hain.</div>
+            <div class="panel-note small-note">Aap apna monthly statement, opening balance, paid amount aur baqi balance yahan clear dekh sakte hain.</div>
         </div>
     </div>
 </section>
 
 <section class="stats compact-stats premium-stats">
     <article class="card stat-card premium-stat-card blue-stat">
-        <span>Timesheet Hours</span>
-        <strong>{{ "%.2f"|format(month_hours) }}</strong>
+        <span>Stored Salary</span>
+        <strong>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</strong>
     </article>
     <article class="card stat-card premium-stat-card green-stat">
-        <span>Entered Days</span>
-        <strong>{{ timesheet_summary.entered_days }}</strong>
+        <span>Deductions</span>
+        <strong>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</strong>
     </article>
     <article class="card stat-card premium-stat-card orange-stat">
-        <span>Missing Days</span>
-        <strong>{{ timesheet_summary.missing_days }}</strong>
+        <span>Paid</span>
+        <strong>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</strong>
     </article>
     <article class="card stat-card premium-stat-card navy-stat">
-        <span>Statements</span>
-        <strong>{{ salary_slips|length }}</strong>
+        <span>Balance</span>
+        <strong>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</strong>
     </article>
 </section>
 
@@ -61,7 +61,7 @@
     <a class="button button-secondary" href="#timesheet-entry">Timesheet</a>
     <a class="button button-secondary" href="#timesheet-calendar">Month View</a>
     <a class="button button-secondary" href="#salary-slips">Statements</a>
-    <a class="button button-secondary" href="#driver-transactions">Statement</a>
+    <a class="button button-secondary" href="#driver-transactions">Monthly Statement</a>
 </section>
 
 <section class="detail-layout owner-fund-layout" id="timesheet-entry">
@@ -208,10 +208,9 @@
             <div><dt>Month</dt><dd>{{ kata_summary.month_label }}</dd></div>
             <div><dt>Opening Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.opening_balance) }}</dd></div>
             <div><dt>Stored Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</dd></div>
-            <div><dt>Month Transactions</dt><dd>AED {{ "%.2f"|format(kata_summary.cash_given) }}</dd></div>
-            <div><dt>Advance Deducted</dt><dd>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</dd></div>
-            <div><dt>Actual Paid</dt><dd>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</dd></div>
-            <div><dt>Company Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</dd></div>
+            <div><dt>Deductions</dt><dd>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</dd></div>
+            <div><dt>Paid</dt><dd>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</dd></div>
+            <div><dt>Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</dd></div>
             <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(kata_summary.advance_left) }}</dd></div>
             <div><dt>Closing Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.closing_balance) }}</dd></div>
         </div>
@@ -240,9 +239,9 @@
                     </tbody>
                 </table>
             </div>
-            <p class="panel-note small-note">Is view mein sirf {{ kata_summary.month_label }} ki entries dikh rahi hain. Purana unpaid amount opening balance mein aata hai aur current month ka paid/balance alag show hota hai.</p>
+            <p class="panel-note small-note">Is view mein sirf {{ kata_summary.month_label }} ki lines hain. Purana unpaid amount opening balance mein aata hai.</p>
         {% else %}
-            <p class="muted-text">Is month ke liye abhi KATA entry available nahi.</p>
+            <p class="muted-text">Is month ke liye abhi statement entry available nahi.</p>
         {% endif %}
     </article>
 </section>

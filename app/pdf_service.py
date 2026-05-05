@@ -1596,27 +1596,7 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
     _draw_paid_stamp(pdf, sign_x + 40 * mm, sign_y + 7.5 * mm)
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 7.1)
-    pdf.drawString(16 * mm, 33 * mm, "This is a system-generated salary slip for internal payroll records.")
-    if payment_rows:
-        pay_x = 16 * mm
-        pay_y = 8 * mm + 30 * mm
-        pay_w = 178 * mm
-        pay_h = 24 * mm
-        pdf.setFillColor(colors.white)
-        pdf.roundRect(pay_x, pay_y, pay_w, pay_h, 4 * mm, fill=1, stroke=0)
-        pdf.setStrokeColor(LINE)
-        pdf.roundRect(pay_x, pay_y, pay_w, pay_h, 4 * mm, fill=0, stroke=1)
-        pdf.setFillColor(BLUE_DARK)
-        pdf.setFont("Helvetica-Bold", 8.2)
-        pdf.drawString(pay_x + 4 * mm, pay_y + 18.5 * mm, "PAYMENT HISTORY")
-        row_y = pay_y + 13.2 * mm
-        for payment in list(payment_rows)[-3:]:
-            payment_text = f"{_pdf_row_value(payment, 'payment_date') or '-'} | AED {format_currency(float(_pdf_row_value(payment, 'amount', 0.0) or 0.0))} | {(_pdf_row_value(payment, 'payment_source') or '-')} | {(_pdf_row_value(payment, 'paid_by') or '-')}"
-            text, size = _fit_text(pdf, payment_text, "Helvetica", 6.8, pay_w - 8 * mm, min_size=6.0)
-            pdf.setFillColor(TEXT)
-            pdf.setFont("Helvetica", size)
-            pdf.drawString(pay_x + 4 * mm, row_y, text)
-            row_y -= 5 * mm
+    pdf.drawString(16 * mm, 30 * mm, "This is a system-generated salary slip for internal payroll records.")
     _draw_footer_banner(pdf, assets_dir)
 
 
