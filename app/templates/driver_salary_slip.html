@@ -58,6 +58,10 @@
                 <input type="number" name="deduction_amount" step="0.01" min="0" value="{{ values.deduction_amount }}" required>
             </label>
             <label>
+                <span>Actual Paid</span>
+                <input type="number" name="actual_paid_amount" step="0.01" min="0" value="{{ values.actual_paid_amount }}" placeholder="Leave blank to pay full after deduction">
+            </label>
+            <label>
                 <span>Payment Source</span>
                 <select name="payment_source">
                     {% for item in payment_sources %}
@@ -71,7 +75,7 @@
             </label>
             <div class="full-span split-preview-row">
                 <div class="info-box success-box">
-                    Agar transaction `500` ho aur aap `100` deduct karein, to baqi `400` next slip ke liye save rahega.
+                    Deduction alag hai aur actual paid alag. Agar after deduction `3876` bane aur aap `3500` dein, to `376` company balance ban jayega.
                 </div>
                 <div class="info-box">
                     Driver ke owner fund ya direct payment ka source bhi slip me save hoga.
@@ -100,13 +104,18 @@
         </div>
         {% if selected_salary and preview %}
             <dl class="detail-grid mini-detail-grid slip-preview-grid">
-                <div><dt>Gross Salary</dt><dd>AED {{ "%.2f"|format(preview.gross) }}</dd></div>
+                <div><dt>Stored Salary</dt><dd>AED {{ "%.2f"|format(preview.gross) }}</dd></div>
                 <div><dt>OT Month</dt><dd>{{ preview.ot_month }}</dd></div>
                 <div><dt>Available Advance</dt><dd>AED {{ "%.2f"|format(preview.available_advance) }}</dd></div>
-                <div><dt>Deduct This Slip</dt><dd>AED {{ "%.2f"|format(preview.deduction_amount) }}</dd></div>
+                <div><dt>Advance Deduction</dt><dd>AED {{ "%.2f"|format(preview.deduction_amount) }}</dd></div>
                 <div><dt>Remaining Advance</dt><dd>AED {{ "%.2f"|format(preview.remaining_advance) }}</dd></div>
-                <div><dt>Net Payable</dt><dd>AED {{ "%.2f"|format(preview.net_payable) }}</dd></div>
+                <div><dt>Salary After Deduction</dt><dd>AED {{ "%.2f"|format(preview.salary_after_deduction) }}</dd></div>
+                <div><dt>Actual Paid</dt><dd>AED {{ "%.2f"|format(preview.actual_paid_amount) }}</dd></div>
+                <div><dt>Company Balance</dt><dd>AED {{ "%.2f"|format(preview.company_balance_due) }}</dd></div>
                 <div><dt>Payment Source</dt><dd>{{ values.payment_source }}</dd></div>
+                {% if selected_salary.personal_vehicle_note %}
+                    <div><dt>Personal / Vehicle Note</dt><dd>{{ selected_salary.personal_vehicle_note }}</dd></div>
+                {% endif %}
             </dl>
         {% else %}
             <p class="muted-text">Pehle salary store select karein.</p>
@@ -127,7 +136,9 @@
                         <tr>
                             <th>Month</th>
                             <th>Deduction</th>
-                            <th>Net Pay</th>
+                            <th>After Deduct</th>
+                            <th>Actual Paid</th>
+                            <th>Company Balance</th>
                             <th>Source</th>
                             <th>Paid By</th>
                             <th>PDF</th>
@@ -139,7 +150,9 @@
                             <tr>
                                 <td>{{ item.salary_month }}</td>
                                 <td>AED {{ "%.2f"|format(item.total_deductions) }}</td>
-                                <td>AED {{ "%.2f"|format(item.net_payable) }}</td>
+                                <td>AED {{ "%.2f"|format(item.salary_after_deduction or item.net_payable) }}</td>
+                                <td>AED {{ "%.2f"|format(item.actual_paid_amount or item.net_payable) }}</td>
+                                <td>AED {{ "%.2f"|format(item.company_balance_due or 0) }}</td>
                                 <td>{{ item.payment_source or "-" }}</td>
                                 <td>{{ item.paid_by or "-" }}</td>
                                 <td><a class="table-link" href="{{ url_for('generated_file', filename=item.pdf_path) }}" target="_blank">Open</a></td>

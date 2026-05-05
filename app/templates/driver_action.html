@@ -49,7 +49,7 @@
                     <dd>{{ driver.duty_start or "-" }}</dd>
                 </div>
                 <div>
-                    <dt>Salary After Deductions</dt>
+                    <dt>Company Balance Due</dt>
                     <dd>AED {{ "%.2f"|format(salary_due) }}</dd>
                 </div>
                 <div>
@@ -156,10 +156,12 @@
     <div class="detail-grid mini-detail-grid driver-kata-summary-grid">
         <div><dt>Month</dt><dd>{{ kata_summary.month_label }}</dd></div>
         <div><dt>Opening Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.opening_balance) }}</dd></div>
-        <div><dt>Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</dd></div>
-        <div><dt>Received</dt><dd>AED {{ "%.2f"|format(kata_summary.cash_given) }}</dd></div>
-        <div><dt>Deducted</dt><dd>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</dd></div>
-        <div><dt>Paid</dt><dd>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</dd></div>
+        <div><dt>Stored Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</dd></div>
+        <div><dt>Transactions</dt><dd>AED {{ "%.2f"|format(kata_summary.cash_given) }}</dd></div>
+        <div><dt>Advance Deducted</dt><dd>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</dd></div>
+        <div><dt>Actual Paid</dt><dd>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</dd></div>
+        <div><dt>Company Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</dd></div>
+        <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(kata_summary.advance_left) }}</dd></div>
         <div><dt>Closing Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.closing_balance) }}</dd></div>
     </div>
 
@@ -188,7 +190,7 @@
                 </tbody>
             </table>
         </div>
-        <p class="panel-note driver-kata-footer-note">Opening balance is old bakiya. Below that, only {{ kata_summary.month_label }} salary and transactions are shown.</p>
+        <p class="panel-note driver-kata-footer-note">Opening balance old month ka unpaid amount hai. Current month mein salary, deduction, actual paid aur company balance alag show hote hain.</p>
     {% else %}
         <p class="muted-text">No KATA entries found for {{ kata_summary.month_label }}.</p>
     {% endif %}

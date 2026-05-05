@@ -418,7 +418,8 @@ def test_partial_advance_deduction_carries_remaining_balance(app, client):
         db = open_db()
         slips = db.execute(
             """
-            SELECT salary_month, total_deductions, remaining_advance, net_payable
+            SELECT salary_month, total_deductions, remaining_advance, net_payable,
+                   salary_after_deduction, actual_paid_amount, company_balance_due
             FROM salary_slips
             WHERE driver_id = ?
             ORDER BY salary_month ASC
@@ -429,10 +430,16 @@ def test_partial_advance_deduction_carries_remaining_balance(app, client):
         assert slips[0]["salary_month"] == "2026-04"
         assert float(slips[0]["total_deductions"]) == 100.0
         assert float(slips[0]["remaining_advance"]) == 400.0
+        assert float(slips[0]["salary_after_deduction"]) == 2900.0
+        assert float(slips[0]["actual_paid_amount"]) == 2900.0
+        assert float(slips[0]["company_balance_due"]) == 0.0
         assert float(slips[0]["net_payable"]) == 2900.0
         assert slips[1]["salary_month"] == "2026-05"
         assert float(slips[1]["total_deductions"]) == 200.0
         assert float(slips[1]["remaining_advance"]) == 200.0
+        assert float(slips[1]["salary_after_deduction"]) == 2800.0
+        assert float(slips[1]["actual_paid_amount"]) == 2800.0
+        assert float(slips[1]["company_balance_due"]) == 0.0
         assert float(slips[1]["net_payable"]) == 2800.0
 
     kata_response = client.get("/drivers/DRV-T1/kata-pdf", follow_redirects=False)
@@ -498,7 +505,9 @@ def test_existing_paid_salary_slip_can_be_updated(app, client):
         db = open_db()
         slips = db.execute(
             """
-            SELECT salary_month, total_deductions, remaining_advance, net_payable, payment_source, paid_by
+            SELECT salary_month, total_deductions, remaining_advance, net_payable,
+                   salary_after_deduction, actual_paid_amount, company_balance_due,
+                   payment_source, paid_by
             FROM salary_slips
             WHERE driver_id = ?
             ORDER BY id ASC
@@ -509,9 +518,139 @@ def test_existing_paid_salary_slip_can_be_updated(app, client):
         assert slips[0]["salary_month"] == "2026-04"
         assert float(slips[0]["total_deductions"]) == 200.0
         assert float(slips[0]["remaining_advance"]) == 300.0
+        assert float(slips[0]["salary_after_deduction"]) == 2800.0
+        assert float(slips[0]["actual_paid_amount"]) == 2800.0
+        assert float(slips[0]["company_balance_due"]) == 0.0
         assert float(slips[0]["net_payable"]) == 2800.0
         assert slips[0]["payment_source"] == "Office"
         assert slips[0]["paid_by"] == "Admin"
+
+
+def test_salary_slip_supports_custom_actual_paid_and_company_balance(app, client):
+    create_driver_record(app, basic_salary=5000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-10",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Office",
+            "amount": "1424",
+            "details": "Advance before salary",
+        },
+        follow_redirects=True,
+    )
+
+    stored = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "300",
+            "personal_vehicle_note": "Recovery trip",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary stored successfully." in stored.data
+    assert b"5300.00" in stored.data
+    assert b"Recovery trip" in stored.data
+
+    slip = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "1424",
+            "actual_paid_amount": "3500",
+            "payment_source": "Owner Fund",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+
+    assert b"Salary slip PDF generated" in slip.data
+    assert b"Salary After Deduction" in slip.data
+    assert b"AED 3876.00" in slip.data
+    assert b"Actual Paid" in slip.data
+    assert b"AED 3500.00" in slip.data
+    assert b"Company Balance" in slip.data
+    assert b"AED 376.00" in slip.data
+    assert b"Personal / Vehicle Note" in slip.data
+    assert b"Recovery trip" in slip.data
+
+    with app.app_context():
+        db = open_db()
+        slip_row = db.execute(
+            """
+            SELECT total_deductions, remaining_advance, salary_after_deduction,
+                   actual_paid_amount, company_balance_due, net_payable
+            FROM salary_slips
+            WHERE driver_id = ? AND salary_month = ?
+            """,
+            ("DRV-T1", "2026-04"),
+        ).fetchone()
+        assert slip_row is not None
+        assert float(slip_row["total_deductions"]) == 1424.0
+        assert float(slip_row["remaining_advance"]) == 0.0
+        assert float(slip_row["salary_after_deduction"]) == 3876.0
+        assert float(slip_row["actual_paid_amount"]) == 3500.0
+        assert float(slip_row["company_balance_due"]) == 376.0
+        assert float(slip_row["net_payable"]) == 3500.0
+
+    action_page = client.get("/drivers/DRV-T1?kata_month=2026-04")
+    assert action_page.status_code == 200
+    assert b"Stored Salary" in action_page.data
+    assert b"Advance Deducted" in action_page.data
+    assert b"Actual Paid" in action_page.data
+    assert b"Company Balance" in action_page.data
+    assert b"Recovery trip" in action_page.data
+    assert b"Advance deduction" in action_page.data
+    assert b"Actual salary paid" in action_page.data
+    assert b"Company balance due" in action_page.data
+    assert b"AED 376.00" in action_page.data
+
+
+def test_salary_slip_rejects_actual_paid_over_salary_after_deduction(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "actual_paid_amount": "5000",
+            "payment_source": "Office",
+            "paid_by": "Admin",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b'name="actual_paid_amount"' in response.data
+    assert b'value="5000"' in response.data
+
+    with app.app_context():
+        db = open_db()
+        count = db.execute("SELECT COUNT(*) FROM salary_slips WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0]
+        assert count == 0
 
 
 def test_driver_transactions_page_shows_full_history_and_salary_paid_rows(app, client):
@@ -841,11 +980,11 @@ def test_driver_action_page_keeps_selected_kata_month(app, client):
     assert b'input type="month" name="kata_month" value="2026-03"' in response.data
     assert b"KATA Month" in response.data
     assert b"Driver KATA" in response.data
-    assert b"Received" in response.data
-    assert b"Salary" in response.data
+    assert b"Transactions" in response.data
+    assert b"Stored Salary" in response.data
     assert b"Paid By" in response.data
     assert b"Reason" in response.data
-    assert b"Opening balance" in response.data
+    assert b"Opening Balance" in response.data
     assert b"Fuel for March" in response.data
     assert b"March salary" in response.data
     assert b"Old visa" not in response.data

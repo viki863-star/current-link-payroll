@@ -271,26 +271,18 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
 
     selected_month = month_value or ""
 
-    def _row_value(row, key, default=""):
-        if isinstance(row, dict):
-            return row.get(key, default)
-        if hasattr(row, "keys") and key in row.keys():
-            return row[key]
-        return default
-
     def _salary_for_month(value):
-        return not selected_month or (_row_value(value, "salary_month") or "") == selected_month
+        return not selected_month or (_pdf_row_value(value, "salary_month") or "") == selected_month
 
     def _txn_for_month(value):
-        return not selected_month or str(_row_value(value, "entry_date") or "")[:7] == selected_month
+        return not selected_month or str(_pdf_row_value(value, "entry_date") or "")[:7] == selected_month
 
     def _slip_for_month(value):
-        return not selected_month or (_row_value(value, "salary_month") or "") == selected_month
+        return not selected_month or (_pdf_row_value(value, "salary_month") or "") == selected_month
 
     opening_balance = 0.0
     if selected_month:
-        opening_balance = sum(float(_row_value(item, "amount", 0.0) or 0.0) for item in transactions if str(_row_value(item, "entry_date") or "")[:7] < selected_month)
-        opening_balance -= sum(float(_row_value(item, "total_deductions", 0.0) or 0.0) for item in salary_slips if (_row_value(item, "salary_month") or "") < selected_month)
+        opening_balance = sum(_pdf_slip_amounts(item)["company_balance_due"] for item in salary_slips if (_pdf_row_value(item, "salary_month") or "") < selected_month)
         opening_balance = max(opening_balance, 0.0)
 
     month_salary_rows = [row for row in salary_rows if _salary_for_month(row)]
@@ -317,24 +309,24 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
                 "date": _iso_date_value(salary["entry_date"]),
                 "amount": float(salary["net_salary"]),
                 "paid_by": "Current Link",
-                "reason": (_row_value(salary, "remarks") or "Monthly salary").strip(),
+                "reason": _pdf_salary_reason(salary),
                 "balance_after": max(running_balance, 0.0),
                 "sort_group": 0,
             }
         )
     for txn in month_transactions:
-        running_balance += float(txn["amount"])
         entries.append(
             {
                 "date": _iso_date_value(txn["entry_date"]),
                 "amount": float(txn["amount"]),
-                "paid_by": (_row_value(txn, "source") or _row_value(txn, "given_by") or "-").strip(),
-                "reason": (_row_value(txn, "details") or _row_value(txn, "given_by") or txn["txn_type"] or "-").strip(),
+                "paid_by": (_pdf_row_value(txn, "source") or _pdf_row_value(txn, "given_by") or "-").strip(),
+                "reason": (_pdf_row_value(txn, "details") or _pdf_row_value(txn, "given_by") or txn["txn_type"] or "-").strip(),
                 "balance_after": max(running_balance, 0.0),
                 "sort_group": 1,
             }
         )
     for slip in month_salary_slips:
+        slip_amounts = _pdf_slip_amounts(slip)
         deduction_amount = float(slip["total_deductions"] or 0.0)
         if deduction_amount > 0:
             running_balance = max(running_balance - deduction_amount, 0.0)
@@ -343,27 +335,41 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
                     "date": _iso_date_value(slip["generated_at"]),
                     "amount": deduction_amount,
                     "paid_by": (slip["payment_source"] or slip["paid_by"] or "-").strip(),
-                    "reason": "Salary deduction",
+                    "reason": "Advance deduction",
                     "balance_after": running_balance,
                     "sort_group": 2,
                 }
             )
-        entries.append(
-            {
-                "date": _iso_date_value(slip["generated_at"]),
-                "amount": float(slip["net_payable"] or 0.0),
-                "paid_by": (slip["payment_source"] or slip["paid_by"] or "-").strip(),
-                "reason": "Salary paid",
-                "balance_after": running_balance,
-                "sort_group": 3,
-            }
-        )
+        if slip_amounts["actual_paid_amount"] > 0:
+            running_balance = max(running_balance - slip_amounts["actual_paid_amount"], 0.0)
+            entries.append(
+                {
+                    "date": _iso_date_value(slip["generated_at"]),
+                    "amount": slip_amounts["actual_paid_amount"],
+                    "paid_by": (slip["payment_source"] or slip["paid_by"] or "-").strip(),
+                    "reason": "Actual salary paid",
+                    "balance_after": running_balance,
+                    "sort_group": 3,
+                }
+            )
+        if slip_amounts["company_balance_due"] > 0:
+            entries.append(
+                {
+                    "date": _iso_date_value(slip["generated_at"]),
+                    "amount": slip_amounts["company_balance_due"],
+                    "paid_by": "Current Link",
+                    "reason": "Company balance due",
+                    "balance_after": running_balance,
+                    "sort_group": 4,
+                }
+            )
     entries.sort(key=lambda item: (item["date"], item["sort_group"]))
 
     total_salary = sum(float(row["net_salary"]) for row in month_salary_rows)
     total_advance = sum(float(item["amount"]) for item in month_transactions)
     total_deducted = sum(float(item["total_deductions"]) for item in month_salary_slips)
-    total_net_paid = sum(float(item["net_payable"]) for item in month_salary_slips)
+    total_net_paid = sum(_pdf_slip_amounts(item)["actual_paid_amount"] for item in month_salary_slips)
+    total_company_balance = sum(_pdf_slip_amounts(item)["company_balance_due"] for item in month_salary_slips)
     closing_balance = max(running_balance, 0.0)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
@@ -383,7 +389,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
             [
                 ("Opening", format_currency(opening_balance if selected_month else 0.0)),
                 ("Salary", format_currency(total_salary)),
-                ("Received", format_currency(total_advance)),
+                ("Transactions", format_currency(total_advance)),
                 ("Deducted", format_currency(total_deducted)),
                 ("Closing", format_currency(closing_balance)),
             ],
@@ -392,10 +398,10 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, output_di
             pdf,
             [
                 ("Paid", format_currency(total_net_paid)),
+                ("Balance", format_currency(total_company_balance)),
                 ("Period", normalized_month or "Start to End"),
                 ("Entries", str(len(entries))),
                 ("Page", f"{page_number}/{len(pages)}"),
-                ("Mode", "Monthly" if selected_month else "Full"),
             ],
             start_y=PAGE_HEIGHT - 157 * mm,
         )
@@ -1423,9 +1429,9 @@ def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -
     pdf.roundRect(metric_x, metric_y, metric_w, metric_h, 5 * mm, fill=1, stroke=0)
     pdf.setFillColor(colors.white)
     pdf.setFont("Helvetica-Bold", 8.2)
-    pdf.drawCentredString(metric_x + metric_w / 2, metric_y + 16 * mm, "NET PAYABLE")
+    pdf.drawCentredString(metric_x + metric_w / 2, metric_y + 16 * mm, "ACTUAL PAID")
     pdf.setFont("Helvetica-Bold", 13.2)
-    pdf.drawCentredString(metric_x + metric_w / 2, metric_y + 9.2 * mm, f"{format_currency(float(slip_payload['net_payable']))} AED")
+    pdf.drawCentredString(metric_x + metric_w / 2, metric_y + 9.2 * mm, f"{format_currency(float(slip_payload['actual_paid_amount']))} AED")
     pdf.setFont("Helvetica", 7.2)
     pdf.drawCentredString(metric_x + metric_w / 2, metric_y + 3.2 * mm, format_month_label(salary_row["salary_month"]))
 
@@ -1438,9 +1444,10 @@ def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -
     pdf.setFillColor(BLUE_DARK)
     pdf.setFont("Helvetica-Bold", 8)
     pdf.drawString(metric_x + 4 * mm, info_y + 14.3 * mm, "PAYMENT DETAILS")
-    _draw_small_meta_row(pdf, metric_x + 4 * mm, info_y + 9.2 * mm, "Source", slip_payload["payment_source"], 33 * mm)
-    _draw_small_meta_row(pdf, metric_x + 4 * mm, info_y + 5.1 * mm, "Paid By", slip_payload.get("paid_by") or "-", 33 * mm)
-    _draw_small_meta_row(pdf, metric_x + 4 * mm, info_y + 1.1 * mm, "Advance Left", f"AED {format_currency(float(slip_payload['remaining_advance']))}", 29 * mm)
+    _draw_small_meta_row(pdf, metric_x + 4 * mm, info_y + 11.0 * mm, "Source", slip_payload["payment_source"], 33 * mm)
+    _draw_small_meta_row(pdf, metric_x + 4 * mm, info_y + 7.4 * mm, "Paid By", slip_payload.get("paid_by") or "-", 33 * mm)
+    _draw_small_meta_row(pdf, metric_x + 4 * mm, info_y + 3.8 * mm, "After Deduct", f"AED {format_currency(float(slip_payload['salary_after_deduction']))}", 28 * mm)
+    _draw_small_meta_row(pdf, metric_x + 4 * mm, info_y + 0.2 * mm, "Company Bal.", f"AED {format_currency(float(slip_payload['company_balance_due']))}", 29 * mm)
 
 
 def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None:
@@ -1449,7 +1456,10 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
     deduction_amount = float(slip_payload["deduction_amount"])
     available_advance = float(slip_payload["available_advance"])
     remaining_advance = float(slip_payload["remaining_advance"])
-    net_payable = float(slip_payload["net_payable"])
+    salary_after_deduction = float(slip_payload["salary_after_deduction"])
+    actual_paid_amount = float(slip_payload["actual_paid_amount"])
+    company_balance_due = float(slip_payload["company_balance_due"])
+    personal_vehicle_note = (salary_row["personal_vehicle_note"] or "").strip() if "personal_vehicle_note" in salary_row.keys() else ""
 
     x = 16 * mm
     y = 103 * mm
@@ -1480,19 +1490,22 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
     pdf.setStrokeColor(LINE)
     pdf.line(x + 89.5 * mm, y + 5 * mm, x + 89.5 * mm, y + h - 5 * mm)
 
+    personal_vehicle_label = "Personal / Vehicle"
+    if personal_vehicle_note:
+        personal_vehicle_label = f"Personal / Vehicle - {personal_vehicle_note}"
     earnings = [
         ("Basic Salary", float(salary_row["basic_salary"])),
         (f"OT Hours ({format_month_label(ot_month)})", float(salary_row["ot_hours"])),
         ("OT Amount", float(salary_row["ot_amount"])),
-        ("Personal / Vehicle", float(salary_row["personal_vehicle"])),
-        ("Gross Earnings", gross),
+        (personal_vehicle_label, float(salary_row["personal_vehicle"])),
+        ("Stored Salary", gross),
     ]
     deductions = [
         ("Available Advance", available_advance),
-        ("Deduct This Slip", deduction_amount),
+        ("Advance Deduction", deduction_amount),
         ("Advance Remaining", remaining_advance),
-        ("Other Deductions", 0.0),
-        ("Total Deductions", deduction_amount),
+        ("Salary After Deduction", salary_after_deduction),
+        ("Company Balance", company_balance_due),
     ]
 
     row_y = y + h - 18.5 * mm
@@ -1505,8 +1518,12 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
         right_label, right_value = deductions[index]
         pdf.setFillColor(MUTED)
         pdf.setFont("Helvetica", 8.3)
-        pdf.drawString(x + 6 * mm, row_y, left_label)
-        pdf.drawString(x + 95 * mm, row_y, right_label)
+        left_text, left_size = _fit_text(pdf, left_label, "Helvetica", 8.3, 52 * mm, min_size=6.2)
+        right_text, right_size = _fit_text(pdf, right_label, "Helvetica", 8.3, 52 * mm, min_size=6.2)
+        pdf.setFont("Helvetica", left_size)
+        pdf.drawString(x + 6 * mm, row_y, left_text)
+        pdf.setFont("Helvetica", right_size)
+        pdf.drawString(x + 95 * mm, row_y, right_text)
         pdf.setFillColor(TEXT)
         pdf.setFont("Helvetica-Bold", 8.7)
         pdf.drawRightString(x + 82 * mm, row_y, format_currency(left_value))
@@ -1514,9 +1531,9 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
         row_y -= 8.1 * mm
 
     metrics_y = 84 * mm
-    _draw_stat_box(pdf, 16 * mm, metrics_y, 56 * mm, 14 * mm, "GROSS EARNINGS", format_currency(gross))
-    _draw_stat_box(pdf, 77.5 * mm, metrics_y, 56 * mm, 14 * mm, "TOTAL DEDUCTIONS", format_currency(deduction_amount))
-    _draw_stat_box(pdf, 139 * mm, metrics_y, 56 * mm, 14 * mm, "FINAL NET PAY", f"{format_currency(net_payable)} AED", fill_color=BLUE, text_color=colors.white, border_color=BLUE)
+    _draw_stat_box(pdf, 16 * mm, metrics_y, 56 * mm, 14 * mm, "STORED SALARY", format_currency(gross))
+    _draw_stat_box(pdf, 77.5 * mm, metrics_y, 56 * mm, 14 * mm, "ACTUAL PAID", format_currency(actual_paid_amount))
+    _draw_stat_box(pdf, 139 * mm, metrics_y, 56 * mm, 14 * mm, "COMPANY BALANCE", f"{format_currency(company_balance_due)} AED", fill_color=BLUE, text_color=colors.white, border_color=BLUE)
 
 
 def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: str, generated_dir: str) -> None:
@@ -2017,6 +2034,46 @@ def format_date_label(value: str | None) -> str:
         except ValueError:
             continue
     return str(value)
+
+
+def _pdf_row_value(row, key, default=""):
+    if isinstance(row, dict):
+        return row.get(key, default)
+    if hasattr(row, "keys") and key in row.keys():
+        return row[key]
+    return default
+
+
+def _pdf_salary_reason(row) -> str:
+    remarks = (_pdf_row_value(row, "remarks") or "").strip()
+    personal_note = (_pdf_row_value(row, "personal_vehicle_note") or "").strip()
+    personal_amount = float(_pdf_row_value(row, "personal_vehicle", 0.0) or 0.0)
+    parts = []
+    if remarks:
+        parts.append(remarks)
+    if personal_amount > 0 and personal_note:
+        parts.append(f"Personal / Vehicle: {personal_note}")
+    return " | ".join(parts) if parts else "Monthly salary"
+
+
+def _pdf_slip_amounts(row) -> dict[str, float]:
+    net_payable = float(_pdf_row_value(row, "net_payable", 0.0) or 0.0)
+    salary_after_deduction = float(_pdf_row_value(row, "salary_after_deduction", 0.0) or 0.0)
+    actual_paid_amount = float(_pdf_row_value(row, "actual_paid_amount", 0.0) or 0.0)
+    company_balance_due = float(_pdf_row_value(row, "company_balance_due", 0.0) or 0.0)
+
+    if salary_after_deduction <= 0 and net_payable > 0:
+        salary_after_deduction = net_payable
+    if actual_paid_amount <= 0 and net_payable > 0 and salary_after_deduction == net_payable and company_balance_due <= 0:
+        actual_paid_amount = net_payable
+    if company_balance_due <= 0 and salary_after_deduction >= actual_paid_amount:
+        company_balance_due = max(salary_after_deduction - actual_paid_amount, 0.0)
+
+    return {
+        "salary_after_deduction": salary_after_deduction,
+        "actual_paid_amount": actual_paid_amount,
+        "company_balance_due": company_balance_due,
+    }
 
 
 def _iso_date_value(value) -> str:

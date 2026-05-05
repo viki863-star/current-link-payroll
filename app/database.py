@@ -70,6 +70,27 @@ CREATE TABLE IF NOT EXISTS supplier_quotation_submissions (
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
 
+CREATE TABLE IF NOT EXISTS supplier_inquiries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    inquiry_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    inquiry_date TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    description TEXT NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'Normal',
+    status TEXT NOT NULL DEFAULT 'Open',
+    assigned_to TEXT,
+    due_date TEXT,
+    response_deadline TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT,
+    closed_at TEXT,
+    closed_by TEXT,
+    closure_notes TEXT,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
 CREATE TABLE IF NOT EXISTS salary_store (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     driver_id TEXT NOT NULL,
@@ -86,6 +107,7 @@ CREATE TABLE IF NOT EXISTS salary_store (
     ot_rate REAL NOT NULL DEFAULT 0,
     ot_amount REAL NOT NULL DEFAULT 0,
     personal_vehicle REAL NOT NULL DEFAULT 0,
+    personal_vehicle_note TEXT,
     net_salary REAL NOT NULL,
     remarks TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -102,6 +124,9 @@ CREATE TABLE IF NOT EXISTS salary_slips (
     total_deductions REAL NOT NULL DEFAULT 0,
     available_advance REAL NOT NULL DEFAULT 0,
     remaining_advance REAL NOT NULL DEFAULT 0,
+    salary_after_deduction REAL NOT NULL DEFAULT 0,
+    actual_paid_amount REAL NOT NULL DEFAULT 0,
+    company_balance_due REAL NOT NULL DEFAULT 0,
     payment_source TEXT,
     paid_by TEXT,
     net_payable REAL NOT NULL,
@@ -390,6 +415,7 @@ CREATE TABLE IF NOT EXISTS lpos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lpo_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
+    quotation_no TEXT,
     agreement_no TEXT,
     issue_date TEXT NOT NULL,
     valid_until TEXT,
@@ -777,6 +803,7 @@ CREATE TABLE IF NOT EXISTS salary_store (
     ot_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
     ot_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     personal_vehicle DOUBLE PRECISION NOT NULL DEFAULT 0,
+    personal_vehicle_note TEXT,
     net_salary DOUBLE PRECISION NOT NULL,
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -793,6 +820,9 @@ CREATE TABLE IF NOT EXISTS salary_slips (
     total_deductions DOUBLE PRECISION NOT NULL DEFAULT 0,
     available_advance DOUBLE PRECISION NOT NULL DEFAULT 0,
     remaining_advance DOUBLE PRECISION NOT NULL DEFAULT 0,
+    salary_after_deduction DOUBLE PRECISION NOT NULL DEFAULT 0,
+    actual_paid_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    company_balance_due DOUBLE PRECISION NOT NULL DEFAULT 0,
     payment_source TEXT,
     paid_by TEXT,
     net_payable DOUBLE PRECISION NOT NULL,
@@ -1126,6 +1156,7 @@ CREATE TABLE IF NOT EXISTS lpos (
     id BIGSERIAL PRIMARY KEY,
     lpo_no TEXT NOT NULL UNIQUE,
     party_code TEXT NOT NULL,
+    quotation_no TEXT,
     agreement_no TEXT,
     issue_date TEXT NOT NULL,
     valid_until TEXT,
@@ -1419,6 +1450,9 @@ REQUIRED_COLUMNS = {
     "salary_slips": {
         "available_advance": "DOUBLE PRECISION NOT NULL DEFAULT 0",
         "remaining_advance": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "salary_after_deduction": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "actual_paid_amount": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "company_balance_due": "DOUBLE PRECISION NOT NULL DEFAULT 0",
         "payment_source": "TEXT",
         "paid_by": "TEXT",
     },
@@ -1429,6 +1463,7 @@ REQUIRED_COLUMNS = {
         "salary_days": "DOUBLE PRECISION NOT NULL DEFAULT 30",
         "daily_rate": "DOUBLE PRECISION NOT NULL DEFAULT 0",
         "monthly_basic_salary": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "personal_vehicle_note": "TEXT",
     },
     "account_invoices": {
         "document_type": "TEXT NOT NULL DEFAULT 'Tax Invoice'",
@@ -1512,6 +1547,7 @@ REQUIRED_COLUMNS = {
         "approved_party_code": "TEXT",
     },
     "lpos": {
+        "quotation_no": "TEXT",
         # Phase 6 Part B/C — LPO release workflow extended fields.
         # Safe additive migration only. No existing data is affected.
         "job_title": "TEXT",

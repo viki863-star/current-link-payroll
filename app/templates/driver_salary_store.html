@@ -80,6 +80,10 @@
                 <input type="number" name="personal_vehicle" step="0.01" value="{{ values.personal_vehicle }}">
             </label>
             <label>
+                <span>Personal / Vehicle Note</span>
+                <input type="text" name="personal_vehicle_note" value="{{ values.personal_vehicle_note }}" placeholder="Fuel allowance / bonus / recovery">
+            </label>
+            <label>
                 <span>Monthly Salary</span>
                 <input type="text" value="{{ "%.2f"|format(preview.monthly_basic_salary) }}" readonly>
             </label>
@@ -144,6 +148,7 @@
                             <th>OT Hours</th>
                             <th>OT Amount</th>
                             <th>Personal / Vehicle</th>
+                        <th>Note</th>
                         <th>Final Salary</th>
                     </tr>
                 </thead>
@@ -169,9 +174,10 @@
                                 <td>{{ "%.2f"|format(item.salary_days or 30) }}</td>
                                 <td>{{ item.ot_month or '-' }}</td>
                                 <td>{{ item.entry_date }}</td>
-                                <td>{{ "%.2f"|format(item.ot_hours) }}</td>
+                            <td>{{ "%.2f"|format(item.ot_hours) }}</td>
                             <td>{{ "%.2f"|format(item.ot_amount) }}</td>
                             <td>{{ "%.2f"|format(item.personal_vehicle) }}</td>
+                            <td>{{ item.personal_vehicle_note or "-" }}</td>
                             <td>AED {{ "%.2f"|format(item.net_salary) }}</td>
                         </tr>
                     {% endfor %}

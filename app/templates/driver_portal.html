@@ -172,7 +172,8 @@
                         <tr>
                             <th>Month</th>
                             <th>Deduction</th>
-                            <th>Net Pay</th>
+                            <th>Actual Paid</th>
+                            <th>Company Balance</th>
                             <th>PDF</th>
                         </tr>
                     </thead>
@@ -181,7 +182,8 @@
                             <tr>
                                 <td>{{ item.salary_month }}</td>
                                 <td>AED {{ "%.2f"|format(item.total_deductions) }}</td>
-                                <td>AED {{ "%.2f"|format(item.net_payable) }}</td>
+                                <td>AED {{ "%.2f"|format(item.actual_paid_amount or item.net_payable) }}</td>
+                                <td>AED {{ "%.2f"|format(item.company_balance_due or 0) }}</td>
                                 <td><a class="table-link" href="{{ url_for('generated_file', filename=item.pdf_path) }}" target="_blank">Open</a></td>
                             </tr>
                         {% endfor %}
@@ -205,10 +207,12 @@
         <div class="detail-grid mini-detail-grid" style="margin-bottom:18px;">
             <div><dt>Month</dt><dd>{{ kata_summary.month_label }}</dd></div>
             <div><dt>Opening Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.opening_balance) }}</dd></div>
-            <div><dt>This Month Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</dd></div>
-            <div><dt>This Month Cash Given</dt><dd>AED {{ "%.2f"|format(kata_summary.cash_given) }}</dd></div>
-            <div><dt>This Month Deduction</dt><dd>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</dd></div>
-            <div><dt>This Month Paid</dt><dd>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</dd></div>
+            <div><dt>Stored Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.salary_amount) }}</dd></div>
+            <div><dt>Month Transactions</dt><dd>AED {{ "%.2f"|format(kata_summary.cash_given) }}</dd></div>
+            <div><dt>Advance Deducted</dt><dd>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</dd></div>
+            <div><dt>Actual Paid</dt><dd>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</dd></div>
+            <div><dt>Company Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</dd></div>
+            <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(kata_summary.advance_left) }}</dd></div>
             <div><dt>Closing Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.closing_balance) }}</dd></div>
         </div>
         {% if kata_entries %}
@@ -236,7 +240,7 @@
                     </tbody>
                 </table>
             </div>
-            <p class="panel-note small-note">Is view mein sirf {{ kata_summary.month_label }} ki entries dikh rahi hain. Purane months ki lines yahan hide rehti hain.</p>
+            <p class="panel-note small-note">Is view mein sirf {{ kata_summary.month_label }} ki entries dikh rahi hain. Purana unpaid amount opening balance mein aata hai aur current month ka paid/balance alag show hota hai.</p>
         {% else %}
             <p class="muted-text">Is month ke liye abhi KATA entry available nahi.</p>
         {% endif %}

@@ -22,7 +22,7 @@
                 <div><dt>Driver ID</dt><dd>{{ driver.driver_id }}</dd></div>
                 <div><dt>Vehicle</dt><dd>{{ driver.vehicle_no }}</dd></div>
                 <div><dt>Shift</dt><dd>{{ driver.shift }}</dd></div>
-                <div><dt>Salary After Deductions</dt><dd>AED {{ "%.2f"|format(salary_due) }}</dd></div>
+                <div><dt>Company Balance Due</dt><dd>AED {{ "%.2f"|format(salary_due) }}</dd></div>
                 <div><dt>Total Advance</dt><dd>AED {{ "%.2f"|format(advance_summary.total_advance) }}</dd></div>
                 <div><dt>Total Deducted</dt><dd>AED {{ "%.2f"|format(advance_summary.total_deducted) }}</dd></div>
                 <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(advance_summary.remaining_advance) }}</dd></div>
@@ -91,7 +91,7 @@
     <div class="detail-grid mini-detail-grid" style="margin-bottom: 18px;">
         <div><dt>Total Entries</dt><dd>{{ history_total }}</dd></div>
         <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(advance_summary.remaining_advance) }}</dd></div>
-        <div><dt>Salary After Deductions</dt><dd>AED {{ "%.2f"|format(salary_due) }}</dd></div>
+                <div><dt>Company Balance Due</dt><dd>AED {{ "%.2f"|format(salary_due) }}</dd></div>
     </div>
     {% if history_rows %}
         <div class="table-wrap">
