@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Login - Current Link</title>
+  <meta name="description" content="Current Link Transport & General Contracting LLC SPC secure enterprise portal login.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='premium-portal.css') }}">
+</head>
+<body class="portal-body">
+  {% set active_role = (selected_role or 'admin')|lower %}
+  {% set flash_messages = get_flashed_messages(with_categories=true) %}
+  {% set show_form_on_load = request.method == 'POST' or (flash_messages|length > 0) %}
+  <div class="portal-shell">
+    <div class="portal-bg"></div>
+    <div class="portal-overlay"></div>
+    <div class="portal-noise"></div>
+    <canvas class="portal-particle-canvas" id="portalParticleCanvas" aria-hidden="true"></canvas>
+
+    <main class="portal-layout">
+      <section class="portal-brand-panel" aria-label="Branding">
+        <a href="{{ url_for('home') }}" class="portal-home-link">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>Back to Home</span>
+        </a>
+
+        <div class="portal-brand-content">
+          <div class="portal-brand-mark"></div>
+          <h1 class="portal-wordmark">
+            <span class="portal-wordmark-current">CURRENT</span>
+            <span class="portal-wordmark-link">LINK</span>
+          </h1>
+          <p class="portal-company-subtitle">TRANSPORT &amp; GENERAL CONTRACTING LLC SPC</p>
+          <p class="portal-brand-copy">
+            A smart digital platform for managing workforce, transport operations, and payroll systems with efficiency, accuracy, and real-time control.
+          </p>
+
+          <ul class="portal-feature-list" aria-label="Key features">
+            <li><span class="portal-feature-icon"></span><span>Secure &amp; Encrypted Access</span></li>
+            <li><span class="portal-feature-icon"></span><span>Real-time Updates &amp; Reports</span></li>
+            <li><span class="portal-feature-icon"></span><span>24/7 System Availability</span></li>
+          </ul>
+        </div>
+
+        <p class="portal-bottom-copy">256-BIT SSL &middot; SECURE ENTERPRISE PORTAL</p>
+      </section>
+
+      <section class="portal-card-panel" aria-label="Portal access">
+        <div class="portal-card">
+          <div class="portal-card-topbar" id="portalCardTopbar"></div>
+
+          <div class="portal-role-stage" id="roleStage">
+            <header class="portal-card-header portal-card-header-center">
+              <h2>SELECT YOUR ACCESS ROLE</h2>
+              <p>Choose your role to continue</p>
+            </header>
+
+            <div class="portal-role-grid" id="roleGrid">
+              <button type="button" class="portal-role-card is-active" data-role="admin">
+                <span class="portal-role-stripe role-admin"></span>
+                <span class="portal-role-icon role-admin"><i class="fa-solid fa-user-shield"></i></span>
+                <span class="portal-role-title">Admin</span>
+                <span class="portal-role-text">Full control</span>
+                <span class="portal-role-accent"></span>
+              </button>
+
+              <button type="button" class="portal-role-card" data-role="driver">
+                <span class="portal-role-stripe role-driver"></span>
+                <span class="portal-role-icon role-driver"><i class="fa-solid fa-truck-moving"></i></span>
+                <span class="portal-role-title">Driver</span>
+                <span class="portal-role-text">Transport ops</span>
+                <span class="portal-role-accent"></span>
+              </button>
+
+              <button type="button" class="portal-role-card" data-role="supplier">
+                <span class="portal-role-stripe role-supplier"></span>
+                <span class="portal-role-icon role-supplier"><i class="fa-solid fa-box-open"></i></span>
+                <span class="portal-role-title">Supplier</span>
+                <span class="portal-role-text">Supply chain</span>
+                <span class="portal-role-accent"></span>
+              </button>
+
+              <button type="button" class="portal-role-card" data-role="staff">
+                <span class="portal-role-stripe role-staff"></span>
+                <span class="portal-role-icon role-staff"><i class="fa-solid fa-helmet-safety"></i></span>
+                <span class="portal-role-title">Staff</span>
+                <span class="portal-role-text">Field ops</span>
+                <span class="portal-role-accent"></span>
+              </button>
+            </div>
+
+            <footer class="portal-card-footer">
+              <i class="fa-solid fa-lock"></i>
+              <span>All connections encrypted &middot; Session secured</span>
+            </footer>
+          </div>
+
+          <div class="portal-form-stage" id="formStage" aria-hidden="true">
+            <div class="portal-form-scroll">
+              <header class="portal-card-header">
+                <div class="portal-form-nav">
+                  <button type="button" class="portal-back-link" id="backToRoles">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back to Roles</span>
+                  </button>
+                  <span class="portal-role-pill" id="rolePill">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span>Admin</span>
+                  </span>
+                </div>
+
+                <h2 id="formTitle">Admin Login</h2>
+                <p id="formSubtitle">Full system access &mdash; enter your password</p>
+              </header>
+
+              {% if flash_messages %}
+                <div class="portal-alert-stack">
+                  {% for category, message in flash_messages %}
+                    <div class="portal-alert alert-{{ category if category in ['error', 'success', 'warning'] else 'info' }}">
+                      <i class="fa-solid {% if category == 'success' %}fa-circle-check{% elif category == 'error' %}fa-circle-exclamation{% elif category == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+                      <span>{{ message }}</span>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="portal-alert-stack">
+                  <div class="portal-alert alert-success">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>You have been signed out.</span>
+                  </div>
+                </div>
+              {% endif %}
+
+              <div class="portal-dynamic-forms">
+                <form method="post" action="{{ url_for('login') }}" class="portal-login-form role-form is-active" data-form-role="admin" autocomplete="off">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="role" value="admin">
+
+                  <div class="portal-form-group">
+                    <label for="adminPassword">Admin Password</label>
+                    <div class="portal-input-wrap">
+                      <i class="fa-solid fa-lock"></i>
+                      <input type="password" id="adminPassword" name="password" placeholder="Enter admin password" autocomplete="current-password">
+                      <button type="button" class="portal-eye-toggle" data-toggle-target="adminPassword" aria-label="Toggle password visibility">
+                        <i class="fa-regular fa-eye"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="portal-form-tools">
+                    <label class="portal-checkbox">
+                      <input type="checkbox" name="remember">
+                      <span>Remember me</span>
+                    </label>
+                    <a href="#" class="portal-help-link">Forgot Password?</a>
+                  </div>
+
+                  <button type="submit" class="portal-submit-button">
+                    <span>Sign In</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                  </button>
+                </form>
+
+                <form method="post" action="{{ url_for('login') }}" class="portal-login-form role-form" data-form-role="driver" autocomplete="off">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="role" value="driver">
+
+                  <div class="portal-form-group">
+                    <label for="driverPhone">Phone Number</label>
+                    <div class="portal-input-wrap">
+                      <i class="fa-solid fa-phone"></i>
+                      <input type="text" id="driverPhone" name="phone_number" placeholder="Enter registered phone number" inputmode="tel">
+                    </div>
+                  </div>
+
+                  <div class="portal-form-group">
+                    <label for="driverPin">Driver Password / PIN</label>
+                    <div class="portal-input-wrap">
+                      <i class="fa-solid fa-lock"></i>
+                      <input type="password" id="driverPin" name="driver_pin" placeholder="Enter your password / PIN" inputmode="numeric">
+                      <button type="button" class="portal-eye-toggle" data-toggle-target="driverPin" aria-label="Toggle password visibility">
+                        <i class="fa-regular fa-eye"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="portal-form-tools">
+                    <label class="portal-checkbox">
+                      <input type="checkbox" name="remember">
+                      <span>Remember me</span>
+                    </label>
+                    <a href="#" class="portal-help-link">Forgot Password?</a>
+                  </div>
+
+                  <button type="submit" class="portal-submit-button">
+                    <span>Sign In</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                  </button>
+                </form>
+
+                <form method="post" action="{{ url_for('supplier_login') }}" class="portal-login-form role-form" data-form-role="supplier" autocomplete="off">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                  <div class="portal-form-group">
+                    <label for="supplierUser">Username / Email</label>
+                    <div class="portal-input-wrap">
+                      <i class="fa-solid fa-user"></i>
+                      <input type="text" id="supplierUser" name="user_id" placeholder="Enter username or email">
+                    </div>
+                  </div>
+
+                  <div class="portal-form-group">
+                    <label for="supplierPassword">Supplier Password</label>
+                    <div class="portal-input-wrap">
+                      <i class="fa-solid fa-lock"></i>
+                      <input type="password" id="supplierPassword" name="password" placeholder="Enter supplier password" autocomplete="current-password">
+                      <button type="button" class="portal-eye-toggle" data-toggle-target="supplierPassword" aria-label="Toggle password visibility">
+                        <i class="fa-regular fa-eye"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="portal-form-tools">
+                    <label class="portal-checkbox">
+                      <input type="checkbox" name="remember">
+                      <span>Remember me</span>
+                    </label>
+                    <a href="{{ url_for('supplier_forgot_password') }}" class="portal-help-link">Forgot Password?</a>
+                  </div>
+
+                  <button type="submit" class="portal-submit-button">
+                    <span>Sign In</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                  </button>
+                </form>
+
+                <form method="post" action="{{ url_for('technician_login') }}" class="portal-login-form role-form" data-form-role="staff" autocomplete="off">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                  <div class="portal-form-group">
+                    <label for="staffUser">Username / Email</label>
+                    <div class="portal-input-wrap">
+                      <i class="fa-solid fa-user"></i>
+                      <input type="text" id="staffUser" name="user_id" placeholder="Enter username or email">
+                    </div>
+                  </div>
+
+                  <div class="portal-form-group">
+                    <label for="staffPassword">Staff Password</label>
+                    <div class="portal-input-wrap">
+                      <i class="fa-solid fa-lock"></i>
+                      <input type="password" id="staffPassword" name="password" placeholder="Enter staff password" autocomplete="current-password">
+                      <button type="button" class="portal-eye-toggle" data-toggle-target="staffPassword" aria-label="Toggle password visibility">
+                        <i class="fa-regular fa-eye"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="portal-form-tools">
+                    <label class="portal-checkbox">
+                      <input type="checkbox" name="remember">
+                      <span>Remember me</span>
+                    </label>
+                    <a href="#" class="portal-help-link">Forgot Password?</a>
+                  </div>
+
+                  <button type="submit" class="portal-submit-button">
+                    <span>Sign In</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                  </button>
+                </form>
+              </div>
+
+              <footer class="portal-form-footer">
+                <i class="fa-solid fa-lock"></i>
+                <span id="formFooterNote">All connections encrypted &middot; Session secured</span>
+              </footer>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      var roleCards = Array.from(document.querySelectorAll(".portal-role-card"));
+      var roleForms = Array.from(document.querySelectorAll(".role-form"));
+      var roleStage = document.getElementById("roleStage");
+      var formStage = document.getElementById("formStage");
+      var rolePill = document.getElementById("rolePill");
+      var formTitle = document.getElementById("formTitle");
+      var formSubtitle = document.getElementById("formSubtitle");
+      var formFooterNote = document.getElementById("formFooterNote");
+      var topbar = document.getElementById("portalCardTopbar");
+      var backToRoles = document.getElementById("backToRoles");
+      var particleCanvas = document.getElementById("portalParticleCanvas");
+      var brandPanel = document.querySelector(".portal-brand-panel");
+
+      var roleMeta = {
+        admin: {
+          icon: "fa-solid fa-user-shield",
+          label: "Admin",
+          title: "Admin Login",
+          subtitle: "Full system access — enter your password",
+          footer: "Admin password grants full dashboard and control panel access.",
+          colorClass: "role-admin",
+          focusId: "adminPassword"
+        },
+        driver: {
+          icon: "fa-solid fa-truck-moving",
+          label: "Driver",
+          title: "Driver Login",
+          subtitle: "Transport operations access — use your phone and PIN",
+          footer: "Driver access works only with the registered mobile number and active PIN.",
+          colorClass: "role-driver",
+          focusId: "driverPhone"
+        },
+        supplier: {
+          icon: "fa-solid fa-box-open",
+          label: "Supplier",
+          title: "Supplier Login",
+          subtitle: "Supply chain access — use your approved portal account",
+          footer: "Supplier access is limited to approved vendor portal accounts.",
+          colorClass: "role-supplier",
+          focusId: "supplierUser"
+        },
+        staff: {
+          icon: "fa-solid fa-helmet-safety",
+          label: "Staff",
+          title: "Staff Login",
+          subtitle: "Field operations access — sign in with your active account",
+          footer: "Staff access is available only for active field operations accounts.",
+          colorClass: "role-staff",
+          focusId: "staffUser"
+        }
+      };
+
+      function setRequiredFields(activeRole) {
+        roleForms.forEach(function (form) {
+          var isActive = form.dataset.formRole === activeRole;
+          form.classList.toggle("is-active", isActive);
+          form.querySelectorAll("input").forEach(function (input) {
+            if (input.type === "hidden" || input.type === "checkbox") {
+              return;
+            }
+            input.disabled = !isActive;
+            input.required = isActive;
+          });
+        });
+      }
+
+      function updateRoleVisual(role) {
+        var meta = roleMeta[role] || roleMeta.admin;
+
+        roleCards.forEach(function (card) {
+          card.classList.toggle("is-active", card.dataset.role === role);
+        });
+
+        rolePill.className = "portal-role-pill " + meta.colorClass;
+        rolePill.innerHTML = '<i class="' + meta.icon + '"></i><span>' + meta.label + "</span>";
+        formTitle.textContent = meta.title;
+        formSubtitle.textContent = meta.subtitle;
+        formFooterNote.textContent = meta.footer;
+        topbar.className = "portal-card-topbar " + meta.colorClass;
+        setRequiredFields(role);
+      }
+
+      function openForm(role) {
+        updateRoleVisual(role);
+        roleStage.classList.add("is-hidden");
+        roleStage.setAttribute("aria-hidden", "true");
+        formStage.classList.add("is-visible");
+        formStage.setAttribute("aria-hidden", "false");
+
+        var focusTarget = document.getElementById((roleMeta[role] || roleMeta.admin).focusId);
+        if (focusTarget) {
+          window.setTimeout(function () {
+            focusTarget.focus();
+          }, 180);
+        }
+      }
+
+      function openRoles() {
+        roleStage.classList.remove("is-hidden");
+        roleStage.setAttribute("aria-hidden", "false");
+        formStage.classList.remove("is-visible");
+        formStage.setAttribute("aria-hidden", "true");
+      }
+
+      roleCards.forEach(function (card) {
+        card.addEventListener("click", function () {
+          openForm(card.dataset.role || "admin");
+        });
+      });
+
+      if (backToRoles) {
+        backToRoles.addEventListener("click", openRoles);
+      }
+
+      document.querySelectorAll(".portal-eye-toggle").forEach(function (button) {
+        button.addEventListener("click", function () {
+          var targetId = button.getAttribute("data-toggle-target");
+          var input = targetId ? document.getElementById(targetId) : null;
+          var icon = button.querySelector("i");
+
+          if (!input || !icon) {
+            return;
+          }
+
+          var isPassword = input.getAttribute("type") === "password";
+          input.setAttribute("type", isPassword ? "text" : "password");
+          icon.className = isPassword ? "fa-regular fa-eye-slash" : "fa-regular fa-eye";
+        });
+      });
+
+      if (particleCanvas && brandPanel && window.matchMedia("(pointer: fine)").matches) {
+        var ctx = particleCanvas.getContext("2d");
+        var particles = [];
+        var viewportWidth = window.innerWidth;
+        var viewportHeight = window.innerHeight;
+        var deviceScale = 1;
+        var lastTime = 0;
+        var brandBounds = brandPanel.getBoundingClientRect();
+        var lastPointerEvent = null;
+        var pointer = {
+          x: window.innerWidth * 0.72,
+          y: window.innerHeight * 0.5,
+          active: false,
+          idleBursts: 0
+        };
+
+        function updateBrandBounds() {
+          brandBounds = brandPanel.getBoundingClientRect();
+        }
+
+        function resizeCanvas() {
+          deviceScale = Math.min(window.devicePixelRatio || 1, 2);
+          viewportWidth = window.innerWidth;
+          viewportHeight = window.innerHeight;
+          particleCanvas.width = Math.floor(viewportWidth * deviceScale);
+          particleCanvas.height = Math.floor(viewportHeight * deviceScale);
+          particleCanvas.style.width = viewportWidth + "px";
+          particleCanvas.style.height = viewportHeight + "px";
+          ctx.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+          particles = [];
+          updateBrandBounds();
+        }
+
+        function emitParticles(x, y, burstSize, minRadius, maxRadius, energy) {
+          var outerRadius = typeof maxRadius === "number" ? maxRadius : 112;
+          var innerRadius = typeof minRadius === "number" ? minRadius : 12;
+          var impulse = typeof energy === "number" ? energy : 0.24;
+
+          for (var i = 0; i < burstSize; i += 1) {
+            var angle = Math.random() * Math.PI * 2;
+            var spread = innerRadius + Math.random() * Math.max(1, outerRadius - innerRadius);
+            var speed = impulse + Math.random() * (impulse * 1.8 + 0.22);
+            var tintRoll = Math.random();
+
+            particles.push({
+              x: x + Math.cos(angle) * spread,
+              y: y + Math.sin(angle) * spread,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              size: 0.9 + Math.random() * 1.2,
+              length: 3.2 + Math.random() * 3.8,
+              rotation: angle + (Math.random() - 0.5) * 0.2,
+              life: 0,
+              maxLife: 24 + Math.random() * 18,
+              drag: 0.974 + Math.random() * 0.012,
+              twirl: (Math.random() - 0.5) * 0.028,
+              drift: -0.0015 - Math.random() * 0.004,
+              color: tintRoll > 0.78 ? "214, 162, 76" : tintRoll > 0.46 ? "84, 133, 255" : tintRoll > 0.22 ? "255, 111, 111" : "167, 124, 255"
+            });
+          }
+        }
+
+        function drawParticle(particle) {
+          var progress = particle.life / particle.maxLife;
+          var alpha = Math.max(0, 1 - progress);
+          var glowRadius = particle.size * 3.4;
+
+          ctx.save();
+          ctx.translate(particle.x, particle.y);
+          ctx.rotate(particle.rotation);
+
+          ctx.fillStyle = "rgba(" + particle.color + ", " + (alpha * 0.14) + ")";
+          ctx.fillRect(-(particle.length + glowRadius) * 0.5, -particle.size, particle.length + glowRadius, particle.size * 2);
+
+          ctx.fillStyle = "rgba(" + particle.color + ", " + (alpha * 0.94) + ")";
+          ctx.fillRect(-particle.length * 0.5, -particle.size * 0.5, particle.length, particle.size);
+          ctx.restore();
+        }
+
+        function animateParticles(timestamp) {
+          if (!ctx) {
+            return;
+          }
+
+          if (!lastTime) {
+            lastTime = timestamp;
+          }
+
+          var delta = Math.min(32, timestamp - lastTime);
+          lastTime = timestamp;
+
+          ctx.clearRect(0, 0, viewportWidth, viewportHeight);
+
+          if (pointer.active && pointer.idleBursts > 0) {
+            emitParticles(pointer.x, pointer.y, 1);
+            pointer.idleBursts -= 1;
+          }
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(brandBounds.left, brandBounds.top, brandBounds.width, brandBounds.height);
+          ctx.clip();
+
+          particles = particles.filter(function (particle) {
+            particle.life += delta * 0.06;
+            particle.vx *= particle.drag;
+            particle.vy *= particle.drag;
+            particle.vy += particle.drift;
+            particle.rotation += particle.twirl;
+            particle.x += particle.vx * (delta * 0.06);
+            particle.y += particle.vy * (delta * 0.06);
+
+            if (particle.life >= particle.maxLife) {
+              return false;
+            }
+
+            drawParticle(particle);
+            return true;
+          });
+
+          ctx.restore();
+
+          window.requestAnimationFrame(animateParticles);
+        }
+
+        brandPanel.addEventListener("pointermove", function (event) {
+          var speedBoost = 0.22;
+
+          if (lastPointerEvent) {
+            var elapsed = Math.max(16, event.timeStamp - lastPointerEvent.time);
+            var deltaX = event.clientX - lastPointerEvent.x;
+            var deltaY = event.clientY - lastPointerEvent.y;
+            var travel = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            speedBoost = Math.min(1.15, travel / elapsed * 1.2);
+          }
+
+          pointer.x = event.clientX;
+          pointer.y = event.clientY;
+          pointer.active = true;
+          pointer.idleBursts = 8;
+          lastPointerEvent = {
+            x: event.clientX,
+            y: event.clientY,
+            time: event.timeStamp
+          };
+
+          emitParticles(pointer.x, pointer.y, 10, 12, 108, 0.12 + speedBoost * 0.18);
+        });
+
+        brandPanel.addEventListener("pointerleave", function () {
+          pointer.active = false;
+          pointer.idleBursts = 0;
+          lastPointerEvent = null;
+        });
+
+        window.addEventListener("scroll", updateBrandBounds, { passive: true });
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+        animateParticles();
+      }
+
+      var initialRole = "{{ active_role if active_role in ['admin', 'driver', 'supplier', 'staff'] else 'admin' }}";
+      var shouldOpenForm = {{ 'true' if show_form_on_load else 'false' }};
+
+      updateRoleVisual(initialRole);
+
+      if (shouldOpenForm) {
+        openForm(initialRole);
+      } else {
+        openRoles();
+      }
+    });
+  </script>
+</body>
+</html>
