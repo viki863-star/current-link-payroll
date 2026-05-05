@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS driver_transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     driver_id TEXT NOT NULL,
     entry_date TEXT NOT NULL,
+    salary_month TEXT,
     txn_type TEXT NOT NULL,
     source TEXT NOT NULL,
     given_by TEXT,
@@ -132,6 +133,21 @@ CREATE TABLE IF NOT EXISTS salary_slips (
     net_payable REAL NOT NULL,
     pdf_path TEXT NOT NULL,
     generated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(driver_id) REFERENCES drivers(driver_id),
+    FOREIGN KEY(salary_store_id) REFERENCES salary_store(id)
+);
+
+CREATE TABLE IF NOT EXISTS salary_payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    driver_id TEXT NOT NULL,
+    salary_store_id INTEGER NOT NULL,
+    salary_month TEXT NOT NULL,
+    payment_date TEXT NOT NULL,
+    amount REAL NOT NULL DEFAULT 0,
+    payment_source TEXT,
+    paid_by TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(driver_id) REFERENCES drivers(driver_id),
     FOREIGN KEY(salary_store_id) REFERENCES salary_store(id)
 );
@@ -767,6 +783,7 @@ CREATE TABLE IF NOT EXISTS driver_transactions (
     id BIGSERIAL PRIMARY KEY,
     driver_id TEXT NOT NULL,
     entry_date TEXT NOT NULL,
+    salary_month TEXT,
     txn_type TEXT NOT NULL,
     source TEXT NOT NULL,
     given_by TEXT,
@@ -828,6 +845,21 @@ CREATE TABLE IF NOT EXISTS salary_slips (
     net_payable DOUBLE PRECISION NOT NULL,
     pdf_path TEXT NOT NULL,
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(driver_id) REFERENCES drivers(driver_id),
+    FOREIGN KEY(salary_store_id) REFERENCES salary_store(id)
+);
+
+CREATE TABLE IF NOT EXISTS salary_payments (
+    id BIGSERIAL PRIMARY KEY,
+    driver_id TEXT NOT NULL,
+    salary_store_id BIGINT NOT NULL,
+    salary_month TEXT NOT NULL,
+    payment_date TEXT NOT NULL,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    payment_source TEXT,
+    paid_by TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(driver_id) REFERENCES drivers(driver_id),
     FOREIGN KEY(salary_store_id) REFERENCES salary_store(id)
 );
@@ -1446,6 +1478,7 @@ REQUIRED_COLUMNS = {
     },
     "driver_transactions": {
         "given_by": "TEXT",
+        "salary_month": "TEXT",
     },
     "salary_slips": {
         "available_advance": "DOUBLE PRECISION NOT NULL DEFAULT 0",

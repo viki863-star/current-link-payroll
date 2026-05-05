@@ -36,12 +36,13 @@
     </div>
 
     <section class="inner-section">
-        <div class="section-title">Slip Generator</div>
+        <div class="section-title">Monthly Statement</div>
         {% if existing_slip %}
-            <div class="info-box warning-box">This month already has a paid slip. Form is loaded in edit mode, so any save will update the same slip and regenerate the PDF.</div>
+            <div class="info-box warning-box">This month already has a statement. Deduction total yahan update hogi, aur payment rows neeche alag se add hoti rahengi.</div>
         {% endif %}
         <form method="post" class="entry-form two-column-form premium-slip-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="payment_id" value="{{ values.payment_id }}">
             <label>
                 <span>Salary Month</span>
                 <select name="salary_store_id" required>
@@ -58,8 +59,12 @@
                 <input type="number" name="deduction_amount" step="0.01" min="0" value="{{ values.deduction_amount }}" required>
             </label>
             <label>
+                <span>Payment Date</span>
+                <input type="date" name="payment_date" value="{{ values.payment_date }}" required>
+            </label>
+            <label>
                 <span>Actual Paid</span>
-                <input type="number" name="actual_paid_amount" step="0.01" min="0" value="{{ values.actual_paid_amount }}" placeholder="Leave blank to pay full after deduction">
+                <input type="number" name="actual_paid_amount" step="0.01" min="0" value="{{ values.actual_paid_amount }}" placeholder="0 if only statement update karni hai">
             </label>
             <label>
                 <span>Payment Source</span>
@@ -73,21 +78,25 @@
                 <span>Paid By</span>
                 <input type="text" name="paid_by" value="{{ values.paid_by }}" placeholder="Nasrull / Waqar / Office">
             </label>
+            <label class="full-span">
+                <span>Payment Notes</span>
+                <input type="text" name="payment_notes" value="{{ values.payment_notes }}" placeholder="Bank transfer / cash part 1 / owner direct">
+            </label>
             <div class="full-span split-preview-row">
                 <div class="info-box success-box">
-                    Deduction alag hai aur actual paid alag. Agar after deduction `3876` bane aur aap `3500` dein, to `376` company balance ban jayega.
+                    Pehle deduction total save hota hai. Phir jitni dafa payment deni ho, utni payment rows add ho sakti hain.
                 </div>
                 <div class="info-box">
-                    Driver ke owner fund ya direct payment ka source bhi slip me save hoga.
+                    Same month mein multiple payments allowed hain. PDF monthly total paid aur balance ke sath refresh hoti rahegi.
                 </div>
             </div>
             <div class="form-actions triple-actions">
                 <a class="button danger-button" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Close</a>
                 {% if existing_slip %}
                     <a class="button navy" href="{{ url_for('generated_file', filename=existing_slip.pdf_path) }}" target="_blank">Open Current PDF</a>
-                    <button class="button success-button" type="submit">Update Slip PDF</button>
+                    <button class="button success-button" type="submit">{{ 'Update Payment + Statement' if values.payment_id else 'Save Statement / Add Payment' }}</button>
                 {% else %}
-                    <button class="button success-button" type="submit">Generate Slip PDF</button>
+                    <button class="button success-button" type="submit">Create Statement</button>
                 {% endif %}
             </div>
         </form>
@@ -110,9 +119,9 @@
                 <div><dt>Advance Deduction</dt><dd>AED {{ "%.2f"|format(preview.deduction_amount) }}</dd></div>
                 <div><dt>Remaining Advance</dt><dd>AED {{ "%.2f"|format(preview.remaining_advance) }}</dd></div>
                 <div><dt>Salary After Deduction</dt><dd>AED {{ "%.2f"|format(preview.salary_after_deduction) }}</dd></div>
-                <div><dt>Actual Paid</dt><dd>AED {{ "%.2f"|format(preview.actual_paid_amount) }}</dd></div>
+                <div><dt>Total Paid</dt><dd>AED {{ "%.2f"|format(preview.actual_paid_amount) }}</dd></div>
                 <div><dt>Company Balance</dt><dd>AED {{ "%.2f"|format(preview.company_balance_due) }}</dd></div>
-                <div><dt>Payment Source</dt><dd>{{ values.payment_source }}</dd></div>
+                <div><dt>Payments Count</dt><dd>{{ payment_totals.payment_count }}</dd></div>
                 {% if selected_salary.personal_vehicle_note %}
                     <div><dt>Personal / Vehicle Note</dt><dd>{{ selected_salary.personal_vehicle_note }}</dd></div>
                 {% endif %}
@@ -126,7 +135,7 @@
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">History</p>
-                <h2>Generated Slips</h2>
+                <h2>Monthly Statements</h2>
             </div>
         </div>
         {% if slips %}
@@ -137,10 +146,9 @@
                             <th>Month</th>
                             <th>Deduction</th>
                             <th>After Deduct</th>
-                            <th>Actual Paid</th>
+                            <th>Total Paid</th>
                             <th>Company Balance</th>
-                            <th>Source</th>
-                            <th>Paid By</th>
+                            <th>Payments</th>
                             <th>PDF</th>
                             <th>Action</th>
                         </tr>
@@ -151,10 +159,9 @@
                                 <td>{{ item.salary_month }}</td>
                                 <td>AED {{ "%.2f"|format(item.total_deductions) }}</td>
                                 <td>AED {{ "%.2f"|format(item.salary_after_deduction or item.net_payable) }}</td>
-                                <td>AED {{ "%.2f"|format(item.actual_paid_amount or item.net_payable) }}</td>
+                                <td>AED {{ "%.2f"|format(item.total_paid) }}</td>
                                 <td>AED {{ "%.2f"|format(item.company_balance_due or 0) }}</td>
-                                <td>{{ item.payment_source or "-" }}</td>
-                                <td>{{ item.paid_by or "-" }}</td>
+                                <td>{{ item.payment_count }}</td>
                                 <td><a class="table-link" href="{{ url_for('generated_file', filename=item.pdf_path) }}" target="_blank">Open</a></td>
                                 <td><a class="mini-action-link" href="{{ url_for('driver_salary_slip', driver_id=driver.driver_id, salary_store_id=item.salary_store_id) }}">Edit</a></td>
                             </tr>
@@ -166,5 +173,58 @@
             <p class="muted-text">Abhi tak slip generate nahi hui.</p>
         {% endif %}
     </article>
+</section>
+
+<section class="card table-card">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Payments</p>
+            <h2>Salary Payment History</h2>
+        </div>
+    </div>
+    {% if payment_rows %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Month</th>
+                        <th>Amount</th>
+                        <th>Source</th>
+                        <th>Paid By</th>
+                        <th>Notes</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in payment_rows %}
+                        <tr>
+                            <td>{{ item.payment_date }}</td>
+                            <td>{{ item.salary_month }}</td>
+                            <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                            <td>{{ item.payment_source or "-" }}</td>
+                            <td>{{ item.paid_by or "-" }}</td>
+                            <td>{{ item.notes or "-" }}</td>
+                            <td>
+                                {% if not item.is_legacy %}
+                                    <div class="table-actions">
+                                        <a class="mini-action-link" href="{{ url_for('driver_salary_slip', driver_id=driver.driver_id, salary_store_id=item.salary_store_id, payment_id=item.id) }}">Edit</a>
+                                        <form method="post" action="{{ url_for('delete_salary_slip', driver_id=driver.driver_id, slip_id=item.id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button class="mini-action-button" type="submit">Delete</button>
+                                        </form>
+                                    </div>
+                                {% else %}
+                                    <span class="muted-text">Legacy</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="muted-text">Abhi payment row add nahi hui.</p>
+    {% endif %}
 </section>
 {% endblock %}

@@ -52,7 +52,7 @@
         <strong>{{ timesheet_summary.missing_days }}</strong>
     </article>
     <article class="card stat-card premium-stat-card navy-stat">
-        <span>Salary Slips</span>
+        <span>Statements</span>
         <strong>{{ salary_slips|length }}</strong>
     </article>
 </section>
@@ -60,8 +60,8 @@
 <section class="mobile-shortcuts">
     <a class="button button-secondary" href="#timesheet-entry">Timesheet</a>
     <a class="button button-secondary" href="#timesheet-calendar">Month View</a>
-    <a class="button button-secondary" href="#salary-slips">Salary Slips</a>
-    <a class="button button-secondary" href="#driver-transactions">Transactions</a>
+    <a class="button button-secondary" href="#salary-slips">Statements</a>
+    <a class="button button-secondary" href="#driver-transactions">Statement</a>
 </section>
 
 <section class="detail-layout owner-fund-layout" id="timesheet-entry">
@@ -107,7 +107,7 @@
             </label>
             <div class="form-actions left-actions full-span">
                 <button class="button" type="submit">Open Month</button>
-                <a class="button button-secondary" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank">Download Monthly KATA</a>
+                <a class="button button-secondary" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank">Download Monthly Statement</a>
                 <a class="button button-secondary" href="{{ url_for('driver_timesheet_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank">Download Timesheet PDF</a>
             </div>
         </form>
@@ -162,7 +162,7 @@
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">4</p>
-                <h2>Salary Slips</h2>
+                <h2>Monthly Statements</h2>
             </div>
         </div>
         {% if salary_slips %}
@@ -201,7 +201,7 @@
         <div class="section-heading slim-heading">
             <div>
                 <p class="eyebrow">5</p>
-                <h2>Monthly KATA</h2>
+                <h2>Monthly Statement</h2>
             </div>
         </div>
         <div class="detail-grid mini-detail-grid" style="margin-bottom:18px;">

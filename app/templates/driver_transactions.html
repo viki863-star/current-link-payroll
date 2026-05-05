@@ -4,7 +4,7 @@
 <section class="card action-panel form-panel">
     <div class="panel-titlebar">
         <span>{{ config["COMPANY_NAME"] }}</span>
-        <span>Driver Transactions</span>
+        <span>Deduction Ledger</span>
     </div>
 
     <div class="action-grid tight-grid">
@@ -32,7 +32,7 @@
     </div>
 
     <section class="inner-section">
-        <div class="section-title">Transaction Entry</div>
+        <div class="section-title">Deduction Entry</div>
         <form method="post" class="entry-form two-column-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="transaction_id" value="{{ values.transaction_id }}">
@@ -41,7 +41,11 @@
                 <input type="date" name="entry_date" value="{{ values.entry_date }}" required>
             </label>
             <label>
-                <span>Type</span>
+                <span>Salary Month</span>
+                <input type="month" name="salary_month" value="{{ values.salary_month }}" required>
+            </label>
+            <label>
+                <span>Deduction Type</span>
                 <select name="txn_type">
                     {% for item in transaction_types %}
                         <option value="{{ item }}" {% if item == values.txn_type %}selected{% endif %}>{{ item }}</option>
@@ -69,7 +73,7 @@
                 <textarea name="details" rows="5" placeholder="Visa expense / Fuel / Daman / Advance before salary">{{ values.details }}</textarea>
             </label>
             <div class="full-span panel-note">
-                Entry ko simple rakhein: `kis ne diya` aur `kis liye diya` dono likhein taa ke driver ka month-wise KATA clear bane.
+                Har row ko us salary month ke sath save karein jismein yeh deduction count honi chahiye. `kis ne diya` aur `kis liye diya` clear likhein.
             </div>
             <div class="form-actions split-actions">
                 <a class="button danger-button" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Close</a>
@@ -84,9 +88,9 @@
     <div class="section-heading slim-heading">
         <div>
             <p class="eyebrow">History</p>
-            <h2>All Transactions</h2>
+            <h2>Deduction History</h2>
         </div>
-        <div class="panel-note">Start se aaj tak ki sab entries yahan hain, including salary paid.</div>
+        <div class="panel-note">Yahan salary-side deduction rows aur salary payment rows dono dikh rahe hain.</div>
     </div>
     <div class="detail-grid mini-detail-grid" style="margin-bottom: 18px;">
         <div><dt>Total Entries</dt><dd>{{ history_total }}</dd></div>
@@ -99,6 +103,7 @@
                 <thead>
                     <tr>
                         <th>Date</th>
+                        <th>Month</th>
                         <th>Type</th>
                         <th>Amount</th>
                         <th>Source</th>
@@ -111,6 +116,7 @@
                     {% for item in history_rows %}
                         <tr>
                             <td>{{ item.date }}</td>
+                            <td>{{ item.salary_month or "-" }}</td>
                             <td>{{ item.type_label }}</td>
                             <td>AED {{ "%.2f"|format(item.amount) }}</td>
                             <td>{{ item.source or "-" }}</td>
@@ -119,10 +125,12 @@
                             <td>
                                 <div class="table-actions">
                                     <a class="mini-action-link" href="{{ item.edit_target }}">{{ item.edit_label }}</a>
-                                    <form method="post" action="{{ item.delete_target }}" onsubmit="return confirm('Delete this entry?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button class="mini-action-button" type="submit">{{ item.delete_label }}</button>
-                                    </form>
+                                    {% if item.delete_label %}
+                                        <form method="post" action="{{ item.delete_target }}" onsubmit="return confirm('Delete this entry?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button class="mini-action-button" type="submit">{{ item.delete_label }}</button>
+                                        </form>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -131,7 +139,7 @@
             </table>
         </div>
     {% else %}
-        <p class="muted-text">No transactions or salary paid entries yet.</p>
+        <p class="muted-text">No deduction or payment entries yet.</p>
     {% endif %}
 </section>
 {% endblock %}

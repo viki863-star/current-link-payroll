@@ -487,7 +487,7 @@ def test_existing_paid_salary_slip_can_be_updated(app, client):
         },
         follow_redirects=True,
     )
-    assert b"Salary slip PDF generated" in first_slip.data
+    assert b"monthly statement refreshed" in first_slip.data
 
     updated_slip = client.post(
         "/drivers/DRV-T1/salary-slip",
@@ -499,7 +499,7 @@ def test_existing_paid_salary_slip_can_be_updated(app, client):
         },
         follow_redirects=True,
     )
-    assert b"Salary slip updated" in updated_slip.data
+    assert b"monthly statement refreshed" in updated_slip.data
 
     with app.app_context():
         db = open_db()
@@ -572,7 +572,7 @@ def test_salary_slip_supports_custom_actual_paid_and_company_balance(app, client
         follow_redirects=True,
     )
 
-    assert b"Salary slip PDF generated" in slip.data
+    assert b"monthly statement refreshed" in slip.data
     assert b"Salary After Deduction" in slip.data
     assert b"AED 3876.00" in slip.data
     assert b"Actual Paid" in slip.data
@@ -892,7 +892,7 @@ def test_driver_portal_shows_only_selected_month_kata_entries(app, client):
     response = client.get("/portal/driver?month=2026-03")
 
     assert response.status_code == 200
-    assert b"Monthly KATA" in response.data
+    assert b"Monthly Statement" in response.data
     assert b"Fuel for March" in response.data
     assert b"Office" in response.data
     assert b"March salary" in response.data
@@ -979,7 +979,7 @@ def test_driver_action_page_keeps_selected_kata_month(app, client):
     assert response.status_code == 200
     assert b'input type="month" name="kata_month" value="2026-03"' in response.data
     assert b"KATA Month" in response.data
-    assert b"Driver KATA" in response.data
+    assert b"Driver Statement" in response.data
     assert b"Transactions" in response.data
     assert b"Stored Salary" in response.data
     assert b"Paid By" in response.data

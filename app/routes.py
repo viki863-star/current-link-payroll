@@ -44,7 +44,7 @@ from .pdf_service import (
 )
 
 
-TRANSACTION_TYPES = ["Petty Cash", "Advance", "Fine", "Fuel", "Other"]
+TRANSACTION_TYPES = ["Advance", "Owner Loan", "Fine", "Transfer", "Personal Cash"]
 PAYMENT_SOURCES = ["Owner Fund", "Owner Direct", "Current Link", "Office", "Cash", "Bank", "Other"]
 PARTY_KIND_OPTIONS = ["Company", "Individual"]
 PARTY_ROLE_OPTIONS = [
@@ -6507,6 +6507,7 @@ def register_routes(app: Flask) -> None:
 
         db.execute("DELETE FROM driver_timesheets WHERE driver_id = ?", (driver_id,))
         db.execute("DELETE FROM driver_transactions WHERE driver_id = ?", (driver_id,))
+        db.execute("DELETE FROM salary_payments WHERE driver_id = ?", (driver_id,))
         db.execute("DELETE FROM salary_slips WHERE driver_id = ?", (driver_id,))
         db.execute("DELETE FROM salary_store WHERE driver_id = ?", (driver_id,))
         db.execute("DELETE FROM drivers WHERE driver_id = ?", (driver_id,))
@@ -6637,6 +6638,7 @@ def register_routes(app: Flask) -> None:
         form = {
             "transaction_id": "",
             "entry_date": date.today().isoformat(),
+            "salary_month": _current_month_value(),
             "txn_type": TRANSACTION_TYPES[0],
             "source": PAYMENT_SOURCES[0],
             "given_by": "",
@@ -6647,7 +6649,7 @@ def register_routes(app: Flask) -> None:
         if edit_transaction_id:
             existing_transaction = db.execute(
                 """
-                SELECT id, entry_date, txn_type, source, given_by, amount, details
+                SELECT id, entry_date, salary_month, txn_type, source, given_by, amount, details
                 FROM driver_transactions
                 WHERE id = ? AND driver_id = ?
                 """,
@@ -6657,6 +6659,7 @@ def register_routes(app: Flask) -> None:
                 form = {
                     "transaction_id": str(existing_transaction["id"]),
                     "entry_date": existing_transaction["entry_date"],
+                    "salary_month": _transaction_salary_month(existing_transaction),
                     "txn_type": existing_transaction["txn_type"],
                     "source": existing_transaction["source"],
                     "given_by": existing_transaction["given_by"] or "",
@@ -6665,9 +6668,11 @@ def register_routes(app: Flask) -> None:
                 }
 
         if request.method == "POST":
+            entry_date_value = request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat()
             form = {
                 "transaction_id": request.form.get("transaction_id", "").strip(),
-                "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
+                "entry_date": entry_date_value,
+                "salary_month": _salary_month_from_form(entry_date_value, request.form.get("salary_month")),
                 "txn_type": request.form.get("txn_type", TRANSACTION_TYPES[0]).strip() or TRANSACTION_TYPES[0],
                 "source": request.form.get("source", PAYMENT_SOURCES[0]).strip() or PAYMENT_SOURCES[0],
                 "given_by": request.form.get("given_by", "").strip(),
@@ -6683,11 +6688,12 @@ def register_routes(app: Flask) -> None:
                     db.execute(
                         """
                         UPDATE driver_transactions
-                        SET entry_date = ?, txn_type = ?, source = ?, given_by = ?, amount = ?, details = ?
+                        SET entry_date = ?, salary_month = ?, txn_type = ?, source = ?, given_by = ?, amount = ?, details = ?
                         WHERE id = ? AND driver_id = ?
                         """,
                         (
                             form["entry_date"],
+                            form["salary_month"],
                             form["txn_type"],
                             form["source"],
                             form["given_by"],
@@ -6708,12 +6714,13 @@ def register_routes(app: Flask) -> None:
                 else:
                     db.execute(
                         """
-                        INSERT INTO driver_transactions (driver_id, entry_date, txn_type, source, given_by, amount, details)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO driver_transactions (driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             driver_id,
                             form["entry_date"],
+                            form["salary_month"],
                             form["txn_type"],
                             form["source"],
                             form["given_by"],
@@ -6726,7 +6733,7 @@ def register_routes(app: Flask) -> None:
                         "transaction_created",
                         entity_type="driver_transaction",
                         entity_id=driver_id,
-                        details=f"{form['txn_type']} / AED {amount:.2f}",
+                        details=f"{form['txn_type']} / {form['salary_month']} / AED {amount:.2f}",
                     )
                     message = "Transaction saved and driver KATA PDF updated."
                 db.commit()
@@ -6777,27 +6784,105 @@ def register_routes(app: Flask) -> None:
         if driver is None:
             flash("Driver not found.", "error")
             return redirect(url_for("dashboard"))
-        existing_slip = db.execute(
-            "SELECT id FROM salary_slips WHERE id = ? AND driver_id = ?",
+        existing_payment = db.execute(
+            "SELECT id, salary_store_id FROM salary_payments WHERE id = ? AND driver_id = ?",
             (slip_id, driver_id),
         ).fetchone()
-        if existing_slip is not None:
+        if existing_payment is not None:
             db.execute(
-                "DELETE FROM salary_slips WHERE id = ? AND driver_id = ?",
+                "DELETE FROM salary_payments WHERE id = ? AND driver_id = ?",
                 (slip_id, driver_id),
             )
+            statement_row = db.execute(
+                "SELECT * FROM salary_slips WHERE salary_store_id = ? AND driver_id = ? ORDER BY id DESC LIMIT 1",
+                (existing_payment["salary_store_id"], driver_id),
+            ).fetchone()
+            salary_row = db.execute(
+                "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+                (existing_payment["salary_store_id"], driver_id),
+            ).fetchone()
+            if statement_row is not None and salary_row is not None:
+                payment_rows = _statement_payment_rows_with_legacy(
+                    db,
+                    statement_row,
+                    driver_id,
+                    salary_store_id=int(existing_payment["salary_store_id"]),
+                    salary_month=salary_row["salary_month"],
+                )
+                statement_totals = _recalculate_salary_statement(db, statement_row, salary_row, payment_rows)
+                pdf_path = generate_salary_slip_pdf(
+                    driver,
+                    salary_row,
+                    {
+                        "available_advance": float(statement_row["available_advance"] or 0.0),
+                        "deduction_amount": float(statement_row["total_deductions"] or 0.0),
+                        "remaining_advance": statement_totals["remaining_advance"],
+                        "salary_after_deduction": statement_totals["salary_after_deduction"],
+                        "actual_paid_amount": statement_totals["actual_paid_amount"],
+                        "company_balance_due": statement_totals["company_balance_due"],
+                        "payment_source": payment_rows[-1]["payment_source"] if payment_rows else "",
+                        "paid_by": payment_rows[-1]["paid_by"] if payment_rows else "",
+                        "net_payable": statement_totals["actual_paid_amount"],
+                    },
+                    str(_driver_output_dir(app, driver_id, driver=driver) / "salary_slips"),
+                    app.config["STATIC_ASSETS_DIR"],
+                    app.config["GENERATED_DIR"],
+                    payment_rows=payment_rows,
+                )
+                _mirror_generated_file(app, pdf_path)
+                relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+                latest_payment = payment_rows[-1] if payment_rows else None
+                db.execute(
+                    """
+                    UPDATE salary_slips
+                    SET salary_after_deduction = ?, actual_paid_amount = ?, company_balance_due = ?,
+                        payment_source = ?, paid_by = ?, net_payable = ?, pdf_path = ?, generated_at = CURRENT_TIMESTAMP
+                    WHERE id = ? AND driver_id = ?
+                    """,
+                    (
+                        statement_totals["salary_after_deduction"],
+                        statement_totals["actual_paid_amount"],
+                        statement_totals["company_balance_due"],
+                        (latest_payment["payment_source"] if latest_payment else "") or None,
+                        (latest_payment["paid_by"] if latest_payment else "") or None,
+                        statement_totals["actual_paid_amount"],
+                        relative_path,
+                        statement_row["id"],
+                        driver_id,
+                    ),
+                )
             _audit_log(
                 db,
-                "salary_slip_deleted",
-                entity_type="salary_slip",
+                "salary_payment_deleted",
+                entity_type="salary_payment",
                 entity_id=str(slip_id),
                 details=driver_id,
             )
             db.commit()
             _regenerate_kata_for_driver(app, db, driver)
-            flash("Salary paid entry deleted and KATA refreshed.", "success")
+            flash("Salary payment deleted and statement refreshed.", "success")
         else:
-            flash("Salary paid entry was not found.", "error")
+            existing_slip = db.execute(
+                "SELECT id FROM salary_slips WHERE id = ? AND driver_id = ?",
+                (slip_id, driver_id),
+            ).fetchone()
+            if existing_slip is not None:
+                db.execute(
+                    "DELETE FROM salary_slips WHERE id = ? AND driver_id = ?",
+                    (slip_id, driver_id),
+                )
+                _audit_log(
+                    db,
+                    "salary_slip_deleted",
+                    entity_type="salary_slip",
+                    entity_id=str(slip_id),
+                    details=driver_id,
+                )
+                db.commit()
+                _regenerate_kata_for_driver(app, db, driver)
+                flash("Legacy salary statement deleted and KATA refreshed.", "success")
+            else:
+                flash("Salary payment entry was not found.", "error")
         return redirect(url_for("driver_transactions", driver_id=driver_id))
 
     @app.route("/drivers/<driver_id>/salary-store", methods=["GET", "POST"])
@@ -6979,6 +7064,7 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("dashboard"))
         db.execute("DELETE FROM salary_store WHERE id = ? AND driver_id = ?", (salary_id, driver_id))
         db.execute("DELETE FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (salary_id, driver_id))
+        db.execute("DELETE FROM salary_payments WHERE salary_store_id = ? AND driver_id = ?", (salary_id, driver_id))
         _audit_log(
             db,
             "salary_store_deleted",
@@ -7006,18 +7092,23 @@ def register_routes(app: Flask) -> None:
             (driver_id,),
         ).fetchall()
         selected_salary_id = request.args.get("salary_store_id", "").strip()
+        selected_payment_id = request.args.get("payment_id", "").strip()
         if not selected_salary_id and salary_rows:
             selected_salary_id = str(salary_rows[0]["id"])
 
         selected_salary = None
         existing_slip = None
+        existing_payment = None
         advance_summary = _advance_summary(db, driver_id)
         available_advance = advance_summary["remaining_advance"]
         values = {
+            "payment_id": "",
             "deduction_amount": "0.00",
+            "payment_date": date.today().isoformat(),
             "actual_paid_amount": "",
             "payment_source": PAYMENT_SOURCES[0],
             "paid_by": "",
+            "payment_notes": "",
         }
 
         if selected_salary_id:
@@ -7041,21 +7132,46 @@ def register_routes(app: Flask) -> None:
                     exclude_salary_store_id=int(selected_salary_id),
                 )["remaining_advance"]
                 if existing_slip:
-                    slip_amounts = _salary_slip_amounts(existing_slip)
                     values = {
+                        "payment_id": "",
                         "deduction_amount": f"{float(existing_slip['total_deductions']):.2f}",
-                        "actual_paid_amount": f"{slip_amounts['actual_paid_amount']:.2f}",
-                        "payment_source": existing_slip["payment_source"] or PAYMENT_SOURCES[0],
-                        "paid_by": existing_slip["paid_by"] or "",
+                        "payment_date": date.today().isoformat(),
+                        "actual_paid_amount": "",
+                        "payment_source": PAYMENT_SOURCES[0],
+                        "paid_by": "",
+                        "payment_notes": "",
                     }
+                if selected_payment_id:
+                    existing_payment = db.execute(
+                        """
+                        SELECT id, salary_store_id, salary_month, payment_date, amount, payment_source, paid_by, notes
+                        FROM salary_payments
+                        WHERE id = ? AND driver_id = ?
+                        """,
+                        (selected_payment_id, driver_id),
+                    ).fetchone()
+                    if existing_payment is not None:
+                        values.update(
+                            {
+                                "payment_id": str(existing_payment["id"]),
+                                "payment_date": existing_payment["payment_date"],
+                                "actual_paid_amount": f"{float(existing_payment['amount']):.2f}",
+                                "payment_source": existing_payment["payment_source"] or PAYMENT_SOURCES[0],
+                                "paid_by": existing_payment["paid_by"] or "",
+                                "payment_notes": existing_payment["notes"] or "",
+                            }
+                        )
 
         if request.method == "POST":
             selected_salary_id = request.form.get("salary_store_id", "").strip()
             values = {
+                "payment_id": request.form.get("payment_id", "").strip(),
                 "deduction_amount": request.form.get("deduction_amount", "0").strip() or "0",
+                "payment_date": request.form.get("payment_date", date.today().isoformat()).strip() or date.today().isoformat(),
                 "actual_paid_amount": request.form.get("actual_paid_amount", "").strip(),
                 "payment_source": request.form.get("payment_source", PAYMENT_SOURCES[0]).strip() or PAYMENT_SOURCES[0],
                 "paid_by": request.form.get("paid_by", "").strip(),
+                "payment_notes": request.form.get("payment_notes", "").strip(),
             }
             if not selected_salary_id:
                 flash("Select a stored salary month first.", "error")
@@ -7078,6 +7194,15 @@ def register_routes(app: Flask) -> None:
                     driver_id,
                     exclude_salary_store_id=int(selected_salary_id),
                 )["remaining_advance"]
+                if values["payment_id"]:
+                    existing_payment = db.execute(
+                        """
+                        SELECT id, salary_store_id, salary_month, payment_date, amount, payment_source, paid_by, notes
+                        FROM salary_payments
+                        WHERE id = ? AND driver_id = ?
+                        """,
+                        (values["payment_id"], driver_id),
+                    ).fetchone()
                 try:
                     deduction_amount = _parse_decimal(values["deduction_amount"], "Deduction amount", required=False, default=0.0, minimum=0.0)
                 except ValidationError as exc:
@@ -7095,11 +7220,29 @@ def register_routes(app: Flask) -> None:
                         flash("Deduction cannot be greater than the salary amount.", "error")
                     else:
                         try:
+                            existing_payment_rows = _statement_payment_rows(
+                                db,
+                                driver_id,
+                                salary_store_id=int(selected_salary_id),
+                                salary_month=selected_salary["salary_month"],
+                            )
+                            if (
+                                existing_payment is None
+                                and not values["payment_id"]
+                                and len(existing_payment_rows) == 1
+                                and not values["actual_paid_amount"].strip()
+                            ):
+                                existing_payment = existing_payment_rows[0]
+                            default_payment_amount = 0.0
+                            if not values["actual_paid_amount"].strip() and existing_payment is not None:
+                                default_payment_amount = salary_after_deduction
+                            elif not values["actual_paid_amount"].strip() and not existing_payment_rows and existing_payment is None:
+                                default_payment_amount = salary_after_deduction
                             actual_paid_amount = _parse_decimal(
-                                values["actual_paid_amount"] or f"{salary_after_deduction:.2f}",
+                                values["actual_paid_amount"] or f"{default_payment_amount:.2f}",
                                 "Actual paid amount",
                                 required=False,
-                                default=salary_after_deduction,
+                                default=default_payment_amount,
                                 minimum=0.0,
                             )
                         except ValidationError as exc:
@@ -7110,61 +7253,22 @@ def register_routes(app: Flask) -> None:
                         elif actual_paid_amount > salary_after_deduction + 0.001:
                             flash(f"Actual paid amount cannot be more than {salary_after_deduction:,.2f}.", "error")
                         else:
-                            company_balance_due = max(salary_after_deduction - actual_paid_amount, 0.0)
-                            slip_payload = {
-                                "available_advance": available_advance,
-                                "deduction_amount": deduction_amount,
-                                "remaining_advance": max(available_advance - deduction_amount, 0),
-                                "salary_after_deduction": salary_after_deduction,
-                                "actual_paid_amount": actual_paid_amount,
-                                "company_balance_due": company_balance_due,
-                                "payment_source": values["payment_source"],
-                                "paid_by": values["paid_by"],
-                                "net_payable": actual_paid_amount,
-                            }
-                            pdf_path = generate_salary_slip_pdf(
-                                driver,
-                                selected_salary,
-                                slip_payload,
-                                str(_driver_output_dir(app, driver_id, driver=driver) / "salary_slips"),
-                                app.config["STATIC_ASSETS_DIR"],
-                                app.config["GENERATED_DIR"],
-                            )
-                            _mirror_generated_file(app, pdf_path)
-                            relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+                            remaining_advance = max(available_advance - deduction_amount, 0.0)
                             if existing_slip is not None:
                                 db.execute(
                                     """
                                     UPDATE salary_slips
-                                    SET total_deductions = ?, available_advance = ?, remaining_advance = ?,
-                                        salary_after_deduction = ?, actual_paid_amount = ?, company_balance_due = ?,
-                                        payment_source = ?, paid_by = ?, net_payable = ?, pdf_path = ?,
-                                        generated_at = CURRENT_TIMESTAMP
+                                    SET total_deductions = ?, available_advance = ?, remaining_advance = ?, generated_at = CURRENT_TIMESTAMP
                                     WHERE id = ? AND driver_id = ?
                                     """,
                                     (
                                         deduction_amount,
                                         available_advance,
-                                        max(available_advance - deduction_amount, 0),
-                                        salary_after_deduction,
-                                        actual_paid_amount,
-                                        company_balance_due,
-                                        values["payment_source"],
-                                        values["paid_by"],
-                                        actual_paid_amount,
-                                        relative_path,
+                                        remaining_advance,
                                         existing_slip["id"],
                                         driver_id,
                                     ),
                                 )
-                                _audit_log(
-                                    db,
-                                    "salary_slip_updated",
-                                    entity_type="salary_slip",
-                                    entity_id=str(existing_slip["id"]),
-                                    details=f"{driver_id}:{selected_salary['salary_month']} / paid AED {actual_paid_amount:.2f} / balance AED {company_balance_due:.2f}",
-                                )
-                                success_message = "Salary slip updated and KATA refreshed inside the driver folder."
                             else:
                                 db.execute(
                                     """
@@ -7181,27 +7285,141 @@ def register_routes(app: Flask) -> None:
                                         None,
                                         deduction_amount,
                                         available_advance,
-                                        max(available_advance - deduction_amount, 0),
-                                        salary_after_deduction,
-                                        actual_paid_amount,
-                                        company_balance_due,
-                                        values["payment_source"],
-                                        values["paid_by"],
-                                        actual_paid_amount,
-                                        relative_path,
+                                        remaining_advance,
+                                        0.0,
+                                        0.0,
+                                        0.0,
+                                        None,
+                                        None,
+                                        0.0,
+                                        "",
                                     ),
                                 )
-                                _audit_log(
-                                    db,
-                                    "salary_slip_generated",
-                                    entity_type="salary_slip",
-                                    entity_id=f"{driver_id}:{selected_salary['salary_month']}",
-                                    details=f"OT month {selected_salary['ot_month'] or _previous_month_value(selected_salary['salary_month'])} / paid AED {actual_paid_amount:.2f} / balance AED {company_balance_due:.2f}",
+                                existing_slip = db.execute(
+                                    """
+                                    SELECT * FROM salary_slips
+                                    WHERE salary_store_id = ? AND driver_id = ?
+                                    ORDER BY id DESC
+                                    LIMIT 1
+                                    """,
+                                    (selected_salary["id"], driver_id),
+                                ).fetchone()
+
+                            existing_slip = db.execute(
+                                """
+                                SELECT * FROM salary_slips
+                                WHERE salary_store_id = ? AND driver_id = ?
+                                ORDER BY id DESC
+                                LIMIT 1
+                                """,
+                                (selected_salary["id"], driver_id),
+                            ).fetchone()
+
+                            if existing_payment is not None:
+                                db.execute(
+                                    """
+                                    UPDATE salary_payments
+                                    SET payment_date = ?, amount = ?, payment_source = ?, paid_by = ?, notes = ?
+                                    WHERE id = ? AND driver_id = ?
+                                    """,
+                                    (
+                                        values["payment_date"],
+                                        actual_paid_amount,
+                                        values["payment_source"],
+                                        values["paid_by"],
+                                        values["payment_notes"],
+                                        existing_payment["id"],
+                                        driver_id,
+                                    ),
                                 )
-                                success_message = "Salary slip PDF generated and KATA updated inside the driver folder."
+                                payment_message = "Payment updated"
+                            elif actual_paid_amount > 0:
+                                db.execute(
+                                    """
+                                    INSERT INTO salary_payments (
+                                        driver_id, salary_store_id, salary_month, payment_date, amount,
+                                        payment_source, paid_by, notes
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                    """,
+                                    (
+                                        driver_id,
+                                        selected_salary["id"],
+                                        selected_salary["salary_month"],
+                                        values["payment_date"],
+                                        actual_paid_amount,
+                                        values["payment_source"],
+                                        values["paid_by"],
+                                        values["payment_notes"],
+                                    ),
+                                )
+                                payment_message = "Payment added"
+                            else:
+                                payment_message = "Statement updated"
+
+                            payment_rows = _statement_payment_rows(
+                                db,
+                                driver_id,
+                                salary_store_id=int(selected_salary["id"]),
+                                salary_month=selected_salary["salary_month"],
+                            )
+                            statement_totals = _recalculate_salary_statement(db, existing_slip, selected_salary, payment_rows)
+                            latest_payment = payment_rows[-1] if payment_rows else None
+                            slip_payload = {
+                                "available_advance": available_advance,
+                                "deduction_amount": deduction_amount,
+                                "remaining_advance": statement_totals["remaining_advance"],
+                                "salary_after_deduction": statement_totals["salary_after_deduction"],
+                                "actual_paid_amount": statement_totals["actual_paid_amount"],
+                                "company_balance_due": statement_totals["company_balance_due"],
+                                "payment_source": (latest_payment["payment_source"] if latest_payment else "") or "",
+                                "paid_by": (latest_payment["paid_by"] if latest_payment else "") or "",
+                                "net_payable": statement_totals["actual_paid_amount"],
+                            }
+                            pdf_path = generate_salary_slip_pdf(
+                                driver,
+                                selected_salary,
+                                slip_payload,
+                                str(_driver_output_dir(app, driver_id, driver=driver) / "salary_slips"),
+                                app.config["STATIC_ASSETS_DIR"],
+                                app.config["GENERATED_DIR"],
+                                payment_rows=payment_rows,
+                            )
+                            _mirror_generated_file(app, pdf_path)
+                            relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+                            db.execute(
+                                """
+                                UPDATE salary_slips
+                                SET total_deductions = ?, available_advance = ?, remaining_advance = ?,
+                                    salary_after_deduction = ?, actual_paid_amount = ?, company_balance_due = ?,
+                                    payment_source = ?, paid_by = ?, net_payable = ?, pdf_path = ?,
+                                    generated_at = CURRENT_TIMESTAMP
+                                WHERE id = ? AND driver_id = ?
+                                """,
+                                (
+                                    deduction_amount,
+                                    available_advance,
+                                    statement_totals["remaining_advance"],
+                                    statement_totals["salary_after_deduction"],
+                                    statement_totals["actual_paid_amount"],
+                                    statement_totals["company_balance_due"],
+                                    (latest_payment["payment_source"] if latest_payment else "") or None,
+                                    (latest_payment["paid_by"] if latest_payment else "") or None,
+                                    statement_totals["actual_paid_amount"],
+                                    relative_path,
+                                    existing_slip["id"],
+                                    driver_id,
+                                ),
+                            )
+                            _audit_log(
+                                db,
+                                "salary_statement_saved",
+                                entity_type="salary_slip",
+                                entity_id=f"{driver_id}:{selected_salary['salary_month']}",
+                                details=f"deduction AED {deduction_amount:.2f} / paid AED {statement_totals['actual_paid_amount']:.2f} / balance AED {statement_totals['company_balance_due']:.2f}",
+                            )
                             db.commit()
                             _regenerate_kata_for_driver(app, db, driver)
-                            flash(success_message, "success")
+                            flash(f"Salary slip PDF generated. {payment_message} and monthly statement refreshed.", "success")
                             return redirect(
                                 url_for(
                                     "driver_salary_slip",
@@ -7222,6 +7440,17 @@ def register_routes(app: Flask) -> None:
             """,
             (driver_id,),
         ).fetchall()
+        payment_rows = []
+        payment_totals = {"total_paid": 0.0, "payment_count": 0}
+        if selected_salary is not None:
+            payment_rows = _statement_payment_rows_with_legacy(
+                db,
+                existing_slip,
+                driver_id,
+                salary_store_id=int(selected_salary["id"]),
+                salary_month=selected_salary["salary_month"],
+            )
+            payment_totals = _statement_payment_totals(payment_rows)
         preview = None
         if selected_salary is not None:
             try:
@@ -7230,20 +7459,20 @@ def register_routes(app: Flask) -> None:
                 deduction_amount = None
             if deduction_amount is not None:
                 salary_after_deduction = max(float(selected_salary["net_salary"]) - deduction_amount, 0.0)
-                actual_paid_amount = None
-                if values["actual_paid_amount"].strip():
+                actual_paid_amount = payment_totals["total_paid"]
+                if values["actual_paid_amount"].strip() and values.get("payment_id"):
                     try:
-                        actual_paid_amount = _parse_decimal(
+                        edited_payment_amount = _parse_decimal(
                             values["actual_paid_amount"],
                             "Actual paid amount",
                             required=False,
-                            default=salary_after_deduction,
+                            default=0.0,
                             minimum=0.0,
                         )
                     except ValidationError:
-                        actual_paid_amount = None
-                if actual_paid_amount is None:
-                    actual_paid_amount = salary_after_deduction
+                        edited_payment_amount = None
+                    if edited_payment_amount is not None and existing_payment is not None:
+                        actual_paid_amount = max(actual_paid_amount - float(existing_payment["amount"] or 0.0) + edited_payment_amount, 0.0)
                 preview = {
                     "gross": float(selected_salary["net_salary"]),
                     "available_advance": available_advance,
@@ -7255,6 +7484,22 @@ def register_routes(app: Flask) -> None:
                     "net_payable": actual_paid_amount,
                     "ot_month": selected_salary["ot_month"] or _previous_month_value(selected_salary["salary_month"]),
                 }
+        slip_cards = []
+        for item in slips:
+            monthly_payments = _statement_payment_rows_with_legacy(
+                db,
+                item,
+                driver_id,
+                salary_store_id=int(item["salary_store_id"]),
+                salary_month=item["salary_month"],
+            )
+            slip_cards.append(
+                {
+                    **item,
+                    "payment_count": len(monthly_payments),
+                    "total_paid": sum(_payment_row_amount(row) for row in monthly_payments),
+                }
+            )
         advance_summary = {
             **advance_summary,
             "remaining_advance": available_advance,
@@ -7270,8 +7515,11 @@ def register_routes(app: Flask) -> None:
             values=values,
             preview=preview,
             payment_sources=PAYMENT_SOURCES,
-            slips=slips,
+            slips=slip_cards,
             existing_slip=existing_slip,
+            existing_payment=existing_payment,
+            payment_rows=payment_rows,
+            payment_totals=payment_totals,
             advance_summary=advance_summary,
         )
 
@@ -14126,6 +14374,117 @@ def _salary_slip_amounts(slip) -> dict[str, float]:
     }
 
 
+def _transaction_salary_month(row) -> str:
+    if row is None:
+        return _current_month_value()
+    explicit_month = ""
+    if hasattr(row, "keys") and "salary_month" in row.keys():
+        explicit_month = (row["salary_month"] or "").strip()
+    if explicit_month:
+        return _normalize_month(explicit_month)
+    entry_date = ""
+    if hasattr(row, "keys") and "entry_date" in row.keys():
+        entry_date = str(row["entry_date"] or "")
+    if len(entry_date) >= 7:
+        return _normalize_month(entry_date[:7])
+    return _current_month_value()
+
+
+def _salary_month_from_form(entry_date: str, submitted_month: str | None) -> str:
+    raw_month = (submitted_month or "").strip()
+    if raw_month:
+        return _normalize_month(raw_month)
+    if entry_date and len(entry_date) >= 7:
+        return _normalize_month(entry_date[:7])
+    return _current_month_value()
+
+
+def _payment_row_amount(row) -> float:
+    if row is None:
+        return 0.0
+    if hasattr(row, "keys") and "amount" in row.keys():
+        return float(row["amount"] or 0.0)
+    if hasattr(row, "keys") and "actual_paid_amount" in row.keys():
+        return float(row["actual_paid_amount"] or 0.0)
+    if hasattr(row, "keys") and "net_payable" in row.keys():
+        return float(row["net_payable"] or 0.0)
+    return 0.0
+
+
+def _statement_payment_rows(db, driver_id: str, salary_store_id: int | None = None, salary_month: str | None = None):
+    filters = ["driver_id = ?"]
+    params: list = [driver_id]
+    if salary_store_id is not None:
+        filters.append("salary_store_id = ?")
+        params.append(salary_store_id)
+    if salary_month is not None:
+        filters.append("salary_month = ?")
+        params.append(salary_month)
+    return db.execute(
+        f"""
+        SELECT id, driver_id, salary_store_id, salary_month, payment_date, amount, payment_source, paid_by, notes, created_at
+        FROM salary_payments
+        WHERE {' AND '.join(filters)}
+        ORDER BY payment_date ASC, id ASC
+        """,
+        tuple(params),
+    ).fetchall()
+
+
+def _statement_payment_totals(payment_rows) -> dict[str, float]:
+    total_paid = sum(_payment_row_amount(row) for row in payment_rows)
+    return {
+        "total_paid": total_paid,
+        "payment_count": len(payment_rows),
+    }
+
+
+def _statement_payment_rows_with_legacy(db, statement_row, driver_id: str, salary_store_id: int | None = None, salary_month: str | None = None):
+    payment_rows = list(_statement_payment_rows(db, driver_id, salary_store_id=salary_store_id, salary_month=salary_month))
+    if payment_rows:
+        return payment_rows
+    if statement_row is None:
+        return []
+    slip_amounts = _salary_slip_amounts(statement_row)
+    if slip_amounts["actual_paid_amount"] <= 0:
+        return []
+    return [
+        {
+            "id": 0,
+            "driver_id": driver_id,
+            "salary_store_id": salary_store_id or (statement_row.get("salary_store_id") if hasattr(statement_row, "get") else None),
+            "salary_month": salary_month or statement_row["salary_month"],
+            "payment_date": _date_only_value(statement_row["generated_at"]),
+            "amount": slip_amounts["actual_paid_amount"],
+            "payment_source": statement_row["payment_source"] or "",
+            "paid_by": statement_row["paid_by"] or "",
+            "notes": "Legacy salary payment",
+            "created_at": statement_row["generated_at"],
+            "is_legacy": True,
+        }
+    ]
+
+
+def _recalculate_salary_statement(db, statement_row, salary_row, payment_rows) -> dict[str, float]:
+    deduction_amount = float(statement_row["total_deductions"] or 0.0) if statement_row is not None else 0.0
+    available_advance = float(statement_row["available_advance"] or 0.0) if statement_row is not None and "available_advance" in statement_row.keys() else 0.0
+    remaining_advance = max(available_advance - deduction_amount, 0.0)
+    stored_salary = float(salary_row["net_salary"] or 0.0)
+    salary_after_deduction = max(stored_salary - deduction_amount, 0.0)
+    total_paid = sum(_payment_row_amount(row) for row in payment_rows)
+    company_balance_due = max(salary_after_deduction - total_paid, 0.0)
+    return {
+        "stored_salary": stored_salary,
+        "deduction_amount": deduction_amount,
+        "available_advance": available_advance,
+        "remaining_advance": remaining_advance,
+        "salary_after_deduction": salary_after_deduction,
+        "actual_paid_amount": total_paid,
+        "company_balance_due": company_balance_due,
+        "net_payable": total_paid,
+    }
+
+
 def _driver_balance(db, driver_id: str) -> float:
     total_salary = db.execute(
         "SELECT COALESCE(SUM(net_salary), 0) FROM salary_store WHERE driver_id = ?",
@@ -14193,7 +14552,22 @@ def _owner_fund_totals(db):
     )
     outgoing_salary = float(
         db.execute(
-            "SELECT COALESCE(SUM(COALESCE(actual_paid_amount, net_payable)), 0) FROM salary_slips WHERE payment_source = 'Owner Fund'"
+            "SELECT COALESCE(SUM(amount), 0) FROM salary_payments WHERE payment_source = 'Owner Fund'"
+        ).fetchone()[0]
+    )
+    outgoing_legacy_salary = float(
+        db.execute(
+            """
+            SELECT COALESCE(SUM(salary_slips.net_payable), 0)
+            FROM salary_slips
+            WHERE salary_slips.payment_source = 'Owner Fund'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM salary_payments
+                  WHERE salary_payments.driver_id = salary_slips.driver_id
+                    AND salary_payments.salary_month = salary_slips.salary_month
+              )
+            """
         ).fetchone()[0]
     )
     outgoing_field_staff = float(
@@ -14201,7 +14575,7 @@ def _owner_fund_totals(db):
             "SELECT COALESCE(SUM(amount), 0) FROM maintenance_staff_advances WHERE funding_source = 'Owner Fund'"
         ).fetchone()[0]
     )
-    outgoing = outgoing_owner_fund + outgoing_transactions + outgoing_salary + outgoing_field_staff
+    outgoing = outgoing_owner_fund + outgoing_transactions + outgoing_salary + outgoing_legacy_salary + outgoing_field_staff
     return incoming, outgoing, incoming - outgoing
 
 
@@ -14284,23 +14658,51 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         )
     for entry in db.execute(
         """
-        SELECT salary_slips.generated_at, salary_slips.driver_id, salary_slips.paid_by,
-               salary_slips.net_payable, salary_slips.actual_paid_amount, salary_slips.salary_month, drivers.full_name
+        SELECT salary_payments.payment_date, salary_payments.driver_id, salary_payments.paid_by,
+               salary_payments.amount, salary_payments.salary_month, drivers.full_name
+        FROM salary_payments
+        LEFT JOIN drivers ON drivers.driver_id = salary_payments.driver_id
+        WHERE salary_payments.payment_source = 'Owner Fund'
+        ORDER BY salary_payments.payment_date ASC, salary_payments.id ASC
+        """
+    ).fetchall():
+        driver_name = entry["full_name"] or entry["driver_id"]
+        rows.append(
+            {
+                "entry_date": entry["payment_date"],
+                "reference": f"Salary Slip / {driver_name}",
+                "party": entry["paid_by"] or "-",
+                "details": f"Salary {entry['salary_month']}",
+                "incoming": 0.0,
+                "outgoing": float(entry["amount"] or 0.0),
+                "movement": "Outgoing",
+            }
+        )
+    for entry in db.execute(
+        """
+        SELECT DATE(salary_slips.generated_at) AS payment_date, salary_slips.driver_id, salary_slips.paid_by,
+               salary_slips.net_payable AS amount, salary_slips.salary_month, drivers.full_name
         FROM salary_slips
         LEFT JOIN drivers ON drivers.driver_id = salary_slips.driver_id
-        WHERE payment_source = 'Owner Fund'
+        WHERE salary_slips.payment_source = 'Owner Fund'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM salary_payments
+              WHERE salary_payments.driver_id = salary_slips.driver_id
+                AND salary_payments.salary_month = salary_slips.salary_month
+          )
         ORDER BY salary_slips.generated_at ASC, salary_slips.id ASC
         """
     ).fetchall():
         driver_name = entry["full_name"] or entry["driver_id"]
         rows.append(
             {
-                "entry_date": _date_only_value(entry["generated_at"]),
+                "entry_date": entry["payment_date"],
                 "reference": f"Salary Slip / {driver_name}",
                 "party": entry["paid_by"] or "-",
                 "details": f"Salary {entry['salary_month']}",
                 "incoming": 0.0,
-                "outgoing": _salary_slip_amounts(entry)["actual_paid_amount"],
+                "outgoing": float(entry["amount"] or 0.0),
                 "movement": "Outgoing",
             }
         )
@@ -14400,7 +14802,6 @@ def _next_month_value(value: str) -> str:
 
 def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[dict], dict]:
     month_value = _normalize_month(month_value)
-    next_month = _next_month_value(month_value)
     opening_balance = 0.0
     for slip in db.execute(
         """
@@ -14419,9 +14820,9 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
             """
             SELECT COALESCE(SUM(amount), 0)
             FROM driver_transactions
-            WHERE driver_id = ? AND entry_date < ?
+            WHERE driver_id = ? AND COALESCE(salary_month, SUBSTR(entry_date, 1, 7)) < ?
             """,
-            (driver_id, f"{month_value}-01"),
+            (driver_id, month_value),
         ).fetchone()[0]
     )
     opening_advance_left -= float(
@@ -14447,12 +14848,12 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
     ).fetchall()
     transaction_rows = db.execute(
         """
-        SELECT entry_date, txn_type, source, given_by, amount, details
+        SELECT entry_date, salary_month, txn_type, source, given_by, amount, details
         FROM driver_transactions
-        WHERE driver_id = ? AND entry_date >= ? AND entry_date < ?
+        WHERE driver_id = ? AND COALESCE(salary_month, SUBSTR(entry_date, 1, 7)) = ?
         ORDER BY entry_date ASC, id ASC
         """,
-        (driver_id, f"{month_value}-01", f"{next_month}-01"),
+        (driver_id, month_value),
     ).fetchall()
     slip_rows = db.execute(
         """
@@ -14464,6 +14865,9 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
         """,
         (driver_id, month_value),
     ).fetchall()
+    payment_rows = _statement_payment_rows(db, driver_id, salary_month=month_value)
+    if not payment_rows and slip_rows:
+        payment_rows = _statement_payment_rows_with_legacy(db, slip_rows[-1], driver_id, salary_month=month_value)
 
     entries = []
     running_balance = opening_balance
@@ -14494,7 +14898,7 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
     for txn in transaction_rows:
         advance_left += float(txn["amount"])
         paid_by = (txn["source"] or txn["given_by"] or "-").strip()
-        reason = (txn["details"] or txn["given_by"] or txn["txn_type"] or "-").strip()
+        reason = f"{txn['txn_type']} - {(txn['details'] or txn['given_by'] or '-').strip()}"
         entries.append(
             {
                 "date": txn["entry_date"],
@@ -14505,40 +14909,40 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
                 "entry_kind": "transaction",
             }
         )
-    for slip in slip_rows:
-        slip_amounts = _salary_slip_amounts(slip)
-        deduction_amount = float(slip["total_deductions"] or 0.0)
-        if deduction_amount > 0:
-            running_balance = max(running_balance - deduction_amount, 0.0)
-            advance_left = max(advance_left - deduction_amount, 0.0)
+    total_deduction = sum(float(slip["total_deductions"] or 0.0) for slip in slip_rows)
+    if total_deduction > 0:
+        running_balance = max(running_balance - total_deduction, 0.0)
+        advance_left = max(advance_left - total_deduction, 0.0)
+        entries.append(
+            {
+                "date": f"{month_value}-28",
+                "amount": total_deduction,
+                "paid_by": "Current Link",
+                "reason": "Advance deduction applied",
+                "balance_after": running_balance,
+                "entry_kind": "deduction",
+            }
+        )
+    for payment in payment_rows:
+        payment_amount = _payment_row_amount(payment)
+        if payment_amount > 0:
+            running_balance = max(running_balance - payment_amount, 0.0)
             entries.append(
                 {
-                    "date": str(slip["generated_at"])[:10],
-                    "amount": deduction_amount,
-                    "paid_by": (slip["payment_source"] or slip["paid_by"] or "-").strip(),
-                    "reason": "Advance deduction",
-                    "balance_after": running_balance,
-                    "entry_kind": "deduction",
-                }
-            )
-        actual_paid_amount = slip_amounts["actual_paid_amount"]
-        if actual_paid_amount > 0:
-            running_balance = max(running_balance - actual_paid_amount, 0.0)
-            entries.append(
-                {
-                    "date": str(slip["generated_at"])[:10],
-                    "amount": actual_paid_amount,
-                    "paid_by": (slip["payment_source"] or slip["paid_by"] or "-").strip(),
-                    "reason": "Actual salary paid",
+                    "date": payment["payment_date"],
+                    "amount": payment_amount,
+                    "paid_by": (payment["payment_source"] or payment["paid_by"] or "-").strip(),
+                    "reason": (payment["notes"] or "Actual salary paid").strip(),
                     "balance_after": running_balance,
                     "entry_kind": "payment",
                 }
             )
-        if slip_amounts["company_balance_due"] > 0:
+    company_balance = sum(_salary_slip_amounts(slip)["company_balance_due"] for slip in slip_rows)
+    if company_balance > 0:
             entries.append(
                 {
-                    "date": str(slip["generated_at"])[:10],
-                    "amount": slip_amounts["company_balance_due"],
+                    "date": f"{month_value}-30",
+                    "amount": company_balance,
                     "paid_by": "Current Link",
                     "reason": "Company balance due",
                     "balance_after": running_balance,
@@ -14564,9 +14968,9 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
         "opening_balance": opening_balance,
         "salary_amount": sum(float(row["net_salary"]) for row in salary_rows),
         "cash_given": sum(float(row["amount"]) for row in transaction_rows),
-        "deduction_amount": sum(float(row["total_deductions"]) for row in slip_rows),
-        "paid_amount": sum(_salary_slip_amounts(row)["actual_paid_amount"] for row in slip_rows),
-        "company_balance_due": sum(_salary_slip_amounts(row)["company_balance_due"] for row in slip_rows),
+        "deduction_amount": total_deduction,
+        "paid_amount": sum(_payment_row_amount(row) for row in payment_rows),
+        "company_balance_due": company_balance,
         "advance_left": advance_left,
         "closing_balance": max(running_balance, 0.0),
     }
@@ -14577,14 +14981,14 @@ def _driver_transaction_history_rows(db, driver_id: str, upto_date: str | None =
     cutoff_date = upto_date or date.today().isoformat()
     transaction_rows = db.execute(
         """
-        SELECT id, entry_date, txn_type, source, given_by, amount, details
+        SELECT id, entry_date, salary_month, txn_type, source, given_by, amount, details
         FROM driver_transactions
         WHERE driver_id = ? AND entry_date <= ?
         ORDER BY entry_date DESC, id DESC
         """,
         (driver_id, cutoff_date),
     ).fetchall()
-    salary_paid_rows = db.execute(
+    statement_rows = db.execute(
         """
         SELECT salary_slips.id, salary_slips.salary_store_id, salary_slips.salary_month,
                salary_slips.total_deductions, salary_slips.salary_after_deduction, salary_slips.actual_paid_amount,
@@ -14599,6 +15003,19 @@ def _driver_transaction_history_rows(db, driver_id: str, upto_date: str | None =
         """,
         (driver_id, cutoff_date),
     ).fetchall()
+    payment_rows = db.execute(
+        """
+        SELECT salary_payments.id, salary_payments.driver_id, salary_payments.salary_store_id,
+               salary_payments.salary_month, salary_payments.payment_date, salary_payments.amount,
+               salary_payments.payment_source, salary_payments.paid_by, salary_payments.notes,
+               salary_store.remarks, salary_store.personal_vehicle, salary_store.personal_vehicle_note
+        FROM salary_payments
+        LEFT JOIN salary_store ON salary_store.id = salary_payments.salary_store_id
+        WHERE salary_payments.driver_id = ? AND salary_payments.payment_date <= ?
+        ORDER BY salary_payments.payment_date DESC, salary_payments.id DESC
+        """,
+        (driver_id, cutoff_date),
+    ).fetchall()
 
     history_rows = []
     for txn in transaction_rows:
@@ -14607,6 +15024,7 @@ def _driver_transaction_history_rows(db, driver_id: str, upto_date: str | None =
                 "row_type": "transaction",
                 "id": txn["id"],
                 "date": txn["entry_date"],
+                "salary_month": _transaction_salary_month(txn),
                 "type_label": txn["txn_type"],
                 "amount": float(txn["amount"]),
                 "source": (txn["source"] or "-").strip(),
@@ -14620,30 +15038,39 @@ def _driver_transaction_history_rows(db, driver_id: str, upto_date: str | None =
             }
         )
 
-    for slip in salary_paid_rows:
-        month_label = format_month_label(slip["salary_month"])
-        slip_amounts = _salary_slip_amounts(slip)
-        deduction_amount = float(slip["total_deductions"] or 0.0)
-        details = _salary_row_reason(slip) if "personal_vehicle_note" in slip.keys() else ((slip["remarks"] or "").strip() or f"{month_label} salary paid")
-        if deduction_amount > 0:
-            details = f"{details} | Deducted AED {deduction_amount:.2f}"
-        if slip_amounts["company_balance_due"] > 0:
-            details = f"{details} | Company balance AED {slip_amounts['company_balance_due']:.2f}"
+    if not payment_rows:
+        for statement in statement_rows:
+            payment_rows.extend(
+                _statement_payment_rows_with_legacy(
+                    db,
+                    statement,
+                    driver_id,
+                    salary_store_id=int(statement["salary_store_id"]),
+                    salary_month=statement["salary_month"],
+                )
+            )
+
+    for payment in payment_rows:
+        details = (payment["notes"] or "").strip()
+        salary_reason = _salary_row_reason(payment) if "personal_vehicle_note" in payment.keys() else ""
+        if salary_reason:
+            details = f"{salary_reason} | {details}" if details else salary_reason
         history_rows.append(
             {
                 "row_type": "salary_paid",
-                "id": slip["id"],
-                "date": str(slip["generated_at"])[:10],
+                "id": payment["id"],
+                "date": payment["payment_date"],
+                "salary_month": payment["salary_month"],
                 "type_label": "Salary Paid",
-                "amount": slip_amounts["actual_paid_amount"],
-                "source": (slip["payment_source"] or "-").strip(),
-                "given_by": (slip["paid_by"] or "-").strip(),
-                "details": details,
-                "edit_target": url_for("driver_salary_slip", driver_id=driver_id, salary_store_id=slip["salary_store_id"]),
-                "delete_target": url_for("delete_salary_slip", driver_id=driver_id, slip_id=slip["id"]),
+                "amount": _payment_row_amount(payment),
+                "source": (payment["payment_source"] or "-").strip(),
+                "given_by": (payment["paid_by"] or "-").strip(),
+                "details": details or "Salary payment",
+                "edit_target": url_for("driver_salary_slip", driver_id=driver_id, salary_store_id=payment["salary_store_id"], payment_id=payment["id"]) if not payment.get("is_legacy") else url_for("driver_salary_slip", driver_id=driver_id, salary_store_id=payment["salary_store_id"]),
+                "delete_target": url_for("delete_salary_slip", driver_id=driver_id, slip_id=payment["id"]) if not payment.get("is_legacy") else "#",
                 "edit_label": "Edit Slip",
-                "delete_label": "Delete Slip",
-                "sort_stamp": f"{str(slip['generated_at'])[:10]}::{int(slip['id']):010d}::2",
+                "delete_label": "Delete Slip" if not payment.get("is_legacy") else "",
+                "sort_stamp": f"{payment['payment_date']}::{int(payment['id']):010d}::2",
             }
         )
 
@@ -14734,7 +15161,16 @@ def _regenerate_kata_for_driver(app: Flask, db, driver, month_value: str | None 
         """,
         (driver["driver_id"],),
     ).fetchall()
-    if not salary_rows and not transactions and not salary_slips:
+    salary_payments = db.execute(
+        """
+        SELECT id, driver_id, salary_store_id, salary_month, payment_date, amount, payment_source, paid_by, notes
+        FROM salary_payments
+        WHERE driver_id = ?
+        ORDER BY payment_date ASC, id ASC
+        """,
+        (driver["driver_id"],),
+    ).fetchall()
+    if not salary_rows and not transactions and not salary_slips and not salary_payments:
         return None
     output_dir = _driver_output_dir(app, driver["driver_id"], driver=driver) / "kata_pdfs"
     pdf_path = generate_kata_pdf(
@@ -14742,6 +15178,7 @@ def _regenerate_kata_for_driver(app: Flask, db, driver, month_value: str | None 
         salary_rows,
         transactions,
         salary_slips,
+        salary_payments,
         str(output_dir),
         app.config["STATIC_ASSETS_DIR"],
         month_value=month_value,
@@ -14861,6 +15298,14 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
     ).fetchone()
     if salary_row is None:
         return None
+    payment_rows = _statement_payment_rows_with_legacy(
+        db,
+        slip,
+        slip["driver_id"],
+        salary_store_id=int(slip["salary_store_id"]),
+        salary_month=salary_row["salary_month"],
+    )
+    latest_payment = payment_rows[-1] if payment_rows else None
     slip_payload = {
         "available_advance": float(slip["available_advance"]),
         "deduction_amount": float(slip["total_deductions"]),
@@ -14868,8 +15313,8 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         "salary_after_deduction": _salary_slip_amounts(slip)["salary_after_deduction"],
         "actual_paid_amount": _salary_slip_amounts(slip)["actual_paid_amount"],
         "company_balance_due": _salary_slip_amounts(slip)["company_balance_due"],
-        "payment_source": slip["payment_source"] or PAYMENT_SOURCES[0],
-        "paid_by": slip["paid_by"] or "",
+        "payment_source": (latest_payment["payment_source"] if latest_payment else slip["payment_source"]) or PAYMENT_SOURCES[0],
+        "paid_by": (latest_payment["paid_by"] if latest_payment else slip["paid_by"]) or "",
         "net_payable": _salary_slip_amounts(slip)["actual_paid_amount"],
     }
     output_dir = _driver_output_dir(app, slip["driver_id"], driver=driver) / "salary_slips"
@@ -14880,6 +15325,7 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         str(output_dir),
         app.config["STATIC_ASSETS_DIR"],
         app.config["GENERATED_DIR"],
+        payment_rows=payment_rows,
     )
     _mirror_generated_file(app, pdf_path)
     return pdf_path
