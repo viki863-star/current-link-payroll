@@ -84,13 +84,16 @@ a {
 
 .portal-bg {
   z-index: -3;
-  background: url("/static/portal-new.png") center center / cover no-repeat;
+  background:
+    linear-gradient(90deg, rgba(7, 17, 29, 0.22) 0%, rgba(7, 17, 29, 0.08) 34%, rgba(7, 17, 29, 0.04) 100%),
+    url("/static/portal-new.png") center center / cover no-repeat;
+  transform: scale(1.02);
 }
 
 .portal-overlay {
   z-index: -2;
   background:
-    linear-gradient(95deg, rgba(7, 17, 29, 0.95) 0%, rgba(10, 22, 36, 0.9) 32%, rgba(14, 28, 44, 0.78) 52%, rgba(16, 31, 50, 0.42) 72%, rgba(16, 31, 50, 0.16) 100%),
+    linear-gradient(95deg, rgba(7, 17, 29, 0.82) 0%, rgba(10, 22, 36, 0.7) 26%, rgba(14, 28, 44, 0.44) 48%, rgba(16, 31, 50, 0.16) 72%, rgba(16, 31, 50, 0.04) 100%),
     radial-gradient(circle at right top, rgba(255, 255, 255, 0.08), transparent 28%);
 }
 
