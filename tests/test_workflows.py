@@ -606,9 +606,9 @@ def test_salary_slip_supports_custom_actual_paid_and_company_balance(app, client
     assert b"Salary" in action_page.data
     assert b"Katai" in action_page.data
     assert b"Mila" in action_page.data
-    assert b"Baki" in action_page.data
+    assert b"Baqi Salary" in action_page.data
     assert b"Pichla Baki" in action_page.data
-    assert b"Salary Baad Katai" in action_page.data
+    assert b"Total Salary" in action_page.data
     assert b"Recovery trip" in action_page.data
     assert b"Advance deduction" in action_page.data
     assert b"Actual salary paid" in action_page.data
@@ -810,6 +810,16 @@ def test_monthly_kata_pdf_uses_paper_style_summary_labels(app):
             driver,
             [
                 {
+                    "entry_date": "2026-03-31",
+                    "salary_month": "2026-03",
+                    "basic_salary": 4500.0,
+                    "ot_amount": 0.0,
+                    "personal_vehicle": 800.0,
+                    "net_salary": 5300.0,
+                    "remarks": "March salary",
+                    "personal_vehicle_note": "Recovery trip",
+                },
+                {
                     "entry_date": "2026-04-30",
                     "salary_month": "2026-04",
                     "basic_salary": 4500.0,
@@ -822,6 +832,14 @@ def test_monthly_kata_pdf_uses_paper_style_summary_labels(app):
             ],
             [
                 {
+                    "entry_date": "2026-03-10",
+                    "txn_type": "Advance",
+                    "source": "Owner Fund",
+                    "given_by": "Office",
+                    "amount": 1424.0,
+                    "details": "March advance",
+                },
+                {
                     "entry_date": "2026-04-10",
                     "txn_type": "Advance",
                     "source": "Owner Fund",
@@ -831,6 +849,17 @@ def test_monthly_kata_pdf_uses_paper_style_summary_labels(app):
                 }
             ],
             [
+                {
+                    "generated_at": "2026-03-31 10:30:00",
+                    "salary_month": "2026-03",
+                    "total_deductions": 1424.0,
+                    "salary_after_deduction": 3876.0,
+                    "actual_paid_amount": 3500.0,
+                    "company_balance_due": 376.0,
+                    "net_payable": 3500.0,
+                    "payment_source": "Owner Fund",
+                    "paid_by": "Waqar",
+                },
                 {
                     "generated_at": "2026-04-30 10:30:00",
                     "salary_month": "2026-04",
@@ -851,8 +880,9 @@ def test_monthly_kata_pdf_uses_paper_style_summary_labels(app):
 
         extracted_text = "\n".join(page.extract_text() or "" for page in PdfReader(output_path).pages)
         assert "HISAAB SUMMARY" in extracted_text
+        assert "Closed Previous Hisaab" in extracted_text
         assert "Pichla Baki" in extracted_text
-        assert "Salary Baad Katai" in extracted_text
+        assert "Total Salary" in extracted_text
         assert "Mila" in extracted_text
         assert "Baki" in extracted_text
     finally:
@@ -954,15 +984,16 @@ def test_driver_portal_shows_only_selected_month_kata_entries(app, client):
 
     assert response.status_code == 200
     assert b"Monthly Statement" in response.data
+    assert b"Closed Previous Hisaab" in response.data
     assert b"Pichla Baki" in response.data
-    assert b"Salary Baad Katai" in response.data
+    assert b"Total Salary" in response.data
     assert b"Kis Ne Diya" in response.data
     assert b"Kis Liye" in response.data
     assert b"Fuel for March" in response.data
     assert b"Office" in response.data
     assert b"March salary" in response.data
-    assert b"Old visa" not in response.data
-    assert b"2026-02-10" not in response.data
+    assert b"Old visa" in response.data
+    assert b"2026-02-10" in response.data
 
 
 def test_driver_monthly_kata_pdf_route_uses_selected_month_filename(app, client):
@@ -1049,13 +1080,103 @@ def test_driver_action_page_keeps_selected_kata_month(app, client):
     assert b"Salary" in response.data
     assert b"Kis Ne Diya" in response.data
     assert b"Kis Liye" in response.data
+    assert b"Closed Previous Hisaab" in response.data
     assert b"Pichla Baki" in response.data
-    assert b"Salary Baad Katai" in response.data
+    assert b"Total Salary" in response.data
     assert b"Fuel for March" in response.data
     assert b"March salary" in response.data
-    assert b"Old visa" not in response.data
+    assert b"Old visa" in response.data
     assert b"2026-03" in response.data
     assert b"/drivers/DRV-T1/kata-pdf?month=2026-03" in response.data
+
+
+def test_driver_statement_carries_previous_month_balance_into_next_month(app, client):
+    create_driver_record(app, basic_salary=4500.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-03-10",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Office",
+            "amount": "1424",
+            "details": "March advance",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-03-31",
+            "salary_month": "2026-03",
+            "ot_hours": "0",
+            "personal_vehicle": "800",
+            "remarks": "March salary",
+            "personal_vehicle_note": "Recovery trip",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "1424",
+            "actual_paid_amount": "3500",
+            "payment_source": "Owner Direct",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-05",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Owner",
+            "amount": "69",
+            "details": "Eid kharcha",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "630",
+            "remarks": "April salary",
+            "personal_vehicle_note": "Petrol",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "2",
+            "deduction_amount": "69",
+            "actual_paid_amount": "3500",
+            "payment_source": "Owner Direct",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.get("/drivers/DRV-T1?kata_month=2026-04")
+
+    assert response.status_code == 200
+    assert b"Closed Previous Hisaab" in response.data
+    assert b"March advance" in response.data
+    assert b"March salary" in response.data
+    assert b"Pichla Baki" in response.data
+    assert b"AED 376.00" in response.data
+    assert b"April salary" in response.data
+    assert b"Eid kharcha" in response.data
 
 
 def test_owner_fund_pdf_supports_filtered_multi_page_output(app):

@@ -6059,7 +6059,7 @@ def register_routes(app: Flask) -> None:
         month_hours = _timesheet_total_for_month(db, driver["driver_id"], selected_month)
         month_calendar = _driver_month_calendar(db, driver["driver_id"], selected_month)
         timesheet_summary = _timesheet_month_summary(month_calendar)
-        kata_entries, kata_summary = _driver_kata_month_data(db, driver["driver_id"], selected_month)
+        kata_entries, closed_kata_entries, kata_summary = _driver_kata_month_data(db, driver["driver_id"], selected_month)
 
         return render_template(
             "driver_portal.html",
@@ -6074,6 +6074,7 @@ def register_routes(app: Flask) -> None:
             selected_month=selected_month,
             selected_month_label=format_month_label(selected_month),
             kata_entries=kata_entries,
+            closed_kata_entries=closed_kata_entries,
             kata_summary=kata_summary,
             month_calendar=month_calendar,
             timesheet_summary=timesheet_summary,
@@ -6596,7 +6597,7 @@ def register_routes(app: Flask) -> None:
             """,
             (driver_id,),
         ).fetchone()
-        kata_entries, kata_summary = _driver_kata_month_data(db, driver_id, selected_kata_month)
+        kata_entries, closed_kata_entries, kata_summary = _driver_kata_month_data(db, driver_id, selected_kata_month)
 
         return render_template(
             "driver_action.html",
@@ -6615,6 +6616,7 @@ def register_routes(app: Flask) -> None:
                 (driver_id,),
             ).fetchone()[0],
             kata_entries=kata_entries,
+            closed_kata_entries=closed_kata_entries,
             kata_summary=kata_summary,
             salary_count=db.execute(
                 "SELECT COUNT(*) FROM salary_store WHERE driver_id = ?",
@@ -14800,19 +14802,51 @@ def _next_month_value(value: str) -> str:
     return f"{month_date.year}-{month_date.month + 1:02d}"
 
 
-def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[dict], dict]:
-    month_value = _normalize_month(month_value)
-    opening_balance = 0.0
-    for slip in db.execute(
+def _previous_driver_statement_month(db, driver_id: str, month_value: str) -> str | None:
+    row = db.execute(
         """
-        SELECT salary_after_deduction, actual_paid_amount, company_balance_due, net_payable
-        FROM salary_slips
-        WHERE driver_id = ? AND salary_month < ?
-        ORDER BY salary_month ASC, id ASC
+        SELECT MAX(month_value) AS month_value
+        FROM (
+            SELECT salary_month AS month_value
+            FROM salary_store
+            WHERE driver_id = ? AND salary_month < ?
+            UNION ALL
+            SELECT salary_month AS month_value
+            FROM salary_slips
+            WHERE driver_id = ? AND salary_month < ?
+            UNION ALL
+            SELECT salary_month AS month_value
+            FROM salary_payments
+            WHERE driver_id = ? AND salary_month < ?
+            UNION ALL
+            SELECT COALESCE(salary_month, SUBSTR(entry_date, 1, 7)) AS month_value
+            FROM driver_transactions
+            WHERE driver_id = ? AND COALESCE(salary_month, SUBSTR(entry_date, 1, 7)) < ?
+        ) month_rows
         """,
-        (driver_id, month_value),
-    ).fetchall():
-        opening_balance += _salary_slip_amounts(slip)["company_balance_due"]
+        (driver_id, month_value, driver_id, month_value, driver_id, month_value, driver_id, month_value),
+    ).fetchone()
+    month_text = (row["month_value"] or "").strip() if row is not None else ""
+    return _normalize_month(month_text) if month_text else None
+
+
+def _driver_month_statement_core(db, driver_id: str, month_value: str) -> tuple[list[dict], dict]:
+    month_value = _normalize_month(month_value)
+    previous_month_value = _previous_driver_statement_month(db, driver_id, month_value)
+    opening_balance = 0.0
+    if previous_month_value:
+        previous_slip = db.execute(
+            """
+            SELECT salary_after_deduction, actual_paid_amount, company_balance_due, net_payable
+            FROM salary_slips
+            WHERE driver_id = ? AND salary_month = ?
+            ORDER BY generated_at DESC, id DESC
+            LIMIT 1
+            """,
+            (driver_id, previous_month_value),
+        ).fetchone()
+        if previous_slip is not None:
+            opening_balance = _salary_slip_amounts(previous_slip)["company_balance_due"]
     opening_balance = max(opening_balance, 0.0)
 
     opening_advance_left = float(
@@ -14969,6 +15003,7 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
     summary = {
         "month": month_value,
         "month_label": format_month_label(month_value),
+        "previous_month": previous_month_value or "",
         "opening_balance": opening_balance,
         "salary_amount": sum(float(row["net_salary"]) for row in salary_rows),
         "salary_total": salary_total,
@@ -14981,6 +15016,26 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
         "closing_balance": max(running_balance, 0.0),
     }
     return entries, summary
+
+
+def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[dict], list[dict], dict]:
+    month_value = _normalize_month(month_value)
+    active_entries, summary = _driver_month_statement_core(db, driver_id, month_value)
+    closed_entries: list[dict] = []
+    previous_month_value = summary.get("previous_month") or ""
+    if previous_month_value:
+        previous_entries, previous_summary = _driver_month_statement_core(db, driver_id, previous_month_value)
+        for item in previous_entries:
+            closed_item = dict(item)
+            closed_item["is_closed"] = True
+            closed_item["closed_month"] = previous_month_value
+            closed_entries.append(closed_item)
+        summary["closed_month_label"] = previous_summary["month_label"]
+        summary["closed_month_balance"] = previous_summary["company_balance_due"]
+    else:
+        summary["closed_month_label"] = ""
+        summary["closed_month_balance"] = 0.0
+    return active_entries, closed_entries, summary
 
 
 def _driver_transaction_history_rows(db, driver_id: str, upto_date: str | None = None) -> list[dict]:

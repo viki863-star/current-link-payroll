@@ -204,10 +204,43 @@
                 <h2>Monthly Statement</h2>
             </div>
         </div>
+        {% if closed_kata_entries %}
+            <div class="closed-statement-block">
+                <div class="portal-paper-header">
+                    <span>Closed Previous Hisaab</span>
+                    <span>{{ kata_summary.closed_month_label }}</span>
+                </div>
+                <div class="closed-statement-note">Purana month close ho chuka hai. Sirf `Pichla Baki` current month mein carry hua hai.</div>
+                <div class="table-wrap">
+                    <table class="kata-month-table closed-kata-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Raqam</th>
+                                <th>Kis Ne Diya</th>
+                                <th>Kis Liye</th>
+                                <th>Baki</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in closed_kata_entries %}
+                                <tr class="closed-row">
+                                    <td>{{ item.date }}</td>
+                                    <td class="kata-amount-cell">AED {{ "%.2f"|format(item.amount) }}</td>
+                                    <td class="kata-who-cell">{{ item.paid_by or "-" }}</td>
+                                    <td class="kata-purpose-cell">{{ item.reason or "-" }}</td>
+                                    <td class="kata-balance-cell">AED {{ "%.2f"|format(item.balance_after) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
         <div class="portal-paper-summary">
             <article class="portal-paper-card">
                 <div class="portal-paper-header">
-                    <span>{{ kata_summary.month_label }}</span>
+                    <span>Driver Salary | {{ kata_summary.month_label }}</span>
                     <span>Driver ID {{ driver.driver_id }}</span>
                 </div>
                 <div class="portal-paper-lines">
@@ -215,11 +248,15 @@
                     <div class="portal-paper-line plus"><span>Salary</span><strong>AED {{ "%.2f"|format(kata_summary.salary_total or kata_summary.salary_amount) }}</strong></div>
                     <div class="portal-paper-line plus"><span>Extra / OT</span><strong>AED {{ "%.2f"|format(kata_summary.extra_total or 0) }}</strong></div>
                     <div class="portal-paper-line minus"><span>Katai</span><strong>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</strong></div>
-                    <div class="portal-paper-line total"><span>Salary Baad Katai</span><strong>AED {{ "%.2f"|format(kata_summary.closing_balance + kata_summary.paid_amount) }}</strong></div>
+                    <div class="portal-paper-line total"><span>Total Salary</span><strong>AED {{ "%.2f"|format(kata_summary.closing_balance + kata_summary.paid_amount) }}</strong></div>
                     <div class="portal-paper-line minus"><span>Mila</span><strong>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</strong></div>
-                    <div class="portal-paper-line balance"><span>Baki</span><strong>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</strong></div>
+                    <div class="portal-paper-line balance"><span>Baqi Salary</span><strong>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</strong></div>
                 </div>
             </article>
+        </div>
+        <div class="portal-paper-side-labels">
+            <span>Driver Salary</span>
+            <span>Wosool Shoda / Katai / Mila</span>
         </div>
         {% if kata_entries %}
             <div class="table-wrap">
@@ -276,6 +313,18 @@
     margin-bottom: 18px;
 }
 
+.portal-paper-side-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    color: var(--primary);
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
 .portal-paper-card {
     padding: 18px;
     border-radius: 18px;
@@ -289,6 +338,20 @@
             rgba(38, 86, 142, 0.06) 31px,
             rgba(38, 86, 142, 0.06) 32px
         );
+}
+
+.closed-statement-block {
+    margin-bottom: 18px;
+    padding: 16px;
+    border: 1px dashed rgba(21, 51, 93, 0.18);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(247, 250, 253, 0.95), rgba(241, 246, 251, 0.98));
+}
+
+.closed-statement-note {
+    margin-bottom: 12px;
+    color: var(--muted-text);
+    font-size: 0.92rem;
 }
 
 .portal-paper-header {
@@ -339,6 +402,15 @@
 .portal-paper-line.balance strong {
     color: #0f5f46;
     font-size: 1.12rem;
+}
+
+.closed-kata-table {
+    opacity: 0.68;
+}
+
+.closed-kata-table .closed-row td {
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
 }
 @media (max-width: 720px) {
     .kata-month-table {

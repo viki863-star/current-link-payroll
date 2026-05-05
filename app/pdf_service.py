@@ -279,126 +279,230 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         return not selected_month or (_pdf_row_value(value, "salary_month") or "") == selected_month
 
     def _txn_for_month(value):
-        return not selected_month or str(_pdf_row_value(value, "entry_date") or "")[:7] == selected_month
+        txn_month = (_pdf_row_value(value, "salary_month") or "").strip() or str(_pdf_row_value(value, "entry_date") or "")[:7]
+        return not selected_month or txn_month == selected_month
 
     def _slip_for_month(value):
         return not selected_month or (_pdf_row_value(value, "salary_month") or "") == selected_month
 
-    opening_balance = 0.0
-    if selected_month:
-        opening_balance = sum(_pdf_slip_amounts(item)["company_balance_due"] for item in salary_slips if (_pdf_row_value(item, "salary_month") or "") < selected_month)
-        opening_balance = max(opening_balance, 0.0)
-
-    month_salary_rows = [row for row in salary_rows if _salary_for_month(row)]
-    month_transactions = [row for row in transactions if _txn_for_month(row)]
-    month_salary_slips = [row for row in salary_slips if _slip_for_month(row)]
     salary_payments = list(salary_payments or [])
-    month_salary_payments = [row for row in salary_payments if not selected_month or (_pdf_row_value(row, "salary_month") or "") == selected_month]
 
-    entries = []
-    running_balance = opening_balance
-    if selected_month:
+    def _previous_month_before(target_month: str) -> str:
+        candidates = []
+        for row in salary_rows:
+            month_text = (_pdf_row_value(row, "salary_month") or "").strip()
+            if month_text and month_text < target_month:
+                candidates.append(month_text)
+        for row in salary_slips:
+            month_text = (_pdf_row_value(row, "salary_month") or "").strip()
+            if month_text and month_text < target_month:
+                candidates.append(month_text)
+        for row in salary_payments:
+            month_text = (_pdf_row_value(row, "salary_month") or "").strip()
+            if month_text and month_text < target_month:
+                candidates.append(month_text)
+        for row in transactions:
+            month_text = ((_pdf_row_value(row, "salary_month") or "").strip() or str(_pdf_row_value(row, "entry_date") or "")[:7])
+            if month_text and month_text < target_month:
+                candidates.append(month_text)
+        return max(candidates) if candidates else ""
+
+    def _month_statement_core(target_month: str):
+        previous_month = _previous_month_before(target_month)
+        opening = 0.0
+        if previous_month:
+            previous_slips = [item for item in salary_slips if (_pdf_row_value(item, "salary_month") or "") == previous_month]
+            if previous_slips:
+                opening = _pdf_slip_amounts(previous_slips[-1])["company_balance_due"]
+        opening = max(opening, 0.0)
+
+        month_salary_rows = [row for row in salary_rows if (_pdf_row_value(row, "salary_month") or "") == target_month]
+        month_transactions = [
+            row for row in transactions
+            if (((_pdf_row_value(row, "salary_month") or "").strip()) or str(_pdf_row_value(row, "entry_date") or "")[:7]) == target_month
+        ]
+        month_salary_slips = [row for row in salary_slips if (_pdf_row_value(row, "salary_month") or "") == target_month]
+        month_salary_payments = [row for row in salary_payments if (_pdf_row_value(row, "salary_month") or "") == target_month]
+
+        entries = []
+        running = opening
         entries.append(
             {
-                "date": f"{selected_month}-01",
-                "amount": opening_balance,
+                "date": f"{target_month}-01",
+                "amount": opening,
                 "paid_by": "Previous Month",
                 "reason": "Opening balance",
-                "balance_after": opening_balance,
+                "balance_after": opening,
                 "sort_group": -1,
             }
         )
-    for salary in month_salary_rows:
-        running_balance += float(salary["net_salary"])
-        entries.append(
-            {
-                "date": _iso_date_value(salary["entry_date"]),
-                "amount": float(salary["net_salary"]),
-                "paid_by": "Current Link",
-                "reason": _pdf_salary_reason(salary),
-                "balance_after": max(running_balance, 0.0),
-                "sort_group": 0,
-            }
-        )
-    for txn in month_transactions:
-        entries.append(
-            {
-                "date": _iso_date_value(txn["entry_date"]),
-                "amount": float(txn["amount"]),
-                "paid_by": (_pdf_row_value(txn, "source") or _pdf_row_value(txn, "given_by") or "-").strip(),
-                "reason": (_pdf_row_value(txn, "details") or _pdf_row_value(txn, "given_by") or txn["txn_type"] or "-").strip(),
-                "balance_after": max(running_balance, 0.0),
-                "sort_group": 1,
-            }
-        )
-    total_deduction = sum(float(item["total_deductions"] or 0.0) for item in month_salary_slips)
-    if total_deduction > 0:
-        running_balance = max(running_balance - total_deduction, 0.0)
-        entries.append(
-            {
-                "date": f"{selected_month}-28" if selected_month else (_iso_date_value(_pdf_row_value(month_salary_slips[-1], "generated_at")) if month_salary_slips else "-"),
-                "amount": total_deduction,
-                "paid_by": "Current Link",
-                "reason": "Monthly deductions applied",
-                "balance_after": running_balance,
-                "sort_group": 2,
-            }
-        )
-    if not month_salary_payments and month_salary_slips:
-        for slip in month_salary_slips:
-            slip_amounts = _pdf_slip_amounts(slip)
-            if slip_amounts["actual_paid_amount"] > 0:
-                month_salary_payments.append(
-                    {
-                        "payment_date": _iso_date_value(_pdf_row_value(slip, "generated_at")),
-                        "salary_month": _pdf_row_value(slip, "salary_month"),
-                        "amount": slip_amounts["actual_paid_amount"],
-                        "payment_source": _pdf_row_value(slip, "payment_source") or "",
-                        "paid_by": _pdf_row_value(slip, "paid_by") or "",
-                        "notes": "Legacy salary payment",
-                    }
-                )
-    for payment in month_salary_payments:
-        payment_amount = float(_pdf_row_value(payment, "amount", 0.0) or 0.0)
-        if payment_amount > 0:
-            running_balance = max(running_balance - payment_amount, 0.0)
+        for salary in month_salary_rows:
+            running += float(salary["net_salary"])
             entries.append(
                 {
-                    "date": _iso_date_value(_pdf_row_value(payment, "payment_date")),
-                    "amount": payment_amount,
-                    "paid_by": (_pdf_row_value(payment, "payment_source") or _pdf_row_value(payment, "paid_by") or "-").strip(),
-                    "reason": (_pdf_row_value(payment, "notes") or "Salary payment").strip(),
-                    "balance_after": running_balance,
-                    "sort_group": 3,
+                    "date": _iso_date_value(salary["entry_date"]),
+                    "amount": float(salary["net_salary"]),
+                    "paid_by": "Current Link",
+                    "reason": _pdf_salary_reason(salary),
+                    "balance_after": max(running, 0.0),
+                    "sort_group": 0,
                 }
             )
-    total_company_balance = sum(_pdf_slip_amounts(item)["company_balance_due"] for item in month_salary_slips)
-    if total_company_balance > 0:
-        entries.append(
-            {
-                "date": f"{selected_month}-30" if selected_month else (_iso_date_value(_pdf_row_value(month_salary_slips[-1], "generated_at")) if month_salary_slips else "-"),
-                "amount": total_company_balance,
-                "paid_by": "Current Link",
-                "reason": "Company balance due",
-                "balance_after": running_balance,
-                "sort_group": 4,
-            }
-        )
-    entries.sort(key=lambda item: (item["date"], item["sort_group"]))
+        for txn in month_transactions:
+            entries.append(
+                {
+                    "date": _iso_date_value(txn["entry_date"]),
+                    "amount": float(txn["amount"]),
+                    "paid_by": (_pdf_row_value(txn, "source") or _pdf_row_value(txn, "given_by") or "-").strip(),
+                    "reason": (_pdf_row_value(txn, "details") or _pdf_row_value(txn, "given_by") or txn["txn_type"] or "-").strip(),
+                    "balance_after": max(running, 0.0),
+                    "sort_group": 1,
+                }
+            )
+        total_deduction = sum(float(item["total_deductions"] or 0.0) for item in month_salary_slips)
+        if total_deduction > 0:
+            running = max(running - total_deduction, 0.0)
+            entries.append(
+                {
+                    "date": f"{target_month}-28",
+                    "amount": total_deduction,
+                    "paid_by": "Current Link",
+                    "reason": "Advance deduction applied",
+                    "balance_after": running,
+                    "sort_group": 2,
+                }
+            )
+        if not month_salary_payments and month_salary_slips:
+            for slip in month_salary_slips:
+                slip_amounts = _pdf_slip_amounts(slip)
+                if slip_amounts["actual_paid_amount"] > 0:
+                    month_salary_payments.append(
+                        {
+                            "payment_date": _iso_date_value(_pdf_row_value(slip, "generated_at")),
+                            "salary_month": _pdf_row_value(slip, "salary_month"),
+                            "amount": slip_amounts["actual_paid_amount"],
+                            "payment_source": _pdf_row_value(slip, "payment_source") or "",
+                            "paid_by": _pdf_row_value(slip, "paid_by") or "",
+                            "notes": "Legacy salary payment",
+                        }
+                    )
+        for payment in month_salary_payments:
+            payment_amount = float(_pdf_row_value(payment, "amount", 0.0) or 0.0)
+            if payment_amount > 0:
+                running = max(running - payment_amount, 0.0)
+                entries.append(
+                    {
+                        "date": _iso_date_value(_pdf_row_value(payment, "payment_date")),
+                        "amount": payment_amount,
+                        "paid_by": (_pdf_row_value(payment, "payment_source") or _pdf_row_value(payment, "paid_by") or "-").strip(),
+                        "reason": (_pdf_row_value(payment, "notes") or "Actual salary paid").strip(),
+                        "balance_after": running,
+                        "sort_group": 3,
+                    }
+                )
+        total_company_balance = sum(_pdf_slip_amounts(item)["company_balance_due"] for item in month_salary_slips)
+        if total_company_balance > 0:
+            entries.append(
+                {
+                    "date": f"{target_month}-30",
+                    "amount": total_company_balance,
+                    "paid_by": "Current Link",
+                    "reason": "Company balance due",
+                    "balance_after": running,
+                    "sort_group": 4,
+                }
+            )
+        entries.sort(key=lambda item: (item["date"], item["sort_group"]))
 
-    total_salary = sum(float(row["net_salary"]) for row in month_salary_rows)
-    total_extra = sum(
-        float(_pdf_row_value(row, "ot_amount", 0.0) or 0.0) + float(_pdf_row_value(row, "personal_vehicle", 0.0) or 0.0)
-        for row in month_salary_rows
-    )
-    base_salary_total = max(total_salary - total_extra, 0.0)
-    total_advance = sum(float(item["amount"]) for item in month_transactions)
-    total_deducted = total_deduction
-    total_net_paid = sum(float(_pdf_row_value(item, "amount", 0.0) or 0.0) for item in month_salary_payments)
-    closing_balance = max(running_balance, 0.0)
+        total_salary = sum(float(row["net_salary"]) for row in month_salary_rows)
+        total_extra = sum(
+            float(_pdf_row_value(row, "ot_amount", 0.0) or 0.0) + float(_pdf_row_value(row, "personal_vehicle", 0.0) or 0.0)
+            for row in month_salary_rows
+        )
+        base_salary_total = max(total_salary - total_extra, 0.0)
+        total_net_paid = sum(float(_pdf_row_value(item, "amount", 0.0) or 0.0) for item in month_salary_payments)
+        return {
+            "month": target_month,
+            "previous_month": previous_month,
+            "opening_balance": opening,
+            "entries": entries,
+            "salary_rows": month_salary_rows,
+            "transactions": month_transactions,
+            "salary_slips": month_salary_slips,
+            "payments": month_salary_payments,
+            "total_salary": total_salary,
+            "total_extra": total_extra,
+            "base_salary_total": base_salary_total,
+            "total_deducted": total_deduction,
+            "total_paid": total_net_paid,
+            "total_company_balance": total_company_balance,
+            "closing_balance": max(running, 0.0),
+        }
+
+    if selected_month:
+        current_month_data = _month_statement_core(selected_month)
+        previous_month_value = current_month_data["previous_month"]
+        closed_entries = []
+        closed_month_label = ""
+        if previous_month_value:
+            previous_month_data = _month_statement_core(previous_month_value)
+            closed_month_label = format_month_label(previous_month_value)
+            for item in previous_month_data["entries"]:
+                closed_item = dict(item)
+                closed_item["is_closed"] = True
+                closed_entries.append(closed_item)
+        entries = current_month_data["entries"]
+        opening_balance = current_month_data["opening_balance"]
+        total_salary = current_month_data["total_salary"]
+        total_extra = current_month_data["total_extra"]
+        base_salary_total = current_month_data["base_salary_total"]
+        total_advance = sum(float(item["amount"]) for item in current_month_data["transactions"])
+        total_deducted = current_month_data["total_deducted"]
+        total_net_paid = current_month_data["total_paid"]
+        total_company_balance = current_month_data["total_company_balance"]
+        closing_balance = current_month_data["closing_balance"]
+    else:
+        closed_entries = []
+        closed_month_label = ""
+        entries = []
+        opening_balance = 0.0
+        total_salary = sum(float(row["net_salary"]) for row in salary_rows)
+        total_extra = sum(
+            float(_pdf_row_value(row, "ot_amount", 0.0) or 0.0) + float(_pdf_row_value(row, "personal_vehicle", 0.0) or 0.0)
+            for row in salary_rows
+        )
+        base_salary_total = max(total_salary - total_extra, 0.0)
+        total_advance = sum(float(item["amount"]) for item in transactions)
+        for salary in salary_rows:
+            entries.append(
+                {
+                    "date": _iso_date_value(salary["entry_date"]),
+                    "amount": float(salary["net_salary"]),
+                    "paid_by": "Current Link",
+                    "reason": _pdf_salary_reason(salary),
+                    "balance_after": 0.0,
+                    "sort_group": 0,
+                }
+            )
+        for txn in transactions:
+            entries.append(
+                {
+                    "date": _iso_date_value(txn["entry_date"]),
+                    "amount": float(txn["amount"]),
+                    "paid_by": (_pdf_row_value(txn, "source") or _pdf_row_value(txn, "given_by") or "-").strip(),
+                    "reason": (_pdf_row_value(txn, "details") or _pdf_row_value(txn, "given_by") or txn["txn_type"] or "-").strip(),
+                    "balance_after": 0.0,
+                    "sort_group": 1,
+                }
+            )
+        total_deducted = sum(float(item["total_deductions"] or 0.0) for item in salary_slips)
+        total_net_paid = sum(float(_pdf_row_value(item, "amount", 0.0) or 0.0) for item in salary_payments)
+        total_company_balance = sum(_pdf_slip_amounts(item)["company_balance_due"] for item in salary_slips)
+        closing_balance = total_company_balance
+        entries.sort(key=lambda item: (item["date"], item["sort_group"]))
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    rows_per_page = 20
+    rows_per_page = 16 if selected_month else 20
     pages = [entries[index:index + rows_per_page] for index in range(0, len(entries), rows_per_page)] or [[]]
 
     for page_number, page_rows in enumerate(pages, start=1):
@@ -412,18 +516,20 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         if selected_month:
             _draw_kata_paper_summary(
                 pdf,
-                [
-                    ("Pichla Baki", format_currency(opening_balance)),
-                    ("Salary", format_currency(base_salary_total)),
-                    ("Extra / OT", format_currency(total_extra)),
-                    ("Katai", format_currency(total_deducted)),
-                    ("Salary Baad Katai", format_currency(closing_balance + total_net_paid)),
-                    ("Mila", format_currency(total_net_paid)),
-                    ("Baki", format_currency(total_company_balance)),
-                ],
+                    [
+                        ("Pichla Baki", format_currency(opening_balance)),
+                        ("Salary", format_currency(base_salary_total)),
+                        ("Extra / OT", format_currency(total_extra)),
+                        ("Katai", format_currency(total_deducted)),
+                        ("Total Salary", format_currency(closing_balance + total_net_paid)),
+                        ("Mila", format_currency(total_net_paid)),
+                        ("Baki", format_currency(total_company_balance)),
+                    ],
                 month_label=normalized_month,
                 driver_id=driver["driver_id"],
             )
+            if closed_entries:
+                _draw_kata_closed_rows(pdf, closed_entries, closed_month_label)
         else:
             _draw_kata_stat_row(
                 pdf,
@@ -446,7 +552,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
                 ],
                 start_y=PAGE_HEIGHT - 157 * mm,
             )
-        table_top = PAGE_HEIGHT - 226 * mm if selected_month else None
+        table_top = PAGE_HEIGHT - 254 * mm if selected_month else None
         _draw_kata_statement_table(pdf, page_rows, top=table_top)
         _draw_footer_banner(pdf, assets_dir)
         pdf.showPage()
@@ -1832,6 +1938,36 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, rows, month_label: str, driver_
         pdf.setFont("Helvetica-Bold", 8.8 if index == len(right_rows) - 1 else 8.4)
         pdf.drawRightString(box_x + box_w - 4 * mm, row_y, f"AED {value}")
         row_y -= 6 * mm
+
+
+def _draw_kata_closed_rows(pdf: canvas.Canvas, entries, month_label: str) -> None:
+    box_x = 16 * mm
+    box_y = PAGE_HEIGHT - 214 * mm
+    box_w = 178 * mm
+    box_h = 22 * mm
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(box_x, box_y, box_w, box_h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(box_x, box_y, box_w, box_h, 4 * mm, fill=0, stroke=1)
+    pdf.setFillColor(BLUE_SOFT)
+    pdf.roundRect(box_x, box_y + box_h - 7.5 * mm, box_w, 7.5 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 7.6)
+    pdf.drawString(box_x + 4 * mm, box_y + box_h - 4.9 * mm, f"Closed Previous Hisaab | {month_label}")
+
+    row_y = box_y + box_h - 11.5 * mm
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 6.7)
+    for item in entries[-3:]:
+        text = f"{item['date']} | {item['reason']} | AED {format_currency(float(item['amount']))}"
+        fitted, size = _fit_text(pdf, text, "Helvetica", 6.7, box_w - 10 * mm, min_size=6.0)
+        pdf.setFont("Helvetica", size)
+        pdf.drawString(box_x + 4 * mm, row_y, fitted)
+        text_width = pdf.stringWidth(fitted, "Helvetica", size)
+        pdf.setStrokeColor(MUTED)
+        pdf.setLineWidth(0.7)
+        pdf.line(box_x + 4 * mm, row_y + 1.2 * mm, box_x + 4 * mm + text_width, row_y + 1.2 * mm)
+        row_y -= 4.2 * mm
 
 
 def _draw_kata_stat_row(pdf: canvas.Canvas, items, start_y=None) -> None:
