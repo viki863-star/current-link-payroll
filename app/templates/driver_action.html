@@ -134,7 +134,7 @@
     <div class="section-heading slim-heading">
         <div>
             <p class="eyebrow">Monthly Statement</p>
-            <h2>Salary vs Received</h2>
+            <h2>Driver Monthly Statement</h2>
         </div>
     </div>
 
@@ -182,15 +182,24 @@
                 <div class="paper-line plus"><span>Extra / OT</span><strong>AED {{ "%.2f"|format(kata_summary.extra_total or 0) }}</strong></div>
                 <div class="paper-line total"><span>Total Salary</span><strong>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</strong></div>
             </div>
+            <div class="statement-card-note">This side shows how the month's salary was built.</div>
             <div class="paper-mini-list earning-mini-list">
                 {% if kata_earning_entries %}
                     {% for item in kata_earning_entries %}
-                        <div class="paper-mini-row">
-                            <span>{{ item.date }}</span>
+                        <div class="paper-mini-row statement-detail-row">
+                            <div class="statement-detail-meta">
+                                <span class="statement-detail-date">{{ item.date }}</span>
+                                <small>Salary Side</small>
+                            </div>
                             <span>{{ item.reason or "Salary" }}</span>
                             <strong>AED {{ "%.2f"|format(item.amount) }}</strong>
                         </div>
                     {% endfor %}
+                    <div class="paper-mini-row statement-total-mini-row">
+                        <span>Total Salary</span>
+                        <span></span>
+                        <strong>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</strong>
+                    </div>
                 {% else %}
                     <p class="muted-text">Is month ki earning line abhi save nahi hui.</p>
                 {% endif %}
@@ -211,6 +220,13 @@
                 <div><span>Total Salary</span><strong>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</strong></div>
                 <div><span>Received Not Yet Deducted</span><strong>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</strong></div>
             </div>
+            <div class="remaining-salary-equation">
+                <div><span>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</span><small>Total Salary</small></div>
+                <strong>-</strong>
+                <div><span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span><small>Received Not Yet Deducted</small></div>
+                <strong>=</strong>
+                <div><span>AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</span><small>Remaining Salary</small></div>
+            </div>
         </article>
 
         <article class="paper-detail-card">
@@ -218,15 +234,24 @@
                 <span>Received Not Yet Deducted</span>
                 <span>Total AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span>
             </div>
+            <div class="statement-card-note">Only current cash rows that are still not recovered from salary appear here.</div>
             <div class="paper-mini-list">
                 {% if kata_detail_entries %}
                     {% for item in kata_detail_entries[:6] %}
-                        <div class="paper-mini-row">
-                            <span>{{ item.date }}</span>
-                            <span>{{ item.reason or "-" }}</span>
+                        <div class="paper-mini-row statement-detail-row">
+                            <div class="statement-detail-meta">
+                                <span class="statement-detail-date">{{ item.date }}</span>
+                                <small>{{ item.given_by or item.paid_by or "-" }}</small>
+                            </div>
+                            <span>{{ item.details or item.reason or "-" }}</span>
                             <strong>AED {{ "%.2f"|format(item.amount) }}</strong>
                         </div>
                     {% endfor %}
+                    <div class="paper-mini-row statement-total-mini-row">
+                        <span>Total Received</span>
+                        <span></span>
+                        <strong>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</strong>
+                    </div>
                 {% else %}
                     <p class="muted-text">No unrecovered cash entries for this month.</p>
                 {% endif %}
@@ -234,19 +259,11 @@
         </article>
     </div>
 
-    <div class="statement-panel-summary paper-summary-grid">
-        <div><dt>Month</dt><dd>{{ kata_summary.month_label }}</dd></div>
-        <div><dt>Previous Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.previous_balance) }}</dd></div>
-        <div><dt>Total Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</dd></div>
-        <div><dt>Received Not Yet Deducted</dt><dd>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</dd></div>
-        <div><dt>Remaining Salary</dt><dd>AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</dd></div>
-    </div>
-
     {% if kata_detail_entries %}
         <div class="section-heading slim-heading statement-detail-heading">
             <div>
                 <p class="eyebrow">Detail</p>
-                <h2>Received Not Yet Deducted</h2>
+                <h2>Received Not Yet Deducted Details</h2>
             </div>
         </div>
         <div class="table-wrap">
@@ -276,7 +293,7 @@
                 </tbody>
             </table>
         </div>
-        <p class="panel-note driver-kata-footer-note">Only unrecovered current-month cash rows are shown here. Remaining Salary = Total Salary - Received Not Yet Deducted.</p>
+        <p class="panel-note driver-kata-footer-note">Total Salary is shown on the left. Only unrecovered cash rows stay on the right. Remaining Salary = Total Salary - Received Not Yet Deducted.</p>
     {% else %}
         <p class="muted-text">No unrecovered cash entries for this month.</p>
     {% endif %}
@@ -673,6 +690,39 @@
     white-space: nowrap;
 }
 
+.remaining-salary-equation {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed rgba(21, 51, 93, 0.14);
+}
+
+.remaining-salary-equation div {
+    display: grid;
+    gap: 4px;
+    text-align: center;
+}
+
+.remaining-salary-equation span {
+    color: var(--primary-dark);
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.remaining-salary-equation small {
+    color: var(--muted-text);
+    font-size: 0.8rem;
+    line-height: 1.25;
+}
+
+.remaining-salary-equation strong {
+    color: var(--primary);
+    font-size: 1.15rem;
+}
+
 .paper-mini-list {
     display: grid;
     gap: 10px;
@@ -693,6 +743,46 @@
 .paper-mini-row strong {
     color: var(--primary);
     white-space: nowrap;
+}
+
+.statement-card-note {
+    margin: 0 0 12px;
+    color: var(--muted-text);
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.statement-detail-row {
+    grid-template-columns: 118px minmax(0, 1fr) auto;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(21, 51, 93, 0.14);
+}
+
+.statement-detail-meta {
+    display: grid;
+    gap: 3px;
+}
+
+.statement-detail-date {
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+
+.statement-detail-meta small {
+    color: var(--muted-text);
+    font-size: 0.78rem;
+    line-height: 1.3;
+}
+
+.statement-total-mini-row {
+    padding-top: 10px;
+    border-top: 1px solid rgba(21, 51, 93, 0.14);
+    border-bottom: 0;
+}
+
+.statement-total-mini-row span,
+.statement-total-mini-row strong {
+    font-weight: 800;
 }
 
 .paper-summary-grid {
@@ -770,6 +860,10 @@
     .statement-hero {
         grid-template-columns: 1fr;
     }
+
+    .remaining-salary-equation {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 820px) {
@@ -820,6 +914,10 @@
     .driver-kata-details {
         min-width: 220px;
         max-width: 100%;
+    }
+
+    .statement-detail-row {
+        grid-template-columns: 1fr;
     }
 }
 </style>

@@ -500,6 +500,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         total_net_paid = current_month_data["total_paid"]
         total_company_balance = current_month_data["total_company_balance"]
         closing_balance = current_month_data["closing_balance"]
+        salary_entries = list(current_month_data["earning_entries"])
         total_salary_with_balance = opening_balance + total_salary
         received_not_deducted_total = round(sum(float(item["amount"]) for item in entries), 2)
         remaining_salary = round(max(total_salary_with_balance - received_not_deducted_total, 0.0), 2)
@@ -507,6 +508,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         closed_entries = []
         closed_month_label = ""
         entries = []
+        salary_entries = []
         opening_balance = 0.0
         total_salary = sum(float(row["net_salary"]) for row in salary_rows)
         total_extra = sum(
@@ -526,6 +528,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
                     "sort_group": 0,
                 }
             )
+            salary_entries.append(entries[-1])
         for txn in transactions:
             entries.append(
                 {
@@ -555,7 +558,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         _draw_title(
             pdf,
             "Driver Full KATA" if not selected_month else f"Driver Monthly Statement {normalized_month}",
-            "Complete history" if not selected_month else "English salary summary with current month detail",
+            "Complete history" if not selected_month else "Salary breakdown with unrecovered cash detail",
         )
         _draw_kata_driver_summary(pdf, driver)
         if selected_month:
@@ -568,6 +571,23 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
                     "total_salary": format_currency(total_salary_with_balance),
                     "received_total": format_currency(received_not_deducted_total),
                     "remaining_salary": format_currency(remaining_salary),
+                    "earning_rows": [
+                        {
+                            "date": item["date"],
+                            "reason": item["reason"],
+                            "amount": format_currency(float(item["amount"] or 0.0)),
+                        }
+                        for item in salary_entries[:4]
+                    ],
+                    "received_rows": [
+                        {
+                            "date": item["date"],
+                            "reason": item["reason"],
+                            "paid_by": item["paid_by"],
+                            "amount": format_currency(float(item["amount"] or 0.0)),
+                        }
+                        for item in entries[:4]
+                    ],
                 },
                 month_label=normalized_month,
                 driver_id=driver["driver_id"],
@@ -1944,7 +1964,7 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
     box_x = 16 * mm
     box_y = PAGE_HEIGHT - 170 * mm
     box_w = 178 * mm
-    box_h = 46 * mm
+    box_h = 62 * mm
     left_w = 72 * mm
     center_w = 54 * mm
 
@@ -1963,8 +1983,8 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
     pdf.setFont("Helvetica-Bold", 6.9)
     pdf.setFillColor(MUTED)
     pdf.drawString(box_x + 4 * mm, box_y + box_h - 11.4 * mm, "EARNING")
-    pdf.drawString(box_x + left_w + 4 * mm, box_y + box_h - 11.4 * mm, "REMAINING")
-    pdf.drawString(box_x + left_w + center_w + 4 * mm, box_y + box_h - 11.4 * mm, "RECEIVED")
+    pdf.drawString(box_x + left_w + 4 * mm, box_y + box_h - 11.4 * mm, "REMAINING SALARY")
+    pdf.drawString(box_x + left_w + center_w + 4 * mm, box_y + box_h - 11.4 * mm, "RECEIVED NOT YET DEDUCTED")
 
     pdf.setStrokeColor(LINE)
     pdf.line(box_x + left_w, box_y + 4 * mm, box_x + left_w, box_y + box_h - 11 * mm)
@@ -1985,8 +2005,19 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
         pdf.drawRightString(box_x + left_w - 4 * mm, row_y, f"AED {value}")
         row_y -= 6 * mm
 
+    earning_detail_y = box_y + 11 * mm
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 6.1)
+    pdf.drawString(box_x + 4 * mm, earning_detail_y + 5 * mm, "Salary Details")
+    for detail in summary.get("earning_rows", [])[:3]:
+        line = f"{format_date_label(detail['date'])} | {detail['reason']} | AED {detail['amount']}"
+        fitted, size = _fit_text(pdf, line, "Helvetica", 6.4, left_w - 8 * mm, min_size=5.8)
+        pdf.setFont("Helvetica", size)
+        pdf.drawString(box_x + 4 * mm, earning_detail_y, fitted)
+        earning_detail_y -= 4.2 * mm
+
     center_x = box_x + left_w + 3 * mm
-    center_y = box_y + 9 * mm
+    center_y = box_y + 24 * mm
     inner_w = center_w - 6 * mm
     inner_h = 20 * mm
     pdf.setFillColor(BLUE)
@@ -1999,21 +2030,41 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
     pdf.setFont("Helvetica", 6.2)
     pdf.drawCentredString(center_x + inner_w / 2, center_y + 4.2 * mm, "Total Salary - Received")
 
-    right_x = box_x + left_w + center_w + 4 * mm
-    right_y = box_y + box_h - 18 * mm
-    right_rows = [
-        ("Received Not Yet Deducted", summary["received_total"]),
-    ]
-    for label, value in right_rows:
+    meta_y = box_y + 14 * mm
+    meta_left = box_x + left_w + 5 * mm
+    meta_right = meta_left + center_w - 10 * mm
+    for label, value in [
+        ("Total Salary", summary["total_salary"]),
+        ("Received", summary["received_total"]),
+    ]:
         pdf.setFillColor(TEXT)
-        pdf.setFont("Helvetica-Bold", 7.2)
-        label_lines = ["Received Not Yet", "Deducted"]
-        current_y = right_y
-        for line in label_lines:
-            pdf.drawString(right_x, current_y, line)
-            current_y -= 3.7 * mm
-        pdf.setFont("Helvetica-Bold", 10.2)
-        pdf.drawRightString(box_x + box_w - 4 * mm, right_y - 1 * mm, f"AED {value}")
+        pdf.setFont("Helvetica-Bold", 6.8)
+        pdf.drawString(meta_left, meta_y, label)
+        pdf.drawRightString(meta_right, meta_y, f"AED {value}")
+        meta_y -= 5 * mm
+
+    right_x = box_x + left_w + center_w + 4 * mm
+    right_y = box_y + box_h - 17.5 * mm
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 6.1)
+    pdf.drawString(right_x, right_y, "Received Not Yet")
+    pdf.drawString(right_x, right_y - 3.6 * mm, "Deducted")
+    pdf.drawString(right_x, right_y - 7.8 * mm, "Date | Details | Given By")
+    right_y -= 12 * mm
+    for detail in summary.get("received_rows", [])[:4]:
+        pdf.setFillColor(TEXT)
+        line = f"{format_date_label(detail['date'])} | {detail['reason']} | {detail['paid_by']}"
+        fitted, size = _fit_text(pdf, line, "Helvetica-Bold", 6.2, box_x + box_w - right_x - 4 * mm, min_size=5.6)
+        pdf.setFont("Helvetica-Bold", size)
+        pdf.drawString(right_x, right_y, fitted)
+        pdf.drawRightString(box_x + box_w - 4 * mm, right_y, f"AED {detail['amount']}")
+        right_y -= 4.7 * mm
+    pdf.setStrokeColor(LINE)
+    pdf.line(right_x, box_y + 10 * mm, box_x + box_w - 4 * mm, box_y + 10 * mm)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 7.0)
+    pdf.drawString(right_x, box_y + 6 * mm, "Total Received")
+    pdf.drawRightString(box_x + box_w - 4 * mm, box_y + 6 * mm, f"AED {summary['received_total']}")
 
 
 def _draw_kata_closed_rows(pdf: canvas.Canvas, entries, month_label: str) -> None:
