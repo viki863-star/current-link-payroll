@@ -558,7 +558,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         _draw_title(
             pdf,
             "Driver Full KATA" if not selected_month else f"Driver Monthly Statement {normalized_month}",
-            "Complete history" if not selected_month else "Salary breakdown with unrecovered cash detail",
+            "Complete history" if not selected_month else "Salary breakdown with Received Not Yet Deducted detail",
         )
         _draw_kata_driver_summary(pdf, driver)
         if selected_month:
@@ -1984,7 +1984,9 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
     pdf.setFillColor(MUTED)
     pdf.drawString(box_x + 4 * mm, box_y + box_h - 11.4 * mm, "EARNING")
     pdf.drawString(box_x + left_w + 4 * mm, box_y + box_h - 11.4 * mm, "REMAINING SALARY")
-    pdf.drawString(box_x + left_w + center_w + 4 * mm, box_y + box_h - 11.4 * mm, "RECEIVED NOT YET DEDUCTED")
+    right_heading_x = box_x + left_w + center_w + 4 * mm
+    pdf.drawString(right_heading_x, box_y + box_h - 11.4 * mm, "RECEIVED NOT YET")
+    pdf.drawString(right_heading_x, box_y + box_h - 14.8 * mm, "DEDUCTED")
 
     pdf.setStrokeColor(LINE)
     pdf.line(box_x + left_w, box_y + 4 * mm, box_x + left_w, box_y + box_h - 11 * mm)
@@ -2009,8 +2011,8 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 6.1)
     pdf.drawString(box_x + 4 * mm, earning_detail_y + 5 * mm, "Salary Details")
-    for detail in summary.get("earning_rows", [])[:3]:
-        line = f"{format_date_label(detail['date'])} | {detail['reason']} | AED {detail['amount']}"
+    for detail in summary.get("earning_rows", [])[:2]:
+        line = f"{format_date_label(detail['date'])} | {detail['reason']}"
         fitted, size = _fit_text(pdf, line, "Helvetica", 6.4, left_w - 8 * mm, min_size=5.8)
         pdf.setFont("Helvetica", size)
         pdf.drawString(box_x + 4 * mm, earning_detail_y, fitted)
@@ -2035,7 +2037,7 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
     meta_right = meta_left + center_w - 10 * mm
     for label, value in [
         ("Total Salary", summary["total_salary"]),
-        ("Received", summary["received_total"]),
+        ("Received Not Yet", summary["received_total"]),
     ]:
         pdf.setFillColor(TEXT)
         pdf.setFont("Helvetica-Bold", 6.8)
@@ -2047,18 +2049,27 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
     right_y = box_y + box_h - 17.5 * mm
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 6.1)
-    pdf.drawString(right_x, right_y, "Received Not Yet")
-    pdf.drawString(right_x, right_y - 3.6 * mm, "Deducted")
-    pdf.drawString(right_x, right_y - 7.8 * mm, "Date | Details | Given By")
-    right_y -= 12 * mm
-    for detail in summary.get("received_rows", [])[:4]:
+    pdf.drawString(right_x, right_y, "Date | Details | Given By")
+    right_y -= 5.6 * mm
+    for detail in summary.get("received_rows", [])[:3]:
         pdf.setFillColor(TEXT)
-        line = f"{format_date_label(detail['date'])} | {detail['reason']} | {detail['paid_by']}"
-        fitted, size = _fit_text(pdf, line, "Helvetica-Bold", 6.2, box_x + box_w - right_x - 4 * mm, min_size=5.6)
+        line = f"{format_date_label(detail['date'])} | {detail['paid_by']}"
+        fitted, size = _fit_text(pdf, line, "Helvetica-Bold", 6.1, box_x + box_w - right_x - 4 * mm, min_size=5.5)
         pdf.setFont("Helvetica-Bold", size)
         pdf.drawString(right_x, right_y, fitted)
         pdf.drawRightString(box_x + box_w - 4 * mm, right_y, f"AED {detail['amount']}")
-        right_y -= 4.7 * mm
+        detail_text, detail_size = _fit_text(
+            pdf,
+            detail["reason"],
+            "Helvetica",
+            5.9,
+            box_x + box_w - right_x - 4 * mm,
+            min_size=5.3,
+        )
+        pdf.setFont("Helvetica", detail_size)
+        pdf.setFillColor(MUTED)
+        pdf.drawString(right_x, right_y - 3.2 * mm, detail_text)
+        right_y -= 7.4 * mm
     pdf.setStrokeColor(LINE)
     pdf.line(right_x, box_y + 10 * mm, box_x + box_w - 4 * mm, box_y + 10 * mm)
     pdf.setFillColor(BLUE_DARK)

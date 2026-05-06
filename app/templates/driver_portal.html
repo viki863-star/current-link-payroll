@@ -247,20 +247,13 @@
                 <div class="paper-mini-list earning-mini-list">
                     {% if kata_earning_entries %}
                         {% for item in kata_earning_entries %}
-                            <div class="paper-mini-row statement-detail-row">
-                                <div class="statement-detail-meta">
+                            {% if item.reason %}
+                                <div class="paper-mini-row statement-note-row">
                                     <span class="statement-detail-date">{{ item.date }}</span>
-                                    <small>Salary Side</small>
+                                    <span>{{ item.reason }}</span>
                                 </div>
-                                <span>{{ item.reason or "Salary" }}</span>
-                                <strong>AED {{ "%.2f"|format(item.amount) }}</strong>
-                            </div>
+                            {% endif %}
                         {% endfor %}
-                        <div class="paper-mini-row statement-total-mini-row">
-                            <span>Total Salary</span>
-                            <span></span>
-                            <strong>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</strong>
-                        </div>
                     {% else %}
                         <p class="muted-text">Is month ki earning line abhi save nahi hui.</p>
                     {% endif %}
@@ -613,6 +606,14 @@
     font-weight: 800;
 }
 
+.statement-note-row {
+    grid-template-columns: 118px minmax(0, 1fr);
+}
+
+.statement-note-row span:last-child {
+    font-weight: 700;
+}
+
 .closed-kata-table {
     opacity: 0.68;
 }
@@ -633,6 +634,10 @@
 
     .remaining-salary-equation,
     .statement-detail-row {
+        grid-template-columns: 1fr;
+    }
+
+    .statement-note-row {
         grid-template-columns: 1fr;
     }
     .kata-month-table {
