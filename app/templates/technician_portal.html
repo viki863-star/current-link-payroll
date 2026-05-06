@@ -325,7 +325,7 @@
                         <span class="status-chip {{ (job.review_status or 'Pending')|lower|replace(' ', '-') }}">{{ job.review_status }}</span>
                     </div>
                     <div class="field-staff-entry-grid">
-                        <span><strong>Vehicle</strong><small>{{ job.vehicle_id or 'General Entry' }}</small></span>
+                        <span><strong>Vehicle</strong><small>{{ job.vehicle_label or 'General Entry' }}</small></span>
                         <span><strong>Workshop</strong><small>{{ job.workshop_name or '-' }}</small></span>
                         <span><strong>Total</strong><small>AED {{ "%.2f"|format(job.total_amount or 0) }}</small></span>
                         <span><strong>Payment</strong><small>{{ job.payment_status }}</small></span>
@@ -358,7 +358,7 @@
                         <tr>
                             <td><strong>{{ job.paper_no }}</strong></td>
                             <td>{{ job.entry_date }}</td>
-                            <td>{{ job.vehicle_id or 'General Entry' }}</td>
+                            <td>{{ job.vehicle_label or 'General Entry' }}</td>
                             <td>{{ job.workshop_name or '-' }}</td>
                             <td>AED {{ "%.2f"|format(job.total_amount or 0) }}</td>
                             <td>

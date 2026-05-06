@@ -93,6 +93,8 @@ MAINTENANCE_PAID_BY_OPTIONS = ["Company", "Partner"]
 MAINTENANCE_SETTLEMENT_STATUS_OPTIONS = ["Open", "Settled"]
 MAINTENANCE_TARGET_CLASS_OPTIONS = ["Own Fleet Vehicle", "Partnership Supplier Vehicle"]
 MAINTENANCE_LINE_SLOTS = 4
+GENERAL_MAINTENANCE_VEHICLE_ID = "GENERAL-ENTRY"
+GENERAL_MAINTENANCE_VEHICLE_NO = "GENERAL"
 BRANCH_STATUS_OPTIONS = ["Active", "Inactive"]
 FINANCIAL_YEAR_STATUS_OPTIONS = ["Open", "Closed", "Archived"]
 INVOICE_LINE_SLOTS = 4
@@ -1226,7 +1228,8 @@ def register_routes(app: Flask) -> None:
         # Recent jobs (last 10) - updated to match actual schema
         recent_jobs = db.execute(
             """
-            SELECT paper_no, paper_date as entry_date, vehicle_id,
+            SELECT paper_no, paper_date as entry_date, mp.vehicle_id,
+                   COALESCE(vm.vehicle_no, mp.vehicle_no, 'General Entry') as vehicle_label,
                    work_summary as details,
                    supplier_bill_no as bill_no,
                    total_amount, review_status, payment_status,
@@ -1235,6 +1238,7 @@ def register_routes(app: Flask) -> None:
                    COALESCE(wp.party_name, workshop_party_code) as workshop_name
             FROM maintenance_papers mp
             LEFT JOIN parties wp ON mp.workshop_party_code = wp.party_code
+            LEFT JOIN vehicle_master vm ON mp.vehicle_id = vm.vehicle_id
             WHERE technician_code = ?
             ORDER BY paper_date DESC, paper_no DESC
             LIMIT 10
@@ -1306,10 +1310,10 @@ def register_routes(app: Flask) -> None:
             """
             SELECT vehicle_id, vehicle_no, make_model as vehicle_name, ownership_mode
             FROM vehicle_master
-            WHERE status = 'Active'
+            WHERE status = 'Active' AND vehicle_id != ?
             ORDER BY vehicle_no
             """
-        ).fetchall()
+        , (GENERAL_MAINTENANCE_VEHICLE_ID,)).fetchall()
         
         form_rows = _default_technician_entry_rows(datetime.now().strftime("%Y-%m-%d"))
         row_errors_by_no = {}
@@ -1331,11 +1335,13 @@ def register_routes(app: Flask) -> None:
                         if not row["entry_date"]:
                             current_errors.append("date is required")
                         if row["vehicle_id"] == "GENERAL":
-                            row["vehicle_id"] = None
-                            row["vehicle_no"] = "GENERAL"
+                            selected_vehicle = _ensure_general_maintenance_vehicle(db)
+                            row["vehicle_id"] = selected_vehicle["vehicle_id"]
+                            row["vehicle_no"] = selected_vehicle["vehicle_no"]
                         elif not row["vehicle_id"]:
-                            row["vehicle_id"] = None
-                            row["vehicle_no"] = "GENERAL"
+                            selected_vehicle = _ensure_general_maintenance_vehicle(db)
+                            row["vehicle_id"] = selected_vehicle["vehicle_id"]
+                            row["vehicle_no"] = selected_vehicle["vehicle_no"]
                         else:
                             selected_vehicle = db.execute(
                                 """
@@ -8351,6 +8357,39 @@ def _fleet_vehicle_row(db, vehicle_id: str, *, required: bool = False):
     if row is None and required:
         raise ValidationError("Selected vehicle was not found.")
     return row
+
+
+def _ensure_general_maintenance_vehicle(db):
+    existing = _fleet_vehicle_row(db, GENERAL_MAINTENANCE_VEHICLE_ID)
+    if existing is not None:
+        return existing
+    db.execute(
+        """
+        INSERT INTO vehicle_master (
+            vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+            source_type, source_party_code, source_asset_code,
+            partner_party_code, partner_name, company_share_percent, partner_share_percent, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            GENERAL_MAINTENANCE_VEHICLE_ID,
+            GENERAL_MAINTENANCE_VEHICLE_NO,
+            "General",
+            "General Entry",
+            "Active",
+            FLEET_SHIFT_MODE_OPTIONS[0],
+            FLEET_OWNERSHIP_MODE_OPTIONS[0],
+            "Own Fleet Vehicle",
+            None,
+            None,
+            None,
+            None,
+            100.0,
+            0.0,
+            "Hidden helper vehicle for field staff general entries.",
+        ),
+    )
+    return _fleet_vehicle_row(db, GENERAL_MAINTENANCE_VEHICLE_ID, required=True)
 
 
 def _partnership_supplier_asset_row(db, asset_code: str, *, required: bool = False):
