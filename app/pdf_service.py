@@ -426,6 +426,8 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
             "previous_month": previous_month,
             "opening_balance": opening,
             "entries": entries,
+            "earning_entries": [item for item in entries if item["sort_group"] == 0],
+            "detail_entries": [item for item in entries if item["sort_group"] in (1, 2, 3)],
             "salary_rows": month_salary_rows,
             "transactions": month_transactions,
             "salary_slips": month_salary_slips,
@@ -439,6 +441,26 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
             "closing_balance": max(running, 0.0),
         }
 
+    def _crossed_deduction_rows(entries, deduction_amount: float):
+        remaining = max(float(deduction_amount or 0.0), 0.0)
+        closed_rows = []
+        for item in entries:
+            if remaining <= 0.001:
+                break
+            if item.get("sort_group") != 1:
+                continue
+            used_amount = min(float(item["amount"]), remaining)
+            if used_amount <= 0.0:
+                continue
+            closed_item = dict(item)
+            closed_item["amount"] = used_amount
+            closed_item["is_deducted_closed_row"] = True
+            if used_amount + 0.001 < float(item["amount"]):
+                closed_item["reason"] = f"{item['reason']} (deducted part)"
+            closed_rows.append(closed_item)
+            remaining -= used_amount
+        return closed_rows
+
     if selected_month:
         current_month_data = _month_statement_core(selected_month)
         previous_month_value = current_month_data["previous_month"]
@@ -447,11 +469,11 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         if previous_month_value:
             previous_month_data = _month_statement_core(previous_month_value)
             closed_month_label = format_month_label(previous_month_value)
-            for item in previous_month_data["entries"]:
-                closed_item = dict(item)
-                closed_item["is_closed"] = True
-                closed_entries.append(closed_item)
-        entries = current_month_data["entries"]
+            closed_entries = _crossed_deduction_rows(
+                previous_month_data["entries"],
+                previous_month_data["total_deducted"],
+            )
+        entries = current_month_data["detail_entries"]
         opening_balance = current_month_data["opening_balance"]
         total_salary = current_month_data["total_salary"]
         total_extra = current_month_data["total_extra"]
@@ -1915,10 +1937,15 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, rows, month_label: str, driver_
     pdf.drawString(box_x + 4 * mm, box_y + box_h - 5.8 * mm, f"HISAAB SUMMARY | {month_label}")
     pdf.drawRightString(box_x + box_w - 4 * mm, box_y + box_h - 5.8 * mm, f"Driver ID {driver_id}")
 
+    pdf.setFont("Helvetica-Bold", 6.9)
+    pdf.setFillColor(MUTED)
+    pdf.drawString(box_x + 4 * mm, box_y + box_h - 11.4 * mm, "EARNING")
+    pdf.drawString(box_x + left_w + 4 * mm, box_y + box_h - 11.4 * mm, "WOSOOL SHODA")
+
     pdf.setStrokeColor(LINE)
     pdf.line(box_x + left_w, box_y + 4 * mm, box_x + left_w, box_y + box_h - 11 * mm)
 
-    row_y = box_y + box_h - 15 * mm
+    row_y = box_y + box_h - 17 * mm
     left_rows = rows[:4]
     right_rows = rows[4:]
 
@@ -1930,7 +1957,7 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, rows, month_label: str, driver_
         pdf.drawRightString(box_x + left_w - 4 * mm, row_y, f"AED {value}")
         row_y -= 6 * mm
 
-    row_y = box_y + box_h - 15 * mm
+    row_y = box_y + box_h - 17 * mm
     for index, (label, value) in enumerate(right_rows):
         pdf.setFillColor(BLUE_DARK if index == len(right_rows) - 1 else TEXT)
         pdf.setFont("Helvetica-Bold", 8.2 if index == len(right_rows) - 1 else 8)

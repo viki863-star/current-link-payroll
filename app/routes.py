@@ -6060,6 +6060,11 @@ def register_routes(app: Flask) -> None:
         month_calendar = _driver_month_calendar(db, driver["driver_id"], selected_month)
         timesheet_summary = _timesheet_month_summary(month_calendar)
         kata_entries, closed_kata_entries, kata_summary = _driver_kata_month_data(db, driver["driver_id"], selected_month)
+        kata_earning_entries = [item for item in kata_entries if item.get("entry_kind") == "salary"]
+        kata_detail_entries = [
+            item for item in kata_entries
+            if item.get("entry_kind") in {"transaction", "deduction", "payment"}
+        ]
 
         return render_template(
             "driver_portal.html",
@@ -6074,6 +6079,8 @@ def register_routes(app: Flask) -> None:
             selected_month=selected_month,
             selected_month_label=format_month_label(selected_month),
             kata_entries=kata_entries,
+            kata_earning_entries=kata_earning_entries,
+            kata_detail_entries=kata_detail_entries,
             closed_kata_entries=closed_kata_entries,
             kata_summary=kata_summary,
             month_calendar=month_calendar,
@@ -6598,6 +6605,11 @@ def register_routes(app: Flask) -> None:
             (driver_id,),
         ).fetchone()
         kata_entries, closed_kata_entries, kata_summary = _driver_kata_month_data(db, driver_id, selected_kata_month)
+        kata_earning_entries = [item for item in kata_entries if item.get("entry_kind") == "salary"]
+        kata_detail_entries = [
+            item for item in kata_entries
+            if item.get("entry_kind") in {"transaction", "deduction", "payment"}
+        ]
 
         return render_template(
             "driver_action.html",
@@ -6616,6 +6628,8 @@ def register_routes(app: Flask) -> None:
                 (driver_id,),
             ).fetchone()[0],
             kata_entries=kata_entries,
+            kata_earning_entries=kata_earning_entries,
+            kata_detail_entries=kata_detail_entries,
             closed_kata_entries=closed_kata_entries,
             kata_summary=kata_summary,
             salary_count=db.execute(
@@ -15018,6 +15032,29 @@ def _driver_month_statement_core(db, driver_id: str, month_value: str) -> tuple[
     return entries, summary
 
 
+def _crossed_deduction_rows(entries: list[dict], deduction_amount: float, closed_month: str) -> list[dict]:
+    remaining = max(float(deduction_amount or 0.0), 0.0)
+    crossed_rows: list[dict] = []
+    for item in entries:
+        if remaining <= 0.001:
+            break
+        if item.get("entry_kind") != "transaction":
+            continue
+        used_amount = min(float(item["amount"]), remaining)
+        if used_amount <= 0.0:
+            continue
+        closed_item = dict(item)
+        closed_item["amount"] = used_amount
+        closed_item["is_closed"] = True
+        closed_item["is_deducted_closed_row"] = True
+        closed_item["closed_month"] = closed_month
+        if used_amount + 0.001 < float(item["amount"]):
+            closed_item["reason"] = f"{item['reason']} (deducted part)"
+        crossed_rows.append(closed_item)
+        remaining -= used_amount
+    return crossed_rows
+
+
 def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[dict], list[dict], dict]:
     month_value = _normalize_month(month_value)
     active_entries, summary = _driver_month_statement_core(db, driver_id, month_value)
@@ -15025,11 +15062,11 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
     previous_month_value = summary.get("previous_month") or ""
     if previous_month_value:
         previous_entries, previous_summary = _driver_month_statement_core(db, driver_id, previous_month_value)
-        for item in previous_entries:
-            closed_item = dict(item)
-            closed_item["is_closed"] = True
-            closed_item["closed_month"] = previous_month_value
-            closed_entries.append(closed_item)
+        closed_entries = _crossed_deduction_rows(
+            previous_entries,
+            previous_summary.get("deduction_amount", 0.0),
+            previous_month_value,
+        )
         summary["closed_month_label"] = previous_summary["month_label"]
         summary["closed_month_balance"] = previous_summary["company_balance_due"]
     else:

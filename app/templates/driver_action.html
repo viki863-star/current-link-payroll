@@ -144,7 +144,7 @@
                 <span>Closed Previous Hisaab</span>
                 <span>{{ kata_summary.closed_month_label }}</span>
             </div>
-            <div class="closed-statement-note">Purana month close ho chuka hai. Sirf `Pichla Baki` current month mein carry hua hai.</div>
+            <div class="closed-statement-note">Purane month ki sirf deducted cash lines cross hui hain. Salary clear hai, aur sirf `Pichla Baki` current month mein carry hua hai.</div>
             <div class="table-wrap">
                 <table class="driver-kata-table closed-kata-table">
                     <thead>
@@ -175,7 +175,7 @@
     <div class="paper-statement-layout">
         <article class="paper-hisaab-card">
             <div class="paper-card-header">
-                <span>Driver Salary | {{ kata_summary.month_label }}</span>
+                <span>Earning | {{ kata_summary.month_label }}</span>
                 <span>Driver ID {{ driver.driver_id }}</span>
             </div>
             <div class="paper-hisaab-lines">
@@ -187,6 +187,19 @@
                 <div class="paper-line minus"><span>Mila</span><strong>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</strong></div>
                 <div class="paper-line balance"><span>Baqi Salary</span><strong>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</strong></div>
             </div>
+            <div class="paper-mini-list earning-mini-list">
+                {% if kata_earning_entries %}
+                    {% for item in kata_earning_entries %}
+                        <div class="paper-mini-row">
+                            <span>{{ item.date }}</span>
+                            <span>{{ item.reason or "Salary" }}</span>
+                            <strong>AED {{ "%.2f"|format(item.amount) }}</strong>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="muted-text">Is month ki earning line abhi save nahi hui.</p>
+                {% endif %}
+            </div>
         </article>
 
         <article class="paper-detail-card">
@@ -195,8 +208,8 @@
                 <span>Advance Left AED {{ "%.2f"|format(kata_summary.advance_left) }}</span>
             </div>
             <div class="paper-mini-list">
-                {% if kata_entries %}
-                    {% for item in kata_entries[:6] %}
+                {% if kata_detail_entries %}
+                    {% for item in kata_detail_entries[:6] %}
                         <div class="paper-mini-row">
                             <span>{{ item.date }}</span>
                             <span>{{ item.reason or "-" }}</span>
@@ -221,11 +234,11 @@
         <div><dt>Closing Balance</dt><dd>AED {{ "%.2f"|format(kata_summary.closing_balance) }}</dd></div>
     </div>
 
-    {% if kata_entries %}
+    {% if kata_detail_entries %}
         <div class="section-heading slim-heading statement-detail-heading">
             <div>
                 <p class="eyebrow">Detail</p>
-                <h2>Cash / Katai Detail</h2>
+                <h2>Wosool Shoda / Katai Detail</h2>
             </div>
         </div>
         <div class="table-wrap">
@@ -240,7 +253,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in kata_entries %}
+                    {% for item in kata_detail_entries %}
                         <tr>
                             <td>{{ item.date }}</td>
                             <td class="driver-kata-amount">AED {{ "%.2f"|format(item.amount) }}</td>
@@ -252,9 +265,9 @@
                 </tbody>
             </table>
         </div>
-        <p class="panel-note driver-kata-footer-note">Sirf {{ kata_summary.month_label }} ka hisaab show ho raha hai. Purana unpaid amount `Pichla Baki` mein aata hai.</p>
+        <p class="panel-note driver-kata-footer-note">Sirf {{ kata_summary.month_label }} ki active wasool/katai lines yahan hain. Purana unpaid amount `Pichla Baki` mein aata hai.</p>
     {% else %}
-        <p class="muted-text">No statement entries found for {{ kata_summary.month_label }}.</p>
+        <p class="muted-text">Is month ki wasool/katai line abhi available nahi.</p>
     {% endif %}
 </section>
 
