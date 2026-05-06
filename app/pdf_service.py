@@ -441,26 +441,6 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
             "closing_balance": max(running, 0.0),
         }
 
-    def _crossed_deduction_rows(entries, deduction_amount: float):
-        remaining = max(float(deduction_amount or 0.0), 0.0)
-        closed_rows = []
-        for item in entries:
-            if remaining <= 0.001:
-                break
-            if item.get("sort_group") != 1:
-                continue
-            used_amount = min(float(item["amount"]), remaining)
-            if used_amount <= 0.0:
-                continue
-            closed_item = dict(item)
-            closed_item["amount"] = used_amount
-            closed_item["is_deducted_closed_row"] = True
-            if used_amount + 0.001 < float(item["amount"]):
-                closed_item["reason"] = f"{item['reason']} (deducted part)"
-            closed_rows.append(closed_item)
-            remaining -= used_amount
-        return closed_rows
-
     def _undeducted_received_rows(entries, deduction_amount: float):
         remaining_deduction = max(float(deduction_amount or 0.0), 0.0)
         rows = []
@@ -480,16 +460,6 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
 
     if selected_month:
         current_month_data = _month_statement_core(selected_month)
-        previous_month_value = current_month_data["previous_month"]
-        closed_entries = []
-        closed_month_label = ""
-        if previous_month_value:
-            previous_month_data = _month_statement_core(previous_month_value)
-            closed_month_label = format_month_label(previous_month_value)
-            closed_entries = _crossed_deduction_rows(
-                previous_month_data["entries"],
-                previous_month_data["total_deducted"],
-            )
         entries = _undeducted_received_rows(current_month_data["entries"], current_month_data["total_deducted"])
         opening_balance = current_month_data["opening_balance"]
         total_salary = current_month_data["total_salary"]
@@ -505,8 +475,6 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         received_not_deducted_total = round(sum(float(item["amount"]) for item in entries), 2)
         remaining_salary = round(max(total_salary_with_balance - received_not_deducted_total, 0.0), 2)
     else:
-        closed_entries = []
-        closed_month_label = ""
         entries = []
         salary_entries = []
         opening_balance = 0.0
@@ -558,7 +526,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         _draw_title(
             pdf,
             "Driver Full KATA" if not selected_month else f"Driver Monthly Statement {normalized_month}",
-            "Complete history" if not selected_month else "Salary breakdown with Received Not Yet Deducted detail",
+            "Complete history" if not selected_month else "Current month salary and received detail",
         )
         _draw_kata_driver_summary(pdf, driver)
         if selected_month:
@@ -592,8 +560,6 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
                 month_label=normalized_month,
                 driver_id=driver["driver_id"],
             )
-            if closed_entries:
-                _draw_kata_closed_rows(pdf, closed_entries, closed_month_label)
         else:
             _draw_kata_stat_row(
                 pdf,
@@ -2007,17 +1973,6 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
         pdf.drawRightString(box_x + left_w - 4 * mm, row_y, f"AED {value}")
         row_y -= 6 * mm
 
-    earning_detail_y = box_y + 11 * mm
-    pdf.setFillColor(MUTED)
-    pdf.setFont("Helvetica", 6.1)
-    pdf.drawString(box_x + 4 * mm, earning_detail_y + 5 * mm, "Salary Details")
-    for detail in summary.get("earning_rows", [])[:2]:
-        line = f"{format_date_label(detail['date'])} | {detail['reason']}"
-        fitted, size = _fit_text(pdf, line, "Helvetica", 6.4, left_w - 8 * mm, min_size=5.8)
-        pdf.setFont("Helvetica", size)
-        pdf.drawString(box_x + 4 * mm, earning_detail_y, fitted)
-        earning_detail_y -= 4.2 * mm
-
     center_x = box_x + left_w + 3 * mm
     center_y = box_y + 24 * mm
     inner_w = center_w - 6 * mm
@@ -2037,7 +1992,7 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
     meta_right = meta_left + center_w - 10 * mm
     for label, value in [
         ("Total Salary", summary["total_salary"]),
-        ("Received Not Yet", summary["received_total"]),
+        ("Received", summary["received_total"]),
     ]:
         pdf.setFillColor(TEXT)
         pdf.setFont("Helvetica-Bold", 6.8)

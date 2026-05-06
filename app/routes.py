@@ -15077,19 +15077,8 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
     month_value = _normalize_month(month_value)
     active_entries, summary = _driver_month_statement_core(db, driver_id, month_value)
     closed_entries: list[dict] = []
-    previous_month_value = summary.get("previous_month") or ""
-    if previous_month_value:
-        previous_entries, previous_summary = _driver_month_statement_core(db, driver_id, previous_month_value)
-        closed_entries = _crossed_deduction_rows(
-            previous_entries,
-            previous_summary.get("deduction_amount", 0.0),
-            previous_month_value,
-        )
-        summary["closed_month_label"] = previous_summary["month_label"]
-        summary["closed_month_balance"] = previous_summary["company_balance_due"]
-    else:
-        summary["closed_month_label"] = ""
-        summary["closed_month_balance"] = 0.0
+    summary["closed_month_label"] = ""
+    summary["closed_month_balance"] = 0.0
     transaction_rows = [item for item in active_entries if item.get("entry_kind") == "transaction"]
     undeducted_rows = _undeducted_received_rows(transaction_rows, summary.get("deduction_amount", 0.0))
     total_salary_with_balance = float(summary.get("opening_balance", 0.0)) + float(summary.get("salary_amount", 0.0))
@@ -15269,7 +15258,7 @@ def _regenerate_kata_for_driver(app: Flask, db, driver, month_value: str | None 
     ).fetchall()
     transactions = db.execute(
         """
-        SELECT entry_date, txn_type, source, given_by, amount, details
+        SELECT entry_date, salary_month, txn_type, source, given_by, amount, details
         FROM driver_transactions
         WHERE driver_id = ?
         ORDER BY entry_date ASC, id ASC

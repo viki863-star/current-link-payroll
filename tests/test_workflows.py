@@ -608,7 +608,6 @@ def test_salary_slip_supports_custom_actual_paid_and_company_balance(app, client
     assert b"Previous Balance" in action_page.data
     assert b"Total Salary" in action_page.data
     assert b"Received Not Yet Deducted" in action_page.data
-    assert b"Recovery trip" in action_page.data
     assert b"No unrecovered cash entries for this month." in action_page.data
     assert b"AED 5300.00" in action_page.data
 
@@ -877,11 +876,8 @@ def test_monthly_kata_pdf_uses_paper_style_summary_labels(app):
 
         extracted_text = "\n".join(page.extract_text() or "" for page in PdfReader(output_path).pages)
         assert "HISAAB SUMMARY" in extracted_text
-        assert "Closed Previous Hisaab" in extracted_text
         assert "Previous Balance" in extracted_text
         assert "Total Salary" in extracted_text
-        assert "Received Not Yet" in extracted_text
-        assert "Deducted" in extracted_text
         assert "REMAINING SALARY" in extracted_text
     finally:
         shutil.rmtree(output_dir, ignore_errors=True)
@@ -988,13 +984,14 @@ def test_driver_portal_shows_only_selected_month_kata_entries(app, client):
     assert b"Details" in response.data
     assert b"Fuel for March" in response.data
     assert b"Office" in response.data
-    assert b"March salary" in response.data
     assert b"Old visa" not in response.data
     assert b"2026-02-10" not in response.data
     assert b"Received Not Yet Deducted" in response.data
     assert b"AED 200.00" in response.data
     assert b"Remaining Salary" in response.data
     assert b"AED 2800.00" in response.data
+    assert b"This side shows how the month" not in response.data
+    assert b"Only current cash rows" not in response.data
 
 
 def test_driver_monthly_kata_pdf_route_uses_selected_month_filename(app, client):
@@ -1084,7 +1081,6 @@ def test_driver_action_page_keeps_selected_kata_month(app, client):
     assert b"Previous Balance" in response.data
     assert b"Total Salary" in response.data
     assert b"Fuel for March" in response.data
-    assert b"March salary" in response.data
     assert b"Old visa" not in response.data
     assert b"2026-03" in response.data
     assert b"/drivers/DRV-T1/kata-pdf?month=2026-03" in response.data
@@ -1092,6 +1088,7 @@ def test_driver_action_page_keeps_selected_kata_month(app, client):
     assert b"AED 200.00" in response.data
     assert b"Remaining Salary" in response.data
     assert b"AED 2800.00" in response.data
+    assert b"This side shows how the month" not in response.data
 
 
 def test_driver_statement_carries_previous_month_balance_into_next_month(app, client):
@@ -1174,12 +1171,11 @@ def test_driver_statement_carries_previous_month_balance_into_next_month(app, cl
     response = client.get("/drivers/DRV-T1?kata_month=2026-04")
 
     assert response.status_code == 200
-    assert b"Closed Previous Hisaab" in response.data
-    assert b"March advance" in response.data
+    assert b"Closed Previous Hisaab" not in response.data
+    assert b"March advance" not in response.data
     assert b"March salary" not in response.data
     assert b"Previous Balance" in response.data
     assert b"AED 376.00" in response.data
-    assert b"April salary" in response.data
     assert b"Eid kharcha" not in response.data
     assert b"Earning | Apr 2026" in response.data
     assert b"Received Not Yet Deducted" in response.data

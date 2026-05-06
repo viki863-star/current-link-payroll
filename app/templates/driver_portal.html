@@ -200,37 +200,6 @@
                 <h2>Monthly Statement</h2>
             </div>
         </div>
-        {% if closed_kata_entries %}
-            <div class="closed-statement-block">
-                <div class="portal-paper-header">
-                    <span>Closed Previous Hisaab</span>
-                    <span>{{ kata_summary.closed_month_label }}</span>
-                </div>
-                <div class="closed-statement-note">Only previously deducted cash lines are crossed here. Salary stays clear, and only the previous balance carries into this month.</div>
-                <div class="table-wrap">
-                    <table class="kata-month-table closed-kata-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Amount</th>
-                                <th>Given By</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in closed_kata_entries %}
-                                <tr class="closed-row">
-                                    <td>{{ item.date }}</td>
-                                    <td class="kata-amount-cell">AED {{ "%.2f"|format(item.amount) }}</td>
-                                    <td class="kata-who-cell">{{ item.paid_by or "-" }}</td>
-                                    <td class="kata-purpose-cell">{{ item.reason or "-" }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        {% endif %}
         <div class="portal-paper-summary statement-three-col">
             <article class="portal-paper-card">
                 <div class="portal-paper-header">
@@ -243,21 +212,6 @@
                     <div class="portal-paper-line plus"><span>Extra / OT</span><strong>AED {{ "%.2f"|format(kata_summary.extra_total or 0) }}</strong></div>
                     <div class="portal-paper-line total"><span>Total Salary</span><strong>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</strong></div>
                 </div>
-                <div class="statement-card-note">This side shows how the month's salary was built.</div>
-                <div class="paper-mini-list earning-mini-list">
-                    {% if kata_earning_entries %}
-                        {% for item in kata_earning_entries %}
-                            {% if item.reason %}
-                                <div class="paper-mini-row statement-note-row">
-                                    <span class="statement-detail-date">{{ item.date }}</span>
-                                    <span>{{ item.reason }}</span>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        <p class="muted-text">Is month ki earning line abhi save nahi hui.</p>
-                    {% endif %}
-                </div>
             </article>
 
             <article class="portal-paper-card remaining-card">
@@ -268,16 +222,12 @@
                 <div class="remaining-salary-box">
                     <div class="remaining-salary-label">Remaining Salary</div>
                     <div class="remaining-salary-value">AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</div>
-                    <div class="remaining-salary-formula">Total Salary - Received Not Yet Deducted</div>
-                </div>
-                <div class="remaining-salary-meta">
-                    <div><span>Total Salary</span><strong>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</strong></div>
-                    <div><span>Received Not Yet Deducted</span><strong>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</strong></div>
+                    <div class="remaining-salary-formula">Total Salary - Received</div>
                 </div>
                 <div class="remaining-salary-equation">
                     <div><span>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</span><small>Total Salary</small></div>
                     <strong>-</strong>
-                    <div><span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span><small>Received Not Yet Deducted</small></div>
+                    <div><span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span><small>Received</small></div>
                     <strong>=</strong>
                     <div><span>AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</span><small>Remaining Salary</small></div>
                 </div>
@@ -288,7 +238,6 @@
                     <span>Received Not Yet Deducted</span>
                     <span>Total AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span>
                 </div>
-                <div class="statement-card-note">Only current cash rows that are still not recovered from salary appear here.</div>
                 <div class="paper-mini-list">
                     {% if kata_detail_entries %}
                         {% for item in kata_detail_entries[:6] %}
@@ -340,7 +289,6 @@
                     </tbody>
                 </table>
             </div>
-            <p class="panel-note small-note">Total Salary is shown on the left. Only unrecovered cash rows stay on the right. Remaining Salary = Total Salary - Received Not Yet Deducted.</p>
         {% else %}
             <p class="muted-text">No unrecovered cash entries for this month.</p>
         {% endif %}
@@ -386,20 +334,6 @@
             rgba(38, 86, 142, 0.06) 31px,
             rgba(38, 86, 142, 0.06) 32px
         );
-}
-
-.closed-statement-block {
-    margin-bottom: 18px;
-    padding: 16px;
-    border: 1px dashed rgba(21, 51, 93, 0.18);
-    border-radius: 18px;
-    background: linear-gradient(180deg, rgba(247, 250, 253, 0.95), rgba(241, 246, 251, 0.98));
-}
-
-.closed-statement-note {
-    margin-bottom: 12px;
-    color: var(--muted-text);
-    font-size: 0.92rem;
 }
 
 .portal-paper-header {
@@ -480,30 +414,6 @@
     opacity: 0.92;
 }
 
-.remaining-salary-meta {
-    display: grid;
-    gap: 10px;
-    margin-top: 14px;
-}
-
-.remaining-salary-meta div {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
-    padding: 10px 0;
-    border-bottom: 1px dashed rgba(21, 51, 93, 0.14);
-}
-
-.remaining-salary-meta span {
-    color: var(--primary-dark);
-    font-weight: 700;
-}
-
-.remaining-salary-meta strong {
-    color: var(--primary);
-    white-space: nowrap;
-}
-
 .remaining-salary-equation {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
@@ -568,13 +478,6 @@
     font-size: 1.12rem;
 }
 
-.statement-card-note {
-    margin: 0 0 12px;
-    color: var(--muted-text);
-    font-size: 0.9rem;
-    line-height: 1.45;
-}
-
 .statement-detail-row {
     grid-template-columns: 118px minmax(0, 1fr) auto;
 }
@@ -606,23 +509,6 @@
     font-weight: 800;
 }
 
-.statement-note-row {
-    grid-template-columns: 118px minmax(0, 1fr);
-}
-
-.statement-note-row span:last-child {
-    font-weight: 700;
-}
-
-.closed-kata-table {
-    opacity: 0.68;
-}
-
-.closed-kata-table .closed-row td {
-    text-decoration: line-through;
-    text-decoration-thickness: 1.5px;
-}
-
 .statement-total-row td {
     border-top: 1px solid rgba(21, 51, 93, 0.14);
     background: rgba(238, 244, 251, 0.55);
@@ -637,9 +523,6 @@
         grid-template-columns: 1fr;
     }
 
-    .statement-note-row {
-        grid-template-columns: 1fr;
-    }
     .kata-month-table {
         font-size: 0.88rem;
     }
