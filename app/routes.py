@@ -6061,10 +6061,7 @@ def register_routes(app: Flask) -> None:
         timesheet_summary = _timesheet_month_summary(month_calendar)
         kata_entries, closed_kata_entries, kata_summary = _driver_kata_month_data(db, driver["driver_id"], selected_month)
         kata_earning_entries = [item for item in kata_entries if item.get("entry_kind") == "salary"]
-        kata_detail_entries = [
-            item for item in kata_entries
-            if item.get("entry_kind") in {"transaction", "deduction", "payment"}
-        ]
+        kata_detail_entries = list(kata_summary.get("undeducted_received_rows", []))
 
         return render_template(
             "driver_portal.html",
@@ -6606,10 +6603,7 @@ def register_routes(app: Flask) -> None:
         ).fetchone()
         kata_entries, closed_kata_entries, kata_summary = _driver_kata_month_data(db, driver_id, selected_kata_month)
         kata_earning_entries = [item for item in kata_entries if item.get("entry_kind") == "salary"]
-        kata_detail_entries = [
-            item for item in kata_entries
-            if item.get("entry_kind") in {"transaction", "deduction", "payment"}
-        ]
+        kata_detail_entries = list(kata_summary.get("undeducted_received_rows", []))
 
         return render_template(
             "driver_action.html",
@@ -15055,6 +15049,30 @@ def _crossed_deduction_rows(entries: list[dict], deduction_amount: float, closed
     return crossed_rows
 
 
+def _undeducted_received_rows(transaction_rows, deduction_amount: float) -> list[dict]:
+    remaining_deduction = max(float(deduction_amount or 0.0), 0.0)
+    rows: list[dict] = []
+    for txn in transaction_rows:
+        amount = float(txn["amount"] or 0.0)
+        recovered = min(amount, remaining_deduction)
+        outstanding = max(amount - recovered, 0.0)
+        remaining_deduction = max(remaining_deduction - recovered, 0.0)
+        if outstanding <= 0.001:
+            continue
+        rows.append(
+            {
+                "date": txn["date"],
+                "amount": round(outstanding, 2),
+                "given_by": (txn.get("paid_by") or "-").strip(),
+                "paid_by": (txn.get("paid_by") or "-").strip(),
+                "details": (txn.get("reason") or "-").strip(),
+                "reason": (txn.get("reason") or "-").strip(),
+                "entry_kind": "received_not_deducted",
+            }
+        )
+    return rows
+
+
 def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[dict], list[dict], dict]:
     month_value = _normalize_month(month_value)
     active_entries, summary = _driver_month_statement_core(db, driver_id, month_value)
@@ -15072,6 +15090,15 @@ def _driver_kata_month_data(db, driver_id: str, month_value: str) -> tuple[list[
     else:
         summary["closed_month_label"] = ""
         summary["closed_month_balance"] = 0.0
+    transaction_rows = [item for item in active_entries if item.get("entry_kind") == "transaction"]
+    undeducted_rows = _undeducted_received_rows(transaction_rows, summary.get("deduction_amount", 0.0))
+    total_salary_with_balance = float(summary.get("opening_balance", 0.0)) + float(summary.get("salary_amount", 0.0))
+    received_not_deducted_total = round(sum(float(item["amount"]) for item in undeducted_rows), 2)
+    summary["previous_balance"] = float(summary.get("opening_balance", 0.0))
+    summary["total_salary_with_balance"] = round(total_salary_with_balance, 2)
+    summary["undeducted_received_rows"] = undeducted_rows
+    summary["received_not_deducted_total"] = received_not_deducted_total
+    summary["remaining_salary"] = round(max(total_salary_with_balance - received_not_deducted_total, 0.0), 2)
     return active_entries, closed_entries, summary
 
 
