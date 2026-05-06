@@ -1311,137 +1311,117 @@ def register_routes(app: Flask) -> None:
             """
         ).fetchall()
         
-        # Default form for new job
-        default_form = {
-            "entry_date": datetime.now().strftime("%Y-%m-%d"),
-            "vehicle_id": "",
-            "vehicle_no": "",
-            "workshop_name": "",
-            "bill_no": "",
-            "work_type": "",
-            "details": "",
-            "amount": "",
-            "tax_mode": "Inclusive",
-            "tax_amount": "",
-            "total_amount": "",
-            "remarks": "",
-        }
-        
-        form_values = default_form.copy()
+        form_rows = _default_technician_entry_rows(datetime.now().strftime("%Y-%m-%d"))
         
         if request.method == "POST":
             action = request.form.get("action", "").strip()
-            if action == "submit_job":
-                # Handle job submission
-                form_values = {
-                    "entry_date": request.form.get("entry_date", "").strip(),
-                    "vehicle_id": request.form.get("vehicle_id", "").strip(),
-                    "vehicle_no": "",
-                    "workshop_name": request.form.get("workshop_name", "").strip(),
-                    "bill_no": request.form.get("bill_no", "").strip(),
-                    "work_type": request.form.get("work_type", "").strip(),
-                    "details": request.form.get("details", "").strip(),
-                    "amount": request.form.get("amount", "").strip(),
-                    "tax_mode": request.form.get("tax_mode", "").strip(),
-                    "tax_amount": request.form.get("tax_amount", "").strip(),
-                    "total_amount": request.form.get("total_amount", "").strip(),
-                    "remarks": request.form.get("remarks", "").strip(),
-                }
-                
-                # Basic validation
-                errors = []
-                selected_vehicle = None
-                if not form_values["entry_date"]:
-                    errors.append("Date is required")
-                if form_values["vehicle_id"] == "GENERAL":
-                    form_values["vehicle_id"] = None
-                    form_values["vehicle_no"] = "GENERAL"
-                elif not form_values["vehicle_id"]:
-                    form_values["vehicle_id"] = None
-                    form_values["vehicle_no"] = "GENERAL"
+            if action == "submit_jobs":
+                form_rows = _technician_entry_rows_from_request(request)
+                submitted_rows = [row for row in form_rows if not _technician_entry_row_is_blank(row)]
+                if not submitted_rows:
+                    flash("Add at least one filled paper row before submit.", "error")
                 else:
-                    selected_vehicle = db.execute(
-                        """
-                        SELECT vehicle_id, vehicle_no, make_model, ownership_mode, source_type
-                        FROM vehicle_master
-                        WHERE vehicle_id = ?
-                        """,
-                        (form_values["vehicle_id"],),
-                    ).fetchone()
-                    if selected_vehicle is None:
-                        errors.append("Selected vehicle was not found")
-                    else:
-                        form_values["vehicle_no"] = selected_vehicle["vehicle_no"] or form_values["vehicle_id"]
-                if not form_values["workshop_name"]:
-                    errors.append("Workshop/Shop name is required")
-                if not form_values["bill_no"]:
-                    errors.append("Bill number is required")
-                if not form_values["work_type"]:
-                    errors.append("Work type is required")
-                if not form_values["amount"]:
-                    errors.append("Amount is required")
-                
-                if errors:
-                    for error in errors:
-                        flash(error, "error")
-                else:
-                    # Generate paper_no
-                    paper_no = _next_reference_code(db, "maintenance_papers", "paper_no", "MT")
-                    
-                    # Calculate amounts
-                    try:
-                        amount = float(form_values["amount"] or 0)
-                        tax_amount = float(form_values["tax_amount"] or 0)
-                        total_amount = float(form_values["total_amount"] or amount + tax_amount)
-                    except ValueError:
-                        amount = 0.0
-                        tax_amount = 0.0
-                        total_amount = 0.0
-                    
-                    try:
-                        workshop_party_code = _ensure_workshop_party(db, form_values["workshop_name"])
-                        attachment_path = _save_maintenance_attachment(app, paper_no, request.files.get("attachment"))
-                        db.execute(
-                            """
-                            INSERT INTO maintenance_papers (
-                                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
-                                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
-                                attachment_path, notes, technician_code, review_status, payment_status, created_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', CURRENT_TIMESTAMP)
-                            """,
-                            (
-                                paper_no,
-                                form_values["entry_date"],
-                                form_values["vehicle_id"],
-                                form_values["vehicle_no"],
-                                workshop_party_code,
-                                form_values["bill_no"],
-                                form_values["work_type"],
-                                form_values["details"],
-                                amount,
-                                form_values["tax_mode"],
-                                tax_amount,
-                                total_amount,
-                                attachment_path,
-                                form_values["remarks"],
-                                technician_code,
+                    saved_rows = []
+                    row_errors = []
+                    for row in submitted_rows:
+                        selected_vehicle = None
+                        current_errors = []
+                        if not row["entry_date"]:
+                            current_errors.append("date is required")
+                        if row["vehicle_id"] == "GENERAL":
+                            row["vehicle_id"] = None
+                            row["vehicle_no"] = "GENERAL"
+                        elif not row["vehicle_id"]:
+                            row["vehicle_id"] = None
+                            row["vehicle_no"] = "GENERAL"
+                        else:
+                            selected_vehicle = db.execute(
+                                """
+                                SELECT vehicle_id, vehicle_no, make_model, ownership_mode, source_type
+                                FROM vehicle_master
+                                WHERE vehicle_id = ?
+                                """,
+                                (row["vehicle_id"],),
+                            ).fetchone()
+                            if selected_vehicle is None:
+                                current_errors.append("selected vehicle was not found")
+                            else:
+                                row["vehicle_no"] = selected_vehicle["vehicle_no"] or row["vehicle_id"]
+                        if not row["workshop_name"]:
+                            current_errors.append("shop / vendor / place is required")
+                        if not row["bill_no"]:
+                            current_errors.append("bill number is required")
+                        if not row["work_type"]:
+                            current_errors.append("work type is required")
+                        if not row["amount"]:
+                            current_errors.append("amount is required")
+
+                        try:
+                            amount = float(row["amount"] or 0)
+                            tax_amount = float(row["tax_amount"] or 0)
+                            total_amount = float(row["total_amount"] or amount + tax_amount)
+                        except ValueError:
+                            current_errors.append("amount, tax and total must be valid numbers")
+                            amount = 0.0
+                            tax_amount = 0.0
+                            total_amount = 0.0
+
+                        if current_errors:
+                            row_errors.append(f"Row {row['row_no']}: " + ", ".join(current_errors) + ".")
+                            continue
+
+                        paper_no = _next_reference_code(db, "maintenance_papers", "paper_no", "MT")
+                        try:
+                            workshop_party_code = _ensure_workshop_party(db, row["workshop_name"])
+                            attachment_path = _save_maintenance_attachment(app, paper_no, request.files.get(f"attachment_{row['row_no']}"))
+                            db.execute(
+                                """
+                                INSERT INTO maintenance_papers (
+                                    paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                                    work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                                    attachment_path, notes, technician_code, review_status, payment_status, created_at
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', CURRENT_TIMESTAMP)
+                                """,
+                                (
+                                    paper_no,
+                                    row["entry_date"],
+                                    row["vehicle_id"],
+                                    row["vehicle_no"],
+                                    workshop_party_code,
+                                    row["bill_no"],
+                                    row["work_type"],
+                                    row["details"],
+                                    amount,
+                                    row["tax_mode"],
+                                    tax_amount,
+                                    total_amount,
+                                    attachment_path,
+                                    row["remarks"],
+                                    technician_code,
+                                )
                             )
+                            _audit_log(
+                                db,
+                                "technician_job_submitted",
+                                entity_type="maintenance_paper",
+                                entity_id=paper_no,
+                                details=f"Technician {technician_code} submitted job {paper_no}",
+                            )
+                            db.commit()
+                            saved_rows.append(paper_no)
+                        except Exception as exc:
+                            db.rollback()
+                            row_errors.append(f"Row {row['row_no']}: {exc}")
+
+                    if saved_rows:
+                        flash(
+                            f"{len(saved_rows)} field staff entr{'y' if len(saved_rows) == 1 else 'ies'} submitted successfully: {', '.join(saved_rows)}",
+                            "success",
                         )
-                        
-                        _audit_log(
-                            db,
-                            "technician_job_submitted",
-                            entity_type="maintenance_paper",
-                            entity_id=paper_no,
-                            details=f"Technician {technician_code} submitted job {paper_no}",
-                        )
-                        
-                        db.commit()
-                        flash(f"Entry {paper_no} submitted successfully. Waiting for admin review.", "success")
-                        return redirect(url_for("technician_portal"))
-                    except Exception as exc:
-                        db.rollback()
-                        flash(f"Error submitting field staff entry: {exc}", "error")
+                        if not row_errors:
+                            return redirect(url_for("technician_portal"))
+                    for error in row_errors:
+                        flash(error, "error")
         
         return render_template(
             "technician_portal.html",
@@ -1460,7 +1440,7 @@ def register_routes(app: Flask) -> None:
             work_type_distribution=work_type_distribution,
             recent_jobs=recent_jobs,
             vehicle_options=vehicle_options,
-            form_values=form_values,
+            form_rows=form_rows,
         )
     
     @app.get("/services")
@@ -8223,6 +8203,71 @@ def _ensure_workshop_party(db, workshop_name: str) -> str:
         ),
     )
     return party_code
+
+
+TECHNICIAN_BULK_ROW_COUNT = 5
+
+
+def _default_technician_entry_rows(default_date: str, row_count: int = TECHNICIAN_BULK_ROW_COUNT):
+    rows = []
+    for row_no in range(1, row_count + 1):
+        rows.append(
+            {
+                "row_no": row_no,
+                "entry_date": default_date,
+                "vehicle_id": "",
+                "vehicle_no": "",
+                "workshop_name": "",
+                "bill_no": "",
+                "work_type": "",
+                "details": "",
+                "amount": "",
+                "tax_mode": "Inclusive",
+                "tax_amount": "",
+                "total_amount": "",
+                "remarks": "",
+            }
+        )
+    return rows
+
+
+def _technician_entry_rows_from_request(request, row_count: int = TECHNICIAN_BULK_ROW_COUNT):
+    rows = []
+    for row_no in range(1, row_count + 1):
+        rows.append(
+            {
+                "row_no": row_no,
+                "entry_date": request.form.get(f"entry_date_{row_no}", "").strip(),
+                "vehicle_id": request.form.get(f"vehicle_id_{row_no}", "").strip(),
+                "vehicle_no": "",
+                "workshop_name": request.form.get(f"workshop_name_{row_no}", "").strip(),
+                "bill_no": request.form.get(f"bill_no_{row_no}", "").strip(),
+                "work_type": request.form.get(f"work_type_{row_no}", "").strip(),
+                "details": request.form.get(f"details_{row_no}", "").strip(),
+                "amount": request.form.get(f"amount_{row_no}", "").strip(),
+                "tax_mode": request.form.get(f"tax_mode_{row_no}", "").strip() or "Inclusive",
+                "tax_amount": request.form.get(f"tax_amount_{row_no}", "").strip(),
+                "total_amount": request.form.get(f"total_amount_{row_no}", "").strip(),
+                "remarks": request.form.get(f"remarks_{row_no}", "").strip(),
+            }
+        )
+    return rows
+
+
+def _technician_entry_row_is_blank(row) -> bool:
+    tracked_fields = (
+        "entry_date",
+        "vehicle_id",
+        "workshop_name",
+        "bill_no",
+        "work_type",
+        "details",
+        "amount",
+        "tax_amount",
+        "total_amount",
+        "remarks",
+    )
+    return all(not (row.get(field) or "").strip() for field in tracked_fields)
 
 
 

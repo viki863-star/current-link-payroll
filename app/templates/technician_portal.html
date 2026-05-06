@@ -16,213 +16,126 @@
         </p>
         <div class="field-staff-mobile-stat-strip">
             <article class="field-staff-mini-card">
-                <strong>AED {{ "%.0f"|format(total_received) }}</strong>
-                <span>Received</span>
-            </article>
-            <article class="field-staff-mini-card">
-                <strong>AED {{ "%.0f"|format(total_spent) }}</strong>
-                <span>Spent</span>
-            </article>
-            <article class="field-staff-mini-card">
                 <strong>AED {{ "%.0f"|format(balance_available) }}</strong>
-                <span>Balance</span>
+                <span>Available Balance</span>
+            </article>
+            <article class="field-staff-mini-card">
+                <strong>{{ total_jobs }}</strong>
+                <span>Total Papers</span>
             </article>
             <article class="field-staff-mini-card">
                 <strong>AED {{ "%.0f"|format(pending_review) }}</strong>
                 <span>In Review</span>
             </article>
         </div>
-        <div class="field-staff-mobile-stat-strip">
-            <article class="field-staff-mini-card">
-                <strong>{{ total_jobs }}</strong>
-                <span>Entries</span>
-            </article>
-            <article class="field-staff-mini-card">
-                <strong>AED {{ "%.0f"|format(total_approved) }}</strong>
-                <span>Approved</span>
-            </article>
-            <article class="field-staff-mini-card">
-                <strong>AED {{ "%.0f"|format(total_paid) }}</strong>
-                <span>Paid Out</span>
-            </article>
-        </div>
+        <p>Enter up to 5 papers together. Filled rows save as separate entries.</p>
     </article>
 
-    <div class="mobile-shortcuts field-staff-mobile-shortcuts">
-        <a class="button" href="#field-staff-submit">New Entry</a>
-        <a class="button button-secondary" href="#field-staff-recent">Recent</a>
-        <a class="button button-secondary" href="#field-staff-monthly">Monthly</a>
-    </div>
-
     <section class="desk-content-grid compact-content-grid field-staff-mobile-grid">
-        <article class="card desk-panel-card field-staff-submit-card" id="field-staff-submit">
+        <article class="card desk-panel-card field-staff-submit-card full-span" id="field-staff-submit">
             <div class="desk-panel-head">
                 <div>
-                    <span class="admin-desk-label">Quick Entry</span>
-                    <h2>Submit Expense Entry</h2>
+                    <span class="admin-desk-label">Bulk Entry</span>
+                    <h2>Submit Multiple Papers</h2>
                 </div>
             </div>
 
             <form method="post" class="form-grid field-staff-mobile-form" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="action" value="submit_job">
+                <input type="hidden" name="action" value="submit_jobs">
 
-                <label>
-                    <span>Date</span>
-                    <input type="date" name="entry_date" value="{{ form_values.entry_date }}" required>
-                </label>
-
-                <label>
-                    <span>Vehicle</span>
-                    <select name="vehicle_id">
-                        <option value="" {% if not form_values.vehicle_id %}selected{% endif %}>General Entry / No Vehicle</option>
-                        <option value="GENERAL" {% if form_values.vehicle_id == 'GENERAL' %}selected{% endif %}>General Entry</option>
-                        {% for vehicle in vehicle_options %}
-                        <option value="{{ vehicle.vehicle_id }}" {% if form_values.vehicle_id == vehicle.vehicle_id %}selected{% endif %}>
-                            {{ vehicle.vehicle_no }} - {{ vehicle.vehicle_name or 'Vehicle' }} ({{ vehicle.ownership_mode }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </label>
-
-                <label class="full-span">
-                    <span>Shop / Vendor / Place</span>
-                    <input type="text" name="workshop_name" value="{{ form_values.workshop_name }}" placeholder="Workshop, fuel station, restaurant or site" required>
-                </label>
-
-                <label>
-                    <span>Bill Number</span>
-                    <input type="text" name="bill_no" value="{{ form_values.bill_no }}" placeholder="Workshop or fuel bill no" required>
-                </label>
-
-                <label>
-                    <span>Work Type</span>
-                    <select name="work_type" required>
-                        <option value="">Select Work Type</option>
-                        <option value="Repair" {% if form_values.work_type == 'Repair' %}selected{% endif %}>Repair</option>
-                        <option value="Maintenance" {% if form_values.work_type == 'Maintenance' %}selected{% endif %}>Maintenance</option>
-                        <option value="Service" {% if form_values.work_type == 'Service' %}selected{% endif %}>Service</option>
-                        <option value="Parts Replacement" {% if form_values.work_type == 'Parts Replacement' %}selected{% endif %}>Parts Replacement</option>
-                        <option value="Fuel" {% if form_values.work_type == 'Fuel' %}selected{% endif %}>Fuel</option>
-                        <option value="Food" {% if form_values.work_type == 'Food' %}selected{% endif %}>Food</option>
-                        <option value="Site Expense" {% if form_values.work_type == 'Site Expense' %}selected{% endif %}>Site Expense</option>
-                        <option value="Cash Payment" {% if form_values.work_type == 'Cash Payment' %}selected{% endif %}>Cash Payment</option>
-                        <option value="Other" {% if form_values.work_type == 'Other' %}selected{% endif %}>Other</option>
-                    </select>
-                </label>
-
-                <label class="full-span">
-                    <span>Details</span>
-                    <textarea name="details" rows="3" placeholder="What was done, where, and for which vehicle or general work">{{ form_values.details }}</textarea>
-                </label>
-
-                <label class="full-span">
-                    <span>Bill / Paper Image</span>
-                    <input type="file" name="attachment" accept="image/*,.pdf">
-                </label>
-
-                <label>
-                    <span>Amount</span>
-                    <input type="number" step="0.01" name="amount" value="{{ form_values.amount }}" placeholder="0.00" required>
-                </label>
-
-                <label>
-                    <span>Tax Mode</span>
-                    <select name="tax_mode">
-                        <option value="Inclusive" {% if form_values.tax_mode == 'Inclusive' %}selected{% endif %}>Inclusive</option>
-                        <option value="Exclusive" {% if form_values.tax_mode == 'Exclusive' %}selected{% endif %}>Exclusive</option>
-                        <option value="Zero" {% if form_values.tax_mode == 'Zero' %}selected{% endif %}>Zero Tax</option>
-                    </select>
-                </label>
-
-                <label>
-                    <span>Tax Amount</span>
-                    <input type="number" step="0.01" name="tax_amount" id="technician-tax-amount" value="{{ form_values.tax_amount }}" placeholder="0.00">
-                </label>
-
-                <label>
-                    <span>Total Amount</span>
-                    <input type="number" step="0.01" name="total_amount" id="technician-total-amount" value="{{ form_values.total_amount }}" placeholder="0.00">
-                </label>
-
-                <label class="full-span">
-                    <span>VAT Helper</span>
-                    <div class="form-inline-actions field-staff-vat-helper">
-                        <input type="hidden" id="technician-vat-rate" value="5">
-                        <button type="button" class="button button-outline" id="technician-apply-vat">Add 5% VAT</button>
-                        <small class="muted-text">Tap once to auto-calculate 5% VAT on amount.</small>
-                    </div>
-                </label>
-
-                <label class="full-span">
-                    <span>Remarks</span>
-                    <textarea name="remarks" rows="2" placeholder="Optional remarks">{{ form_values.remarks }}</textarea>
-                </label>
+                <div class="full-span">
+                    {% for row in form_rows %}
+                    <article class="card" style="padding:16px; margin-bottom:14px; border:1px solid rgba(28,86,139,0.14); border-radius:18px;">
+                        <div class="desk-panel-head" style="margin-bottom:10px;">
+                            <div>
+                                <span class="admin-desk-label">Paper {{ row.row_no }}</span>
+                                <h3 style="margin:0; font-size:1.05rem;">Entry Row {{ row.row_no }}</h3>
+                            </div>
+                        </div>
+                        <div class="desk-form-grid">
+                            <label>
+                                <span>Date</span>
+                                <input type="date" name="entry_date_{{ row.row_no }}" value="{{ row.entry_date }}">
+                            </label>
+                            <label>
+                                <span>Vehicle</span>
+                                <select name="vehicle_id_{{ row.row_no }}">
+                                    <option value="" {% if not row.vehicle_id %}selected{% endif %}>General Entry / No Vehicle</option>
+                                    <option value="GENERAL" {% if row.vehicle_id == 'GENERAL' %}selected{% endif %}>General Entry</option>
+                                    {% for vehicle in vehicle_options %}
+                                    <option value="{{ vehicle.vehicle_id }}" {% if row.vehicle_id == vehicle.vehicle_id %}selected{% endif %}>
+                                        {{ vehicle.vehicle_no }} - {{ vehicle.vehicle_name or 'Vehicle' }} ({{ vehicle.ownership_mode }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label class="full-span">
+                                <span>Shop / Vendor / Place</span>
+                                <input type="text" name="workshop_name_{{ row.row_no }}" value="{{ row.workshop_name }}" placeholder="Workshop, fuel station, restaurant or site">
+                            </label>
+                            <label>
+                                <span>Bill Number</span>
+                                <input type="text" name="bill_no_{{ row.row_no }}" value="{{ row.bill_no }}" placeholder="Workshop or fuel bill no">
+                            </label>
+                            <label>
+                                <span>Work Type</span>
+                                <select name="work_type_{{ row.row_no }}">
+                                    <option value="">Select Work Type</option>
+                                    <option value="Repair" {% if row.work_type == 'Repair' %}selected{% endif %}>Repair</option>
+                                    <option value="Maintenance" {% if row.work_type == 'Maintenance' %}selected{% endif %}>Maintenance</option>
+                                    <option value="Service" {% if row.work_type == 'Service' %}selected{% endif %}>Service</option>
+                                    <option value="Parts Replacement" {% if row.work_type == 'Parts Replacement' %}selected{% endif %}>Parts Replacement</option>
+                                    <option value="Fuel" {% if row.work_type == 'Fuel' %}selected{% endif %}>Fuel</option>
+                                    <option value="Food" {% if row.work_type == 'Food' %}selected{% endif %}>Food</option>
+                                    <option value="Site Expense" {% if row.work_type == 'Site Expense' %}selected{% endif %}>Site Expense</option>
+                                    <option value="Cash Payment" {% if row.work_type == 'Cash Payment' %}selected{% endif %}>Cash Payment</option>
+                                    <option value="Other" {% if row.work_type == 'Other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </label>
+                            <label class="full-span">
+                                <span>Details</span>
+                                <textarea name="details_{{ row.row_no }}" rows="2" placeholder="What was done and where">{{ row.details }}</textarea>
+                            </label>
+                            <label>
+                                <span>Amount</span>
+                                <input type="number" step="0.01" name="amount_{{ row.row_no }}" value="{{ row.amount }}" placeholder="0.00">
+                            </label>
+                            <label>
+                                <span>Tax Mode</span>
+                                <select name="tax_mode_{{ row.row_no }}">
+                                    <option value="Inclusive" {% if row.tax_mode == 'Inclusive' %}selected{% endif %}>Inclusive</option>
+                                    <option value="Exclusive" {% if row.tax_mode == 'Exclusive' %}selected{% endif %}>Exclusive</option>
+                                    <option value="Zero" {% if row.tax_mode == 'Zero' %}selected{% endif %}>Zero Tax</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Tax Amount</span>
+                                <input type="number" step="0.01" name="tax_amount_{{ row.row_no }}" value="{{ row.tax_amount }}" placeholder="0.00">
+                            </label>
+                            <label>
+                                <span>Total Amount</span>
+                                <input type="number" step="0.01" name="total_amount_{{ row.row_no }}" value="{{ row.total_amount }}" placeholder="0.00">
+                            </label>
+                            <label class="full-span">
+                                <span>Attachment</span>
+                                <input type="file" name="attachment_{{ row.row_no }}" accept="image/*,.pdf">
+                            </label>
+                            <label class="full-span">
+                                <span>Remarks</span>
+                                <textarea name="remarks_{{ row.row_no }}" rows="2" placeholder="Optional remarks">{{ row.remarks }}</textarea>
+                            </label>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
 
                 <div class="form-actions full-span field-staff-sticky-actions">
-                    <button type="submit" class="button">Submit Entry</button>
-                    <a href="{{ url_for('technician_portal') }}" class="button button-outline">Clear</a>
+                    <button type="submit" class="button">Submit Filled Rows</button>
+                    <a href="{{ url_for('technician_portal') }}" class="button button-outline">Clear Page</a>
                 </div>
             </form>
         </article>
-
-        <div class="desk-side-stack field-staff-mobile-stack">
-            <article class="card desk-panel-card compact-side-card">
-                <div class="desk-panel-head">
-                    <div>
-                        <span class="admin-desk-label">Work Mix</span>
-                        <h2>Top Vehicles</h2>
-                    </div>
-                </div>
-
-                <div class="mini-ledger-list">
-                    {% if top_vehicles %}
-                        {% for vehicle in top_vehicles %}
-                        <div class="mini-ledger-row">
-                            <strong>{{ vehicle.vehicle_no }}</strong>
-                            <span>AED {{ "%.0f"|format(vehicle.total_spent) }}</span>
-                            <div class="mini-ledger-subrow">
-                                <span>{{ vehicle.vehicle_name }}</span>
-                                <span>{{ vehicle.job_count }} jobs</span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="empty-state">
-                            <p>No vehicle activity yet.</p>
-                        </div>
-                    {% endif %}
-                </div>
-            </article>
-
-            <article class="card desk-panel-card compact-side-card">
-                <div class="desk-panel-head">
-                    <div>
-                        <span class="admin-desk-label">Expense Types</span>
-                        <h2>Work Type Mix</h2>
-                    </div>
-                </div>
-
-                <div class="mini-ledger-list">
-                    {% if work_type_distribution %}
-                        {% for work in work_type_distribution %}
-                        <div class="mini-ledger-row">
-                            <strong>{{ work.work_type }}</strong>
-                            <span>AED {{ "%.0f"|format(work.total_amount) }}</span>
-                            <div class="mini-ledger-subrow">
-                                <span>{{ work.job_count }} jobs</span>
-                                <span>Type total</span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="empty-state">
-                            <p>No work type summary yet.</p>
-                        </div>
-                    {% endif %}
-                </div>
-            </article>
-        </div>
     </section>
 
     <section class="desk-content-grid compact-content-grid">
@@ -332,29 +245,4 @@
         </article>
     </section>
 </section>
-<script>
-(() => {
-    const amountInput = document.querySelector('input[name="amount"]');
-    const taxInput = document.getElementById('technician-tax-amount');
-    const totalInput = document.getElementById('technician-total-amount');
-    const applyVatButton = document.getElementById('technician-apply-vat');
-    const vatRateInput = document.getElementById('technician-vat-rate');
-
-    if (!amountInput || !taxInput || !totalInput || !applyVatButton || !vatRateInput) {
-        return;
-    }
-
-    applyVatButton.addEventListener('click', () => {
-        const amount = parseFloat(amountInput.value || '0');
-        const rate = parseFloat(vatRateInput.value || '5');
-        if (!amount || amount <= 0) {
-            amountInput.focus();
-            return;
-        }
-        const tax = (amount * rate) / 100;
-        taxInput.value = tax.toFixed(2);
-        totalInput.value = (amount + tax).toFixed(2);
-    });
-})();
-</script>
 {% endblock %}

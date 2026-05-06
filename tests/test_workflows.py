@@ -875,7 +875,7 @@ def test_monthly_kata_pdf_uses_paper_style_summary_labels(app):
         )
 
         extracted_text = "\n".join(page.extract_text() or "" for page in PdfReader(output_path).pages)
-        assert "HISAAB SUMMARY" in extracted_text
+        assert "MONTHLY STATEMENT" in extracted_text
         assert "Previous Balance" in extracted_text
         assert "Total Salary" in extracted_text
         assert "REMAINING SALARY" in extracted_text
@@ -1177,7 +1177,7 @@ def test_driver_statement_carries_previous_month_balance_into_next_month(app, cl
     assert b"Previous Balance" in response.data
     assert b"AED 376.00" in response.data
     assert b"Eid kharcha" not in response.data
-    assert b"Earning | Apr 2026" in response.data
+    assert b"Salary Summary | Apr 2026" in response.data
     assert b"Received Not Yet Deducted" in response.data
     assert b"Remaining Salary" in response.data
     assert b"AED 5506.00" in response.data
@@ -1258,6 +1258,96 @@ def test_delete_driver_removes_related_records(app, client):
         assert db.execute("SELECT COUNT(*) FROM drivers WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
         assert db.execute("SELECT COUNT(*) FROM driver_transactions WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
         assert db.execute("SELECT COUNT(*) FROM driver_timesheets WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
+
+
+def test_technician_portal_saves_multiple_rows_with_separate_attachments(app, client):
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TEC-BULK", "PTY-TEC", "tec.bulk", "hash", "0501234567", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-TEC", "Technician Party", "Supplier"),
+        )
+        db.commit()
+
+    with client.session_transaction() as session:
+        session["role"] = "technician"
+        session["technician_code"] = "TEC-BULK"
+        session["technician_party_code"] = "PTY-TEC"
+        session["display_name"] = "Field Staff"
+
+    response = client.post(
+        "/portal/technician",
+        data={
+            "action": "submit_jobs",
+            "entry_date_1": "2026-05-01",
+            "vehicle_id_1": "GENERAL",
+            "workshop_name_1": "Diesel Pump",
+            "bill_no_1": "BILL-101",
+            "work_type_1": "Fuel",
+            "details_1": "Diesel refill",
+            "amount_1": "500",
+            "tax_mode_1": "Inclusive",
+            "tax_amount_1": "0",
+            "total_amount_1": "500",
+            "remarks_1": "first row",
+            "attachment_1": (BytesIO(b"row-one"), "row-one.jpg"),
+            "entry_date_2": "2026-05-02",
+            "vehicle_id_2": "GENERAL",
+            "workshop_name_2": "Tyre Shop",
+            "bill_no_2": "BILL-102",
+            "work_type_2": "Maintenance",
+            "details_2": "Tyre repair",
+            "amount_2": "300",
+            "tax_mode_2": "Inclusive",
+            "tax_amount_2": "0",
+            "total_amount_2": "300",
+            "remarks_2": "second row",
+            "attachment_2": (BytesIO(b"row-two"), "row-two.pdf"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"2 field staff entries submitted successfully" in response.data
+
+    with app.app_context():
+        db = open_db()
+        papers = db.execute(
+            """
+            SELECT paper_no, supplier_bill_no, work_summary, total_amount, attachment_path
+            FROM maintenance_papers
+            WHERE technician_code = ?
+            ORDER BY paper_no ASC
+            """,
+            ("TEC-BULK",),
+        ).fetchall()
+
+        assert len(papers) == 2
+        assert papers[0]["supplier_bill_no"] == "BILL-101"
+        assert papers[0]["work_summary"] == "Diesel refill"
+        assert float(papers[0]["total_amount"]) == 500.0
+        assert papers[0]["attachment_path"].startswith("maintenance/mt-")
+        assert (Path(app.config["GENERATED_DIR"]) / papers[0]["attachment_path"]).exists()
+
+        assert papers[1]["supplier_bill_no"] == "BILL-102"
+        assert papers[1]["work_summary"] == "Tyre repair"
+        assert float(papers[1]["total_amount"]) == 300.0
+        assert papers[1]["attachment_path"].startswith("maintenance/mt-")
+        assert (Path(app.config["GENERATED_DIR"]) / papers[1]["attachment_path"]).exists()
         assert db.execute("SELECT COUNT(*) FROM salary_store WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
 
 

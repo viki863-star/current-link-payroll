@@ -26,7 +26,7 @@
                     <span>{{ driver.shift }}</span>
                     <span>{{ driver.status }}</span>
                 </div>
-                <p class="statement-intro">Current month ka simple hisab neeche hai. Old bakiya sirf opening balance mein show hota hai.</p>
+                <p class="statement-intro">Simple monthly statement with salary, unrecovered received amount, and remaining salary.</p>
             </div>
         </div>
 
@@ -41,34 +41,6 @@
             <div class="statement-month-note">Selected month: {{ selected_kata_month_label }}</div>
         </div>
     </div>
-
-    <section class="statement-summary-strip paper-summary-strip">
-        <article class="statement-stat primary">
-            <span>Salary</span>
-            <strong>AED {{ "%.2f"|format(kata_summary.salary_total or kata_summary.salary_amount) }}</strong>
-        </article>
-        <article class="statement-stat">
-            <span>Katai</span>
-            <strong>AED {{ "%.2f"|format(kata_summary.deduction_amount) }}</strong>
-        </article>
-        <article class="statement-stat">
-            <span>Mila</span>
-            <strong>AED {{ "%.2f"|format(kata_summary.paid_amount) }}</strong>
-        </article>
-        <article class="statement-stat accent">
-            <span>Baki</span>
-            <strong>AED {{ "%.2f"|format(kata_summary.company_balance_due) }}</strong>
-        </article>
-    </section>
-
-    <section class="statement-subfacts">
-        <div><dt>Driver ID</dt><dd>{{ driver.driver_id }}</dd></div>
-        <div><dt>Phone</dt><dd>{{ driver.phone_number or "-" }}</dd></div>
-        <div><dt>Vehicle No</dt><dd>{{ driver.vehicle_no }}</dd></div>
-        <div><dt>Shift</dt><dd>{{ driver.shift }}</dd></div>
-        <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(advance_summary.remaining_advance) }}</dd></div>
-        <div><dt>Status</dt><dd>{{ driver.status }}</dd></div>
-    </section>
 
     <div class="statement-actions-primary">
         <a class="button action-button navy" href="{{ url_for('driver_transactions', driver_id=driver.driver_id) }}">Deductions</a>
@@ -88,60 +60,18 @@
     </div>
 </section>
 
-<section class="detail-layout compact-detail-layout statement-support-grid">
-    <article class="card info-card">
-        <dl class="detail-grid mini-detail-grid">
-            <div>
-                <dt>Statement Month</dt>
-                <dd>{{ kata_summary.month_label }}</dd>
-            </div>
-            <div>
-                <dt>Opening Balance</dt>
-                <dd>AED {{ "%.2f"|format(kata_summary.opening_balance) }}</dd>
-            </div>
-            <div>
-                <dt>Advance Left</dt>
-                <dd>AED {{ "%.2f"|format(kata_summary.advance_left) }}</dd>
-            </div>
-            <div>
-                <dt>Closing Balance</dt>
-                <dd>AED {{ "%.2f"|format(kata_summary.closing_balance) }}</dd>
-            </div>
-            <div>
-                <dt>Transactions</dt>
-                <dd>{{ transaction_count }}</dd>
-            </div>
-            <div>
-                <dt>Salary Entries</dt>
-                <dd>{{ salary_count }}</dd>
-            </div>
-        </dl>
-    </article>
-
-    <article class="card info-card">
-        {% if latest_slip %}
-            <div class="quick-result-row">
-                <span>{{ latest_slip.salary_month }} statement PDF ready</span>
-                <a class="button button-secondary inline-button" href="{{ url_for('generated_file', filename=latest_slip.pdf_path) }}" target="_blank">Open PDF</a>
-            </div>
-        {% else %}
-            <p class="result-text muted-text">No salary statement yet.</p>
-        {% endif %}
-    </article>
-</section>
-
 <section class="card statement-table-panel">
     <div class="section-heading slim-heading">
         <div>
             <p class="eyebrow">Monthly Statement</p>
-            <h2>Driver Monthly Statement</h2>
+            <h2>Driver Statement</h2>
         </div>
     </div>
 
     <div class="paper-statement-layout statement-three-col">
         <article class="paper-hisaab-card">
             <div class="paper-card-header">
-                <span>Earning | {{ kata_summary.month_label }}</span>
+                <span>Salary Summary | {{ kata_summary.month_label }}</span>
                 <span>Driver ID {{ driver.driver_id }}</span>
             </div>
             <div class="paper-hisaab-lines">
@@ -160,12 +90,11 @@
             <div class="remaining-salary-box">
                 <div class="remaining-salary-label">Remaining Salary</div>
                 <div class="remaining-salary-value">AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</div>
-                <div class="remaining-salary-formula">Total Salary - Received</div>
             </div>
             <div class="remaining-salary-equation">
                 <div><span>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</span><small>Total Salary</small></div>
                 <strong>-</strong>
-                <div><span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span><small>Received</small></div>
+                <div><span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span><small>Not Yet Deducted</small></div>
                 <strong>=</strong>
                 <div><span>AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</span><small>Remaining Salary</small></div>
             </div>

@@ -1943,12 +1943,12 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
     pdf.roundRect(box_x, box_y + box_h - 9 * mm, box_w, 9 * mm, 4 * mm, fill=1, stroke=0)
     pdf.setFillColor(BLUE_DARK)
     pdf.setFont("Helvetica-Bold", 8.8)
-    pdf.drawString(box_x + 4 * mm, box_y + box_h - 5.8 * mm, f"HISAAB SUMMARY | {month_label}")
+    pdf.drawString(box_x + 4 * mm, box_y + box_h - 5.8 * mm, f"MONTHLY STATEMENT | {month_label}")
     pdf.drawRightString(box_x + box_w - 4 * mm, box_y + box_h - 5.8 * mm, f"Driver ID {driver_id}")
 
     pdf.setFont("Helvetica-Bold", 6.9)
     pdf.setFillColor(MUTED)
-    pdf.drawString(box_x + 4 * mm, box_y + box_h - 11.4 * mm, "EARNING")
+    pdf.drawString(box_x + 4 * mm, box_y + box_h - 11.4 * mm, "SALARY SUMMARY")
     pdf.drawString(box_x + left_w + 4 * mm, box_y + box_h - 11.4 * mm, "REMAINING SALARY")
     right_heading_x = box_x + left_w + center_w + 4 * mm
     pdf.drawString(right_heading_x, box_y + box_h - 11.4 * mm, "RECEIVED NOT YET")
@@ -1984,15 +1984,13 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
     pdf.drawCentredString(center_x + inner_w / 2, center_y + inner_h - 5.8 * mm, "REMAINING SALARY")
     pdf.setFont("Helvetica-Bold", 12.4)
     pdf.drawCentredString(center_x + inner_w / 2, center_y + inner_h - 12.5 * mm, f"AED {summary['remaining_salary']}")
-    pdf.setFont("Helvetica", 6.2)
-    pdf.drawCentredString(center_x + inner_w / 2, center_y + 4.2 * mm, "Total Salary - Received")
 
     meta_y = box_y + 14 * mm
     meta_left = box_x + left_w + 5 * mm
     meta_right = meta_left + center_w - 10 * mm
     for label, value in [
         ("Total Salary", summary["total_salary"]),
-        ("Received", summary["received_total"]),
+        ("Not Yet Deducted", summary["received_total"]),
     ]:
         pdf.setFillColor(TEXT)
         pdf.setFont("Helvetica-Bold", 6.8)
@@ -2002,25 +2000,14 @@ def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driv
 
     right_x = box_x + left_w + center_w + 4 * mm
     right_y = box_y + box_h - 17.5 * mm
-    pdf.setFillColor(MUTED)
-    pdf.setFont("Helvetica", 6.1)
-    pdf.drawString(right_x, right_y, "Date | Details | Given By")
-    right_y -= 5.6 * mm
     for detail in summary.get("received_rows", [])[:3]:
         pdf.setFillColor(TEXT)
-        line = f"{format_date_label(detail['date'])} | {detail['paid_by']}"
+        line = f"{format_date_label(detail['date'])} | {detail['reason']}"
         fitted, size = _fit_text(pdf, line, "Helvetica-Bold", 6.1, box_x + box_w - right_x - 4 * mm, min_size=5.5)
         pdf.setFont("Helvetica-Bold", size)
         pdf.drawString(right_x, right_y, fitted)
         pdf.drawRightString(box_x + box_w - 4 * mm, right_y, f"AED {detail['amount']}")
-        detail_text, detail_size = _fit_text(
-            pdf,
-            detail["reason"],
-            "Helvetica",
-            5.9,
-            box_x + box_w - right_x - 4 * mm,
-            min_size=5.3,
-        )
+        detail_text, detail_size = _fit_text(pdf, detail["paid_by"], "Helvetica", 5.9, box_x + box_w - right_x - 4 * mm, min_size=5.3)
         pdf.setFont("Helvetica", detail_size)
         pdf.setFillColor(MUTED)
         pdf.drawString(right_x, right_y - 3.2 * mm, detail_text)

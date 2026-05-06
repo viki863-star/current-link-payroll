@@ -33,24 +33,8 @@
                 <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(outstanding_advance) }}</dd></div>
                 <div><dt>Status</dt><dd>{{ driver.status }}</dd></div>
             </dl>
-            <div class="panel-note small-note">Aap apna monthly statement, opening balance, paid amount aur baqi balance yahan clear dekh sakte hain.</div>
         </div>
     </div>
-</section>
-
-<section class="stats compact-stats premium-stats">
-    <article class="card stat-card premium-stat-card blue-stat">
-        <span>Total Salary</span>
-        <strong>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</strong>
-    </article>
-    <article class="card stat-card premium-stat-card green-stat">
-        <span>Received Not Yet Deducted</span>
-        <strong>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</strong>
-    </article>
-    <article class="card stat-card premium-stat-card navy-stat">
-        <span>Remaining Salary</span>
-        <strong>AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</strong>
-    </article>
 </section>
 
 <section class="mobile-shortcuts">
@@ -203,7 +187,7 @@
         <div class="portal-paper-summary statement-three-col">
             <article class="portal-paper-card">
                 <div class="portal-paper-header">
-                    <span>Earning | {{ kata_summary.month_label }}</span>
+                    <span>Salary Summary | {{ kata_summary.month_label }}</span>
                     <span>Driver ID {{ driver.driver_id }}</span>
                 </div>
                 <div class="portal-paper-lines">
@@ -222,12 +206,11 @@
                 <div class="remaining-salary-box">
                     <div class="remaining-salary-label">Remaining Salary</div>
                     <div class="remaining-salary-value">AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</div>
-                    <div class="remaining-salary-formula">Total Salary - Received</div>
                 </div>
                 <div class="remaining-salary-equation">
                     <div><span>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</span><small>Total Salary</small></div>
                     <strong>-</strong>
-                    <div><span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span><small>Received</small></div>
+                    <div><span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span><small>Not Yet Deducted</small></div>
                     <strong>=</strong>
                     <div><span>AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</span><small>Remaining Salary</small></div>
                 </div>

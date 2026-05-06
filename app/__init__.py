@@ -17,14 +17,23 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     app = Flask(__name__)
     project_root = Path(app.root_path).parent
-    generated_root = Path(os.getenv("GENERATED_DIR", str(project_root / "generated"))).expanduser()
-    driver_files_root = Path(
-        os.getenv("DRIVER_FILES_DIR", str(generated_root / "drivers"))
-    ).expanduser()
+    fallback_generated_root = project_root / "generated"
+    default_generated_root = Path("F:/Current All") if os.name == "nt" else fallback_generated_root
+    generated_root = Path(os.getenv("GENERATED_DIR", str(default_generated_root))).expanduser()
     default_backup_root = "F:/Current Link Backup/generated" if os.name == "nt" else ""
     generated_backup_root = Path(
         os.getenv("GENERATED_BACKUP_DIR", default_backup_root)
     ).expanduser() if os.getenv("GENERATED_BACKUP_DIR", default_backup_root).strip() else None
+
+    try:
+        generated_root.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        generated_root = fallback_generated_root
+        generated_root.mkdir(parents=True, exist_ok=True)
+
+    driver_files_root = Path(
+        os.getenv("DRIVER_FILES_DIR", str(generated_root / "drivers"))
+    ).expanduser()
 
     app.config.update(
         DATABASE=os.getenv("DATABASE_FILE", "payroll.db"),
@@ -54,6 +63,8 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     if test_config:
         app.config.update(test_config)
+        if "DRIVER_FILES_DIR" not in test_config:
+            app.config["DRIVER_FILES_DIR"] = str(Path(app.config["GENERATED_DIR"]) / "drivers")
 
     if not app.config["SECRET_KEY"]:
         raise RuntimeError("SECRET_KEY is missing. Set it in .env or the environment before starting the app.")
