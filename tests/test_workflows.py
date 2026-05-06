@@ -1292,6 +1292,7 @@ def test_technician_portal_saves_multiple_rows_with_separate_attachments(app, cl
         "/portal/technician",
         data={
             "action": "submit_jobs",
+            "row_indexes": "1,2",
             "entry_date_1": "2026-05-01",
             "vehicle_id_1": "GENERAL",
             "workshop_name_1": "Diesel Pump",
@@ -1349,6 +1350,89 @@ def test_technician_portal_saves_multiple_rows_with_separate_attachments(app, cl
         assert papers[1]["attachment_path"].startswith("maintenance/mt-")
         assert (Path(app.config["GENERATED_DIR"]) / papers[1]["attachment_path"]).exists()
         assert db.execute("SELECT COUNT(*) FROM salary_store WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
+
+
+def test_technician_portal_keeps_invalid_row_visible_and_saves_valid_rows(app, client):
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TEC-ROWS", "PTY-ROWS", "tec.rows", "hash", "0507777000", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-ROWS", "Rows Party", "Supplier"),
+        )
+        db.commit()
+
+    with client.session_transaction() as session:
+        session["role"] = "technician"
+        session["technician_code"] = "TEC-ROWS"
+        session["technician_party_code"] = "PTY-ROWS"
+        session["display_name"] = "Field Staff"
+
+    response = client.post(
+        "/portal/technician",
+        data={
+            "action": "submit_jobs",
+            "row_indexes": "1,2,3",
+            "entry_date_1": "2026-05-04",
+            "vehicle_id_1": "",
+            "workshop_name_1": "General Shop",
+            "bill_no_1": "GEN-01",
+            "work_type_1": "Site Expense",
+            "details_1": "General expense",
+            "amount_1": "120",
+            "tax_mode_1": "Inclusive",
+            "tax_amount_1": "0",
+            "total_amount_1": "120",
+            "remarks_1": "general row",
+            "entry_date_2": "2026-05-05",
+            "vehicle_id_2": "GENERAL",
+            "workshop_name_2": "Broken Shop",
+            "bill_no_2": "",
+            "work_type_2": "Fuel",
+            "details_2": "Missing bill number",
+            "amount_2": "55",
+            "tax_mode_2": "Inclusive",
+            "tax_amount_2": "5",
+            "total_amount_2": "60",
+            "remarks_2": "should stay visible",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert b"1 field staff entry submitted successfully" in response.data
+    assert b"Row 2: bill number is required." in response.data
+    assert b"value=\"Broken Shop\"" in response.data
+    assert b"General Entry / No Vehicle" in response.data
+
+    with app.app_context():
+        db = open_db()
+        papers = db.execute(
+            """
+            SELECT paper_no, vehicle_no, supplier_bill_no, total_amount
+            FROM maintenance_papers
+            WHERE technician_code = ?
+            ORDER BY paper_no ASC
+            """,
+            ("TEC-ROWS",),
+        ).fetchall()
+
+        assert len(papers) == 1
+        assert papers[0]["vehicle_no"] == "GENERAL"
+        assert papers[0]["supplier_bill_no"] == "GEN-01"
+        assert float(papers[0]["total_amount"]) == 120.0
 
 
 def test_owner_fund_can_edit_and_delete(app, client):

@@ -1312,11 +1312,13 @@ def register_routes(app: Flask) -> None:
         ).fetchall()
         
         form_rows = _default_technician_entry_rows(datetime.now().strftime("%Y-%m-%d"))
+        row_errors_by_no = {}
         
         if request.method == "POST":
             action = request.form.get("action", "").strip()
             if action == "submit_jobs":
                 form_rows = _technician_entry_rows_from_request(request)
+                row_errors_by_no = {}
                 submitted_rows = [row for row in form_rows if not _technician_entry_row_is_blank(row)]
                 if not submitted_rows:
                     flash("Add at least one filled paper row before submit.", "error")
@@ -1367,6 +1369,7 @@ def register_routes(app: Flask) -> None:
                             total_amount = 0.0
 
                         if current_errors:
+                            row_errors_by_no[row["row_no"]] = list(current_errors)
                             row_errors.append(f"Row {row['row_no']}: " + ", ".join(current_errors) + ".")
                             continue
 
@@ -1411,6 +1414,7 @@ def register_routes(app: Flask) -> None:
                             saved_rows.append(paper_no)
                         except Exception as exc:
                             db.rollback()
+                            row_errors_by_no.setdefault(row["row_no"], []).append(str(exc))
                             row_errors.append(f"Row {row['row_no']}: {exc}")
 
                     if saved_rows:
@@ -1441,6 +1445,7 @@ def register_routes(app: Flask) -> None:
             recent_jobs=recent_jobs,
             vehicle_options=vehicle_options,
             form_rows=form_rows,
+            row_errors_by_no=row_errors_by_no,
         )
     
     @app.get("/services")
@@ -8205,12 +8210,13 @@ def _ensure_workshop_party(db, workshop_name: str) -> str:
     return party_code
 
 
-TECHNICIAN_BULK_ROW_COUNT = 5
+TECHNICIAN_DEFAULT_ROW_NO = 1
 
 
-def _default_technician_entry_rows(default_date: str, row_count: int = TECHNICIAN_BULK_ROW_COUNT):
+def _default_technician_entry_rows(default_date: str, row_numbers: list[int] | None = None):
+    row_numbers = row_numbers or [TECHNICIAN_DEFAULT_ROW_NO]
     rows = []
-    for row_no in range(1, row_count + 1):
+    for row_no in row_numbers:
         rows.append(
             {
                 "row_no": row_no,
@@ -8231,9 +8237,38 @@ def _default_technician_entry_rows(default_date: str, row_count: int = TECHNICIA
     return rows
 
 
-def _technician_entry_rows_from_request(request, row_count: int = TECHNICIAN_BULK_ROW_COUNT):
+def _technician_request_row_numbers(request) -> list[int]:
+    row_numbers: list[int] = []
+    for raw_value in request.form.get("row_indexes", "").split(","):
+        raw_value = raw_value.strip()
+        if not raw_value:
+            continue
+        try:
+            row_no = int(raw_value)
+        except ValueError:
+            continue
+        if row_no > 0 and row_no not in row_numbers:
+            row_numbers.append(row_no)
+
+    if row_numbers:
+        return row_numbers
+
+    pattern = re.compile(r"_(\d+)$")
+    discovered_row_numbers: list[int] = []
+    for key in list(request.form.keys()) + list(request.files.keys()):
+        match = pattern.search(key)
+        if not match:
+            continue
+        row_no = int(match.group(1))
+        if row_no > 0 and row_no not in discovered_row_numbers:
+            discovered_row_numbers.append(row_no)
+    return discovered_row_numbers or [TECHNICIAN_DEFAULT_ROW_NO]
+
+
+def _technician_entry_rows_from_request(request):
+    row_numbers = _technician_request_row_numbers(request)
     rows = []
-    for row_no in range(1, row_count + 1):
+    for row_no in row_numbers:
         rows.append(
             {
                 "row_no": row_no,
