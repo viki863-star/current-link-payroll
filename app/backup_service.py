@@ -192,7 +192,30 @@ def _backup_dir(app, kind: str) -> Path:
 def _database_path(app) -> Path:
     configured = app.config.get("DATABASE_PATH")
     if configured:
-        return Path(configured)
+        path = Path(configured)
+        if path.exists():
+            return path
+    
+    # Try DATABASE_FILE from environment
+    configured_file = app.config.get("DATABASE_FILE")
+    if configured_file:
+        path = Path(configured_file)
+        if path.exists():
+            return path
+    
+    # Try default locations
+    default_paths = [
+        Path("payroll.db"),
+        Path(app.root_path) / "payroll.db",
+        Path(app.root_path).parent / "payroll.db",
+        Path(app.config.get("DATABASE", "payroll.db")),
+    ]
+    
+    for path in default_paths:
+        if path.exists():
+            return path
+    
+    # Return the first default path even if it doesn't exist (for error message)
     return Path(app.config.get("DATABASE", "payroll.db"))
 
 
