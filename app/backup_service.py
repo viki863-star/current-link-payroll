@@ -310,3 +310,225 @@ def _format_bytes(size: int) -> str:
             return f"{value:.1f} {unit}" if unit != "B" else f"{int(value)} {unit}"
         value /= 1024
     return f"{value:.1f} TB"
+
+
+def create_supplier_data_backup(app=None):
+    """
+    Create a comprehensive backup of all supplier data including:
+    - Cash suppliers
+    - Online suppliers
+    - Managed suppliers
+    - Partnership suppliers
+    - All payment records and vouchers
+    """
+    app = _resolve_app(app)
+    
+    try:
+        import sqlite3
+        import json
+        import csv
+        from datetime import datetime
+        
+        database_path = _database_path(app)
+        if not database_path.exists():
+            return _error_result(f"Database file was not found at {database_path}")
+        
+        # Create backup directory
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_dir = Path(app.config.get("GENERATED_BACKUP_DIR") or app.config["GENERATED_DIR"]) / "supplier_backups" / f"supplier_backup_{timestamp}"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Connect to database
+        conn = sqlite3.connect(str(database_path))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # List of supplier-related tables
+        supplier_tables = [
+            "parties",
+            "supplier_profile",
+            "supplier_portal_accounts",
+            "supplier_assets",
+            "supplier_timesheets",
+            "supplier_vouchers",
+            "supplier_payments",
+            "supplier_invoice_submissions",
+            "supplier_partnership_entries",
+            "supplier_registration_requests",
+            "supplier_quotation_submissions",
+            "cash_supplier_trips",
+            "cash_supplier_debits",
+            "cash_supplier_payments",
+            "agreements",
+            "lpos",
+            "hire_records",
+            "account_invoices",
+            "account_payments",
+            "supplier_inquiries",
+        ]
+        
+        backup_info = {
+            "backup_timestamp": datetime.now().isoformat(),
+            "database": str(database_path),
+            "tables_backed_up": [],
+            "total_records": 0
+        }
+        
+        # Backup each table to JSON and CSV
+        for table in supplier_tables:
+            try:
+                cursor.execute(f"SELECT * FROM {table}")
+                rows = cursor.fetchall()
+                
+                if not rows:
+                    continue
+                
+                # Save as JSON
+                json_data = []
+                for row in rows:
+                    json_data.append(dict(row))
+                
+                json_path = backup_dir / f"{table}.json"
+                with open(json_path, 'w', encoding='utf-8') as f:
+                    json.dump(json_data, f, indent=2, default=str)
+                
+                # Save as CSV
+                csv_path = backup_dir / f"{table}.csv"
+                if rows:
+                    with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+                        writer = csv.writer(f)
+                        # Write header
+                        writer.writerow([col[0] for col in cursor.description])
+                        # Write rows
+                        for row in rows:
+                            writer.writerow([str(cell) if cell is not None else '' for cell in row])
+                
+                backup_info["tables_backed_up"].append({
+                    "table": table,
+                    "records": len(rows),
+                    "json_file": f"{table}.json",
+                    "csv_file": f"{table}.csv"
+                })
+                backup_info["total_records"] += len(rows)
+                
+            except Exception as e:
+                # Log error but continue with other tables
+                error_file = backup_dir / f"{table}_error.txt"
+                with open(error_file, 'w') as f:
+                    f.write(f"Error backing up table {table}: {str(e)}")
+        
+        # Save backup info
+        info_path = backup_dir / "backup_info.json"
+        with open(info_path, 'w', encoding='utf-8') as f:
+            json.dump(backup_info, f, indent=2)
+        
+        # Create ZIP archive
+        zip_path = backup_dir.parent / f"supplier_backup_{timestamp}.zip"
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for file in backup_dir.rglob('*'):
+                if file.is_file():
+                    zipf.write(file, file.relative_to(backup_dir.parent))
+        
+        conn.close()
+        
+        # Mirror to local backup directory if configured
+        _mirror_generated_file(app, zip_path)
+        
+        message = f"Supplier data backup created: {len(backup_info['tables_backed_up'])} tables, {backup_info['total_records']} records"
+        return _success_result(zip_path, message)
+        
+    except Exception as e:
+        return _error_result(f"Supplier data backup failed: {str(e)}")
+
+
+def auto_generate_supplier_statement_pdf(app=None, party_code: str = "") -> dict:
+    """Automatically generate supplier statement PDF after any action.
+    
+    This function should be called after any supplier action (save_asset, save_timesheet,
+    save_voucher, save_debit, save_trip, etc.) to automatically generate and save
+    the latest statement PDF to the local backup directory.
+    
+    Args:
+        app: Flask application instance
+        party_code: Supplier party code
+        
+    Returns:
+        dict with success/error result
+    """
+    app = _resolve_app(app)
+    
+    try:
+        from .database import open_db
+        from .pdf_service import (
+            generate_plain_supplier_statement_pdf,
+            generate_partnership_supplier_statement_pdf,
+            generate_cash_supplier_kata_pdf,
+        )
+        from .routes import (
+            _fetch_supplier_party,
+            _supplier_mode_for_party,
+            _supplier_statement_data,
+            _cash_supplier_kata,
+            _filter_cash_supplier_kata_rows,
+            _cash_supplier_kata_summary,
+            _supplier_partnership_asset_rows,
+            _normalize_month,
+            _current_month_value,
+        )
+        from datetime import datetime
+        
+        db = open_db()
+        party = _fetch_supplier_party(db, party_code)
+        if party is None:
+            return _error_result(f"Supplier {party_code} was not found.")
+        
+        supplier_mode = _supplier_mode_for_party(db, party_code)
+        output_dir = Path(app.config["GENERATED_DIR"]) / "suppliers" / party_code / "statements"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        if supplier_mode in ("Cash", "Loan"):
+            # Generate cash supplier kata PDF
+            kata_rows, kata_summary = _cash_supplier_kata(db, party_code)
+            pdf_path = generate_cash_supplier_kata_pdf(
+                party,
+                kata_rows,
+                kata_summary,
+                str(output_dir),
+                app.config["STATIC_ASSETS_DIR"],
+                title="Cash Supplier Kata" if supplier_mode == "Cash" else "Loan Supplier Kata",
+                filter_caption="Auto-generated after action",
+            )
+        elif supplier_mode == "Partnership":
+            # Generate partnership statement PDF
+            partnership_month = _normalize_month(_current_month_value())
+            statement_rows, statement_summary = _supplier_statement_data(db, party_code, supplier_mode=supplier_mode)
+            asset_rows = _supplier_partnership_asset_rows(db, party_code, partnership_month)
+            pdf_path = generate_partnership_supplier_statement_pdf(
+                party,
+                partnership_month,
+                asset_rows,
+                statement_summary,
+                str(output_dir),
+            )
+        else:
+            # Generate plain supplier statement PDF
+            statement_rows, statement_summary = _supplier_statement_data(db, party_code, supplier_mode=supplier_mode)
+            pdf_path = generate_plain_supplier_statement_pdf(
+                party,
+                statement_rows,
+                statement_summary,
+                str(output_dir),
+                title="Supplier Statement of Account",
+            )
+        
+        # Mirror to local backup directory
+        _mirror_generated_file(app, pdf_path)
+        
+        # Also archive the statement record
+        from .routes import _archive_supplier_statement_pdf_record
+        _archive_supplier_statement_pdf_record(app, party, pdf_path, "auto_generated_after_action")
+        
+        return _success_result(pdf_path, f"Supplier statement PDF auto-generated for {party_code}")
+        
+    except Exception as e:
+        return _error_result(f"Failed to auto-generate supplier statement PDF: {str(e)}")

@@ -30,6 +30,8 @@ from .backup_service import (
     create_backup_now,
     latest_backup_file,
     sync_all_generated_files,
+    create_supplier_data_backup,
+    auto_generate_supplier_statement_pdf,
 )
 from .database import open_db
 from .excel_import import load_driver_records, upsert_driver_records
@@ -1740,6 +1742,34 @@ def register_routes(app: Flask) -> None:
             db.commit()
         return redirect(url_for("admin_backups"))
 
+    @app.post("/admin/backups/supplier-data")
+    @_login_required("admin")
+    def backup_supplier_data():
+        db = open_db()
+        result = create_supplier_data_backup(app)
+        if result["ok"]:
+            flash(result["message"], "success")
+            _audit_log(
+                db,
+                "supplier_data_backup_created",
+                entity_type="backup",
+                entity_id="supplier_data",
+                details=result["message"],
+            )
+            db.commit()
+        else:
+            flash(result["message"], "error")
+            _audit_log(
+                db,
+                "supplier_data_backup_failed",
+                entity_type="backup",
+                entity_id="supplier_data",
+                status="failed",
+                details=result["message"],
+            )
+            db.commit()
+        return redirect(url_for("admin_backups"))
+
     @app.route("/company-setup", methods=["GET", "POST"])
     @_login_required("admin")
     def company_setup():
@@ -2799,6 +2829,8 @@ def register_routes(app: Flask) -> None:
                         )
                         message = "Supplier vehicle saved successfully."
                     db.commit()
+                    # Auto-generate supplier statement PDF after asset change
+                    auto_generate_supplier_statement_pdf(app, party_code)
                     flash(message, "success")
                     return redirect(url_for("supplier_detail", party_code=party_code, screen="vehicles", partnership_month=partnership_month))
 
@@ -2858,6 +2890,8 @@ def register_routes(app: Flask) -> None:
                         )
                         message = "Supplier timesheet saved successfully."
                     db.commit()
+                    # Auto-generate supplier statement PDF after timesheet change
+                    auto_generate_supplier_statement_pdf(app, party_code)
                     flash(message, "success")
                     return redirect(url_for("supplier_detail", party_code=party_code, screen="timesheets", partnership_month=partnership_month))
 
@@ -3034,6 +3068,8 @@ def register_routes(app: Flask) -> None:
                         )
                         message = "Supplier voucher created from open timesheets."
                     db.commit()
+                    # Auto-generate supplier statement PDF after voucher change
+                    auto_generate_supplier_statement_pdf(app, party_code)
                     flash(message, "success")
                     return redirect(url_for("supplier_detail", party_code=party_code, screen="billing", partnership_month=partnership_month))
 
@@ -3153,6 +3189,8 @@ def register_routes(app: Flask) -> None:
                         )
                         message = "Partnership entry saved successfully."
                     db.commit()
+                    # Auto-generate supplier statement PDF after partnership entry change
+                    auto_generate_supplier_statement_pdf(app, party_code)
                     flash(message, "success")
                     return redirect(url_for("supplier_detail", party_code=party_code, screen="partnership", partnership_month=partnership_values["period_month"]))
             except ValidationError as exc:
@@ -3189,6 +3227,8 @@ def register_routes(app: Flask) -> None:
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (trip_no, party_code, entry_date, period_month or None, earning_basis, trip_count, rate, total_amount, vehicle_no or None, notes or None, session.get("display_name", "") or "Admin"))
                         db.commit()
+                        # Auto-generate supplier statement PDF after trip change
+                        auto_generate_supplier_statement_pdf(app, party_code)
                         flash(f"{earning_basis} earning {trip_no} saved - AED {total_amount}", "success")
                         return redirect(url_for("supplier_detail", party_code=party_code, screen="kata"))
 
@@ -3207,6 +3247,8 @@ def register_routes(app: Flask) -> None:
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """, (debit_no, party_code, entry_date, debit_type, amount, description or None, notes or None, session.get("display_name", "") or "Admin"))
                         db.commit()
+                        # Auto-generate supplier statement PDF after debit change
+                        auto_generate_supplier_statement_pdf(app, party_code)
                         flash(f"Debit {debit_no} saved — AED {amount}", "success")
                         return redirect(url_for("supplier_detail", party_code=party_code, screen="kata"))
 

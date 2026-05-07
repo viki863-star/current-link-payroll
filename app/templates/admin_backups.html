@@ -25,6 +25,10 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" style="border:0; border-radius:14px; padding:12px 18px; font-weight:800; background:#2CB15C; color:#fff; cursor:pointer;">Sync All Files to Local</button>
             </form>
+            <form method="post" action="{{ url_for('backup_supplier_data') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" style="border:0; border-radius:14px; padding:12px 18px; font-weight:800; background:#9C27B0; color:#fff; cursor:pointer;">Backup Supplier Data</button>
+            </form>
             <a href="{{ url_for('download_latest_backup') }}" style="display:inline-flex; align-items:center; justify-content:center; border-radius:14px; padding:12px 18px; font-weight:800; background:#255f99; color:#fff; text-decoration:none;">Download Latest Backup</a>
         </div>
     </div>
