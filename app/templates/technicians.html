@@ -109,14 +109,19 @@
                 <input type="hidden" name="action" value="issue_payment">
                 <label>
                     <span>Field Staff</span>
-                    <select name="payment_technician_code" required>
-                        <option value="">Select field staff</option>
-                        {% for tech in technicians %}
-                        <option value="{{ tech.technician_code }}" {% if payment_values.technician_code == tech.technician_code %}selected{% endif %}>
-                            {{ tech.specialization or tech.technician_code }} ({{ tech.technician_code }})
-                        </option>
-                        {% endfor %}
-                    </select>
+                    <div class="smart-dropdown-container">
+                        <select name="payment_technician_code" id="payment_technician_select" class="smart-dropdown-select" oninput="handleTechnicianInput(event)" required>
+                            <option value="">Select field staff</option>
+                            {% for tech in technicians %}
+                            <option value="{{ tech.technician_code }}" data-name="{{ tech.specialization or tech.technician_code }}" data-code="{{ tech.technician_code }}" {% if payment_values.technician_code == tech.technician_code %}selected{% endif %}>
+                                {{ tech.specialization or tech.technician_code }} ({{ tech.technician_code }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="smart-dropdown-hint">
+                            <small>Type code or name to filter</small>
+                        </div>
+                    </div>
                 </label>
                 <label>
                     <span>Date</span>
@@ -267,4 +272,139 @@
         </article>
     </section>
 </section>
+
+<style>
+/* Smart Dropdown Styles - Same as technician_jobs.html */
+.smart-dropdown-container {
+    position: relative;
+}
+
+.smart-dropdown-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 14px;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.smart-dropdown-select:focus {
+    border-color: #1c568b;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(28, 86, 139, 0.1);
+}
+
+.smart-dropdown-hint {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+.smart-dropdown-hint small {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .smart-dropdown-select {
+        font-size: 16px;
+        padding: 12px;
+        height: 48px;
+    }
+    
+    .smart-dropdown-hint {
+        font-size: 13px;
+    }
+}
+
+/* Touch-friendly improvements */
+.smart-dropdown-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
+}
+</style>
+
+<script>
+// Reuse the same function from technician_jobs.html
+function handleTechnicianInput(event) {
+    const select = event.target;
+    const inputValue = select.value.trim();
+    
+    if (!inputValue) {
+        Array.from(select.options).forEach(option => {
+            option.style.display = '';
+        });
+        return;
+    }
+    
+    const isNumber = /^\d+$/.test(inputValue);
+    
+    Array.from(select.options).forEach(option => {
+        if (option.value === '') {
+            option.style.display = '';
+            return;
+        }
+        
+        const code = option.getAttribute('data-code') || '';
+        const name = option.getAttribute('data-name') || '';
+        const displayText = option.textContent.toLowerCase();
+        
+        let shouldShow = false;
+        
+        if (isNumber) {
+            shouldShow = code.includes(inputValue) || displayText.includes(inputValue);
+        } else {
+            shouldShow = name.toLowerCase().includes(inputValue.toLowerCase()) ||
+                         displayText.includes(inputValue.toLowerCase());
+        }
+        
+        option.style.display = shouldShow ? '' : 'none';
+    });
+    
+    const visibleOptions = Array.from(select.options).filter(opt =>
+        opt.style.display !== 'none' && opt.value !== ''
+    );
+    
+    if (visibleOptions.length === 1) {
+        select.value = visibleOptions[0].value;
+        select.dispatchEvent(new Event('change'));
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentSelect = document.getElementById('payment_technician_select');
+    if (paymentSelect) {
+        paymentSelect.addEventListener('input', handleTechnicianInput);
+        
+        // Add data attributes if missing
+        Array.from(paymentSelect.options).forEach(option => {
+            if (option.value && !option.hasAttribute('data-code')) {
+                const match = option.textContent.match(/\((.*?)\)/);
+                if (match) {
+                    option.setAttribute('data-code', match[1]);
+                    option.setAttribute('data-name', option.textContent.split('(')[0].trim());
+                }
+            }
+        });
+        
+        // Mobile optimizations
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            paymentSelect.setAttribute('inputmode', 'numeric');
+            paymentSelect.setAttribute('pattern', '[0-9]*');
+        }
+    }
+});
+</script>
 {% endblock %}

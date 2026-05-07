@@ -3,6 +3,169 @@
 {% block content %}
 <section class="admin-desk-shell maintenance-workspace-shell field-staff-portal-shell">
     <style>
+        /* New Field Staff Welcome Card Styles */
+        .field-staff-portal-shell .field-staff-welcome-card {
+            background: linear-gradient(135deg, #1c568b 0%, #2a6ba8 100%);
+            color: white;
+            border-radius: 24px;
+            padding: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 12px 32px rgba(28, 86, 139, 0.25);
+        }
+        
+        .field-staff-welcome-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+        
+        .field-staff-welcome-badge {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .welcome-badge-text {
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0.9;
+            letter-spacing: 0.5px;
+        }
+        
+        .welcome-badge-code {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 6px 14px;
+            border-radius: 12px;
+            display: inline-block;
+            backdrop-filter: blur(10px);
+        }
+        
+        .field-staff-status-section {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+        
+        .field-staff-desk-label {
+            font-size: 12px;
+            opacity: 0.8;
+            font-weight: 600;
+        }
+        
+        .status-chip-premium {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 20px;
+        }
+        
+        .field-staff-profile-section {
+            margin-bottom: 28px;
+        }
+        
+        .field-staff-specialization {
+            font-size: 32px;
+            font-weight: 800;
+            margin: 0 0 12px 0;
+            line-height: 1.2;
+        }
+        
+        .field-staff-code-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            opacity: 0.95;
+        }
+        
+        .field-staff-code-display svg {
+            opacity: 0.8;
+        }
+        
+        .field-staff-name {
+            opacity: 0.8;
+            font-weight: 500;
+        }
+        
+        .field-staff-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        
+        .field-staff-stat-card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            border-radius: 18px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: transform 0.2s, background 0.2s;
+        }
+        
+        .field-staff-stat-card:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.18);
+        }
+        
+        .stat-card-icon {
+            font-size: 28px;
+            opacity: 0.9;
+        }
+        
+        .stat-card-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .stat-card-label {
+            font-size: 13px;
+            opacity: 0.8;
+            font-weight: 600;
+        }
+        
+        .stat-card-value {
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .field-staff-welcome-header {
+                flex-direction: column;
+                gap: 16px;
+            }
+            
+            .field-staff-status-section {
+                align-items: flex-start;
+            }
+            
+            .field-staff-specialization {
+                font-size: 26px;
+            }
+            
+            .field-staff-stats-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .field-staff-stat-card {
+                padding: 16px;
+            }
+        }
+        
+        /* Old styles kept for compatibility */
         .field-staff-portal-shell .field-staff-simple-hero {
             display: grid;
             gap: 12px;
@@ -278,22 +441,58 @@
         }
     </style>
 
-    <article class="card field-staff-simple-hero">
-        <div class="field-staff-mobile-topline">
-            <span class="admin-desk-label">Field Staff Desk</span>
-            <span class="status-chip {{ (technician.status or 'Active')|lower }}">{{ technician.status or "Active" }}</span>
+    <article class="card field-staff-welcome-card">
+        <div class="field-staff-welcome-header">
+            <div class="field-staff-welcome-badge">
+                <span class="welcome-badge-text">Welcome Field Staff</span>
+                <span class="welcome-badge-code">{{ technician.technician_code }}</span>
+            </div>
+            <div class="field-staff-status-section">
+                <span class="field-staff-desk-label">Field Staff Desk</span>
+                <span class="status-chip status-chip-premium {{ (technician.status or 'Active')|lower }}">{{ technician.status or "Active" }}</span>
+            </div>
         </div>
-        <h1>{{ technician.specialization or "Field Staff Desk" }}</h1>
-        <p>
-            {{ technician.technician_code }}
-            {% if party and party.party_name %}
-            | {{ party.party_name }}
-            {% endif %}
-        </p>
-        <div class="field-staff-summary-strip">
-            <span class="field-staff-summary-pill">Available Balance AED {{ "%.0f"|format(balance_available) }}</span>
-            <span class="field-staff-summary-pill">Total Papers {{ total_jobs }}</span>
-            <span class="field-staff-summary-pill">In Review AED {{ "%.0f"|format(pending_review) }}</span>
+        
+        <div class="field-staff-profile-section">
+            <h1 class="field-staff-specialization">{{ technician.specialization or "Body work" }}</h1>
+            <div class="field-staff-code-display">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <line x1="20" y1="8" x2="20" y2="14"></line>
+                    <line x1="23" y1="11" x2="17" y2="11"></line>
+                </svg>
+                <strong>{{ technician.technician_code }}</strong>
+                {% if party and party.party_name %}
+                <span class="field-staff-name">| {{ party.party_name }}</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="field-staff-stats-grid">
+            <div class="field-staff-stat-card stat-card-balance">
+                <div class="stat-card-icon">💰</div>
+                <div class="stat-card-content">
+                    <span class="stat-card-label">Available Balance</span>
+                    <strong class="stat-card-value">AED {{ "%.0f"|format(balance_available) }}</strong>
+                </div>
+            </div>
+            
+            <div class="field-staff-stat-card stat-card-papers">
+                <div class="stat-card-icon">📄</div>
+                <div class="stat-card-content">
+                    <span class="stat-card-label">Total Papers</span>
+                    <strong class="stat-card-value">{{ total_jobs }}</strong>
+                </div>
+            </div>
+            
+            <div class="field-staff-stat-card stat-card-review">
+                <div class="stat-card-icon">⏳</div>
+                <div class="stat-card-content">
+                    <span class="stat-card-label">In Review</span>
+                    <strong class="stat-card-value">AED {{ "%.0f"|format(pending_review) }}</strong>
+                </div>
+            </div>
         </div>
     </article>
 

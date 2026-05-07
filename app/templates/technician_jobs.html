@@ -35,15 +35,30 @@
                 </select>
             </label>
             <label>
-                    <span>Field Staff</span>
-                <select name="technician_code">
-                    <option value="">All Field Staff</option>
-                    {% for tech in technicians %}
-                    <option value="{{ tech.technician_code }}" {% if filters.technician_code == tech.technician_code %}selected{% endif %}>
-                        {{ tech.party_name }} ({{ tech.technician_code }})
-                    </option>
-                    {% endfor %}
-                </select>
+                <span>Field Staff</span>
+                <div class="searchable-dropdown-container">
+                    <div class="searchable-dropdown-header">
+                        <input type="text"
+                               class="searchable-dropdown-input"
+                               placeholder="Type code or name to search..."
+                               id="technician_search_input"
+                               oninput="filterTechnicianOptions(this)"
+                               onfocus="showTechnicianDropdown(this)">
+                        <div class="searchable-dropdown-icon">🔍</div>
+                    </div>
+                    <select name="technician_code" id="technician_select" class="searchable-dropdown-select" style="display: none;">
+                        <option value="">All Field Staff</option>
+                        {% for tech in technicians %}
+                        <option value="{{ tech.technician_code }}" data-name="{{ tech.party_name }}" data-code="{{ tech.technician_code }}" {% if filters.technician_code == tech.technician_code %}selected{% endif %}>
+                            {{ tech.party_name }} ({{ tech.technician_code }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="searchable-dropdown-hint">
+                        <small>Type number for code or text for name</small>
+                    </div>
+                    <div class="searchable-dropdown-options" id="technician_dropdown"></div>
+                </div>
             </label>
             <label>
                 <span>Vehicle</span>
@@ -213,12 +228,17 @@
                     <input type="hidden" name="action" value="batch_approve">
                     <label class="full-span">
                         <span>Approve all pending entries for selected field staff:</span>
-                        <select name="batch_technician_code">
-                            <option value="">All Field Staff</option>
-                            {% for tech in technicians %}
-                            <option value="{{ tech.technician_code }}">{{ tech.party_name }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="smart-dropdown-container">
+                            <select name="batch_technician_code" id="batch_technician_select" class="smart-dropdown-select" oninput="handleTechnicianInput(event)">
+                                <option value="">All Field Staff</option>
+                                {% for tech in technicians %}
+                                <option value="{{ tech.technician_code }}" data-name="{{ tech.party_name }}" data-code="{{ tech.technician_code }}">{{ tech.party_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="smart-dropdown-hint">
+                                <small>Type code or name to filter</small>
+                            </div>
+                        </div>
                     </label>
                     <div class="form-actions">
                         <button class="button button-success" type="submit">Approve Selected</button>
@@ -456,5 +476,391 @@
     text-align: center;
     color: #6c757d;
 }
+
+/* Searchable Dropdown Styles */
+.searchable-dropdown-container {
+    position: relative;
+}
+
+.searchable-dropdown-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.searchable-dropdown-input {
+    width: 100%;
+    padding: 12px 16px;
+    padding-right: 48px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 16px;
+    background: white;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.searchable-dropdown-input:focus {
+    outline: none;
+    border-color: #1c568b;
+    box-shadow: 0 4px 16px rgba(28, 86, 139, 0.15);
+}
+
+.searchable-dropdown-icon {
+    position: absolute;
+    right: 16px;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.searchable-dropdown-select {
+    display: none;
+}
+
+.searchable-dropdown-hint {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.searchable-dropdown-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    margin-top: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: none;
+}
+
+.searchable-dropdown-option {
+    padding: 14px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.searchable-dropdown-option:hover {
+    background: #f8fafc;
+}
+
+.searchable-dropdown-option.selected {
+    background: #e1f0ff;
+    border-left: 4px solid #1c568b;
+}
+
+.searchable-dropdown-option-code {
+    font-weight: 700;
+    color: #1c568b;
+    background: #f0f7ff;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.searchable-dropdown-option-name {
+    flex: 1;
+    margin-left: 12px;
+    text-align: left;
+}
+
+.searchable-dropdown-no-results {
+    padding: 20px;
+    text-align: center;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .searchable-dropdown-input {
+        font-size: 18px;
+        padding: 16px;
+        padding-right: 52px;
+    }
+    
+    .searchable-dropdown-options {
+        max-height: 250px;
+    }
+    
+    .searchable-dropdown-option {
+        padding: 16px;
+    }
+}
+
+/* Keep old styles for compatibility */
+.smart-dropdown-container {
+    position: relative;
+}
+
+.smart-dropdown-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 14px;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.smart-dropdown-select:focus {
+    border-color: #1c568b;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(28, 86, 139, 0.1);
+}
+
+.smart-dropdown-hint {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+.smart-dropdown-hint small {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Quick select badge for mobile */
+.quick-select-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.quick-select-badge {
+    padding: 6px 10px;
+    background-color: #f0f7ff;
+    border: 1px solid #c2d9ff;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.quick-select-badge:hover {
+    background-color: #e1f0ff;
+    border-color: #1c568b;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .smart-dropdown-select {
+        font-size: 16px; /* Prevents iOS zoom */
+        padding: 12px;
+        height: 48px;
+    }
+    
+    .smart-dropdown-hint {
+        font-size: 13px;
+    }
+    
+    .quick-select-badges {
+        gap: 8px;
+        margin-top: 12px;
+    }
+    
+    .quick-select-badge {
+        padding: 8px 12px;
+        font-size: 14px;
+        flex-grow: 1;
+        text-align: center;
+        min-width: 60px;
+    }
+    
+    .admin-filter-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+}
+
+/* Touch-friendly improvements */
+.smart-dropdown-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
+}
+
+/* Focus state for better accessibility */
+.smart-dropdown-select:focus-visible {
+    outline: 2px solid #1c568b;
+    outline-offset: 2px;
+}
 </style>
+
+<script>
+// Searchable Dropdown Functions
+function filterTechnicianOptions(input) {
+    const searchValue = input.value.trim().toLowerCase();
+    const dropdown = document.getElementById('technician_dropdown');
+    const select = document.getElementById('technician_select');
+    const options = Array.from(select.options).filter(opt => opt.value !== '');
+    
+    // Clear previous options
+    dropdown.innerHTML = '';
+    
+    if (!searchValue) {
+        dropdown.style.display = 'none';
+        return;
+    }
+    
+    const isNumber = /^\d+$/.test(searchValue);
+    let filteredOptions = [];
+    
+    options.forEach(option => {
+        const code = option.getAttribute('data-code') || option.value;
+        const name = option.getAttribute('data-name') || option.textContent.split('(')[0].trim();
+        const displayText = option.textContent.toLowerCase();
+        
+        let matches = false;
+        
+        if (isNumber) {
+            // Search by code
+            matches = code.toLowerCase().includes(searchValue) ||
+                      displayText.includes(searchValue);
+        } else {
+            // Search by name
+            matches = name.toLowerCase().includes(searchValue) ||
+                      displayText.includes(searchValue);
+        }
+        
+        if (matches) {
+            filteredOptions.push(option);
+        }
+    });
+    
+    if (filteredOptions.length === 0) {
+        dropdown.innerHTML = '<div class="searchable-dropdown-no-results">No matching field staff found</div>';
+        dropdown.style.display = 'block';
+        return;
+    }
+    
+    // Show filtered options
+    filteredOptions.forEach(option => {
+        const optionElement = document.createElement('div');
+        optionElement.className = 'searchable-dropdown-option';
+        optionElement.innerHTML = `
+            <span class="searchable-dropdown-option-name">${option.getAttribute('data-name') || option.textContent}</span>
+            <span class="searchable-dropdown-option-code">${option.getAttribute('data-code') || option.value}</span>
+        `;
+        
+        optionElement.addEventListener('click', () => {
+            select.value = option.value;
+            input.value = option.getAttribute('data-name') || option.textContent;
+            dropdown.style.display = 'none';
+            select.dispatchEvent(new Event('change'));
+        });
+        
+        dropdown.appendChild(optionElement);
+    });
+    
+    dropdown.style.display = 'block';
+}
+
+function showTechnicianDropdown(input) {
+    const dropdown = document.getElementById('technician_dropdown');
+    const select = document.getElementById('technician_select');
+    const options = Array.from(select.options).filter(opt => opt.value !== '');
+    
+    // Show all options when focused
+    dropdown.innerHTML = '';
+    
+    options.slice(0, 10).forEach(option => {
+        const optionElement = document.createElement('div');
+        optionElement.className = 'searchable-dropdown-option';
+        optionElement.innerHTML = `
+            <span class="searchable-dropdown-option-name">${option.getAttribute('data-name') || option.textContent}</span>
+            <span class="searchable-dropdown-option-code">${option.getAttribute('data-code') || option.value}</span>
+        `;
+        
+        optionElement.addEventListener('click', () => {
+            select.value = option.value;
+            input.value = option.getAttribute('data-name') || option.textContent;
+            dropdown.style.display = 'none';
+            select.dispatchEvent(new Event('change'));
+        });
+        
+        dropdown.appendChild(optionElement);
+    });
+    
+    dropdown.style.display = 'block';
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('technician_dropdown');
+    const input = document.getElementById('technician_search_input');
+    
+    if (dropdown && input && !dropdown.contains(event.target) && !input.contains(event.target)) {
+        dropdown.style.display = 'none';
+    }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const select = document.getElementById('technician_select');
+    const input = document.getElementById('technician_search_input');
+    
+    if (select && input) {
+        // Set initial value in search input if something is selected
+        const selectedOption = select.options[select.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            input.value = selectedOption.getAttribute('data-name') || selectedOption.textContent;
+        }
+        
+        // Add data attributes to options if missing
+        Array.from(select.options).forEach(option => {
+            if (option.value && !option.hasAttribute('data-code')) {
+                const match = option.textContent.match(/\((.*?)\)/);
+                if (match) {
+                    option.setAttribute('data-code', match[1]);
+                    option.setAttribute('data-name', option.textContent.split('(')[0].trim());
+                }
+            }
+        });
+        
+        // Mobile optimizations
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            input.setAttribute('inputmode', 'numeric');
+            input.setAttribute('pattern', '[0-9]*');
+            input.setAttribute('placeholder', 'Type technician code...');
+        }
+    }
+    
+    // Also initialize other dropdowns
+    const batchSelect = document.getElementById('batch_technician_select');
+    if (batchSelect) {
+        Array.from(batchSelect.options).forEach(option => {
+            if (option.value && !option.hasAttribute('data-code')) {
+                const match = option.textContent.match(/\((.*?)\)/);
+                if (match) {
+                    option.setAttribute('data-code', match[1]);
+                    option.setAttribute('data-name', option.textContent.split('(')[0].trim());
+                }
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
