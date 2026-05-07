@@ -12,10 +12,10 @@
                 <a class="button button-secondary" href="{{ url_for('admin_supplier_quotations') }}">Quotation Review</a>
             </div>
             <div class="admin-mini-stats">
-                <span><strong>{{ summary.supplier_count }}</strong><small>Online Suppliers</small></span>
-                <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
-                <span><strong>{{ summary.double_shift_count }}</strong><small>Double Shift</small></span>
-                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
+                <span><strong>{{ summary.supplier_count }}</strong><small>Active Suppliers</small></span>
+                <span><strong>{{ summary.pending_inquiries_count }}</strong><small>Pending Inquiries</small></span>
+                <span><strong>{{ summary.pending_quotations_count }}</strong><small>Pending Quotations</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Total Due</small></span>
             </div>
         </div>
         <form method="get" class="admin-filter-grid desk-single-filter">
@@ -122,12 +122,12 @@
                     <span class="stat-label">Fleet Units</span>
                 </div>
                 <div class="quick-stat">
-                    <span class="stat-value">{{ summary.double_shift_count }}</span>
-                    <span class="stat-label">Double Shift</span>
+                    <span class="stat-value">{{ summary.pending_inquiries_count }}</span>
+                    <span class="stat-label">Pending Inquiries</span>
                 </div>
                 <div class="quick-stat">
-                    <span class="stat-value">AED {{ "%.0f"|format(summary.outstanding_total) }}</span>
-                    <span class="stat-label">Total Due</span>
+                    <span class="stat-value">{{ summary.portal_users_count }}</span>
+                    <span class="stat-label">Portal Users</span>
                 </div>
             </div>
         </article>

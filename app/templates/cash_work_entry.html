@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}Add Work Entry — {{ supplier.party_name }} — Current Link ERP{% endblock %}
+
+{% block content %}
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button button-secondary" href="{{ url_for('cash_suppliers') }}">Cash Desk</a>
+                <a class="button button-secondary" href="{{ url_for('cash_supplier_cards') }}">Supplier Cards</a>
+                <a class="button" href="{{ url_for('supplier_detail', party_code=supplier.party_code) }}">Supplier Profile</a>
+                <span class="button button-primary" style="background-color: #1f8f4c; border-color: #1f8f4c; cursor: default;">Add Work Entry</span>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ supplier.party_code }}</strong><small>Supplier Code</small></span>
+                <span><strong>{{ supplier.party_name }}</strong><small>Supplier Name</small></span>
+                <span><strong>AED {{ "%.2f"|format(balance_summary.balance) }}</strong><small>Current Balance</small></span>
+                <span><strong>{{ trip_count }}</strong><small>Total Trips</small></span>
+            </div>
+        </div>
+        <div class="mini-link-stack inline-link-stack">
+            <a class="mini-link-pill" href="{{ url_for('supplier_detail', party_code=supplier.party_code) }}">Profile</a>
+            <a class="mini-link-pill active" href="{{ url_for('cash_work_entry', party_code=supplier.party_code) }}">Work Entry</a>
+            <a class="mini-link-pill" href="{{ url_for('cash_advance', party_code=supplier.party_code) }}">Advance</a>
+            <a class="mini-link-pill" href="{{ url_for('cash_payment', party_code=supplier.party_code) }}">Payment</a>
+            <a class="mini-link-pill" href="{{ url_for('supplier_detail', party_code=supplier.party_code, screen='kata') }}">Statement</a>
+        </div>
+    </article>
+
+    <div class="desk-content-split">
+        <section class="desk-main-panel">
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Work Entry</span>
+                        <h2>Add Earning for {{ supplier.party_name }}</h2>
+                        <p class="workspace-lead">Record trips, hours, monthly payments, or fixed earnings.</p>
+                    </div>
+                </div>
+                <form method="post" class="desk-form-grid">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_trip">
+                    
+                    <div class="form-section">
+                        <h3 class="form-section-title">Basic Information</h3>
+                        <div class="form-grid-2">
+                            <label>
+                                <span>Earning No</span>
+                                <input type="text" name="trip_no" value="{{ cash_trip_no }}" readonly style="font-weight:800;background:#f5f5f5;">
+                            </label>
+                            <label>
+                                <span>Date *</span>
+                                <input type="date" name="entry_date" value="{{ today }}" required>
+                            </label>
+                            <label>
+                                <span>Period Month</span>
+                                <input type="month" name="period_month" value="{{ current_month }}">
+                            </label>
+                            <label>
+                                <span>Basis *</span>
+                                <select name="earning_basis" id="earning_basis" onchange="updateEarningLabels()">
+                                    {% for item in cash_earning_basis_options %}
+                                        <option value="{{ item }}">{{ item }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3 class="form-section-title">Earning Details</h3>
+                        <div class="form-grid-2">
+                            <label>
+                                <span id="earning_qty_label">Quantity</span>
+                                <input type="number" step="0.5" min="0" name="trip_count" value="1" required id="t_cnt" oninput="calculateTotal()">
+                            </label>
+                            <label>
+                                <span id="earning_rate_label">Rate</span>
+                                <input type="number" step="0.01" min="0" name="rate" placeholder="0.00" required id="t_rate" oninput="calculateTotal()">
+                            </label>
+                            <label>
+                                <span>Total Amount</span>
+                                <input type="number" step="0.01" name="total_display" id="t_total" readonly style="font-weight:800;background:#f0f9ff;">
+                            </label>
+                            <label>
+                                <span>Vehicle (Optional)</span>
+                                <input type="text" name="vehicle_no" placeholder="Vehicle number">
+                            </label>
+                        </div>
+                        <label class="full-span">
+                            <span>Notes / Description</span>
+                            <input type="text" name="notes" placeholder="e.g. April monthly payment or 180 duty hours">
+                        </label>
+                    </div>
+
+                    <div class="form-actions left-actions full-span">
+                        <button class="button success-button" type="submit">
+                            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style="margin-right:6px;">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            Save Work Entry
+                        </button>
+                        <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=supplier.party_code, screen='kata') }}">Cancel</a>
+                    </div>
+                </form>
+            </article>
+
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Recent Work Entries</span>
+                        <h2>Last 5 Earnings</h2>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Ref</th>
+                                <th>Basis</th>
+                                <th>Qty</th>
+                                <th>Rate</th>
+                                <th style="text-align:right;">Amount</th>
+                                <th>Vehicle</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for trip in recent_trips %}
+                            <tr>
+                                <td>{{ trip.entry_date }}</td>
+                                <td><strong>{{ trip.trip_no }}</strong></td>
+                                <td>{{ trip.earning_basis }}</td>
+                                <td>{{ "%.1f"|format(trip.trip_count) }}</td>
+                                <td>AED {{ "%.2f"|format(trip.rate) }}</td>
+                                <td style="text-align:right;font-weight:700;color:var(--color-success,#16a34a);">AED {{ "%.2f"|format(trip.total_amount) }}</td>
+                                <td>{{ trip.vehicle_no or '-' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="7">No work entries yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+
+        <aside class="desk-side-panel">
+            <article class="card desk-panel-card desk-side-feature">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Balance</span>
+                        <h2>Current Position</h2>
+                    </div>
+                </div>
+                <div class="cash-side-balance-grid">
+                    <div class="cash-side-balance-card due">
+                        <span>Earned Total</span>
+                        <strong>AED {{ "%.2f"|format(balance_summary.total_earned) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card advance">
+                        <span>Debits / Advance</span>
+                        <strong>AED {{ "%.2f"|format(balance_summary.total_debits) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card neutral">
+                        <span>Paid Total</span>
+                        <strong>AED {{ "%.2f"|format(balance_summary.total_paid) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card {% if balance_summary.balance >= 0 %}due{% else %}advance{% endif %}">
+                        <span>Current Balance</span>
+                        <strong>AED {{ "%.2f"|format(balance_summary.balance) }}</strong>
+                    </div>
+                </div>
+                <div class="desk-side-actions">
+                    <a class="button" href="{{ url_for('supplier_detail', party_code=supplier.party_code, screen='kata') }}">View Full Statement</a>
+                    <a class="button button-secondary" href="{{ url_for('cash_supplier_cards') }}">Back to Cards</a>
+                </div>
+            </article>
+
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Quick Actions</span>
+                        <h2>Workflow</h2>
+                    </div>
+                </div>
+                <div class="workflow-steps">
+                    <div class="workflow-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Add Work Entry</h3>
+                            <p>Record trips, hours, or monthly earnings here.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Add Advance if Needed</h3>
+                            <p>If supplier needs cash advance, use Advance page.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Make Payment</h3>
+                            <p>When paying supplier, use Payment page.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Check Statement</h3>
+                            <p>View running balance in Statement page.</p>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </aside>
+    </div>
+</section>
+
+<script>
+function updateEarningLabels() {
+    const basis = document.getElementById('earning_basis').value;
+    const qtyLabel = document.getElementById('earning_qty_label');
+    const rateLabel = document.getElementById('earning_rate_label');
+    
+    if (basis === 'Hourly') {
+        qtyLabel.textContent = 'Hours';
+        rateLabel.textContent = 'Rate Per Hour';
+    } else if (basis === 'Monthly') {
+        qtyLabel.textContent = 'Months';
+        rateLabel.textContent = 'Monthly Amount';
+    } else if (basis === 'Fixed') {
+        qtyLabel.textContent = 'Units';
+        rateLabel.textContent = 'Fixed Amount';
+    } else {
+        qtyLabel.textContent = 'Trips';
+        rateLabel.textContent = 'Rate Per Trip';
+    }
+}
+
+function calculateTotal() {
+    const qty = parseFloat(document.getElementById('t_cnt').value) || 0;
+    const rate = parseFloat(document.getElementById('t_rate').value) || 0;
+    const total = qty * rate;
+    document.getElementById('t_total').value = total.toFixed(2);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateEarningLabels();
+    calculateTotal();
+});
+</script>
+{% endblock %}

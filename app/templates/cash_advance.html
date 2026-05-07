@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Add Advance — {{ supplier.party_name }} — Current Link ERP{% endblock %}
+
+{% block content %}
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button button-secondary" href="{{ url_for('cash_suppliers') }}">Cash Desk</a>
+                <a class="button button-secondary" href="{{ url_for('cash_supplier_cards') }}">Supplier Cards</a>
+                <a class="button" href="{{ url_for('supplier_detail', party_code=supplier.party_code) }}">Supplier Profile</a>
+                <span class="button button-primary" style="background-color: #dc2626; border-color: #dc2626; cursor: default;">Add Advance</span>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ supplier.party_code }}</strong><small>Supplier Code</small></span>
+                <span><strong>{{ supplier.party_name }}</strong><small>Supplier Name</small></span>
+                <span><strong>AED {{ "%.2f"|format(balance_summary.balance) }}</strong><small>Current Balance</small></span>
+                <span><strong>AED {{ "%.2f"|format(balance_summary.total_debits) }}</strong><small>Total Advance</small></span>
+            </div>
+        </div>
+        <div class="mini-link-stack inline-link-stack">
+            <a class="mini-link-pill" href="{{ url_for('supplier_detail', party_code=supplier.party_code) }}">Profile</a>
+            <a class="mini-link-pill" href="{{ url_for('cash_work_entry', party_code=supplier.party_code) }}">Work Entry</a>
+            <a class="mini-link-pill active" href="{{ url_for('cash_advance', party_code=supplier.party_code) }}">Advance</a>
+            <a class="mini-link-pill" href="{{ url_for('cash_payment', party_code=supplier.party_code) }}">Payment</a>
+            <a class="mini-link-pill" href="{{ url_for('supplier_detail', party_code=supplier.party_code, screen='kata') }}">Statement</a>
+        </div>
+    </article>
+
+    <div class="desk-content-split">
+        <section class="desk-main-panel">
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Advance / Loan / Debit</span>
+                        <h2>Add Advance for {{ supplier.party_name }}</h2>
+                        <p class="workspace-lead">Record cash advances, loans, visa expenses, or other deductions.</p>
+                    </div>
+                </div>
+                <form method="post" class="desk-form-grid">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_debit">
+                    
+                    <div class="form-section">
+                        <h3 class="form-section-title">Basic Information</h3>
+                        <div class="form-grid-2">
+                            <label>
+                                <span>Debit No</span>
+                                <input type="text" name="debit_no" value="{{ cash_debit_no }}" readonly style="font-weight:800;background:#f5f5f5;">
+                            </label>
+                            <label>
+                                <span>Date *</span>
+                                <input type="date" name="entry_date" value="{{ today }}" required>
+                            </label>
+                            <label>
+                                <span>Type *</span>
+                                <select name="debit_type">
+                                    <option value="Advance">Advance</option>
+                                    <option value="Loan">Loan / Qarza</option>
+                                    <option value="Visa">Visa Expense</option>
+                                    <option value="Transfer">Transfer</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Amount (AED) *</span>
+                                <input type="number" step="0.01" min="0.01" name="amount" placeholder="0.00" required>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3 class="form-section-title">Details</h3>
+                        <div class="form-grid-2">
+                            <label class="full-span">
+                                <span>Description *</span>
+                                <input type="text" name="description" placeholder="e.g. Cash advance for emergency, Loan for vehicle repair" required>
+                            </label>
+                            <label class="full-span">
+                                <span>Notes (Optional)</span>
+                                <textarea name="notes" rows="2" placeholder="Additional details"></textarea>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-actions left-actions full-span">
+                        <button class="button" type="submit" style="background:var(--color-danger,#dc2626);color:#fff;">
+                            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style="margin-right:6px;">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd"/>
+                            </svg>
+                            Save Advance
+                        </button>
+                        <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=supplier.party_code, screen='kata') }}">Cancel</a>
+                    </div>
+                </form>
+            </article>
+
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Recent Advances</span>
+                        <h2>Last 5 Debit Entries</h2>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Ref</th>
+                                <th>Type</th>
+                                <th style="text-align:right;">Amount</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for debit in recent_debits %}
+                            <tr>
+                                <td>{{ debit.entry_date }}</td>
+                                <td><strong>{{ debit.debit_no }}</strong></td>
+                                <td><span class="status-chip rejected">{{ debit.debit_type }}</span></td>
+                                <td style="text-align:right;font-weight:700;color:var(--color-danger,#dc2626);">AED {{ "%.2f"|format(debit.amount) }}</td>
+                                <td>{{ debit.description }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5">No advance entries yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+
+        <aside class="desk-side-panel">
+            <article class="card desk-panel-card desk-side-feature">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Advance Summary</span>
+                        <h2>Current Position</h2>
+                    </div>
+                </div>
+                <div class="cash-side-balance-grid">
+                    <div class="cash-side-balance-card advance">
+                        <span>Total Advance Given</span>
+                        <strong>AED {{ "%.2f"|format(balance_summary.total_debits) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card due">
+                        <span>Total Earned</span>
+                        <strong>AED {{ "%.2f"|format(balance_summary.total_earned) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card neutral">
+                        <span>Total Paid</span>
+                        <strong>AED {{ "%.2f"|format(balance_summary.total_paid) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card {% if balance_summary.balance >= 0 %}due{% else %}advance{% endif %}">
+                        <span>Net Balance</span>
+                        <strong>AED {{ "%.2f"|format(balance_summary.balance) }}</strong>
+                    </div>
+                </div>
+                <div class="desk-side-actions">
+                    <a class="button" href="{{ url_for('supplier_detail', party_code=supplier.party_code, screen='kata') }}">View Full Statement</a>
+                    <a class="button button-secondary" href="{{ url_for('cash_supplier_cards') }}">Back to Cards</a>
+                </div>
+            </article>
+
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Advance Types</span>
+                        <h2>Explanation</h2>
+                    </div>
+                </div>
+                <div class="workflow-steps">
+                    <div class="workflow-step">
+                        <div class="step-number">A</div>
+                        <div class="step-content">
+                            <h3>Advance</h3>
+                            <p>Cash given before work is done. Deducted from future earnings.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">L</div>
+                        <div class="step-content">
+                            <h3>Loan / Qarza</h3>
+                            <p>Personal loan to supplier, separate from work earnings.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">V</div>
+                        <div class="step-content">
+                            <h3>Visa Expense</h3>
+                            <p>Costs for visa processing, medical, etc. Treated as advance.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">T</div>
+                        <div class="step-content">
+                            <h3>Transfer</h3>
+                            <p>Bank transfer or cheque issued as advance.</p>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </aside>
+    </div>
+</section>
+{% endblock %}

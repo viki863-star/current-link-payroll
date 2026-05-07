@@ -9,6 +9,7 @@
                 <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
                 <a class="button button-secondary" href="{{ url_for('cash_suppliers') }}">Cash Desk</a>
                 <span class="button button-primary" style="background-color: #1f8f4c; border-color: #1f8f4c; cursor: default;">Supplier Cards</span>
+                <a class="button" href="{{ url_for('cash_suppliers') }}">Register Cash Supplier</a>
             </div>
             <div class="admin-mini-stats">
                 <span><strong>{{ summary.supplier_count }}</strong><small>Shown Suppliers</small></span>
@@ -33,7 +34,13 @@
 
     <section class="db-grid driver-card-wall cash-card-wall">
         {% for item in suppliers %}
-            <article class="wc wc-cash cash-directory-card{% if item.status == 'Inactive' %} inactive{% endif %}">
+            <article
+                class="wc wc-cash cash-directory-card{% if item.status == 'Inactive' %} inactive{% endif %}"
+                role="link"
+                tabindex="0"
+                onclick="if (!event.target.closest('.cash-card-actions')) { window.location='{{ url_for('supplier_detail', party_code=item.party_code) }}'; }"
+                onkeydown="if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('.cash-card-actions')) { event.preventDefault(); window.location='{{ url_for('supplier_detail', party_code=item.party_code) }}'; }"
+            >
                 <div class="wc-shimmer"></div>
                 <div class="wc-bg-icon">{% if item.supplier_mode == "Loan" %}💳{% else %}💵{% endif %}</div>
 
@@ -74,13 +81,8 @@
                 </div>
 
                 <div class="cash-card-actions">
-                    <a class="cash-card-link" href="{{ url_for('supplier_detail', party_code=item.party_code) }}">Open</a>
+                    <a class="cash-card-link" href="{{ url_for('supplier_detail', party_code=item.party_code) }}">Open Portal</a>
                     <a class="cash-card-link" href="{{ url_for('cash_suppliers', edit=item.party_code) }}">Edit</a>
-                    <a class="cash-card-link" href="{{ url_for('supplier_detail', party_code=item.party_code) }}?screen=statement">Statement</a>
-                    <form method="post" action="{{ url_for('delete_supplier', party_code=item.party_code) }}" onsubmit="return confirm('Delete this supplier and all linked data permanently?');">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button class="cash-card-link danger-link" type="submit">Delete</button>
-                    </form>
                 </div>
             </article>
         {% else %}
@@ -101,7 +103,7 @@
 
 .cash-directory-card {
     min-height: 335px;
-    cursor: default;
+    cursor: pointer;
 }
 
 .cash-directory-card.inactive {
@@ -177,7 +179,7 @@
 
 .cash-card-actions {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     margin-top: 16px;
     position: relative;

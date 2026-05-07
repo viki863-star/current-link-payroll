@@ -1,0 +1,108 @@
+{
+  "backup_timestamp": "2026-04-30T11:04:46.244923",
+  "database": "payroll.db",
+  "tables_backed_up": [
+    {
+      "table": "supplier_quotation_submissions",
+      "row_count": 2,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\supplier_quotation_submissions.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\supplier_quotation_submissions.csv"
+    },
+    {
+      "table": "supplier_profile",
+      "row_count": 3,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\supplier_profile.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\supplier_profile.csv"
+    },
+    {
+      "table": "supplier_portal_accounts",
+      "row_count": 1,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\supplier_portal_accounts.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\supplier_portal_accounts.csv"
+    },
+    {
+      "table": "supplier_assets",
+      "row_count": 0,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\supplier_assets.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\supplier_assets.csv"
+    },
+    {
+      "table": "supplier_timesheets",
+      "row_count": 0,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\supplier_timesheets.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\supplier_timesheets.csv"
+    },
+    {
+      "table": "supplier_vouchers",
+      "row_count": 0,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\supplier_vouchers.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\supplier_vouchers.csv"
+    },
+    {
+      "table": "supplier_payments",
+      "row_count": 0,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\supplier_payments.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\supplier_payments.csv"
+    },
+    {
+      "table": "supplier_invoice_submissions",
+      "row_count": 0,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\supplier_invoice_submissions.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\supplier_invoice_submissions.csv"
+    },
+    {
+      "table": "supplier_registration_requests",
+      "row_count": 1,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\supplier_registration_requests.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\supplier_registration_requests.csv"
+    },
+    {
+      "table": "supplier_partnership_entries",
+      "row_count": 0,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\supplier_partnership_entries.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\supplier_partnership_entries.csv"
+    },
+    {
+      "table": "cash_supplier_trips",
+      "row_count": 0,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\cash_supplier_trips.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\cash_supplier_trips.csv"
+    },
+    {
+      "table": "cash_supplier_debits",
+      "row_count": 0,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\cash_supplier_debits.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\cash_supplier_debits.csv"
+    },
+    {
+      "table": "cash_supplier_payments",
+      "row_count": 0,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\cash_supplier_payments.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\cash_supplier_payments.csv"
+    },
+    {
+      "table": "parties",
+      "row_count": 3,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\parties.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\parties.csv"
+    },
+    {
+      "table": "agreements",
+      "row_count": 0,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\agreements.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\agreements.csv"
+    },
+    {
+      "table": "lpos",
+      "row_count": 2,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\lpos.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\lpos.csv"
+    },
+    {
+      "table": "hire_records",
+      "row_count": 0,
+      "json_file": "backups/supplier_desk_backup_20260430_1058\\hire_records.json",
+      "csv_file": "backups/supplier_desk_backup_20260430_1058\\hire_records.csv"
+    }
+  ]
+}

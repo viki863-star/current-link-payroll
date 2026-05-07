@@ -32,12 +32,49 @@ ADMIN_PASSWORD=replace-with-admin-password
 ADMIN_PASSWORD_HASH=
 OWNER_PASSWORD=replace-with-owner-password
 OWNER_PASSWORD_HASH=
-DATABASE_FILE=payroll.db
+DATABASE_FILE=D:/CurrentLinkData/Database/payroll.db
 REQUIRE_DATABASE_URL=false
 LOGIN_MAX_ATTEMPTS=5
 LOGIN_LOCK_MINUTES=15
 SESSION_COOKIE_SECURE=false
+GENERATED_DIR=D:/CurrentLinkData/Generated
+GENERATED_BACKUP_DIR=D:/CurrentLinkData/Backups
+DRIVER_FILES_DIR=D:/CurrentLinkData/Generated/Drivers
 ```
+
+## Local Data Setup
+
+On Windows local installs, Current Link ERP now prefers this structure automatically:
+
+- `D:/CurrentLinkData/Database/payroll.db`
+- `D:/CurrentLinkData/Generated`
+- `D:/CurrentLinkData/Backups`
+
+The app creates these folders on startup if they do not already exist. If `D:` is unavailable, it falls back to the project-local generated storage so the app can still run.
+
+## Backup Policy
+
+- Daily: database only
+- Weekly: database + generated files ZIP
+- Monthly: full archive
+- Retention:
+  - keep 7 daily backups
+  - keep 4 weekly backups
+  - keep 12 monthly backups
+
+Admin users can open the in-app Backup Center to:
+
+- create a DB backup now
+- create a full backup ZIP
+- download the latest available backup
+
+## Restore Local SQLite
+
+To restore the local SQLite database:
+
+1. Stop the app.
+2. Copy the backup `.db` file to `D:/CurrentLinkData/Database/payroll.db`
+3. Start the app again.
 
 ## Roles
 
@@ -217,6 +254,7 @@ docker run -p 5000:5000 current-link-payroll
 - Public hosting should use `DATABASE_URL` with Postgres
 - Driver photos are stored in the database as well as generated files
 - Salary slips can be rebuilt from saved payroll data if the PDF file is missing
+- Automatic daily backups keep the SQLite database protected without creating large daily ZIP archives
 
 ## Important Note
 

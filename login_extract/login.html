@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Portal Login — Current Link</title>
+<meta name="description" content="Current Link Transport & General Contracting — Secure enterprise login portal.">
+<link rel="stylesheet" href="premium-portal.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="cl-portal-body">
+
+<!-- Background: /static/portal-new.png ONLY -->
+<div class="cl-bg"><div class="cl-bg-overlay"></div></div>
+
+<div class="cl-grid">
+
+  <!-- ══════════════════════════════════════════
+       LEFT — Premium Company Branding
+  ══════════════════════════════════════════ -->
+  <div class="cl-left">
+
+    <!-- Home button -->
+    <a href="#" class="cl-home-btn" id="home-btn">
+      <i class="fas fa-arrow-left"></i> Back to Home
+    </a>
+
+    <!-- Main branding -->
+    <div class="cl-brand">
+
+      <!-- Soft radial glow behind hero text -->
+      <div class="cl-brand-glow" aria-hidden="true"></div>
+
+      <!-- Company name — each word animated separately -->
+      <h1 class="cl-company-name">
+        <span class="cl-current cl-anim-word-1">CURRENT</span><br>
+        <span class="cl-link cl-anim-word-2">LINK</span>
+      </h1>
+
+      <!-- Decorative accent rule -->
+      <div class="cl-rule cl-anim-rule"></div>
+
+      <!-- Subheading -->
+      <p class="cl-tagline cl-anim-tagline">Transport & General Contracting LLC SPC</p>
+
+      <!-- Description -->
+      <p class="cl-description cl-anim-desc">
+        A smart digital platform for managing workforce, transport operations,
+        and payroll systems with efficiency, accuracy, and real-time control.
+      </p>
+
+      <!-- Feature list — minimal check style -->
+      <div class="cl-features">
+        <div class="cl-feat cl-anim-feat-1">
+          <span class="cl-feat-check" aria-hidden="true"></span>
+          <span>Secure & Encrypted Access</span>
+        </div>
+        <div class="cl-feat cl-anim-feat-2">
+          <span class="cl-feat-check" aria-hidden="true"></span>
+          <span>Real-time Updates & Reports</span>
+        </div>
+        <div class="cl-feat cl-anim-feat-3">
+          <span class="cl-feat-check" aria-hidden="true"></span>
+          <span>24/7 System Availability</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom security badge -->
+    <div class="cl-bottom-badge cl-anim-badge">
+      <span class="cl-badge-dot" aria-hidden="true"></span>
+      256-bit SSL &nbsp;·&nbsp; SECURE ENTERPRISE PORTAL
+    </div>
+
+  </div><!-- /cl-left -->
+
+  <!-- ══════════════════════════════════════════
+       RIGHT — Interactive UI Panel
+  ══════════════════════════════════════════ -->
+  <div class="cl-right">
+    <div class="cl-panel" id="cl-panel">
+
+      <!-- ══ CARDS SECTION ══ -->
+      <div class="cl-cards" id="cl-cards">
+
+        <div class="cl-cards-head">
+          <h2>SELECT YOUR ACCESS ROLE</h2>
+          <p>Choose your role to continue</p>
+        </div>
+
+        <div class="cl-grid-2">
+
+          <!-- Admin -->
+          <div class="cl-card" id="c-admin" data-role="admin" tabindex="0" role="button" aria-label="Admin login">
+            <div class="cl-card-bar"></div>
+            <div class="cl-card-body">
+              <div class="cl-card-icon"><i class="fas fa-user-shield"></i></div>
+              <h3>Admin</h3>
+              <p>Full control</p>
+              <div class="cl-card-accent"></div>
+            </div>
+          </div>
+
+          <!-- Driver -->
+          <div class="cl-card" id="c-driver" data-role="driver" tabindex="0" role="button" aria-label="Driver login">
+            <div class="cl-card-bar"></div>
+            <div class="cl-card-body">
+              <div class="cl-card-icon"><i class="fas fa-truck-moving"></i></div>
+              <h3>Driver</h3>
+              <p>Transport ops</p>
+              <div class="cl-card-accent"></div>
+            </div>
+          </div>
+
+          <!-- Supplier -->
+          <div class="cl-card" id="c-supplier" data-role="supplier" tabindex="0" role="button" aria-label="Supplier login">
+            <div class="cl-card-bar"></div>
+            <div class="cl-card-body">
+              <div class="cl-card-icon"><i class="fas fa-box-open"></i></div>
+              <h3>Supplier</h3>
+              <p>Supply chain</p>
+              <div class="cl-card-accent"></div>
+            </div>
+          </div>
+
+          <!-- Staff -->
+          <div class="cl-card" id="c-staff" data-role="staff" tabindex="0" role="button" aria-label="Staff login">
+            <div class="cl-card-bar"></div>
+            <div class="cl-card-body">
+              <div class="cl-card-icon"><i class="fas fa-hard-hat"></i></div>
+              <h3>Staff</h3>
+              <p>Field ops</p>
+              <div class="cl-card-accent"></div>
+            </div>
+          </div>
+
+        </div><!-- /cl-grid-2 -->
+
+        <div class="cl-cards-foot">
+          <p class="cl-secure-note">
+            <i class="fas fa-lock"></i>
+            All connections encrypted &nbsp;·&nbsp; Session secured
+          </p>
+        </div>
+
+      </div><!-- /cl-cards -->
+
+      <!-- ══ LOGIN FORM SECTION ══ -->
+      <div class="cl-form-wrap" id="cl-form-wrap">
+
+        <!-- Coloured accent strip -->
+        <div class="cl-form-accent" id="cl-accent"></div>
+
+        <div class="cl-form-header">
+
+          <button class="cl-back-btn" id="cl-back" type="button">
+            <i class="fas fa-chevron-left"></i> ← Back to Roles
+          </button>
+
+          <!-- Role pill badge -->
+          <div class="cl-role-pill" id="cl-pill">
+            <i id="cl-pill-icon" class="fas fa-user-shield"></i>
+            <span id="cl-pill-label">Admin</span>
+          </div>
+
+          <h3 id="cl-form-title">Admin Login</h3>
+          <p id="cl-form-sub">Enter your credentials to access the portal</p>
+
+          <!-- Flash messages inside form -->
+          <div id="cl-flash-box" style="margin-top:14px; display: none;">
+            <!-- Flash messages will appear here -->
+          </div>
+
+        </div><!-- /cl-form-header -->
+
+        <div class="cl-form-body">
+          <form id="cl-form"
+                method="post"
+                action="#"
+                class="cl-login-form"
+                data-focus="admin"
+                novalidate>
+
+            <input type="hidden" name="csrf_token" value="">
+            <input type="hidden" name="role" id="cl-role-val" value="admin">
+
+            <!-- ── Admin ── -->
+            <div class="cl-cred-group is-active" data-cred="admin">
+              <div class="cl-field">
+                <label for="f-admin-pw">Admin Password</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-key"></i>
+                  <input type="password" id="f-admin-pw" name="password"
+                         placeholder="Enter admin password"
+                         autocomplete="current-password">
+                  <button type="button" class="cl-eye-btn" data-t="f-admin-pw">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Driver ── -->
+            <div class="cl-cred-group" data-cred="driver">
+              <div class="cl-field">
+                <label for="f-drv-phone">Registered Phone</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-phone"></i>
+                  <input type="tel" id="f-drv-phone" name="phone_number"
+                         placeholder="e.g. +971 50 000 0000"
+                         autocomplete="tel" disabled>
+                </div>
+              </div>
+              <div class="cl-field">
+                <label for="f-drv-pin">Driver PIN</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-lock"></i>
+                  <input type="password" id="f-drv-pin" name="driver_pin"
+                         placeholder="4-digit PIN" inputmode="numeric"
+                         maxlength="8" disabled>
+                  <button type="button" class="cl-eye-btn" data-t="f-drv-pin">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Supplier ── -->
+            <div class="cl-cred-group" data-cred="supplier">
+              <div class="cl-field">
+                <label for="f-sup-id">Supplier User ID</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-id-card"></i>
+                  <input type="text" id="f-sup-id" name="user_id"
+                         placeholder="Your supplier user ID"
+                         autocomplete="username" disabled>
+                </div>
+              </div>
+              <div class="cl-field">
+                <label for="f-sup-pw">Password</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-key"></i>
+                  <input type="password" id="f-sup-pw" name="password"
+                         placeholder="Your password" disabled>
+                  <button type="button" class="cl-eye-btn" data-t="f-sup-pw">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Staff ── -->
+            <div class="cl-cred-group" data-cred="staff">
+              <div class="cl-field">
+                <label for="f-stf-usr">User ID / Staff Code</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-user"></i>
+                  <input type="text" id="f-stf-usr" name="user_id"
+                         placeholder="e.g. tech.001"
+                         autocomplete="username" disabled>
+                </div>
+              </div>
+              <div class="cl-field">
+                <label for="f-stf-pw">Password</label>
+                <div class="cl-input-wrap">
+                  <i class="fas fa-key"></i>
+                  <input type="password" id="f-stf-pw" name="password"
+                         placeholder="Your password" disabled>
+                  <button type="button" class="cl-eye-btn" data-t="f-stf-pw">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="cl-form-row">
+              <label class="cl-remember">
+                <input type="checkbox" name="remember"> Remember me
+              </label>
+              <a href="#" class="cl-forgot">Forgot Password?</a>
+            </div>
+
+            <button type="submit" class="cl-submit admin" id="cl-submit">
+              <span id="cl-submit-txt">Sign In</span>
+              <i class="fas fa-arrow-right"></i>
+            </button>
+
+            <div class="cl-form-foot">
+              <p id="cl-form-tip">Enter your credentials to access Current Link.</p>
+            </div>
+
+          </form>
+        </div><!-- /cl-form-body -->
+
+      </div><!-- /cl-form-wrap -->
+
+    </div><!-- /cl-panel -->
+  </div><!-- /cl-right -->
+</div><!-- /cl-grid -->
+
+<script>
+(function(){
+  var CARDS = document.querySelectorAll('.cl-card');
+  var SEC_C = document.getElementById('cl-cards');
+  var SEC_F = document.getElementById('cl-form-wrap');
+  var FORM  = document.getElementById('cl-form');
+  var RIN   = document.getElementById('cl-role-val');
+  var BACK  = document.getElementById('cl-back');
+  var SUB   = document.getElementById('cl-submit');
+  var STXT  = document.getElementById('cl-submit-txt');
+  var TITLE = document.getElementById('cl-form-title');
+  var FSUB  = document.getElementById('cl-form-sub');
+  var FTIP  = document.getElementById('cl-form-tip');
+  var PILL  = document.getElementById('cl-pill');
+  var PICO  = document.getElementById('cl-pill-icon');
+  var PLAB  = document.getElementById('cl-pill-label');
+  var ACNT  = document.getElementById('cl-accent');
+  var CREDS = document.querySelectorAll('.cl-cred-group');
+  var FLASH = document.getElementById('cl-flash-box');
+
+  var CFG = {
+    admin:    {title:'Admin Login',    sub:'Full system access — enter your password',       tip:'Admin password grants full dashboard and control panel access.',    icon:'fas fa-user-shield',  label:'Admin',    action:'#',            btnClass:'admin',    acnt:'admin'},
+    driver:   {title:'Driver Login',   sub:'Transport portal — phone number & PIN',      tip:'Use your registered phone and 4-digit driver PIN to sign in.',     icon:'fas fa-truck-moving', label:'Driver',   action:'#',            btnClass:'driver',   acnt:'driver'},
+    supplier: {title:'Supplier Login', sub:'Supply chain portal — enter your credentials',   tip:'Use your supplier user ID and password for portal access.',        icon:'fas fa-box-open',     label:'Supplier', action:'#',   btnClass:'supplier', acnt:'supplier'},
+    staff:    {title:'Staff Login',    sub:'Field operations — enter your staff credentials',tip:'Enter your staff username and password to access field operations.',icon:'fas fa-hard-hat',     label:'Staff',    action:'#', btnClass:'staff',    acnt:'staff'}
+  };
+
+  /* ── Card entrance stagger ── */
+  var STAGGER_DELAYS = [0, 120, 240, 360];
+
+  function entranceCards(){
+    CARDS.forEach(function(c,i){
+      c.classList.remove('is-visible','is-fading','is-selected');
+      c.style.cssText='opacity:0;transform:translateY(25px) scale(0.94);filter:blur(6px);transition:none;';
+      var delay = STAGGER_DELAYS[i] || (i * 120);
+      setTimeout(function(){
+        c.style.transition='opacity 0.5s ease,transform 0.5s cubic-bezier(.22,1,.36,1),filter 0.5s ease';
+        c.style.opacity='1';
+        c.style.transform='translateY(0) scale(1)';
+        c.style.filter='blur(0)';
+        c.classList.add('is-visible');
+      }, 300 + delay);
+    });
+  }
+  entranceCards();
+
+  /* ── Activate credentials ── */
+  function activateCreds(role){
+    CREDS.forEach(function(g){
+      var on = g.dataset.cred === role;
+      g.classList.toggle('is-active', on);
+      g.querySelectorAll('input').forEach(function(inp){
+        if(on){inp.removeAttribute('disabled');}
+        else  {inp.setAttribute('disabled','disabled');inp.value='';}
+      });
+      if(on){var f=g.querySelector('input');if(f)setTimeout(function(){f.focus();},440);}
+    });
+  }
+
+  /* ── Open form ── */
+  function openForm(role, animate){
+    var cfg = CFG[role]; if(!cfg) return;
+
+    // Update form metadata
+    RIN.value = role;
+    FORM.action = cfg.action;
+    FORM.setAttribute('data-focus', role);
+    TITLE.textContent = cfg.title;
+    FSUB.innerHTML = cfg.sub;
+    FTIP.textContent = cfg.tip;
+    PICO.className = cfg.icon;
+    PLAB.textContent = cfg.label;
+    PILL.className = 'cl-role-pill ' + role;
+    ACNT.className = 'cl-form-accent ' + role;
+    BACK.setAttribute('data-role', role);
+    SUB.className = 'cl-submit ' + role;
+    activateCreds(role);
+
+    if(!animate){
+      SEC_C.style.display = 'none';
+      SEC_F.style.opacity = '1';
+      SEC_F.style.transform = 'translateY(0)';
+      SEC_F.style.display = 'block';
+      SEC_F.classList.add('is-open');
+      return;
+    }
+
+    // Step 1: selected card scales to 1.08 with orange glow
+    var sel = document.querySelector('[data-role="' + role + '"]');
+    if(sel){ sel.classList.add('is-selected'); }
+
+    // Step 2: other cards fade out with stagger
+    CARDS.forEach(function(c, i){
+      if(c !== sel){
+        setTimeout(function(){ c.classList.add('is-fading'); }, i * 50);
+      }
+    });
+
+    // Step 3: cards section fades out, then form slides in
+    setTimeout(function(){
+      SEC_C.classList.add('is-exiting');
+      setTimeout(function(){
+        // Hide cards
+        SEC_C.style.display = 'none';

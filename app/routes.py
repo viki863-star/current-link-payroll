@@ -25,6 +25,12 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_wtf.csrf import CSRFError
 
+from .backup_service import (
+    backup_status_summary,
+    create_backup_now,
+    latest_backup_file,
+    sync_all_generated_files,
+)
 from .database import open_db
 from .excel_import import load_driver_records, upsert_driver_records
 from .pdf_driver_import import load_driver_records_from_pdf, load_driver_records_from_pdf_bytes
@@ -1620,6 +1626,7 @@ def register_routes(app: Flask) -> None:
                 """
             ).fetchall()
         )
+        backup_summary = backup_status_summary(app)
 
         return render_template(
             "dashboard.html",
@@ -1649,7 +1656,89 @@ def register_routes(app: Flask) -> None:
             shift_chart=shift_chart,
             vehicle_chart=vehicle_chart,
             import_chart=import_chart,
+            backup_summary=backup_summary,
         )
+
+    @app.get("/admin/backups")
+    @_login_required("admin")
+    def admin_backups():
+        _touch_admin_workspace("universal")
+        return render_template(
+            "admin_backups.html",
+            backup_summary=backup_status_summary(app),
+        )
+
+    @app.post("/admin/backups/create")
+    @_login_required("admin")
+    def create_admin_backup():
+        db = open_db()
+        requested_kind = (request.form.get("kind") or "weekly").strip().lower()
+        if requested_kind == "db":
+            requested_kind = "daily"
+        if requested_kind == "full":
+            requested_kind = "weekly"
+        result = create_backup_now(requested_kind, app)
+        if result["ok"]:
+            flash(result["message"], "success")
+            _audit_log(
+                db,
+                "backup_created",
+                entity_type="backup",
+                entity_id=requested_kind,
+                details=result["path"],
+            )
+            db.commit()
+        else:
+            flash(result["message"], "error")
+            _audit_log(
+                db,
+                "backup_failed",
+                entity_type="backup",
+                entity_id=requested_kind,
+                status="failed",
+                details=result["message"],
+            )
+            db.commit()
+        return redirect(url_for("admin_backups"))
+
+    @app.get("/admin/backups/download-latest")
+    @_login_required("admin")
+    def download_latest_backup():
+        weekly = latest_backup_file("weekly", app)
+        daily = latest_backup_file("daily", app)
+        target = weekly or daily
+        if target is None or not target.exists():
+            flash("No backup file is available yet.", "error")
+            return redirect(url_for("admin_backups"))
+        return send_file(target, as_attachment=True, download_name=target.name)
+
+    @app.post("/admin/backups/sync-all-files")
+    @_login_required("admin")
+    def sync_all_files():
+        db = open_db()
+        result = sync_all_generated_files(app)
+        if result["ok"]:
+            flash(result["message"], "success")
+            _audit_log(
+                db,
+                "files_synced",
+                entity_type="sync",
+                entity_id="all_files",
+                details=result["message"],
+            )
+            db.commit()
+        else:
+            flash(result["message"], "error")
+            _audit_log(
+                db,
+                "sync_failed",
+                entity_type="sync",
+                entity_id="all_files",
+                status="failed",
+                details=result["message"],
+            )
+            db.commit()
+        return redirect(url_for("admin_backups"))
 
     @app.route("/company-setup", methods=["GET", "POST"])
     @_login_required("admin")

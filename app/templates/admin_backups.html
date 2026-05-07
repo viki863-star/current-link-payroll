@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Backup Center — Current Link ERP{% endblock %}
+{% block body_class %}dashboard-body{% endblock %}
+
+{% block content %}
+<div class="db-shell">
+    <div style="display:flex; flex-wrap:wrap; gap:18px; align-items:flex-start; justify-content:space-between; margin-bottom:22px;">
+        <div style="flex:1 1 320px;">
+            <div style="font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#ffffff;">Data Safety</div>
+            <h1 style="margin:8px 0 10px; font-size:40px; line-height:1; color:#ffffff;">Backup Center</h1>
+            <p style="margin:0; max-width:780px; color:#ffffff; font-size:16px;">Create database backups, generate full ZIP archives, and download the latest protected copy without touching live payroll data.</p>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <form method="post" action="{{ url_for('create_admin_backup') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="kind" value="daily">
+                <button type="submit" style="border:0; border-radius:14px; padding:12px 18px; font-weight:800; background:#17345e; color:#fff; cursor:pointer;">Create DB Backup Now</button>
+            </form>
+            <form method="post" action="{{ url_for('create_admin_backup') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="kind" value="weekly">
+                <button type="submit" style="border:0; border-radius:14px; padding:12px 18px; font-weight:800; background:#f7931e; color:#fff; cursor:pointer;">Create Full Backup ZIP</button>
+            </form>
+            <form method="post" action="{{ url_for('sync_all_files') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" style="border:0; border-radius:14px; padding:12px 18px; font-weight:800; background:#2CB15C; color:#fff; cursor:pointer;">Sync All Files to Local</button>
+            </form>
+            <a href="{{ url_for('download_latest_backup') }}" style="display:inline-flex; align-items:center; justify-content:center; border-radius:14px; padding:12px 18px; font-weight:800; background:#255f99; color:#fff; text-decoration:none;">Download Latest Backup</a>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:16px; margin-bottom:22px;">
+        <div style="background:#fff; border:1px solid #d8e4f5; border-radius:20px; padding:20px;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#7b92b6;">Database Path</div>
+            <div style="margin-top:10px; font-weight:700; color:#17345e; word-break:break-word;">{{ backup_summary.database_path }}</div>
+        </div>
+        <div style="background:#fff; border:1px solid #d8e4f5; border-radius:20px; padding:20px;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#7b92b6;">Generated Folder</div>
+            <div style="margin-top:10px; font-weight:700; color:#17345e; word-break:break-word;">{{ backup_summary.generated_dir }}</div>
+        </div>
+        <div style="background:#fff; border:1px solid #d8e4f5; border-radius:20px; padding:20px;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#7b92b6;">Backup Folder</div>
+            <div style="margin-top:10px; font-weight:700; color:#17345e; word-break:break-word;">{{ backup_summary.backup_root or 'Disabled' }}</div>
+        </div>
+        <div style="background:#fff; border:1px solid #d8e4f5; border-radius:20px; padding:20px;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#7b92b6;">Free Disk Space</div>
+            <div style="margin-top:10px; font-weight:700; color:#17345e;">{{ backup_summary.free_disk_space }}</div>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1.2fr .8fr; gap:18px;">
+        <section style="background:#fff; border:1px solid #d8e4f5; border-radius:24px; padding:22px;">
+            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:18px;">
+                <div>
+                    <div style="font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#f7931e;">Latest Backup Files</div>
+                    <h2 style="margin:8px 0 0; color:#17345e;">Available restore points</h2>
+                </div>
+                <a href="{{ url_for('dashboard') }}" style="text-decoration:none; color:#255f99; font-weight:700;">Back to Dashboard</a>
+            </div>
+
+            <div style="display:grid; gap:14px;">
+                <div style="background:#f5f8fe; border:1px solid #dce7f6; border-radius:18px; padding:18px;">
+                    <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#7b92b6;">Latest Daily</div>
+                    <div style="margin-top:8px; color:#17345e; font-weight:700; word-break:break-word;">{{ backup_summary.latest_daily if backup_summary.latest_daily else 'No daily backup yet' }}</div>
+                </div>
+                <div style="background:#f5f8fe; border:1px solid #dce7f6; border-radius:18px; padding:18px;">
+                    <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#7b92b6;">Latest Weekly</div>
+                    <div style="margin-top:8px; color:#17345e; font-weight:700; word-break:break-word;">{{ backup_summary.latest_weekly if backup_summary.latest_weekly else 'No weekly backup yet' }}</div>
+                </div>
+                <div style="background:#f5f8fe; border:1px solid #dce7f6; border-radius:18px; padding:18px;">
+                    <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#7b92b6;">Latest Monthly</div>
+                    <div style="margin-top:8px; color:#17345e; font-weight:700; word-break:break-word;">{{ backup_summary.latest_monthly if backup_summary.latest_monthly else 'No monthly backup yet' }}</div>
+                </div>
+            </div>
+        </section>
+
+        <aside style="background:linear-gradient(180deg, #17345e 0%, #0f2344 100%); border-radius:24px; padding:22px; color:#fff;">
+            <div style="font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#ffcc78;">Backup Policy</div>
+            <h2 style="margin:8px 0 16px;">Retention rules</h2>
+            <div style="display:grid; gap:12px;">
+                <div style="background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:16px;">
+                    <div style="font-weight:800;">Daily</div>
+                    <div style="margin-top:6px; color:rgba(255,255,255,.86);">{{ backup_summary.policy.daily }}</div>
+                </div>
+                <div style="background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:16px;">
+                    <div style="font-weight:800;">Weekly</div>
+                    <div style="margin-top:6px; color:rgba(255,255,255,.86);">{{ backup_summary.policy.weekly }}</div>
+                </div>
+                <div style="background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:16px;">
+                    <div style="font-weight:800;">Monthly</div>
+                    <div style="margin-top:6px; color:rgba(255,255,255,.86);">{{ backup_summary.policy.monthly }}</div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

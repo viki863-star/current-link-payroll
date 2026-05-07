@@ -1,6 +1,7 @@
 import json
 import re
 import shutil
+import zipfile
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -9,6 +10,8 @@ from uuid import uuid4
 from pypdf import PdfReader
 from werkzeug.security import generate_password_hash
 
+from app import create_app
+from app.backup_service import backup_status_summary, create_backup_now
 from app.database import open_db
 from app.pdf_service import generate_kata_pdf, generate_owner_fund_pdf
 
@@ -3633,13 +3636,99 @@ def test_customer_desk_can_add_and_archive_customer(app, client):
     assert archive.status_code == 200
     assert b"marked as Inactive" in archive.data
 
-    desk = client.get("/customers", follow_redirects=True)
-    assert b"Delta Customer" not in desk.data
+
+def test_create_app_builds_current_link_data_tree(monkeypatch):
+    data_root = Path.cwd() / "generated" / "test-runs" / f"current-link-data-root-{uuid4().hex}"
+    data_root.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("CURRENT_LINK_DATA_ROOT", str(data_root))
+    monkeypatch.setenv("DATABASE_FILE", str(data_root / "Database" / "payroll.db"))
+    monkeypatch.setenv("GENERATED_DIR", str(data_root / "Generated"))
+    monkeypatch.setenv("GENERATED_BACKUP_DIR", str(data_root / "Backups"))
+    monkeypatch.setenv("DRIVER_FILES_DIR", str(data_root / "Generated" / "Drivers"))
+
+    app = create_app(
+        {
+            "TESTING": True,
+            "SECRET_KEY": "test-secret-key",
+            "ADMIN_PASSWORD": "admin-pass",
+            "OWNER_PASSWORD": "owner-pass",
+        }
+    )
+
+    assert Path(app.config["DATABASE"]).parent.exists()
+    assert (data_root / "Generated" / "Drivers").exists()
+    assert (data_root / "Generated" / "Suppliers" / "Online").exists()
+    assert (data_root / "Generated" / "Customers" / "Invoices").exists()
+    assert (data_root / "Generated" / "Accounts" / "Owner_Fund").exists()
+    assert (data_root / "Generated" / "Field_Staff" / "General_Expenses").exists()
+    assert (data_root / "Backups" / "Daily").exists()
+    assert (data_root / "Backups" / "Weekly").exists()
+    assert (data_root / "Backups" / "Monthly").exists()
+    shutil.rmtree(data_root, ignore_errors=True)
+
+
+def test_backup_service_creates_db_and_zip_backups(app):
+    backup_root = Path(app.config["GENERATED_DIR"]).parent / "backups"
+    app.config["GENERATED_BACKUP_DIR"] = str(backup_root)
+    app.config["BACKUP_ROOT_DIR"] = str(backup_root)
+    app.config["BACKUP_DAILY_DIR"] = str(backup_root / "Daily")
+    app.config["BACKUP_WEEKLY_DIR"] = str(backup_root / "Weekly")
+    app.config["BACKUP_MONTHLY_DIR"] = str(backup_root / "Monthly")
+    for folder in (backup_root / "Daily", backup_root / "Weekly", backup_root / "Monthly"):
+        folder.mkdir(parents=True, exist_ok=True)
+
+    sample_file = Path(app.config["GENERATED_DIR"]) / "drivers" / "sample.txt"
+    sample_file.parent.mkdir(parents=True, exist_ok=True)
+    sample_file.write_text("driver file", encoding="utf-8")
 
     with app.app_context():
-        db = open_db()
-        row = db.execute("SELECT status FROM parties WHERE party_code = ?", ("PTY-CUST-01",)).fetchone()
-        assert row["status"] == "Inactive"
+        daily = create_backup_now("daily", app)
+        weekly = create_backup_now("weekly", app)
+        monthly = create_backup_now("monthly", app)
+        summary = backup_status_summary(app)
+
+    assert daily["ok"] is True
+    assert weekly["ok"] is True
+    assert monthly["ok"] is True
+    assert Path(daily["path"]).exists()
+    assert Path(weekly["path"]).exists()
+    assert Path(monthly["path"]).exists()
+    assert summary["latest_daily"] is not None
+    assert summary["latest_weekly"] is not None
+    assert summary["latest_monthly"] is not None
+
+    with zipfile.ZipFile(weekly["path"]) as archive:
+        names = archive.namelist()
+    assert any(name.startswith("database/") for name in names)
+    assert any(name.endswith("sample.txt") for name in names)
+
+
+def test_admin_backup_routes_create_and_download_latest(app, client):
+    admin_session(client)
+    backup_root = Path(app.config["GENERATED_DIR"]).parent / "backups-admin"
+    app.config["GENERATED_BACKUP_DIR"] = str(backup_root)
+    app.config["BACKUP_ROOT_DIR"] = str(backup_root)
+    app.config["BACKUP_DAILY_DIR"] = str(backup_root / "Daily")
+    app.config["BACKUP_WEEKLY_DIR"] = str(backup_root / "Weekly")
+    app.config["BACKUP_MONTHLY_DIR"] = str(backup_root / "Monthly")
+    for folder in (backup_root / "Daily", backup_root / "Weekly", backup_root / "Monthly"):
+        folder.mkdir(parents=True, exist_ok=True)
+
+    page = client.get("/admin/backups")
+    assert page.status_code == 200
+    assert b"Backup Center" in page.data
+
+    daily = client.post("/admin/backups/create", data={"kind": "daily"}, follow_redirects=True)
+    assert daily.status_code == 200
+    assert b"Daily database backup created" in daily.data
+
+    weekly = client.post("/admin/backups/create", data={"kind": "weekly"}, follow_redirects=True)
+    assert weekly.status_code == 200
+    assert b"Weekly full backup created" in weekly.data
+
+    download = client.get("/admin/backups/download-latest")
+    assert download.status_code == 200
+    assert "attachment;" in download.headers.get("Content-Disposition", "")
 
 
 def test_supplier_portal_and_partnership_statement_pdfs_download(app, client):

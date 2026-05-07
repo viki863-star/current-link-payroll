@@ -1,0 +1,49 @@
+DEPLOYMENT INSTRUCTIONS FOR CURRENT-LINK PAYROLL
+
+Server: 207.180.245.64
+Username: root
+Password: CurrentLink2026Safe95
+Project Path: /opt/current-link/app
+
+STEPS TO DEPLOY:
+
+1. SSH into server:
+   ssh root@207.180.245.64
+   Password: CurrentLink2026Safe95
+
+2. Create backup (DO NOT SKIP):
+   cd /opt/current-link
+   cp -r app app_backup_$(date +%F_%H%M)
+   echo "Backup created: app_backup_$(date +%F_%H%M)"
+
+3. Deploy latest code:
+   cd app
+   git fetch origin main
+   git reset --hard origin/main
+
+4. IMPORTANT: DO NOT RUN:
+   git clean -fd  (This would delete database, backups, venv)
+
+5. Restart service:
+   systemctl restart current-link
+
+6. Verify service status:
+   systemctl status current-link --no-pager -l
+
+7. Test application:
+   curl -I http://127.0.0.1:5000/login
+
+EXPECTED OUTPUT:
+- HTTP 200 OK or 302 redirect
+- Service should be active (running)
+
+CONFIRMATIONS NEEDED:
+- Database files exist in /opt/current-link/app/backups/
+- Virtual environment exists: /opt/current-link/app/venv/
+- No data was deleted during deployment
+
+GitHub Status:
+- Latest commit pushed: 424dc00 "Update login UI and role animations"
+- Push successful: 6024244..424dc00 main -> main
+
+Backup folder name will be: app_backup_2026-04-27_HHMM (based on current time)

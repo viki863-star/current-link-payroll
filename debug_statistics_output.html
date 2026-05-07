@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Current Link — ERP Portal</title>
+    <meta name="theme-color" content="#1a2d55">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/static/manifest.webmanifest?v=20260415a">
+    <link rel="icon" href="/static/icon-192.svg?v=20260415a">
+    <link rel="apple-touch-icon" href="/static/icon-192.svg?v=20260415a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css?v=20260419k">
+</head>
+<body class=" workspace-suppliers-normal">
+<div class="brand-shell">
+
+    
+
+    
+    <div class="bh">
+        
+        <div class="bh-bg">
+            <div class="bh-circle bh-circle-1"></div>
+            <div class="bh-circle bh-circle-2"></div>
+            <div class="bh-circle bh-circle-3"></div>
+        </div>
+
+        <div class="bh-inner">
+            
+            <a class="bh-brand" href="/dashboard">
+                <div class="bh-logo-wrap">
+                    <img class="bh-logo" src="/static/logo.png" alt="Current Link">
+                    <div class="bh-logo-ring"></div>
+                </div>
+                <div class="bh-brand-text">
+                    <div class="bh-brand-name">
+                        <span class="bh-name-current">CURRENT</span>
+                        <span class="bh-name-link">LINK</span>
+                    </div>
+                    <div class="bh-brand-tagline">TRANSPORT AND GENERAL CONTRACTING LLC SPC</div>
+                </div>
+            </a>
+
+            
+            <div class="bh-spacer"></div>
+
+            
+            <div class="bh-graphic" aria-hidden="true">
+                <svg class="bh-swoosh" viewBox="0 0 420 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Navy base fill -->
+                    <rect x="0" y="0" width="420" height="90" fill="#1a2d55"/>
+                    <!-- Orange accent band -->
+                    <polygon points="0,0 220,0 160,90 0,90" fill="#F7931E" opacity="0.92"/>
+                    <!-- Lighter orange highlight -->
+                    <polygon points="0,0 140,0 90,90 0,90" fill="#ffaa45" opacity="0.55"/>
+                    <!-- Mid navy overlap for depth -->
+                    <polygon points="160,0 420,0 420,90 260,90" fill="#1a2d55" opacity="0.98"/>
+                    <!-- Blue accent stripe -->
+                    <polygon points="140,0 180,0 130,90 90,90" fill="#2F5D9F" opacity="0.70"/>
+                    <!-- Thin white separator line -->
+                    <line x1="155" y1="0" x2="105" y2="90" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+                    <!-- Chevron accent -->
+                    <polyline points="290,28 318,45 290,62" fill="none" stroke="#F7931E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.80"/>
+                    <polyline points="310,28 338,45 310,62" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+        </div>
+
+        
+        <div class="bh-divider"></div>
+
+        
+        <nav class="bh-nav" id="bhNav">
+            <div class="bh-nav-inner">
+                
+                
+                    <span class="bh-nav-workspace">
+                        <span class="bh-nav-ws-dot"></span>
+                        Supplier Desk
+                    </span>
+                    <span class="bh-nav-sep"></span>
+                
+
+                
+                <div class="bh-nav-links">
+                    
+                        
+                            <a class="bh-link "
+                               href="/dashboard">Dashboard</a>
+                            
+                                <a class="bh-link bh-active"
+                                   href="/suppliers">Supplier Desk</a>
+                            
+                            
+                        
+                    
+                </div>
+
+                <div class="bh-nav-right">
+                    
+                        <div class="bh-user">
+                            <div class="bh-avatar">
+                                A
+                            </div>
+                            <div class="bh-user-meta">
+                                <span class="bh-user-name">Admin</span>
+                                <span class="bh-user-role">Suppliers</span>
+                            </div>
+                        </div>
+                        <a class="bh-logout" href="/logout">
+                            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                                <path d="M3 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h5a1 1 0 1 0 0-2H4V5h4a1 1 0 1 0 0-2H3z"/>
+                                <path d="M13.293 14.707a1 1 0 0 0 1.414 0l4-4a1 1 0 0 0 0-1.414l-4-4a1 1 0 1 0-1.414 1.414L15.586 9H7a1 1 0 1 0 0 2h8.586l-2.293 2.293a1 1 0 0 0 0 1.414z"/>
+                            </svg>
+                            Logout
+                        </a>
+                    
+                </div>
+            </div>
+        </nav>
+    </div>
+
+    
+
+    <main class="page">
+        
+            
+        
+        
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="/dashboard">Dashboard</a>
+                <span class="button button-primary" style="background-color: #2f6ca4; border-color: #2f6ca4; cursor: default;">Online Supplier Workspace</span>
+                
+                    <a class="button " href="/suppliers/admin/register?mode=Normal">Add New Supplier</a>
+                
+                    <a class="button button-secondary" href="/admin/supplier-registrations">Registrations</a>
+                
+                    <a class="button button-secondary" href="/admin/supplier-quotations">Quotations</a>
+                
+                    <a class="button button-secondary" href="/agreements-lpos">LPO Workspace</a>
+                
+                    <a class="button button-secondary" href="/invoices">Invoices</a>
+                
+                    <a class="button button-secondary" href="/reports">Reports</a>
+                
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>1</strong><small>Active Suppliers</small></span>
+                <span><strong>4</strong><small>Pending Inquiries</small></span>
+                <span><strong>0</strong><small>Pending Quotations</small></span>
+                <span><strong>AED 0</strong><small>Total Due</small></span>
+            </div>
+        </div>
+        <form method="get" class="admin-filter-grid desk-single-filter">
+            <label>
+                <span>Search Online Suppliers</span>
+                <input type="search" name="q" value="" placeholder="Name, code, phone, contact">
+            </label>
+            <div class="admin-filter-actions">
+                <button class="button" type="submit">Search</button>
+                
+            </div>
+        </form>
+    </article>
+
+    <section class="db-grid driver-card-wall cash-card-wall">
+        
+            <article class="wc wc-cash cash-directory-card supplier-mode-card supplier-mode-normal">
+                <div class="wc-shimmer"></div>
+                <div class="wc-bg-icon">S</div>
+
+                <div class="wc-top cash-card-top">
+                    <div class="wc-icon-badge wc-badge-cash">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                            <rect x="2" y="6" width="20" height="12" rx="2"/>
+                            <circle cx="12" cy="12" r="2"/>
+                            <path d="M6 12h.01M18 12h.01"/>
+                        </svg>
+                    </div>
+                    <div class="wc-meta">
+                        <span class="wc-tag">Online Supplier</span>
+                        <span class="wc-category">PTY-0001</span>
+                    </div>
+                    <span class="status-chip active cash-card-status">Active</span>
+                </div>
+
+                <div class="wc-body">
+                    <h2 class="wc-title">Sliver</h2>
+                    <div class="cash-card-copy">
+                        <span><strong>Contact:</strong> Shaneeh</span>
+                        <span><strong>Phone:</strong> 0565215825</span>
+                        <span><strong>Fleet:</strong> 0 units</span>
+                    </div>
+                    <div class="cash-balance-strip due">
+                        <span class="cash-balance-label">Balance Due</span>
+                        <strong class="cash-balance-value">AED 0.00</strong>
+                    </div>
+                </div>
+
+                <div class="wc-footer cash-card-footer">
+                    <div class="wc-quick-stats">
+                        <span class="wc-stat wc-stat-cash">Normal</span>
+                        <span class="wc-stat wc-stat-cash">0 Fleet</span>
+                        <span class="wc-stat wc-stat-cash">0 Vouchers</span>
+                    </div>
+                </div>
+
+                <div class="cash-card-actions supplier-mode-actions">
+                    <a class="cash-card-link" href="/suppliers/PTY-0001">Open</a>
+                    <a class="cash-card-link" href="/suppliers/admin/register?mode=Normal&amp;edit=PTY-0001">Edit</a>
+                    <a class="cash-card-link" href="/suppliers/PTY-0001/statement">Statement</a>
+                    <form method="post" action="/suppliers/PTY-0001/delete" onsubmit="return confirm('Delete this supplier and all linked data permanently?');">
+                        <input type="hidden" name="csrf_token" value="ImI2NTYwM2FlOGRmYWUzODFiOGQ0ZjJmZGQwMzZjMTA2MDY3Nzk1YzIi.afWWng.0zglB6DxSdqDKYdbyey9phyFIio">
+                        <button class="cash-card-link danger-link" type="submit">Delete</button>
+                    </form>
+                </div>
+            </article>
+        
+    </section>
+</section>
+
+<style>
+.cash-card-wall {
+    grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+    margin-top: 24px;
+}
+
+.cash-directory-card {
+    min-height: 360px;
+    cursor: default;
+}
+
+.supplier-mode-normal {
+    background: linear-gradient(180deg, rgba(8, 108, 168, 0.98) 0%, rgba(11, 86, 145, 0.98) 100%);
+}
+
+.supplier-mode-managed {
+    background: linear-gradient(180deg, rgba(91, 59, 168, 0.98) 0%, rgba(72, 40, 146, 0.98) 100%);
+}
+
+.supplier-mode-partnership {
+    background: linear-gradient(180deg, rgba(176, 105, 24, 0.98) 0%, rgba(145, 80, 10, 0.98) 100%);
+}
+
+.supplier-mode-card.inactive {
+    opacity: 0.76;
+}
+
+.cash-card-top {
+    align-items: center;
+}
+
+.cash-card-top .wc-meta {
+    flex: 1;
+}
+
+.cash-card-status {
+    flex-shrink: 0;
+}
+
+.cash-card-copy {
+    display: grid;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.cash-card-copy strong {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.cash-balance-strip {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    background: rgba(96, 165, 250, 0.14);
+    border-color: rgba(96, 165, 250, 0.22);
+}
+
+.cash-balance-label {
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.cash-balance-value {
+    font-size: 1.05rem;
+    color: #ffffff;
+}
+
+.cash-card-footer {
+    margin-top: 16px;
+}
+
+.supplier-mode-actions {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.cash-card-actions {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.cash-card-link,
+.cash-card-actions form {
+    display: block;
+}
+
+.cash-card-link,
+.danger-link {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 700;
+    transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease;
+}
+
+.danger-link {
+    cursor: pointer;
+    background: rgba(185, 28, 28, 0.24);
+    border-color: rgba(254, 202, 202, 0.24);
+}
+
+.cash-card-link:hover,
+.danger-link:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.24);
+}
+
+.danger-link:hover {
+    background: rgba(185, 28, 28, 0.38);
+}
+
+.cash-directory-empty {
+    grid-column: 1 / -1;
+    padding: 42px 28px;
+}
+
+@media (max-width: 880px) {
+    .supplier-mode-actions {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .supplier-mode-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .cash-balance-strip {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+
+    </main>
+
+    
+        <footer class="site-footer">
+            <div class="site-footer-bar">
+                <div class="site-footer-inner">
+                    <span class="site-footer-name">
+                        <strong>Current Link</strong>
+                        &mdash; Transport and General Contracting LLC SPC
+                    </span>
+                    <span class="site-footer-copy">Internal ERP &copy; Current Link 2026</span>
+                </div>
+            </div>
+        </footer>
+    
+
+</div>
+<script>
+(function(){
+    const nav = document.getElementById('bhNav');
+    if (!nav) return;
+    window.addEventListener('scroll', function(){
+        nav.classList.toggle('bh-nav-stuck', window.scrollY > 5);
+    }, { passive: true });
+})();
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/static/service-worker.js?v=20260416d");
+    });
+}
+</script>
+</body>
+</html>
