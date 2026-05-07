@@ -1381,6 +1381,83 @@ def generate_cash_supplier_kata_pdf(
     return str(output_path)
 
 
+def generate_cash_supplier_manual_pdf(sections, output_dir: str, assets_dir: str) -> str:
+    output_path = Path(output_dir) / "cash-supplier-desk-guide.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+    page_number = 1
+
+    def start_page() -> float:
+        _draw_header(pdf, assets_dir)
+        _draw_title(pdf, "Cash Supplier Desk Guide", "Roman Urdu SOP for portal, kata workflow, aur backup routine")
+        pdf.setFillColor(BLUE_SOFT)
+        pdf.roundRect(15 * mm, PAGE_HEIGHT - 82 * mm, 180 * mm, 12 * mm, 3 * mm, fill=1, stroke=0)
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont("Helvetica-Bold", 9)
+        pdf.drawString(20 * mm, PAGE_HEIGHT - 75 * mm, "Is guide ko portal training, month-end review, aur backup checks ke liye use karein.")
+        return PAGE_HEIGHT - 92 * mm
+
+    y = start_page()
+    for section in sections:
+        required_height = 16 * mm + max(1, len(section.get("items", []))) * 10 * mm
+        if y - required_height < 18 * mm:
+            pdf.setFillColor(MUTED)
+            pdf.setFont("Helvetica", 7.2)
+            pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
+            pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number}")
+            _draw_footer_banner(pdf, assets_dir, show_top_rule=False)
+            pdf.showPage()
+            page_number += 1
+            y = start_page()
+
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(15 * mm, y - 6 * mm, 180 * mm, 11 * mm, 3 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(15 * mm, y - 6 * mm, 180 * mm, 11 * mm, 3 * mm, fill=0, stroke=1)
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont("Helvetica-Bold", 10)
+        pdf.drawString(20 * mm, y, section.get("title", "Guide Section"))
+        y -= 10 * mm
+
+        for idx, item in enumerate(section.get("items", []), start=1):
+            bullet = f"{idx}. "
+            wrapped_lines = _wrap_text_lines(pdf, item, "Helvetica", 8.2, 164 * mm, max_lines=4, min_size=7.0)
+            line_count = len(wrapped_lines) or 1
+            block_height = max(9 * mm, line_count * 4.8 * mm + 3 * mm)
+            if y - block_height < 18 * mm:
+                pdf.setFillColor(MUTED)
+                pdf.setFont("Helvetica", 7.2)
+                pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
+                pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number}")
+                _draw_footer_banner(pdf, assets_dir, show_top_rule=False)
+                pdf.showPage()
+                page_number += 1
+                y = start_page()
+
+            pdf.setFillColor(SOFT)
+            pdf.roundRect(19 * mm, y - block_height + 2 * mm, 172 * mm, block_height, 2.5 * mm, fill=1, stroke=0)
+            pdf.setFillColor(BLUE)
+            pdf.setFont("Helvetica-Bold", 8.4)
+            pdf.drawString(24 * mm, y - 3 * mm, bullet)
+            pdf.setFillColor(TEXT)
+            pdf.setFont("Helvetica", 8.2)
+            text_y = y - 3 * mm
+            for line in wrapped_lines:
+                pdf.drawString(31 * mm, text_y, line)
+                text_y -= 4.6 * mm
+            y -= block_height + 2.5 * mm
+        y -= 2 * mm
+
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 7.2)
+    pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
+    pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number}")
+    _draw_footer_banner(pdf, assets_dir, show_top_rule=False)
+    pdf.save()
+    return str(output_path)
+
+
 def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output_dir: str, assets_dir: str) -> str:
     safe_invoice_no = str(invoice["invoice_no"]).replace("/", "-")
     output_path = Path(output_dir) / f"{safe_invoice_no}_tax-invoice.pdf"

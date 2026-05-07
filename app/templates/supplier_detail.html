@@ -14,6 +14,7 @@
                     <a class="button" href="{{ url_for('admin_managed_invoice', party_code=party.party_code) }}">+ Invoice</a>
                 {% elif supplier_mode in ("Cash", "Loan") %}
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata') }}">Kata / Statement</a>
+                    <a class="button button-secondary" href="{{ url_for('cash_supplier_guide') }}">Desk Guide</a>
                 {% elif supplier_mode == "Normal" %}
                     {# No button for Normal mode #}
                 {% else %}
@@ -59,51 +60,115 @@
     </article>
 
     {% if active_screen == "portal" %}
-        <section class="compact-content-grid supplier-portal-top">
-            <article class="card desk-panel-card supplier-portal-intro">
-                <div class="desk-panel-head">
-                    <div>
+        {% if supplier_mode in ("Cash", "Loan") %}
+            <section class="cash-portal-hero-grid">
+                <article class="card desk-panel-card cash-portal-hero">
+                    <div class="cash-portal-hero-glow"></div>
+                    <div class="cash-portal-hero-copy">
                         <span class="admin-desk-label">{{ portal_snapshot.intro_label }}</span>
                         <h2>{{ portal_snapshot.intro_title }}</h2>
                         <p class="workspace-lead">{{ portal_snapshot.intro_copy }}</p>
-                    </div>
-                </div>
-                <div class="supplier-overview-grid supplier-portal-summary-grid">
-                    <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(summary.outstanding_total) }}</small></div>
-                    <div class="directory-line"><strong>Paid</strong><small>AED {{ "%.2f"|format(summary.paid_total) }}</small></div>
-                    <div class="directory-line"><strong>Open Vouchers</strong><small>{{ summary.open_voucher_count }}</small></div>
-                    <div class="directory-line"><strong>Fleet</strong><small>{{ summary.asset_count }} units</small></div>
-                </div>
-            </article>
-
-            <article class="card desk-panel-card supplier-company-card" id="company-details">
-                <div class="desk-panel-head">
-                    <div>
-                        <span class="admin-desk-label">Company Details</span>
-                        <h2>{{ party.party_name }}</h2>
-                    </div>
-                </div>
-                <div class="supplier-company-grid">
-                    {% for item in portal_snapshot.company_details %}
-                        <div class="directory-line">
-                            <strong>{{ item.label }}</strong>
-                            <small>{{ item.value }}</small>
+                        <div class="cash-portal-badges">
+                            {% for badge in portal_snapshot.hero_badges %}
+                                <span class="mini-link-pill">{{ badge }}</span>
+                            {% endfor %}
                         </div>
-                    {% endfor %}
-                </div>
-            </article>
-        </section>
+                    </div>
+                    <div class="cash-portal-balance-card tone-{{ portal_snapshot.balance_tone }}">
+                        <span>Current Position</span>
+                        <strong>{{ portal_snapshot.balance_amount }}</strong>
+                        <small>{{ portal_snapshot.balance_label }}</small>
+                    </div>
+                </article>
 
-        <section class="supplier-portal-modules">
-            {% for module in portal_snapshot.modules %}
-                <a class="portal-module-card tone-{{ module.tone }}" href="{{ module.href }}">
-                    <span class="portal-module-kicker">{{ module.eyebrow }}</span>
-                    <h3>{{ module.title }}</h3>
-                    <strong>{{ module.value }}</strong>
-                    <p>{{ module.caption }}</p>
-                </a>
-            {% endfor %}
-        </section>
+                <aside class="card desk-panel-card cash-portal-side-card" id="company-details">
+                    <div class="desk-panel-head">
+                        <div>
+                            <span class="admin-desk-label">Company Details</span>
+                            <h2>{{ party.party_name }}</h2>
+                        </div>
+                        <div class="admin-toolbar-actions">
+                            <a class="mini-link-pill" href="{{ portal_snapshot.guide_href }}">Open Guide</a>
+                            <a class="mini-link-pill" href="{{ portal_snapshot.guide_pdf_href }}">PDF Guide</a>
+                        </div>
+                    </div>
+                    <div class="supplier-company-grid cash-company-grid">
+                        {% for item in portal_snapshot.company_details %}
+                            <div class="directory-line">
+                                <strong>{{ item.label }}</strong>
+                                <small>{{ item.value }}</small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </aside>
+            </section>
+
+            <section class="cash-quick-actions">
+                {% for action in portal_snapshot.quick_actions %}
+                    <a class="cash-quick-action tone-{{ action.tone }}" href="{{ action.href }}">
+                        <strong>{{ action.label }}</strong>
+                        <span>{{ action.caption }}</span>
+                    </a>
+                {% endfor %}
+            </section>
+
+            <section class="supplier-portal-modules cash-portal-modules">
+                {% for module in portal_snapshot.modules %}
+                    <a class="portal-module-card tone-{{ module.tone }}" href="{{ module.href }}">
+                        <span class="portal-module-kicker">{{ module.eyebrow }}</span>
+                        <h3>{{ module.title }}</h3>
+                        <strong>{{ module.value }}</strong>
+                        <p>{{ module.caption }}</p>
+                    </a>
+                {% endfor %}
+            </section>
+        {% else %}
+            <section class="compact-content-grid supplier-portal-top">
+                <article class="card desk-panel-card supplier-portal-intro">
+                    <div class="desk-panel-head">
+                        <div>
+                            <span class="admin-desk-label">{{ portal_snapshot.intro_label }}</span>
+                            <h2>{{ portal_snapshot.intro_title }}</h2>
+                            <p class="workspace-lead">{{ portal_snapshot.intro_copy }}</p>
+                        </div>
+                    </div>
+                    <div class="supplier-overview-grid supplier-portal-summary-grid">
+                        <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(summary.outstanding_total) }}</small></div>
+                        <div class="directory-line"><strong>Paid</strong><small>AED {{ "%.2f"|format(summary.paid_total) }}</small></div>
+                        <div class="directory-line"><strong>Open Vouchers</strong><small>{{ summary.open_voucher_count }}</small></div>
+                        <div class="directory-line"><strong>Fleet</strong><small>{{ summary.asset_count }} units</small></div>
+                    </div>
+                </article>
+
+                <article class="card desk-panel-card supplier-company-card" id="company-details">
+                    <div class="desk-panel-head">
+                        <div>
+                            <span class="admin-desk-label">Company Details</span>
+                            <h2>{{ party.party_name }}</h2>
+                        </div>
+                    </div>
+                    <div class="supplier-company-grid">
+                        {% for item in portal_snapshot.company_details %}
+                            <div class="directory-line">
+                                <strong>{{ item.label }}</strong>
+                                <small>{{ item.value }}</small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </article>
+            </section>
+
+            <section class="supplier-portal-modules">
+                {% for module in portal_snapshot.modules %}
+                    <a class="portal-module-card tone-{{ module.tone }}" href="{{ module.href }}">
+                        <span class="portal-module-kicker">{{ module.eyebrow }}</span>
+                        <h3>{{ module.title }}</h3>
+                        <strong>{{ module.value }}</strong>
+                        <p>{{ module.caption }}</p>
+                    </a>
+                {% endfor %}
+            </section>
+        {% endif %}
 
         <section class="compact-content-grid portal-recent-grid">
             {% for group in portal_snapshot.recent_groups %}
@@ -183,7 +248,7 @@
                 </form>
             </article>
 
-            <article class="card desk-panel-card">
+            <article class="card desk-panel-card" id="cash-trip-form">
                 <div class="desk-panel-head"><div><span class="admin-desk-label">Register</span><h2>Vehicles</h2></div></div>
                 <div class="table-wrap">
                     <table>
@@ -209,7 +274,7 @@
         </section>
     {% elif active_screen == "timesheets" %}
         <section class="compact-content-grid">
-            <article class="card desk-panel-card">
+            <article class="card desk-panel-card" id="cash-debit-form">
                 <div class="desk-panel-head"><div><span class="admin-desk-label">Timesheets</span><h2>{% if timesheet_values.original_timesheet_no %}Edit Timesheet{% else %}Add Timesheet{% endif %}</h2></div></div>
                 <form method="post" class="desk-form-grid">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -234,7 +299,7 @@
                 </form>
             </article>
 
-            <article class="card desk-panel-card">
+            <article class="card desk-panel-card" id="cash-payment-form">
                 <div class="desk-panel-head"><div><span class="admin-desk-label">Rows</span><h2>Month-End Timesheets</h2></div></div>
                 <div class="table-wrap">
                     <table>
@@ -968,6 +1033,136 @@ function sendInquiry() {
     margin-top: 22px;
 }
 
+.cash-portal-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.9fr);
+    gap: 18px;
+    margin-top: 22px;
+}
+
+.cash-portal-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 28px;
+    border-radius: 28px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 20px;
+    color: #fff;
+    background:
+        radial-gradient(circle at top right, rgba(251, 191, 36, 0.22), transparent 24%),
+        radial-gradient(circle at left center, rgba(45, 212, 191, 0.18), transparent 30%),
+        linear-gradient(135deg, #17345e 0%, #0e5a76 52%, #0c6d6f 100%);
+}
+
+.cash-portal-hero h2,
+.cash-portal-hero .workspace-lead {
+    color: #fff;
+}
+
+.cash-portal-hero .workspace-lead {
+    max-width: 620px;
+    color: rgba(255, 255, 255, 0.84);
+}
+
+.cash-portal-hero-glow {
+    position: absolute;
+    inset: auto -70px -70px auto;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    filter: blur(8px);
+}
+
+.cash-portal-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.cash-portal-balance-card {
+    position: relative;
+    z-index: 1;
+    align-self: center;
+    padding: 18px 18px 16px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.cash-portal-balance-card span,
+.cash-portal-balance-card small {
+    display: block;
+}
+
+.cash-portal-balance-card span {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.72);
+    font-weight: 800;
+}
+
+.cash-portal-balance-card strong {
+    display: block;
+    margin-top: 10px;
+    font-size: 1.55rem;
+    line-height: 1.1;
+}
+
+.cash-portal-balance-card small {
+    margin-top: 8px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.cash-portal-side-card {
+    padding: 22px;
+}
+
+.cash-company-grid {
+    margin-top: 10px;
+}
+
+.cash-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 14px;
+    margin: 18px 0 0;
+}
+
+.cash-quick-action {
+    display: grid;
+    gap: 7px;
+    padding: 18px 18px 16px;
+    border-radius: 20px;
+    text-decoration: none;
+    color: #fff;
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cash-quick-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 38px rgba(15, 23, 42, 0.18);
+}
+
+.cash-quick-action strong {
+    font-size: 1rem;
+}
+
+.cash-quick-action span {
+    color: rgba(255, 255, 255, 0.82);
+    line-height: 1.45;
+    font-size: 0.88rem;
+}
+
+.cash-portal-modules {
+    margin-top: 18px;
+}
+
 .supplier-portal-summary-grid,
 .supplier-company-grid {
     margin-top: 18px;
@@ -1098,6 +1293,10 @@ function sendInquiry() {
 }
 
 @media (max-width: 720px) {
+    .cash-portal-hero {
+        grid-template-columns: 1fr;
+    }
+
     .portal-recent-row {
         flex-direction: column;
     }
@@ -1105,6 +1304,12 @@ function sendInquiry() {
     .portal-recent-meta {
         justify-items: start;
         text-align: left;
+    }
+}
+
+@media (max-width: 960px) {
+    .cash-portal-hero-grid {
+        grid-template-columns: 1fr;
     }
 }
 

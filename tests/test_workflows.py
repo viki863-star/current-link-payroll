@@ -1,10 +1,7 @@
 import json
 import re
 import shutil
-<<<<<<< HEAD
 import zipfile
-=======
->>>>>>> 81b171a37c0da07076c9e838973cdd261de05d41
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -136,14 +133,8 @@ def create_customer_record(client, *, party_code, party_name, party_kind="Compan
         follow_redirects=True,
     )
 
-
-<<<<<<< HEAD
 def load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-=======
->>>>>>> 81b171a37c0da07076c9e838973cdd261de05d41
 def set_supplier_password(client, *, user_id, email, password="secret12"):
     return client.post(
         "/supplier-forgot-password",
@@ -539,8 +530,6 @@ def test_existing_paid_salary_slip_can_be_updated(app, client):
         assert slips[0]["payment_source"] == "Office"
         assert slips[0]["paid_by"] == "Admin"
 
-
-<<<<<<< HEAD
 def test_salary_slip_supports_custom_actual_paid_and_company_balance(app, client):
     create_driver_record(app, basic_salary=5000.0)
     admin_session(client)
@@ -1196,53 +1185,6 @@ def test_driver_statement_carries_previous_month_balance_into_next_month(app, cl
     assert b"Received Not Yet Deducted" in response.data
     assert b"Remaining Salary" in response.data
     assert b"AED 5506.00" in response.data
-
-
-=======
-def test_kata_pdf_accepts_postgres_datetime_generated_at(app):
-    driver = create_driver_record(app)
-    output_dir = Path.cwd() / "generated" / "test-runs" / f"kata-pdf-{uuid4().hex}"
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    try:
-        output_path = generate_kata_pdf(
-            driver,
-            [
-                {
-                    "entry_date": "2026-04-30",
-                    "salary_month": "2026-04",
-                    "net_salary": 3000.0,
-                }
-            ],
-            [
-                {
-                    "entry_date": "2026-04-12",
-                    "txn_type": "Advance",
-                    "source": "Owner Fund",
-                    "given_by": "Office",
-                    "amount": 500.0,
-                }
-            ],
-            [
-                {
-                    "generated_at": datetime(2026, 4, 30, 10, 30, 0),
-                    "salary_month": "2026-04",
-                    "total_deductions": 100.0,
-                    "net_payable": 2900.0,
-                    "payment_source": "Owner Fund",
-                    "paid_by": "Waqar",
-                }
-            ],
-            str(output_dir),
-            str(Path(app.root_path).parent / "app" / "static"),
-        )
-
-        assert Path(output_path).exists()
-    finally:
-        shutil.rmtree(output_dir, ignore_errors=True)
-
-
->>>>>>> 81b171a37c0da07076c9e838973cdd261de05d41
 def test_owner_fund_pdf_supports_filtered_multi_page_output(app):
     rows = []
     running_balance = 0.0
@@ -3781,6 +3723,96 @@ def test_admin_backup_routes_create_and_download_latest(app, client):
     download = client.get("/admin/backups/download-latest")
     assert download.status_code == 200
     assert "attachment;" in download.headers.get("Content-Disposition", "")
+
+
+def test_cash_supplier_portal_redesign_and_manual_routes(app, client):
+    admin_session(client)
+
+    created = client.post(
+        "/suppliers/cash",
+        data={
+            "original_party_code": "",
+            "party_code": "PTY-CASH-01",
+            "party_name": "Sayed Muhammad",
+            "party_kind": "Individual",
+            "party_roles": ["Supplier"],
+            "contact_person": "Aqal Muhammad",
+            "phone_number": "0552885561",
+            "email": "",
+            "trn_no": "",
+            "trade_license_no": "",
+            "address": "Musafah M17",
+            "notes": "cash supplier",
+            "status": "Active",
+            "supplier_mode": "Cash",
+        },
+        follow_redirects=True,
+    )
+    assert created.status_code == 200
+
+    client.post(
+        "/suppliers/PTY-CASH-01",
+        data={
+            "action": "save_trip",
+            "trip_no": "TRP-CASH-01",
+            "entry_date": "2026-04-30",
+            "period_month": "2026-04",
+            "earning_basis": "Trips",
+            "trip_count": "3",
+            "rate": "1700",
+            "vehicle_no": "17699",
+            "notes": "April trip earning",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/suppliers/PTY-CASH-01",
+        data={
+            "action": "save_debit",
+            "debit_no": "DEB-CASH-01",
+            "entry_date": "2026-05-01",
+            "debit_type": "Loan",
+            "amount": "8532",
+            "description": "Loan",
+            "notes": "Loan deduction",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/suppliers/PTY-CASH-01",
+        data={
+            "action": "save_cash_payment",
+            "payment_no": "CPY-CASH-01",
+            "entry_date": "2026-05-02",
+            "amount": "300",
+            "payment_method": "Cash",
+            "reference": "PV-1",
+            "notes": "Cash settlement",
+        },
+        follow_redirects=True,
+    )
+
+    portal = client.get("/suppliers/PTY-CASH-01?screen=portal", follow_redirects=True)
+    assert portal.status_code == 200
+    assert b"Cash Supplier Portal" in portal.data
+    assert b"Current Position" in portal.data
+    assert b"Desk Guide" in portal.data
+    assert b"Recent Trip Earnings" in portal.data
+    assert b"Recent Deductions" in portal.data
+    assert b"Recent Payments" in portal.data
+    assert b"Add Trip" in portal.data
+    assert b"Add Debit" in portal.data
+    assert b"Add Payment" in portal.data
+    assert b"Open Guide" in portal.data
+
+    guide = client.get("/supplier-desk/cash-guide")
+    assert guide.status_code == 200
+    assert b"Cash Supplier Desk Guide" in guide.data
+    assert b"Backups Kaise Kaam Karte Hain" in guide.data
+
+    guide_pdf = client.get("/supplier-desk/cash-guide/pdf", follow_redirects=False)
+    assert guide_pdf.status_code == 302
+    assert "/generated/" in guide_pdf.headers["Location"]
 
 
 def test_supplier_portal_and_partnership_statement_pdfs_download(app, client):

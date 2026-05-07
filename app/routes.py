@@ -40,6 +40,7 @@ from .pdf_vehicle_import import load_vehicle_records_from_pdf_bytes
 from .pdf_service import (
     format_month_label,
     generate_cash_supplier_kata_pdf,
+    generate_cash_supplier_manual_pdf,
     generate_cash_supplier_payment_voucher_pdf,
     generate_kata_pdf,
     generate_lpo_pdf,
@@ -3671,6 +3672,27 @@ def register_routes(app: Flask) -> None:
                 )
         _mirror_generated_file(app, pdf_path)
         _archive_supplier_statement_pdf_record(app, party, pdf_path, "supplier_portal_statement_pdf_generated")
+        relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
+        return redirect(url_for("generated_file", filename=relative_path))
+
+    @app.get("/supplier-desk/cash-guide")
+    @_login_required("admin")
+    def cash_supplier_guide():
+        return render_template(
+            "cash_supplier_guide.html",
+            guide_sections=_cash_supplier_guide_sections(),
+        )
+
+    @app.get("/supplier-desk/cash-guide/pdf")
+    @_login_required("admin")
+    def cash_supplier_guide_pdf():
+        output_dir = Path(app.config["GENERATED_DIR"]) / "suppliers" / "help"
+        pdf_path = generate_cash_supplier_manual_pdf(
+            _cash_supplier_guide_sections(),
+            str(output_dir),
+            app.config["STATIC_ASSETS_DIR"],
+        )
+        _mirror_generated_file(app, pdf_path)
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
@@ -10446,6 +10468,7 @@ def _supplier_portal_snapshot(
         total_debits = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM cash_supplier_debits WHERE party_code = ?", (party_code,)).fetchone()[0] or 0.0)
         total_paid = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM cash_supplier_payments WHERE party_code = ?", (party_code,)).fetchone()[0] or 0.0)
         balance_label, balance_tone, balance_amount = _cash_supplier_balance_meta(total_earned - total_debits - total_paid)
+        mode_title = "Cash Supplier Portal" if normalized_mode == "Cash" else "Loan Supplier Portal"
         trip_rows = db.execute(
             """
             SELECT trip_no, entry_date, total_amount, vehicle_no
@@ -10478,8 +10501,56 @@ def _supplier_portal_snapshot(
         ).fetchall()
         return {
             "intro_label": "Supplier Portal",
-            "intro_title": "Cash Supplier Portal",
-            "intro_copy": "Open the supplier's own operating view for kata, trip earnings, debit entries and payments.",
+            "intro_title": mode_title,
+            "intro_copy": "Yahan se kata, trip earnings, debit entries, payments, aur desk guide ko ek clean working view mein control karein.",
+            "balance_label": balance_label,
+            "balance_tone": balance_tone,
+            "balance_amount": money(balance_amount),
+            "guide_href": url_for("cash_supplier_guide"),
+            "guide_pdf_href": url_for("cash_supplier_guide_pdf"),
+            "hero_badges": [
+                normalized_mode,
+                party["party_kind"] or "Supplier",
+                party["status"] or "Active",
+            ],
+            "quick_actions": [
+                {
+                    "label": "Kata / Statement",
+                    "caption": "Running ledger aur filters",
+                    "href": supplier_screen_href("kata"),
+                    "tone": balance_tone,
+                },
+                {
+                    "label": "Kata PDF",
+                    "caption": "Printable statement",
+                    "href": url_for("supplier_statement_pdf", party_code=party_code),
+                    "tone": "info",
+                },
+                {
+                    "label": "Add Trip",
+                    "caption": "Nayi earning entry",
+                    "href": supplier_screen_href("kata", "cash-trip-form"),
+                    "tone": "cash",
+                },
+                {
+                    "label": "Add Debit",
+                    "caption": "Advance ya loan record",
+                    "href": supplier_screen_href("kata", "cash-debit-form"),
+                    "tone": "warning",
+                },
+                {
+                    "label": "Add Payment",
+                    "caption": "Cash settlement post karein",
+                    "href": supplier_screen_href("kata", "cash-payment-form"),
+                    "tone": "success",
+                },
+                {
+                    "label": "Desk Guide",
+                    "caption": "Manual aur backup help",
+                    "href": url_for("cash_supplier_guide"),
+                    "tone": "neutral",
+                },
+            ],
             "modules": [
                 {
                     "eyebrow": "Running Position",
@@ -10494,7 +10565,7 @@ def _supplier_portal_snapshot(
                     "title": "Trips",
                     "value": str(trip_count),
                     "caption": f"Work logged {money(total_earned)}",
-                    "href": supplier_screen_href("kata", "recent-trips"),
+                    "href": supplier_screen_href("kata", "cash-trip-form"),
                     "tone": "cash",
                 },
                 {
@@ -10502,7 +10573,7 @@ def _supplier_portal_snapshot(
                     "title": "Debit Entries",
                     "value": str(debit_count),
                     "caption": f"Debits total {money(total_debits)}",
-                    "href": supplier_screen_href("kata", "recent-debits"),
+                    "href": supplier_screen_href("kata", "cash-debit-form"),
                     "tone": "warning",
                 },
                 {
@@ -10510,7 +10581,7 @@ def _supplier_portal_snapshot(
                     "title": "Payments",
                     "value": str(payment_count),
                     "caption": f"Paid out {money(total_paid)}",
-                    "href": supplier_screen_href("kata", "recent-payments"),
+                    "href": supplier_screen_href("kata", "cash-payment-form"),
                     "tone": "success",
                 },
                 {
@@ -10518,7 +10589,7 @@ def _supplier_portal_snapshot(
                     "title": "Vehicles",
                     "value": str(detail_summary.get("asset_count", 0)),
                     "caption": "Assigned cash units",
-                    "href": supplier_screen_href("portal"),
+                    "href": supplier_screen_href("vehicles"),
                     "tone": "info",
                 },
                 {
@@ -10533,9 +10604,9 @@ def _supplier_portal_snapshot(
             "recent_groups": [
                 {
                     "anchor": "recent-trips",
-                    "eyebrow": "Trips",
-                    "title": "Recent Earnings",
-                    "empty_copy": "No trip earnings have been recorded yet.",
+                    "eyebrow": "Trip Earnings",
+                    "title": "Recent Trip Earnings",
+                    "empty_copy": "Abhi tak koi trip earning record nahi hui.",
                     "rows": [
                         {
                             "headline": row["trip_no"],
@@ -10548,9 +10619,9 @@ def _supplier_portal_snapshot(
                 },
                 {
                     "anchor": "recent-debits",
-                    "eyebrow": "Debits",
+                    "eyebrow": "Debit Entries",
                     "title": "Recent Deductions",
-                    "empty_copy": "No debit entries have been recorded yet.",
+                    "empty_copy": "Abhi tak koi debit ya loan entry record nahi hui.",
                     "rows": [
                         {
                             "headline": row["debit_no"],
@@ -10565,7 +10636,7 @@ def _supplier_portal_snapshot(
                     "anchor": "recent-payments",
                     "eyebrow": "Payments",
                     "title": "Recent Payments",
-                    "empty_copy": "No supplier payments have been recorded yet.",
+                    "empty_copy": "Abhi tak koi supplier payment record nahi hui.",
                     "rows": [
                         {
                             "headline": row["payment_no"],
@@ -10802,6 +10873,83 @@ def _supplier_portal_snapshot(
         ],
         "company_details": company_details,
     }
+
+
+def _cash_supplier_guide_sections() -> list[dict]:
+    return [
+        {
+            "title": "Supplier Desk Overview",
+            "items": [
+                "Supplier Desk home se aap supplier types dekhte hain: Online, Cash, Managed, aur Partnership.",
+                "Cash Desk registration aur operational control ke liye hai.",
+                "Supplier Cards fast review ke liye hain jahan har cash supplier ka balance aur quick open action hota hai.",
+                "Supplier Portal/detail screen cash supplier ka main working dashboard hai.",
+            ],
+        },
+        {
+            "title": "Cash Flow Screens",
+            "items": [
+                "Cash Desk par naya cash ya loan supplier register hota hai.",
+                "Supplier Cards se aap kisi supplier ka card click karke us ka portal kholte hain.",
+                "Portal screen summary-first hoti hai: current balance, earnings, debits, payments, aur fleet snapshot.",
+                "Kata / Statement screen par actual entries add, filter, aur PDF download ki jaati hai.",
+            ],
+        },
+        {
+            "title": "Trip Earning Entry",
+            "items": [
+                "Kata screen par Add Earning form open karein.",
+                "Basis select karein: Trips, Hours, Monthly, ya Fixed.",
+                "Quantity aur rate enter karte hi total ready hota hai.",
+                "Save Earning ke baad running kata aur portal totals refresh ho jate hain.",
+            ],
+        },
+        {
+            "title": "Debit / Loan / Advance Entry",
+            "items": [
+                "Add Debit form se advance, loan, visa, transfer, ya other debit save karein.",
+                "Amount aur short description dena best practice hai.",
+                "Har debit running balance ko immediately affect karta hai.",
+                "Debit save hone ke baad supplier statement PDF auto-generate hota hai jahan wiring available hai.",
+            ],
+        },
+        {
+            "title": "Cash Payment Flow",
+            "items": [
+                "Add Payment form se supplier ko ki gayi cash ya bank settlement post hoti hai.",
+                "Payment save hone par payment voucher PDF generate karne ki koshish hoti hai.",
+                "Payment row kata mein alag show hoti hai taa ke month-wise settlement clear rahe.",
+                "Portal par paid total aur running balance turant update hona chahiye.",
+            ],
+        },
+        {
+            "title": "Kata, PDF, aur Statements",
+            "items": [
+                "Kata / Statement running ledger hai jahan earnings, debits, aur payments ek saath dikhte hain.",
+                "Kata filters month, type, aur search ke basis par narrow view dete hain.",
+                "Kata PDF printable statement generate karta hai.",
+                "Supplier action saves ke baad latest statement PDF generated folder aur backup mirror mein save ho sakta hai.",
+            ],
+        },
+        {
+            "title": "Backups Kaise Kaam Karte Hain",
+            "items": [
+                "Daily DB backup app startup par ensure_daily_backup_for_today ke zariye check hota hai.",
+                "Backup Center se manual Daily DB backup, Weekly full ZIP, aur Monthly full ZIP banaye ja sakte hain.",
+                "Supplier Data Backup alag supplier tables ka export/ZIP banata hai.",
+                "Sync All Files to Local generated files ko local backup location mein mirror karne ke liye use hota hai.",
+            ],
+        },
+        {
+            "title": "Best Practice",
+            "items": [
+                "Nayi earning, debit, aur payment same din post karein taa ke balance clean rahe.",
+                "PDF aur backup buttons ko month-end aur payment cycle se pehle zaroor run karein.",
+                "Agar supplier ko statement dena ho to Kata PDF ya payment voucher PDF use karein.",
+                "Backup Center ko regular admin routine ka hissa banayein, khas taur par major supplier updates ke baad.",
+            ],
+        },
+    ]
 
 
 def _supplier_form_from_party(record, profile=None, portal_account=None):
