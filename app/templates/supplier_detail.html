@@ -145,6 +145,10 @@
                             <span class="admin-desk-label">Supplier Summary</span>
                             <h2>{{ portal_snapshot.profile.supplier_name }}</h2>
                             <p>Premium ERP dashboard for supplier kata, trip earnings, debits, payments, vehicles, PDF statements, aur backup actions.</p>
+                            <form method="post" action="{{ url_for('save_cash_supplier_portal_local', party_code=party.party_code) }}" style="margin:10px 0 0;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="button button-secondary" type="submit">Save to Local</button>
+                            </form>
                             <div class="cash-portal-badges">
                                 {% for badge in portal_snapshot.hero_badges %}
                                     <span class="mini-link-pill">{{ badge }}</span>

@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import shutil
 from calendar import monthrange
 from datetime import date, datetime, timedelta
@@ -3679,6 +3680,27 @@ def register_routes(app: Flask) -> None:
         _archive_supplier_statement_pdf_record(app, party, pdf_path, "supplier_portal_statement_pdf_generated")
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
+
+    @app.post("/suppliers/<party_code>/save-local")
+    @_login_required("admin")
+    def save_cash_supplier_portal_local(party_code: str):
+        db = open_db()
+        party = _fetch_supplier_party(db, party_code)
+        if party is None:
+            flash("Supplier was not found.", "error")
+            return redirect(url_for("cash_suppliers"))
+        supplier_mode = _supplier_mode_for_party(db, party_code)
+        if supplier_mode not in ("Cash", "Loan"):
+            flash("Save to Local is available for cash or loan supplier portal only.", "error")
+            return redirect(url_for("supplier_detail", party_code=party_code, screen="portal"))
+        try:
+            export_dir = _save_cash_supplier_portal_bundle_local(app, db, party, supplier_mode=supplier_mode)
+        except Exception:
+            current_app.logger.exception("Failed to save local cash supplier bundle for %s", party_code)
+            flash("Local supplier folder save failed.", "error")
+        else:
+            flash(f"Supplier portal files saved to local folder: {export_dir}", "success")
+        return redirect(url_for("supplier_detail", party_code=party_code, screen="portal"))
 
     @app.get("/supplier-desk/cash-guide")
     @_login_required("admin")
@@ -10672,22 +10694,6 @@ def _supplier_portal_snapshot(
                     "href": supplier_screen_href("kata", focus="debit"),
                     "tone": "warning",
                 },
-                {
-                    "eyebrow": "Fleet",
-                    "title": "Vehicles",
-                    "value": str(detail_summary.get("asset_count", 0)),
-                    "caption": "Assigned cash units",
-                    "href": supplier_screen_href("vehicles"),
-                    "tone": "info",
-                },
-                {
-                    "eyebrow": "Open Work",
-                    "title": "Open Work",
-                    "value": money(detail_summary.get("unbilled_amount", 0.0)),
-                    "caption": f"{int(detail_summary.get('unbilled_count', 0) or 0)} rows pending",
-                    "href": supplier_screen_href("kata"),
-                    "tone": "neutral",
-                },
             ],
             "recent_groups": [
                 {
@@ -14006,6 +14012,108 @@ def _ensure_cash_supplier_payment_voucher_pdf(app, db, payment_no: str) -> str:
     pdf_path = generate_cash_supplier_payment_voucher_pdf(payment, payment, payment, str(output_dir), app.config["STATIC_ASSETS_DIR"])
     _mirror_generated_file(app, pdf_path)
     return pdf_path
+
+
+def _cash_supplier_local_export_root(supplier_mode: str) -> Path:
+    configured_root = os.environ.get("CASH_SUPPLIER_LOCAL_EXPORT_ROOT", r"D:\CurrentLinkData\Generated\Suppliers")
+    mode_folder = "Loan" if supplier_mode == "Loan" else "Cash"
+    return Path(configured_root) / mode_folder
+
+
+def _save_cash_supplier_portal_bundle_local(app: Flask, db, party, *, supplier_mode: str = "Cash") -> Path:
+    party_code = party["party_code"]
+    party_name = party["party_name"] or party_code
+    export_root = _cash_supplier_local_export_root(supplier_mode)
+    supplier_dir = export_root / _party_archive_folder_name(party_code, party_name)
+    supplier_dir.mkdir(parents=True, exist_ok=True)
+
+    kata_rows, kata_summary = _cash_supplier_kata(db, party_code)
+    earnings = [
+        dict(row)
+        for row in db.execute(
+            """
+            SELECT trip_no, entry_date, period_month, earning_basis, trip_count, rate, total_amount, vehicle_no, notes
+            FROM cash_supplier_trips
+            WHERE party_code = ?
+            ORDER BY entry_date DESC, id DESC
+            """,
+            (party_code,),
+        ).fetchall()
+    ]
+    debits = [
+        dict(row)
+        for row in db.execute(
+            """
+            SELECT debit_no, entry_date, debit_type, amount, description, notes
+            FROM cash_supplier_debits
+            WHERE party_code = ?
+            ORDER BY entry_date DESC, id DESC
+            """,
+            (party_code,),
+        ).fetchall()
+    ]
+    payments = [
+        dict(row)
+        for row in db.execute(
+            """
+            SELECT payment_no, entry_date, amount, payment_method, reference, notes
+            FROM cash_supplier_payments
+            WHERE party_code = ?
+            ORDER BY entry_date DESC, id DESC
+            """,
+            (party_code,),
+        ).fetchall()
+    ]
+
+    statement_output_dir = _supplier_output_dir(app, party_code) / "statements"
+    statement_pdf = generate_cash_supplier_kata_pdf(
+        party,
+        kata_rows,
+        kata_summary,
+        str(statement_output_dir),
+        app.config["STATIC_ASSETS_DIR"],
+        title="Cash Supplier Kata" if supplier_mode == "Cash" else "Loan Supplier Kata",
+    )
+    _mirror_generated_file(app, statement_pdf)
+    _archive_supplier_statement_pdf_record(app, party, statement_pdf, "supplier_local_save_statement_pdf_generated")
+
+    statements_dir = supplier_dir / "statements"
+    statements_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(statement_pdf, statements_dir / "soa-latest.pdf")
+
+    vouchers_dir = supplier_dir / "payment_vouchers"
+    if vouchers_dir.exists():
+        for old_pdf in vouchers_dir.glob("*.pdf"):
+            try:
+                old_pdf.unlink()
+            except OSError:
+                app.logger.warning("Unable to remove stale local voucher %s", old_pdf, exc_info=True)
+    vouchers_dir.mkdir(parents=True, exist_ok=True)
+    for payment in payments:
+        voucher_pdf = _ensure_cash_supplier_payment_voucher_pdf(app, db, payment["payment_no"])
+        shutil.copy2(voucher_pdf, vouchers_dir / f"{payment['payment_no']}_payment-voucher.pdf")
+
+    _write_json_archive(
+        supplier_dir / "supplier-profile.json",
+        {
+            "party_code": party_code,
+            "party_name": party_name,
+            "supplier_mode": supplier_mode,
+            "party_kind": party["party_kind"] or "",
+            "status": party["status"] or "",
+            "contact_person": party["contact_person"] or "",
+            "phone_number": party["phone_number"] or "",
+            "email": party["email"] or "",
+            "address": party["address"] or "",
+            "saved_at": datetime.now().isoformat(timespec="seconds"),
+        },
+    )
+    _write_json_archive(supplier_dir / "earnings.json", earnings)
+    _write_json_archive(supplier_dir / "debits.json", debits)
+    _write_json_archive(supplier_dir / "payments.json", payments)
+    _write_json_archive(supplier_dir / "soa-summary.json", dict(kata_summary or {}))
+    _write_json_archive(supplier_dir / "soa-rows.json", [dict(row) for row in kata_rows])
+    return supplier_dir
 
 
 def _supplier_output_dir(app, party_code: str) -> Path:

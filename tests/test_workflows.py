@@ -3733,7 +3733,7 @@ def test_admin_backup_routes_create_and_download_latest(app, client):
     assert "attachment;" in download.headers.get("Content-Disposition", "")
 
 
-def test_cash_supplier_portal_redesign_and_manual_routes(app, client):
+def test_cash_supplier_portal_redesign_and_manual_routes(app, client, monkeypatch):
     admin_session(client)
 
     created = client.post(
@@ -3811,6 +3811,34 @@ def test_cash_supplier_portal_redesign_and_manual_routes(app, client):
     assert b"Add Debit" in portal.data
     assert b"Add Payment" in portal.data
     assert b"Open Guide" in portal.data
+    assert b"Save to Local" in portal.data
+    assert b"Assigned cash units" not in portal.data
+    assert b"rows pending" not in portal.data
+
+    local_export_root = Path(app.config["GENERATED_DIR"]).parent / "local-export-test"
+    shutil.rmtree(local_export_root, ignore_errors=True)
+    monkeypatch.setenv("CASH_SUPPLIER_LOCAL_EXPORT_ROOT", str(local_export_root))
+    saved_local = client.post("/suppliers/PTY-CASH-01/save-local", data={}, follow_redirects=True)
+    assert saved_local.status_code == 200
+    assert b"saved to local folder" in saved_local.data
+
+    cash_root = local_export_root / "Cash"
+    supplier_folders = [item for item in cash_root.iterdir() if item.is_dir()]
+    assert len(supplier_folders) == 1
+    supplier_folder = supplier_folders[0]
+    assert (supplier_folder / "supplier-profile.json").exists()
+    assert (supplier_folder / "earnings.json").exists()
+    assert (supplier_folder / "debits.json").exists()
+    assert (supplier_folder / "payments.json").exists()
+    assert (supplier_folder / "soa-summary.json").exists()
+    assert (supplier_folder / "soa-rows.json").exists()
+    assert (supplier_folder / "statements" / "soa-latest.pdf").exists()
+    voucher_dir = supplier_folder / "payment_vouchers"
+    assert (voucher_dir / "CPY-CASH-01_payment-voucher.pdf").exists()
+
+    saved_local_again = client.post("/suppliers/PTY-CASH-01/save-local", data={}, follow_redirects=True)
+    assert saved_local_again.status_code == 200
+    assert len(list(voucher_dir.glob("*.pdf"))) == 1
 
     trip_focus = client.get("/suppliers/PTY-CASH-01?screen=kata&focus=trip", follow_redirects=True)
     assert trip_focus.status_code == 200
