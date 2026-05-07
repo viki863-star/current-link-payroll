@@ -1,4 +1,5 @@
 import base64
+import json
 import shutil
 from calendar import monthrange
 from datetime import date, datetime, timedelta
@@ -1123,6 +1124,7 @@ def register_routes(app: Flask) -> None:
             title="Supplier Portal Statement",
         )
         _mirror_generated_file(app, pdf_path)
+        _archive_supplier_statement_pdf_record(app, party, pdf_path, "supplier_statement_pdf_generated")
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
@@ -1185,6 +1187,17 @@ def register_routes(app: Flask) -> None:
             """,
             (technician_code,),
         ).fetchone()["total"] or 0
+
+        recent_advances = db.execute(
+            """
+            SELECT advance_no, entry_date, funding_source, amount, reference, notes
+            FROM maintenance_staff_advances
+            WHERE staff_code = ?
+            ORDER BY entry_date DESC, id DESC
+            LIMIT 8
+            """,
+            (technician_code,),
+        ).fetchall()
 
         # Total approved amount
         total_approved = db.execute(
@@ -1317,117 +1330,164 @@ def register_routes(app: Flask) -> None:
         
         form_rows = _default_technician_entry_rows(datetime.now().strftime("%Y-%m-%d"))
         row_errors_by_no = {}
+        editing_paper_no = ""
         
         if request.method == "POST":
             action = request.form.get("action", "").strip()
-            if action == "submit_jobs":
+            if action == "load_job":
+                requested_paper_no = request.form.get("paper_no", "").strip().upper()
+                paper_row = _maintenance_paper_row(db, requested_paper_no)
+                if paper_row is None or paper_row["technician_code"] != technician_code:
+                    flash("This job was not found in your desk.", "error")
+                elif (paper_row["review_status"] or "") != "Pending" or (paper_row["payment_status"] or "") != "Pending":
+                    flash("Only pending jobs can be edited from field staff portal.", "error")
+                else:
+                    form_rows = [_technician_form_row_from_paper(db, paper_row)]
+                    editing_paper_no = requested_paper_no
+                    flash(f"Editing job {requested_paper_no}.", "info")
+            elif action == "delete_job":
+                requested_paper_no = request.form.get("paper_no", "").strip().upper()
+                paper_row = _maintenance_paper_row(db, requested_paper_no)
+                if paper_row is None or paper_row["technician_code"] != technician_code:
+                    flash("This job was not found in your desk.", "error")
+                elif (paper_row["review_status"] or "") != "Pending" or (paper_row["payment_status"] or "") != "Pending":
+                    flash("Only pending jobs can be deleted from field staff portal.", "error")
+                else:
+                    try:
+                        _delete_maintenance_paper_record(db, app, paper_row)
+                        _audit_log(
+                            db,
+                            "technician_job_deleted",
+                            entity_type="maintenance_paper",
+                            entity_id=requested_paper_no,
+                            details=f"Technician {technician_code} deleted job {requested_paper_no}",
+                        )
+                        db.commit()
+                        flash(f"Job {requested_paper_no} deleted.", "success")
+                        return redirect(url_for("technician_portal"))
+                    except Exception as exc:
+                        db.rollback()
+                        flash(f"Could not delete job {requested_paper_no}: {exc}", "error")
+            elif action in {"submit_jobs", "update_job"}:
                 form_rows = _technician_entry_rows_from_request(request)
                 row_errors_by_no = {}
+                editing_paper_no = request.form.get("original_paper_no", "").strip().upper() if action == "update_job" else ""
                 submitted_rows = [row for row in form_rows if not _technician_entry_row_is_blank(row)]
                 if not submitted_rows:
                     flash("Add at least one filled paper row before submit.", "error")
                 else:
                     saved_rows = []
                     row_errors = []
+                    update_target = None
+                    if action == "update_job":
+                        update_target = _maintenance_paper_row(db, editing_paper_no)
+                        if update_target is None or update_target["technician_code"] != technician_code:
+                            flash("This job was not found in your desk.", "error")
+                            update_target = None
+                        elif (update_target["review_status"] or "") != "Pending" or (update_target["payment_status"] or "") != "Pending":
+                            flash("Only pending jobs can be updated from field staff portal.", "error")
+                            update_target = None
+                        elif len(submitted_rows) != 1:
+                            flash("Edit mode accepts one job row at a time.", "error")
+                            update_target = None
+                        if update_target is None:
+                            submitted_rows = []
                     for row in submitted_rows:
-                        selected_vehicle = None
-                        current_errors = []
-                        if not row["entry_date"]:
-                            current_errors.append("date is required")
-                        if row["vehicle_id"] == "GENERAL":
-                            selected_vehicle = _ensure_general_maintenance_vehicle(db)
-                            row["vehicle_id"] = selected_vehicle["vehicle_id"]
-                            row["vehicle_no"] = selected_vehicle["vehicle_no"]
-                        elif not row["vehicle_id"]:
-                            selected_vehicle = _ensure_general_maintenance_vehicle(db)
-                            row["vehicle_id"] = selected_vehicle["vehicle_id"]
-                            row["vehicle_no"] = selected_vehicle["vehicle_no"]
-                        else:
-                            selected_vehicle = db.execute(
-                                """
-                                SELECT vehicle_id, vehicle_no, make_model, ownership_mode, source_type
-                                FROM vehicle_master
-                                WHERE vehicle_id = ?
-                                """,
-                                (row["vehicle_id"],),
-                            ).fetchone()
-                            if selected_vehicle is None:
-                                current_errors.append("selected vehicle was not found")
-                            else:
-                                row["vehicle_no"] = selected_vehicle["vehicle_no"] or row["vehicle_id"]
-                        if not row["workshop_name"]:
-                            current_errors.append("shop / vendor / place is required")
-                        if not row["bill_no"]:
-                            current_errors.append("bill number is required")
-                        if not row["work_type"]:
-                            current_errors.append("work type is required")
-                        if not row["amount"]:
-                            current_errors.append("amount is required")
-
-                        try:
-                            amount = float(row["amount"] or 0)
-                            tax_amount = float(row["tax_amount"] or 0)
-                            total_amount = float(row["total_amount"] or amount + tax_amount)
-                        except ValueError:
-                            current_errors.append("amount, tax and total must be valid numbers")
-                            amount = 0.0
-                            tax_amount = 0.0
-                            total_amount = 0.0
+                        prepared_row, current_errors = _technician_prepare_entry_row(db, row)
 
                         if current_errors:
                             row_errors_by_no[row["row_no"]] = list(current_errors)
                             row_errors.append(f"Row {row['row_no']}: " + ", ".join(current_errors) + ".")
                             continue
 
-                        paper_no = _next_reference_code(db, "maintenance_papers", "paper_no", "MT")
+                        paper_no = editing_paper_no if action == "update_job" else _next_reference_code(db, "maintenance_papers", "paper_no", "MT")
                         try:
-                            workshop_party_code = _ensure_workshop_party(db, row["workshop_name"])
                             attachment_path = _save_maintenance_attachment(app, paper_no, request.files.get(f"attachment_{row['row_no']}"))
-                            db.execute(
-                                """
-                                INSERT INTO maintenance_papers (
-                                    paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
-                                    work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
-                                    attachment_path, notes, technician_code, review_status, payment_status, created_at
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', CURRENT_TIMESTAMP)
-                                """,
-                                (
-                                    paper_no,
-                                    row["entry_date"],
-                                    row["vehicle_id"],
-                                    row["vehicle_no"],
-                                    workshop_party_code,
-                                    row["bill_no"],
-                                    row["work_type"],
-                                    row["details"],
-                                    amount,
-                                    row["tax_mode"],
-                                    tax_amount,
-                                    total_amount,
-                                    attachment_path,
-                                    row["remarks"],
-                                    technician_code,
+                            if action == "update_job":
+                                db.execute(
+                                    """
+                                    UPDATE maintenance_papers
+                                    SET paper_date = ?, vehicle_id = ?, vehicle_no = ?, workshop_party_code = ?, supplier_bill_no = ?,
+                                        work_type = ?, work_summary = ?, subtotal = ?, tax_mode = ?, tax_amount = ?, total_amount = ?,
+                                        attachment_path = ?, notes = ?
+                                    WHERE paper_no = ? AND technician_code = ?
+                                    """,
+                                    (
+                                        row["entry_date"],
+                                        prepared_row["vehicle_id"],
+                                        prepared_row["vehicle_no"],
+                                        prepared_row["workshop_party_code"],
+                                        row["bill_no"],
+                                        row["work_type"],
+                                        row["details"],
+                                        prepared_row["amount"],
+                                        row["tax_mode"],
+                                        prepared_row["tax_amount"],
+                                        prepared_row["total_amount"],
+                                        attachment_path or update_target["attachment_path"],
+                                        row["remarks"],
+                                        paper_no,
+                                        technician_code,
+                                    ),
                                 )
-                            )
-                            _audit_log(
-                                db,
-                                "technician_job_submitted",
-                                entity_type="maintenance_paper",
-                                entity_id=paper_no,
-                                details=f"Technician {technician_code} submitted job {paper_no}",
+                                _audit_log(
+                                    db,
+                                    "technician_job_updated",
+                                    entity_type="maintenance_paper",
+                                    entity_id=paper_no,
+                                    details=f"Technician {technician_code} updated job {paper_no}",
+                                )
+                            else:
+                                db.execute(
+                                    """
+                                    INSERT INTO maintenance_papers (
+                                        paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                                        work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                                        attachment_path, notes, technician_code, review_status, payment_status, created_at
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', CURRENT_TIMESTAMP)
+                                    """,
+                                    (
+                                        paper_no,
+                                        row["entry_date"],
+                                        prepared_row["vehicle_id"],
+                                        prepared_row["vehicle_no"],
+                                        prepared_row["workshop_party_code"],
+                                        row["bill_no"],
+                                        row["work_type"],
+                                        row["details"],
+                                        prepared_row["amount"],
+                                        row["tax_mode"],
+                                        prepared_row["tax_amount"],
+                                        prepared_row["total_amount"],
+                                        attachment_path,
+                                        row["remarks"],
+                                        technician_code,
+                                    )
+                                )
+                                _audit_log(
+                                    db,
+                                    "technician_job_submitted",
+                                    entity_type="maintenance_paper",
+                                    entity_id=paper_no,
+                                    details=f"Technician {technician_code} submitted job {paper_no}",
                             )
                             db.commit()
+                            _archive_field_staff_paper_record(app, db, paper_no, "field_staff_job_saved")
                             saved_rows.append(paper_no)
                         except Exception as exc:
                             db.rollback()
-                            row_errors_by_no.setdefault(row["row_no"], []).append(str(exc))
-                            row_errors.append(f"Row {row['row_no']}: {exc}")
+                            friendly_error = "could not save this row. Please check the entry and try again."
+                            row_errors_by_no.setdefault(row["row_no"], []).append(friendly_error)
+                            row_errors.append(f"Row {row['row_no']}: {friendly_error}")
 
                     if saved_rows:
-                        flash(
-                            f"{len(saved_rows)} field staff entr{'y' if len(saved_rows) == 1 else 'ies'} submitted successfully: {', '.join(saved_rows)}",
-                            "success",
-                        )
+                        if action == "update_job":
+                            flash(f"Job {saved_rows[0]} updated successfully.", "success")
+                        else:
+                            flash(
+                                f"{len(saved_rows)} field staff entr{'y' if len(saved_rows) == 1 else 'ies'} submitted successfully: {', '.join(saved_rows)}",
+                                "success",
+                            )
                         if not row_errors:
                             return redirect(url_for("technician_portal"))
                     for error in row_errors:
@@ -1444,6 +1504,7 @@ def register_routes(app: Flask) -> None:
             pending_review=pending_review,
             total_approved=total_approved,
             total_paid=total_paid_to_vendors,
+            recent_advances=recent_advances,
             top_vehicles=top_vehicles,
             monthly_expenses=monthly_expenses,
             max_monthly_amount=max_monthly_amount,
@@ -1452,6 +1513,7 @@ def register_routes(app: Flask) -> None:
             vehicle_options=vehicle_options,
             form_rows=form_rows,
             row_errors_by_no=row_errors_by_no,
+            editing_paper_no=editing_paper_no,
         )
     
     @app.get("/services")
@@ -3477,6 +3539,7 @@ def register_routes(app: Flask) -> None:
                     title="Supplier Statement of Account",
                 )
         _mirror_generated_file(app, pdf_path)
+        _archive_supplier_statement_pdf_record(app, party, pdf_path, "supplier_portal_statement_pdf_generated")
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
@@ -4097,6 +4160,7 @@ def register_routes(app: Flask) -> None:
                         )
                         message = "Invoice created successfully."
                     db.commit()
+                    _archive_invoice_record(app, db, invoice_values["invoice_no"], "invoice_saved")
                     flash(message, "success")
                     return redirect(url_for("invoice_center"))
 
@@ -4183,6 +4247,8 @@ def register_routes(app: Flask) -> None:
                         )
                         message = "Payment saved and invoice balance updated."
                     db.commit()
+                    _archive_payment_record(app, db, payment_values["voucher_no"], "payment_saved")
+                    _archive_invoice_record(app, db, invoice["invoice_no"], "invoice_balance_updated")
                     flash(message, "success")
                     return redirect(url_for("invoice_center"))
             except ValidationError as exc:
@@ -5065,6 +5131,7 @@ def register_routes(app: Flask) -> None:
                     )
                     
                     db.commit()
+                    _archive_field_staff_paper_record(app, db, paper_no, "field_staff_job_approved")
                     flash(f"Job {paper_no} approved successfully. Split calculated: Company AED {company_share_amount:.2f}, Partner AED {partner_share_amount:.2f}", "success")
                     
                 elif action == "reject":
@@ -5090,6 +5157,7 @@ def register_routes(app: Flask) -> None:
                     )
                     
                     db.commit()
+                    _archive_field_staff_paper_record(app, db, paper_no, "field_staff_job_rejected")
                     flash(f"Job {paper_no} rejected.", "success")
                     
                 elif action == "mark_paid":
@@ -5114,6 +5182,7 @@ def register_routes(app: Flask) -> None:
                     )
                     
                     db.commit()
+                    _archive_field_staff_paper_record(app, db, paper_no, "field_staff_job_marked_paid")
                     flash(f"Job {paper_no} marked as paid.", "success")
 
                 elif action == "delete":
@@ -5672,6 +5741,7 @@ def register_routes(app: Flask) -> None:
                         ),
                     )
                     db.commit()
+                    _archive_field_staff_advance_record(app, db, advance_no, "field_staff_payment_saved")
                     flash(f"Payment of AED {amount:.2f} issued to {staff_row['specialization'] or staff_row['technician_code']}.", "success")
                     return redirect(url_for("technicians"))
                 except ValidationError as exc:
@@ -6685,6 +6755,7 @@ def register_routes(app: Flask) -> None:
             except ValidationError as exc:
                 flash(str(exc), "error")
             else:
+                transaction_id = None
                 if form["transaction_id"]:
                     db.execute(
                         """
@@ -6711,12 +6782,13 @@ def register_routes(app: Flask) -> None:
                         entity_id=form["transaction_id"],
                         details=f"{driver_id} / AED {amount:.2f}",
                     )
+                    transaction_id = int(form["transaction_id"])
                     message = "Transaction updated and driver KATA PDF refreshed."
                 else:
                     db.execute(
-                        """
-                        INSERT INTO driver_transactions (driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """
+                            INSERT INTO driver_transactions (driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             driver_id,
@@ -6725,9 +6797,28 @@ def register_routes(app: Flask) -> None:
                             form["txn_type"],
                             form["source"],
                             form["given_by"],
-                            amount,
-                            form["details"],
-                        ),
+                                amount,
+                                form["details"],
+                            ),
+                    )
+                    transaction_id = int(
+                        db.execute(
+                            """
+                            SELECT id
+                            FROM driver_transactions
+                            WHERE driver_id = ? AND entry_date = ? AND salary_month = ? AND txn_type = ? AND source = ? AND amount = ?
+                            ORDER BY id DESC
+                            LIMIT 1
+                            """,
+                            (
+                                driver_id,
+                                form["entry_date"],
+                                form["salary_month"],
+                                form["txn_type"],
+                                form["source"],
+                                amount,
+                            ),
+                        ).fetchone()["id"]
                     )
                     _audit_log(
                         db,
@@ -6738,6 +6829,8 @@ def register_routes(app: Flask) -> None:
                     )
                     message = "Transaction saved and driver KATA PDF updated."
                 db.commit()
+                if transaction_id is not None:
+                    _archive_driver_transaction_record(app, db, driver, transaction_id, "driver_transaction_saved")
                 _regenerate_kata_for_driver(app, db, driver)
                 flash(message, "success")
                 return redirect(url_for("driver_transactions", driver_id=driver_id))
@@ -7021,6 +7114,7 @@ def register_routes(app: Flask) -> None:
                     details=f"{preview['salary_mode_label']} / OT month {preview['ot_month']} / net AED {preview['net_salary']:.2f}",
                 )
                 db.commit()
+                _archive_driver_salary_store_record(app, db, driver, form["salary_month"], "salary_store_saved")
                 _regenerate_kata_for_driver(app, db, driver)
                 if existing_month_row:
                     flash("This month already existed. Existing salary record was updated.", "success")
@@ -7419,6 +7513,7 @@ def register_routes(app: Flask) -> None:
                                 details=f"deduction AED {deduction_amount:.2f} / paid AED {statement_totals['actual_paid_amount']:.2f} / balance AED {statement_totals['company_balance_due']:.2f}",
                             )
                             db.commit()
+                            _archive_driver_statement_record(app, db, driver, selected_salary["salary_month"], "salary_statement_saved", pdf_path=pdf_path)
                             _regenerate_kata_for_driver(app, db, driver)
                             flash(f"Salary slip PDF generated. {payment_message} and monthly statement refreshed.", "success")
                             return redirect(
@@ -8309,6 +8404,91 @@ def _technician_entry_row_is_blank(row) -> bool:
         "remarks",
     )
     return all(not (row.get(field) or "").strip() for field in tracked_fields)
+
+
+def _technician_form_row_from_paper(db, paper_row, row_no: int = 1):
+    workshop_name = ""
+    if paper_row["workshop_party_code"]:
+        workshop_row = db.execute(
+            "SELECT party_name FROM parties WHERE party_code = ?",
+            (paper_row["workshop_party_code"],),
+        ).fetchone()
+        workshop_name = (workshop_row["party_name"] if workshop_row else paper_row["workshop_party_code"]) or ""
+    vehicle_id = paper_row["vehicle_id"] or ""
+    if vehicle_id == GENERAL_MAINTENANCE_VEHICLE_ID:
+        vehicle_id = ""
+    return {
+        "row_no": row_no,
+        "entry_date": paper_row["paper_date"] or "",
+        "vehicle_id": vehicle_id,
+        "vehicle_no": paper_row["vehicle_no"] or "",
+        "workshop_name": workshop_name,
+        "bill_no": paper_row["supplier_bill_no"] or "",
+        "work_type": paper_row["work_type"] or "",
+        "details": paper_row["work_summary"] or "",
+        "amount": f"{float(paper_row['subtotal'] or 0):.2f}",
+        "tax_mode": paper_row["tax_mode"] or "Inclusive",
+        "tax_amount": f"{float(paper_row['tax_amount'] or 0):.2f}",
+        "total_amount": f"{float(paper_row['total_amount'] or 0):.2f}",
+        "remarks": paper_row["notes"] or "",
+    }
+
+
+def _technician_prepare_entry_row(db, row):
+    current_errors = []
+    if not row["entry_date"]:
+        current_errors.append("date is required")
+
+    selected_vehicle = None
+    if row["vehicle_id"] == "GENERAL" or not row["vehicle_id"]:
+        selected_vehicle = _ensure_general_maintenance_vehicle(db)
+    else:
+        selected_vehicle = db.execute(
+            """
+            SELECT vehicle_id, vehicle_no, make_model, ownership_mode, source_type
+            FROM vehicle_master
+            WHERE vehicle_id = ?
+            """,
+            (row["vehicle_id"],),
+        ).fetchone()
+        if selected_vehicle is None:
+            current_errors.append("selected vehicle was not found")
+
+    if not row["workshop_name"]:
+        current_errors.append("shop / vendor / place is required")
+    if not row["bill_no"]:
+        current_errors.append("bill number is required")
+    if not row["work_type"]:
+        current_errors.append("work type is required")
+    if not row["amount"]:
+        current_errors.append("amount is required")
+
+    try:
+        amount = float(row["amount"] or 0)
+        tax_amount = float(row["tax_amount"] or 0)
+        total_amount = float(row["total_amount"] or amount + tax_amount)
+    except ValueError:
+        current_errors.append("amount, tax and total must be valid numbers")
+        amount = 0.0
+        tax_amount = 0.0
+        total_amount = 0.0
+
+    if current_errors:
+        return None, current_errors
+
+    try:
+        workshop_party_code = _ensure_workshop_party(db, row["workshop_name"])
+    except Exception as exc:
+        return None, [str(exc)]
+
+    return {
+        "vehicle_id": selected_vehicle["vehicle_id"],
+        "vehicle_no": selected_vehicle["vehicle_no"] or row["vehicle_id"] or GENERAL_MAINTENANCE_VEHICLE_NO,
+        "workshop_party_code": workshop_party_code,
+        "amount": amount,
+        "tax_amount": tax_amount,
+        "total_amount": total_amount,
+    }, []
 
 
 
@@ -13459,7 +13639,21 @@ def _ensure_cash_supplier_payment_voucher_pdf(app, db, payment_no: str) -> str:
 
 
 def _supplier_output_dir(app, party_code: str) -> Path:
-    return Path(app.config["GENERATED_DIR"]) / "suppliers" / party_code
+    party = _fetch_party(open_db(), party_code)
+    base_dir = Path(app.config["GENERATED_DIR"]) / "suppliers" / _party_archive_folder_name(
+        party_code,
+        party["party_name"] if party is not None else party_code,
+    )
+    _ensure_entity_archive_dirs(base_dir, ["statements", "payments", "invoices", "attachments", "reports", "meta"])
+    _write_entity_archive_info(
+        base_dir,
+        {
+            "entity_type": "supplier",
+            "entity_id": party_code,
+            "display_name": party["party_name"] if party is not None else party_code,
+        },
+    )
+    return base_dir
 
 
 def _prepare_agreement_payload(db, values):
@@ -15350,10 +15544,30 @@ def _driver_output_dir(app: Flask, driver_id: str, *, driver=None, full_name: st
             found = _fetch_driver(db, driver_id)
             full_name = found["full_name"] if found else driver_id
         base_dir = drivers_root / _driver_folder_name(full_name or driver_id, driver_id)
-    (base_dir / "salary_slips").mkdir(parents=True, exist_ok=True)
-    (base_dir / "kata_pdfs").mkdir(parents=True, exist_ok=True)
-    (base_dir / "timesheets").mkdir(parents=True, exist_ok=True)
-    (base_dir / "profile").mkdir(parents=True, exist_ok=True)
+    _ensure_entity_archive_dirs(
+        base_dir,
+        [
+            "salary_slips",
+            "kata_pdfs",
+            "timesheets",
+            "profile",
+            "statements",
+            "payments",
+            "cash",
+            "attachments",
+            "reports",
+            "meta",
+            "months",
+        ],
+    )
+    _write_entity_archive_info(
+        base_dir,
+        {
+            "entity_type": "driver",
+            "entity_id": driver_id,
+            "display_name": full_name or (driver["full_name"] if driver is not None else driver_id),
+        },
+    )
     return base_dir
 
 
@@ -15363,6 +15577,581 @@ def _driver_folder_name(full_name: str, driver_id: str) -> str:
         safe = safe.replace("--", "-")
     safe = safe or driver_id.lower()
     return f"{safe}__{driver_id.lower()}"
+
+
+def _ensure_entity_archive_dirs(base_dir: Path, folders: list[str]) -> Path:
+    for folder in folders:
+        (base_dir / folder).mkdir(parents=True, exist_ok=True)
+    return base_dir
+
+
+def _json_ready(value):
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat(timespec="seconds")
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(key): _json_ready(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_ready(item) for item in value]
+    return value
+
+
+def _write_json_archive(path: Path, payload) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(_json_ready(payload), indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _write_entity_archive_info(base_dir: Path, payload: dict) -> None:
+    info_path = base_dir / "meta" / "entity-info.json"
+    existing = {}
+    if info_path.exists():
+        try:
+            existing = json.loads(info_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            existing = {}
+    existing.update(_json_ready(payload))
+    _write_json_archive(info_path, existing)
+
+
+def _append_entity_ledger(base_dir: Path, ledger_name: str, entry: dict) -> None:
+    ledger_path = base_dir / "meta" / ledger_name
+    entries = []
+    if ledger_path.exists():
+        try:
+            entries = json.loads(ledger_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            entries = []
+    entry = dict(entry)
+    entry.setdefault("created_at", datetime.now().isoformat(timespec="seconds"))
+    entry_key = entry.get("entry_key")
+    if entry_key:
+        entries = [item for item in entries if item.get("entry_key") != entry_key]
+    entries.append(_json_ready(entry))
+    entries = entries[-1000:]
+    _write_json_archive(ledger_path, entries)
+
+
+def _generated_relative_path(app: Flask, file_path) -> str:
+    target = Path(file_path)
+    try:
+        return target.relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
+    except ValueError:
+        return target.name
+
+
+def _copy_generated_file_to_entity(app: Flask, source_path, target_dir: Path, *, target_name: str | None = None) -> str | None:
+    source = Path(source_path)
+    if not source.exists():
+        return None
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / (target_name or source.name)
+    try:
+        if source.resolve() != target.resolve():
+            shutil.copy2(source, target)
+    except FileNotFoundError:
+        shutil.copy2(source, target)
+    _mirror_generated_file(app, target)
+    return target.relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
+
+
+def _party_archive_folder_name(party_code: str, party_name: str | None = None) -> str:
+    safe_code = secure_filename((party_code or "party").lower()) or "party"
+    if not party_name:
+        return safe_code
+    safe_name = secure_filename((party_name or "").lower()).strip("-_")
+    return f"{safe_code}__{safe_name}" if safe_name else safe_code
+
+
+def _customer_output_dir(app: Flask, party_code: str, *, party=None) -> Path:
+    party_name = party["party_name"] if party is not None else party_code
+    base_dir = Path(app.config["GENERATED_DIR"]) / "customers" / _party_archive_folder_name(party_code, party_name)
+    _ensure_entity_archive_dirs(base_dir, ["invoices", "statements", "payments", "attachments", "reports", "meta"])
+    _write_entity_archive_info(
+        base_dir,
+        {
+            "entity_type": "customer",
+            "entity_id": party_code,
+            "display_name": party_name,
+        },
+    )
+    return base_dir
+
+
+def _field_staff_output_dir(app: Flask, staff_code: str, *, staff_name: str | None = None) -> Path:
+    folder_name = _party_archive_folder_name(staff_code, staff_name)
+    base_dir = Path(app.config["GENERATED_DIR"]) / "field_staff" / folder_name
+    _ensure_entity_archive_dirs(base_dir, ["papers", "payments", "attachments", "reports", "meta"])
+    _write_entity_archive_info(
+        base_dir,
+        {
+            "entity_type": "field_staff",
+            "entity_id": staff_code,
+            "display_name": staff_name or staff_code,
+        },
+    )
+    return base_dir
+
+
+def _snapshot_filename(*parts: str) -> str:
+    normalized = [secure_filename((part or "").strip().lower()) for part in parts if part]
+    return "-".join(filter(None, normalized)) or datetime.now().strftime("%Y%m%d-%H%M%S")
+
+
+def _archive_driver_transaction_record(app: Flask, db, driver, transaction_id: int, event_type: str) -> None:
+    row = db.execute(
+        """
+        SELECT id, entry_date, salary_month, txn_type, source, given_by, amount, details
+        FROM driver_transactions
+        WHERE id = ? AND driver_id = ?
+        """,
+        (transaction_id, driver["driver_id"]),
+    ).fetchone()
+    if row is None:
+        return
+    base_dir = _driver_output_dir(app, driver["driver_id"], driver=driver)
+    snapshot = {
+        "event_type": event_type,
+        "driver_id": driver["driver_id"],
+        "driver_name": driver["full_name"],
+        "transaction_id": row["id"],
+        "entry_date": row["entry_date"],
+        "salary_month": _transaction_salary_month(row),
+        "txn_type": row["txn_type"],
+        "source": row["source"],
+        "given_by": row["given_by"] or "",
+        "amount": float(row["amount"] or 0.0),
+        "details": row["details"] or "",
+    }
+    snapshot_path = base_dir / "cash" / f"{row['entry_date']}_{int(row['id']):05d}.json"
+    _write_json_archive(snapshot_path, snapshot)
+    _append_entity_ledger(
+        base_dir,
+        "driver-ledger.json",
+        {
+            "entry_key": f"driver-transaction:{row['id']}:{event_type}",
+            "event_type": event_type,
+            "entity_type": "driver",
+            "entity_id": driver["driver_id"],
+            "reference": f"transaction:{row['id']}",
+            "event_date": row["entry_date"],
+            "month": _transaction_salary_month(row),
+            "amount": float(row["amount"] or 0.0),
+            "details": row["details"] or row["txn_type"] or "",
+            "source": row["source"] or "",
+            "paid_by": row["given_by"] or "",
+            "files": [_generated_relative_path(app, snapshot_path)],
+        },
+    )
+
+
+def _archive_driver_salary_store_record(app: Flask, db, driver, salary_month: str, event_type: str) -> None:
+    row = db.execute(
+        """
+        SELECT entry_date, salary_month, salary_mode, prorata_start_date, salary_days, daily_rate,
+               monthly_basic_salary, basic_salary, ot_month, ot_hours, ot_rate, ot_amount,
+               personal_vehicle, personal_vehicle_note, net_salary, remarks
+        FROM salary_store
+        WHERE driver_id = ? AND salary_month = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (driver["driver_id"], salary_month),
+    ).fetchone()
+    if row is None:
+        return
+    base_dir = _driver_output_dir(app, driver["driver_id"], driver=driver)
+    month_dir = base_dir / "months" / row["salary_month"]
+    month_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_path = month_dir / "salary-store.json"
+    snapshot = {
+        "event_type": event_type,
+        "driver_id": driver["driver_id"],
+        "driver_name": driver["full_name"],
+        "salary_month": row["salary_month"],
+        "entry_date": row["entry_date"],
+        "salary_mode": row["salary_mode"] or "full",
+        "prorata_start_date": row["prorata_start_date"] or "",
+        "salary_days": float(row["salary_days"] or 0.0),
+        "daily_rate": float(row["daily_rate"] or 0.0),
+        "monthly_basic_salary": float(row["monthly_basic_salary"] or 0.0),
+        "basic_salary": float(row["basic_salary"] or 0.0),
+        "ot_month": row["ot_month"] or "",
+        "ot_hours": float(row["ot_hours"] or 0.0),
+        "ot_rate": float(row["ot_rate"] or 0.0),
+        "ot_amount": float(row["ot_amount"] or 0.0),
+        "personal_vehicle": float(row["personal_vehicle"] or 0.0),
+        "personal_vehicle_note": row["personal_vehicle_note"] or "",
+        "net_salary": float(row["net_salary"] or 0.0),
+        "remarks": row["remarks"] or "",
+    }
+    _write_json_archive(snapshot_path, snapshot)
+    _append_entity_ledger(
+        base_dir,
+        "driver-ledger.json",
+        {
+            "entry_key": f"salary-store:{driver['driver_id']}:{row['salary_month']}:{event_type}",
+            "event_type": event_type,
+            "entity_type": "driver",
+            "entity_id": driver["driver_id"],
+            "reference": f"salary-store:{row['salary_month']}",
+            "event_date": row["entry_date"],
+            "month": row["salary_month"],
+            "amount": float(row["net_salary"] or 0.0),
+            "details": _salary_row_reason(row),
+            "files": [_generated_relative_path(app, snapshot_path)],
+        },
+    )
+
+
+def _archive_driver_statement_record(app: Flask, db, driver, salary_month: str, event_type: str, pdf_path=None) -> None:
+    salary_row = db.execute(
+        "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ? ORDER BY id DESC LIMIT 1",
+        (driver["driver_id"], salary_month),
+    ).fetchone()
+    slip_row = db.execute(
+        "SELECT * FROM salary_slips WHERE driver_id = ? AND salary_month = ? ORDER BY id DESC LIMIT 1",
+        (driver["driver_id"], salary_month),
+    ).fetchone()
+    active_entries, _, summary = _driver_kata_month_data(db, driver["driver_id"], salary_month)
+    payment_rows = _statement_payment_rows_with_legacy(
+        db,
+        slip_row,
+        driver["driver_id"],
+        salary_store_id=int(salary_row["id"]) if salary_row is not None else None,
+        salary_month=salary_month,
+    )
+    base_dir = _driver_output_dir(app, driver["driver_id"], driver=driver)
+    month_dir = base_dir / "months" / salary_month
+    month_dir.mkdir(parents=True, exist_ok=True)
+    copied_pdf = None
+    if pdf_path:
+        copied_pdf = _copy_generated_file_to_entity(app, pdf_path, month_dir, target_name="salary-statement.pdf")
+    snapshot_path = month_dir / "statement-summary.json"
+    snapshot = {
+        "event_type": event_type,
+        "driver_id": driver["driver_id"],
+        "driver_name": driver["full_name"],
+        "salary_month": salary_month,
+        "summary": summary,
+        "payment_rows": payment_rows,
+        "active_entries": active_entries,
+        "slip_amounts": _salary_slip_amounts(slip_row) if slip_row is not None else {},
+    }
+    _write_json_archive(snapshot_path, snapshot)
+    files = [_generated_relative_path(app, snapshot_path)]
+    if copied_pdf:
+        files.append(copied_pdf)
+    _append_entity_ledger(
+        base_dir,
+        "driver-ledger.json",
+        {
+            "entry_key": f"salary-statement:{driver['driver_id']}:{salary_month}:{event_type}",
+            "event_type": event_type,
+            "entity_type": "driver",
+            "entity_id": driver["driver_id"],
+            "reference": f"salary-statement:{salary_month}",
+            "event_date": datetime.now().date().isoformat(),
+            "month": salary_month,
+            "amount": float(summary.get("remaining_salary", 0.0)),
+            "balance": float(summary.get("remaining_salary", 0.0)),
+            "details": f"Total salary AED {float(summary.get('total_salary_with_balance', 0.0)):.2f}",
+            "files": files,
+        },
+    )
+
+
+def _archive_full_driver_statement_record(app: Flask, db, driver, pdf_path, event_type: str) -> None:
+    base_dir = _driver_output_dir(app, driver["driver_id"], driver=driver)
+    copied_pdf = _copy_generated_file_to_entity(app, pdf_path, base_dir / "statements", target_name="full-driver-statement.pdf")
+    snapshot_path = base_dir / "meta" / "full-driver-statement.json"
+    snapshot = {
+        "event_type": event_type,
+        "driver_id": driver["driver_id"],
+        "driver_name": driver["full_name"],
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "pdf_path": copied_pdf or _generated_relative_path(app, pdf_path),
+    }
+    _write_json_archive(snapshot_path, snapshot)
+    _append_entity_ledger(
+        base_dir,
+        "driver-ledger.json",
+        {
+            "entry_key": f"full-driver-statement:{driver['driver_id']}:{event_type}",
+            "event_type": event_type,
+            "entity_type": "driver",
+            "entity_id": driver["driver_id"],
+            "reference": "full-driver-statement",
+            "event_date": datetime.now().date().isoformat(),
+            "details": "Full driver statement PDF generated",
+            "files": [copied_pdf] if copied_pdf else [],
+        },
+    )
+
+
+def _archive_invoice_record(app: Flask, db, invoice_no: str, event_type: str) -> None:
+    invoice = db.execute(
+        """
+        SELECT invoice_no, party_code, invoice_kind, document_type, issue_date, due_date, subtotal,
+               tax_percent, tax_amount, total_amount, paid_amount, balance_amount, status, notes, pdf_path
+        FROM account_invoices
+        WHERE invoice_no = ?
+        """,
+        (invoice_no,),
+    ).fetchone()
+    if invoice is None:
+        return
+    party = _fetch_party(db, invoice["party_code"])
+    if party is None:
+        return
+    if (invoice["invoice_kind"] or "Sales") == "Sales":
+        base_dir = _customer_output_dir(app, party["party_code"], party=party)
+        ledger_name = "customer-ledger.json"
+        entity_type = "customer"
+    else:
+        base_dir = _supplier_output_dir(app, party["party_code"])
+        _write_entity_archive_info(base_dir, {"entity_type": "supplier", "entity_id": party["party_code"], "display_name": party["party_name"]})
+        ledger_name = "supplier-ledger.json"
+        entity_type = "supplier"
+    line_rows = _invoice_line_rows(db, invoice_no)
+    copied_pdf = None
+    if invoice["pdf_path"]:
+        pdf_source = Path(app.config["GENERATED_DIR"]) / invoice["pdf_path"]
+        copied_pdf = _copy_generated_file_to_entity(app, pdf_source, base_dir / "invoices", target_name=f"{secure_filename(invoice_no.lower())}.pdf")
+    snapshot_path = base_dir / "invoices" / f"{secure_filename(invoice_no.lower())}.json"
+    snapshot = {
+        "event_type": event_type,
+        "party_code": party["party_code"],
+        "party_name": party["party_name"],
+        "invoice": invoice,
+        "lines": line_rows,
+        "pdf_path": copied_pdf or (invoice["pdf_path"] or ""),
+    }
+    _write_json_archive(snapshot_path, snapshot)
+    files = [_generated_relative_path(app, snapshot_path)]
+    if copied_pdf:
+        files.append(copied_pdf)
+    _append_entity_ledger(
+        base_dir,
+        ledger_name,
+        {
+            "entry_key": f"invoice:{invoice_no}:{event_type}",
+            "event_type": event_type,
+            "entity_type": entity_type,
+            "entity_id": party["party_code"],
+            "reference": invoice_no,
+            "event_date": invoice["issue_date"],
+            "amount": float(invoice["total_amount"] or 0.0),
+            "balance": float(invoice["balance_amount"] or 0.0),
+            "details": invoice["document_type"] or invoice["invoice_kind"] or "Invoice",
+            "files": files,
+        },
+    )
+
+
+def _archive_payment_record(app: Flask, db, voucher_no: str, event_type: str) -> None:
+    row = db.execute(
+        """
+        SELECT p.voucher_no, p.invoice_no, p.party_code, p.payment_kind, p.entry_date, p.amount,
+               p.payment_method, p.reference, p.notes, i.balance_amount, i.invoice_kind, party.party_name
+        FROM account_payments p
+        LEFT JOIN account_invoices i ON i.invoice_no = p.invoice_no
+        LEFT JOIN parties party ON party.party_code = p.party_code
+        WHERE p.voucher_no = ?
+        """,
+        (voucher_no,),
+    ).fetchone()
+    if row is None:
+        return
+    if (row["payment_kind"] or "Received") == "Received":
+        base_dir = _customer_output_dir(app, row["party_code"], party={"party_code": row["party_code"], "party_name": row["party_name"] or row["party_code"]})
+        ledger_name = "customer-ledger.json"
+        entity_type = "customer"
+    else:
+        base_dir = _supplier_output_dir(app, row["party_code"])
+        _write_entity_archive_info(base_dir, {"entity_type": "supplier", "entity_id": row["party_code"], "display_name": row["party_name"] or row["party_code"]})
+        ledger_name = "supplier-ledger.json"
+        entity_type = "supplier"
+    snapshot_path = base_dir / "payments" / f"{secure_filename(voucher_no.lower())}.json"
+    snapshot = {
+        "event_type": event_type,
+        "voucher_no": row["voucher_no"],
+        "invoice_no": row["invoice_no"],
+        "party_code": row["party_code"],
+        "party_name": row["party_name"] or row["party_code"],
+        "payment_kind": row["payment_kind"],
+        "entry_date": row["entry_date"],
+        "amount": float(row["amount"] or 0.0),
+        "payment_method": row["payment_method"] or "",
+        "reference": row["reference"] or "",
+        "notes": row["notes"] or "",
+        "balance_amount": float(row["balance_amount"] or 0.0),
+    }
+    _write_json_archive(snapshot_path, snapshot)
+    _append_entity_ledger(
+        base_dir,
+        ledger_name,
+        {
+            "entry_key": f"payment:{voucher_no}:{event_type}",
+            "event_type": event_type,
+            "entity_type": entity_type,
+            "entity_id": row["party_code"],
+            "reference": voucher_no,
+            "event_date": row["entry_date"],
+            "amount": float(row["amount"] or 0.0),
+            "balance": float(row["balance_amount"] or 0.0),
+            "details": f"{row['payment_kind']} / {row['invoice_no']}",
+            "files": [_generated_relative_path(app, snapshot_path)],
+        },
+    )
+
+
+def _archive_supplier_statement_pdf_record(app: Flask, party, pdf_path, event_type: str) -> None:
+    base_dir = _supplier_output_dir(app, party["party_code"])
+    copied_pdf = _copy_generated_file_to_entity(app, pdf_path, base_dir / "statements", target_name=Path(pdf_path).name)
+    snapshot_path = base_dir / "statements" / f"{secure_filename(Path(pdf_path).stem.lower())}.json"
+    snapshot = {
+        "event_type": event_type,
+        "party_code": party["party_code"],
+        "party_name": party["party_name"],
+        "pdf_path": copied_pdf or _generated_relative_path(app, pdf_path),
+    }
+    _write_json_archive(snapshot_path, snapshot)
+    _append_entity_ledger(
+        base_dir,
+        "supplier-ledger.json",
+        {
+            "entry_key": f"supplier-statement:{party['party_code']}:{Path(pdf_path).name}:{event_type}",
+            "event_type": event_type,
+            "entity_type": "supplier",
+            "entity_id": party["party_code"],
+            "reference": Path(pdf_path).name,
+            "event_date": datetime.now().date().isoformat(),
+            "details": "Supplier statement PDF generated",
+            "files": [copied_pdf] if copied_pdf else [],
+        },
+    )
+
+
+def _field_staff_display_name(db, staff_code: str) -> str:
+    row = db.execute(
+        """
+        SELECT COALESCE(ms.staff_name, tech.specialization, ?) AS display_name
+        FROM (SELECT ? AS staff_code) q
+        LEFT JOIN maintenance_staff ms ON ms.staff_code = q.staff_code
+        LEFT JOIN technicians tech ON tech.technician_code = q.staff_code
+        """,
+        (staff_code, staff_code),
+    ).fetchone()
+    return (row["display_name"] if row is not None else "") or staff_code
+
+
+def _archive_field_staff_paper_record(app: Flask, db, paper_no: str, event_type: str) -> None:
+    row = _maintenance_paper_row(db, paper_no)
+    if row is None:
+        return
+    staff_code = (row["technician_code"] or row["staff_code"] or "").strip()
+    if not staff_code:
+        return
+    base_dir = _field_staff_output_dir(app, staff_code, staff_name=_field_staff_display_name(db, staff_code))
+    paper_dir = base_dir / "papers" / secure_filename(paper_no.lower())
+    paper_dir.mkdir(parents=True, exist_ok=True)
+    copied_attachment = None
+    attachment_path = (row["attachment_path"] or "").strip()
+    if attachment_path:
+        attachment_source = Path(app.config["GENERATED_DIR"]) / attachment_path
+        copied_attachment = _copy_generated_file_to_entity(app, attachment_source, paper_dir / "attachments")
+    snapshot_path = paper_dir / "paper.json"
+    snapshot = {
+        "event_type": event_type,
+        "paper_no": row["paper_no"],
+        "paper_date": row["paper_date"],
+        "vehicle_id": row["vehicle_id"] or "",
+        "vehicle_no": row["vehicle_no"] or "",
+        "workshop_party_code": row["workshop_party_code"] or "",
+        "supplier_bill_no": row["supplier_bill_no"] or "",
+        "work_type": row["work_type"] or "",
+        "work_summary": row["work_summary"] or "",
+        "subtotal": float(row["subtotal"] or 0.0),
+        "tax_mode": row["tax_mode"] or "",
+        "tax_amount": float(row["tax_amount"] or 0.0),
+        "total_amount": float(row["total_amount"] or 0.0),
+        "notes": row["notes"] or "",
+        "review_status": row["review_status"] or "",
+        "payment_status": row["payment_status"] or "",
+        "paid_amount": float(row["paid_amount"] or 0.0) if "paid_amount" in row.keys() else 0.0,
+        "attachment_path": copied_attachment or attachment_path,
+    }
+    _write_json_archive(snapshot_path, snapshot)
+    files = [_generated_relative_path(app, snapshot_path)]
+    if copied_attachment:
+        files.append(copied_attachment)
+    _append_entity_ledger(
+        base_dir,
+        "field-staff-ledger.json",
+        {
+            "entry_key": f"maintenance-paper:{paper_no}:{event_type}",
+            "event_type": event_type,
+            "entity_type": "field_staff",
+            "entity_id": staff_code,
+            "reference": paper_no,
+            "event_date": row["paper_date"],
+            "amount": float(row["total_amount"] or 0.0),
+            "balance": float(row["paid_amount"] or 0.0) if "paid_amount" in row.keys() else 0.0,
+            "details": row["work_summary"] or row["work_type"] or "Maintenance paper",
+            "files": files,
+        },
+    )
+
+
+def _archive_field_staff_advance_record(app: Flask, db, advance_no: str, event_type: str) -> None:
+    row = db.execute(
+        """
+        SELECT advance_no, staff_code, entry_date, funding_source, amount, settled_amount,
+               balance_amount, reference, notes
+        FROM maintenance_staff_advances
+        WHERE advance_no = ?
+        """,
+        (advance_no,),
+    ).fetchone()
+    if row is None:
+        return
+    staff_code = (row["staff_code"] or "").strip()
+    if not staff_code:
+        return
+    base_dir = _field_staff_output_dir(app, staff_code, staff_name=_field_staff_display_name(db, staff_code))
+    snapshot_path = base_dir / "payments" / f"{secure_filename(advance_no.lower())}.json"
+    snapshot = {
+        "event_type": event_type,
+        "advance_no": row["advance_no"],
+        "staff_code": row["staff_code"],
+        "entry_date": row["entry_date"],
+        "funding_source": row["funding_source"] or "",
+        "amount": float(row["amount"] or 0.0),
+        "settled_amount": float(row["settled_amount"] or 0.0),
+        "balance_amount": float(row["balance_amount"] or 0.0),
+        "reference": row["reference"] or "",
+        "notes": row["notes"] or "",
+    }
+    _write_json_archive(snapshot_path, snapshot)
+    _append_entity_ledger(
+        base_dir,
+        "field-staff-ledger.json",
+        {
+            "entry_key": f"field-staff-advance:{advance_no}:{event_type}",
+            "event_type": event_type,
+            "entity_type": "field_staff",
+            "entity_id": staff_code,
+            "reference": advance_no,
+            "event_date": row["entry_date"],
+            "amount": float(row["amount"] or 0.0),
+            "balance": float(row["balance_amount"] or 0.0),
+            "details": row["reference"] or row["notes"] or "Field staff payment",
+            "files": [_generated_relative_path(app, snapshot_path)],
+        },
+    )
 
 
 def _regenerate_kata_for_driver(app: Flask, db, driver, month_value: str | None = None):
@@ -15417,6 +16206,10 @@ def _regenerate_kata_for_driver(app: Flask, db, driver, month_value: str | None 
         month_value=month_value,
     )
     _mirror_generated_file(app, pdf_path)
+    if month_value:
+        _archive_driver_statement_record(app, db, driver, month_value, "monthly_statement_pdf_generated", pdf_path=pdf_path)
+    else:
+        _archive_full_driver_statement_record(app, db, driver, pdf_path, "full_statement_pdf_generated")
     return pdf_path
 
 
@@ -15561,6 +16354,7 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         payment_rows=payment_rows,
     )
     _mirror_generated_file(app, pdf_path)
+    _archive_driver_statement_record(app, db, driver, salary_row["salary_month"], "salary_slip_pdf_generated", pdf_path=pdf_path)
     return pdf_path
 
 
@@ -15814,6 +16608,7 @@ def _regenerate_invoice_pdf(app: Flask, db, invoice_no: str) -> str | None:
     relative_path = Path(output_path).relative_to(Path(app.config["GENERATED_DIR"])).as_posix()
     db.execute("UPDATE account_invoices SET pdf_path = ? WHERE invoice_no = ?", (relative_path, invoice_no))
     db.commit()
+    _archive_invoice_record(app, db, invoice_no, "invoice_pdf_generated")
     return output_path
 
 

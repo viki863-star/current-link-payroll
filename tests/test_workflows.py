@@ -1,3 +1,4 @@
+import json
 import re
 import shutil
 from datetime import datetime
@@ -128,6 +129,10 @@ def create_customer_record(client, *, party_code, party_name, party_kind="Compan
         },
         follow_redirects=True,
     )
+
+
+def load_json(path: Path):
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def set_supplier_password(client, *, user_id, email, password="secret12"):
@@ -1433,6 +1438,133 @@ def test_technician_portal_keeps_invalid_row_visible_and_saves_valid_rows(app, c
         assert papers[0]["vehicle_no"] == "GENERAL"
         assert papers[0]["supplier_bill_no"] == "GEN-01"
         assert float(papers[0]["total_amount"]) == 120.0
+
+
+def test_technician_portal_can_edit_and_delete_pending_job(app, client):
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TEC-EDIT", "PTY-EDIT", "tec.edit", "hash", "0509999000", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-EDIT", "Edit Party", "Supplier"),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-EDIT-1", "90891", "Truck", "Test Vehicle", "Active", "Single Shift", "Standard", "Own Fleet Vehicle", 100, 0),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_papers (
+                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                attachment_path, notes, technician_code, review_status, payment_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', CURRENT_TIMESTAMP)
+            """,
+            (
+                "MT-EDIT-1",
+                "2026-05-06",
+                "VEH-EDIT-1",
+                "90891",
+                "PTY-EDIT",
+                "BILL-OLD",
+                "Repair",
+                "Old summary",
+                200.0,
+                "Inclusive",
+                0.0,
+                200.0,
+                None,
+                "old note",
+                "TEC-EDIT",
+            ),
+        )
+        db.commit()
+
+    with client.session_transaction() as session:
+        session["role"] = "technician"
+        session["technician_code"] = "TEC-EDIT"
+        session["technician_party_code"] = "PTY-EDIT"
+        session["display_name"] = "Field Staff"
+
+    load_response = client.post(
+        "/portal/technician",
+        data={"action": "load_job", "paper_no": "MT-EDIT-1"},
+        follow_redirects=True,
+    )
+    assert load_response.status_code == 200
+    assert b"Editing job MT-EDIT-1." in load_response.data
+    assert b"value=\"MT-EDIT-1\"" in load_response.data
+
+    update_response = client.post(
+        "/portal/technician",
+        data={
+            "action": "update_job",
+            "original_paper_no": "MT-EDIT-1",
+            "row_indexes": "1",
+            "entry_date_1": "2026-05-07",
+            "vehicle_id_1": "",
+            "workshop_name_1": "Updated Shop",
+            "bill_no_1": "BILL-NEW",
+            "work_type_1": "Other",
+            "details_1": "Updated summary",
+            "amount_1": "500",
+            "tax_mode_1": "Inclusive",
+            "tax_amount_1": "0",
+            "total_amount_1": "500",
+            "remarks_1": "updated note",
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert update_response.status_code == 200
+    assert b"Job MT-EDIT-1 updated successfully." in update_response.data
+
+    with app.app_context():
+        db = open_db()
+        updated = db.execute(
+            """
+            SELECT paper_date, vehicle_id, vehicle_no, supplier_bill_no, work_summary, total_amount, notes
+            FROM maintenance_papers
+            WHERE paper_no = ?
+            """,
+            ("MT-EDIT-1",),
+        ).fetchone()
+        assert updated["paper_date"] == "2026-05-07"
+        assert updated["vehicle_id"] == "GENERAL-ENTRY"
+        assert updated["vehicle_no"] == "GENERAL"
+        assert updated["supplier_bill_no"] == "BILL-NEW"
+        assert updated["work_summary"] == "Updated summary"
+        assert float(updated["total_amount"]) == 500.0
+        assert updated["notes"] == "updated note"
+
+    delete_response = client.post(
+        "/portal/technician",
+        data={"action": "delete_job", "paper_no": "MT-EDIT-1"},
+        follow_redirects=True,
+    )
+    assert delete_response.status_code == 200
+    assert b"Job MT-EDIT-1 deleted." in delete_response.data
+
+    with app.app_context():
+        db = open_db()
+        assert db.execute("SELECT COUNT(*) FROM maintenance_papers WHERE paper_no = ?", ("MT-EDIT-1",)).fetchone()[0] == 0
 
 
 def test_owner_fund_can_edit_and_delete(app, client):
@@ -2920,6 +3052,239 @@ def test_invoice_center_generates_tax_invoice_pdf_with_line_items(app, client):
     assert "HIRE" not in extracted_text
     assert "PAID" not in extracted_text
     assert "BALANCE" not in extracted_text
+
+
+def test_driver_archive_creates_month_snapshots_and_ledger(app, client):
+    create_driver_record(app, full_name="Archive Driver")
+    admin_session(client)
+
+    store_response = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "salary_mode": "full",
+            "ot_hours": "6",
+            "personal_vehicle": "200",
+            "personal_vehicle_note": "Fuel and overtime support",
+            "remarks": "April archive test",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary stored successfully." in store_response.data
+
+    transaction_response = client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-18",
+            "salary_month": "2026-04",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Owner",
+            "amount": "650",
+            "details": "Fuel advance",
+        },
+        follow_redirects=True,
+    )
+    assert b"Transaction saved" in transaction_response.data
+
+    with app.app_context():
+        db = open_db()
+        salary_row = db.execute(
+            "SELECT id FROM salary_store WHERE driver_id = ? AND salary_month = ?",
+            ("DRV-T1", "2026-04"),
+        ).fetchone()
+        assert salary_row is not None
+
+    slip_response = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": str(salary_row["id"]),
+            "payment_id": "",
+            "deduction_amount": "250",
+            "payment_date": "2026-04-30",
+            "actual_paid_amount": "3000",
+            "payment_source": "Owner Fund",
+            "paid_by": "Nasrullah",
+            "payment_notes": "April settlement",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary slip PDF generated." in slip_response.data
+
+    driver_root = Path(app.config["GENERATED_DIR"]) / "drivers"
+    archive_dir = next(driver_root.glob("*__drv-t1"))
+    ledger = load_json(archive_dir / "meta" / "driver-ledger.json")
+    event_types = {item["event_type"] for item in ledger}
+    assert "salary_store_saved" in event_types
+    assert "driver_transaction_saved" in event_types
+    assert "salary_statement_saved" in event_types
+
+    month_dir = archive_dir / "months" / "2026-04"
+    assert (month_dir / "salary-store.json").exists()
+    assert (month_dir / "statement-summary.json").exists()
+
+    month_snapshot = load_json(month_dir / "statement-summary.json")
+    assert month_snapshot["salary_month"] == "2026-04"
+    assert float(month_snapshot["summary"]["received_not_deducted_total"]) >= 0
+
+
+def test_customer_invoice_and_payment_archive_files_are_written(app, client):
+    admin_session(client)
+    create_customer_record(client, party_code="PTY-CUST-99", party_name="Archive Customer")
+
+    invoice_response = client.post(
+        "/invoices",
+        data={
+            "action": "save_invoice",
+            "original_invoice_no": "",
+            "invoice_no": "INV-ARCH-01",
+            "invoice_kind": "Sales",
+            "document_type": "Tax Invoice",
+            "party_code": "PTY-CUST-99",
+            "agreement_no": "",
+            "lpo_no": "",
+            "hire_no": "",
+            "issue_date": "2026-05-01",
+            "due_date": "2026-05-31",
+            "subtotal": "",
+            "tax_percent": "5",
+            "notes": "Archive invoice test",
+            "line_description_1": "Monthly hire",
+            "line_unit_1": "Month",
+            "line_quantity_1": "1",
+            "line_rate_1": "5000",
+            "line_subtotal_1": "",
+            "line_description_2": "",
+            "line_unit_2": "",
+            "line_quantity_2": "",
+            "line_rate_2": "",
+            "line_subtotal_2": "",
+            "line_description_3": "",
+            "line_unit_3": "",
+            "line_quantity_3": "",
+            "line_rate_3": "",
+            "line_subtotal_3": "",
+            "line_description_4": "",
+            "line_unit_4": "",
+            "line_quantity_4": "",
+            "line_rate_4": "",
+            "line_subtotal_4": "",
+        },
+        follow_redirects=True,
+    )
+    assert b"Invoice created successfully." in invoice_response.data
+
+    pdf_response = client.get("/invoices/INV-ARCH-01/pdf", follow_redirects=False)
+    assert pdf_response.status_code == 302
+
+    payment_response = client.post(
+        "/invoices",
+        data={
+            "action": "save_payment",
+            "original_voucher_no": "",
+            "voucher_no": "PAY-ARCH-01",
+            "invoice_no": "INV-ARCH-01",
+            "entry_date": "2026-05-05",
+            "amount": "2500",
+            "payment_method": "Bank",
+            "reference": "TRF-1",
+            "notes": "Part payment",
+        },
+        follow_redirects=True,
+    )
+    assert b"Payment saved and invoice balance updated." in payment_response.data
+
+    customer_root = Path(app.config["GENERATED_DIR"]) / "customers"
+    archive_dir = next(customer_root.glob("pty-cust-99*"))
+    assert (archive_dir / "invoices" / "inv-arch-01.json").exists()
+    assert (archive_dir / "payments" / "pay-arch-01.json").exists()
+    assert any(item.suffix == ".pdf" for item in (archive_dir / "invoices").iterdir())
+
+    ledger = load_json(archive_dir / "meta" / "customer-ledger.json")
+    event_types = {item["event_type"] for item in ledger}
+    assert "invoice_saved" in event_types
+    assert "invoice_pdf_generated" in event_types
+    assert "payment_saved" in event_types
+
+
+def test_field_staff_archive_writes_paper_and_payment_ledgers(app, client):
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TEC-ARCH", "PTY-ARCH", "tec.arch", "hash", "0501000000", "Archive Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, address, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("PTY-ARCH", "Archive Workshop", "Company", "Supplier", "Workshop", "0501000001", "arch@example.com", "", "Mussafah", "Active"),
+        )
+        db.commit()
+
+    with client.session_transaction() as session:
+        session["role"] = "technician"
+        session["technician_code"] = "TEC-ARCH"
+        session["technician_party_code"] = "PTY-ARCH"
+        session["display_name"] = "Field Staff"
+
+    submit_response = client.post(
+        "/portal/technician",
+        data={
+            "action": "submit_jobs",
+            "row_indexes": "1",
+            "entry_date_1": "2026-05-06",
+            "vehicle_id_1": "",
+            "workshop_name_1": "Archive Workshop",
+            "bill_no_1": "BILL-ARCH-1",
+            "work_type_1": "Other",
+            "details_1": "General work archive",
+            "amount_1": "500",
+            "tax_mode_1": "Inclusive",
+            "tax_amount_1": "0",
+            "total_amount_1": "500",
+            "remarks_1": "General entry archive",
+        },
+        follow_redirects=True,
+    )
+    assert b"submitted successfully" in submit_response.data
+
+    admin_session(client)
+    payment_response = client.post(
+        "/technicians",
+        data={
+            "action": "issue_payment",
+            "payment_technician_code": "TEC-ARCH",
+            "payment_entry_date": "2026-05-06",
+            "payment_funding_source": "Owner Fund",
+            "payment_amount": "900",
+            "payment_reference": "ADV-ARCH",
+            "payment_notes": "Archive support",
+        },
+        follow_redirects=True,
+    )
+    assert b"issued to" in payment_response.data
+
+    archive_root = Path(app.config["GENERATED_DIR"]) / "field_staff"
+    archive_dir = next(archive_root.glob("tec-arch*"))
+    ledger = load_json(archive_dir / "meta" / "field-staff-ledger.json")
+    event_types = {item["event_type"] for item in ledger}
+    assert "field_staff_job_saved" in event_types
+    assert "field_staff_payment_saved" in event_types
+
+    paper_dirs = list((archive_dir / "papers").iterdir())
+    assert paper_dirs
+    assert (paper_dirs[0] / "paper.json").exists()
+    assert any(item.suffix == ".json" for item in (archive_dir / "payments").iterdir())
 
 
 def test_fleet_maintenance_tracks_advance_workshop_credit_and_partnership_split(app, client):

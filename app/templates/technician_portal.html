@@ -44,6 +44,99 @@
         .field-staff-portal-shell .field-staff-form-toolbar p {
             color: #597497;
         }
+        .field-staff-portal-shell .field-staff-money-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+        .field-staff-portal-shell .field-staff-money-card {
+            border: 1px solid rgba(28, 86, 139, 0.12);
+            border-radius: 22px;
+            padding: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+        .field-staff-portal-shell .field-staff-money-card h2,
+        .field-staff-portal-shell .field-staff-money-card p {
+            margin: 0;
+        }
+        .field-staff-portal-shell .field-staff-money-card p {
+            color: #5c7592;
+            margin-top: 6px;
+        }
+        .field-staff-portal-shell .field-staff-money-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            margin-top: 18px;
+        }
+        .field-staff-portal-shell .field-staff-money-stat {
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: #f4f8fd;
+            border: 1px solid rgba(28, 86, 139, 0.1);
+        }
+        .field-staff-portal-shell .field-staff-money-stat strong,
+        .field-staff-portal-shell .field-staff-money-stat span {
+            display: block;
+        }
+        .field-staff-portal-shell .field-staff-money-stat strong {
+            font-size: 1.35rem;
+            color: #184f85;
+        }
+        .field-staff-portal-shell .field-staff-money-stat span {
+            margin-top: 6px;
+            color: #637d9b;
+            font-weight: 600;
+        }
+        .field-staff-portal-shell .field-staff-received-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .field-staff-portal-shell .field-staff-received-row {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 10px 14px;
+            align-items: start;
+            padding: 12px 0;
+            border-top: 1px dashed rgba(28, 86, 139, 0.12);
+        }
+        .field-staff-portal-shell .field-staff-received-row:first-child {
+            border-top: 0;
+            padding-top: 0;
+        }
+        .field-staff-portal-shell .field-staff-received-row strong,
+        .field-staff-portal-shell .field-staff-received-row span,
+        .field-staff-portal-shell .field-staff-received-row small {
+            display: block;
+        }
+        .field-staff-portal-shell .field-staff-received-row strong {
+            color: #194f84;
+        }
+        .field-staff-portal-shell .field-staff-received-row small {
+            color: #5d7694;
+            margin-top: 4px;
+            line-height: 1.35;
+        }
+        .field-staff-portal-shell .field-staff-balance-banner {
+            margin-top: 16px;
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #1e5f99 0%, #184b7c 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+        .field-staff-portal-shell .field-staff-balance-banner strong,
+        .field-staff-portal-shell .field-staff-balance-banner span {
+            display: block;
+        }
+        .field-staff-portal-shell .field-staff-balance-banner strong {
+            font-size: 1.8rem;
+        }
         .field-staff-portal-shell .field-staff-add-row {
             min-width: 150px;
         }
@@ -142,16 +235,45 @@
             color: #5f7592;
             margin-top: 4px;
         }
+        .field-staff-portal-shell .field-staff-entry-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .field-staff-portal-shell .field-staff-entry-actions form {
+            margin: 0;
+        }
+        .field-staff-portal-shell .field-staff-mini-button {
+            border: 1px solid rgba(28, 86, 139, 0.14);
+            background: #fff;
+            color: #1d5388;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .field-staff-portal-shell .field-staff-mini-button.danger {
+            color: #b93636;
+            border-color: rgba(185, 54, 54, 0.2);
+        }
         @media (max-width: 720px) {
+            .field-staff-portal-shell .field-staff-money-grid,
             .field-staff-portal-shell .field-staff-row-top,
             .field-staff-portal-shell .field-staff-form-toolbar,
             .field-staff-portal-shell .field-staff-portal-actions {
-                flex-direction: column;
-                align-items: stretch;
+                grid-template-columns: 1fr;
             }
             .field-staff-portal-shell .field-staff-add-row,
             .field-staff-portal-shell .field-staff-remove-row {
                 width: 100%;
+            }
+            .field-staff-portal-shell .field-staff-row-top,
+            .field-staff-portal-shell .field-staff-form-toolbar,
+            .field-staff-portal-shell .field-staff-portal-actions,
+            .field-staff-portal-shell .field-staff-balance-banner {
+                flex-direction: column;
+                align-items: stretch;
             }
         }
     </style>
@@ -175,20 +297,99 @@
         </div>
     </article>
 
+    <section class="field-staff-money-grid">
+        <article class="field-staff-money-card">
+            <span class="admin-desk-label">Money Summary</span>
+            <h2>Your Money Overview</h2>
+            <p>See how much you received, how much you submitted, and what balance is still open.</p>
+
+            <div class="field-staff-money-stats">
+                <div class="field-staff-money-stat">
+                    <strong>AED {{ "%.2f"|format(total_received) }}</strong>
+                    <span>Total Received</span>
+                </div>
+                <div class="field-staff-money-stat">
+                    <strong>AED {{ "%.2f"|format(total_spent) }}</strong>
+                    <span>Total Submitted</span>
+                </div>
+                <div class="field-staff-money-stat">
+                    <strong>AED {{ "%.2f"|format(total_approved) }}</strong>
+                    <span>Approved Spend</span>
+                </div>
+                <div class="field-staff-money-stat">
+                    <strong>AED {{ "%.2f"|format(pending_review) }}</strong>
+                    <span>Pending Review</span>
+                </div>
+            </div>
+
+            <div class="field-staff-balance-banner">
+                <div>
+                    <span>Available Balance</span>
+                    <strong>AED {{ "%.2f"|format(balance_available) }}</strong>
+                </div>
+                <div>
+                    <span>Paid To Vendors</span>
+                    <strong>AED {{ "%.2f"|format(total_paid) }}</strong>
+                </div>
+            </div>
+        </article>
+
+        <article class="field-staff-money-card">
+            <span class="admin-desk-label">Received Details</span>
+            <h2>Money You Received</h2>
+            <p>Each owner fund or field-staff amount is listed here with date and reason.</p>
+
+            {% if recent_advances %}
+            <div class="field-staff-received-list">
+                {% for advance in recent_advances %}
+                <div class="field-staff-received-row">
+                    <div>
+                        <strong>{{ advance.entry_date }}</strong>
+                        <small>{{ advance.funding_source or "Owner Fund" }}</small>
+                    </div>
+                    <div>
+                        <strong>{{ advance.reference or "Field Staff Amount" }}</strong>
+                        <small>{{ advance.notes or "No note added" }}</small>
+                    </div>
+                    <div>
+                        <strong>AED {{ "%.2f"|format(advance.amount or 0) }}</strong>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state" style="margin-top:16px;">
+                <p>No received entries yet.</p>
+            </div>
+            {% endif %}
+        </article>
+    </section>
+
     <section class="desk-content-grid compact-content-grid field-staff-mobile-grid">
         <article class="card desk-panel-card field-staff-submit-card full-span" id="field-staff-submit">
             <form method="post" class="form-grid field-staff-mobile-form" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="action" value="submit_jobs">
+                <input type="hidden" name="action" value="{{ 'update_job' if editing_paper_no else 'submit_jobs' }}">
+                <input type="hidden" name="original_paper_no" value="{{ editing_paper_no }}">
                 <input type="hidden" name="row_indexes" id="field-staff-row-indexes" value="{{ form_rows | map(attribute='row_no') | join(',') }}">
 
                 <div class="field-staff-form-toolbar full-span">
                     <div>
                         <span class="admin-desk-label">Easy Entry</span>
-                        <h2>Submit Jobs</h2>
-                        <p>Add one row, then add another. Submit all filled rows together.</p>
+                        <h2>{{ 'Edit Job ' ~ editing_paper_no if editing_paper_no else 'Submit Jobs' }}</h2>
+                        <p>
+                            {% if editing_paper_no %}
+                            Update this pending job, then save the correction.
+                            {% else %}
+                            Add one row, then add another. Submit all filled rows together.
+                            {% endif %}
+                        </p>
                     </div>
+                    {% if not editing_paper_no %}
                     <button type="button" class="button button-outline field-staff-add-row" id="field-staff-add-row">Add Row</button>
+                    {% else %}
+                    <a href="{{ url_for('technician_portal') }}" class="button button-outline field-staff-add-row">Cancel Edit</a>
+                    {% endif %}
                 </div>
 
                 <div class="full-span field-staff-rows" id="field-staff-rows">
@@ -296,7 +497,7 @@
                 <div class="field-staff-portal-actions full-span">
                     <p class="field-staff-empty-note">General Entry works without a vehicle number. Add only the rows you need.</p>
                     <div class="form-actions">
-                        <button type="submit" class="button">Submit All</button>
+                        <button type="submit" class="button">{{ 'Update Job' if editing_paper_no else 'Submit All' }}</button>
                         <a href="{{ url_for('technician_portal') }}" class="button button-outline">Clear Page</a>
                     </div>
                 </div>
@@ -333,6 +534,35 @@
                     {% if job.bill_image %}
                     <div class="field-staff-entry-actions">
                         <a class="mini-link-pill" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">Open Bill</a>
+                        {% if (job.review_status or 'Pending') == 'Pending' and (job.payment_status or 'Pending') == 'Pending' %}
+                        <form method="post">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="load_job">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button type="submit" class="field-staff-mini-button">Edit</button>
+                        </form>
+                        <form method="post" onsubmit="return confirm('Delete {{ job.paper_no }}?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="delete_job">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button type="submit" class="field-staff-mini-button danger">Delete</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% elif (job.review_status or 'Pending') == 'Pending' and (job.payment_status or 'Pending') == 'Pending' %}
+                    <div class="field-staff-entry-actions">
+                        <form method="post">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="load_job">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button type="submit" class="field-staff-mini-button">Edit</button>
+                        </form>
+                        <form method="post" onsubmit="return confirm('Delete {{ job.paper_no }}?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="delete_job">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button type="submit" class="field-staff-mini-button danger">Delete</button>
+                        </form>
                     </div>
                     {% endif %}
                 </article>
@@ -351,6 +581,7 @@
                             <th>Bill</th>
                             <th>Status</th>
                             <th>Payment</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -370,6 +601,27 @@
                             </td>
                             <td>{{ job.review_status }}</td>
                             <td>{{ job.payment_status }}</td>
+                            <td>
+                                <div class="field-staff-entry-actions" style="margin-top:0;">
+                                    {% if job.bill_image %}
+                                    <a class="mini-action-link" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">Open</a>
+                                    {% endif %}
+                                    {% if (job.review_status or 'Pending') == 'Pending' and (job.payment_status or 'Pending') == 'Pending' %}
+                                    <form method="post">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="load_job">
+                                        <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                                        <button type="submit" class="field-staff-mini-button">Edit</button>
+                                    </form>
+                                    <form method="post" onsubmit="return confirm('Delete {{ job.paper_no }}?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="delete_job">
+                                        <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                                        <button type="submit" class="field-staff-mini-button danger">Delete</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -479,7 +731,7 @@
     const rowIndexesInput = document.getElementById("field-staff-row-indexes");
     const addRowButton = document.getElementById("field-staff-add-row");
     const template = document.getElementById("field-staff-row-template");
-    if (!rowsContainer || !rowIndexesInput || !addRowButton || !template) {
+    if (!rowsContainer || !rowIndexesInput || !template) {
         return;
     }
 
@@ -546,21 +798,23 @@
         }
     }
 
-    addRowButton.addEventListener("click", function () {
-        const rowNo = nextRowNo();
-        const html = template.innerHTML.replace(/__ROW__/g, String(rowNo));
-        rowsContainer.insertAdjacentHTML("beforeend", html);
-        const newCard = rowsContainer.lastElementChild;
-        if (newCard) {
-            newCard.dataset.rowNo = String(rowNo);
-            attachRowEvents(newCard);
-            syncRowIndexes();
-            const firstInput = newCard.querySelector("input, select, textarea");
-            if (firstInput) {
-                firstInput.focus();
+    if (addRowButton && addRowButton.tagName === "BUTTON") {
+        addRowButton.addEventListener("click", function () {
+            const rowNo = nextRowNo();
+            const html = template.innerHTML.replace(/__ROW__/g, String(rowNo));
+            rowsContainer.insertAdjacentHTML("beforeend", html);
+            const newCard = rowsContainer.lastElementChild;
+            if (newCard) {
+                newCard.dataset.rowNo = String(rowNo);
+                attachRowEvents(newCard);
+                syncRowIndexes();
+                const firstInput = newCard.querySelector("input, select, textarea");
+                if (firstInput) {
+                    firstInput.focus();
+                }
             }
-        }
-    });
+        });
+    }
 
     rowCards().forEach(attachRowEvents);
     syncRowIndexes();
