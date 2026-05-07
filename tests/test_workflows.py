@@ -1353,6 +1353,14 @@ def test_technician_portal_saves_multiple_rows_with_separate_attachments(app, cl
         assert (Path(app.config["GENERATED_DIR"]) / papers[1]["attachment_path"]).exists()
         assert db.execute("SELECT COUNT(*) FROM salary_store WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
 
+    recent = client.get("/portal/technician", follow_redirects=True)
+    assert recent.status_code == 200
+    latest_pos = recent.data.find(papers[1]["paper_no"].encode())
+    older_pos = recent.data.find(papers[0]["paper_no"].encode())
+    assert latest_pos != -1
+    assert older_pos != -1
+    assert latest_pos < older_pos
+
 
 def test_technician_portal_keeps_invalid_row_visible_and_saves_valid_rows(app, client):
     with app.app_context():
@@ -3796,7 +3804,6 @@ def test_cash_supplier_portal_redesign_and_manual_routes(app, client):
     assert portal.status_code == 200
     assert b"Cash Supplier Portal" in portal.data
     assert b"Current Position" in portal.data
-    assert b"Desk Guide" in portal.data
     assert b"Recent Trip Earnings" in portal.data
     assert b"Recent Deductions" in portal.data
     assert b"Recent Payments" in portal.data
@@ -3804,6 +3811,30 @@ def test_cash_supplier_portal_redesign_and_manual_routes(app, client):
     assert b"Add Debit" in portal.data
     assert b"Add Payment" in portal.data
     assert b"Open Guide" in portal.data
+
+    trip_focus = client.get("/suppliers/PTY-CASH-01?screen=kata&focus=trip", follow_redirects=True)
+    assert trip_focus.status_code == 200
+    assert b"Add Earning" in trip_focus.data
+    assert b"Cash Payment" not in trip_focus.data
+    assert b"Running Statement" not in trip_focus.data
+
+    debit_focus = client.get("/suppliers/PTY-CASH-01?screen=kata&focus=debit", follow_redirects=True)
+    assert debit_focus.status_code == 200
+    assert b"Add Debit" in debit_focus.data
+    assert b"Add Earning" not in debit_focus.data
+    assert b"Cash Payment" not in debit_focus.data
+
+    payment_focus = client.get("/suppliers/PTY-CASH-01?screen=kata&focus=payment", follow_redirects=True)
+    assert payment_focus.status_code == 200
+    assert b"Cash Payment" in payment_focus.data
+    assert b"Add Earning" not in payment_focus.data
+    assert b"Running Statement" not in payment_focus.data
+
+    statement_focus = client.get("/suppliers/PTY-CASH-01?screen=kata&focus=statement", follow_redirects=True)
+    assert statement_focus.status_code == 200
+    assert b"Running Statement" in statement_focus.data
+    assert b"Add Earning" not in statement_focus.data
+    assert b"Cash Payment" not in statement_focus.data
 
     guide = client.get("/supplier-desk/cash-guide")
     assert guide.status_code == 200

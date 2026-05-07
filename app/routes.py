@@ -1262,7 +1262,7 @@ def register_routes(app: Flask) -> None:
             LEFT JOIN parties wp ON mp.workshop_party_code = wp.party_code
             LEFT JOIN vehicle_master vm ON mp.vehicle_id = vm.vehicle_id
             WHERE technician_code = ?
-            ORDER BY paper_date DESC, paper_no DESC
+            ORDER BY mp.created_at DESC, mp.id DESC
             LIMIT 10
             """,
             (technician_code,)
@@ -3231,7 +3231,7 @@ def register_routes(app: Flask) -> None:
                         # Auto-generate supplier statement PDF after trip change
                         auto_generate_supplier_statement_pdf(app, party_code)
                         flash(f"{earning_basis} earning {trip_no} saved - AED {total_amount}", "success")
-                        return redirect(url_for("supplier_detail", party_code=party_code, screen="kata"))
+                        return redirect(url_for("supplier_detail", party_code=party_code, screen="kata", focus="trip"))
 
                     elif action == "save_debit":
                         debit_no = request.form.get("debit_no", "").strip().upper() or _next_reference_code(db, "cash_supplier_debits", "debit_no", "DEB")
@@ -3251,7 +3251,7 @@ def register_routes(app: Flask) -> None:
                         # Auto-generate supplier statement PDF after debit change
                         auto_generate_supplier_statement_pdf(app, party_code)
                         flash(f"Debit {debit_no} saved — AED {amount}", "success")
-                        return redirect(url_for("supplier_detail", party_code=party_code, screen="kata"))
+                        return redirect(url_for("supplier_detail", party_code=party_code, screen="kata", focus="debit"))
 
                     elif action == "save_cash_payment":
                         payment_no = request.form.get("payment_no", "").strip().upper() or _next_reference_code(db, "cash_supplier_payments", "payment_no", "CPY")
@@ -3273,7 +3273,7 @@ def register_routes(app: Flask) -> None:
                             flash(f"Payment {payment_no} saved - AED {amount}. Voucher PDF is ready.", "success")
                         except Exception:
                             flash(f"Payment {payment_no} saved - AED {amount}", "success")
-                        return redirect(url_for("supplier_detail", party_code=party_code, screen="kata"))
+                        return redirect(url_for("supplier_detail", party_code=party_code, screen="kata", focus="payment"))
 
                 except ValidationError as exc:
                     flash(str(exc), "error")
@@ -3377,10 +3377,14 @@ def register_routes(app: Flask) -> None:
         cash_trip_no = ""
         cash_debit_no = ""
         cash_payment_no = ""
+        kata_focus = ""
         if supplier_mode in ("Cash", "Loan"):
             cash_trip_no = _safe_supplier_view_value("cash trip number", "", _next_reference_code, db, "cash_supplier_trips", "trip_no", "TRP")
             cash_debit_no = _safe_supplier_view_value("cash debit number", "", _next_reference_code, db, "cash_supplier_debits", "debit_no", "DEB")
             cash_payment_no = _safe_supplier_view_value("cash payment number", "", _next_reference_code, db, "cash_supplier_payments", "payment_no", "CPY")
+            kata_focus = (request.args.get("focus", "") or "").strip().lower()
+            if kata_focus not in {"trip", "debit", "payment", "statement"}:
+                kata_focus = "statement"
 
         portal_snapshot = {
             "intro_label": "Supplier Portal",
@@ -3443,6 +3447,7 @@ def register_routes(app: Flask) -> None:
             kata_rows=kata_rows,
             kata_summary=kata_summary,
             kata_filters=kata_filters,
+            kata_focus=kata_focus,
             cash_trip_no=cash_trip_no,
             cash_debit_no=cash_debit_no,
             cash_payment_no=cash_payment_no,
@@ -10426,8 +10431,11 @@ def _supplier_portal_snapshot(
     def money(amount: float) -> str:
         return f"AED {float(amount or 0.0):,.2f}"
 
-    def supplier_screen_href(screen: str = "portal", anchor: str = "") -> str:
-        href = url_for("supplier_detail", party_code=party_code, screen=screen)
+    def supplier_screen_href(screen: str = "portal", anchor: str = "", focus: str = "") -> str:
+        route_values = {"party_code": party_code, "screen": screen}
+        if focus:
+            route_values["focus"] = focus
+        href = url_for("supplier_detail", **route_values)
         return f"{href}#{anchor}" if anchor else href
 
     company_details = [
@@ -10461,6 +10469,26 @@ def _supplier_portal_snapshot(
         )
 
     if normalized_mode in ("Cash", "Loan"):
+        def spark_points(rows, fallback_values):
+            values = [float(item["value"] or 0.0) for item in rows]
+            labels = [format_month_label(item["period_month"]) for item in rows]
+            if not values:
+                values = list(fallback_values)
+                labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"][-len(values):]
+            maximum = max(values) if max(values) > 0 else 1.0
+            points = []
+            for idx, value in enumerate(values):
+                x = 16 + (idx * (200 / max(1, len(values) - 1)))
+                y = 74 - ((value / maximum) * 52)
+                points.append(f"{x:.1f},{y:.1f}")
+            return {
+                "labels": labels,
+                "values": values,
+                "path": " ".join(points),
+                "max_value": maximum,
+                "is_sample": not rows,
+            }
+
         trip_count = int(db.execute("SELECT COUNT(*) FROM cash_supplier_trips WHERE party_code = ?", (party_code,)).fetchone()[0] or 0)
         debit_count = int(db.execute("SELECT COUNT(*) FROM cash_supplier_debits WHERE party_code = ?", (party_code,)).fetchone()[0] or 0)
         payment_count = int(db.execute("SELECT COUNT(*) FROM cash_supplier_payments WHERE party_code = ?", (party_code,)).fetchone()[0] or 0)
@@ -10469,6 +10497,32 @@ def _supplier_portal_snapshot(
         total_paid = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM cash_supplier_payments WHERE party_code = ?", (party_code,)).fetchone()[0] or 0.0)
         balance_label, balance_tone, balance_amount = _cash_supplier_balance_meta(total_earned - total_debits - total_paid)
         mode_title = "Cash Supplier Portal" if normalized_mode == "Cash" else "Loan Supplier Portal"
+        earnings_month_rows = db.execute(
+            """
+            SELECT COALESCE(NULLIF(period_month, ''), SUBSTR(entry_date, 1, 7)) AS period_month,
+                   COALESCE(SUM(total_amount), 0) AS value
+            FROM cash_supplier_trips
+            WHERE party_code = ?
+            GROUP BY COALESCE(NULLIF(period_month, ''), SUBSTR(entry_date, 1, 7))
+            ORDER BY period_month DESC
+            LIMIT 6
+            """,
+            (party_code,),
+        ).fetchall()
+        payment_month_rows = db.execute(
+            """
+            SELECT SUBSTR(entry_date, 1, 7) AS period_month,
+                   COALESCE(SUM(amount), 0) AS value
+            FROM cash_supplier_payments
+            WHERE party_code = ?
+            GROUP BY SUBSTR(entry_date, 1, 7)
+            ORDER BY period_month DESC
+            LIMIT 6
+            """,
+            (party_code,),
+        ).fetchall()
+        earnings_chart = spark_points(list(reversed(earnings_month_rows)), [1600, 2200, 3100, 2600, 4200, 5100])
+        payments_chart = spark_points(list(reversed(payment_month_rows)), [300, 650, 900, 700, 1100, 1400])
         trip_rows = db.execute(
             """
             SELECT trip_no, entry_date, total_amount, vehicle_no
@@ -10513,11 +10567,37 @@ def _supplier_portal_snapshot(
                 party["party_kind"] or "Supplier",
                 party["status"] or "Active",
             ],
+            "profile": {
+                "supplier_name": party["party_name"],
+                "supplier_code": party["party_code"],
+                "type": f"{normalized_mode} / {party['party_kind'] or 'Supplier'}",
+                "status": party["status"] or "Active",
+                "phone": party["phone_number"] or "-",
+                "email": party["email"] or "-",
+                "address": party["address"] or "-",
+            },
+            "sidebar_items": [
+                {"label": "Dashboard", "href": supplier_screen_href("portal"), "active": True},
+                {"label": "Cash Supplier Desk", "href": url_for("cash_suppliers"), "active": False},
+                {"label": "Supplier Kata / Statement", "href": supplier_screen_href("kata", focus="statement"), "active": False},
+                {"label": "Add Trip", "href": supplier_screen_href("kata", focus="trip"), "active": False},
+                {"label": "Add Debit", "href": supplier_screen_href("kata", focus="debit"), "active": False},
+                {"label": "Add Payment", "href": supplier_screen_href("kata", focus="payment"), "active": False},
+                {"label": "Vehicles", "href": supplier_screen_href("vehicles"), "active": False},
+                {"label": "PDF Statement", "href": url_for("supplier_statement_pdf", party_code=party_code), "active": False},
+                {"label": "Backup Center", "href": url_for("admin_backups"), "active": False},
+            ],
+            "header_stats": [
+                {"label": "Outstanding Amount", "value": money(balance_amount), "tone": balance_tone},
+                {"label": "Paid Amount", "value": money(total_paid), "tone": "success"},
+                {"label": "Total Trips", "value": str(trip_count), "tone": "info"},
+                {"label": "Total Vehicles", "value": str(detail_summary.get("asset_count", 0)), "tone": "neutral"},
+            ],
             "quick_actions": [
                 {
                     "label": "Kata / Statement",
                     "caption": "Running ledger aur filters",
-                    "href": supplier_screen_href("kata"),
+                    "href": supplier_screen_href("kata", focus="statement"),
                     "tone": balance_tone,
                 },
                 {
@@ -10529,60 +10609,68 @@ def _supplier_portal_snapshot(
                 {
                     "label": "Add Trip",
                     "caption": "Nayi earning entry",
-                    "href": supplier_screen_href("kata", "cash-trip-form"),
+                    "href": supplier_screen_href("kata", focus="trip"),
                     "tone": "cash",
                 },
                 {
                     "label": "Add Debit",
                     "caption": "Advance ya loan record",
-                    "href": supplier_screen_href("kata", "cash-debit-form"),
+                    "href": supplier_screen_href("kata", focus="debit"),
                     "tone": "warning",
                 },
                 {
                     "label": "Add Payment",
                     "caption": "Cash settlement post karein",
-                    "href": supplier_screen_href("kata", "cash-payment-form"),
+                    "href": supplier_screen_href("kata", focus="payment"),
                     "tone": "success",
                 },
+            ],
+            "trend_charts": [
                 {
-                    "label": "Desk Guide",
-                    "caption": "Manual aur backup help",
-                    "href": url_for("cash_supplier_guide"),
-                    "tone": "neutral",
+                    "title": "Monthly Earnings",
+                    "subtitle": "Trip earnings trend",
+                    "tone": "info",
+                    "data": earnings_chart,
+                },
+                {
+                    "title": "Payment Trend",
+                    "subtitle": "Settlement movement",
+                    "tone": "success",
+                    "data": payments_chart,
                 },
             ],
             "modules": [
                 {
-                    "eyebrow": "Running Position",
-                    "title": "Kata / Statement",
+                    "eyebrow": "Current Position",
+                    "title": "Outstanding",
                     "value": money(balance_amount),
                     "caption": balance_label,
-                    "href": supplier_screen_href("kata"),
+                    "href": supplier_screen_href("kata", focus="statement"),
                     "tone": balance_tone,
                 },
                 {
+                    "eyebrow": "Total Paid",
+                    "title": "Paid Amount",
+                    "value": money(total_paid),
+                    "caption": f"{payment_count} payment entries posted",
+                    "href": supplier_screen_href("kata", focus="payment"),
+                    "tone": "success",
+                },
+                {
                     "eyebrow": "Trip Earnings",
-                    "title": "Trips",
-                    "value": str(trip_count),
-                    "caption": f"Work logged {money(total_earned)}",
-                    "href": supplier_screen_href("kata", "cash-trip-form"),
+                    "title": "Trip Earnings",
+                    "value": money(total_earned),
+                    "caption": f"{trip_count} trip rows logged",
+                    "href": supplier_screen_href("kata", focus="trip"),
                     "tone": "cash",
                 },
                 {
-                    "eyebrow": "Deductions",
+                    "eyebrow": "Debit Entries",
                     "title": "Debit Entries",
-                    "value": str(debit_count),
+                    "value": money(total_debits),
                     "caption": f"Debits total {money(total_debits)}",
-                    "href": supplier_screen_href("kata", "cash-debit-form"),
+                    "href": supplier_screen_href("kata", focus="debit"),
                     "tone": "warning",
-                },
-                {
-                    "eyebrow": "Settlements",
-                    "title": "Payments",
-                    "value": str(payment_count),
-                    "caption": f"Paid out {money(total_paid)}",
-                    "href": supplier_screen_href("kata", "cash-payment-form"),
-                    "tone": "success",
                 },
                 {
                     "eyebrow": "Fleet",
@@ -10593,11 +10681,11 @@ def _supplier_portal_snapshot(
                     "tone": "info",
                 },
                 {
-                    "eyebrow": "Master",
-                    "title": "Company Details",
-                    "value": party["party_kind"] or "Supplier",
-                    "caption": party["contact_person"] or party["phone_number"] or "Supplier master card",
-                    "href": supplier_screen_href("portal", "company-details"),
+                    "eyebrow": "Open Work",
+                    "title": "Open Work",
+                    "value": money(detail_summary.get("unbilled_amount", 0.0)),
+                    "caption": f"{int(detail_summary.get('unbilled_count', 0) or 0)} rows pending",
+                    "href": supplier_screen_href("kata"),
                     "tone": "neutral",
                 },
             ],
@@ -10612,7 +10700,8 @@ def _supplier_portal_snapshot(
                             "headline": row["trip_no"],
                             "subline": row["entry_date"],
                             "meta": f"{money(row['total_amount'])} / {row['vehicle_no'] or 'No vehicle'}",
-                            "status": "Earning",
+                            "status": "Logged",
+                            "status_tone": "info",
                         }
                         for row in trip_rows
                     ],
@@ -10628,6 +10717,7 @@ def _supplier_portal_snapshot(
                             "subline": row["entry_date"],
                             "meta": f"{money(row['amount'])} / {row['debit_type'] or 'Debit'}",
                             "status": row["debit_type"] or "Debit",
+                            "status_tone": "warning",
                         }
                         for row in debit_rows
                     ],
@@ -10643,6 +10733,7 @@ def _supplier_portal_snapshot(
                             "subline": row["entry_date"],
                             "meta": f"{money(row['amount'])} / {row['payment_method'] or 'Payment'}",
                             "status": row["payment_method"] or "Payment",
+                            "status_tone": "success",
                         }
                         for row in payment_rows
                     ],

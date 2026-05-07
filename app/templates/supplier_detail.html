@@ -2,6 +2,7 @@
 
 {% block content %}
 <section class="admin-desk-shell supplier-detail-shell">
+    {% if not (supplier_mode in ("Cash", "Loan") and active_screen in ("portal", "kata")) %}
     <article class="card admin-desk-toolbar">
         <div class="admin-toolbar-row">
             <div class="admin-toolbar-actions">
@@ -35,7 +36,9 @@
             {% endfor %}
         </div>
     </article>
+    {% endif %}
 
+    {% if not (supplier_mode in ("Cash", "Loan") and active_screen in ("portal", "kata")) %}
     <article class="card desk-panel-card supplier-overview-card">
         <div class="desk-panel-head">
             <div>
@@ -58,69 +61,161 @@
             <div class="directory-line"><strong>Address</strong><small>{{ party.address or 'No address' }}</small></div>
         </div>
     </article>
+    {% endif %}
+
+    {% if supplier_mode in ("Cash", "Loan") and active_screen == "kata" %}
+        <article class="card desk-panel-card" style="padding:16px 18px;margin-bottom:16px;">
+            <div class="desk-panel-head" style="margin-bottom:10px;">
+                <div>
+                    <span class="admin-desk-label">Cash Supplier Desk</span>
+                    <h2 style="margin-bottom:4px;">{{ party.party_name }}</h2>
+                    <p class="workspace-lead">{{ party.party_code }}{% if party.contact_person %} | {{ party.contact_person }}{% endif %}{% if party.phone_number %} | {{ party.phone_number }}{% endif %}</p>
+                </div>
+                <div class="mini-link-stack inline-link-stack">
+                    <span class="mini-link-pill">{{ party.party_kind }}</span>
+                    <span class="mini-link-pill">{{ party.status }}</span>
+                </div>
+            </div>
+            <div class="supplier-overview-grid" style="margin-top:0;">
+                <div class="directory-line"><strong>Current Position</strong><small>AED {{ "%.2f"|format(kata_summary.balance) }}</small></div>
+                <div class="directory-line"><strong>Trip Earnings</strong><small>AED {{ "%.2f"|format(kata_summary.total_earned) }}</small></div>
+                <div class="directory-line"><strong>Debits</strong><small>AED {{ "%.2f"|format(kata_summary.total_debits) }}</small></div>
+                <div class="directory-line"><strong>Paid</strong><small>AED {{ "%.2f"|format(kata_summary.total_paid) }}</small></div>
+            </div>
+            <div class="mini-link-stack inline-link-stack" style="margin-top:12px;">
+                <a class="mini-link-pill" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='portal') }}">Portal</a>
+                <a class="mini-link-pill {% if kata_focus == 'statement' %}active{% endif %}" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata', focus='statement') }}">Kata / Statement</a>
+                <a class="mini-link-pill {% if kata_focus == 'trip' %}active{% endif %}" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata', focus='trip') }}">Add Trip</a>
+                <a class="mini-link-pill {% if kata_focus == 'debit' %}active{% endif %}" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata', focus='debit') }}">Add Debit</a>
+                <a class="mini-link-pill {% if kata_focus == 'payment' %}active{% endif %}" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata', focus='payment') }}">Add Payment</a>
+            </div>
+        </article>
+    {% endif %}
 
     {% if active_screen == "portal" %}
         {% if supplier_mode in ("Cash", "Loan") %}
-            <section class="cash-portal-hero-grid">
-                <article class="card desk-panel-card cash-portal-hero">
-                    <div class="cash-portal-hero-glow"></div>
-                    <div class="cash-portal-hero-copy">
-                        <span class="admin-desk-label">{{ portal_snapshot.intro_label }}</span>
-                        <h2>{{ portal_snapshot.intro_title }}</h2>
-                        <p class="workspace-lead">{{ portal_snapshot.intro_copy }}</p>
-                        <div class="cash-portal-badges">
-                            {% for badge in portal_snapshot.hero_badges %}
-                                <span class="mini-link-pill">{{ badge }}</span>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <div class="cash-portal-balance-card tone-{{ portal_snapshot.balance_tone }}">
-                        <span>Current Position</span>
-                        <strong>{{ portal_snapshot.balance_amount }}</strong>
-                        <small>{{ portal_snapshot.balance_label }}</small>
-                    </div>
-                </article>
-
-                <aside class="card desk-panel-card cash-portal-side-card" id="company-details">
-                    <div class="desk-panel-head">
-                        <div>
-                            <span class="admin-desk-label">Company Details</span>
-                            <h2>{{ party.party_name }}</h2>
-                        </div>
-                        <div class="admin-toolbar-actions">
-                            <a class="mini-link-pill" href="{{ portal_snapshot.guide_href }}">Open Guide</a>
-                            <a class="mini-link-pill" href="{{ portal_snapshot.guide_pdf_href }}">PDF Guide</a>
-                        </div>
-                    </div>
-                    <div class="supplier-company-grid cash-company-grid">
-                        {% for item in portal_snapshot.company_details %}
-                            <div class="directory-line">
-                                <strong>{{ item.label }}</strong>
-                                <small>{{ item.value }}</small>
+            <section class="erp-supplier-workspace">
+                <aside class="erp-supplier-sidebar">
+                    <article class="card erp-sidebar-brand">
+                        <div class="erp-sidebar-brand-top">
+                            <img src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
+                            <div>
+                                <span class="admin-desk-label">Current Link ERP</span>
+                                <h2>Supplier Portal</h2>
                             </div>
+                        </div>
+                        <p>Transport supplier kata, trips, debits, payments, statements, aur backups ko ek hi workspace se manage karein.</p>
+                    </article>
+
+                    <nav class="card erp-sidebar-nav">
+                        {% for item in portal_snapshot.sidebar_items %}
+                            <a class="erp-sidebar-link {% if item.active %}active{% endif %}" href="{{ item.href }}">{{ item.label }}</a>
                         {% endfor %}
-                    </div>
+                    </nav>
+
+                    <article class="card erp-sidebar-guide">
+                        <span class="admin-desk-label">Quick Help</span>
+                        <h3>Need SOP?</h3>
+                        <p>Cash workflow, statement PDF, aur backup routine ka guide ready hai.</p>
+                        <div class="erp-sidebar-guide-actions">
+                            <a class="button button-secondary" href="{{ portal_snapshot.guide_href }}">Open Guide</a>
+                            <a class="button" href="{{ portal_snapshot.guide_pdf_href }}">PDF Guide</a>
+                        </div>
+                    </article>
                 </aside>
-            </section>
 
-            <section class="cash-quick-actions">
-                {% for action in portal_snapshot.quick_actions %}
-                    <a class="cash-quick-action tone-{{ action.tone }}" href="{{ action.href }}">
-                        <strong>{{ action.label }}</strong>
-                        <span>{{ action.caption }}</span>
-                    </a>
-                {% endfor %}
-            </section>
+                <div class="erp-supplier-main">
+                    <article class="card erp-supplier-topbar">
+                        <div>
+                            <span class="admin-desk-label">{{ portal_snapshot.intro_label }}</span>
+                            <h1>{{ portal_snapshot.intro_title }}</h1>
+                            <p>{{ portal_snapshot.intro_copy }}</p>
+                        </div>
+                        <div class="erp-user-chip">
+                            <span class="erp-user-avatar">{{ (current_user_name or session.get('display_name', 'Office'))[:1] }}</span>
+                            <div>
+                                <strong>{{ current_user_name or session.get('display_name', 'Office Admin') }}</strong>
+                                <small>Office Staff</small>
+                            </div>
+                        </div>
+                    </article>
 
-            <section class="supplier-portal-modules cash-portal-modules">
-                {% for module in portal_snapshot.modules %}
-                    <a class="portal-module-card tone-{{ module.tone }}" href="{{ module.href }}">
-                        <span class="portal-module-kicker">{{ module.eyebrow }}</span>
-                        <h3>{{ module.title }}</h3>
-                        <strong>{{ module.value }}</strong>
-                        <p>{{ module.caption }}</p>
-                    </a>
-                {% endfor %}
+                    <article class="card erp-supplier-summary-card" id="company-details">
+                        <div class="erp-summary-copy">
+                            <span class="admin-desk-label">Supplier Summary</span>
+                            <h2>{{ portal_snapshot.profile.supplier_name }}</h2>
+                            <p>Premium ERP dashboard for supplier kata, trip earnings, debits, payments, vehicles, PDF statements, aur backup actions.</p>
+                            <div class="cash-portal-badges">
+                                {% for badge in portal_snapshot.hero_badges %}
+                                    <span class="mini-link-pill">{{ badge }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="erp-summary-balance tone-{{ portal_snapshot.balance_tone }}">
+                            <span>Current Position</span>
+                            <strong>{{ portal_snapshot.balance_amount }}</strong>
+                            <small>{{ portal_snapshot.balance_label }}</small>
+                        </div>
+                        <div class="erp-summary-grid">
+                            <div class="erp-summary-item"><strong>Supplier Code</strong><small>{{ portal_snapshot.profile.supplier_code }}</small></div>
+                            <div class="erp-summary-item"><strong>Type</strong><small>{{ portal_snapshot.profile.type }}</small></div>
+                            <div class="erp-summary-item"><strong>Status</strong><small>{{ portal_snapshot.profile.status }}</small></div>
+                            <div class="erp-summary-item"><strong>Phone</strong><small>{{ portal_snapshot.profile.phone }}</small></div>
+                            <div class="erp-summary-item"><strong>Email</strong><small>{{ portal_snapshot.profile.email }}</small></div>
+                            <div class="erp-summary-item full"><strong>Address</strong><small>{{ portal_snapshot.profile.address }}</small></div>
+                        </div>
+                    </article>
+
+                    <section class="erp-dashboard-grid">
+                        <div class="erp-dashboard-primary">
+                            <section class="cash-quick-actions erp-action-grid">
+                                {% for action in portal_snapshot.quick_actions %}
+                                    <a class="cash-quick-action tone-{{ action.tone }}" href="{{ action.href }}">
+                                        <strong>{{ action.label }}</strong>
+                                        <span>{{ action.caption }}</span>
+                                    </a>
+                                {% endfor %}
+                            </section>
+
+                            <section class="supplier-portal-modules cash-portal-modules">
+                                {% for module in portal_snapshot.modules %}
+                                    <a class="portal-module-card tone-{{ module.tone }}" href="{{ module.href }}">
+                                        <span class="portal-module-kicker">{{ module.eyebrow }}</span>
+                                        <h3>{{ module.title }}</h3>
+                                        <strong>{{ module.value }}</strong>
+                                        <p>{{ module.caption }}</p>
+                                    </a>
+                                {% endfor %}
+                            </section>
+                        </div>
+
+                        <aside class="erp-dashboard-secondary">
+                            <section class="erp-chart-grid compact">
+                                {% for chart in portal_snapshot.trend_charts %}
+                                    <article class="card erp-chart-card tone-{{ chart.tone }}">
+                                        <div class="desk-panel-head">
+                                            <div>
+                                                <span class="admin-desk-label">{{ chart.subtitle }}</span>
+                                                <h2>{{ chart.title }}</h2>
+                                            </div>
+                                            {% if chart.data.is_sample %}
+                                                <span class="mini-link-pill">Sample Trend</span>
+                                            {% endif %}
+                                        </div>
+                                        <svg viewBox="0 0 232 92" class="erp-sparkline" preserveAspectRatio="none" aria-hidden="true">
+                                            <polyline points="{{ chart.data.path }}" />
+                                        </svg>
+                                        <div class="erp-chart-labels">
+                                            {% for label in chart.data.labels %}
+                                                <span>{{ label }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </article>
+                                {% endfor %}
+                            </section>
+                        </aside>
+                    </section>
+                </div>
             </section>
         {% else %}
             <section class="compact-content-grid supplier-portal-top">
@@ -170,34 +265,86 @@
             </section>
         {% endif %}
 
-        <section class="compact-content-grid portal-recent-grid">
-            {% for group in portal_snapshot.recent_groups %}
-                <article class="card desk-panel-card portal-recent-card" id="{{ group.anchor }}">
-                    <div class="desk-panel-head">
-                        <div>
-                            <span class="admin-desk-label">{{ group.eyebrow }}</span>
-                            <h2>{{ group.title }}</h2>
-                        </div>
+        {% if supplier_mode in ("Cash", "Loan") %}
+            <article class="card desk-panel-card erp-activity-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Recent Activity</span>
+                        <h2>Trips, Payments, aur Debits</h2>
                     </div>
-                    <div class="portal-recent-list">
-                        {% for row in group.rows %}
-                            <div class="portal-recent-row">
-                                <div>
-                                    <strong>{{ row.headline }}</strong>
-                                    <small>{{ row.subline }}</small>
-                                </div>
-                                <div class="portal-recent-meta">
-                                    <span>{{ row.meta }}</span>
-                                    <span class="mini-link-pill">{{ row.status }}</span>
-                                </div>
+                </div>
+                <div class="erp-activity-tabs" role="tablist" aria-label="Recent supplier activity">
+                    {% for group in portal_snapshot.recent_groups %}
+                        <button
+                            type="button"
+                            class="erp-activity-tab {% if loop.first %}active{% endif %}"
+                            data-activity-tab="{{ group.anchor }}"
+                            role="tab"
+                            aria-selected="{% if loop.first %}true{% else %}false{% endif %}"
+                        >
+                            {{ group.title }}
+                        </button>
+                    {% endfor %}
+                </div>
+                <div class="erp-activity-panels">
+                    {% for group in portal_snapshot.recent_groups %}
+                        <section class="erp-activity-panel {% if loop.first %}active{% endif %}" data-activity-panel="{{ group.anchor }}">
+                            <div class="portal-recent-list">
+                                {% for row in group.rows %}
+                                    <div class="erp-activity-row">
+                                        <div class="erp-activity-main">
+                                            <strong>{{ row.headline }}</strong>
+                                            <small>{{ row.subline }}</small>
+                                        </div>
+                                        <div class="erp-activity-extra">
+                                            <span>{{ row.meta }}</span>
+                                            <span class="mini-link-pill status-{{ row.status_tone or 'info' }}">{{ row.status }}</span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="erp-empty-state">
+                                        <div class="erp-empty-icon">+</div>
+                                        <div>
+                                            <strong>{{ group.title }}</strong>
+                                            <p>{{ group.empty_copy }}</p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
                             </div>
-                        {% else %}
-                            <p class="muted-text">{{ group.empty_copy }}</p>
-                        {% endfor %}
-                    </div>
-                </article>
-            {% endfor %}
-        </section>
+                        </section>
+                    {% endfor %}
+                </div>
+            </article>
+        {% else %}
+            <section class="compact-content-grid portal-recent-grid">
+                {% for group in portal_snapshot.recent_groups %}
+                    <article class="card desk-panel-card portal-recent-card" id="{{ group.anchor }}">
+                        <div class="desk-panel-head">
+                            <div>
+                                <span class="admin-desk-label">{{ group.eyebrow }}</span>
+                                <h2>{{ group.title }}</h2>
+                            </div>
+                        </div>
+                        <div class="portal-recent-list">
+                            {% for row in group.rows %}
+                                <div class="portal-recent-row">
+                                    <div>
+                                        <strong>{{ row.headline }}</strong>
+                                        <small>{{ row.subline }}</small>
+                                    </div>
+                                    <div class="portal-recent-meta">
+                                        <span>{{ row.meta }}</span>
+                                        <span class="mini-link-pill">{{ row.status }}</span>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <p class="muted-text">{{ group.empty_copy }}</p>
+                            {% endfor %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </section>
+        {% endif %}
 
     {% elif active_screen == "vehicles" %}
         <section class="compact-content-grid">
@@ -605,8 +752,9 @@
             </section>
         {% endif %}
     {% elif supplier_mode in ("Cash", "Loan") and active_screen == "kata" %}
+        {% set kata_view = kata_focus or "statement" %}
         {# ── Summary cards ── #}
-        <section class="compact-content-grid" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px;">
+        <section class="compact-content-grid" style="display:none;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px;">
             <article class="card" style="padding:18px;background:linear-gradient(135deg,#0f2d52 0%,#1c568b 100%);color:#fff;">
                 <small style="opacity:.8;">Kata Overview</small>
                 <div style="font-size:1.4rem;font-weight:800;margin-top:6px;">{{ party.party_name }}</div>
@@ -638,9 +786,11 @@
         </section>
 
         {# ── Entry forms ── #}
-        <section class="compact-content-grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px;">
+        {% if kata_view != "statement" %}
+        <section class="compact-content-grid" style="grid-template-columns:1fr;gap:14px;margin-bottom:18px;">
             {# Trip earning #}
-            <article class="card desk-panel-card">
+            {% if kata_view == "trip" %}
+            <article class="card desk-panel-card" id="cash-trip-form">
                 <div class="desk-panel-head"><div><span class="admin-desk-label">Earning</span><h2>Add Earning</h2></div></div>
                 <form method="post" class="desk-form-grid" style="gap:8px;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -657,9 +807,11 @@
                     <div class="form-actions"><button class="button success-button" type="submit">Save Earning</button></div>
                 </form>
             </article>
+            {% endif %}
 
             {# Debit / loan / advance #}
-            <article class="card desk-panel-card">
+            {% if kata_view == "debit" %}
+            <article class="card desk-panel-card" id="cash-debit-form">
                 <div class="desk-panel-head"><div><span class="admin-desk-label">Debit</span><h2>Add Debit</h2></div></div>
                 <form method="post" class="desk-form-grid" style="gap:8px;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -681,9 +833,11 @@
                     <div class="form-actions"><button class="button" type="submit" style="background:var(--color-danger,#dc2626);color:#fff;">Save Debit</button></div>
                 </form>
             </article>
+            {% endif %}
 
             {# Payment #}
-            <article class="card desk-panel-card">
+            {% if kata_view == "payment" %}
+            <article class="card desk-panel-card" id="cash-payment-form">
                 <div class="desk-panel-head"><div><span class="admin-desk-label">Payment</span><h2>Cash Payment</h2></div></div>
                 <form method="post" class="desk-form-grid" style="gap:8px;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -703,19 +857,23 @@
                     <div class="form-actions"><button class="button success-button" type="submit">Save Payment</button></div>
                 </form>
             </article>
+            {% endif %}
         </section>
+        {% endif %}
 
         {# ── Running statement / kata ── #}
+        {% if kata_view == "statement" %}
         <article class="card desk-panel-card">
             <div class="desk-panel-head"><div><span class="admin-desk-label">Kata</span><h2>Running Statement</h2></div><div class="admin-toolbar-actions"><a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, kata_month=kata_filters.month, kata_type=kata_filters.type, kata_search=kata_filters.search) }}">Download PDF</a></div></div>
             <form method="get" class="desk-form-grid" style="gap:10px;margin-bottom:14px;">
                 <input type="hidden" name="screen" value="kata">
+                <input type="hidden" name="focus" value="statement">
                 <label><span>Month</span><input type="month" name="kata_month" value="{{ kata_filters.month }}"></label>
                 <label><span>Type</span><select name="kata_type">{% for option_value, option_label in cash_kata_type_options %}<option value="{{ option_value }}" {% if kata_filters.type == option_value %}selected{% endif %}>{{ option_label }}</option>{% endfor %}</select></label>
                 <label style="grid-column:span 2;"><span>Search</span><input type="text" name="kata_search" value="{{ kata_filters.search }}" placeholder="Ref, month, vehicle, notes"></label>
                 <div class="form-actions" style="align-self:end;display:flex;gap:8px;flex-wrap:wrap;">
                     <button class="button button-secondary" type="submit">Apply Filter</button>
-                    <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata') }}">Reset</a>
+                    <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata', focus='statement') }}">Reset</a>
                 </div>
             </form>
             <div class="muted-text" style="margin:0 0 12px 2px;">Payments stay on their own rows so partial payments across different months remain clear instead of merging into one earning line.</div>
@@ -791,12 +949,13 @@
                         </tr>
                         {% endfor %}
                         {% if not kata_rows %}
-                        <tr><td colspan="10">No entries yet. Add an earning, debit, or payment above.</td></tr>
+                        <tr><td colspan="10">No entries yet. Add an earning, debit, or payment from the tabs above.</td></tr>
                         {% endif %}
                     </tbody>
                 </table>
             </div>
         </article>
+        {% endif %}
 
         <script>
         (function(){
@@ -810,9 +969,13 @@
             if(periodMonth && !periodMonth.value) periodMonth.value = currentMonth;
         })();
         function calcTrip(){
-            var cnt = parseFloat(document.getElementById('t_cnt').value)||0;
-            var rate = parseFloat(document.getElementById('t_rate').value)||0;
-            document.getElementById('t_total').value = (cnt*rate).toFixed(2);
+            var countInput = document.getElementById('t_cnt');
+            var rateInput = document.getElementById('t_rate');
+            var totalInput = document.getElementById('t_total');
+            if(!countInput || !rateInput || !totalInput) return;
+            var cnt = parseFloat(countInput.value)||0;
+            var rate = parseFloat(rateInput.value)||0;
+            totalInput.value = (cnt*rate).toFixed(2);
         }
         function updateEarningLabels(){
             var basis = document.getElementById('earning_basis');
@@ -824,6 +987,7 @@
             rate.textContent = selected === 'Hours' ? 'Rate Per Hour' : (selected === 'Monthly' ? 'Rate Per Month' : (selected === 'Trips' ? 'Rate Per Trip' : 'Amount Per Unit'));
         }
         updateEarningLabels();
+        calcTrip();
         </script>
 
     {% elif active_screen == "statement" %}
@@ -1026,11 +1190,501 @@ function sendInquiry() {
     alert('This feature has been upgraded. Please use the new inquiry form.');
     openInquiryModal();
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    const tabs = document.querySelectorAll('[data-activity-tab]');
+    const panels = document.querySelectorAll('[data-activity-panel]');
+    if (!tabs.length || !panels.length) return;
+
+    tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            const target = tab.getAttribute('data-activity-tab');
+            tabs.forEach(function (item) {
+                const active = item === tab;
+                item.classList.toggle('active', active);
+                item.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            panels.forEach(function (panel) {
+                panel.classList.toggle('active', panel.getAttribute('data-activity-panel') === target);
+            });
+        });
+    });
+});
 </script>
 
 <style>
 .supplier-portal-top {
     margin-top: 22px;
+}
+
+.erp-supplier-workspace {
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+    min-width: 0;
+}
+
+.erp-supplier-sidebar,
+.erp-supplier-main {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+    min-width: 0;
+}
+
+.erp-sidebar-brand,
+.erp-sidebar-nav,
+.erp-sidebar-guide,
+.erp-supplier-topbar,
+.erp-supplier-summary-card,
+.erp-activity-card,
+.erp-chart-card,
+.erp-kpi-card {
+    border-radius: 22px;
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+}
+
+.erp-sidebar-brand,
+.erp-sidebar-guide {
+    padding: 18px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.98), rgba(244,248,255,0.98));
+}
+
+.erp-sidebar-brand-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.erp-sidebar-brand-top img {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+}
+
+.erp-sidebar-brand h2,
+.erp-sidebar-guide h3 {
+    margin: 4px 0 6px;
+    font-size: 1.4rem;
+}
+
+.erp-sidebar-brand p,
+.erp-sidebar-guide p {
+    margin: 10px 0 0;
+    color: var(--muted);
+    line-height: 1.55;
+    font-size: 0.94rem;
+}
+
+.erp-sidebar-nav {
+    display: grid;
+    gap: 6px;
+    padding: 10px;
+    background: linear-gradient(180deg, rgba(18, 34, 64, 0.98), rgba(25, 45, 85, 0.96));
+}
+
+.erp-sidebar-link {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 14px;
+    color: rgba(255,255,255,0.78);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    min-width: 0;
+}
+
+.erp-sidebar-link:hover,
+.erp-sidebar-link.active {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    transform: translateX(2px);
+}
+
+.erp-sidebar-guide-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.erp-supplier-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 18px 20px;
+    background:
+        radial-gradient(circle at top right, rgba(230, 135, 31, 0.18), transparent 24%),
+        linear-gradient(135deg, #122240 0%, #17345e 50%, #1d5f8f 100%);
+    color: #fff;
+}
+
+.erp-supplier-topbar h1 {
+    margin: 6px 0 8px;
+    color: #fff;
+    font-size: clamp(1.5rem, 2.4vw, 2.15rem);
+    line-height: 1.08;
+}
+
+.erp-supplier-topbar p {
+    margin: 0;
+    color: rgba(255,255,255,0.82);
+    max-width: 760px;
+    line-height: 1.5;
+    font-size: 0.96rem;
+}
+
+.erp-supplier-topbar > div:first-child {
+    min-width: 0;
+}
+
+.erp-user-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.16);
+}
+
+.erp-user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f7931e, #ffb14e);
+    color: #fff;
+    font-weight: 900;
+}
+
+.erp-user-chip strong,
+.erp-user-chip small {
+    display: block;
+}
+
+.erp-user-chip small {
+    color: rgba(255,255,255,0.72);
+}
+
+.erp-supplier-summary-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) 220px;
+    gap: 14px;
+    padding: 18px 20px;
+    background:
+        radial-gradient(circle at top right, rgba(247, 147, 30, 0.12), transparent 28%),
+        linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,248,253,0.98));
+}
+
+.erp-summary-copy h2 {
+    margin: 6px 0 6px;
+    font-size: 1.65rem;
+}
+
+.erp-summary-copy p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
+.erp-summary-balance {
+    padding: 14px 16px;
+    border-radius: 18px;
+    color: #fff;
+    box-shadow: var(--shadow);
+    align-self: start;
+}
+
+.erp-summary-balance span,
+.erp-summary-balance small {
+    display: block;
+}
+
+.erp-summary-balance span {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.72);
+    font-weight: 800;
+}
+
+.erp-summary-balance strong {
+    display: block;
+    margin-top: 10px;
+    font-size: 1.28rem;
+}
+
+.erp-summary-balance small {
+    margin-top: 6px;
+    color: rgba(255,255,255,0.82);
+    font-size: 0.88rem;
+}
+
+.erp-summary-grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+}
+
+.erp-summary-item {
+    display: grid;
+    gap: 5px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(18, 34, 64, 0.04);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+}
+
+.erp-summary-item.full {
+    grid-column: 1 / -1;
+}
+
+.erp-summary-item strong {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7a8faa;
+}
+
+.erp-summary-item small {
+    color: var(--ink);
+    font-size: 0.88rem;
+    line-height: 1.4;
+}
+
+.erp-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+}
+
+.erp-dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.28fr) minmax(300px, 0.72fr);
+    gap: 14px;
+    align-items: start;
+}
+
+.erp-dashboard-primary,
+.erp-dashboard-secondary {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+}
+
+.erp-kpi-card {
+    padding: 14px 14px 16px;
+    color: #fff;
+}
+
+.erp-kpi-card small {
+    display: block;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.74);
+}
+
+.erp-kpi-card strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 1.12rem;
+}
+
+.erp-action-grid {
+    margin-top: 0;
+}
+
+.cash-quick-actions {
+    gap: 10px;
+}
+
+.cash-quick-action {
+    gap: 5px;
+    padding: 14px 16px 13px;
+    border-radius: 18px;
+    min-height: 78px;
+}
+
+.cash-quick-action strong {
+    font-size: 0.95rem;
+}
+
+.cash-quick-action span {
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+
+.erp-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+.erp-chart-grid.compact {
+    grid-template-columns: 1fr;
+}
+
+.erp-chart-card {
+    padding: 16px 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(243,247,252,0.98));
+}
+
+.erp-chart-card h2 {
+    margin: 4px 0 0;
+    font-size: 1.28rem;
+}
+
+.erp-sparkline {
+    width: 100%;
+    height: 56px;
+    margin-top: 4px;
+}
+
+.erp-chart-card.tone-info .erp-sparkline polyline {
+    fill: none;
+    stroke: #1c568b;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.erp-chart-card.tone-success .erp-sparkline polyline {
+    fill: none;
+    stroke: #1f8b47;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.erp-chart-labels {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 2px;
+    color: #7a8faa;
+    font-size: 0.72rem;
+    text-align: center;
+}
+
+.erp-activity-card {
+    margin-top: 16px;
+    padding: 16px 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.99), rgba(245,248,253,0.98));
+    overflow: hidden;
+}
+
+.erp-activity-tabs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.erp-activity-tab {
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 16px;
+    background: rgba(21, 51, 93, 0.06);
+    color: #526983;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.erp-activity-tab.active,
+.erp-activity-tab:hover {
+    background: linear-gradient(135deg, #143c70, #1c568b);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.erp-activity-panels {
+    margin-top: 12px;
+}
+
+.erp-activity-panel {
+    display: none;
+}
+
+.erp-activity-panel.active {
+    display: block;
+}
+
+.erp-activity-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.erp-activity-main strong,
+.erp-activity-main small {
+    display: block;
+}
+
+.erp-activity-main small {
+    margin-top: 5px;
+    color: var(--muted);
+}
+
+.erp-activity-extra {
+    display: grid;
+    gap: 8px;
+    justify-items: end;
+    text-align: right;
+    color: #475a73;
+    min-width: 0;
+}
+
+.erp-empty-state {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(21, 51, 93, 0.04);
+    border: 1px dashed rgba(21, 51, 93, 0.14);
+}
+
+.erp-empty-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f7931e, #ffb14e);
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 900;
+}
+
+.erp-empty-state strong,
+.erp-empty-state p {
+    margin: 0;
+}
+
+.erp-empty-state p {
+    margin-top: 4px;
+    color: var(--muted);
 }
 
 .cash-portal-hero-grid {
@@ -1128,16 +1782,16 @@ function sendInquiry() {
 
 .cash-quick-actions {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 14px;
-    margin: 18px 0 0;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 0;
 }
 
 .cash-quick-action {
     display: grid;
-    gap: 7px;
-    padding: 18px 18px 16px;
-    border-radius: 20px;
+    gap: 5px;
+    padding: 14px 16px 13px;
+    border-radius: 18px;
     text-decoration: none;
     color: #fff;
     box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
@@ -1150,17 +1804,17 @@ function sendInquiry() {
 }
 
 .cash-quick-action strong {
-    font-size: 1rem;
+    font-size: 0.95rem;
 }
 
 .cash-quick-action span {
     color: rgba(255, 255, 255, 0.82);
-    line-height: 1.45;
-    font-size: 0.88rem;
+    line-height: 1.35;
+    font-size: 0.82rem;
 }
 
 .cash-portal-modules {
-    margin-top: 18px;
+    margin-top: 0;
 }
 
 .supplier-portal-summary-grid,
@@ -1170,16 +1824,16 @@ function sendInquiry() {
 
 .supplier-portal-modules {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
-    margin: 22px 0;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 0;
 }
 
 .portal-module-card {
     display: grid;
-    gap: 8px;
-    padding: 20px;
-    border-radius: 20px;
+    gap: 6px;
+    padding: 16px;
+    border-radius: 18px;
     text-decoration: none;
     color: #ffffff;
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
@@ -1197,13 +1851,14 @@ function sendInquiry() {
 }
 
 .portal-module-card strong {
-    font-size: 1.22rem;
+    font-size: 1.05rem;
 }
 
 .portal-module-card p {
     margin: 0;
     color: rgba(255, 255, 255, 0.82);
-    line-height: 1.45;
+    line-height: 1.32;
+    font-size: 0.84rem;
 }
 
 .portal-module-kicker {
@@ -1292,9 +1947,42 @@ function sendInquiry() {
     color: var(--text-secondary);
 }
 
+@media (max-width: 1180px) {
+    .erp-supplier-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .erp-supplier-summary-card {
+        grid-template-columns: 1fr;
+    }
+
+    .erp-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (min-width: 1280px) {
+    .supplier-detail-shell {
+        max-width: 1680px;
+        margin-inline: auto;
+    }
+}
+
 @media (max-width: 720px) {
+    .erp-supplier-topbar,
+    .erp-supplier-summary-card,
+    .erp-activity-row {
+        grid-template-columns: 1fr;
+        flex-direction: column;
+    }
+
     .cash-portal-hero {
         grid-template-columns: 1fr;
+    }
+
+    .erp-activity-extra {
+        justify-items: start;
+        text-align: left;
     }
 
     .portal-recent-row {
@@ -1309,6 +1997,14 @@ function sendInquiry() {
 
 @media (max-width: 960px) {
     .cash-portal-hero-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .erp-kpi-grid,
+    .erp-summary-grid,
+    .erp-chart-labels {
         grid-template-columns: 1fr;
     }
 }
