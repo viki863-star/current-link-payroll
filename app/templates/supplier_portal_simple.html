@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell maintenance-workspace-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <h1>Cash Supplier Portal - {{ party.party_name }}</h1>
+                <p class="admin-toolbar-subtitle">Simple interface for managing earnings, debits, and payments</p>
+            </div>
+            <div class="admin-mini-stats">
+                <div class="admin-mini-stat">
+                    <strong>AED {{ "%.0f"|format(statement_summary.all_submitted or 0) }}</strong>
+                    <span>Total Earnings</span>
+                </div>
+                <div class="admin-mini-stat">
+                    <strong>AED {{ "%.0f"|format(statement_summary.total_paid or 0) }}</strong>
+                    <span>Total Paid</span>
+                </div>
+                <div class="admin-mini-stat">
+                    <strong>AED {{ "%.0f"|format(statement_summary.approved_outstanding or 0) }}</strong>
+                    <span>Outstanding</span>
+                </div>
+            </div>
+        </div>
+    </article>
+
+    <section class="accounts-link-grid maintenance-summary-grid">
+        <article class="card accounts-link-card">
+            <strong>{{ party.party_code }}</strong>
+            <span>Supplier Code</span>
+        </article>
+        <article class="card accounts-link-card">
+            <strong>{{ party.party_kind }}</strong>
+            <span>Type</span>
+        </article>
+        <article class="card accounts-link-card">
+            <strong>{{ party.status }}</strong>
+            <span>Status</span>
+        </article>
+        <article class="card accounts-link-card">
+            <strong>{{ party.phone or 'N/A' }}</strong>
+            <span>Contact</span>
+        </article>
+    </section>
+
+    <div class="simple-portal-grid">
+        <!-- Add Earning Form -->
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Earnings</span>
+                    <h2>Add Trip Earning</h2>
+                    <p class="workspace-lead">Record new trip earnings for this supplier</p>
+                </div>
+            </div>
+            
+            <form method="post" action="{{ url_for('add_supplier_earning') }}" class="simple-form">
+                <input type="hidden" name="supplier_code" value="{{ party.party_code }}">
+                
+                <div class="form-row">
+                    <label>
+                        <span>Trip Date</span>
+                        <input type="date" name="trip_date" required value="{{ today }}">
+                    </label>
+                    <label>
+                        <span>Amount (AED)</span>
+                        <input type="number" name="amount" step="0.01" min="0" required placeholder="0.00">
+                    </label>
+                </div>
+                
+                <div class="form-row">
+                    <label class="full-span">
+                        <span>Description</span>
+                        <input type="text" name="description" placeholder="Trip details, vehicle number, etc.">
+                    </label>
+                </div>
+                
+                <div class="form-row">
+                    <label class="full-span">
+                        <span>Reference Number</span>
+                        <input type="text" name="reference_no" placeholder="TRP-XXXX">
+                    </label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="button success-button">
+                        Add Earning & Generate PDF
+                    </button>
+                </div>
+            </form>
+        </article>
+
+        <!-- Add Debit Form -->
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Deductions</span>
+                    <h2>Add Debit Entry</h2>
+                    <p class="workspace-lead">Record deductions or expenses</p>
+                </div>
+            </div>
+            
+            <form method="post" action="{{ url_for('add_supplier_debit') }}" class="simple-form">
+                <input type="hidden" name="supplier_code" value="{{ party.party_code }}">
+                
+                <div class="form-row">
+                    <label>
+                        <span>Debit Date</span>
+                        <input type="date" name="debit_date" required value="{{ today }}">
+                    </label>
+                    <label>
+                        <span>Amount (AED)</span>
+                        <input type="number" name="amount" step="0.01" min="0" required placeholder="0.00">
+                    </label>
+                </div>
+                
+                <div class="form-row">
+                    <label class="full-span">
+                        <span>Category</span>
+                        <select name="category" required>
+                            <option value="">Select Category</option>
+                            <option value="Fuel">Fuel</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Penalty">Penalty</option>
+                            <option value="Advance">Advance</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <div class="form-row">
+                    <label class="full-span">
+                        <span>Description</span>
+                        <textarea name="description" rows="2" placeholder="Details about this deduction"></textarea>
+                    </label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="button warning-button">
+                        Add Debit & Generate PDF
+                    </button>
+                </div>
+            </form>
+        </article>
+
+        <!-- Add Payment Form -->
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Settlements</span>
+                    <h2>Add Payment</h2>
+                    <p class="workspace-lead">Record payment to supplier</p>
+                </div>
+            </div>
+            
+            <form method="post" action="{{ url_for('add_supplier_payment') }}" class="simple-form">
+                <input type="hidden" name="supplier_code" value="{{ party.party_code }}">
+                
+                <div class="form-row">
+                    <label>
+                        <span>Payment Date</span>
+                        <input type="date" name="payment_date" required value="{{ today }}">
+                    </label>
+                    <label>
+                        <span>Amount (AED)</span>
+                        <input type="number" name="amount" step="0.01" min="0" required placeholder="0.00">
+                    </label>
+                </div>
+                
+                <div class="form-row">
+                    <label class="full-span">
+                        <span>Payment Method</span>
+                        <select name="payment_method" required>
+                            <option value="">Select Method</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="Online">Online</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <div class="form-row">
+                    <label class="full-span">
+                        <span>Reference/Cheque No</span>
+                        <input type="text" name="reference_no" placeholder="Reference number">
+                    </label>
+                </div>
+                
+                <div class="form-row">
+                    <label class="full-span">
+                        <span>Notes</span>
+                        <textarea name="notes" rows="2" placeholder="Payment details"></textarea>
+                    </label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="button primary-button">
+                        Add Payment & Generate PDF
+                    </button>
+                </div>
+            </form>
+        </article>
+    </div>
+
+    <!-- Recent Activity Section -->
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Recent Activity</span>
+                    <h2>Latest Transactions</h2>
+                </div>
+            </div>
+            
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Amount (AED)</th>
+                            <th>PDF</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in recent_activities %}
+                        <tr>
+                            <td>{{ activity.date }}</td>
+                            <td><span class="mini-link-pill status-{{ activity.type|lower }}">{{ activity.type }}</span></td>
+                            <td>{{ activity.description }}</td>
+                            <td>{{ "%.2f"|format(activity.amount) }}</td>
+                            <td>
+                                {% if activity.pdf_path %}
+                                <a class="mini-action-link" href="{{ url_for('download_pdf', filename=activity.pdf_path) }}" target="_blank">📄 Download</a>
+                                {% else %}
+                                <span class="muted-text">No PDF</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5">No recent activity</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+
+    <!-- Quick Stats -->
+    <section class="accounts-link-grid maintenance-summary-grid">
+        <article class="card accounts-link-card">
+            <strong>{{ trip_count or 0 }}</strong>
+            <span>Total Trips</span>
+        </article>
+        <article class="card accounts-link-card">
+            <strong>{{ debit_count or 0 }}</strong>
+            <span>Total Debits</span>
+        </article>
+        <article class="card accounts-link-card">
+            <strong>{{ payment_count or 0 }}</strong>
+            <span>Total Payments</span>
+        </article>
+        <article class="card accounts-link-card">
+            <strong>{{ vehicle_count or 0 }}</strong>
+            <span>Vehicles</span>
+        </article>
+    </section>
+</section>
+
+<style>
+.simple-portal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.simple-form {
+    padding: 20px;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-row label {
+    flex: 1;
+}
+
+.form-row label.full-span {
+    flex: 100%;
+}
+
+.form-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.status-earning {
+    background: #10b981;
+    color: white;
+}
+
+.status-debit {
+    background: #f59e0b;
+    color: white;
+}
+
+.status-payment {
+    background: #3b82f6;
+    color: white;
+}
+</style>
+
+<script>
+// Set today's date as default for date inputs
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('input[type="date"]').forEach(input => {
+        if (!input.value) {
+            input.value = today;
+        }
+    });
+});
+</script>
+{% endblock %}
