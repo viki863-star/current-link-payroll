@@ -1,7 +1,10 @@
 import json
 import re
 import shutil
+<<<<<<< HEAD
 import zipfile
+=======
+>>>>>>> 81b171a37c0da07076c9e838973cdd261de05d41
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -134,10 +137,13 @@ def create_customer_record(client, *, party_code, party_name, party_kind="Compan
     )
 
 
+<<<<<<< HEAD
 def load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+=======
+>>>>>>> 81b171a37c0da07076c9e838973cdd261de05d41
 def set_supplier_password(client, *, user_id, email, password="secret12"):
     return client.post(
         "/supplier-forgot-password",
@@ -534,6 +540,7 @@ def test_existing_paid_salary_slip_can_be_updated(app, client):
         assert slips[0]["paid_by"] == "Admin"
 
 
+<<<<<<< HEAD
 def test_salary_slip_supports_custom_actual_paid_and_company_balance(app, client):
     create_driver_record(app, basic_salary=5000.0)
     admin_session(client)
@@ -1191,6 +1198,51 @@ def test_driver_statement_carries_previous_month_balance_into_next_month(app, cl
     assert b"AED 5506.00" in response.data
 
 
+=======
+def test_kata_pdf_accepts_postgres_datetime_generated_at(app):
+    driver = create_driver_record(app)
+    output_dir = Path.cwd() / "generated" / "test-runs" / f"kata-pdf-{uuid4().hex}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        output_path = generate_kata_pdf(
+            driver,
+            [
+                {
+                    "entry_date": "2026-04-30",
+                    "salary_month": "2026-04",
+                    "net_salary": 3000.0,
+                }
+            ],
+            [
+                {
+                    "entry_date": "2026-04-12",
+                    "txn_type": "Advance",
+                    "source": "Owner Fund",
+                    "given_by": "Office",
+                    "amount": 500.0,
+                }
+            ],
+            [
+                {
+                    "generated_at": datetime(2026, 4, 30, 10, 30, 0),
+                    "salary_month": "2026-04",
+                    "total_deductions": 100.0,
+                    "net_payable": 2900.0,
+                    "payment_source": "Owner Fund",
+                    "paid_by": "Waqar",
+                }
+            ],
+            str(output_dir),
+            str(Path(app.root_path).parent / "app" / "static"),
+        )
+
+        assert Path(output_path).exists()
+    finally:
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+
+>>>>>>> 81b171a37c0da07076c9e838973cdd261de05d41
 def test_owner_fund_pdf_supports_filtered_multi_page_output(app):
     rows = []
     running_balance = 0.0
