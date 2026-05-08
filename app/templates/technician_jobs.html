@@ -87,6 +87,14 @@
                     <option value="Partial" {% if filters.payment_status == 'Partial' %}selected{% endif %}>Partial</option>
                 </select>
             </label>
+            <label>
+                <span>Amount</span>
+                <input type="number" name="amount" step="0.01" min="0" value="{{ filters.amount }}" placeholder="e.g. 500">
+            </label>
+            <label>
+                <span>Notes</span>
+                <input type="text" name="notes" value="{{ filters.notes }}" placeholder="Kaam ya note search karein">
+            </label>
             <div class="field-admin-filter-actions">
                 <button class="button" type="submit">Filter</button>
                 <a class="button button-outline" href="{{ url_for('technician_jobs') }}">Clear</a>
@@ -130,6 +138,8 @@
                     <input type="hidden" name="technician_code" value="{{ filters.technician_code }}">
                     <input type="hidden" name="vehicle_id" value="{{ filters.vehicle_id }}">
                     <input type="hidden" name="payment_status" value="{{ filters.payment_status }}">
+                    <input type="hidden" name="amount" value="{{ filters.amount }}">
+                    <input type="hidden" name="notes" value="{{ filters.notes }}">
                     <button class="button button-success" type="submit">Approve All</button>
                 </form>
                 <form method="post" class="inline-form">
@@ -139,6 +149,8 @@
                     <input type="hidden" name="technician_code" value="{{ filters.technician_code }}">
                     <input type="hidden" name="vehicle_id" value="{{ filters.vehicle_id }}">
                     <input type="hidden" name="payment_status" value="{{ filters.payment_status }}">
+                    <input type="hidden" name="amount" value="{{ filters.amount }}">
+                    <input type="hidden" name="notes" value="{{ filters.notes }}">
                     <button class="button button-primary" type="submit">Pay All</button>
                 </form>
                 {% if selected_vehicle and jobs %}
@@ -413,7 +425,7 @@
 
 .field-admin-filter-grid {
     display: grid;
-    grid-template-columns: 1.1fr 1.4fr 1.1fr 1.1fr auto;
+    grid-template-columns: 1fr 1.25fr 1fr 1fr 0.9fr 1.2fr auto;
     gap: 12px;
     align-items: end;
 }

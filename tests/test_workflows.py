@@ -1866,6 +1866,163 @@ def test_admin_technician_jobs_vehicle_filter_generates_full_report(app, client)
     assert copied_attachments
 
 
+def test_admin_technician_jobs_filters_amount_notes_vehicle_and_staff(app, client):
+    admin_session(client)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-FLT-1", "PTY-TECH-FLT-1", "tech.filter.one", "hash", "0502222001", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-FLT-2", "PTY-TECH-FLT-2", "tech.filter.two", "hash", "0502222002", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-TECH-FLT-1", "Muhammad Bilal", "Supplier"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-TECH-FLT-2", "Amjad", "Supplier"),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-FLT-1", "39442", "Truck", "Filter Vehicle 1", "Active", "Single Shift", "Standard", "Own Fleet Vehicle", 100, 0),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-FLT-2", "18521", "Truck", "Filter Vehicle 2", "Active", "Single Shift", "Partnership", "Partner Vehicle", 50, 50),
+        )
+        jobs = [
+            (
+                "MT-FLT-1",
+                "2026-05-31",
+                "VEH-FLT-1",
+                "39442",
+                "BILL-F1",
+                "Repair",
+                "Brake service",
+                500.0,
+                500.0,
+                "front axle",
+                "TECH-FLT-1",
+                "Pending",
+                "Pending",
+                "2026-05-31 08:00:00",
+            ),
+            (
+                "MT-FLT-2",
+                "2026-05-31",
+                "VEH-FLT-1",
+                "39442",
+                "BILL-F2",
+                "Repair",
+                "Oil change",
+                725.0,
+                725.0,
+                "engine oil",
+                "TECH-FLT-1",
+                "Pending",
+                "Pending",
+                "2026-05-31 09:00:00",
+            ),
+            (
+                "MT-FLT-3",
+                "2026-05-31",
+                "VEH-FLT-2",
+                "18521",
+                "BILL-F3",
+                "Tyres",
+                "Brake cleanup",
+                500.0,
+                500.0,
+                "rear axle",
+                "TECH-FLT-2",
+                "Pending",
+                "Pending",
+                "2026-05-31 10:00:00",
+            ),
+        ]
+        for paper_no, paper_date, vehicle_id, vehicle_no, bill_no, work_type, work_summary, subtotal, total_amount, notes, technician_code, review_status, payment_status, created_at in jobs:
+            db.execute(
+                """
+                INSERT INTO maintenance_papers (
+                    paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                    work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                    attachment_path, notes, technician_code, review_status, payment_status, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    paper_no,
+                    paper_date,
+                    vehicle_id,
+                    vehicle_no,
+                    "",
+                    bill_no,
+                    work_type,
+                    work_summary,
+                    subtotal,
+                    "Inclusive",
+                    0.0,
+                    total_amount,
+                    None,
+                    notes,
+                    technician_code,
+                    review_status,
+                    payment_status,
+                    created_at,
+                ),
+            )
+        db.commit()
+
+    amount_page = client.get("/admin/technician-jobs?amount=500", follow_redirects=True)
+    assert amount_page.status_code == 200
+    assert b"MT-FLT-1" in amount_page.data
+    assert b"MT-FLT-3" in amount_page.data
+    assert b"MT-FLT-2" not in amount_page.data
+
+    filtered_page = client.get(
+        "/admin/technician-jobs?vehicle_id=VEH-FLT-1&technician_code=TECH-FLT-1&amount=500&notes=Brake",
+        follow_redirects=True,
+    )
+    assert filtered_page.status_code == 200
+    assert b"MT-FLT-1" in filtered_page.data
+    assert b"MT-FLT-2" not in filtered_page.data
+    assert b"MT-FLT-3" not in filtered_page.data
+    assert b'value="500"' in filtered_page.data
+    assert b'value="Brake"' in filtered_page.data
+
+
 def test_windows_style_vehicle_export_root_falls_back_on_posix(app, monkeypatch):
     monkeypatch.setenv("FIELD_STAFF_VEHICLE_EXPORT_ROOT", r"D:\CurrentLinkData\Generated\FieldStaffVehicles")
 

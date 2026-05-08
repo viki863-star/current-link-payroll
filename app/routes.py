@@ -5187,6 +5187,8 @@ def register_routes(app: Flask) -> None:
             "technician_code": request.values.get("technician_code", "").strip(),
             "vehicle_id": request.values.get("vehicle_id", "").strip(),
             "payment_status": request.values.get("payment_status", "").strip(),
+            "amount": request.values.get("amount", "").strip(),
+            "notes": request.values.get("notes", "").strip(),
         }
 
         def _job_filter_sql(prefix: str = "mp") -> tuple[str, list]:
@@ -5204,6 +5206,19 @@ def register_routes(app: Flask) -> None:
             if filters["payment_status"]:
                 clauses.append(f"{prefix}.payment_status = ?")
                 params.append(filters["payment_status"])
+            if filters["amount"]:
+                try:
+                    amount_value = float(filters["amount"])
+                except ValueError as exc:
+                    raise ValidationError("Amount filter mein valid number darj karein.") from exc
+                clauses.append(f"ABS(COALESCE({prefix}.total_amount, 0) - ?) < 0.005")
+                params.append(amount_value)
+            if filters["notes"]:
+                clauses.append(
+                    f"(COALESCE({prefix}.work_summary, '') LIKE ? OR COALESCE({prefix}.notes, '') LIKE ?)"
+                )
+                notes_like = f"%{filters['notes']}%"
+                params.extend([notes_like, notes_like])
             if not clauses:
                 return "", params
             return " AND " + " AND ".join(clauses), params
