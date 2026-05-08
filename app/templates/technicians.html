@@ -31,10 +31,6 @@
                     <span>Live Balance</span>
                     <strong>AED {{ "%.0f"|format(summary.balance_amount) }}</strong>
                 </article>
-                <article class="field-metric-card dark">
-                    <span>Owner Fund</span>
-                    <strong>AED {{ "%.0f"|format(owner_fund_balance) }}</strong>
-                </article>
             </div>
         </div>
 
@@ -66,34 +62,87 @@
                 <div>
                     <span class="eyebrow">Money Snapshot</span>
                     <h2>Field Staff Wallet Overview</h2>
-                    <p>Yahan se foran samajh aata hai kis ko kitna diya, kitna spend hua, aur balance kitna baqi hai.</p>
+                    <p>Given, spent, aur balance ka fast visual view.</p>
                 </div>
-                <div class="field-summary-badges">
-                    <span class="field-summary-badge">Avg Given AED {{ "%.0f"|format(summary.avg_given) }}</span>
-                    <span class="field-summary-badge">Avg Spent AED {{ "%.0f"|format(summary.avg_spent) }}</span>
-                    <span class="field-summary-badge">Negative {{ summary.negative_balance_count }}</span>
+                <div class="field-summary-legend">
+                    <span class="field-summary-badge"><i class="legend-dot tone-received"></i>Received</span>
+                    <span class="field-summary-badge"><i class="legend-dot tone-spent"></i>Spent</span>
+                    <span class="field-summary-badge"><i class="legend-dot tone-balance"></i>Balance</span>
                 </div>
             </div>
 
-            <div class="field-highlight-grid">
-                <div class="field-highlight-card">
-                    <span>Top Receiver</span>
-                    <strong>{{ top_receiver.specialization if top_receiver else "-" }}</strong>
-                    <small>{{ top_receiver.technician_code if top_receiver else "" }}</small>
-                    <b>AED {{ "%.0f"|format(top_receiver.given_amount if top_receiver else 0) }}</b>
-                </div>
-                <div class="field-highlight-card">
-                    <span>Top Spender</span>
-                    <strong>{{ top_spender.specialization if top_spender else "-" }}</strong>
-                    <small>{{ top_spender.technician_code if top_spender else "" }}</small>
-                    <b>AED {{ "%.0f"|format(top_spender.spent_amount if top_spender else 0) }}</b>
-                </div>
-                <div class="field-highlight-card">
-                    <span>Best Balance</span>
-                    <strong>{{ top_balance.specialization if top_balance else "-" }}</strong>
-                    <small>{{ top_balance.technician_code if top_balance else "" }}</small>
-                    <b>AED {{ "%.0f"|format(top_balance.balance_amount if top_balance else 0) }}</b>
-                </div>
+            <div class="field-money-visuals">
+                <article class="field-chart-panel">
+                    <div class="field-chart-head">
+                        <div>
+                            <span class="field-chart-kicker">Cash Flow Trend</span>
+                            <h3>Received vs Spent</h3>
+                        </div>
+                        <div class="field-chart-metrics">
+                            <span>Given AED {{ "%.0f"|format(trend_chart.received_total) }}</span>
+                            <span>Spent AED {{ "%.0f"|format(trend_chart.spent_total) }}</span>
+                        </div>
+                    </div>
+                    {% if trend_chart.has_activity or summary.staff_count %}
+                    <svg viewBox="0 0 232 92" class="field-sparkline" preserveAspectRatio="none" aria-hidden="true">
+                        <line x1="16" y1="22" x2="216" y2="22"></line>
+                        <line x1="16" y1="48" x2="216" y2="48"></line>
+                        <line x1="16" y1="74" x2="216" y2="74"></line>
+                        <polyline class="tone-received" points="{{ trend_chart.received_path }}"></polyline>
+                        <polyline class="tone-spent" points="{{ trend_chart.spent_path }}"></polyline>
+                    </svg>
+                    <div class="field-chart-labels">
+                        {% for label in trend_chart.labels %}
+                        <span>{{ label }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="field-chart-empty">
+                        <strong>No cash activity yet</strong>
+                        <span>Jab payment aur expense aayegi to yahan trend show hoga.</span>
+                    </div>
+                    {% endif %}
+                </article>
+
+                <article class="field-chart-panel compare">
+                    <div class="field-chart-head">
+                        <div>
+                            <span class="field-chart-kicker">Top Staff View</span>
+                            <h3>Top Staff Comparison</h3>
+                        </div>
+                        <div class="field-chart-metrics compact">
+                            <span>Avg Given AED {{ "%.0f"|format(summary.avg_given) }}</span>
+                            <span>Negative {{ summary.negative_balance_count }}</span>
+                        </div>
+                    </div>
+                    {% if comparison_chart.has_data %}
+                    <div class="field-compare-stack">
+                        {% for row in comparison_chart.rows %}
+                        <article class="field-compare-row">
+                            <div class="field-compare-meta">
+                                <strong>{{ row.name }}</strong>
+                                <span>{{ row.code }}</span>
+                            </div>
+                            <div class="field-compare-bars">
+                                <div class="field-compare-track tone-received"><span style="width: {{ row.given_percent }}%;"></span></div>
+                                <div class="field-compare-track tone-spent"><span style="width: {{ row.spent_percent }}%;"></span></div>
+                                <div class="field-compare-track tone-balance {{ row.balance_tone }}"><span style="width: {{ row.balance_percent }}%;"></span></div>
+                            </div>
+                            <div class="field-compare-values">
+                                <span>G {{ "%.0f"|format(row.given_amount) }}</span>
+                                <span>S {{ "%.0f"|format(row.spent_amount) }}</span>
+                                <span class="{{ row.balance_tone }}">B {{ "%.0f"|format(row.balance_amount) }}</span>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="field-chart-empty">
+                        <strong>No staff comparison yet</strong>
+                        <span>Filtered result ke mutabiq abhi koi staff finance data nahi mila.</span>
+                    </div>
+                    {% endif %}
+                </article>
             </div>
         </article>
 
@@ -105,7 +154,15 @@
                         <strong>{{ staff.specialization }}</strong>
                         <span>{{ staff.technician_code }}{% if staff.user_id %} / {{ staff.user_id }}{% endif %}</span>
                     </div>
-                    <span class="field-staff-status {% if staff.status == 'Active' %}is-active{% else %}is-inactive{% endif %}">{{ staff.status }}</span>
+                    <div class="field-staff-head-tags">
+                        <span class="field-staff-status {% if staff.status == 'Active' %}is-active{% else %}is-inactive{% endif %}">{{ staff.status }}</span>
+                        <span class="field-health-pill {{ staff.health_tone }}">{{ staff.health_label }}</span>
+                    </div>
+                </div>
+
+                <div class="field-balance-hero">
+                    <span>Live Balance</span>
+                    <strong class="{{ staff.balance_tone }}">AED {{ "%.2f"|format(staff.balance_amount) }}</strong>
                 </div>
 
                 <div class="field-staff-money-values">
@@ -119,7 +176,7 @@
                     </div>
                     <div>
                         <label>Balance</label>
-                        <strong class="{% if staff.balance_amount < 0 %}is-negative{% else %}is-positive{% endif %}">AED {{ "%.2f"|format(staff.balance_amount) }}</strong>
+                        <strong class="{{ staff.balance_tone }}">AED {{ "%.2f"|format(staff.balance_amount) }}</strong>
                     </div>
                 </div>
 
@@ -131,9 +188,20 @@
                     <div class="field-progress-bar">
                         <div class="field-progress-fill spent" style="width: {{ staff.spent_percent }}%;"></div>
                     </div>
+                </div>
+
+                <div class="field-split-stack">
                     <div class="field-progress-row">
-                        <span>Vehicle AED {{ "%.0f"|format(staff.vehicle_spent) }}</span>
-                        <span>General AED {{ "%.0f"|format(staff.general_spent) }}</span>
+                        <span>Vehicle Spend</span>
+                        <span>General Spend</span>
+                    </div>
+                    <div class="field-split-bar">
+                        <span class="vehicle" style="width: {{ staff.vehicle_percent }}%;"></span>
+                        <span class="general" style="width: {{ staff.general_percent }}%;"></span>
+                    </div>
+                    <div class="field-progress-row">
+                        <span>AED {{ "%.0f"|format(staff.vehicle_spent) }}</span>
+                        <span>AED {{ "%.0f"|format(staff.general_spent) }}</span>
                     </div>
                 </div>
             </article>
@@ -205,9 +273,6 @@
                     <p class="eyebrow">Owner Payment</p>
                     <h2>Issue Staff Payment</h2>
                     <p class="muted-text">Staff payment yahan post karein.</p>
-                </div>
-                <div class="table-actions">
-                    <a class="mini-action-link" href="{{ url_for('owner_fund') }}">Owner Fund</a>
                 </div>
             </div>
             <form method="post" class="entry-form two-column-form compact-form-grid">
@@ -437,7 +502,7 @@
 
 .field-topbar-metrics {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -506,7 +571,6 @@
 
 .field-money-board {
     display: grid;
-    grid-template-columns: minmax(300px, 0.72fr) minmax(0, 1.28fr);
     gap: 16px;
 }
 
@@ -518,8 +582,10 @@
 }
 
 .field-summary-header {
-    display: grid;
-    gap: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: start;
 }
 
 .field-summary-card .eyebrow {
@@ -542,9 +608,17 @@
     gap: 8px;
 }
 
+.field-summary-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
 .field-summary-badge {
     display: inline-flex;
     align-items: center;
+    gap: 7px;
     padding: 7px 12px;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.14);
@@ -553,27 +627,48 @@
     font-weight: 700;
 }
 
-.field-highlight-grid {
+.legend-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.legend-dot.tone-received {
+    background: #8be9bd;
+}
+
+.legend-dot.tone-spent {
+    background: #59b8ff;
+}
+
+.legend-dot.tone-balance {
+    background: #ffd18a;
+}
+
+.field-money-visuals {
     display: grid;
-    gap: 10px;
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
     margin-top: 16px;
+    gap: 14px;
 }
 
-.field-highlight-card {
-    padding: 12px 14px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.09);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+.field-chart-panel {
+    padding: 16px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.11);
+    border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-.field-highlight-card span,
-.field-highlight-card small,
-.field-highlight-card strong,
-.field-highlight-card b {
+.field-chart-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: start;
+}
+
+.field-chart-kicker {
     display: block;
-}
-
-.field-highlight-card span {
     color: rgba(255, 255, 255, 0.72);
     font-size: 0.75rem;
     font-weight: 800;
@@ -581,30 +676,178 @@
     letter-spacing: 0.08em;
 }
 
-.field-highlight-card strong {
+.field-chart-panel h3 {
+    margin: 6px 0 0;
+    color: #fff;
+    font-size: 1.08rem;
+}
+
+.field-chart-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.field-chart-metrics span {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.13);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.field-chart-metrics.compact span:last-child {
+    color: #ffd8a3;
+}
+
+.field-sparkline {
+    width: 100%;
+    height: 112px;
+    margin-top: 12px;
+}
+
+.field-sparkline line {
+    stroke: rgba(255, 255, 255, 0.14);
+    stroke-width: 1.2;
+}
+
+.field-sparkline polyline {
+    fill: none;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.field-sparkline polyline.tone-received {
+    stroke: #8be9bd;
+}
+
+.field-sparkline polyline.tone-spent {
+    stroke: #59b8ff;
+}
+
+.field-chart-labels {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
     margin-top: 6px;
-    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.76rem;
+    font-weight: 700;
 }
 
-.field-highlight-card small {
+.field-chart-empty {
+    min-height: 136px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    gap: 4px;
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.field-chart-empty strong,
+.field-chart-empty span {
+    display: block;
+}
+
+.field-chart-empty span {
+    font-size: 0.88rem;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.field-compare-stack {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.field-compare-row {
+    display: grid;
+    grid-template-columns: minmax(116px, 0.9fr) minmax(0, 1.3fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.field-compare-meta strong,
+.field-compare-meta span,
+.field-compare-values span {
+    display: block;
+}
+
+.field-compare-meta strong {
+    color: #fff;
+    font-size: 0.92rem;
+}
+
+.field-compare-meta span {
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 0.76rem;
     margin-top: 2px;
-    color: rgba(255, 255, 255, 0.76);
 }
 
-.field-highlight-card b {
-    margin-top: 8px;
-    font-size: 1rem;
-    color: #ffe5c3;
+.field-compare-bars {
+    display: grid;
+    gap: 6px;
+}
+
+.field-compare-track {
+    height: 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+}
+
+.field-compare-track span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+}
+
+.field-compare-track.tone-received span {
+    background: linear-gradient(90deg, #56d892 0%, #a6f2cb 100%);
+}
+
+.field-compare-track.tone-spent span {
+    background: linear-gradient(90deg, #1e7bff 0%, #59b8ff 100%);
+}
+
+.field-compare-track.tone-balance span {
+    background: linear-gradient(90deg, #ffbf66 0%, #ffe0a8 100%);
+}
+
+.field-compare-track.tone-balance.negative span {
+    background: linear-gradient(90deg, #d65d57 0%, #f39b95 100%);
+}
+
+.field-compare-values {
+    display: grid;
+    gap: 3px;
+    text-align: right;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.field-compare-values .positive {
+    color: #b8ffd7;
+}
+
+.field-compare-values .negative {
+    color: #ffd4d1;
 }
 
 .field-staff-money-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
     gap: 12px;
 }
 
 .field-staff-money-card {
-    padding: 14px 15px;
+    padding: 15px 16px;
     border-radius: 20px;
     background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
     border: 1px solid rgba(28, 86, 139, 0.12);
@@ -624,13 +867,20 @@
 
 .field-staff-money-head strong {
     color: #173f6d;
-    font-size: 1rem;
+    font-size: 1.02rem;
 }
 
 .field-staff-money-head span {
     color: #6b829f;
     font-size: 0.83rem;
     margin-top: 3px;
+}
+
+.field-staff-head-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
 }
 
 .field-staff-status {
@@ -650,6 +900,57 @@
 .field-staff-status.is-inactive {
     background: #fff2d5;
     color: #9b6206;
+}
+
+.field-health-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 800;
+}
+
+.field-health-pill.positive {
+    background: #e3f6ea;
+    color: #18724d;
+}
+
+.field-health-pill.warning {
+    background: #fff2d7;
+    color: #9b6206;
+}
+
+.field-health-pill.negative {
+    background: #fde6e4;
+    color: #be3f34;
+}
+
+.field-balance-hero {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #eef5fd 0%, #f7fbff 100%);
+    border: 1px solid rgba(28, 86, 139, 0.09);
+}
+
+.field-balance-hero span,
+.field-balance-hero strong {
+    display: block;
+}
+
+.field-balance-hero span {
+    color: #6b829f;
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.field-balance-hero strong {
+    margin-top: 6px;
+    font-size: 1.24rem;
+    color: #173f6d;
 }
 
 .field-staff-money-values {
@@ -679,11 +980,27 @@
     line-height: 1.2;
 }
 
-.field-staff-money-values .is-positive {
+.field-staff-money-values .positive {
     color: #17724d;
 }
 
-.field-staff-money-values .is-negative {
+.field-staff-money-values .warning {
+    color: #9b6206;
+}
+
+.field-staff-money-values .negative {
+    color: #be3f34;
+}
+
+.field-balance-hero strong.positive {
+    color: #17724d;
+}
+
+.field-balance-hero strong.warning {
+    color: #9b6206;
+}
+
+.field-balance-hero strong.negative {
     color: #be3f34;
 }
 
@@ -715,6 +1032,32 @@
 
 .field-progress-fill.spent {
     background: linear-gradient(90deg, #1e7bff 0%, #29b3f0 100%);
+}
+
+.field-split-stack {
+    margin-top: 12px;
+}
+
+.field-split-bar {
+    display: flex;
+    height: 9px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #e8f0fa;
+    margin: 7px 0 8px;
+}
+
+.field-split-bar span {
+    display: block;
+    height: 100%;
+}
+
+.field-split-bar .vehicle {
+    background: linear-gradient(90deg, #1c568b 0%, #4187c8 100%);
+}
+
+.field-split-bar .general {
+    background: linear-gradient(90deg, #8fb9dc 0%, #dbe9f7 100%);
 }
 
 .field-workspace-grid {
@@ -805,7 +1148,6 @@
 
 @media (max-width: 1280px) {
     .field-topbar-main,
-    .field-money-board,
     .field-workspace-grid {
         grid-template-columns: 1fr;
     }
@@ -814,8 +1156,18 @@
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    .field-staff-money-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .field-money-visuals,
+    .field-summary-header {
+        grid-template-columns: 1fr;
+        display: grid;
+    }
+
+    .field-summary-legend {
+        justify-content: flex-start;
+    }
+
+    .field-compare-row {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -824,7 +1176,9 @@
     .field-staff-money-grid,
     .field-staff-money-values,
     .field-filter-strip,
-    .field-workspace-grid {
+    .field-workspace-grid,
+    .field-money-visuals,
+    .field-chart-labels {
         grid-template-columns: 1fr;
     }
 

@@ -1883,9 +1883,94 @@ def test_technicians_page_renders_compact_management_workspace(app, client):
     assert b"Field Staff Entries" in page.data
     assert b"Issue Staff Payment" in page.data
     assert b"Field Staff Wallet Overview" in page.data
+    assert b"Received vs Spent" in page.data
+    assert b"Top Staff Comparison" in page.data
     assert b"Total Given" in page.data
     assert b"Total Spent" in page.data
     assert b"Live Balance" in page.data
+    assert b"<span>Owner Fund</span>" not in page.data
+    assert b">Owner Fund</a>" not in page.data
+
+
+def test_technicians_page_filters_money_board_and_cards(app, client):
+    admin_session(client)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-201", "PTY-TECH-201", "ali.user", "hash", "0502000001", "Ali Manager", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-202", "PTY-TECH-202", "bilal.user", "hash", "0502000002", "Bilal Runner", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_staff_advances (
+                advance_no, staff_code, entry_date, funding_source,
+                amount, settled_amount, balance_amount, reference, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("ADV-0201", "TECH-201", "2026-05-02", "Owner Fund", 1500.0, 0.0, 1500.0, "Ali fund", "Ali advance"),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_staff_advances (
+                advance_no, staff_code, entry_date, funding_source,
+                amount, settled_amount, balance_amount, reference, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("ADV-0202", "TECH-202", "2026-05-03", "Owner Fund", 900.0, 0.0, 900.0, "Bilal fund", "Bilal advance"),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_papers (
+                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                attachment_path, notes, technician_code, review_status, payment_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "MT-FLT-201",
+                "2026-05-04",
+                "VEH-0201",
+                "33112",
+                "",
+                "BILL-201",
+                "Repair",
+                "Ali repair",
+                620.0,
+                "Inclusive",
+                0.0,
+                620.0,
+                "",
+                "Ali expense",
+                "TECH-201",
+                "Approved",
+                "Pending",
+                "2026-05-04 09:00:00",
+            ),
+        )
+        db.commit()
+
+    filtered = client.get("/technicians?search=Ali", follow_redirects=True)
+    assert filtered.status_code == 200
+    assert b"Ali Manager" in filtered.data
+    assert b"Bilal Runner</strong>" not in filtered.data
+    assert b"Bilal Runner (TECH-202)" not in filtered.data
+    assert b"Received vs Spent" in filtered.data
+    assert b"Top Staff Comparison" in filtered.data
+    assert b"Vehicle Spend" in filtered.data
+    assert b"Overdrawn" not in filtered.data
 
 
 def test_owner_fund_can_edit_and_delete(app, client):

@@ -5816,12 +5816,94 @@ def register_routes(app: Flask) -> None:
         summary["avg_spent"] = (summary["spent_amount"] / summary["staff_count"]) if summary["staff_count"] else 0.0
         summary["negative_balance_count"] = len([item for item in technicians_list if float(item["balance_amount"] or 0) < 0])
 
+        def _spark_points(values):
+            maximum = max(max(values, default=0.0), 1.0)
+            points = []
+            for idx, value in enumerate(values):
+                x = 16 + (idx * (200 / max(1, len(values) - 1)))
+                y = 74 - ((float(value or 0.0) / maximum) * 52)
+                points.append(f"{x:.1f},{y:.1f}")
+            return " ".join(points), maximum
+
+        month_starts = []
+        cursor = date.today().replace(day=1)
+        for _ in range(6):
+            month_starts.append(cursor)
+            if cursor.month == 1:
+                cursor = date(cursor.year - 1, 12, 1)
+            else:
+                cursor = date(cursor.year, cursor.month - 1, 1)
+        month_starts.reverse()
+        month_keys = [item.strftime("%Y-%m") for item in month_starts]
+        month_labels = [item.strftime("%b") for item in month_starts]
+        oldest_month_key = month_keys[0] if month_keys else ""
+        technician_codes = [str(item["technician_code"] or "").strip() for item in technicians_list if (item["technician_code"] or "").strip()]
+
+        advances_by_month = {}
+        spent_by_month = {}
+        if technician_codes:
+            placeholders = ",".join("?" for _ in technician_codes)
+            advance_rows = db.execute(
+                f"""
+                SELECT substr(entry_date, 1, 7) AS period_month, COALESCE(SUM(amount), 0) AS value
+                FROM maintenance_staff_advances
+                WHERE staff_code IN ({placeholders})
+                  AND COALESCE(entry_date, '') >= ?
+                GROUP BY substr(entry_date, 1, 7)
+                ORDER BY period_month ASC
+                """,
+                (*technician_codes, oldest_month_key),
+            ).fetchall()
+            spent_rows = db.execute(
+                f"""
+                SELECT substr(paper_date, 1, 7) AS period_month, COALESCE(SUM(total_amount), 0) AS value
+                FROM maintenance_papers
+                WHERE technician_code IN ({placeholders})
+                  AND COALESCE(paper_date, '') >= ?
+                GROUP BY substr(paper_date, 1, 7)
+                ORDER BY period_month ASC
+                """,
+                (*technician_codes, oldest_month_key),
+            ).fetchall()
+            advances_by_month = {row["period_month"]: float(row["value"] or 0.0) for row in advance_rows}
+            spent_by_month = {row["period_month"]: float(row["value"] or 0.0) for row in spent_rows}
+
+        received_values = [advances_by_month.get(key, 0.0) for key in month_keys]
+        spent_values = [spent_by_month.get(key, 0.0) for key in month_keys]
+        received_path, chart_peak = _spark_points(received_values)
+        spent_path, spent_peak = _spark_points(spent_values)
+        trend_chart = {
+            "labels": month_labels,
+            "received_values": received_values,
+            "spent_values": spent_values,
+            "received_path": received_path,
+            "spent_path": spent_path,
+            "peak_value": max(chart_peak, spent_peak, 1.0),
+            "has_activity": any(received_values) or any(spent_values),
+            "received_total": sum(received_values),
+            "spent_total": sum(spent_values),
+        }
+
         staff_money_cards = []
         for item in technicians_list:
             given_amount = float(item["given_amount"] or 0)
             spent_amount = float(item["total_spent"] or 0)
             balance_amount = float(item["balance_amount"] or 0)
             progress_base = max(given_amount, spent_amount, abs(balance_amount), 1.0)
+            split_total = max(spent_amount, 0.0)
+            vehicle_spent = float(item["vehicle_spent"] or 0)
+            general_spent = float(item["general_spent"] or 0)
+            vehicle_percent = 0.0 if split_total <= 0 else round((vehicle_spent / split_total) * 100, 1)
+            general_percent = 0.0 if split_total <= 0 else round((general_spent / split_total) * 100, 1)
+            if balance_amount < 0:
+                health_label = "Overdrawn"
+                health_tone = "negative"
+            elif spent_amount > 0 and balance_amount <= max(500.0, given_amount * 0.1):
+                health_label = "Tight"
+                health_tone = "warning"
+            else:
+                health_label = "Clear"
+                health_tone = "positive"
             staff_money_cards.append(
                 {
                     "technician_code": item["technician_code"],
@@ -5831,10 +5913,15 @@ def register_routes(app: Flask) -> None:
                     "given_amount": given_amount,
                     "spent_amount": spent_amount,
                     "balance_amount": balance_amount,
-                    "vehicle_spent": float(item["vehicle_spent"] or 0),
-                    "general_spent": float(item["general_spent"] or 0),
+                    "vehicle_spent": vehicle_spent,
+                    "general_spent": general_spent,
                     "spent_percent": 0 if given_amount <= 0 else min(100.0, round((spent_amount / given_amount) * 100, 1)),
                     "balance_percent": min(100.0, round((abs(balance_amount) / progress_base) * 100, 1)),
+                    "vehicle_percent": vehicle_percent,
+                    "general_percent": general_percent,
+                    "health_label": health_label,
+                    "health_tone": health_tone,
+                    "balance_tone": "negative" if balance_amount < 0 else ("warning" if health_tone == "warning" else "positive"),
                 }
             )
 
@@ -5842,7 +5929,34 @@ def register_routes(app: Flask) -> None:
         top_spender = max(staff_money_cards, key=lambda entry: entry["spent_amount"], default=None)
         top_balance = max(staff_money_cards, key=lambda entry: entry["balance_amount"], default=None)
 
-        _, _, owner_fund_balance = _owner_fund_totals(db)
+        comparison_source = sorted(
+            staff_money_cards,
+            key=lambda entry: (entry["given_amount"], entry["spent_amount"], entry["balance_amount"]),
+            reverse=True,
+        )[:5]
+        comparison_peak = max(
+            [max(entry["given_amount"], entry["spent_amount"], abs(entry["balance_amount"])) for entry in comparison_source] or [1.0]
+        )
+        comparison_rows = []
+        for entry in comparison_source:
+            comparison_rows.append(
+                {
+                    "name": entry["specialization"],
+                    "code": entry["technician_code"],
+                    "given_amount": entry["given_amount"],
+                    "spent_amount": entry["spent_amount"],
+                    "balance_amount": entry["balance_amount"],
+                    "given_percent": round((entry["given_amount"] / comparison_peak) * 100, 1) if comparison_peak else 0.0,
+                    "spent_percent": round((entry["spent_amount"] / comparison_peak) * 100, 1) if comparison_peak else 0.0,
+                    "balance_percent": round((abs(entry["balance_amount"]) / comparison_peak) * 100, 1) if comparison_peak else 0.0,
+                    "balance_tone": "negative" if entry["balance_amount"] < 0 else "positive",
+                }
+            )
+        comparison_chart = {
+            "rows": comparison_rows,
+            "has_data": bool(comparison_rows),
+            "peak_value": comparison_peak,
+        }
 
         recent_payments = db.execute(
             """
@@ -6142,10 +6256,11 @@ def register_routes(app: Flask) -> None:
             recent_payments=recent_payments,
             summary=summary,
             staff_money_cards=staff_money_cards,
+            trend_chart=trend_chart,
+            comparison_chart=comparison_chart,
             top_receiver=top_receiver,
             top_spender=top_spender,
             top_balance=top_balance,
-            owner_fund_balance=owner_fund_balance,
             edit_technician_code=edit_technician_code,
             status_filter=status_filter,
             search_q=search_q,
