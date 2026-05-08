@@ -1736,11 +1736,15 @@ def test_admin_technician_jobs_support_approve_all_and_pay_all(app, client):
         assert float(payment_rows[1]["paid_amount"]) == 380.0
 
 
-def test_admin_technician_jobs_support_local_archive_actions(app, client):
+def test_admin_technician_jobs_vehicle_filter_generates_full_report(app, client):
     admin_session(client)
     local_vehicle_root = Path(app.config["GENERATED_DIR"]).parent / "field-staff-vehicle-local-actions"
     shutil.rmtree(local_vehicle_root, ignore_errors=True)
     os.environ["FIELD_STAFF_VEHICLE_EXPORT_ROOT"] = str(local_vehicle_root)
+    attachment_dir = Path(app.config["GENERATED_DIR"]) / "maintenance" / "mt-local-vehicle"
+    attachment_dir.mkdir(parents=True, exist_ok=True)
+    attachment_file = attachment_dir / "receipt.pdf"
+    attachment_file.write_bytes(b"vehicle-receipt")
 
     with app.app_context():
         db = open_db()
@@ -1782,7 +1786,7 @@ def test_admin_technician_jobs_support_local_archive_actions(app, client):
                 "Inclusive",
                 0.0,
                 510.0,
-                None,
+                "maintenance/mt-local-vehicle/receipt.pdf",
                 "archive test",
                 "TECH-003",
                 "Pending",
@@ -1790,24 +1794,56 @@ def test_admin_technician_jobs_support_local_archive_actions(app, client):
                 "2026-05-31 08:30:00",
             ),
         )
+        for number in range(2, 56):
+            db.execute(
+                """
+                INSERT INTO maintenance_papers (
+                    paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                    work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                    attachment_path, notes, technician_code, review_status, payment_status, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    f"MT-LOCAL-{number:02d}",
+                    "2026-05-31",
+                    "VEH-0006",
+                    "77112",
+                    "",
+                    f"BILL-L{number}",
+                    "Repair",
+                    f"Local archive job {number}",
+                    100.0 + number,
+                    "Inclusive",
+                    0.0,
+                    100.0 + number,
+                    None,
+                    "archive test",
+                    "TECH-003",
+                    "Pending",
+                    "Pending",
+                    f"2026-05-31 {8 + ((number - 1) // 60):02d}:{(number - 1) % 60:02d}:00",
+                ),
+            )
         db.commit()
 
     page = client.get("/admin/technician-jobs", follow_redirects=True)
     assert page.status_code == 200
-    assert b"Save to Local" in page.data
-    assert b"Open Report" in page.data
-    assert b"Local Report" not in page.data
-    assert b"Open Vehicle Folder" not in page.data
+    assert b"Generate Report" not in page.data
+    assert b"Save to Local" not in page.data
+    assert b"Open Report" not in page.data
 
-    saved = client.post(
+    filtered = client.get("/admin/technician-jobs?vehicle_id=VEH-0006", follow_redirects=True)
+    assert filtered.status_code == 200
+    assert b"Generate Report" in filtered.data
+    assert b"Showing all entries for vehicle 77112" in filtered.data
+    assert b"MT-LOCAL-1" in filtered.data
+    assert b"MT-LOCAL-55" in filtered.data
+
+    report = client.post(
         "/admin/technician-jobs",
-        data={"action": "save_local_row", "paper_no": "MT-LOCAL-1"},
-        follow_redirects=True,
+        data={"action": "generate_report", "vehicle_id": "VEH-0006"},
+        follow_redirects=False,
     )
-    assert saved.status_code == 200
-    assert b"saved to local archive" in saved.data
-
-    report = client.get("/admin/technician-jobs/MT-LOCAL-1/local-report", follow_redirects=True)
     assert report.status_code == 200
     assert report.mimetype == "application/pdf"
     reader = PdfReader(BytesIO(report.data))
@@ -1815,15 +1851,18 @@ def test_admin_technician_jobs_support_local_archive_actions(app, client):
     assert "Partnership Vehicle Expense Report" in extracted_text
     assert "77112" in extracted_text
     assert "MT-LOCAL-1" in extracted_text
+    assert "MT-LOCAL-55" in extracted_text
     assert "Repair" in extracted_text
 
     vehicle_report = local_vehicle_root / "Partnership"
     report_files = list(vehicle_report.glob("**/vehicle-report.json"))
     assert report_files
     report_data = json.loads(report_files[0].read_text(encoding="utf-8"))
-    assert report_data["jobs"][0]["paper_no"] == "MT-LOCAL-1"
+    assert report_data["jobs"][0]["paper_no"] == "MT-LOCAL-55"
     pdf_reports = list(vehicle_report.glob("**/*_vehicle_report.pdf"))
     assert pdf_reports
+    copied_attachments = list(vehicle_report.glob("**/attachments/receipt.pdf"))
+    assert copied_attachments
 
 
 def test_technicians_page_renders_compact_management_workspace(app, client):
@@ -1833,7 +1872,7 @@ def test_technicians_page_renders_compact_management_workspace(app, client):
     assert page.status_code == 200
     assert b"Field Staff Management" in page.data
     assert b"Field Staff Entries" in page.data
-    assert b"Issue Amount To Field Staff" in page.data
+    assert b"Issue Staff Payment" in page.data
     assert b"Field Staff Wallet Overview" in page.data
     assert b"Total Given" in page.data
     assert b"Total Spent" in page.data

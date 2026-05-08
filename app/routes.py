@@ -5305,7 +5305,7 @@ def register_routes(app: Flask) -> None:
         """
         filter_sql, params = _job_filter_sql("mp")
         query += filter_sql
-        query += " ORDER BY mp.created_at DESC, mp.id DESC LIMIT 50"
+        query += " ORDER BY mp.created_at DESC, mp.id DESC"
         
         jobs = db.execute(query, params).fetchall()
         
@@ -5331,6 +5331,7 @@ def register_routes(app: Flask) -> None:
             ORDER BY vehicle_no
             """
         ).fetchall()
+        selected_vehicle = next((vehicle for vehicle in vehicles if vehicle["vehicle_id"] == filters["vehicle_id"]), None)
         
         # Handle POST actions
         if request.method == "POST":
@@ -5422,32 +5423,45 @@ def register_routes(app: Flask) -> None:
                         _archive_field_staff_paper_record(app, db, row["paper_no"], "field_staff_job_marked_paid")
                     flash(f"{len(payable_rows)} field staff entries marked paid successfully.", "success")
 
-                elif action == "save_local":
-                    batch_sql, batch_params = _job_filter_sql("mp")
-                    sync_rows = db.execute(
+                elif action == "generate_report":
+                    vehicle_id = request.form.get("vehicle_id", "").strip()
+                    if not vehicle_id:
+                        raise ValidationError("Select a vehicle first, then generate the report.")
+                    vehicle_row = db.execute(
                         """
-                        SELECT mp.paper_no
-                        FROM maintenance_papers mp
-                        WHERE mp.technician_code IS NOT NULL
-                        """ + batch_sql + """
-                        ORDER BY mp.created_at DESC, mp.id DESC
-                        LIMIT 200
+                        SELECT vehicle_id, vehicle_no, make_model
+                        FROM vehicle_master
+                        WHERE vehicle_id = ?
                         """,
-                        batch_params,
-                    ).fetchall()
-                    if not sync_rows:
-                        raise ValidationError("No field staff entries found for local save.")
-                    synced_count = _archive_field_staff_jobs(app, db, sync_rows, "field_staff_job_manual_sync")
-                    flash(f"{synced_count} field staff entries saved to local archive.", "success")
-
-                elif action == "save_local_row":
-                    if not paper_no:
-                        raise ValidationError("Select a field staff entry to save locally.")
-                    job = _maintenance_paper_row(db, paper_no)
-                    if not job:
-                        raise ValidationError(f"Job {paper_no} was not found.")
-                    _archive_field_staff_paper_record(app, db, paper_no, "field_staff_job_manual_sync")
-                    flash(f"Job {paper_no} saved to local archive.", "success")
+                        (vehicle_id,),
+                    ).fetchone()
+                    if vehicle_row is None:
+                        raise ValidationError("Selected vehicle was not found.")
+                    report_rows = _field_staff_vehicle_report_rows(db, vehicle_row["vehicle_id"], vehicle_row["vehicle_no"] or "")
+                    if not report_rows:
+                        raise ValidationError("No entries found for the selected vehicle.")
+                    _archive_field_staff_jobs(
+                        app,
+                        db,
+                        report_rows,
+                        "field_staff_vehicle_report_generated",
+                        refresh_vehicle_reports=False,
+                    )
+                    pdf_path = _refresh_field_staff_vehicle_outputs(
+                        app,
+                        db,
+                        vehicle_id=vehicle_row["vehicle_id"],
+                        vehicle_no=vehicle_row["vehicle_no"] or "",
+                        fallback_row=report_rows[0],
+                    )
+                    if pdf_path is None or not pdf_path.exists():
+                        raise ValidationError("Vehicle report could not be generated.")
+                    return send_file(
+                        pdf_path,
+                        mimetype="application/pdf",
+                        as_attachment=False,
+                        download_name=pdf_path.name,
+                    )
 
                 elif action == "delete":
                     if not paper_no:
@@ -5669,6 +5683,7 @@ def register_routes(app: Flask) -> None:
             jobs=jobs,
             technicians=technicians,
             vehicles=vehicles,
+            selected_vehicle=selected_vehicle,
             filters=filters,
             stats=stats,
             pending_payments=pending_payments,
@@ -5676,31 +5691,6 @@ def register_routes(app: Flask) -> None:
             current_month=current_month,
             vehicle_expense_report=vehicle_expense_report,
             partnership_report=partnership_report,
-        )
-
-    @app.get("/admin/technician-jobs/<paper_no>/local-report")
-    @_login_required("admin")
-    def technician_job_local_report(paper_no: str):
-        _touch_admin_workspace("technicians")
-        db = open_db()
-        archive_context = _field_staff_vehicle_archive_context(app, db, paper_no.strip().upper())
-        if archive_context is None:
-            abort(404)
-        pdf_path = _refresh_field_staff_vehicle_outputs(
-            app,
-            db,
-            vehicle_id=archive_context["row"]["vehicle_id"] or "",
-            vehicle_no=archive_context["row"]["vehicle_no"] or "",
-            fallback_row=archive_context["row"],
-        )
-        if pdf_path is None or not pdf_path.exists():
-            flash("Vehicle local report could not be generated.", "error")
-            return redirect(url_for("technician_jobs"))
-        return send_file(
-            pdf_path,
-            mimetype="application/pdf",
-            as_attachment=False,
-            download_name=pdf_path.name,
         )
     
     @app.get("/tax")
@@ -16379,14 +16369,14 @@ def _field_staff_vehicle_archive_context(app: Flask, db, paper_no: str):
     }
 
 
-def _archive_field_staff_jobs(app: Flask, db, paper_rows, event_type: str) -> int:
+def _archive_field_staff_jobs(app: Flask, db, paper_rows, event_type: str, *, refresh_vehicle_reports: bool = True) -> int:
     synced_count = 0
     seen_papers: set[str] = set()
     for row in paper_rows:
         paper_no = (row["paper_no"] or "").strip()
         if not paper_no or paper_no in seen_papers:
             continue
-        _archive_field_staff_paper_record(app, db, paper_no, event_type)
+        _archive_field_staff_paper_record(app, db, paper_no, event_type, refresh_vehicle_report=refresh_vehicle_reports)
         seen_papers.add(paper_no)
         synced_count += 1
     return synced_count
@@ -16514,7 +16504,15 @@ def _refresh_field_staff_vehicle_outputs(app: Flask, db, *, vehicle_id: str, veh
     )
 
 
-def _archive_field_staff_vehicle_record(app: Flask, db, row, event_type: str, copied_attachment: str | None = None) -> None:
+def _archive_field_staff_vehicle_record(
+    app: Flask,
+    db,
+    row,
+    event_type: str,
+    copied_attachment: str | None = None,
+    *,
+    refresh_vehicle_report: bool = True,
+) -> None:
     vehicle_dir = _field_staff_vehicle_archive_dir(app, db, row)
     paper_date = (row["paper_date"] or datetime.now().date().isoformat()).strip() or datetime.now().date().isoformat()
     date_dir = vehicle_dir / secure_filename(paper_date)
@@ -16559,13 +16557,14 @@ def _archive_field_staff_vehicle_record(app: Flask, db, row, event_type: str, co
     }
     _write_json_archive(paper_dir / "paper.json", snapshot)
 
-    _refresh_field_staff_vehicle_outputs(
-        app,
-        db,
-        vehicle_id=row["vehicle_id"] or "",
-        vehicle_no=row["vehicle_no"] or "",
-        fallback_row=row,
-    )
+    if refresh_vehicle_report:
+        _refresh_field_staff_vehicle_outputs(
+            app,
+            db,
+            vehicle_id=row["vehicle_id"] or "",
+            vehicle_no=row["vehicle_no"] or "",
+            fallback_row=row,
+        )
 
 
 def _snapshot_filename(*parts: str) -> str:
@@ -16921,7 +16920,14 @@ def _field_staff_display_name(db, staff_code: str) -> str:
     return (row["display_name"] if row is not None else "") or staff_code
 
 
-def _archive_field_staff_paper_record(app: Flask, db, paper_no: str, event_type: str) -> None:
+def _archive_field_staff_paper_record(
+    app: Flask,
+    db,
+    paper_no: str,
+    event_type: str,
+    *,
+    refresh_vehicle_report: bool = True,
+) -> None:
     row = _maintenance_paper_row(db, paper_no)
     if row is None:
         return
@@ -16977,7 +16983,14 @@ def _archive_field_staff_paper_record(app: Flask, db, paper_no: str, event_type:
             "files": files,
         },
     )
-    _archive_field_staff_vehicle_record(app, db, row, event_type, copied_attachment)
+    _archive_field_staff_vehicle_record(
+        app,
+        db,
+        row,
+        event_type,
+        copied_attachment,
+        refresh_vehicle_report=refresh_vehicle_report,
+    )
 
 
 def _archive_field_staff_advance_record(app: Flask, db, advance_no: str, event_type: str) -> None:

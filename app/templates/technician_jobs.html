@@ -108,7 +108,7 @@
             </article>
             <article class="field-kpi-card">
                 <strong>{{ jobs|length }}</strong>
-                <span>Visible Rows</span>
+                <span>Filtered Rows</span>
             </article>
         </div>
     </article>
@@ -141,16 +141,19 @@
                     <input type="hidden" name="payment_status" value="{{ filters.payment_status }}">
                     <button class="button button-primary" type="submit">Pay All</button>
                 </form>
+                {% if selected_vehicle and jobs %}
                 <form method="post" class="inline-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="save_local">
-                    <input type="hidden" name="status" value="{{ filters.status }}">
-                    <input type="hidden" name="technician_code" value="{{ filters.technician_code }}">
-                    <input type="hidden" name="vehicle_id" value="{{ filters.vehicle_id }}">
-                    <input type="hidden" name="payment_status" value="{{ filters.payment_status }}">
-                    <button class="button button-outline" type="submit">Save to Local</button>
+                    <input type="hidden" name="action" value="generate_report">
+                    <input type="hidden" name="vehicle_id" value="{{ selected_vehicle.vehicle_id }}">
+                    <button class="button button-outline" type="submit">Generate Report</button>
                 </form>
-                <span class="field-admin-action-note">Newest entry upar rahegi. Local archive Standard aur Partnership folders mein sync hota rahega.</span>
+                {% endif %}
+                {% if selected_vehicle %}
+                <span class="field-admin-action-note">Showing all entries for vehicle {{ selected_vehicle.vehicle_no }} ({{ selected_vehicle.vehicle_id }}).</span>
+                {% else %}
+                <span class="field-admin-action-note">Vehicle filter select karein taa ke us vehicle ki saari entries dikhen aur report generate ho.</span>
+                {% endif %}
             </div>
 
             {% if jobs %}
@@ -224,13 +227,6 @@
                             <button class="button button-small button-primary" type="submit">Mark Paid</button>
                         </form>
                         {% endif %}
-                        <form method="post" class="inline-form">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="action" value="save_local_row">
-                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
-                            <button class="button button-small button-outline" type="submit">Save Local</button>
-                        </form>
-                        <a class="button button-small button-outline" href="{{ url_for('technician_job_local_report', paper_no=job.paper_no) }}" target="_blank">Open Report</a>
                         {% if job.bill_image %}
                         <a class="button button-small button-outline" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">See Paper</a>
                         {% endif %}

@@ -152,7 +152,7 @@
                 <div>
                     <p class="eyebrow">Field Staff Account</p>
                     <h2>{% if edit_technician_code %}Edit Field Staff{% else %}Create New Field Staff{% endif %}</h2>
-                    <p class="muted-text">Login, phone, aur role compact form mein manage karein.</p>
+                    <p class="muted-text">Login aur role yahan manage karein.</p>
                 </div>
             </div>
             <form method="post" class="entry-form two-column-form compact-form-grid">
@@ -203,11 +203,11 @@
             <div class="desk-panel-head">
                 <div>
                     <p class="eyebrow">Owner Payment</p>
-                    <h2>Issue Amount To Field Staff</h2>
-                    <p class="muted-text">Owner Fund, cash, ya bank amount ko yahan se staff ke naam post karein.</p>
+                    <h2>Issue Staff Payment</h2>
+                    <p class="muted-text">Staff payment yahan post karein.</p>
                 </div>
                 <div class="table-actions">
-                    <a class="mini-action-link" href="{{ url_for('owner_fund') }}">Open Owner Fund</a>
+                    <a class="mini-action-link" href="{{ url_for('owner_fund') }}">Owner Fund</a>
                 </div>
             </div>
             <form method="post" class="entry-form two-column-form compact-form-grid">
@@ -225,7 +225,7 @@
                             {% endfor %}
                         </select>
                         <div class="smart-dropdown-hint">
-                            <small>Type code or name to filter</small>
+                            <small>Code ya name</small>
                         </div>
                     </div>
                 </label>
@@ -248,7 +248,7 @@
                 </label>
                 <label class="full-span">
                     <span>Reference</span>
-                    <input type="text" name="payment_reference" value="{{ payment_values.reference }}" placeholder="WhatsApp, transfer ref, cash note">
+                    <input type="text" name="payment_reference" value="{{ payment_values.reference }}" placeholder="Transfer ref ya cash note">
                 </label>
                 <label class="full-span">
                     <span>Notes</span>
@@ -722,7 +722,29 @@
 }
 
 .field-form-card {
-    padding: 2px 2px 6px;
+    padding: 14px 16px 12px;
+}
+
+.field-form-card .desk-panel-head {
+    margin-bottom: 12px;
+    gap: 12px;
+    align-items: start;
+}
+
+.field-form-card .desk-panel-head h2 {
+    margin: 4px 0 0;
+    line-height: 1.1;
+}
+
+.field-form-card .desk-panel-head .muted-text {
+    margin-top: 8px;
+    max-width: 32ch;
+    font-size: 0.94rem;
+    line-height: 1.45;
+}
+
+.field-form-card .table-actions {
+    align-self: start;
 }
 
 .compact-form-grid label span {
