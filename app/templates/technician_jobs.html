@@ -1,30 +1,40 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="admin-desk-shell maintenance-workspace-shell">
-    <article class="card admin-desk-toolbar">
-        <div class="admin-toolbar-row">
-            <div class="admin-toolbar-actions">
+<section class="admin-desk-shell maintenance-workspace-shell field-admin-shell">
+    <article class="card field-admin-toolbar">
+        <div class="field-admin-toolbar-top">
+            <div>
+                <div class="field-admin-nav">
+                    <a class="field-admin-nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                    <a class="field-admin-nav-link" href="{{ url_for('technicians') }}">Field Staff Management</a>
+                    <a class="field-admin-nav-link" href="{{ url_for('technicians') }}">All Field Staff</a>
+                    <span class="field-admin-nav-link is-active">Field Staff Entries</span>
+                </div>
                 <h1>Field Staff Entries</h1>
-                <p class="admin-toolbar-subtitle">Review, approve, and track workshop and fuel expense entries</p>
+                <p>Review, approve, pay, aur local vehicle archive ko ek compact admin desk se control karein.</p>
             </div>
-            <div class="admin-mini-stats">
-                <div class="admin-mini-stat">
+            <div class="field-admin-summary">
+                <div class="field-admin-pill">
                     <strong>{{ stats.pending_count }}</strong>
                     <span>Pending</span>
                 </div>
-                <div class="admin-mini-stat">
+                <div class="field-admin-pill">
                     <strong>AED {{ "%.0f"|format(stats.approved_amount) }}</strong>
                     <span>Approved</span>
                 </div>
-                <div class="admin-mini-stat">
+                <div class="field-admin-pill">
                     <strong>AED {{ "%.0f"|format(stats.paid_amount) }}</strong>
                     <span>Paid</span>
+                </div>
+                <div class="field-admin-pill">
+                    <strong>{{ stats.technician_count }}</strong>
+                    <span>Active Staff</span>
                 </div>
             </div>
         </div>
 
-        <form method="get" class="admin-filter-grid maintenance-filter-grid">
+        <form method="get" class="field-admin-filter-grid">
             <label>
                 <span>Status</span>
                 <select name="status">
@@ -40,11 +50,11 @@
                     <div class="searchable-dropdown-header">
                         <input type="text"
                                class="searchable-dropdown-input"
-                               placeholder="Type code or name to search..."
+                               placeholder="Code ya name search karein"
                                id="technician_search_input"
                                oninput="filterTechnicianOptions(this)"
                                onfocus="showTechnicianDropdown(this)">
-                        <div class="searchable-dropdown-icon">🔍</div>
+                        <div class="searchable-dropdown-icon">Search</div>
                     </div>
                     <select name="technician_code" id="technician_select" class="searchable-dropdown-select" style="display: none;">
                         <option value="">All Field Staff</option>
@@ -54,9 +64,6 @@
                         </option>
                         {% endfor %}
                     </select>
-                    <div class="searchable-dropdown-hint">
-                        <small>Type number for code or text for name</small>
-                    </div>
                     <div class="searchable-dropdown-options" id="technician_dropdown"></div>
                 </div>
             </label>
@@ -80,41 +87,42 @@
                     <option value="Partial" {% if filters.payment_status == 'Partial' %}selected{% endif %}>Partial</option>
                 </select>
             </label>
-            <div class="admin-filter-actions">
+            <div class="field-admin-filter-actions">
                 <button class="button" type="submit">Filter</button>
                 <a class="button button-outline" href="{{ url_for('technician_jobs') }}">Clear</a>
             </div>
         </form>
+
+        <div class="field-admin-kpis">
+            <article class="field-kpi-card">
+                <strong>{{ stats.total_jobs }}</strong>
+                <span>Total Jobs</span>
+            </article>
+            <article class="field-kpi-card">
+                <strong>AED {{ "%.0f"|format(stats.total_amount) }}</strong>
+                <span>Total Amount</span>
+            </article>
+            <article class="field-kpi-card">
+                <strong>AED {{ "%.0f"|format(stats.balance_due) }}</strong>
+                <span>Balance Due</span>
+            </article>
+            <article class="field-kpi-card">
+                <strong>{{ jobs|length }}</strong>
+                <span>Visible Rows</span>
+            </article>
+        </div>
     </article>
 
-    <section class="accounts-link-grid maintenance-summary-grid">
-        <article class="card accounts-link-card">
-            <strong>{{ stats.total_jobs }}</strong>
-            <span>Total Jobs</span>
-        </article>
-        <article class="card accounts-link-card">
-            <strong>AED {{ "%.0f"|format(stats.total_amount) }}</strong>
-            <span>Total Amount</span>
-        </article>
-        <article class="card accounts-link-card">
-            <strong>AED {{ "%.0f"|format(stats.balance_due) }}</strong>
-            <span>Balance Due</span>
-        </article>
-        <article class="card accounts-link-card">
-            <strong>{{ stats.technician_count }}</strong>
-                    <span>Active Staff</span>
-        </article>
-    </section>
-
-    <section class="desk-content-grid compact-content-grid technician-jobs-primary">
-        <article class="card desk-panel-card">
+    <section class="desk-content-grid compact-content-grid field-admin-full-grid">
+        <article class="card desk-panel-card field-admin-main-card">
             <div class="desk-panel-head">
                 <div>
                     <span class="admin-desk-label">Entry Management</span>
-                    <h2>Field Staff Entry List</h2>
+                    <h2>Recent Field Staff Entries</h2>
                 </div>
             </div>
-            <div class="technician-bulk-bar">
+
+            <div class="field-admin-action-bar">
                 <form method="post" class="inline-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="approve_all">
@@ -133,100 +141,110 @@
                     <input type="hidden" name="payment_status" value="{{ filters.payment_status }}">
                     <button class="button button-primary" type="submit">Pay All</button>
                 </form>
-                <small>Current filters ke mutabiq pending ya approved unpaid entries par ek click action.</small>
+                <form method="post" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_local">
+                    <input type="hidden" name="status" value="{{ filters.status }}">
+                    <input type="hidden" name="technician_code" value="{{ filters.technician_code }}">
+                    <input type="hidden" name="vehicle_id" value="{{ filters.vehicle_id }}">
+                    <input type="hidden" name="payment_status" value="{{ filters.payment_status }}">
+                    <button class="button button-outline" type="submit">Save to Local</button>
+                </form>
+                <span class="field-admin-action-note">Newest entry upar rahegi. Local archive Standard aur Partnership folders mein sync hota rahega.</span>
             </div>
-            
+
             {% if jobs %}
-            <div class="table-wrap technician-jobs-table-wrap">
-                <table class="technician-jobs-table">
-                    <thead>
-                        <tr>
-                            <th>Entry No</th>
-                            <th>Date</th>
-                            <th>Vehicle / Workshop</th>
-                            <th>Field Staff</th>
-                            <th>Amount</th>
-                            <th>Status / Payment</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for job in jobs %}
-                        <tr>
-                            <td>
+            <div class="field-admin-list">
+                {% for job in jobs %}
+                <article class="field-job-row">
+                    <div class="field-job-main">
+                        <div class="field-job-title-row">
+                            <div>
                                 <strong>{{ job.paper_no }}</strong>
-                                {% if job.bill_image %}
-                                <div class="mini-badge"><a href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">📄 Bill</a></div>
-                                {% endif %}
-                            </td>
-                            <td>{{ job.entry_date }}</td>
-                            <td>
+                                <span>{{ job.entry_date }}</span>
+                            </div>
+                            <div class="field-job-badges">
+                                <span class="status-badge status-{{ job.review_status|lower }}">{{ job.review_status }}</span>
+                                <span class="payment-badge payment-{{ job.payment_status|lower }}">{{ job.payment_status }}</span>
+                            </div>
+                        </div>
+                        <div class="field-job-meta-grid">
+                            <div>
+                                <span class="field-job-label">Vehicle</span>
                                 <strong>{{ job.vehicle_no }}</strong>
-                                <div class="mini-badge">{{ job.vehicle_id }}</div>
-                                <div class="mini-badge">{{ job.workshop_name or '-' }}</div>
-                            </td>
-                            <td>
-                                {{ job.technician_name }}
-                                <div class="mini-badge">{{ job.technician_code }}</div>
-                            </td>
-                            <td>AED {{ "%.2f"|format(job.total_amount) }}</td>
-                            <td>
-                                <span class="status-badge status-{{ job.review_status|lower }}">
-                                    {{ job.review_status }}
-                                </span>
-                                {% if job.review_status == 'Rejected' and job.rejection_reason %}
-                                <div class="mini-badge" title="{{ job.rejection_reason }}">❌ {{ job.rejection_reason[:20] }}...</div>
-                                {% endif %}
-                                <span class="payment-badge payment-{{ job.payment_status|lower }}">
-                                    {{ job.payment_status }}
-                                </span>
+                                <small>{{ job.vehicle_id }}{% if job.workshop_name %} / {{ job.workshop_name }}{% endif %}</small>
+                            </div>
+                            <div>
+                                <span class="field-job-label">Field Staff</span>
+                                <strong>{{ job.technician_name }}</strong>
+                                <small>{{ job.technician_code }}</small>
+                            </div>
+                            <div>
+                                <span class="field-job-label">Amount</span>
+                                <strong>AED {{ "%.2f"|format(job.total_amount) }}</strong>
                                 {% if job.payment_status == 'Paid' %}
-                                <div class="mini-badge">Paid AED {{ "%.2f"|format(job.paid_amount or 0) }}</div>
+                                <small>Paid AED {{ "%.2f"|format(job.paid_amount or 0) }}</small>
                                 {% elif job.payment_status == 'Partial' %}
-                                <div class="mini-badge">Partial AED {{ "%.2f"|format(job.paid_amount or 0) }} of AED {{ "%.2f"|format(job.total_amount or 0) }}</div>
+                                <small>Partial AED {{ "%.2f"|format(job.paid_amount or 0) }}</small>
+                                {% else %}
+                                <small>{{ job.work_type or "Work entry" }}</small>
                                 {% endif %}
-                            </td>
-                            <td class="technician-actions-cell">
-                                <div class="action-buttons technician-actions-grid">
-                                    {% if job.review_status == 'Pending' %}
-                                    <form method="post" class="inline-form" style="display: inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <input type="hidden" name="action" value="approve">
-                                        <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
-                                        <button class="button button-small button-success" type="submit">Approve</button>
-                                    </form>
-                                    <form method="post" class="inline-form" style="display: inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <input type="hidden" name="action" value="reject">
-                                        <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
-                                        <button class="button button-small button-danger" type="submit">Reject</button>
-                                    </form>
-                                    {% endif %}
-                                    
-                                    {% if job.review_status == 'Approved' and job.payment_status != 'Paid' %}
-                                    <form method="post" class="inline-form" style="display: inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <input type="hidden" name="action" value="mark_paid">
-                                        <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
-                                        <button class="button button-small button-primary" type="submit">Mark Paid</button>
-                                    </form>
-                                    {% endif %}
-                                    {% if job.bill_image %}
-                                    <a class="button button-small button-outline" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">See Paper</a>
-                                    {% endif %}
-                                    <a class="button button-small button-outline" href="{{ url_for('fleet_maintenance') }}?paper_no={{ job.paper_no }}">Edit</a>
-                                    <form method="post" class="inline-form" style="display: inline;" onsubmit="return confirm('Delete this field staff entry? This will remove the job record.');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <input type="hidden" name="action" value="delete">
-                                        <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
-                                        <button class="button button-small button-danger" type="submit">Delete</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                            </div>
+                            <div>
+                                <span class="field-job-label">Notes</span>
+                                <strong>{{ job.details or "-" }}</strong>
+                                {% if job.bill_image %}
+                                <small>Attachment available</small>
+                                {% else %}
+                                <small>No paper attached</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="field-job-actions">
+                        {% if job.review_status == 'Pending' %}
+                        <form method="post" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="approve">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button class="button button-small button-success" type="submit">Approve</button>
+                        </form>
+                        <form method="post" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="reject">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button class="button button-small button-danger" type="submit">Reject</button>
+                        </form>
+                        {% endif %}
+                        {% if job.review_status == 'Approved' and job.payment_status != 'Paid' %}
+                        <form method="post" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="mark_paid">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button class="button button-small button-primary" type="submit">Mark Paid</button>
+                        </form>
+                        {% endif %}
+                        <form method="post" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="save_local_row">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button class="button button-small button-outline" type="submit">Save Local</button>
+                        </form>
+                        <a class="button button-small button-outline" href="{{ url_for('technician_job_local_report', paper_no=job.paper_no) }}" target="_blank">Local Report</a>
+                        <a class="button button-small button-outline" href="{{ url_for('technician_job_vehicle_folder', paper_no=job.paper_no) }}">Open Vehicle Folder</a>
+                        {% if job.bill_image %}
+                        <a class="button button-small button-outline" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">See Paper</a>
+                        {% endif %}
+                        <a class="button button-small button-outline" href="{{ url_for('fleet_maintenance') }}?paper_no={{ job.paper_no }}">Edit</a>
+                        <form method="post" class="inline-form" onsubmit="return confirm('Delete this field staff entry? This will remove the job record.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button class="button button-small button-danger" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </article>
+                {% endfor %}
             </div>
             {% else %}
             <div class="empty-state">
@@ -235,10 +253,9 @@
             </div>
             {% endif %}
         </article>
-
     </section>
 
-    <section class="desk-content-grid compact-content-grid">
+    <section class="desk-content-grid compact-content-grid field-admin-bottom-grid">
         <article class="card desk-panel-card">
             <div class="desk-panel-head">
                 <div>
@@ -246,7 +263,6 @@
                     <h2>Expense by Vehicle</h2>
                 </div>
             </div>
-
             {% if vehicle_expense_report %}
             <div class="table-wrap">
                 <table>
@@ -256,8 +272,8 @@
                             <th>Mode</th>
                             <th>Jobs</th>
                             <th>Total</th>
-                            <th>Company Share</th>
-                            <th>Partner Share</th>
+                            <th>Company</th>
+                            <th>Partner</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -287,222 +303,281 @@
         <article class="card desk-panel-card compact-side-card">
             <div class="desk-panel-head">
                 <div>
-                    <span class="admin-desk-label">Partnership Impact</span>
-                    <h2>50 / 50 Vehicles</h2>
+                    <span class="admin-desk-label">Pending Payments</span>
+                    <h2>Approved But Unpaid</h2>
                 </div>
             </div>
-
             <div class="mini-ledger-list">
-                {% if partnership_report %}
-                    {% for item in partnership_report %}
+                {% if pending_payments %}
+                    {% for job in pending_payments %}
                     <div class="mini-ledger-row">
-                        <strong>{{ item.vehicle_no }}</strong>
-                        <span>AED {{ "%.0f"|format(item.total_amount or 0) }}</span>
+                        <strong>{{ job.paper_no }} / {{ job.technician_name }}</strong>
+                        <span>AED {{ "%.0f"|format(job.total_amount - (job.paid_amount or 0)) }}</span>
                         <div class="mini-ledger-subrow">
-                            <span>Company AED {{ "%.0f"|format(item.company_share_amount or 0) }}</span>
-                            <span>Partner AED {{ "%.0f"|format(item.partner_share_amount or 0) }}</span>
+                            <span>{{ (job.approved_at|string)[:10] if job.approved_at else '-' }}</span>
+                            <form method="post" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="mark_paid">
+                                <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                                <button class="button button-small button-primary" type="submit">Pay</button>
+                            </form>
                         </div>
                     </div>
                     {% endfor %}
                 {% else %}
                     <div class="empty-state">
-                        <p>No partnership vehicle expense posted yet.</p>
+                        <p>No pending payments found.</p>
                     </div>
                 {% endif %}
-            </div>
-        </article>
-    </section>
-
-    <section class="desk-content-grid compact-content-grid">
-        <article class="card desk-panel-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Payment Processing</span>
-                    <h2>Pending Payments</h2>
-                </div>
-            </div>
-            
-            {% if pending_payments %}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Entry No</th>
-                            <th>Field Staff</th>
-                            <th>Amount Due</th>
-                            <th>Approved Date</th>
-                            <th>Process Payment</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for job in pending_payments %}
-                        <tr>
-                            <td>{{ job.paper_no }}</td>
-                            <td>{{ job.technician_name }}</td>
-                            <td>AED {{ "%.2f"|format(job.total_amount - (job.paid_amount or 0)) }}</td>
-                            <td>{{ (job.approved_at|string)[:10] if job.approved_at else '-' }}</td>
-                            <td>
-                                <form method="post" class="inline-form">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="action" value="process_payment">
-                                    <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
-                                    <label style="display: inline-block; margin-right: 8px;">
-                                        <input type="number" step="0.01" name="payment_amount" value="{{ job.total_amount - (job.paid_amount or 0) }}" style="width: 100px;">
-                                    </label>
-                                    <button class="button button-small button-primary" type="submit">Pay</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="empty-state">
-                <p>No pending payments found.</p>
-            </div>
-            {% endif %}
-        </article>
-
-        <article class="card desk-panel-card compact-side-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Field Staff Details</span>
-                    <h2>Field Staff Summary</h2>
-                </div>
-            </div>
-            <div class="mini-ledger-list">
-                {% for tech in technician_summary %}
-                <div class="mini-ledger-row">
-                    <strong>{{ tech.technician_name }}</strong>
-                    <span>AED {{ "%.0f"|format(tech.total_approved) }}</span>
-                    <div class="mini-ledger-subrow">
-                        <span>{{ tech.job_count }} entries</span>
-                        <span class="{% if tech.balance_due > 0 %}text-warning{% else %}text-success{% endif %}">
-                            AED {{ "%.2f"|format(tech.balance_due or 0) }} due
-                        </span>
-                    </div>
-                </div>
-                {% endfor %}
             </div>
         </article>
     </section>
 </section>
 
 <style>
-.technician-jobs-primary {
-    display: block;
+.field-admin-shell {
+    gap: 18px;
 }
 
-.technician-jobs-primary .desk-panel-card {
-    width: 100%;
+.field-admin-toolbar {
+    padding: 20px 22px;
+    border-radius: 24px;
 }
 
-.technician-bulk-bar {
+.field-admin-toolbar-top {
     display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
-    margin: 0 0 14px;
-}
-
-.technician-bulk-bar small {
-    color: #64748b;
-}
-
-.technician-jobs-table-wrap {
-    overflow-x: auto;
-}
-
-.technician-jobs-table {
-    width: 100%;
-    table-layout: fixed;
-}
-
-.technician-jobs-table th,
-.technician-jobs-table td {
-    white-space: normal;
-    vertical-align: top;
-}
-
-.technician-actions-cell {
-    min-width: 220px;
-}
-
-.technician-actions-grid {
-    gap: 6px;
-}
-
-.status-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-}
-.status-pending { background-color: #fff3cd; color: #856404; }
-.status-approved { background-color: #d4edda; color: #155724; }
-.status-rejected { background-color: #f8d7da; color: #721c24; }
-
-.payment-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-}
-.payment-pending { background-color: #fff3cd; color: #856404; }
-.payment-paid { background-color: #d4edda; color: #155724; }
-.payment-partial { background-color: #cce5ff; color: #004085; }
-
-.mini-badge {
-    display: inline-block;
-    font-size: 10px;
-    padding: 1px 4px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
-    margin-top: 2px;
-    color: #6c757d;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-.button-small {
-    padding: 4px 8px;
-    font-size: 12px;
-}
-
-.inline-form {
-    display: inline;
-}
-
-.batch-form {
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
     margin-bottom: 16px;
 }
 
-.divider {
-    height: 1px;
-    background-color: #e9ecef;
-    margin: 16px 0;
+.field-admin-toolbar h1 {
+    margin: 10px 0 6px;
+    font-size: 2.2rem;
 }
 
-.empty-state {
-    padding: 40px 20px;
-    text-align: center;
-    color: #6c757d;
+.field-admin-toolbar p {
+    margin: 0;
+    color: #5a7495;
 }
 
-@media (max-width: 1100px) {
-    .technician-jobs-table {
-        table-layout: auto;
-    }
+.field-admin-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
-/* Searchable Dropdown Styles */
+.field-admin-nav-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(28, 86, 139, 0.14);
+    background: #fff;
+    color: #1d4e82;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.field-admin-nav-link.is-active {
+    background: linear-gradient(135deg, #1f5f99 0%, #2d73b2 100%);
+    color: #fff;
+    border-color: transparent;
+}
+
+.field-admin-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    gap: 10px;
+    min-width: 320px;
+}
+
+.field-admin-pill,
+.field-kpi-card {
+    border: 1px solid rgba(28, 86, 139, 0.12);
+    border-radius: 18px;
+    background: #fff;
+    padding: 12px 14px;
+}
+
+.field-admin-pill strong,
+.field-kpi-card strong {
+    display: block;
+    font-size: 1.2rem;
+    color: #173f6d;
+}
+
+.field-admin-pill span,
+.field-kpi-card span {
+    display: block;
+    margin-top: 4px;
+    color: #6680a0;
+    font-weight: 700;
+}
+
+.field-admin-filter-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1.4fr 1.1fr 1.1fr auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.field-admin-filter-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.field-admin-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.field-admin-full-grid,
+.field-admin-main-card {
+    display: block;
+}
+
+.field-admin-action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.field-admin-action-note {
+    color: #64748b;
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+.field-admin-list {
+    display: grid;
+    gap: 12px;
+}
+
+.field-job-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.9fr);
+    gap: 16px;
+    border: 1px solid rgba(28, 86, 139, 0.12);
+    border-radius: 20px;
+    padding: 16px 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.field-job-title-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.field-job-title-row strong {
+    display: block;
+    font-size: 1.05rem;
+    color: #1a4f84;
+}
+
+.field-job-title-row span {
+    color: #667f9f;
+    font-weight: 600;
+}
+
+.field-job-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.field-job-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.field-job-label {
+    display: block;
+    color: #6c839f;
+    font-size: 0.77rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.field-job-meta-grid strong {
+    display: block;
+    color: #163f6d;
+}
+
+.field-job-meta-grid small {
+    display: block;
+    margin-top: 4px;
+    color: #667f9f;
+}
+
+.field-job-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-content: flex-start;
+    justify-content: flex-start;
+}
+
+.field-admin-bottom-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+}
+
+.status-badge,
+.payment-badge {
+    display: inline-block;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.status-pending,
+.payment-pending {
+    background: #fff3cd;
+    color: #8a6500;
+}
+
+.status-approved,
+.payment-paid {
+    background: #d8f1df;
+    color: #13683a;
+}
+
+.status-rejected {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.payment-partial {
+    background: #d8ebff;
+    color: #0d4f84;
+}
+
+.mini-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 4px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: #eff5fc;
+    color: #5d7694;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
 .searchable-dropdown-container {
     position: relative;
 }
@@ -515,377 +590,153 @@
 
 .searchable-dropdown-input {
     width: 100%;
-    padding: 12px 16px;
-    padding-right: 48px;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    font-size: 16px;
-    background: white;
-    transition: all 0.2s;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: 12px 78px 12px 14px;
+    border: 1px solid rgba(28, 86, 139, 0.16);
+    border-radius: 16px;
+    font-size: 15px;
+    background: #fff;
 }
 
 .searchable-dropdown-input:focus {
     outline: none;
-    border-color: #1c568b;
-    box-shadow: 0 4px 16px rgba(28, 86, 139, 0.15);
+    border-color: #2b6baa;
+    box-shadow: 0 0 0 3px rgba(43, 107, 170, 0.12);
 }
 
 .searchable-dropdown-icon {
     position: absolute;
-    right: 16px;
-    color: #94a3b8;
-    pointer-events: none;
-}
-
-.searchable-dropdown-select {
-    display: none;
-}
-
-.searchable-dropdown-hint {
-    margin-top: 8px;
-    font-size: 13px;
-    color: #64748b;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    right: 12px;
+    color: #5b7494;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }
 
 .searchable-dropdown-options {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 6px);
     left: 0;
     right: 0;
-    max-height: 300px;
-    overflow-y: auto;
-    background: white;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    margin-top: 8px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
     display: none;
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid rgba(28, 86, 139, 0.14);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 18px 40px rgba(28, 86, 139, 0.14);
+    z-index: 20;
 }
 
 .searchable-dropdown-option {
-    padding: 14px 16px;
+    padding: 10px 14px;
     cursor: pointer;
-    border-bottom: 1px solid #f1f5f9;
-    transition: background 0.2s;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    color: #163f6d;
+    font-weight: 600;
 }
 
-.searchable-dropdown-option:hover {
-    background: #f8fafc;
+.searchable-dropdown-option:hover,
+.searchable-dropdown-option.is-active {
+    background: #eef5fd;
 }
 
-.searchable-dropdown-option.selected {
-    background: #e1f0ff;
-    border-left: 4px solid #1c568b;
-}
-
-.searchable-dropdown-option-code {
-    font-weight: 700;
-    color: #1c568b;
-    background: #f0f7ff;
-    padding: 4px 10px;
-    border-radius: 8px;
-    font-size: 13px;
-}
-
-.searchable-dropdown-option-name {
-    flex: 1;
-    margin-left: 12px;
-    text-align: left;
-}
-
-.searchable-dropdown-no-results {
-    padding: 20px;
-    text-align: center;
-    color: #94a3b8;
-    font-style: italic;
-}
-
-/* Mobile optimizations */
-@media (max-width: 768px) {
-    .searchable-dropdown-input {
-        font-size: 18px;
-        padding: 16px;
-        padding-right: 52px;
+@media (max-width: 1200px) {
+    .field-admin-filter-grid,
+    .field-admin-kpis,
+    .field-job-meta-grid,
+    .field-admin-bottom-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-    
-    .searchable-dropdown-options {
-        max-height: 250px;
-    }
-    
-    .searchable-dropdown-option {
-        padding: 16px;
+
+    .field-job-row {
+        grid-template-columns: 1fr;
     }
 }
 
-/* Keep old styles for compatibility */
-.smart-dropdown-container {
-    position: relative;
-}
-
-.smart-dropdown-select {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    background-color: white;
-    font-size: 14px;
-    transition: border-color 0.15s ease-in-out;
-}
-
-.smart-dropdown-select:focus {
-    border-color: #1c568b;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(28, 86, 139, 0.1);
-}
-
-.smart-dropdown-hint {
-    margin-top: 4px;
-    font-size: 12px;
-    color: #6c757d;
-    opacity: 0.8;
-}
-
-.smart-dropdown-hint small {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-/* Quick select badge for mobile */
-.quick-select-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-}
-
-.quick-select-badge {
-    padding: 6px 10px;
-    background-color: #f0f7ff;
-    border: 1px solid #c2d9ff;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s;
-    user-select: none;
-}
-
-.quick-select-badge:hover {
-    background-color: #e1f0ff;
-    border-color: #1c568b;
-}
-
-/* Mobile optimizations */
-@media (max-width: 768px) {
-    .smart-dropdown-select {
-        font-size: 16px; /* Prevents iOS zoom */
-        padding: 12px;
-        height: 48px;
+@media (max-width: 900px) {
+    .field-admin-toolbar-top,
+    .field-admin-summary {
+        grid-template-columns: 1fr;
+        display: grid;
     }
-    
-    .smart-dropdown-hint {
-        font-size: 13px;
-    }
-    
-    .quick-select-badges {
-        gap: 8px;
-        margin-top: 12px;
-    }
-    
-    .quick-select-badge {
-        padding: 8px 12px;
-        font-size: 14px;
-        flex-grow: 1;
-        text-align: center;
-        min-width: 60px;
-    }
-    
-    .admin-filter-grid {
-        grid-template-columns: 1fr !important;
-        gap: 16px !important;
-    }
-}
 
-/* Touch-friendly improvements */
-.smart-dropdown-select {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 16px;
-    padding-right: 40px;
-}
+    .field-admin-summary {
+        min-width: 0;
+    }
 
-/* Focus state for better accessibility */
-.smart-dropdown-select:focus-visible {
-    outline: 2px solid #1c568b;
-    outline-offset: 2px;
+    .field-admin-filter-grid,
+    .field-admin-kpis,
+    .field-job-meta-grid,
+    .field-admin-bottom-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 
 <script>
-// Searchable Dropdown Functions
+function buildTechnicianOptions() {
+    const select = document.getElementById("technician_select");
+    const dropdown = document.getElementById("technician_dropdown");
+    if (!select || !dropdown || dropdown.dataset.ready === "1") {
+        return;
+    }
+    const selectedValue = select.value;
+    const options = Array.from(select.options).filter((option) => option.value);
+    dropdown.innerHTML = "";
+    options.forEach((option) => {
+        const item = document.createElement("div");
+        item.className = "searchable-dropdown-option" + (option.value === selectedValue ? " is-active" : "");
+        item.textContent = option.textContent.trim();
+        item.dataset.value = option.value;
+        item.dataset.name = (option.dataset.name || "").toLowerCase();
+        item.dataset.code = (option.dataset.code || "").toLowerCase();
+        item.onclick = function () {
+            select.value = option.value;
+            document.getElementById("technician_search_input").value = option.textContent.trim();
+            dropdown.style.display = "none";
+        };
+        dropdown.appendChild(item);
+    });
+    const selectedOption = options.find((option) => option.value === selectedValue);
+    if (selectedOption) {
+        document.getElementById("technician_search_input").value = selectedOption.textContent.trim();
+    }
+    dropdown.dataset.ready = "1";
+}
+
+function showTechnicianDropdown() {
+    buildTechnicianOptions();
+    const dropdown = document.getElementById("technician_dropdown");
+    if (dropdown) {
+        dropdown.style.display = "block";
+    }
+}
+
 function filterTechnicianOptions(input) {
-    const searchValue = input.value.trim().toLowerCase();
-    const dropdown = document.getElementById('technician_dropdown');
-    const select = document.getElementById('technician_select');
-    const options = Array.from(select.options).filter(opt => opt.value !== '');
-    
-    // Clear previous options
-    dropdown.innerHTML = '';
-    
-    if (!searchValue) {
-        dropdown.style.display = 'none';
-        return;
-    }
-    
-    const isNumber = /^\d+$/.test(searchValue);
-    let filteredOptions = [];
-    
-    options.forEach(option => {
-        const code = option.getAttribute('data-code') || option.value;
-        const name = option.getAttribute('data-name') || option.textContent.split('(')[0].trim();
-        const displayText = option.textContent.toLowerCase();
-        
-        let matches = false;
-        
-        if (isNumber) {
-            // Search by code
-            matches = code.toLowerCase().includes(searchValue) ||
-                      displayText.includes(searchValue);
-        } else {
-            // Search by name
-            matches = name.toLowerCase().includes(searchValue) ||
-                      displayText.includes(searchValue);
-        }
-        
-        if (matches) {
-            filteredOptions.push(option);
-        }
+    buildTechnicianOptions();
+    const query = (input.value || "").trim().toLowerCase();
+    const dropdown = document.getElementById("technician_dropdown");
+    const options = dropdown ? Array.from(dropdown.children) : [];
+    options.forEach((option) => {
+        const matches = !query || option.dataset.name.includes(query) || option.dataset.code.includes(query) || option.textContent.toLowerCase().includes(query);
+        option.style.display = matches ? "" : "none";
     });
-    
-    if (filteredOptions.length === 0) {
-        dropdown.innerHTML = '<div class="searchable-dropdown-no-results">No matching field staff found</div>';
-        dropdown.style.display = 'block';
-        return;
+    if (dropdown) {
+        dropdown.style.display = "block";
     }
-    
-    // Show filtered options
-    filteredOptions.forEach(option => {
-        const optionElement = document.createElement('div');
-        optionElement.className = 'searchable-dropdown-option';
-        optionElement.innerHTML = `
-            <span class="searchable-dropdown-option-name">${option.getAttribute('data-name') || option.textContent}</span>
-            <span class="searchable-dropdown-option-code">${option.getAttribute('data-code') || option.value}</span>
-        `;
-        
-        optionElement.addEventListener('click', () => {
-            select.value = option.value;
-            input.value = option.getAttribute('data-name') || option.textContent;
-            dropdown.style.display = 'none';
-            select.dispatchEvent(new Event('change'));
-        });
-        
-        dropdown.appendChild(optionElement);
-    });
-    
-    dropdown.style.display = 'block';
 }
 
-function showTechnicianDropdown(input) {
-    const dropdown = document.getElementById('technician_dropdown');
-    const select = document.getElementById('technician_select');
-    const options = Array.from(select.options).filter(opt => opt.value !== '');
-    
-    // Show all options when focused
-    dropdown.innerHTML = '';
-    
-    options.slice(0, 10).forEach(option => {
-        const optionElement = document.createElement('div');
-        optionElement.className = 'searchable-dropdown-option';
-        optionElement.innerHTML = `
-            <span class="searchable-dropdown-option-name">${option.getAttribute('data-name') || option.textContent}</span>
-            <span class="searchable-dropdown-option-code">${option.getAttribute('data-code') || option.value}</span>
-        `;
-        
-        optionElement.addEventListener('click', () => {
-            select.value = option.value;
-            input.value = option.getAttribute('data-name') || option.textContent;
-            dropdown.style.display = 'none';
-            select.dispatchEvent(new Event('change'));
-        });
-        
-        dropdown.appendChild(optionElement);
-    });
-    
-    dropdown.style.display = 'block';
-}
-
-// Close dropdown when clicking outside
-document.addEventListener('click', function(event) {
-    const dropdown = document.getElementById('technician_dropdown');
-    const input = document.getElementById('technician_search_input');
-    
-    if (dropdown && input && !dropdown.contains(event.target) && !input.contains(event.target)) {
-        dropdown.style.display = 'none';
+document.addEventListener("click", function (event) {
+    const container = document.querySelector(".searchable-dropdown-container");
+    const dropdown = document.getElementById("technician_dropdown");
+    if (!container || !dropdown) {
+        return;
+    }
+    if (!container.contains(event.target)) {
+        dropdown.style.display = "none";
     }
 });
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const select = document.getElementById('technician_select');
-    const input = document.getElementById('technician_search_input');
-    
-    if (select && input) {
-        // Set initial value in search input if something is selected
-        const selectedOption = select.options[select.selectedIndex];
-        if (selectedOption && selectedOption.value) {
-            input.value = selectedOption.getAttribute('data-name') || selectedOption.textContent;
-        }
-        
-        // Add data attributes to options if missing
-        Array.from(select.options).forEach(option => {
-            if (option.value && !option.hasAttribute('data-code')) {
-                const match = option.textContent.match(/\((.*?)\)/);
-                if (match) {
-                    option.setAttribute('data-code', match[1]);
-                    option.setAttribute('data-name', option.textContent.split('(')[0].trim());
-                }
-            }
-        });
-        
-        // Mobile optimizations
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-            input.setAttribute('inputmode', 'numeric');
-            input.setAttribute('pattern', '[0-9]*');
-            input.setAttribute('placeholder', 'Type technician code...');
-        }
-    }
-    
-    // Also initialize other dropdowns
-    const batchSelect = document.getElementById('batch_technician_select');
-    if (batchSelect) {
-        Array.from(batchSelect.options).forEach(option => {
-            if (option.value && !option.hasAttribute('data-code')) {
-                const match = option.textContent.match(/\((.*?)\)/);
-                if (match) {
-                    option.setAttribute('data-code', match[1]);
-                    option.setAttribute('data-name', option.textContent.split('(')[0].trim());
-                }
-            }
-        });
-    }
-});
+document.addEventListener("DOMContentLoaded", buildTechnicianOptions);
 </script>
 {% endblock %}

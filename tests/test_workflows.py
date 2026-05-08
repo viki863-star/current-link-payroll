@@ -1736,6 +1736,104 @@ def test_admin_technician_jobs_support_approve_all_and_pay_all(app, client):
         assert float(payment_rows[1]["paid_amount"]) == 380.0
 
 
+def test_admin_technician_jobs_support_local_archive_actions(app, client):
+    admin_session(client)
+    local_vehicle_root = Path(app.config["GENERATED_DIR"]).parent / "field-staff-vehicle-local-actions"
+    shutil.rmtree(local_vehicle_root, ignore_errors=True)
+    os.environ["FIELD_STAFF_VEHICLE_EXPORT_ROOT"] = str(local_vehicle_root)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-003", "PTY-TECH-003", "tech.local.admin", "hash", "0501111001", "Archive Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-0006", "77112", "Truck", "Archive Vehicle", "Active", "Single Shift", "Partnership", "Partner Vehicle", 50, 50),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_papers (
+                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                attachment_path, notes, technician_code, review_status, payment_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "MT-LOCAL-1",
+                "2026-05-31",
+                "VEH-0006",
+                "77112",
+                "",
+                "BILL-L1",
+                "Repair",
+                "Local archive job",
+                510.0,
+                "Inclusive",
+                0.0,
+                510.0,
+                None,
+                "archive test",
+                "TECH-003",
+                "Pending",
+                "Pending",
+                "2026-05-31 08:30:00",
+            ),
+        )
+        db.commit()
+
+    page = client.get("/admin/technician-jobs", follow_redirects=True)
+    assert page.status_code == 200
+    assert b"Save to Local" in page.data
+    assert b"Local Report" in page.data
+    assert b"Open Vehicle Folder" in page.data
+
+    saved = client.post(
+        "/admin/technician-jobs",
+        data={"action": "save_local_row", "paper_no": "MT-LOCAL-1"},
+        follow_redirects=True,
+    )
+    assert saved.status_code == 200
+    assert b"saved to local archive" in saved.data
+
+    report = client.get("/admin/technician-jobs/MT-LOCAL-1/local-report", follow_redirects=True)
+    assert report.status_code == 200
+    payload = json.loads(report.data.decode("utf-8"))
+    assert payload["vehicle_id"] == "VEH-0006"
+    assert payload["jobs"][0]["paper_no"] == "MT-LOCAL-1"
+
+    folder = client.get("/admin/technician-jobs/MT-LOCAL-1/vehicle-folder", follow_redirects=True)
+    assert folder.status_code == 200
+    assert b"Vehicle Folder" in folder.data
+    assert b"MT-LOCAL-1" in folder.data
+
+    vehicle_report = local_vehicle_root / "Partnership"
+    report_files = list(vehicle_report.glob("**/vehicle-report.json"))
+    assert report_files
+    report_data = json.loads(report_files[0].read_text(encoding="utf-8"))
+    assert report_data["jobs"][0]["paper_no"] == "MT-LOCAL-1"
+
+
+def test_technicians_page_renders_compact_management_workspace(app, client):
+    admin_session(client)
+
+    page = client.get("/technicians", follow_redirects=True)
+    assert page.status_code == 200
+    assert b"Field Staff Management" in page.data
+    assert b"Field Staff Entries" in page.data
+    assert b"Issue Amount To Field Staff" in page.data
+
+
 def test_owner_fund_can_edit_and_delete(app, client):
     admin_session(client)
 

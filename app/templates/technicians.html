@@ -1,24 +1,44 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="admin-desk-shell">
-    <article class="card admin-desk-toolbar">
-        <div class="admin-toolbar-row">
-            <div class="admin-toolbar-actions">
-                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                <span class="button button-primary" style="background-color: #4a6fa5; border-color: #4a6fa5; cursor: default;">Field Staff Management</span>
-                <a class="button" href="{{ url_for('technicians') }}">All Field Staff</a>
-                <a class="button button-secondary" href="{{ url_for('technician_jobs') }}">Field Staff Entries</a>
+<section class="admin-desk-shell field-management-shell">
+    <article class="card field-management-toolbar">
+        <div class="field-management-top">
+            <div>
+                <div class="field-management-nav">
+                    <a class="field-management-nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                    <span class="field-management-nav-link is-active">Field Staff Management</span>
+                    <a class="field-management-nav-link" href="{{ url_for('technicians') }}">All Field Staff</a>
+                    <a class="field-management-nav-link" href="{{ url_for('technician_jobs') }}">Field Staff Entries</a>
+                </div>
+                <h1>Field Staff Management</h1>
+                <p>Accounts, owner payments, aur staff directory ko compact workspace mein manage karein.</p>
             </div>
-            <div class="admin-mini-stats">
-                <span><strong>{{ summary.staff_count }}</strong><small>Field Staff</small></span>
-                <span><strong>AED {{ "%.0f"|format(summary.given_amount) }}</strong><small>Given</small></span>
-                <span><strong>AED {{ "%.0f"|format(summary.spent_amount) }}</strong><small>Spent</small></span>
-                <span><strong>AED {{ "%.0f"|format(summary.balance_amount) }}</strong><small>Balance</small></span>
-                <span><strong>AED {{ "%.0f"|format(owner_fund_balance) }}</strong><small>Owner Fund</small></span>
+            <div class="field-management-mini-stats">
+                <div class="field-management-stat">
+                    <strong>{{ summary.staff_count }}</strong>
+                    <span>Field Staff</span>
+                </div>
+                <div class="field-management-stat">
+                    <strong>AED {{ "%.0f"|format(summary.given_amount) }}</strong>
+                    <span>Given</span>
+                </div>
+                <div class="field-management-stat">
+                    <strong>AED {{ "%.0f"|format(summary.spent_amount) }}</strong>
+                    <span>Spent</span>
+                </div>
+                <div class="field-management-stat">
+                    <strong>AED {{ "%.0f"|format(summary.balance_amount) }}</strong>
+                    <span>Balance</span>
+                </div>
+                <div class="field-management-stat">
+                    <strong>AED {{ "%.0f"|format(owner_fund_balance) }}</strong>
+                    <span>Owner Fund</span>
+                </div>
             </div>
         </div>
-        <form method="get" class="admin-filter-grid desk-single-filter">
+
+        <form method="get" class="field-management-filter">
             <label>
                 <span>Status</span>
                 <select name="status">
@@ -29,23 +49,24 @@
             </label>
             <label>
                 <span>Search</span>
-                    <input type="search" name="search" value="{{ search_q }}" placeholder="Staff code, user ID, name, role">
+                <input type="search" name="search" value="{{ search_q }}" placeholder="Staff code, user ID, name, role">
             </label>
-            <div class="admin-filter-actions">
+            <div class="field-management-filter-actions">
                 <button class="button" type="submit">Filter</button>
                 {% if status_filter or search_q %}
-                    <a class="button button-secondary" href="{{ url_for('technicians') }}">Clear</a>
+                <a class="button button-outline" href="{{ url_for('technicians') }}">Clear</a>
                 {% endif %}
             </div>
         </form>
     </article>
 
-    <section class="desk-content-grid">
+    <section class="desk-content-grid compact-content-grid field-management-grid">
         <article class="card desk-panel-card" id="technician-form">
             <div class="desk-panel-head">
                 <div>
                     <p class="eyebrow">Field Staff Account</p>
                     <h2>{% if edit_technician_code %}Edit Field Staff{% else %}Create New Field Staff{% endif %}</h2>
+                    <p class="muted-text">Login account aur basic profile yahan maintain hoti hai.</p>
                 </div>
             </div>
             <form method="post" class="entry-form two-column-form">
@@ -53,7 +74,7 @@
                 {% if edit_technician_code %}
                 <input type="hidden" name="technician_code" value="{{ values.technician_code }}">
                 {% endif %}
-                
+
                 <label>
                     <span>User ID (Login) *</span>
                     <input type="text" name="user_id" value="{{ values.user_id }}" required>
@@ -72,8 +93,7 @@
                 </label>
                 <label>
                     <span>Name / Role</span>
-                    <input type="text" name="specialization" value="{{ values.specialization }}" 
-                           placeholder="e.g., Amjad / Workshop Runner">
+                    <input type="text" name="specialization" value="{{ values.specialization }}" placeholder="e.g., Amjad / Workshop Runner">
                 </label>
                 <label>
                     <span>Status</span>
@@ -84,10 +104,10 @@
                 </label>
                 <div class="form-actions full-span">
                     {% if edit_technician_code %}
-                        <button class="button" type="submit" name="action" value="update">Update Field Staff</button>
-                        <a class="button button-secondary" href="{{ url_for('technicians') }}">Cancel Edit</a>
+                    <button class="button" type="submit" name="action" value="update">Update Field Staff</button>
+                    <a class="button button-outline" href="{{ url_for('technicians') }}">Cancel Edit</a>
                     {% else %}
-                        <button class="button" type="submit" name="action" value="create">Create Field Staff</button>
+                    <button class="button" type="submit" name="action" value="create">Create Field Staff</button>
                     {% endif %}
                 </div>
             </form>
@@ -98,7 +118,7 @@
                 <div>
                     <p class="eyebrow">Owner Payment</p>
                     <h2>Issue Amount To Field Staff</h2>
-                    <p class="muted-text">Owner direct ya Owner Fund se diya gaya amount yahan save hoga.</p>
+                    <p class="muted-text">Owner Fund, direct cash, ya bank se diya gaya amount yahan record hota hai.</p>
                 </div>
                 <div class="table-actions">
                     <a class="mini-action-link" href="{{ url_for('owner_fund') }}">Open Owner Fund</a>
@@ -110,7 +130,7 @@
                 <label>
                     <span>Field Staff</span>
                     <div class="smart-dropdown-container">
-                        <select name="payment_technician_code" id="payment_technician_select" class="smart-dropdown-select" oninput="handleTechnicianInput(event)" required>
+                        <select name="payment_technician_code" id="payment_technician_select" class="smart-dropdown-select" required>
                             <option value="">Select field staff</option>
                             {% for tech in technicians %}
                             <option value="{{ tech.technician_code }}" data-name="{{ tech.specialization or tech.technician_code }}" data-code="{{ tech.technician_code }}" {% if payment_values.technician_code == tech.technician_code %}selected{% endif %}>
@@ -142,7 +162,7 @@
                 </label>
                 <label class="full-span">
                     <span>Reference</span>
-                    <input type="text" name="payment_reference" value="{{ payment_values.reference }}" placeholder="WhatsApp message, transfer ref, cash note">
+                    <input type="text" name="payment_reference" value="{{ payment_values.reference }}" placeholder="WhatsApp, transfer ref, cash note">
                 </label>
                 <label class="full-span">
                     <span>Notes</span>
@@ -153,7 +173,9 @@
                 </div>
             </form>
         </article>
+    </section>
 
+    <section class="desk-content-grid compact-content-grid">
         <article class="card desk-panel-card">
             <div class="desk-panel-head">
                 <div>
@@ -162,69 +184,67 @@
                 </div>
             </div>
             {% if technicians %}
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Code</th>
-                                <th>User ID</th>
-                                <th>Specialization</th>
-                                <th>Phone</th>
-                                <th>Status</th>
-                                <th>Given</th>
-                                <th>Spent</th>
-                                <th>Balance</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for tech in technicians %}
-                                <tr>
-                                    <td><strong>{{ tech.technician_code }}</strong></td>
-                                    <td>{{ tech.user_id or '-' }}</td>
-                                    <td>{{ tech.specialization or '-' }}</td>
-                                    <td>{{ tech.phone_number or '-' }}</td>
-                                    <td>
-                                        <span class="status-badge {% if tech.status == 'Active' %}status-badge-success{% else %}status-badge-warning{% endif %}">
-                                            {{ tech.status }}
-                                        </span>
-                                    </td>
-                                    <td>AED {{ "%.2f"|format(tech.given_amount or 0) }}</td>
-                                    <td>
-                                        AED {{ "%.2f"|format(tech.total_spent or 0) }}
-                                        <div class="mini-badge">Vehicle {{ "%.0f"|format(tech.vehicle_spent or 0) }} / General {{ "%.0f"|format(tech.general_spent or 0) }}</div>
-                                    </td>
-                                    <td>AED {{ "%.2f"|format(tech.balance_amount or 0) }}</td>
-                                    <td>{{ (tech.created_at|string)[:10] if tech.created_at else '-' }}</td>
-                                    <td>
-                                        <div class="table-actions">
-                                            <a class="mini-action-link" href="{{ url_for('technicians', edit=tech.technician_code) }}">Edit</a>
-                                            <a class="mini-action-link" href="{{ url_for('technicians', pay=tech.technician_code) }}#payment-form">Pay</a>
-                                            <a class="mini-action-link" href="{{ url_for('technician_jobs') }}?technician_code={{ tech.technician_code }}">Jobs</a>
-                                            <form method="post" class="inline-form" onsubmit="return confirm('Delete this field staff account? Linked records will be kept inactive instead.');">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                <input type="hidden" name="action" value="delete">
-                                                <input type="hidden" name="technician_code" value="{{ tech.technician_code }}">
-                                                <button type="submit" class="mini-action-link danger-link">Delete</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>User ID</th>
+                            <th>Name / Role</th>
+                            <th>Phone</th>
+                            <th>Status</th>
+                            <th>Given</th>
+                            <th>Spent</th>
+                            <th>Balance</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tech in technicians %}
+                        <tr>
+                            <td><strong>{{ tech.technician_code }}</strong></td>
+                            <td>{{ tech.user_id or '-' }}</td>
+                            <td>{{ tech.specialization or '-' }}</td>
+                            <td>{{ tech.phone_number or '-' }}</td>
+                            <td>
+                                <span class="status-badge {% if tech.status == 'Active' %}status-badge-success{% else %}status-badge-warning{% endif %}">
+                                    {{ tech.status }}
+                                </span>
+                            </td>
+                            <td>AED {{ "%.2f"|format(tech.given_amount or 0) }}</td>
+                            <td>
+                                AED {{ "%.2f"|format(tech.total_spent or 0) }}
+                                <div class="mini-badge">Vehicle {{ "%.0f"|format(tech.vehicle_spent or 0) }} / General {{ "%.0f"|format(tech.general_spent or 0) }}</div>
+                            </td>
+                            <td>AED {{ "%.2f"|format(tech.balance_amount or 0) }}</td>
+                            <td>
+                                <div class="table-actions">
+                                    <a class="mini-action-link" href="{{ url_for('technicians', edit=tech.technician_code) }}#technician-form">Edit</a>
+                                    <a class="mini-action-link" href="{{ url_for('technicians', pay=tech.technician_code) }}#payment-form">Pay</a>
+                                    <a class="mini-action-link" href="{{ url_for('technician_jobs') }}?technician_code={{ tech.technician_code }}">Jobs</a>
+                                    <form method="post" class="inline-form" onsubmit="return confirm('Delete this field staff account? Linked records will be kept inactive instead.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="technician_code" value="{{ tech.technician_code }}">
+                                        <button type="submit" class="mini-action-link danger-link">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             {% else %}
-                <div class="empty-state">
+            <div class="empty-state">
                 <p>No field staff found.</p>
-                <p>Create your first field staff account using the form on the left.</p>
-                </div>
+                <p>Create your first field staff account using the form above.</p>
+            </div>
             {% endif %}
         </article>
     </section>
 
-    <section class="desk-content-grid">
+    <section class="desk-content-grid compact-content-grid field-management-bottom-grid">
         <article class="card desk-panel-card">
             <div class="desk-panel-head">
                 <div>
@@ -274,137 +294,145 @@
 </section>
 
 <style>
-/* Smart Dropdown Styles - Same as technician_jobs.html */
+.field-management-toolbar {
+    padding: 20px 22px;
+    border-radius: 24px;
+}
+
+.field-management-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.field-management-top h1 {
+    margin: 10px 0 6px;
+    font-size: 2.15rem;
+}
+
+.field-management-top p {
+    margin: 0;
+    color: #5a7495;
+}
+
+.field-management-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.field-management-nav-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(28, 86, 139, 0.14);
+    background: #fff;
+    color: #1d4e82;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.field-management-nav-link.is-active {
+    background: linear-gradient(135deg, #1f5f99 0%, #2d73b2 100%);
+    color: #fff;
+    border-color: transparent;
+}
+
+.field-management-mini-stats {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    gap: 10px;
+}
+
+.field-management-stat {
+    border: 1px solid rgba(28, 86, 139, 0.12);
+    border-radius: 18px;
+    background: #fff;
+    padding: 12px 14px;
+}
+
+.field-management-stat strong {
+    display: block;
+    color: #173f6d;
+    font-size: 1.15rem;
+}
+
+.field-management-stat span {
+    display: block;
+    margin-top: 4px;
+    color: #6680a0;
+    font-weight: 700;
+}
+
+.field-management-filter {
+    display: grid;
+    grid-template-columns: 220px minmax(260px, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.field-management-filter-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.field-management-grid,
+.field-management-bottom-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mini-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 4px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: #eff5fc;
+    color: #5d7694;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
 .smart-dropdown-container {
     position: relative;
 }
 
 .smart-dropdown-select {
     width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    background-color: white;
+    padding: 10px 12px;
+    border: 1px solid rgba(28, 86, 139, 0.16);
+    border-radius: 14px;
+    background: #fff;
     font-size: 14px;
-    transition: border-color 0.15s ease-in-out;
-}
-
-.smart-dropdown-select:focus {
-    border-color: #1c568b;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(28, 86, 139, 0.1);
 }
 
 .smart-dropdown-hint {
     margin-top: 4px;
     font-size: 12px;
     color: #6c757d;
-    opacity: 0.8;
 }
 
-.smart-dropdown-hint small {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-/* Mobile optimizations */
-@media (max-width: 768px) {
-    .smart-dropdown-select {
-        font-size: 16px;
-        padding: 12px;
-        height: 48px;
-    }
-    
-    .smart-dropdown-hint {
-        font-size: 13px;
+@media (max-width: 1200px) {
+    .field-management-mini-stats,
+    .field-management-grid,
+    .field-management-bottom-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-/* Touch-friendly improvements */
-.smart-dropdown-select {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 16px;
-    padding-right: 40px;
+@media (max-width: 900px) {
+    .field-management-top,
+    .field-management-filter,
+    .field-management-mini-stats,
+    .field-management-grid,
+    .field-management-bottom-grid {
+        grid-template-columns: 1fr;
+        display: grid;
+    }
 }
 </style>
-
-<script>
-// Reuse the same function from technician_jobs.html
-function handleTechnicianInput(event) {
-    const select = event.target;
-    const inputValue = select.value.trim();
-    
-    if (!inputValue) {
-        Array.from(select.options).forEach(option => {
-            option.style.display = '';
-        });
-        return;
-    }
-    
-    const isNumber = /^\d+$/.test(inputValue);
-    
-    Array.from(select.options).forEach(option => {
-        if (option.value === '') {
-            option.style.display = '';
-            return;
-        }
-        
-        const code = option.getAttribute('data-code') || '';
-        const name = option.getAttribute('data-name') || '';
-        const displayText = option.textContent.toLowerCase();
-        
-        let shouldShow = false;
-        
-        if (isNumber) {
-            shouldShow = code.includes(inputValue) || displayText.includes(inputValue);
-        } else {
-            shouldShow = name.toLowerCase().includes(inputValue.toLowerCase()) ||
-                         displayText.includes(inputValue.toLowerCase());
-        }
-        
-        option.style.display = shouldShow ? '' : 'none';
-    });
-    
-    const visibleOptions = Array.from(select.options).filter(opt =>
-        opt.style.display !== 'none' && opt.value !== ''
-    );
-    
-    if (visibleOptions.length === 1) {
-        select.value = visibleOptions[0].value;
-        select.dispatchEvent(new Event('change'));
-    }
-}
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const paymentSelect = document.getElementById('payment_technician_select');
-    if (paymentSelect) {
-        paymentSelect.addEventListener('input', handleTechnicianInput);
-        
-        // Add data attributes if missing
-        Array.from(paymentSelect.options).forEach(option => {
-            if (option.value && !option.hasAttribute('data-code')) {
-                const match = option.textContent.match(/\((.*?)\)/);
-                if (match) {
-                    option.setAttribute('data-code', match[1]);
-                    option.setAttribute('data-name', option.textContent.split('(')[0].trim());
-                }
-            }
-        });
-        
-        // Mobile optimizations
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-            paymentSelect.setAttribute('inputmode', 'numeric');
-            paymentSelect.setAttribute('pattern', '[0-9]*');
-        }
-    }
-});
-</script>
 {% endblock %}

@@ -1364,6 +1364,7 @@ def register_routes(app: Flask) -> None:
                     flash("Only pending jobs can be deleted from field staff portal.", "error")
                 else:
                     try:
+                        _archive_field_staff_paper_record(app, db, requested_paper_no, "field_staff_job_deleted")
                         _delete_maintenance_paper_record(db, app, paper_row)
                         _audit_log(
                             db,
@@ -5411,12 +5412,40 @@ def register_routes(app: Flask) -> None:
                         _archive_field_staff_paper_record(app, db, row["paper_no"], "field_staff_job_marked_paid")
                     flash(f"{len(payable_rows)} field staff entries marked paid successfully.", "success")
 
+                elif action == "save_local":
+                    batch_sql, batch_params = _job_filter_sql("mp")
+                    sync_rows = db.execute(
+                        """
+                        SELECT mp.paper_no
+                        FROM maintenance_papers mp
+                        WHERE mp.technician_code IS NOT NULL
+                        """ + batch_sql + """
+                        ORDER BY mp.created_at DESC, mp.id DESC
+                        LIMIT 200
+                        """,
+                        batch_params,
+                    ).fetchall()
+                    if not sync_rows:
+                        raise ValidationError("No field staff entries found for local save.")
+                    synced_count = _archive_field_staff_jobs(app, db, sync_rows, "field_staff_job_manual_sync")
+                    flash(f"{synced_count} field staff entries saved to local archive.", "success")
+
+                elif action == "save_local_row":
+                    if not paper_no:
+                        raise ValidationError("Select a field staff entry to save locally.")
+                    job = _maintenance_paper_row(db, paper_no)
+                    if not job:
+                        raise ValidationError(f"Job {paper_no} was not found.")
+                    _archive_field_staff_paper_record(app, db, paper_no, "field_staff_job_manual_sync")
+                    flash(f"Job {paper_no} saved to local archive.", "success")
+
                 elif action == "delete":
                     if not paper_no:
                         raise ValidationError("Select a field staff entry to delete.")
                     job = _maintenance_paper_row(db, paper_no)
                     if not job:
                         raise ValidationError(f"Job {paper_no} was not found.")
+                    _archive_field_staff_paper_record(app, db, paper_no, "field_staff_job_deleted")
                     _delete_maintenance_paper_record(db, app, job)
                     _audit_log(
                         db,
@@ -5628,6 +5657,47 @@ def register_routes(app: Flask) -> None:
             current_month=current_month,
             vehicle_expense_report=vehicle_expense_report,
             partnership_report=partnership_report,
+        )
+
+    @app.get("/admin/technician-jobs/<paper_no>/local-report")
+    @_login_required("admin")
+    def technician_job_local_report(paper_no: str):
+        _touch_admin_workspace("technicians")
+        db = open_db()
+        archive_context = _field_staff_vehicle_archive_context(app, db, paper_no.strip().upper())
+        if archive_context is None:
+            abort(404)
+        report_path = archive_context["report_path"]
+        if not report_path.exists():
+            _archive_field_staff_paper_record(app, db, paper_no.strip().upper(), "field_staff_job_manual_sync")
+        if not report_path.exists():
+            flash("Vehicle local report could not be generated.", "error")
+            return redirect(url_for("technician_jobs"))
+        return send_file(
+            report_path,
+            mimetype="application/json",
+            as_attachment=False,
+            download_name=f"{secure_filename((archive_context['row']['vehicle_no'] or paper_no).lower())}-vehicle-report.json",
+        )
+
+    @app.get("/admin/technician-jobs/<paper_no>/vehicle-folder")
+    @_login_required("admin")
+    def technician_job_vehicle_folder(paper_no: str):
+        _touch_admin_workspace("technicians")
+        db = open_db()
+        archive_context = _field_staff_vehicle_archive_context(app, db, paper_no.strip().upper())
+        if archive_context is None:
+            abort(404)
+        if not archive_context["report_path"].exists():
+            _archive_field_staff_paper_record(app, db, paper_no.strip().upper(), "field_staff_job_manual_sync")
+            archive_context = _field_staff_vehicle_archive_context(app, db, paper_no.strip().upper())
+        return render_template(
+            "technician_vehicle_archive.html",
+            paper=archive_context["row"],
+            vehicle_dir=str(archive_context["vehicle_dir"]),
+            report_path=str(archive_context["report_path"]),
+            paper_dir=str(archive_context["paper_dir"]),
+            archived_files=archive_context["archived_files"],
         )
     
     @app.get("/tax")
@@ -16240,6 +16310,48 @@ def _field_staff_vehicle_archive_dir(app: Flask, db, paper_row) -> Path:
     base_dir = _field_staff_vehicle_archive_root() / top_folder / vehicle_folder
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir
+
+
+def _field_staff_vehicle_archive_context(app: Flask, db, paper_no: str):
+    row = _maintenance_paper_row(db, paper_no)
+    if row is None:
+        return None
+    vehicle_dir = _field_staff_vehicle_archive_dir(app, db, row)
+    paper_date = (row["paper_date"] or datetime.now().date().isoformat()).strip() or datetime.now().date().isoformat()
+    paper_dir = vehicle_dir / secure_filename(paper_date) / secure_filename((row["paper_no"] or "paper").lower())
+    report_path = vehicle_dir / "vehicle-report.json"
+    archived_files = []
+    if paper_dir.exists():
+        for item in sorted(paper_dir.rglob("*")):
+            if item.is_file():
+                archived_files.append(
+                    {
+                        "name": item.name,
+                        "path": str(item),
+                        "relative_path": item.relative_to(vehicle_dir).as_posix(),
+                    }
+                )
+    return {
+        "row": row,
+        "vehicle_dir": vehicle_dir,
+        "report_path": report_path,
+        "paper_dir": paper_dir,
+        "paper_date": paper_date,
+        "archived_files": archived_files,
+    }
+
+
+def _archive_field_staff_jobs(app: Flask, db, paper_rows, event_type: str) -> int:
+    synced_count = 0
+    seen_papers: set[str] = set()
+    for row in paper_rows:
+        paper_no = (row["paper_no"] or "").strip()
+        if not paper_no or paper_no in seen_papers:
+            continue
+        _archive_field_staff_paper_record(app, db, paper_no, event_type)
+        seen_papers.add(paper_no)
+        synced_count += 1
+    return synced_count
 
 
 def _archive_field_staff_vehicle_record(app: Flask, db, row, event_type: str, copied_attachment: str | None = None) -> None:

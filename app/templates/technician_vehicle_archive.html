@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell">
+    <article class="card archive-view-card">
+        <div class="archive-view-head">
+            <div>
+                <span class="admin-desk-label">Vehicle Archive</span>
+                <h1>{{ paper.vehicle_no or paper.vehicle_id or "General Entry" }}</h1>
+                <p>{{ paper.paper_no }} / {{ paper.paper_date }} / {{ paper.technician_code or "-" }}</p>
+            </div>
+            <div class="archive-view-actions">
+                <a class="button button-outline" href="{{ url_for('technician_jobs') }}">Back to Entries</a>
+                <a class="button" href="{{ url_for('technician_job_local_report', paper_no=paper.paper_no) }}" target="_blank">Open Local Report</a>
+            </div>
+        </div>
+
+        <div class="archive-view-grid">
+            <article class="archive-view-panel">
+                <strong>Vehicle Folder</strong>
+                <code>{{ vehicle_dir }}</code>
+            </article>
+            <article class="archive-view-panel">
+                <strong>Report File</strong>
+                <code>{{ report_path }}</code>
+            </article>
+            <article class="archive-view-panel">
+                <strong>Paper Folder</strong>
+                <code>{{ paper_dir }}</code>
+            </article>
+        </div>
+
+        <div class="archive-file-list">
+            <h2>Saved Files</h2>
+            {% if archived_files %}
+                {% for item in archived_files %}
+                <div class="archive-file-row">
+                    <strong>{{ item.name }}</strong>
+                    <span>{{ item.relative_path }}</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="muted-text">Abhi is paper ke archived files available nahi hain. Save to Local dubara run karein.</p>
+            {% endif %}
+        </div>
+    </article>
+</section>
+
+<style>
+.archive-view-card {
+    padding: 22px;
+    border-radius: 24px;
+}
+
+.archive-view-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 18px;
+}
+
+.archive-view-head h1 {
+    margin: 6px 0;
+}
+
+.archive-view-head p {
+    margin: 0;
+    color: #5f7796;
+}
+
+.archive-view-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.archive-view-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.archive-view-panel {
+    border: 1px solid rgba(28, 86, 139, 0.12);
+    border-radius: 18px;
+    background: #f8fbff;
+    padding: 14px;
+}
+
+.archive-view-panel strong,
+.archive-view-panel code {
+    display: block;
+}
+
+.archive-view-panel code {
+    margin-top: 8px;
+    color: #264b78;
+    word-break: break-word;
+}
+
+.archive-file-list {
+    border-top: 1px solid rgba(28, 86, 139, 0.12);
+    padding-top: 16px;
+}
+
+.archive-file-list h2 {
+    margin: 0 0 12px;
+}
+
+.archive-file-row {
+    display: grid;
+    gap: 4px;
+    padding: 12px 0;
+    border-top: 1px dashed rgba(28, 86, 139, 0.12);
+}
+
+.archive-file-row:first-of-type {
+    border-top: 0;
+}
+
+.archive-file-row span {
+    color: #607896;
+    word-break: break-word;
+}
+
+@media (max-width: 900px) {
+    .archive-view-head,
+    .archive-view-grid {
+        grid-template-columns: 1fr;
+        display: grid;
+    }
+}
+</style>
+{% endblock %}
