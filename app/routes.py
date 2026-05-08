@@ -5172,11 +5172,96 @@ def register_routes(app: Flask) -> None:
         
         # Get filter values from request
         filters = {
-            "status": request.args.get("status", "").strip(),
-            "technician_code": request.args.get("technician_code", "").strip(),
-            "vehicle_id": request.args.get("vehicle_id", "").strip(),
-            "payment_status": request.args.get("payment_status", "").strip(),
+            "status": request.values.get("status", "").strip(),
+            "technician_code": request.values.get("technician_code", "").strip(),
+            "vehicle_id": request.values.get("vehicle_id", "").strip(),
+            "payment_status": request.values.get("payment_status", "").strip(),
         }
+
+        def _job_filter_sql(prefix: str = "mp") -> tuple[str, list]:
+            clauses = []
+            params = []
+            if filters["status"]:
+                clauses.append(f"{prefix}.review_status = ?")
+                params.append(filters["status"])
+            if filters["technician_code"]:
+                clauses.append(f"{prefix}.technician_code = ?")
+                params.append(filters["technician_code"])
+            if filters["vehicle_id"]:
+                clauses.append(f"{prefix}.vehicle_id = ?")
+                params.append(filters["vehicle_id"])
+            if filters["payment_status"]:
+                clauses.append(f"{prefix}.payment_status = ?")
+                params.append(filters["payment_status"])
+            if not clauses:
+                return "", params
+            return " AND " + " AND ".join(clauses), params
+
+        def _approve_technician_job(paper_no: str, reviewer: str) -> tuple[float, float]:
+            job = db.execute(
+                """
+                SELECT mp.total_amount, mp.vehicle_id, vm.ownership_mode,
+                       vm.company_share_percent, vm.partner_share_percent
+                FROM maintenance_papers mp
+                LEFT JOIN vehicle_master vm ON mp.vehicle_id = vm.vehicle_id
+                WHERE mp.paper_no = ?
+                """,
+                (paper_no,),
+            ).fetchone()
+
+            if not job:
+                raise ValidationError(f"Job {paper_no} not found.")
+
+            total_amount = float(job["total_amount"] or 0)
+            ownership_mode = job["ownership_mode"] or "Standard"
+            company_share_percent = float(job["company_share_percent"] or 100)
+            partner_share_percent = float(job["partner_share_percent"] or 0)
+
+            if ownership_mode in ["Standard", "Own Fleet"]:
+                company_share_amount = total_amount
+                partner_share_amount = 0.0
+            else:
+                company_share_amount = total_amount * (company_share_percent / 100)
+                partner_share_amount = total_amount * (partner_share_percent / 100)
+
+            db.execute(
+                """
+                UPDATE maintenance_papers
+                SET review_status = 'Approved',
+                    company_share_amount = ?,
+                    partner_share_amount = ?
+                WHERE paper_no = ?
+                """,
+                (company_share_amount, partner_share_amount, paper_no)
+            )
+
+            _audit_log(
+                db,
+                "technician_job_approved",
+                entity_type="maintenance_paper",
+                entity_id=paper_no,
+                details=f"Job {paper_no} approved by {reviewer}. Split: Company AED {company_share_amount:.2f}, Partner AED {partner_share_amount:.2f}",
+            )
+            return company_share_amount, partner_share_amount
+
+        def _mark_technician_job_paid(paper_no: str, reviewer: str) -> None:
+            db.execute(
+                """
+                UPDATE maintenance_papers
+                SET payment_status = 'Paid',
+                    paid_amount = total_amount,
+                    company_paid_amount = total_amount
+                WHERE paper_no = ?
+                """,
+                (paper_no,)
+            )
+            _audit_log(
+                db,
+                "technician_job_paid",
+                entity_type="maintenance_paper",
+                entity_id=paper_no,
+                details=f"Job {paper_no} marked as paid by {reviewer}",
+            )
         
         # Build query for jobs - updated to match actual schema
         query = """
@@ -5207,25 +5292,9 @@ def register_routes(app: Flask) -> None:
             LEFT JOIN parties wp ON mp.workshop_party_code = wp.party_code
             WHERE mp.technician_code IS NOT NULL
         """
-        params = []
-        
-        if filters["status"]:
-            query += " AND mp.review_status = ?"
-            params.append(filters["status"])
-        
-        if filters["technician_code"]:
-            query += " AND mp.technician_code = ?"
-            params.append(filters["technician_code"])
-        
-        if filters["vehicle_id"]:
-            query += " AND mp.vehicle_id = ?"
-            params.append(filters["vehicle_id"])
-        
-        if filters["payment_status"]:
-            query += " AND mp.payment_status = ?"
-            params.append(filters["payment_status"])
-        
-        query += " ORDER BY mp.paper_date DESC, mp.paper_no DESC LIMIT 50"
+        filter_sql, params = _job_filter_sql("mp")
+        query += filter_sql
+        query += " ORDER BY mp.created_at DESC, mp.id DESC LIMIT 50"
         
         jobs = db.execute(query, params).fetchall()
         
@@ -5260,56 +5329,7 @@ def register_routes(app: Flask) -> None:
             
             try:
                 if action == "approve":
-                    # Get job details to calculate split
-                    job = db.execute(
-                        """
-                        SELECT mp.total_amount, mp.vehicle_id, vm.ownership_mode,
-                               vm.company_share_percent, vm.partner_share_percent
-                        FROM maintenance_papers mp
-                        LEFT JOIN vehicle_master vm ON mp.vehicle_id = vm.vehicle_id
-                        WHERE mp.paper_no = ?
-                        """,
-                        (paper_no,)
-                    ).fetchone()
-                    
-                    if not job:
-                        raise ValidationError(f"Job {paper_no} not found.")
-                    
-                    total_amount = float(job["total_amount"] or 0)
-                    ownership_mode = job["ownership_mode"] or "Standard"
-                    company_share_percent = float(job["company_share_percent"] or 100)
-                    partner_share_percent = float(job["partner_share_percent"] or 0)
-                    
-                    # Calculate split amounts
-                    if ownership_mode in ["Standard", "Own Fleet"]:
-                        # Company vehicle - 100% company expense
-                        company_share_amount = total_amount
-                        partner_share_amount = 0.0
-                    else:
-                        # Partnership or supplier vehicle - split based on percentages
-                        company_share_amount = total_amount * (company_share_percent / 100)
-                        partner_share_amount = total_amount * (partner_share_percent / 100)
-                    
-                    # Update job status to Approved with split amounts
-                    db.execute(
-                        """
-                        UPDATE maintenance_papers
-                        SET review_status = 'Approved',
-                            company_share_amount = ?,
-                            partner_share_amount = ?
-                        WHERE paper_no = ?
-                        """,
-                        (company_share_amount, partner_share_amount, paper_no)
-                    )
-                    
-                    _audit_log(
-                        db,
-                        "technician_job_approved",
-                        entity_type="maintenance_paper",
-                        entity_id=paper_no,
-                        details=f"Job {paper_no} approved by {reviewer}. Split: Company AED {company_share_amount:.2f}, Partner AED {partner_share_amount:.2f}",
-                    )
-                    
+                    company_share_amount, partner_share_amount = _approve_technician_job(paper_no, reviewer)
                     db.commit()
                     _archive_field_staff_paper_record(app, db, paper_no, "field_staff_job_approved")
                     flash(f"Job {paper_no} approved successfully. Split calculated: Company AED {company_share_amount:.2f}, Partner AED {partner_share_amount:.2f}", "success")
@@ -5341,29 +5361,55 @@ def register_routes(app: Flask) -> None:
                     flash(f"Job {paper_no} rejected.", "success")
                     
                 elif action == "mark_paid":
-                    # Mark job as fully paid
-                    db.execute(
-                        """
-                        UPDATE maintenance_papers
-                        SET payment_status = 'Paid',
-                            paid_amount = total_amount,
-                            company_paid_amount = total_amount
-                        WHERE paper_no = ?
-                        """,
-                        (paper_no,)
-                    )
-                    
-                    _audit_log(
-                        db,
-                        "technician_job_paid",
-                        entity_type="maintenance_paper",
-                        entity_id=paper_no,
-                        details=f"Job {paper_no} marked as paid",
-                    )
-                    
+                    _mark_technician_job_paid(paper_no, reviewer)
                     db.commit()
                     _archive_field_staff_paper_record(app, db, paper_no, "field_staff_job_marked_paid")
                     flash(f"Job {paper_no} marked as paid.", "success")
+
+                elif action == "approve_all":
+                    batch_sql, batch_params = _job_filter_sql("mp")
+                    pending_rows = db.execute(
+                        """
+                        SELECT mp.paper_no
+                        FROM maintenance_papers mp
+                        WHERE mp.technician_code IS NOT NULL
+                          AND mp.review_status = 'Pending'
+                        """ + batch_sql + """
+                        ORDER BY mp.created_at DESC, mp.id DESC
+                        """,
+                        batch_params,
+                    ).fetchall()
+                    if not pending_rows:
+                        raise ValidationError("No pending field staff entries found for approve all.")
+                    for row in pending_rows:
+                        _approve_technician_job(row["paper_no"], reviewer)
+                    db.commit()
+                    for row in pending_rows:
+                        _archive_field_staff_paper_record(app, db, row["paper_no"], "field_staff_job_approved")
+                    flash(f"{len(pending_rows)} field staff entries approved successfully.", "success")
+
+                elif action == "pay_all":
+                    batch_sql, batch_params = _job_filter_sql("mp")
+                    payable_rows = db.execute(
+                        """
+                        SELECT mp.paper_no
+                        FROM maintenance_papers mp
+                        WHERE mp.technician_code IS NOT NULL
+                          AND mp.review_status = 'Approved'
+                          AND COALESCE(mp.payment_status, 'Pending') != 'Paid'
+                        """ + batch_sql + """
+                        ORDER BY mp.created_at DESC, mp.id DESC
+                        """,
+                        batch_params,
+                    ).fetchall()
+                    if not payable_rows:
+                        raise ValidationError("No approved unpaid field staff entries found for pay all.")
+                    for row in payable_rows:
+                        _mark_technician_job_paid(row["paper_no"], reviewer)
+                    db.commit()
+                    for row in payable_rows:
+                        _archive_field_staff_paper_record(app, db, row["paper_no"], "field_staff_job_marked_paid")
+                    flash(f"{len(payable_rows)} field staff entries marked paid successfully.", "success")
 
                 elif action == "delete":
                     if not paper_no:
@@ -16173,6 +16219,104 @@ def _field_staff_output_dir(app: Flask, staff_code: str, *, staff_name: str | No
     return base_dir
 
 
+def _field_staff_vehicle_archive_root() -> Path:
+    configured_root = os.environ.get("FIELD_STAFF_VEHICLE_EXPORT_ROOT", r"D:\CurrentLinkData\Generated\FieldStaffVehicles")
+    return Path(configured_root)
+
+
+def _field_staff_vehicle_archive_dir(app: Flask, db, paper_row) -> Path:
+    vehicle_id = (paper_row["vehicle_id"] or "").strip()
+    vehicle_no = (paper_row["vehicle_no"] or "").strip() or "General Entry"
+    ownership_mode = "Standard"
+    if vehicle_id:
+        vehicle = db.execute(
+            "SELECT ownership_mode FROM vehicle_master WHERE vehicle_id = ?",
+            (vehicle_id,),
+        ).fetchone()
+        if vehicle is not None:
+            ownership_mode = (vehicle["ownership_mode"] or "Standard").strip() or "Standard"
+    top_folder = "Partnership" if ownership_mode not in {"Standard", "Own Fleet", "Own Fleet Vehicle"} else "Standard"
+    vehicle_folder = _party_archive_folder_name(vehicle_no or vehicle_id or "general-entry", vehicle_id or vehicle_no)
+    base_dir = _field_staff_vehicle_archive_root() / top_folder / vehicle_folder
+    base_dir.mkdir(parents=True, exist_ok=True)
+    return base_dir
+
+
+def _archive_field_staff_vehicle_record(app: Flask, db, row, event_type: str, copied_attachment: str | None = None) -> None:
+    vehicle_dir = _field_staff_vehicle_archive_dir(app, db, row)
+    paper_date = (row["paper_date"] or datetime.now().date().isoformat()).strip() or datetime.now().date().isoformat()
+    date_dir = vehicle_dir / secure_filename(paper_date)
+    paper_dir = date_dir / secure_filename((row["paper_no"] or "paper").lower())
+    paper_dir.mkdir(parents=True, exist_ok=True)
+
+    attachment_relative = copied_attachment or (row["attachment_path"] or "").strip()
+    local_attachment_path = ""
+    if attachment_relative:
+        attachment_source = Path(app.config["GENERATED_DIR"]) / attachment_relative
+        if attachment_source.exists():
+            attachment_target_dir = paper_dir / "attachments"
+            attachment_target_dir.mkdir(parents=True, exist_ok=True)
+            attachment_target = attachment_target_dir / attachment_source.name
+            if attachment_source.resolve() != attachment_target.resolve():
+                shutil.copy2(attachment_source, attachment_target)
+            local_attachment_path = str(attachment_target)
+
+    snapshot = {
+        "event_type": event_type,
+        "paper_no": row["paper_no"],
+        "paper_date": row["paper_date"],
+        "vehicle_id": row["vehicle_id"] or "",
+        "vehicle_no": row["vehicle_no"] or "",
+        "technician_code": row["technician_code"] or row["staff_code"] or "",
+        "workshop_party_code": row["workshop_party_code"] or "",
+        "supplier_bill_no": row["supplier_bill_no"] or "",
+        "work_type": row["work_type"] or "",
+        "work_summary": row["work_summary"] or "",
+        "subtotal": float(row["subtotal"] or 0.0),
+        "tax_mode": row["tax_mode"] or "",
+        "tax_amount": float(row["tax_amount"] or 0.0),
+        "total_amount": float(row["total_amount"] or 0.0),
+        "company_share_amount": float(row["company_share_amount"] or 0.0) if "company_share_amount" in row.keys() else 0.0,
+        "partner_share_amount": float(row["partner_share_amount"] or 0.0) if "partner_share_amount" in row.keys() else 0.0,
+        "notes": row["notes"] or "",
+        "review_status": row["review_status"] or "",
+        "payment_status": row["payment_status"] or "",
+        "paid_amount": float(row["paid_amount"] or 0.0) if "paid_amount" in row.keys() else 0.0,
+        "attachment_path": local_attachment_path or attachment_relative,
+        "saved_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    _write_json_archive(paper_dir / "paper.json", snapshot)
+
+    vehicle_jobs = db.execute(
+        """
+        SELECT paper_no, paper_date, technician_code, work_type, work_summary, total_amount,
+               review_status, payment_status, attachment_path
+        FROM maintenance_papers
+        WHERE COALESCE(vehicle_id, '') = ?
+        ORDER BY paper_date DESC, id DESC
+        """,
+        (row["vehicle_id"] or "",),
+    ).fetchall() if (row["vehicle_id"] or "").strip() else db.execute(
+        """
+        SELECT paper_no, paper_date, technician_code, work_type, work_summary, total_amount,
+               review_status, payment_status, attachment_path
+        FROM maintenance_papers
+        WHERE COALESCE(vehicle_no, '') = ?
+        ORDER BY paper_date DESC, id DESC
+        """,
+        (row["vehicle_no"] or "",),
+    ).fetchall()
+    _write_json_archive(
+        vehicle_dir / "vehicle-report.json",
+        {
+            "vehicle_id": row["vehicle_id"] or "",
+            "vehicle_no": row["vehicle_no"] or "",
+            "updated_at": datetime.now().isoformat(timespec="seconds"),
+            "jobs": [dict(item) for item in vehicle_jobs],
+        },
+    )
+
+
 def _snapshot_filename(*parts: str) -> str:
     normalized = [secure_filename((part or "").strip().lower()) for part in parts if part]
     return "-".join(filter(None, normalized)) or datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -16582,6 +16726,7 @@ def _archive_field_staff_paper_record(app: Flask, db, paper_no: str, event_type:
             "files": files,
         },
     )
+    _archive_field_staff_vehicle_record(app, db, row, event_type, copied_attachment)
 
 
 def _archive_field_staff_advance_record(app: Flask, db, advance_no: str, event_type: str) -> None:

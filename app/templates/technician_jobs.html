@@ -106,7 +106,7 @@
         </article>
     </section>
 
-    <section class="desk-content-grid compact-content-grid">
+    <section class="desk-content-grid compact-content-grid technician-jobs-primary">
         <article class="card desk-panel-card">
             <div class="desk-panel-head">
                 <div>
@@ -114,19 +114,39 @@
                     <h2>Field Staff Entry List</h2>
                 </div>
             </div>
+            <div class="technician-bulk-bar">
+                <form method="post" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="approve_all">
+                    <input type="hidden" name="status" value="{{ filters.status }}">
+                    <input type="hidden" name="technician_code" value="{{ filters.technician_code }}">
+                    <input type="hidden" name="vehicle_id" value="{{ filters.vehicle_id }}">
+                    <input type="hidden" name="payment_status" value="{{ filters.payment_status }}">
+                    <button class="button button-success" type="submit">Approve All</button>
+                </form>
+                <form method="post" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="pay_all">
+                    <input type="hidden" name="status" value="{{ filters.status }}">
+                    <input type="hidden" name="technician_code" value="{{ filters.technician_code }}">
+                    <input type="hidden" name="vehicle_id" value="{{ filters.vehicle_id }}">
+                    <input type="hidden" name="payment_status" value="{{ filters.payment_status }}">
+                    <button class="button button-primary" type="submit">Pay All</button>
+                </form>
+                <small>Current filters ke mutabiq pending ya approved unpaid entries par ek click action.</small>
+            </div>
             
             {% if jobs %}
-            <div class="table-wrap">
-                <table>
+            <div class="table-wrap technician-jobs-table-wrap">
+                <table class="technician-jobs-table">
                     <thead>
                         <tr>
                             <th>Entry No</th>
                             <th>Date</th>
-                            <th>Vehicle</th>
+                            <th>Vehicle / Workshop</th>
                             <th>Field Staff</th>
                             <th>Amount</th>
-                            <th>Status</th>
-                            <th>Payment</th>
+                            <th>Status / Payment</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -141,8 +161,9 @@
                             </td>
                             <td>{{ job.entry_date }}</td>
                             <td>
-                                {{ job.vehicle_no }}
+                                <strong>{{ job.vehicle_no }}</strong>
                                 <div class="mini-badge">{{ job.vehicle_id }}</div>
+                                <div class="mini-badge">{{ job.workshop_name or '-' }}</div>
                             </td>
                             <td>
                                 {{ job.technician_name }}
@@ -156,8 +177,6 @@
                                 {% if job.review_status == 'Rejected' and job.rejection_reason %}
                                 <div class="mini-badge" title="{{ job.rejection_reason }}">❌ {{ job.rejection_reason[:20] }}...</div>
                                 {% endif %}
-                            </td>
-                            <td>
                                 <span class="payment-badge payment-{{ job.payment_status|lower }}">
                                     {{ job.payment_status }}
                                 </span>
@@ -167,8 +186,8 @@
                                 <div class="mini-badge">Partial AED {{ "%.2f"|format(job.paid_amount or 0) }} of AED {{ "%.2f"|format(job.total_amount or 0) }}</div>
                                 {% endif %}
                             </td>
-                            <td>
-                                <div class="action-buttons">
+                            <td class="technician-actions-cell">
+                                <div class="action-buttons technician-actions-grid">
                                     {% if job.review_status == 'Pending' %}
                                     <form method="post" class="inline-form" style="display: inline;">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -192,7 +211,9 @@
                                         <button class="button button-small button-primary" type="submit">Mark Paid</button>
                                     </form>
                                     {% endif %}
-                                    
+                                    {% if job.bill_image %}
+                                    <a class="button button-small button-outline" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">See Paper</a>
+                                    {% endif %}
                                     <a class="button button-small button-outline" href="{{ url_for('fleet_maintenance') }}?paper_no={{ job.paper_no }}">Edit</a>
                                     <form method="post" class="inline-form" style="display: inline;" onsubmit="return confirm('Delete this field staff entry? This will remove the job record.');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -215,51 +236,6 @@
             {% endif %}
         </article>
 
-        <article class="card desk-panel-card compact-side-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Quick Actions</span>
-                    <h2>Batch Operations</h2>
-                </div>
-            </div>
-            <div class="compact-step-list">
-                <form method="post" class="batch-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="batch_approve">
-                    <label class="full-span">
-                        <span>Approve all pending entries for selected field staff:</span>
-                        <div class="smart-dropdown-container">
-                            <select name="batch_technician_code" id="batch_technician_select" class="smart-dropdown-select" oninput="handleTechnicianInput(event)">
-                                <option value="">All Field Staff</option>
-                                {% for tech in technicians %}
-                                <option value="{{ tech.technician_code }}" data-name="{{ tech.party_name }}" data-code="{{ tech.technician_code }}">{{ tech.party_name }}</option>
-                                {% endfor %}
-                            </select>
-                            <div class="smart-dropdown-hint">
-                                <small>Type code or name to filter</small>
-                            </div>
-                        </div>
-                    </label>
-                    <div class="form-actions">
-                        <button class="button button-success" type="submit">Approve Selected</button>
-                    </div>
-                </form>
-                
-                <div class="divider"></div>
-                
-                <form method="post" class="batch-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="export_report">
-                    <label class="full-span">
-                        <span>Export report for period:</span>
-                        <input type="month" name="export_month" value="{{ current_month }}">
-                    </label>
-                    <div class="form-actions">
-                        <button class="button button-outline" type="submit">Export CSV</button>
-                    </div>
-                </form>
-            </div>
-        </article>
     </section>
 
     <section class="desk-content-grid compact-content-grid">
@@ -414,6 +390,49 @@
 </section>
 
 <style>
+.technician-jobs-primary {
+    display: block;
+}
+
+.technician-jobs-primary .desk-panel-card {
+    width: 100%;
+}
+
+.technician-bulk-bar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 0 0 14px;
+}
+
+.technician-bulk-bar small {
+    color: #64748b;
+}
+
+.technician-jobs-table-wrap {
+    overflow-x: auto;
+}
+
+.technician-jobs-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.technician-jobs-table th,
+.technician-jobs-table td {
+    white-space: normal;
+    vertical-align: top;
+}
+
+.technician-actions-cell {
+    min-width: 220px;
+}
+
+.technician-actions-grid {
+    gap: 6px;
+}
+
 .status-badge {
     display: inline-block;
     padding: 2px 8px;
@@ -475,6 +494,12 @@
     padding: 40px 20px;
     text-align: center;
     color: #6c757d;
+}
+
+@media (max-width: 1100px) {
+    .technician-jobs-table {
+        table-layout: auto;
+    }
 }
 
 /* Searchable Dropdown Styles */

@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import shutil
 import zipfile
@@ -1262,7 +1263,7 @@ def test_delete_driver_removes_related_records(app, client):
         assert db.execute("SELECT COUNT(*) FROM driver_timesheets WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
 
 
-def test_technician_portal_saves_multiple_rows_with_separate_attachments(app, client):
+def test_technician_portal_saves_multiple_rows_with_separate_attachments(app, client, monkeypatch):
     with app.app_context():
         db = open_db()
         db.execute(
@@ -1282,7 +1283,29 @@ def test_technician_portal_saves_multiple_rows_with_separate_attachments(app, cl
             """,
             ("PTY-TEC", "Technician Party", "Supplier"),
         )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-STD-1", "55927", "Truck", "Standard Vehicle", "Active", "Single Shift", "Standard", "Own Fleet Vehicle", 100, 0),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-PART-1", "77881", "Truck", "Partner Vehicle", "Active", "Single Shift", "Partnership", "Supplier Vehicle", 50, 50),
+        )
         db.commit()
+
+    vehicle_export_root = Path(app.config["GENERATED_DIR"]).parent / "field-staff-vehicle-export-test"
+    shutil.rmtree(vehicle_export_root, ignore_errors=True)
+    monkeypatch.setenv("FIELD_STAFF_VEHICLE_EXPORT_ROOT", str(vehicle_export_root))
 
     with client.session_transaction() as session:
         session["role"] = "technician"
@@ -1296,7 +1319,7 @@ def test_technician_portal_saves_multiple_rows_with_separate_attachments(app, cl
             "action": "submit_jobs",
             "row_indexes": "1,2",
             "entry_date_1": "2026-05-01",
-            "vehicle_id_1": "GENERAL",
+            "vehicle_id_1": "VEH-STD-1",
             "workshop_name_1": "Diesel Pump",
             "bill_no_1": "BILL-101",
             "work_type_1": "Fuel",
@@ -1308,7 +1331,7 @@ def test_technician_portal_saves_multiple_rows_with_separate_attachments(app, cl
             "remarks_1": "first row",
             "attachment_1": (BytesIO(b"row-one"), "row-one.jpg"),
             "entry_date_2": "2026-05-02",
-            "vehicle_id_2": "GENERAL",
+            "vehicle_id_2": "VEH-PART-1",
             "workshop_name_2": "Tyre Shop",
             "bill_no_2": "BILL-102",
             "work_type_2": "Maintenance",
@@ -1352,6 +1375,21 @@ def test_technician_portal_saves_multiple_rows_with_separate_attachments(app, cl
         assert papers[1]["attachment_path"].startswith("maintenance/mt-")
         assert (Path(app.config["GENERATED_DIR"]) / papers[1]["attachment_path"]).exists()
         assert db.execute("SELECT COUNT(*) FROM salary_store WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
+
+    standard_root = vehicle_export_root / "Standard"
+    partnership_root = vehicle_export_root / "Partnership"
+    assert standard_root.exists()
+    assert partnership_root.exists()
+    standard_snapshot = list(standard_root.glob("**/2026-05-01/**/paper.json"))
+    partnership_snapshot = list(partnership_root.glob("**/2026-05-02/**/paper.json"))
+    assert len(standard_snapshot) == 1
+    assert len(partnership_snapshot) == 1
+    standard_attachment = list(standard_root.glob("**/2026-05-01/**/attachments/*"))
+    partnership_attachment = list(partnership_root.glob("**/2026-05-02/**/attachments/*"))
+    assert len(standard_attachment) == 1
+    assert len(partnership_attachment) == 1
+    assert list(standard_root.glob("**/vehicle-report.json"))
+    assert list(partnership_root.glob("**/vehicle-report.json"))
 
     recent = client.get("/portal/technician", follow_redirects=True)
     assert recent.status_code == 200
@@ -1570,6 +1608,132 @@ def test_technician_portal_can_edit_and_delete_pending_job(app, client):
     with app.app_context():
         db = open_db()
         assert db.execute("SELECT COUNT(*) FROM maintenance_papers WHERE paper_no = ?", ("MT-EDIT-1",)).fetchone()[0] == 0
+
+
+def test_admin_technician_jobs_support_approve_all_and_pay_all(app, client):
+    admin_session(client)
+    local_vehicle_root = Path(app.config["GENERATED_DIR"]).parent / "field-staff-vehicle-admin-test"
+    shutil.rmtree(local_vehicle_root, ignore_errors=True)
+    os.environ["FIELD_STAFF_VEHICLE_EXPORT_ROOT"] = str(local_vehicle_root)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-002", "PTY-TECH-002", "tech.bulk.admin", "hash", "0501111000", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-TECH-002", "Muhammad Bilal", "Supplier"),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-0005", "55927", "Truck", "Test Vehicle", "Active", "Single Shift", "Standard", "Own Fleet Vehicle", 100, 0),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_papers (
+                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                attachment_path, notes, technician_code, review_status, payment_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "MT-0098",
+                "2026-05-30",
+                "VEH-0005",
+                "55927",
+                "PTY-TECH-002",
+                "BILL-98",
+                "Repair",
+                "Recent job",
+                420.0,
+                "Inclusive",
+                0.0,
+                420.0,
+                None,
+                "",
+                "TECH-002",
+                "Pending",
+                "Pending",
+                "2026-05-30 08:00:00",
+            ),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_papers (
+                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                attachment_path, notes, technician_code, review_status, payment_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "MT-0099",
+                "2026-05-30",
+                "VEH-0005",
+                "55927",
+                "PTY-TECH-002",
+                "BILL-99",
+                "Repair",
+                "Second job",
+                380.0,
+                "Inclusive",
+                0.0,
+                380.0,
+                None,
+                "",
+                "TECH-002",
+                "Pending",
+                "Pending",
+                "2026-05-30 09:00:00",
+            ),
+        )
+        db.commit()
+
+    page = client.get("/admin/technician-jobs", follow_redirects=True)
+    assert page.status_code == 200
+    assert b"Approve All" in page.data
+    assert b"Pay All" in page.data
+
+    approved = client.post("/admin/technician-jobs", data={"action": "approve_all"}, follow_redirects=True)
+    assert approved.status_code == 200
+    assert b"approved successfully" in approved.data
+
+    with app.app_context():
+        db = open_db()
+        statuses = db.execute(
+            "SELECT paper_no, review_status FROM maintenance_papers WHERE technician_code = ? ORDER BY paper_no ASC",
+            ("TECH-002",),
+        ).fetchall()
+        assert [row["review_status"] for row in statuses] == ["Approved", "Approved"]
+
+    paid = client.post("/admin/technician-jobs", data={"action": "pay_all"}, follow_redirects=True)
+    assert paid.status_code == 200
+    assert b"marked paid successfully" in paid.data
+
+    with app.app_context():
+        db = open_db()
+        payment_rows = db.execute(
+            "SELECT paper_no, payment_status, paid_amount FROM maintenance_papers WHERE technician_code = ? ORDER BY paper_no ASC",
+            ("TECH-002",),
+        ).fetchall()
+        assert [row["payment_status"] for row in payment_rows] == ["Paid", "Paid"]
+        assert float(payment_rows[0]["paid_amount"]) == 420.0
+        assert float(payment_rows[1]["paid_amount"]) == 380.0
 
 
 def test_owner_fund_can_edit_and_delete(app, client):
