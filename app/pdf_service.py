@@ -1469,6 +1469,65 @@ def generate_field_staff_vehicle_report_pdf(vehicle_meta, report_rows, summary, 
     rows_per_page = 18
     title = "Partnership Vehicle Expense Report" if vehicle_meta.get("is_partnership") else "Vehicle Expense Report"
     subtitle = f"{vehicle_meta.get('vehicle_no') or '-'} | {vehicle_meta.get('vehicle_id') or '-'} | Full vehicle history"
+    table_columns = [
+        ("Date", 16, 18, "left"),
+        ("Paper No", 34, 23, "left"),
+        ("Workshop", 57, 43, "left"),
+        ("Work Type", 100, 26, "left"),
+        ("Field Staff", 126, 29, "left"),
+        ("Amount", 155, 18, "right"),
+        ("Status", 173, 21, "right"),
+    ]
+
+    def draw_vehicle_header(top: float) -> None:
+        pdf.setFillColor(BLUE)
+        pdf.roundRect(16 * mm, top, 178 * mm, 8 * mm, 2 * mm, fill=1, stroke=0)
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 8.0)
+        for header, x_mm, width_mm, align in table_columns:
+            cell_x = x_mm * mm
+            cell_w = width_mm * mm
+            if align == "right":
+                header_text, header_size = _fit_text(pdf, header, "Helvetica-Bold", 8.0, cell_w - 5 * mm, min_size=6.8)
+                pdf.setFont("Helvetica-Bold", header_size)
+                pdf.drawRightString(cell_x + cell_w - (2.5 * mm), top + 2.45 * mm, header_text)
+            else:
+                header_text, header_size = _fit_text(pdf, header, "Helvetica-Bold", 8.0, cell_w - 5 * mm, min_size=6.8)
+                pdf.setFont("Helvetica-Bold", header_size)
+                pdf.drawString(cell_x + 2.5 * mm, top + 2.45 * mm, header_text)
+
+    def draw_vehicle_row(row_y: float, row, *, striped: bool) -> None:
+        if striped:
+            pdf.setFillColor(SOFT)
+            pdf.roundRect(16 * mm, row_y - 2.6 * mm, 178 * mm, 6.6 * mm, 1.8 * mm, fill=1, stroke=0)
+        values = [
+            format_date_label(row.get("paper_date")),
+            row.get("paper_no") or "-",
+            row.get("workshop_name") or "-",
+            row.get("work_type") or "-",
+            row.get("technician_name") or "-",
+            format_currency(float(row.get("total_amount") or 0.0)),
+            f"{row.get('review_status') or '-'} / {row.get('payment_status') or '-'}",
+        ]
+        fonts = [
+            ("Helvetica", 7.4, 6.2),
+            ("Helvetica-Bold", 7.3, 6.1),
+            ("Helvetica", 7.0, 5.8),
+            ("Helvetica", 7.0, 5.8),
+            ("Helvetica", 7.0, 5.8),
+            ("Helvetica-Bold", 7.4, 6.1),
+            ("Helvetica", 6.7, 5.6),
+        ]
+        pdf.setFillColor(TEXT)
+        for (value, (font_name, font_size, min_size), (_, x_mm, width_mm, align)) in zip(values, fonts, table_columns):
+            cell_x = x_mm * mm
+            cell_w = width_mm * mm
+            text, size = _fit_text(pdf, str(value or "-"), font_name, font_size, cell_w - 5 * mm, min_size=min_size)
+            pdf.setFont(font_name, size)
+            if align == "right":
+                pdf.drawRightString(cell_x + cell_w - (2.5 * mm), row_y, text)
+            else:
+                pdf.drawString(cell_x + 2.5 * mm, row_y, text)
 
     def draw_page(page_rows, page_no: int, total_pages: int):
         _draw_header(pdf, assets_dir)
@@ -1497,52 +1556,24 @@ def generate_field_staff_vehicle_report_pdf(vehicle_meta, report_rows, summary, 
         _draw_stat_box(pdf, 61 * mm, metrics_y, 42 * mm, 14 * mm, "TOTAL AMOUNT", f"AED {format_currency(float(summary.get('total_amount') or 0.0))}")
         _draw_stat_box(pdf, 107 * mm, metrics_y, 42 * mm, 14 * mm, "APPROVED", f"AED {format_currency(float(summary.get('approved_amount') or 0.0))}", fill_color=SOFT)
         _draw_stat_box(pdf, 153 * mm, metrics_y, 42 * mm, 14 * mm, "PAID", f"AED {format_currency(float(summary.get('paid_amount') or 0.0))}", fill_color=BLUE, text_color=colors.white, border_color=BLUE)
-        _draw_small_meta_row(pdf, 16 * mm, metrics_y - 4.5 * mm, "Balance Due", f"AED {format_currency(float(summary.get('balance_due') or 0.0))}", 60 * mm)
+        _draw_compact_meta_row(pdf, 16 * mm, metrics_y - 4.5 * mm, 74 * mm, "Balance Due", f"AED {format_currency(float(summary.get('balance_due') or 0.0))}")
         if vehicle_meta.get("is_partnership"):
-            _draw_small_meta_row(
+            _draw_compact_meta_row(
                 pdf,
-                92 * mm,
+                104 * mm,
                 metrics_y - 4.5 * mm,
+                90 * mm,
                 "Split",
                 f"Company AED {format_currency(float(summary.get('company_share_amount') or 0.0))} / Partner AED {format_currency(float(summary.get('partner_share_amount') or 0.0))}",
-                98 * mm,
             )
 
         table_top = PAGE_HEIGHT - 158 * mm
-        _draw_table_header(
-            pdf,
-            table_top,
-            ["Date", "Paper No", "Workshop", "Work Type", "Field Staff", "Amount", "Status"],
-            [16, 34, 58, 111, 137, 165, 190],
-        )
+        draw_vehicle_header(table_top)
 
         y = table_top - 7 * mm
         row_height = 8 * mm
         for index, row in enumerate(page_rows):
-            if index % 2 == 0:
-                pdf.setFillColor(SOFT)
-                pdf.roundRect(16 * mm, y - 2.6 * mm, 178 * mm, 6.6 * mm, 1.8 * mm, fill=1, stroke=0)
-            pdf.setFillColor(TEXT)
-            pdf.setFont("Helvetica", 7.5)
-            pdf.drawString(16 * mm, y, format_date_label(row.get("paper_date")))
-            paper_no, paper_no_size = _fit_text(pdf, row.get("paper_no") or "-", "Helvetica-Bold", 7.3, 22 * mm, min_size=6.2)
-            pdf.setFont("Helvetica-Bold", paper_no_size)
-            pdf.drawString(34 * mm, y, paper_no)
-            workshop_text, workshop_size = _fit_text(pdf, row.get("workshop_name") or "-", "Helvetica", 7.0, 49 * mm, min_size=5.8)
-            pdf.setFont("Helvetica", workshop_size)
-            pdf.drawString(58 * mm, y, workshop_text)
-            work_type_text, work_type_size = _fit_text(pdf, row.get("work_type") or "-", "Helvetica", 7.0, 24 * mm, min_size=5.8)
-            pdf.setFont("Helvetica", work_type_size)
-            pdf.drawString(111 * mm, y, work_type_text)
-            staff_text, staff_size = _fit_text(pdf, row.get("technician_name") or "-", "Helvetica", 7.0, 24 * mm, min_size=5.8)
-            pdf.setFont("Helvetica", staff_size)
-            pdf.drawString(137 * mm, y, staff_text)
-            pdf.setFont("Helvetica-Bold", 7.5)
-            pdf.drawRightString(165 * mm, y, format_currency(float(row.get("total_amount") or 0.0)))
-            status_text = f"{row.get('review_status') or '-'} / {row.get('payment_status') or '-'}"
-            status_fit, status_size = _fit_text(pdf, status_text, "Helvetica", 6.8, 24 * mm, min_size=5.6)
-            pdf.setFont("Helvetica", status_size)
-            pdf.drawRightString(193 * mm, y, status_fit)
+            draw_vehicle_row(y, row, striped=index % 2 == 0)
             y -= row_height
 
         pdf.setFillColor(MUTED)
@@ -2331,6 +2362,19 @@ def _draw_small_meta_row(pdf: canvas.Canvas, x: float, y: float, label: str, val
     pdf.setFont("Helvetica-Bold", size)
     label_width = pdf.stringWidth(label_text, "Helvetica", 6.9) + (2 * mm)
     pdf.drawRightString(x + label_width + value_width, y, text)
+
+
+def _draw_compact_meta_row(pdf: canvas.Canvas, x: float, y: float, total_width: float, label: str, value: str) -> None:
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 6.9)
+    label_text = f"{label}:"
+    pdf.drawString(x, y, label_text)
+    label_width = pdf.stringWidth(label_text, "Helvetica", 6.9)
+    available_width = max(total_width - label_width - (2.6 * mm), 14 * mm)
+    pdf.setFillColor(TEXT)
+    text, size = _fit_text(pdf, str(value or "-"), "Helvetica-Bold", 7.0, available_width, min_size=5.8)
+    pdf.setFont("Helvetica-Bold", size)
+    pdf.drawRightString(x + total_width, y, text)
 
 
 def _draw_invoice_party_box(
