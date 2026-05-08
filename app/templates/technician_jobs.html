@@ -230,8 +230,7 @@
                             <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
                             <button class="button button-small button-outline" type="submit">Save Local</button>
                         </form>
-                        <a class="button button-small button-outline" href="{{ url_for('technician_job_local_report', paper_no=job.paper_no) }}" target="_blank">Local Report</a>
-                        <a class="button button-small button-outline" href="{{ url_for('technician_job_vehicle_folder', paper_no=job.paper_no) }}">Open Vehicle Folder</a>
+                        <a class="button button-small button-outline" href="{{ url_for('technician_job_local_report', paper_no=job.paper_no) }}" target="_blank">Open Report</a>
                         {% if job.bill_image %}
                         <a class="button button-small button-outline" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">See Paper</a>
                         {% endif %}

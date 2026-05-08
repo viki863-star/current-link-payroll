@@ -1458,6 +1458,108 @@ def generate_cash_supplier_manual_pdf(sections, output_dir: str, assets_dir: str
     return str(output_path)
 
 
+def generate_field_staff_vehicle_report_pdf(vehicle_meta, report_rows, summary, output_dir: str, assets_dir: str) -> str:
+    vehicle_no = (vehicle_meta.get("vehicle_no") or vehicle_meta.get("vehicle_id") or "general").strip() or "general"
+    safe_vehicle = str(vehicle_no).replace("/", "-").replace(" ", "_")
+    output_path = Path(output_dir) / f"{safe_vehicle}_vehicle_report.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+    page_number = 1
+    rows_per_page = 18
+    title = "Partnership Vehicle Expense Report" if vehicle_meta.get("is_partnership") else "Vehicle Expense Report"
+    subtitle = f"{vehicle_meta.get('vehicle_no') or '-'} | {vehicle_meta.get('vehicle_id') or '-'} | Full vehicle history"
+
+    def draw_page(page_rows, page_no: int, total_pages: int):
+        _draw_header(pdf, assets_dir)
+        _draw_title(pdf, title, subtitle)
+
+        summary_x = 15 * mm
+        summary_y = PAGE_HEIGHT - 104 * mm
+        summary_w = 180 * mm
+        summary_h = 24 * mm
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(summary_x, summary_y, summary_w, summary_h, 4 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(summary_x, summary_y, summary_w, summary_h, 4 * mm, fill=0, stroke=1)
+        pdf.setFillColor(BLUE_SOFT)
+        pdf.roundRect(summary_x, summary_y + summary_h - 8 * mm, summary_w, 8 * mm, 4 * mm, fill=1, stroke=0)
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont("Helvetica-Bold", 8.5)
+        pdf.drawString(summary_x + 5 * mm, summary_y + summary_h - 5.2 * mm, "VEHICLE SUMMARY")
+
+        _draw_label_value_row(pdf, summary_x + 5 * mm, summary_y + 10.5 * mm, 22 * mm, 32 * mm, "Vehicle No", vehicle_meta.get("vehicle_no") or "-")
+        _draw_label_value_row(pdf, summary_x + 65 * mm, summary_y + 10.5 * mm, 20 * mm, 32 * mm, "Vehicle ID", vehicle_meta.get("vehicle_id") or "-")
+        _draw_label_value_row(pdf, summary_x + 120 * mm, summary_y + 10.5 * mm, 22 * mm, 32 * mm, "Mode", vehicle_meta.get("ownership_mode") or "Standard")
+
+        metrics_y = PAGE_HEIGHT - 136 * mm
+        _draw_stat_box(pdf, 15 * mm, metrics_y, 42 * mm, 14 * mm, "TOTAL PAPERS", str(int(summary.get("paper_count") or 0)))
+        _draw_stat_box(pdf, 61 * mm, metrics_y, 42 * mm, 14 * mm, "TOTAL AMOUNT", f"AED {format_currency(float(summary.get('total_amount') or 0.0))}")
+        _draw_stat_box(pdf, 107 * mm, metrics_y, 42 * mm, 14 * mm, "APPROVED", f"AED {format_currency(float(summary.get('approved_amount') or 0.0))}", fill_color=SOFT)
+        _draw_stat_box(pdf, 153 * mm, metrics_y, 42 * mm, 14 * mm, "PAID", f"AED {format_currency(float(summary.get('paid_amount') or 0.0))}", fill_color=BLUE, text_color=colors.white, border_color=BLUE)
+        _draw_small_meta_row(pdf, 16 * mm, metrics_y - 4.5 * mm, "Balance Due", f"AED {format_currency(float(summary.get('balance_due') or 0.0))}", 60 * mm)
+        if vehicle_meta.get("is_partnership"):
+            _draw_small_meta_row(
+                pdf,
+                92 * mm,
+                metrics_y - 4.5 * mm,
+                "Split",
+                f"Company AED {format_currency(float(summary.get('company_share_amount') or 0.0))} / Partner AED {format_currency(float(summary.get('partner_share_amount') or 0.0))}",
+                98 * mm,
+            )
+
+        table_top = PAGE_HEIGHT - 158 * mm
+        _draw_table_header(
+            pdf,
+            table_top,
+            ["Date", "Paper No", "Workshop", "Work Type", "Field Staff", "Amount", "Status"],
+            [16, 34, 58, 111, 137, 165, 190],
+        )
+
+        y = table_top - 7 * mm
+        row_height = 8 * mm
+        for index, row in enumerate(page_rows):
+            if index % 2 == 0:
+                pdf.setFillColor(SOFT)
+                pdf.roundRect(16 * mm, y - 2.6 * mm, 178 * mm, 6.6 * mm, 1.8 * mm, fill=1, stroke=0)
+            pdf.setFillColor(TEXT)
+            pdf.setFont("Helvetica", 7.5)
+            pdf.drawString(16 * mm, y, format_date_label(row.get("paper_date")))
+            paper_no, paper_no_size = _fit_text(pdf, row.get("paper_no") or "-", "Helvetica-Bold", 7.3, 22 * mm, min_size=6.2)
+            pdf.setFont("Helvetica-Bold", paper_no_size)
+            pdf.drawString(34 * mm, y, paper_no)
+            workshop_text, workshop_size = _fit_text(pdf, row.get("workshop_name") or "-", "Helvetica", 7.0, 49 * mm, min_size=5.8)
+            pdf.setFont("Helvetica", workshop_size)
+            pdf.drawString(58 * mm, y, workshop_text)
+            work_type_text, work_type_size = _fit_text(pdf, row.get("work_type") or "-", "Helvetica", 7.0, 24 * mm, min_size=5.8)
+            pdf.setFont("Helvetica", work_type_size)
+            pdf.drawString(111 * mm, y, work_type_text)
+            staff_text, staff_size = _fit_text(pdf, row.get("technician_name") or "-", "Helvetica", 7.0, 24 * mm, min_size=5.8)
+            pdf.setFont("Helvetica", staff_size)
+            pdf.drawString(137 * mm, y, staff_text)
+            pdf.setFont("Helvetica-Bold", 7.5)
+            pdf.drawRightString(165 * mm, y, format_currency(float(row.get("total_amount") or 0.0)))
+            status_text = f"{row.get('review_status') or '-'} / {row.get('payment_status') or '-'}"
+            status_fit, status_size = _fit_text(pdf, status_text, "Helvetica", 6.8, 24 * mm, min_size=5.6)
+            pdf.setFont("Helvetica", status_size)
+            pdf.drawRightString(193 * mm, y, status_fit)
+            y -= row_height
+
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 7.0)
+        pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
+        pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_no} / {total_pages}")
+        _draw_footer_banner(pdf, assets_dir, show_top_rule=False)
+        pdf.showPage()
+
+    pages = [report_rows[i : i + rows_per_page] for i in range(0, len(report_rows), rows_per_page)] or [[]]
+    total_pages = len(pages)
+    for index, page_rows in enumerate(pages, start=1):
+        draw_page(page_rows, index, total_pages)
+    pdf.save()
+    return str(output_path)
+
+
 def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output_dir: str, assets_dir: str) -> str:
     safe_invoice_no = str(invoice["invoice_no"]).replace("/", "-")
     output_path = Path(output_dir) / f"{safe_invoice_no}_tax-invoice.pdf"

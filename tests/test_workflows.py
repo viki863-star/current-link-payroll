@@ -1795,8 +1795,9 @@ def test_admin_technician_jobs_support_local_archive_actions(app, client):
     page = client.get("/admin/technician-jobs", follow_redirects=True)
     assert page.status_code == 200
     assert b"Save to Local" in page.data
-    assert b"Local Report" in page.data
-    assert b"Open Vehicle Folder" in page.data
+    assert b"Open Report" in page.data
+    assert b"Local Report" not in page.data
+    assert b"Open Vehicle Folder" not in page.data
 
     saved = client.post(
         "/admin/technician-jobs",
@@ -1808,20 +1809,21 @@ def test_admin_technician_jobs_support_local_archive_actions(app, client):
 
     report = client.get("/admin/technician-jobs/MT-LOCAL-1/local-report", follow_redirects=True)
     assert report.status_code == 200
-    payload = json.loads(report.data.decode("utf-8"))
-    assert payload["vehicle_id"] == "VEH-0006"
-    assert payload["jobs"][0]["paper_no"] == "MT-LOCAL-1"
-
-    folder = client.get("/admin/technician-jobs/MT-LOCAL-1/vehicle-folder", follow_redirects=True)
-    assert folder.status_code == 200
-    assert b"Vehicle Folder" in folder.data
-    assert b"MT-LOCAL-1" in folder.data
+    assert report.mimetype == "application/pdf"
+    reader = PdfReader(BytesIO(report.data))
+    extracted_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    assert "Partnership Vehicle Expense Report" in extracted_text
+    assert "77112" in extracted_text
+    assert "MT-LOCAL-1" in extracted_text
+    assert "Repair" in extracted_text
 
     vehicle_report = local_vehicle_root / "Partnership"
     report_files = list(vehicle_report.glob("**/vehicle-report.json"))
     assert report_files
     report_data = json.loads(report_files[0].read_text(encoding="utf-8"))
     assert report_data["jobs"][0]["paper_no"] == "MT-LOCAL-1"
+    pdf_reports = list(vehicle_report.glob("**/*_vehicle_report.pdf"))
+    assert pdf_reports
 
 
 def test_technicians_page_renders_compact_management_workspace(app, client):

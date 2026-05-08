@@ -43,6 +43,7 @@ from .pdf_service import (
     generate_cash_supplier_kata_pdf,
     generate_cash_supplier_manual_pdf,
     generate_cash_supplier_payment_voucher_pdf,
+    generate_field_staff_vehicle_report_pdf,
     generate_kata_pdf,
     generate_lpo_pdf,
     generate_owner_fund_pdf,
@@ -1364,8 +1365,17 @@ def register_routes(app: Flask) -> None:
                     flash("Only pending jobs can be deleted from field staff portal.", "error")
                 else:
                     try:
+                        deleted_vehicle_id = (paper_row["vehicle_id"] or "").strip()
+                        deleted_vehicle_no = (paper_row["vehicle_no"] or "").strip()
                         _archive_field_staff_paper_record(app, db, requested_paper_no, "field_staff_job_deleted")
                         _delete_maintenance_paper_record(db, app, paper_row)
+                        _refresh_field_staff_vehicle_outputs(
+                            app,
+                            db,
+                            vehicle_id=deleted_vehicle_id,
+                            vehicle_no=deleted_vehicle_no,
+                            fallback_row=paper_row,
+                        )
                         _audit_log(
                             db,
                             "technician_job_deleted",
@@ -5445,8 +5455,17 @@ def register_routes(app: Flask) -> None:
                     job = _maintenance_paper_row(db, paper_no)
                     if not job:
                         raise ValidationError(f"Job {paper_no} was not found.")
+                    deleted_vehicle_id = (job["vehicle_id"] or "").strip()
+                    deleted_vehicle_no = (job["vehicle_no"] or "").strip()
                     _archive_field_staff_paper_record(app, db, paper_no, "field_staff_job_deleted")
                     _delete_maintenance_paper_record(db, app, job)
+                    _refresh_field_staff_vehicle_outputs(
+                        app,
+                        db,
+                        vehicle_id=deleted_vehicle_id,
+                        vehicle_no=deleted_vehicle_no,
+                        fallback_row=job,
+                    )
                     _audit_log(
                         db,
                         "technician_job_deleted",
@@ -5667,37 +5686,21 @@ def register_routes(app: Flask) -> None:
         archive_context = _field_staff_vehicle_archive_context(app, db, paper_no.strip().upper())
         if archive_context is None:
             abort(404)
-        report_path = archive_context["report_path"]
-        if not report_path.exists():
-            _archive_field_staff_paper_record(app, db, paper_no.strip().upper(), "field_staff_job_manual_sync")
-        if not report_path.exists():
+        pdf_path = _refresh_field_staff_vehicle_outputs(
+            app,
+            db,
+            vehicle_id=archive_context["row"]["vehicle_id"] or "",
+            vehicle_no=archive_context["row"]["vehicle_no"] or "",
+            fallback_row=archive_context["row"],
+        )
+        if pdf_path is None or not pdf_path.exists():
             flash("Vehicle local report could not be generated.", "error")
             return redirect(url_for("technician_jobs"))
         return send_file(
-            report_path,
-            mimetype="application/json",
+            pdf_path,
+            mimetype="application/pdf",
             as_attachment=False,
-            download_name=f"{secure_filename((archive_context['row']['vehicle_no'] or paper_no).lower())}-vehicle-report.json",
-        )
-
-    @app.get("/admin/technician-jobs/<paper_no>/vehicle-folder")
-    @_login_required("admin")
-    def technician_job_vehicle_folder(paper_no: str):
-        _touch_admin_workspace("technicians")
-        db = open_db()
-        archive_context = _field_staff_vehicle_archive_context(app, db, paper_no.strip().upper())
-        if archive_context is None:
-            abort(404)
-        if not archive_context["report_path"].exists():
-            _archive_field_staff_paper_record(app, db, paper_no.strip().upper(), "field_staff_job_manual_sync")
-            archive_context = _field_staff_vehicle_archive_context(app, db, paper_no.strip().upper())
-        return render_template(
-            "technician_vehicle_archive.html",
-            paper=archive_context["row"],
-            vehicle_dir=str(archive_context["vehicle_dir"]),
-            report_path=str(archive_context["report_path"]),
-            paper_dir=str(archive_context["paper_dir"]),
-            archived_files=archive_context["archived_files"],
+            download_name=pdf_path.name,
         )
     
     @app.get("/tax")
@@ -5818,6 +5821,35 @@ def register_routes(app: Flask) -> None:
             "spent_amount": sum(float(item["total_spent"] or 0) for item in technicians_list),
             "balance_amount": sum(float(item["balance_amount"] or 0) for item in technicians_list),
         }
+        summary["avg_given"] = (summary["given_amount"] / summary["staff_count"]) if summary["staff_count"] else 0.0
+        summary["avg_spent"] = (summary["spent_amount"] / summary["staff_count"]) if summary["staff_count"] else 0.0
+        summary["negative_balance_count"] = len([item for item in technicians_list if float(item["balance_amount"] or 0) < 0])
+
+        staff_money_cards = []
+        for item in technicians_list:
+            given_amount = float(item["given_amount"] or 0)
+            spent_amount = float(item["total_spent"] or 0)
+            balance_amount = float(item["balance_amount"] or 0)
+            progress_base = max(given_amount, spent_amount, abs(balance_amount), 1.0)
+            staff_money_cards.append(
+                {
+                    "technician_code": item["technician_code"],
+                    "user_id": item["user_id"] or "",
+                    "specialization": item["specialization"] or item["technician_code"],
+                    "status": item["status"] or "Active",
+                    "given_amount": given_amount,
+                    "spent_amount": spent_amount,
+                    "balance_amount": balance_amount,
+                    "vehicle_spent": float(item["vehicle_spent"] or 0),
+                    "general_spent": float(item["general_spent"] or 0),
+                    "spent_percent": 0 if given_amount <= 0 else min(100.0, round((spent_amount / given_amount) * 100, 1)),
+                    "balance_percent": min(100.0, round((abs(balance_amount) / progress_base) * 100, 1)),
+                }
+            )
+
+        top_receiver = max(staff_money_cards, key=lambda entry: entry["given_amount"], default=None)
+        top_spender = max(staff_money_cards, key=lambda entry: entry["spent_amount"], default=None)
+        top_balance = max(staff_money_cards, key=lambda entry: entry["balance_amount"], default=None)
 
         _, _, owner_fund_balance = _owner_fund_totals(db)
 
@@ -6118,6 +6150,10 @@ def register_routes(app: Flask) -> None:
             payment_values=payment_values,
             recent_payments=recent_payments,
             summary=summary,
+            staff_money_cards=staff_money_cards,
+            top_receiver=top_receiver,
+            top_spender=top_spender,
+            top_balance=top_balance,
             owner_fund_balance=owner_fund_balance,
             edit_technician_code=edit_technician_code,
             status_filter=status_filter,
@@ -16320,6 +16356,7 @@ def _field_staff_vehicle_archive_context(app: Flask, db, paper_no: str):
     paper_date = (row["paper_date"] or datetime.now().date().isoformat()).strip() or datetime.now().date().isoformat()
     paper_dir = vehicle_dir / secure_filename(paper_date) / secure_filename((row["paper_no"] or "paper").lower())
     report_path = vehicle_dir / "vehicle-report.json"
+    pdf_report_path = vehicle_dir / f"{secure_filename(((row['vehicle_no'] or row['vehicle_id'] or 'general').strip() or 'general').lower())}_vehicle_report.pdf"
     archived_files = []
     if paper_dir.exists():
         for item in sorted(paper_dir.rglob("*")):
@@ -16335,6 +16372,7 @@ def _field_staff_vehicle_archive_context(app: Flask, db, paper_no: str):
         "row": row,
         "vehicle_dir": vehicle_dir,
         "report_path": report_path,
+        "pdf_report_path": pdf_report_path,
         "paper_dir": paper_dir,
         "paper_date": paper_date,
         "archived_files": archived_files,
@@ -16352,6 +16390,128 @@ def _archive_field_staff_jobs(app: Flask, db, paper_rows, event_type: str) -> in
         seen_papers.add(paper_no)
         synced_count += 1
     return synced_count
+
+
+def _field_staff_vehicle_report_rows(db, vehicle_id: str, vehicle_no: str):
+    vehicle_id = (vehicle_id or "").strip()
+    vehicle_no = (vehicle_no or "").strip()
+    if vehicle_id:
+        rows = db.execute(
+            """
+            SELECT
+                mp.paper_no,
+                mp.paper_date,
+                mp.vehicle_id,
+                mp.vehicle_no,
+                mp.work_type,
+                mp.total_amount,
+                mp.review_status,
+                mp.payment_status,
+                COALESCE(mp.company_share_amount, 0) AS company_share_amount,
+                COALESCE(mp.partner_share_amount, 0) AS partner_share_amount,
+                COALESCE(mp.paid_amount, 0) AS paid_amount,
+                COALESCE(wp.party_name, mp.workshop_party_code, '-') AS workshop_name,
+                COALESCE(p.party_name, t.specialization, mp.technician_code, '-') AS technician_name
+            FROM maintenance_papers mp
+            LEFT JOIN vehicle_master vm ON mp.vehicle_id = vm.vehicle_id
+            LEFT JOIN parties wp ON mp.workshop_party_code = wp.party_code
+            LEFT JOIN technicians t ON mp.technician_code = t.technician_code
+            LEFT JOIN parties p ON t.party_code = p.party_code
+            WHERE COALESCE(mp.vehicle_id, '') = ?
+            ORDER BY mp.paper_date DESC, mp.id DESC
+            """,
+            (vehicle_id,),
+        ).fetchall()
+    else:
+        rows = db.execute(
+            """
+            SELECT
+                mp.paper_no,
+                mp.paper_date,
+                mp.vehicle_id,
+                mp.vehicle_no,
+                mp.work_type,
+                mp.total_amount,
+                mp.review_status,
+                mp.payment_status,
+                COALESCE(mp.company_share_amount, 0) AS company_share_amount,
+                COALESCE(mp.partner_share_amount, 0) AS partner_share_amount,
+                COALESCE(mp.paid_amount, 0) AS paid_amount,
+                COALESCE(wp.party_name, mp.workshop_party_code, '-') AS workshop_name,
+                COALESCE(p.party_name, t.specialization, mp.technician_code, '-') AS technician_name
+            FROM maintenance_papers mp
+            LEFT JOIN parties wp ON mp.workshop_party_code = wp.party_code
+            LEFT JOIN technicians t ON mp.technician_code = t.technician_code
+            LEFT JOIN parties p ON t.party_code = p.party_code
+            WHERE COALESCE(mp.vehicle_no, '') = ?
+            ORDER BY mp.paper_date DESC, mp.id DESC
+            """,
+            (vehicle_no,),
+        ).fetchall()
+    return rows
+
+
+def _refresh_field_staff_vehicle_outputs(app: Flask, db, *, vehicle_id: str, vehicle_no: str, fallback_row=None) -> Path | None:
+    vehicle_rows = _field_staff_vehicle_report_rows(db, vehicle_id, vehicle_no)
+    seed_row = fallback_row or (vehicle_rows[0] if vehicle_rows else None)
+    if seed_row is None:
+        return None
+    vehicle_dir = _field_staff_vehicle_archive_dir(app, db, seed_row)
+    report_json_path = vehicle_dir / "vehicle-report.json"
+    pdf_path = vehicle_dir / f"{secure_filename(((seed_row['vehicle_no'] or seed_row['vehicle_id'] or 'general').strip() or 'general').lower())}_vehicle_report.pdf"
+
+    if not vehicle_rows:
+        if report_json_path.exists():
+            report_json_path.unlink(missing_ok=True)
+        if pdf_path.exists():
+            pdf_path.unlink(missing_ok=True)
+        return None
+
+    vehicle_meta = {
+        "vehicle_id": seed_row["vehicle_id"] or "",
+        "vehicle_no": seed_row["vehicle_no"] or "",
+        "ownership_mode": "",
+        "is_partnership": False,
+    }
+    if (seed_row["vehicle_id"] or "").strip():
+        vehicle = db.execute(
+            "SELECT ownership_mode FROM vehicle_master WHERE vehicle_id = ?",
+            (seed_row["vehicle_id"],),
+        ).fetchone()
+        if vehicle is not None:
+            vehicle_meta["ownership_mode"] = (vehicle["ownership_mode"] or "Standard").strip() or "Standard"
+    vehicle_meta["is_partnership"] = vehicle_meta["ownership_mode"] not in {"", "Standard", "Own Fleet", "Own Fleet Vehicle"}
+
+    summary = {
+        "paper_count": len(vehicle_rows),
+        "total_amount": sum(float(item["total_amount"] or 0.0) for item in vehicle_rows),
+        "approved_amount": sum(float(item["total_amount"] or 0.0) for item in vehicle_rows if (item["review_status"] or "") == "Approved"),
+        "paid_amount": sum(float(item["paid_amount"] or 0.0) for item in vehicle_rows),
+        "company_share_amount": sum(float(item["company_share_amount"] or 0.0) for item in vehicle_rows),
+        "partner_share_amount": sum(float(item["partner_share_amount"] or 0.0) for item in vehicle_rows),
+    }
+    summary["balance_due"] = round(summary["total_amount"] - summary["paid_amount"], 2)
+
+    _write_json_archive(
+        report_json_path,
+        {
+            "vehicle_id": vehicle_meta["vehicle_id"],
+            "vehicle_no": vehicle_meta["vehicle_no"],
+            "ownership_mode": vehicle_meta["ownership_mode"] or "Standard",
+            "updated_at": datetime.now().isoformat(timespec="seconds"),
+            "summary": summary,
+            "jobs": [dict(item) for item in vehicle_rows],
+        },
+    )
+    return Path(
+        generate_field_staff_vehicle_report_pdf(
+            vehicle_meta,
+            [dict(item) for item in vehicle_rows],
+            summary,
+            str(vehicle_dir),
+            app.config["STATIC_ASSETS_DIR"],
+        )
+    )
 
 
 def _archive_field_staff_vehicle_record(app: Flask, db, row, event_type: str, copied_attachment: str | None = None) -> None:
@@ -16399,33 +16559,12 @@ def _archive_field_staff_vehicle_record(app: Flask, db, row, event_type: str, co
     }
     _write_json_archive(paper_dir / "paper.json", snapshot)
 
-    vehicle_jobs = db.execute(
-        """
-        SELECT paper_no, paper_date, technician_code, work_type, work_summary, total_amount,
-               review_status, payment_status, attachment_path
-        FROM maintenance_papers
-        WHERE COALESCE(vehicle_id, '') = ?
-        ORDER BY paper_date DESC, id DESC
-        """,
-        (row["vehicle_id"] or "",),
-    ).fetchall() if (row["vehicle_id"] or "").strip() else db.execute(
-        """
-        SELECT paper_no, paper_date, technician_code, work_type, work_summary, total_amount,
-               review_status, payment_status, attachment_path
-        FROM maintenance_papers
-        WHERE COALESCE(vehicle_no, '') = ?
-        ORDER BY paper_date DESC, id DESC
-        """,
-        (row["vehicle_no"] or "",),
-    ).fetchall()
-    _write_json_archive(
-        vehicle_dir / "vehicle-report.json",
-        {
-            "vehicle_id": row["vehicle_id"] or "",
-            "vehicle_no": row["vehicle_no"] or "",
-            "updated_at": datetime.now().isoformat(timespec="seconds"),
-            "jobs": [dict(item) for item in vehicle_jobs],
-        },
+    _refresh_field_staff_vehicle_outputs(
+        app,
+        db,
+        vehicle_id=row["vehicle_id"] or "",
+        vehicle_no=row["vehicle_no"] or "",
+        fallback_row=row,
     )
 
 

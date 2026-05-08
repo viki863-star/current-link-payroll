@@ -1,44 +1,44 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="admin-desk-shell field-management-shell">
-    <article class="card field-management-toolbar">
-        <div class="field-management-top">
+<section class="admin-desk-shell field-management-shell compact-field-shell">
+    <article class="card field-topbar-card">
+        <div class="field-topbar-main">
             <div>
-                <div class="field-management-nav">
-                    <a class="field-management-nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
-                    <span class="field-management-nav-link is-active">Field Staff Management</span>
-                    <a class="field-management-nav-link" href="{{ url_for('technicians') }}">All Field Staff</a>
-                    <a class="field-management-nav-link" href="{{ url_for('technician_jobs') }}">Field Staff Entries</a>
+                <div class="field-nav-cluster">
+                    <a class="field-nav-chip" href="{{ url_for('dashboard') }}">Dashboard</a>
+                    <span class="field-nav-chip is-active">Field Staff Management</span>
+                    <a class="field-nav-chip" href="{{ url_for('technicians') }}">All Field Staff</a>
+                    <a class="field-nav-chip" href="{{ url_for('technician_jobs') }}">Field Staff Entries</a>
                 </div>
                 <h1>Field Staff Management</h1>
-                <p>Accounts, owner payments, aur staff directory ko compact workspace mein manage karein.</p>
+                <p>Received, spent, aur live balance ko compact ERP desk mein monitor karein.</p>
             </div>
-            <div class="field-management-mini-stats">
-                <div class="field-management-stat">
+            <div class="field-topbar-metrics">
+                <article class="field-metric-card">
+                    <span>Total Staff</span>
                     <strong>{{ summary.staff_count }}</strong>
-                    <span>Field Staff</span>
-                </div>
-                <div class="field-management-stat">
+                </article>
+                <article class="field-metric-card success">
+                    <span>Total Given</span>
                     <strong>AED {{ "%.0f"|format(summary.given_amount) }}</strong>
-                    <span>Given</span>
-                </div>
-                <div class="field-management-stat">
+                </article>
+                <article class="field-metric-card info">
+                    <span>Total Spent</span>
                     <strong>AED {{ "%.0f"|format(summary.spent_amount) }}</strong>
-                    <span>Spent</span>
-                </div>
-                <div class="field-management-stat">
+                </article>
+                <article class="field-metric-card warning">
+                    <span>Live Balance</span>
                     <strong>AED {{ "%.0f"|format(summary.balance_amount) }}</strong>
-                    <span>Balance</span>
-                </div>
-                <div class="field-management-stat">
-                    <strong>AED {{ "%.0f"|format(owner_fund_balance) }}</strong>
+                </article>
+                <article class="field-metric-card dark">
                     <span>Owner Fund</span>
-                </div>
+                    <strong>AED {{ "%.0f"|format(owner_fund_balance) }}</strong>
+                </article>
             </div>
         </div>
 
-        <form method="get" class="field-management-filter">
+        <form method="get" class="field-filter-strip">
             <label>
                 <span>Status</span>
                 <select name="status">
@@ -47,11 +47,11 @@
                     <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
                 </select>
             </label>
-            <label>
+            <label class="field-filter-search">
                 <span>Search</span>
                 <input type="search" name="search" value="{{ search_q }}" placeholder="Staff code, user ID, name, role">
             </label>
-            <div class="field-management-filter-actions">
+            <div class="field-filter-actions">
                 <button class="button" type="submit">Filter</button>
                 {% if status_filter or search_q %}
                 <a class="button button-outline" href="{{ url_for('technicians') }}">Clear</a>
@@ -60,16 +60,102 @@
         </form>
     </article>
 
-    <section class="desk-content-grid compact-content-grid field-management-grid">
-        <article class="card desk-panel-card" id="technician-form">
+    <section class="field-money-board">
+        <article class="card field-summary-card">
+            <div class="field-summary-header">
+                <div>
+                    <span class="eyebrow">Money Snapshot</span>
+                    <h2>Field Staff Wallet Overview</h2>
+                    <p>Yahan se foran samajh aata hai kis ko kitna diya, kitna spend hua, aur balance kitna baqi hai.</p>
+                </div>
+                <div class="field-summary-badges">
+                    <span class="field-summary-badge">Avg Given AED {{ "%.0f"|format(summary.avg_given) }}</span>
+                    <span class="field-summary-badge">Avg Spent AED {{ "%.0f"|format(summary.avg_spent) }}</span>
+                    <span class="field-summary-badge">Negative {{ summary.negative_balance_count }}</span>
+                </div>
+            </div>
+
+            <div class="field-highlight-grid">
+                <div class="field-highlight-card">
+                    <span>Top Receiver</span>
+                    <strong>{{ top_receiver.specialization if top_receiver else "-" }}</strong>
+                    <small>{{ top_receiver.technician_code if top_receiver else "" }}</small>
+                    <b>AED {{ "%.0f"|format(top_receiver.given_amount if top_receiver else 0) }}</b>
+                </div>
+                <div class="field-highlight-card">
+                    <span>Top Spender</span>
+                    <strong>{{ top_spender.specialization if top_spender else "-" }}</strong>
+                    <small>{{ top_spender.technician_code if top_spender else "" }}</small>
+                    <b>AED {{ "%.0f"|format(top_spender.spent_amount if top_spender else 0) }}</b>
+                </div>
+                <div class="field-highlight-card">
+                    <span>Best Balance</span>
+                    <strong>{{ top_balance.specialization if top_balance else "-" }}</strong>
+                    <small>{{ top_balance.technician_code if top_balance else "" }}</small>
+                    <b>AED {{ "%.0f"|format(top_balance.balance_amount if top_balance else 0) }}</b>
+                </div>
+            </div>
+        </article>
+
+        <div class="field-staff-money-grid">
+            {% for staff in staff_money_cards %}
+            <article class="card field-staff-money-card">
+                <div class="field-staff-money-head">
+                    <div>
+                        <strong>{{ staff.specialization }}</strong>
+                        <span>{{ staff.technician_code }}{% if staff.user_id %} / {{ staff.user_id }}{% endif %}</span>
+                    </div>
+                    <span class="field-staff-status {% if staff.status == 'Active' %}is-active{% else %}is-inactive{% endif %}">{{ staff.status }}</span>
+                </div>
+
+                <div class="field-staff-money-values">
+                    <div>
+                        <label>Received</label>
+                        <strong>AED {{ "%.2f"|format(staff.given_amount) }}</strong>
+                    </div>
+                    <div>
+                        <label>Spent</label>
+                        <strong>AED {{ "%.2f"|format(staff.spent_amount) }}</strong>
+                    </div>
+                    <div>
+                        <label>Balance</label>
+                        <strong class="{% if staff.balance_amount < 0 %}is-negative{% else %}is-positive{% endif %}">AED {{ "%.2f"|format(staff.balance_amount) }}</strong>
+                    </div>
+                </div>
+
+                <div class="field-progress-stack">
+                    <div class="field-progress-row">
+                        <span>Spent vs Given</span>
+                        <b>{{ "%.0f"|format(staff.spent_percent) }}%</b>
+                    </div>
+                    <div class="field-progress-bar">
+                        <div class="field-progress-fill spent" style="width: {{ staff.spent_percent }}%;"></div>
+                    </div>
+                    <div class="field-progress-row">
+                        <span>Vehicle AED {{ "%.0f"|format(staff.vehicle_spent) }}</span>
+                        <span>General AED {{ "%.0f"|format(staff.general_spent) }}</span>
+                    </div>
+                </div>
+            </article>
+            {% else %}
+            <article class="card field-staff-money-card field-empty-card">
+                <strong>No field staff found</strong>
+                <span>Filtered result mein ابھی کوئی staff nahi mila.</span>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="desk-content-grid compact-content-grid field-workspace-grid">
+        <article class="card desk-panel-card field-form-card" id="technician-form">
             <div class="desk-panel-head">
                 <div>
                     <p class="eyebrow">Field Staff Account</p>
                     <h2>{% if edit_technician_code %}Edit Field Staff{% else %}Create New Field Staff{% endif %}</h2>
-                    <p class="muted-text">Login account aur basic profile yahan maintain hoti hai.</p>
+                    <p class="muted-text">Login, phone, aur role compact form mein manage karein.</p>
                 </div>
             </div>
-            <form method="post" class="entry-form two-column-form">
+            <form method="post" class="entry-form two-column-form compact-form-grid">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {% if edit_technician_code %}
                 <input type="hidden" name="technician_code" value="{{ values.technician_code }}">
@@ -113,18 +199,18 @@
             </form>
         </article>
 
-        <article class="card desk-panel-card" id="payment-form">
+        <article class="card desk-panel-card field-form-card" id="payment-form">
             <div class="desk-panel-head">
                 <div>
                     <p class="eyebrow">Owner Payment</p>
                     <h2>Issue Amount To Field Staff</h2>
-                    <p class="muted-text">Owner Fund, direct cash, ya bank se diya gaya amount yahan record hota hai.</p>
+                    <p class="muted-text">Owner Fund, cash, ya bank amount ko yahan se staff ke naam post karein.</p>
                 </div>
                 <div class="table-actions">
                     <a class="mini-action-link" href="{{ url_for('owner_fund') }}">Open Owner Fund</a>
                 </div>
             </div>
-            <form method="post" class="entry-form two-column-form">
+            <form method="post" class="entry-form two-column-form compact-form-grid">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="issue_payment">
                 <label>
@@ -175,48 +261,50 @@
         </article>
     </section>
 
-    <section class="desk-content-grid compact-content-grid">
+    <section class="desk-content-grid compact-content-grid field-directory-grid">
         <article class="card desk-panel-card">
             <div class="desk-panel-head">
                 <div>
                     <p class="eyebrow">Field Staff Directory</p>
-                    <h2>All Field Staff</h2>
+                    <h2>Received / Spent / Balance Ledger</h2>
                 </div>
             </div>
             {% if technicians %}
             <div class="table-wrap">
-                <table>
+                <table class="field-ledger-table">
                     <thead>
                         <tr>
                             <th>Code</th>
-                            <th>User ID</th>
                             <th>Name / Role</th>
-                            <th>Phone</th>
                             <th>Status</th>
-                            <th>Given</th>
+                            <th>Received</th>
                             <th>Spent</th>
                             <th>Balance</th>
+                            <th>Breakup</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for tech in technicians %}
                         <tr>
-                            <td><strong>{{ tech.technician_code }}</strong></td>
-                            <td>{{ tech.user_id or '-' }}</td>
-                            <td>{{ tech.specialization or '-' }}</td>
-                            <td>{{ tech.phone_number or '-' }}</td>
                             <td>
-                                <span class="status-badge {% if tech.status == 'Active' %}status-badge-success{% else %}status-badge-warning{% endif %}">
-                                    {{ tech.status }}
-                                </span>
+                                <strong>{{ tech.technician_code }}</strong>
+                                <div class="mini-badge">{{ tech.user_id or '-' }}</div>
                             </td>
-                            <td>AED {{ "%.2f"|format(tech.given_amount or 0) }}</td>
                             <td>
-                                AED {{ "%.2f"|format(tech.total_spent or 0) }}
-                                <div class="mini-badge">Vehicle {{ "%.0f"|format(tech.vehicle_spent or 0) }} / General {{ "%.0f"|format(tech.general_spent or 0) }}</div>
+                                <strong>{{ tech.specialization or '-' }}</strong>
+                                <div class="mini-subtext">{{ tech.phone_number or '-' }}</div>
                             </td>
-                            <td>AED {{ "%.2f"|format(tech.balance_amount or 0) }}</td>
+                            <td>
+                                <span class="status-badge {% if tech.status == 'Active' %}status-badge-success{% else %}status-badge-warning{% endif %}">{{ tech.status }}</span>
+                            </td>
+                            <td class="money-cell positive">AED {{ "%.2f"|format(tech.given_amount or 0) }}</td>
+                            <td class="money-cell info">AED {{ "%.2f"|format(tech.total_spent or 0) }}</td>
+                            <td class="money-cell {% if (tech.balance_amount or 0) < 0 %}negative{% else %}positive{% endif %}">AED {{ "%.2f"|format(tech.balance_amount or 0) }}</td>
+                            <td>
+                                <div class="mini-badge">Vehicle {{ "%.0f"|format(tech.vehicle_spent or 0) }}</div>
+                                <div class="mini-badge">General {{ "%.0f"|format(tech.general_spent or 0) }}</div>
+                            </td>
                             <td>
                                 <div class="table-actions">
                                     <a class="mini-action-link" href="{{ url_for('technicians', edit=tech.technician_code) }}#technician-form">Edit</a>
@@ -244,7 +332,7 @@
         </article>
     </section>
 
-    <section class="desk-content-grid compact-content-grid field-management-bottom-grid">
+    <section class="desk-content-grid compact-content-grid field-payments-grid">
         <article class="card desk-panel-card">
             <div class="desk-panel-head">
                 <div>
@@ -272,7 +360,7 @@
                             <td>{{ item.entry_date }}</td>
                             <td>{{ item.technician_name }}</td>
                             <td>{{ item.funding_source }}</td>
-                            <td>AED {{ "%.2f"|format(item.amount or 0) }}</td>
+                            <td class="money-cell positive">AED {{ "%.2f"|format(item.amount or 0) }}</td>
                             <td>{{ item.reference or item.notes or '-' }}</td>
                             <td>
                                 <form method="post" class="inline-form" onsubmit="return confirm('Delete this field staff payment?');">
@@ -294,144 +382,432 @@
 </section>
 
 <style>
-.field-management-toolbar {
-    padding: 20px 22px;
+.compact-field-shell {
+    gap: 16px;
+}
+
+.field-topbar-card {
+    padding: 18px 20px;
     border-radius: 24px;
 }
 
-.field-management-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 18px;
-    align-items: flex-start;
-    margin-bottom: 16px;
+.field-topbar-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(420px, 1fr);
+    gap: 16px;
+    align-items: start;
 }
 
-.field-management-top h1 {
-    margin: 10px 0 6px;
-    font-size: 2.15rem;
-}
-
-.field-management-top p {
-    margin: 0;
-    color: #5a7495;
-}
-
-.field-management-nav {
+.field-nav-cluster {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
 }
 
-.field-management-nav-link {
+.field-nav-chip {
     display: inline-flex;
     align-items: center;
-    padding: 10px 16px;
+    padding: 9px 15px;
     border-radius: 999px;
     border: 1px solid rgba(28, 86, 139, 0.14);
     background: #fff;
     color: #1d4e82;
     font-weight: 700;
     text-decoration: none;
+    font-size: 0.95rem;
 }
 
-.field-management-nav-link.is-active {
+.field-nav-chip.is-active {
     background: linear-gradient(135deg, #1f5f99 0%, #2d73b2 100%);
     color: #fff;
     border-color: transparent;
 }
 
-.field-management-mini-stats {
+.field-topbar-card h1 {
+    margin: 10px 0 6px;
+    font-size: 2rem;
+    line-height: 1.08;
+}
+
+.field-topbar-card p {
+    margin: 0;
+    color: #607896;
+    font-size: 1rem;
+}
+
+.field-topbar-metrics {
     display: grid;
-    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 10px;
 }
 
-.field-management-stat {
-    border: 1px solid rgba(28, 86, 139, 0.12);
-    border-radius: 18px;
-    background: #fff;
+.field-metric-card {
     padding: 12px 14px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f6f9fd 100%);
+    border: 1px solid rgba(28, 86, 139, 0.12);
 }
 
-.field-management-stat strong {
+.field-metric-card span {
     display: block;
+    color: #6b829f;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.field-metric-card strong {
+    display: block;
+    margin-top: 6px;
     color: #173f6d;
     font-size: 1.15rem;
+    line-height: 1.15;
 }
 
-.field-management-stat span {
-    display: block;
-    margin-top: 4px;
-    color: #6680a0;
-    font-weight: 700;
+.field-metric-card.success strong {
+    color: #17724d;
 }
 
-.field-management-filter {
+.field-metric-card.info strong {
+    color: #0f5c8c;
+}
+
+.field-metric-card.warning strong {
+    color: #a55b00;
+}
+
+.field-metric-card.dark {
+    background: linear-gradient(135deg, #203b63 0%, #314d78 100%);
+}
+
+.field-metric-card.dark span,
+.field-metric-card.dark strong {
+    color: #fff;
+}
+
+.field-filter-strip {
     display: grid;
-    grid-template-columns: 220px minmax(260px, 1fr) auto;
+    grid-template-columns: 180px minmax(260px, 1fr) auto;
     gap: 12px;
     align-items: end;
+    margin-top: 14px;
 }
 
-.field-management-filter-actions {
+.field-filter-search {
+    min-width: 0;
+}
+
+.field-filter-actions {
     display: flex;
     gap: 8px;
     align-items: center;
 }
 
-.field-management-grid,
-.field-management-bottom-grid {
+.field-money-board {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.72fr) minmax(0, 1.28fr);
+    gap: 16px;
+}
+
+.field-summary-card {
+    padding: 18px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #1c568b 0%, #244f81 54%, #3d6d98 100%);
+    color: #fff;
+}
+
+.field-summary-header {
+    display: grid;
+    gap: 12px;
+}
+
+.field-summary-card .eyebrow {
+    color: #ffd9a9;
+}
+
+.field-summary-card h2 {
+    margin: 6px 0 4px;
+    font-size: 1.45rem;
+}
+
+.field-summary-card p {
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 0.96rem;
+}
+
+.field-summary-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.field-summary-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.field-highlight-grid {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.field-highlight-card {
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.field-highlight-card span,
+.field-highlight-card small,
+.field-highlight-card strong,
+.field-highlight-card b {
+    display: block;
+}
+
+.field-highlight-card span {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.field-highlight-card strong {
+    margin-top: 6px;
+    font-size: 1rem;
+}
+
+.field-highlight-card small {
+    margin-top: 2px;
+    color: rgba(255, 255, 255, 0.76);
+}
+
+.field-highlight-card b {
+    margin-top: 8px;
+    font-size: 1rem;
+    color: #ffe5c3;
+}
+
+.field-staff-money-grid {
+    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.field-staff-money-card {
+    padding: 14px 15px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border: 1px solid rgba(28, 86, 139, 0.12);
+}
+
+.field-staff-money-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: start;
+}
+
+.field-staff-money-head strong,
+.field-staff-money-head span {
+    display: block;
+}
+
+.field-staff-money-head strong {
+    color: #173f6d;
+    font-size: 1rem;
+}
+
+.field-staff-money-head span {
+    color: #6b829f;
+    font-size: 0.83rem;
+    margin-top: 3px;
+}
+
+.field-staff-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.field-staff-status.is-active {
+    background: #dff5e9;
+    color: #18724d;
+}
+
+.field-staff-status.is-inactive {
+    background: #fff2d5;
+    color: #9b6206;
+}
+
+.field-staff-money-values {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.field-staff-money-values label,
+.field-staff-money-values strong {
+    display: block;
+}
+
+.field-staff-money-values label {
+    color: #6c839f;
+    font-size: 0.73rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+}
+
+.field-staff-money-values strong {
+    margin-top: 6px;
+    color: #153e69;
+    font-size: 0.96rem;
+    line-height: 1.2;
+}
+
+.field-staff-money-values .is-positive {
+    color: #17724d;
+}
+
+.field-staff-money-values .is-negative {
+    color: #be3f34;
+}
+
+.field-progress-stack {
+    margin-top: 12px;
+}
+
+.field-progress-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: #6b829f;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.field-progress-bar {
+    margin: 7px 0 8px;
+    height: 9px;
+    border-radius: 999px;
+    background: #e8f0fa;
+    overflow: hidden;
+}
+
+.field-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+}
+
+.field-progress-fill.spent {
+    background: linear-gradient(90deg, #1e7bff 0%, #29b3f0 100%);
+}
+
+.field-workspace-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-form-card {
+    padding: 2px 2px 6px;
+}
+
+.compact-form-grid label span {
+    font-size: 0.88rem;
+}
+
+.field-directory-grid .desk-panel-card,
+.field-payments-grid .desk-panel-card {
+    width: 100%;
+}
+
+.field-ledger-table th,
+.field-ledger-table td {
+    vertical-align: top;
 }
 
 .mini-badge {
     display: inline-flex;
     align-items: center;
-    margin-top: 4px;
-    padding: 2px 6px;
+    padding: 3px 7px;
     border-radius: 999px;
     background: #eff5fc;
     color: #5d7694;
     font-size: 0.72rem;
     font-weight: 700;
-}
-
-.smart-dropdown-container {
-    position: relative;
-}
-
-.smart-dropdown-select {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid rgba(28, 86, 139, 0.16);
-    border-radius: 14px;
-    background: #fff;
-    font-size: 14px;
-}
-
-.smart-dropdown-hint {
     margin-top: 4px;
-    font-size: 12px;
-    color: #6c757d;
 }
 
-@media (max-width: 1200px) {
-    .field-management-mini-stats,
-    .field-management-grid,
-    .field-management-bottom-grid {
+.mini-subtext {
+    margin-top: 4px;
+    color: #6b829f;
+    font-size: 0.8rem;
+}
+
+.money-cell {
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.money-cell.positive {
+    color: #18724d;
+}
+
+.money-cell.info {
+    color: #0f5c8c;
+}
+
+.money-cell.negative {
+    color: #be3f34;
+}
+
+.field-empty-card {
+    display: grid;
+    place-items: center;
+    text-align: center;
+    min-height: 120px;
+}
+
+@media (max-width: 1280px) {
+    .field-topbar-main,
+    .field-money-board,
+    .field-workspace-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .field-topbar-metrics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .field-staff-money-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 900px) {
-    .field-management-top,
-    .field-management-filter,
-    .field-management-mini-stats,
-    .field-management-grid,
-    .field-management-bottom-grid {
+    .field-topbar-metrics,
+    .field-staff-money-grid,
+    .field-staff-money-values,
+    .field-filter-strip,
+    .field-workspace-grid {
         grid-template-columns: 1fr;
-        display: grid;
+    }
+
+    .field-topbar-card h1 {
+        font-size: 1.72rem;
     }
 }
 </style>
