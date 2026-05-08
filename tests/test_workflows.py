@@ -1834,6 +1834,10 @@ def test_technicians_page_renders_compact_management_workspace(app, client):
     assert b"Field Staff Management" in page.data
     assert b"Field Staff Entries" in page.data
     assert b"Issue Amount To Field Staff" in page.data
+    assert b"Field Staff Wallet Overview" in page.data
+    assert b"Total Given" in page.data
+    assert b"Total Spent" in page.data
+    assert b"Live Balance" in page.data
 
 
 def test_owner_fund_can_edit_and_delete(app, client):
