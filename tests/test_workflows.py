@@ -12,6 +12,7 @@ from pypdf import PdfReader
 from werkzeug.security import generate_password_hash
 
 from app import create_app
+from app import routes as routes_module
 from app.backup_service import backup_status_summary, create_backup_now
 from app.database import open_db
 from app.pdf_service import generate_kata_pdf, generate_owner_fund_pdf
@@ -1863,6 +1864,14 @@ def test_admin_technician_jobs_vehicle_filter_generates_full_report(app, client)
     assert pdf_reports
     copied_attachments = list(vehicle_report.glob("**/attachments/receipt.pdf"))
     assert copied_attachments
+
+
+def test_windows_style_vehicle_export_root_falls_back_on_posix(app, monkeypatch):
+    monkeypatch.setenv("FIELD_STAFF_VEHICLE_EXPORT_ROOT", r"D:\CurrentLinkData\Generated\FieldStaffVehicles")
+
+    export_root = routes_module._field_staff_vehicle_archive_root(app, platform_name="posix")
+
+    assert export_root == (Path(app.config["LOCAL_DATA_ROOT"]) / "Generated" / "FieldStaffVehicles").resolve()
 
 
 def test_technicians_page_renders_compact_management_workspace(app, client):

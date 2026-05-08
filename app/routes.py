@@ -5456,6 +5456,7 @@ def register_routes(app: Flask) -> None:
                     )
                     if pdf_path is None or not pdf_path.exists():
                         raise ValidationError("Vehicle report could not be generated.")
+                    pdf_path = pdf_path.resolve()
                     return send_file(
                         pdf_path,
                         mimetype="application/pdf",
@@ -14156,16 +14157,41 @@ def _ensure_cash_supplier_payment_voucher_pdf(app, db, payment_no: str) -> str:
     return pdf_path
 
 
-def _cash_supplier_local_export_root(supplier_mode: str) -> Path:
+def _configured_local_export_root(
+    app: Flask,
+    configured_root: str,
+    fallback_parts: tuple[str, ...],
+    *,
+    platform_name: str | None = None,
+) -> Path:
+    platform_name = platform_name or os.name
+    local_data_root = Path(app.config.get("LOCAL_DATA_ROOT") or Path(app.config["GENERATED_DIR"]).parent).expanduser()
+    fallback_root = local_data_root
+    for part in ("Generated", *fallback_parts):
+        fallback_root /= part
+    configured_root = (configured_root or "").strip()
+    if not configured_root:
+        return fallback_root.resolve()
+    if re.match(r"^[A-Za-z]:[\\/]", configured_root):
+        if platform_name == "nt":
+            return Path(configured_root).expanduser()
+        return fallback_root.resolve()
+    candidate = Path(configured_root).expanduser()
+    if candidate.is_absolute():
+        return candidate.resolve()
+    return (local_data_root / candidate).resolve()
+
+
+def _cash_supplier_local_export_root(app: Flask, supplier_mode: str) -> Path:
     configured_root = os.environ.get("CASH_SUPPLIER_LOCAL_EXPORT_ROOT", r"D:\CurrentLinkData\Generated\Suppliers")
     mode_folder = "Loan" if supplier_mode == "Loan" else "Cash"
-    return Path(configured_root) / mode_folder
+    return _configured_local_export_root(app, configured_root, ("Suppliers",)) / mode_folder
 
 
 def _save_cash_supplier_portal_bundle_local(app: Flask, db, party, *, supplier_mode: str = "Cash") -> Path:
     party_code = party["party_code"]
     party_name = party["party_name"] or party_code
-    export_root = _cash_supplier_local_export_root(supplier_mode)
+    export_root = _cash_supplier_local_export_root(app, supplier_mode)
     supplier_dir = export_root / _party_archive_folder_name(party_code, party_name)
     supplier_dir.mkdir(parents=True, exist_ok=True)
 
@@ -16315,9 +16341,9 @@ def _field_staff_output_dir(app: Flask, staff_code: str, *, staff_name: str | No
     return base_dir
 
 
-def _field_staff_vehicle_archive_root() -> Path:
+def _field_staff_vehicle_archive_root(app: Flask, *, platform_name: str | None = None) -> Path:
     configured_root = os.environ.get("FIELD_STAFF_VEHICLE_EXPORT_ROOT", r"D:\CurrentLinkData\Generated\FieldStaffVehicles")
-    return Path(configured_root)
+    return _configured_local_export_root(app, configured_root, ("FieldStaffVehicles",), platform_name=platform_name)
 
 
 def _field_staff_vehicle_archive_dir(app: Flask, db, paper_row) -> Path:
@@ -16333,7 +16359,7 @@ def _field_staff_vehicle_archive_dir(app: Flask, db, paper_row) -> Path:
             ownership_mode = (vehicle["ownership_mode"] or "Standard").strip() or "Standard"
     top_folder = "Partnership" if ownership_mode not in {"Standard", "Own Fleet", "Own Fleet Vehicle"} else "Standard"
     vehicle_folder = _party_archive_folder_name(vehicle_no or vehicle_id or "general-entry", vehicle_id or vehicle_no)
-    base_dir = _field_staff_vehicle_archive_root() / top_folder / vehicle_folder
+    base_dir = _field_staff_vehicle_archive_root(app) / top_folder / vehicle_folder
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir
 
