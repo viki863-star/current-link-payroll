@@ -8,7 +8,7 @@
         <div style="flex:1 1 320px;">
             <div style="font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:#ffffff;">Data Safety</div>
             <h1 style="margin:8px 0 10px; font-size:40px; line-height:1; color:#ffffff;">Backup Center</h1>
-            <p style="margin:0; max-width:780px; color:#ffffff; font-size:16px;">Create database backups, generate full ZIP archives, and download the latest protected copy without touching live payroll data.</p>
+            <p style="margin:0; max-width:780px; color:#ffffff; font-size:16px;">Create database backups, generate full ZIP archives, and keep an end-of-day Windows PC copy without touching live payroll data.</p>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <form method="post" action="{{ url_for('create_admin_backup') }}">
@@ -21,9 +21,9 @@
                 <input type="hidden" name="kind" value="weekly">
                 <button type="submit" style="border:0; border-radius:14px; padding:12px 18px; font-weight:800; background:#f7931e; color:#fff; cursor:pointer;">Create Full Backup ZIP</button>
             </form>
-            <form method="post" action="{{ url_for('sync_all_files') }}">
+            <form method="post" action="{{ url_for('sync_pc_mirror_now') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" style="border:0; border-radius:14px; padding:12px 18px; font-weight:800; background:#2CB15C; color:#fff; cursor:pointer;">Sync All Files to Local</button>
+                <button type="submit" style="border:0; border-radius:14px; padding:12px 18px; font-weight:800; background:#2CB15C; color:#fff; cursor:pointer;">Sync Full PC Copy</button>
             </form>
             <form method="post" action="{{ url_for('backup_supplier_data') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -49,6 +49,14 @@
         <div style="background:#fff; border:1px solid #d8e4f5; border-radius:20px; padding:20px;">
             <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#7b92b6;">Free Disk Space</div>
             <div style="margin-top:10px; font-weight:700; color:#17345e;">{{ backup_summary.free_disk_space }}</div>
+        </div>
+        <div style="background:#fff; border:1px solid #d8e4f5; border-radius:20px; padding:20px;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#7b92b6;">PC Mirror Target</div>
+            <div style="margin-top:10px; font-weight:700; color:#17345e; word-break:break-word;">{{ backup_summary.pc_mirror_root or 'Not configured' }}</div>
+        </div>
+        <div style="background:#fff; border:1px solid #d8e4f5; border-radius:20px; padding:20px;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#7b92b6;">Latest PC Sync Log</div>
+            <div style="margin-top:10px; font-weight:700; color:#17345e; word-break:break-word;">{{ backup_summary.latest_pc_sync if backup_summary.latest_pc_sync else 'No PC sync yet' }}</div>
         </div>
     </div>
 
@@ -93,6 +101,10 @@
                 <div style="background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:16px;">
                     <div style="font-weight:800;">Monthly</div>
                     <div style="margin-top:6px; color:rgba(255,255,255,.86);">{{ backup_summary.policy.monthly }}</div>
+                </div>
+                <div style="background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:16px;">
+                    <div style="font-weight:800;">PC Mirror</div>
+                    <div style="margin-top:6px; color:rgba(255,255,255,.86);">{{ backup_summary.policy.pc_mirror }}</div>
                 </div>
             </div>
         </aside>

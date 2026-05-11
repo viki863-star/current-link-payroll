@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Current Link ERP PC mirror sync nightly
+
+[Timer]
+OnCalendar=*-*-* 23:30:00
+Persistent=true
+Unit=current-link-pc-mirror-sync.service
+
+[Install]
+WantedBy=timers.target

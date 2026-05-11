@@ -126,6 +126,8 @@ def backup_status_summary(app=None):
     backup_root = Path(configured_root) if configured_root else _default_backup_root(app)
     generated_dir = Path(app.config["GENERATED_DIR"])
     database_path = _database_path(app)
+    pc_mirror_root = _pc_mirror_root(app)
+    latest_pc_sync = _latest_pc_mirror_sync_log(app)
     disk_target = backup_root if backup_root.exists() else generated_dir
     try:
         disk_usage = shutil.disk_usage(disk_target)
@@ -143,10 +145,16 @@ def backup_status_summary(app=None):
         "latest_weekly": latest_backup_file("weekly", app),
         "latest_monthly": latest_backup_file("monthly", app),
         "free_disk_space": free_disk,
+        "pc_mirror_root": str(pc_mirror_root) if pc_mirror_root else "",
+        "pc_mirror_enabled": bool(pc_mirror_root),
+        "pc_mirror_available": bool(pc_mirror_root and pc_mirror_root.exists()),
+        "pc_mirror_log_dir": str(_pc_mirror_log_dir(app)),
+        "latest_pc_sync": latest_pc_sync,
         "policy": {
             "daily": "Daily DB only, last 7",
             "weekly": "Weekly full ZIP, last 4",
             "monthly": "Monthly full ZIP, last 12",
+            "pc_mirror": "Nightly end-of-day PC copy with fresh DB snapshot",
         },
     }
 
@@ -244,6 +252,55 @@ def _error_result(message: str):
     return {"ok": False, "path": "", "message": message}
 
 
+def _pc_mirror_root(app):
+    configured = (app.config.get("PC_MIRROR_ROOT") or "").strip()
+    if not configured:
+        return None
+    return Path(configured).expanduser()
+
+
+def _pc_mirror_log_dir(app):
+    configured = (app.config.get("PC_MIRROR_LOG_DIR") or "").strip()
+    if configured:
+        return Path(configured).expanduser()
+    return (_default_backup_root(app) / "PC_Mirror_Logs").resolve()
+
+
+def _latest_pc_mirror_sync_log(app):
+    log_dir = _pc_mirror_log_dir(app)
+    if not log_dir.exists():
+        return None
+    logs = sorted(log_dir.glob("pc_mirror_sync_*.log"), key=lambda item: item.stat().st_mtime, reverse=True)
+    return logs[0] if logs else None
+
+
+def _copy_if_newer(source_path: Path, target_path: Path, *, app=None, counts: dict | None = None):
+    counts = counts or {"copied": 0, "skipped": 0, "errors": 0}
+    try:
+        if target_path.exists() and target_path.stat().st_mtime >= source_path.stat().st_mtime:
+            counts["skipped"] += 1
+            return counts
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_path, target_path)
+        counts["copied"] += 1
+        return counts
+    except Exception as exc:
+        if app is not None:
+            app.logger.warning("Failed to sync %s to %s: %s", source_path, target_path, exc)
+        counts["errors"] += 1
+        return counts
+
+
+def _sync_tree(source_root: Path, target_root: Path, *, app=None, counts: dict | None = None):
+    counts = counts or {"copied": 0, "skipped": 0, "errors": 0}
+    for source_path in source_root.rglob("*"):
+        if not source_path.is_file():
+            continue
+        target_path = target_root / source_path.relative_to(source_root)
+        _copy_if_newer(source_path, target_path, app=app, counts=counts)
+    return counts
+
+
 def sync_all_generated_files(app=None):
     """Copy all existing generated files from server to local backup directory."""
     app = _resolve_app(app)
@@ -261,37 +318,98 @@ def sync_all_generated_files(app=None):
     error_count = 0
     
     try:
-        # Walk through all files in generated directory
-        for source_path in generated_dir.rglob("*"):
-            if not source_path.is_file():
-                continue
-            
-            try:
-                relative_path = source_path.relative_to(generated_dir)
-                backup_target = backup_root / relative_path
-                
-                # Skip if target already exists and is newer or same age
-                if backup_target.exists():
-                    source_mtime = source_path.stat().st_mtime
-                    target_mtime = backup_target.stat().st_mtime
-                    if target_mtime >= source_mtime:
-                        skipped_count += 1
-                        continue
-                
-                # Create parent directory and copy file
-                backup_target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source_path, backup_target)
-                copied_count += 1
-                
-            except Exception as e:
-                app.logger.warning(f"Failed to sync {source_path}: {e}")
-                error_count += 1
+        sync_counts = _sync_tree(generated_dir, backup_root, app=app)
+        copied_count = sync_counts["copied"]
+        skipped_count = sync_counts["skipped"]
+        error_count = sync_counts["errors"]
         
         message = f"Synced {copied_count} files, skipped {skipped_count} (already up-to-date), {error_count} errors"
         return _success_result(backup_root, message)
         
     except Exception as e:
         return _error_result(f"Sync failed: {e}")
+
+
+def sync_pc_mirror_copy(app=None):
+    """Create a fresh DB snapshot and sync generated/backup outputs to the configured PC mirror root."""
+    app = _resolve_app(app)
+    mirror_root = _pc_mirror_root(app)
+    if mirror_root is None:
+        return {"ok": False, "path": "", "message": "PC mirror root is not configured (PC_MIRROR_ROOT)."}
+
+    log_dir = _pc_mirror_log_dir(app)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"pc_mirror_sync_{datetime.now().strftime('%Y-%m-%d_%H%M%S')}.log"
+    log_lines = [
+        "Current Link ERP PC Mirror Sync",
+        f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"Mirror root: {mirror_root}",
+    ]
+
+    try:
+        if not mirror_root.exists():
+            raise FileNotFoundError(f"PC mirror root is not available: {mirror_root}")
+
+        generated_dir = Path(app.config["GENERATED_DIR"])
+        if not generated_dir.exists():
+            raise FileNotFoundError(f"Generated directory not found: {generated_dir}")
+
+        backup_result = create_daily_backup(app)
+        if not backup_result["ok"]:
+            raise RuntimeError(backup_result["message"])
+
+        backup_root = Path(app.config.get("BACKUP_ROOT_DIR") or _default_backup_root(app))
+        latest_daily = Path(backup_result["path"]) if backup_result.get("path") else latest_backup_file("daily", app)
+        if latest_daily is None or not latest_daily.exists():
+            raise FileNotFoundError("Fresh daily backup snapshot was not created.")
+
+        counts = {"copied": 0, "skipped": 0, "errors": 0}
+        _sync_tree(generated_dir, mirror_root / "Generated", app=app, counts=counts)
+        if backup_root.exists():
+            _sync_tree(backup_root, mirror_root / "Backups", app=app, counts=counts)
+
+        snapshot_target = mirror_root / "Database" / "payroll_snapshot_latest.db"
+        _copy_if_newer(latest_daily, snapshot_target, app=app, counts=counts)
+
+        log_lines.extend(
+            [
+                f"Generated source: {generated_dir}",
+                f"Backup source: {backup_root}",
+                f"Daily snapshot source: {latest_daily}",
+                f"Snapshot target: {snapshot_target}",
+                f"Copied: {counts['copied']}",
+                f"Skipped: {counts['skipped']}",
+                f"Errors: {counts['errors']}",
+            ]
+        )
+        message = (
+            "Full PC copy synced: "
+            f"{counts['copied']} copied, {counts['skipped']} skipped, {counts['errors']} errors. "
+            f"Target: {mirror_root}"
+        )
+        return {
+            "ok": True,
+            "path": str(mirror_root),
+            "message": message,
+            "log_path": str(log_path),
+            "copied": counts["copied"],
+            "skipped": counts["skipped"],
+            "errors": counts["errors"],
+        }
+    except Exception as exc:
+        log_lines.append(f"Failed: {exc}")
+        return {
+            "ok": False,
+            "path": "",
+            "message": f"PC mirror sync failed: {exc}",
+            "log_path": str(log_path),
+        }
+    finally:
+        try:
+            log_lines.append(f"Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            log_path.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+        except OSError:
+            app.logger.warning("Could not write PC mirror sync log %s", log_path, exc_info=True)
 
 
 def _generated_backup_root(app):

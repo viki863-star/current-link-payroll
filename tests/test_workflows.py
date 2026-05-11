@@ -13,7 +13,7 @@ from werkzeug.security import generate_password_hash
 
 from app import create_app
 from app import routes as routes_module
-from app.backup_service import backup_status_summary, create_backup_now
+from app.backup_service import backup_status_summary, create_backup_now, sync_pc_mirror_copy
 from app.database import open_db
 from app.pdf_service import generate_kata_pdf, generate_owner_fund_pdf
 
@@ -2029,6 +2029,22 @@ def test_windows_style_vehicle_export_root_falls_back_on_posix(app, monkeypatch)
     export_root = routes_module._field_staff_vehicle_archive_root(app, platform_name="posix")
 
     assert export_root == (Path(app.config["LOCAL_DATA_ROOT"]) / "Generated" / "FieldStaffVehicles").resolve()
+
+
+def test_windows_style_supplier_export_root_maps_to_posix_drive_mount(app):
+    mounted_drive_root = Path(app.config["GENERATED_DIR"]).parent / "supplier-drive-mount-test"
+    shutil.rmtree(mounted_drive_root, ignore_errors=True)
+    (mounted_drive_root / "d").mkdir(parents=True, exist_ok=True)
+
+    export_root = routes_module._configured_local_export_root(
+        app,
+        r"D:\CurrentLinkData\Generated\Suppliers",
+        ("Suppliers",),
+        platform_name="posix",
+        mount_roots=(mounted_drive_root,),
+    )
+
+    assert export_root == (mounted_drive_root / "d" / "CurrentLinkData" / "Generated" / "Suppliers").resolve()
 
 
 def test_technicians_page_renders_compact_management_workspace(app, client):
@@ -4263,20 +4279,58 @@ def test_backup_service_creates_db_and_zip_backups(app):
     assert any(name.endswith("sample.txt") for name in names)
 
 
-def test_admin_backup_routes_create_and_download_latest(app, client):
-    admin_session(client)
-    backup_root = Path(app.config["GENERATED_DIR"]).parent / "backups-admin"
+def test_backup_service_syncs_full_pc_copy(app):
+    backup_root = Path(app.config["GENERATED_DIR"]).parent / "backups-pc-sync"
+    mirror_root = Path(app.config["GENERATED_DIR"]).parent / "pc-mirror-root"
+    log_root = Path(app.config["GENERATED_DIR"]).parent / "pc-mirror-logs"
     app.config["GENERATED_BACKUP_DIR"] = str(backup_root)
     app.config["BACKUP_ROOT_DIR"] = str(backup_root)
     app.config["BACKUP_DAILY_DIR"] = str(backup_root / "Daily")
     app.config["BACKUP_WEEKLY_DIR"] = str(backup_root / "Weekly")
     app.config["BACKUP_MONTHLY_DIR"] = str(backup_root / "Monthly")
-    for folder in (backup_root / "Daily", backup_root / "Weekly", backup_root / "Monthly"):
+    app.config["PC_MIRROR_ROOT"] = str(mirror_root)
+    app.config["PC_MIRROR_LOG_DIR"] = str(log_root)
+    for folder in (backup_root / "Daily", backup_root / "Weekly", backup_root / "Monthly", mirror_root, log_root):
+        folder.mkdir(parents=True, exist_ok=True)
+
+    sample_file = Path(app.config["GENERATED_DIR"]) / "suppliers" / "sync-check.txt"
+    sample_file.parent.mkdir(parents=True, exist_ok=True)
+    sample_file.write_text("supplier export", encoding="utf-8")
+
+    with app.app_context():
+        result = sync_pc_mirror_copy(app)
+        summary = backup_status_summary(app)
+
+    assert result["ok"] is True
+    assert (mirror_root / "Generated" / "suppliers" / "sync-check.txt").exists()
+    assert (mirror_root / "Backups" / "Daily").exists()
+    assert (mirror_root / "Database" / "payroll_snapshot_latest.db").exists()
+    assert Path(result["log_path"]).exists()
+    assert summary["pc_mirror_enabled"] is True
+    assert summary["pc_mirror_available"] is True
+    assert str(summary["latest_pc_sync"]).endswith(".log")
+
+
+def test_admin_backup_routes_create_and_download_latest(app, client):
+    admin_session(client)
+    backup_root = Path(app.config["GENERATED_DIR"]).parent / "backups-admin"
+    mirror_root = Path(app.config["GENERATED_DIR"]).parent / "pc-mirror-admin"
+    log_root = Path(app.config["GENERATED_DIR"]).parent / "pc-mirror-admin-logs"
+    app.config["GENERATED_BACKUP_DIR"] = str(backup_root)
+    app.config["BACKUP_ROOT_DIR"] = str(backup_root)
+    app.config["BACKUP_DAILY_DIR"] = str(backup_root / "Daily")
+    app.config["BACKUP_WEEKLY_DIR"] = str(backup_root / "Weekly")
+    app.config["BACKUP_MONTHLY_DIR"] = str(backup_root / "Monthly")
+    app.config["PC_MIRROR_ROOT"] = str(mirror_root)
+    app.config["PC_MIRROR_LOG_DIR"] = str(log_root)
+    for folder in (backup_root / "Daily", backup_root / "Weekly", backup_root / "Monthly", mirror_root, log_root):
         folder.mkdir(parents=True, exist_ok=True)
 
     page = client.get("/admin/backups")
     assert page.status_code == 200
     assert b"Backup Center" in page.data
+    assert b"PC Mirror Target" in page.data
+    assert b"Sync Full PC Copy" in page.data
 
     daily = client.post("/admin/backups/create", data={"kind": "daily"}, follow_redirects=True)
     assert daily.status_code == 200
@@ -4285,6 +4339,11 @@ def test_admin_backup_routes_create_and_download_latest(app, client):
     weekly = client.post("/admin/backups/create", data={"kind": "weekly"}, follow_redirects=True)
     assert weekly.status_code == 200
     assert b"Weekly full backup created" in weekly.data
+
+    pc_sync = client.post("/admin/backups/sync-pc-mirror", data={}, follow_redirects=True)
+    assert pc_sync.status_code == 200
+    assert b"Full PC copy synced" in pc_sync.data
+    assert (mirror_root / "Database" / "payroll_snapshot_latest.db").exists()
 
     download = client.get("/admin/backups/download-latest")
     assert download.status_code == 200
@@ -4378,7 +4437,8 @@ def test_cash_supplier_portal_redesign_and_manual_routes(app, client, monkeypatc
     monkeypatch.setenv("CASH_SUPPLIER_LOCAL_EXPORT_ROOT", str(local_export_root))
     saved_local = client.post("/suppliers/PTY-CASH-01/save-local", data={}, follow_redirects=True)
     assert saved_local.status_code == 200
-    assert b"saved to local folder" in saved_local.data
+    assert b"saved on server primary storage" in saved_local.data
+    assert b"Nightly PC sync" in saved_local.data
 
     cash_root = local_export_root / "Cash"
     supplier_folders = [item for item in cash_root.iterdir() if item.is_dir()]

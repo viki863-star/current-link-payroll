@@ -30,6 +30,7 @@ from .backup_service import (
     backup_status_summary,
     create_backup_now,
     latest_backup_file,
+    sync_pc_mirror_copy,
     sync_all_generated_files,
     create_supplier_data_backup,
     auto_generate_supplier_statement_pdf,
@@ -1726,6 +1727,34 @@ def register_routes(app: Flask) -> None:
             flash("No backup file is available yet.", "error")
             return redirect(url_for("admin_backups"))
         return send_file(target, as_attachment=True, download_name=target.name)
+
+    @app.post("/admin/backups/sync-pc-mirror")
+    @_login_required("admin")
+    def sync_pc_mirror_now():
+        db = open_db()
+        result = sync_pc_mirror_copy(app)
+        if result["ok"]:
+            flash(result["message"], "success")
+            _audit_log(
+                db,
+                "pc_mirror_sync_completed",
+                entity_type="sync",
+                entity_id="pc_mirror",
+                details=result.get("log_path") or result["message"],
+            )
+            db.commit()
+        else:
+            flash(result["message"], "error")
+            _audit_log(
+                db,
+                "pc_mirror_sync_failed",
+                entity_type="sync",
+                entity_id="pc_mirror",
+                status="failed",
+                details=result.get("log_path") or result["message"],
+            )
+            db.commit()
+        return redirect(url_for("admin_backups"))
 
     @app.post("/admin/backups/sync-all-files")
     @_login_required("admin")
@@ -3710,7 +3739,11 @@ def register_routes(app: Flask) -> None:
             current_app.logger.exception("Failed to save local cash supplier bundle for %s", party_code)
             flash("Local supplier folder save failed.", "error")
         else:
-            flash(f"Supplier portal files saved to local folder: {export_dir}", "success")
+            flash(
+                f"Supplier portal files saved on server primary storage: {export_dir}. "
+                "Nightly PC sync mein include ho jayengi jab PC mirror configured ho.",
+                "success",
+            )
         return redirect(url_for("supplier_detail", party_code=party_code, screen="portal"))
 
     @app.get("/supplier-desk/cash-guide")
@@ -14293,6 +14326,7 @@ def _configured_local_export_root(
     fallback_parts: tuple[str, ...],
     *,
     platform_name: str | None = None,
+    mount_roots: tuple[Path, ...] | None = None,
 ) -> Path:
     platform_name = platform_name or os.name
     local_data_root = Path(app.config.get("LOCAL_DATA_ROOT") or Path(app.config["GENERATED_DIR"]).parent).expanduser()
@@ -14305,11 +14339,32 @@ def _configured_local_export_root(
     if re.match(r"^[A-Za-z]:[\\/]", configured_root):
         if platform_name == "nt":
             return Path(configured_root).expanduser()
+        translated_mount = _windows_drive_path_on_posix(configured_root, mount_roots=mount_roots)
+        if translated_mount is not None:
+            return translated_mount.resolve()
         return fallback_root.resolve()
     candidate = Path(configured_root).expanduser()
     if candidate.is_absolute():
         return candidate.resolve()
     return (local_data_root / candidate).resolve()
+
+
+def _windows_drive_path_on_posix(
+    configured_root: str,
+    *,
+    mount_roots: tuple[Path, ...] | None = None,
+) -> Path | None:
+    match = re.match(r"^([A-Za-z]):[\\/](.*)$", (configured_root or "").strip())
+    if not match:
+        return None
+    drive_letter = match.group(1).lower()
+    remainder = [part for part in re.split(r"[\\/]+", match.group(2).strip()) if part]
+    for mount_root in mount_roots or (Path("/mnt"), Path("/host_mnt"), Path("/media")):
+        drive_root = Path(mount_root).expanduser() / drive_letter
+        if not drive_root.exists():
+            continue
+        return drive_root.joinpath(*remainder) if remainder else drive_root
+    return None
 
 
 def _cash_supplier_local_export_root(app: Flask, supplier_mode: str) -> Path:

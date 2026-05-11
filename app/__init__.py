@@ -86,6 +86,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     configured_generated_dir = os.getenv("GENERATED_DIR", str(default_generated_root)).strip()
     configured_backup_dir = os.getenv("GENERATED_BACKUP_DIR", str(default_backup_root)).strip()
     configured_driver_files_dir = os.getenv("DRIVER_FILES_DIR", str(default_generated_root / "Drivers")).strip()
+    configured_pc_mirror_root = os.getenv("PC_MIRROR_ROOT", "").strip()
+    configured_pc_mirror_log_dir = os.getenv("PC_MIRROR_LOG_DIR", "").strip()
 
     database_file = Path(configured_database_file).expanduser()
     generated_root = Path(configured_generated_dir).expanduser()
@@ -105,6 +107,15 @@ def create_app(test_config: dict | None = None) -> Flask:
     if not _safe_mkdir(driver_files_root):
         driver_files_root = generated_root / "drivers"
         _safe_mkdir(driver_files_root)
+
+    pc_mirror_log_root = (
+        Path(configured_pc_mirror_log_dir).expanduser()
+        if configured_pc_mirror_log_dir
+        else ((generated_backup_root or default_backup_root) / "PC_Mirror_Logs")
+    )
+    if not _safe_mkdir(pc_mirror_log_root):
+        pc_mirror_log_root = generated_root / "pc_mirror_logs"
+        _safe_mkdir(pc_mirror_log_root)
 
     if generated_backup_root and not _safe_mkdir(generated_backup_root):
         generated_backup_root = None
@@ -141,6 +152,8 @@ def create_app(test_config: dict | None = None) -> Flask:
         GENERATED_DIR=str(generated_root),
         GENERATED_BACKUP_DIR=str(generated_backup_root) if generated_backup_root else "",
         DRIVER_FILES_DIR=str(driver_files_root),
+        PC_MIRROR_ROOT=configured_pc_mirror_root,
+        PC_MIRROR_LOG_DIR=str(pc_mirror_log_root),
         BACKUP_ROOT_DIR=str(generated_backup_root or (data_root / "Backups")),
         BACKUP_DAILY_DIR=str((generated_backup_root or (data_root / "Backups")) / "Daily"),
         BACKUP_WEEKLY_DIR=str((generated_backup_root or (data_root / "Backups")) / "Weekly"),

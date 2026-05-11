@@ -40,6 +40,8 @@ SESSION_COOKIE_SECURE=false
 GENERATED_DIR=D:/CurrentLinkData/Generated
 GENERATED_BACKUP_DIR=D:/CurrentLinkData/Backups
 DRIVER_FILES_DIR=D:/CurrentLinkData/Generated/Drivers
+PC_MIRROR_ROOT=
+PC_MIRROR_LOG_DIR=
 ```
 
 ## Local Data Setup
@@ -67,6 +69,26 @@ Admin users can open the in-app Backup Center to:
 - create a DB backup now
 - create a full backup ZIP
 - download the latest available backup
+- run a full PC mirror copy on demand
+
+## Hybrid PC Mirror
+
+For live Linux deployments, keep the live app and live database on the server, then mount your Windows PC share and configure:
+
+- `PC_MIRROR_ROOT=/mnt/pc_d/CurrentLinkData`
+- `PC_MIRROR_LOG_DIR=/opt/current-link/app/local_data/Backups/PC_Mirror_Logs`
+
+The in-app Backup Center can trigger a manual full PC copy, and the repo includes:
+
+- `scripts/run_pc_mirror_sync.py`
+- `scripts/systemd/current-link-pc-mirror-sync.service`
+- `scripts/systemd/current-link-pc-mirror-sync.timer`
+
+These sync:
+
+- `Generated`
+- `Backups`
+- latest DB snapshot as `Database/payroll_snapshot_latest.db`
 
 ## Restore Local SQLite
 

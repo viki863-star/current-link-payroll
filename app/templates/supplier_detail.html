@@ -149,6 +149,7 @@
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button class="button button-secondary" type="submit">Save to Local</button>
                             </form>
+                            <p style="margin:8px 0 0; font-size:13px; color:#6680a0;">Server primary copy banti hai; nightly PC sync mein include hoti hai jab mirror configured ho.</p>
                             <div class="cash-portal-badges">
                                 {% for badge in portal_snapshot.hero_badges %}
                                     <span class="mini-link-pill">{{ badge }}</span>

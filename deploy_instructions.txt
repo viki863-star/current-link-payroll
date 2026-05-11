@@ -33,6 +33,46 @@ STEPS TO DEPLOY:
 7. Test application:
    curl -I http://127.0.0.1:5000/login
 
+HYBRID PC MIRROR SETUP:
+
+1. Share Windows folder:
+   D:\CurrentLinkData
+   Share name example: CurrentLinkData
+
+2. On Linux server install CIFS tools:
+   apt-get update
+   apt-get install -y cifs-utils
+
+3. Create mount path:
+   mkdir -p /mnt/pc_d/CurrentLinkData
+
+4. Create SMB credentials file:
+   cat >/root/.current-link-pc-share <<EOF
+   username=YOUR_WINDOWS_SHARE_USER
+   password=YOUR_WINDOWS_SHARE_PASSWORD
+   domain=WORKGROUP
+   EOF
+   chmod 600 /root/.current-link-pc-share
+
+5. Test mount:
+   mount -t cifs //YOUR-PC/CurrentLinkData /mnt/pc_d/CurrentLinkData -o credentials=/root/.current-link-pc-share,uid=0,gid=0,file_mode=0664,dir_mode=0775,iocharset=utf8
+
+6. Persist mount in /etc/fstab:
+   //YOUR-PC/CurrentLinkData /mnt/pc_d/CurrentLinkData cifs credentials=/root/.current-link-pc-share,uid=0,gid=0,file_mode=0664,dir_mode=0775,iocharset=utf8,nofail 0 0
+
+7. Add .env values:
+   PC_MIRROR_ROOT=/mnt/pc_d/CurrentLinkData
+   PC_MIRROR_LOG_DIR=/opt/current-link/app/local_data/Backups/PC_Mirror_Logs
+
+8. Install nightly timer:
+   cp scripts/systemd/current-link-pc-mirror-sync.service /etc/systemd/system/
+   cp scripts/systemd/current-link-pc-mirror-sync.timer /etc/systemd/system/
+   systemctl daemon-reload
+   systemctl enable --now current-link-pc-mirror-sync.timer
+
+9. Manual sync test:
+   python scripts/run_pc_mirror_sync.py
+
 EXPECTED OUTPUT:
 - HTTP 200 OK or 302 redirect
 - Service should be active (running)
