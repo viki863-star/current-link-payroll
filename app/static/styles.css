@@ -7980,25 +7980,6 @@ html {
     gap: 10px;
 }
 
-.erp-sidebar-foot .erp-back-dashboard {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.05);
-    color: rgba(255,255,255,0.7);
-    font-size: 0.78rem;
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.15s ease;
-}
-
-.erp-sidebar-foot .erp-back-dashboard:hover {
-    background: rgba(255,255,255,0.1);
-    color: #fff;
-}
-
 .erp-sidebar-user {
     display: flex;
     align-items: center;
@@ -8794,7 +8775,6 @@ html {
 .erp-sidebar.is-collapsed .erp-brand-copy,
 .erp-sidebar.is-collapsed .erp-sidebar-accent,
 .erp-sidebar.is-collapsed .erp-nav-copy,
-.erp-sidebar.is-collapsed .erp-back-dashboard span,
 .erp-sidebar.is-collapsed .erp-sidebar-user-text,
 .erp-sidebar.is-collapsed .erp-side-note,
 .erp-sidebar.is-collapsed .erp-nav-chevron {
@@ -8829,7 +8809,6 @@ html {
     .erp-sidebar .erp-brand-copy,
     .erp-sidebar .erp-sidebar-accent,
     .erp-sidebar .erp-nav-copy,
-    .erp-sidebar .erp-back-dashboard span,
     .erp-sidebar .erp-sidebar-user-text,
     .erp-sidebar .erp-side-note,
     .erp-sidebar .erp-nav-chevron {
