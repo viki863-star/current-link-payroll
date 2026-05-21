@@ -323,36 +323,40 @@ def sync_parties_to_suppliers():
 
 @supplier_bp.route("/")
 def supplier_dashboard():
-    _ensure_tables()
-    db = _get_db()
+    try:
+        _ensure_tables()
+        db = _get_db()
 
-    suppliers = db.execute("SELECT * FROM suppliers ORDER BY supplier_name").fetchall()
-    total = len(suppliers)
-    active = sum(1 for s in suppliers if s["status"] == "Active")
-    with_inv = sum(1 for s in suppliers if s["supplier_type"] == "with_invoice")
-    without_inv = sum(1 for s in suppliers if s["supplier_type"] == "without_invoice")
+        suppliers = db.execute("SELECT * FROM suppliers ORDER BY supplier_name").fetchall()
+        total = len(suppliers)
+        active = sum(1 for s in suppliers if s["status"] == "Active")
+        with_inv = sum(1 for s in suppliers if s["supplier_type"] == "with_invoice")
+        without_inv = sum(1 for s in suppliers if s["supplier_type"] == "without_invoice")
 
-    total_outstanding = db.execute(
-        "SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices WHERE status IN ('pending','approved')"
-    ).fetchone()[0]
+        total_outstanding = db.execute(
+            "SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices WHERE status IN ('pending','approved')"
+        ).fetchone()[0]
 
-    recent_invoices = db.execute(
-        """SELECT si.*, s.supplier_name FROM supplier_invoices si
-           JOIN suppliers s ON s.id = si.supplier_id
-           ORDER BY si.created_at DESC LIMIT 5"""
-    ).fetchall()
+        recent_invoices = db.execute(
+            """SELECT si.*, s.supplier_name FROM supplier_invoices si
+               JOIN suppliers s ON s.id = si.supplier_id
+               ORDER BY si.created_at DESC LIMIT 5"""
+        ).fetchall()
 
-
-    return render_template(
-        "supplier/dashboard.html",
-        suppliers=suppliers,
-        total=total,
-        active=active,
-        with_inv=with_inv,
-        without_inv=without_inv,
-        total_outstanding=total_outstanding,
-        recent_invoices=recent_invoices,
-    )
+        return render_template(
+            "supplier/dashboard.html",
+            suppliers=suppliers,
+            total=total,
+            active=active,
+            with_invoice_count=with_inv,
+            without_invoice_count=without_inv,
+            total_outstanding=total_outstanding,
+            recent_invoices=recent_invoices,
+        )
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return f"<h2>Supplier Dashboard Error</h2><pre>{e}\n\n{tb}</pre>", 500
 
 
 # ═══════════════════════════════════════════════════════════
