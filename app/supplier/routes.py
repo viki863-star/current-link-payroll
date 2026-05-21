@@ -289,26 +289,26 @@ def _ensure_tables():
 
     db.commit()
     db.close()
-    try:
-        sync_parties_to_suppliers()
-    except Exception:
-        pass
+    sync_parties_to_suppliers()
 
 
 def sync_parties_to_suppliers():
     """Copy suppliers from main app's parties+supplier_profile into supplier blueprint's suppliers table."""
     db = _get_db()
-    try:
-        rows = db.execute(
-            "SELECT p.party_code, p.party_name, p.contact_person, p.phone_number, p.email, "
-            "p.trn_no, p.address, p.notes, p.status, p.created_at, "
-            "COALESCE(pr.supplier_mode, 'Normal') AS supplier_mode "
-            "FROM parties p "
-            "LEFT JOIN supplier_profile pr ON pr.party_code = p.party_code "
-            "WHERE p.party_roles LIKE '%supplier%'"
-        ).fetchall()
-    except Exception:
-        return
+    rows = db.execute(
+        "SELECT p.party_code, p.party_name, p.contact_person, p.phone_number, p.email, "
+        "p.trn_no, p.address, p.notes, p.status, p.created_at, "
+        "COALESCE(pr.supplier_mode, 'Normal') AS supplier_mode "
+        "FROM parties p "
+        "LEFT JOIN supplier_profile pr ON pr.party_code = p.party_code "
+        "WHERE p.party_roles LIKE '%supplier%'"
+    ).fetchall()
+    if not rows:
+        all_rows = db.execute("SELECT party_code, party_name, party_roles FROM parties").fetchall()
+        raise Exception(
+            f"No supplier rows found. Parties table has {len(all_rows)} total rows. "
+            f"Sample roles: {[r['party_roles'] for r in all_rows[:5]]}"
+        )
 
     for r in rows:
         supplier_type = "without_invoice" if (r["supplier_mode"] or "").lower() == "cash" else "with_invoice"
