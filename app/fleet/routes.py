@@ -162,7 +162,7 @@ def vehicle_list():
             where.append("status = ?")
             params.append(status_filter)
 
-        where_sql = " AND ".join(where) if where else "1"
+        where_sql = " AND ".join(where) if where else "TRUE"
 
         vehicles = db.execute(
             f"""SELECT v.*, va.driver_id, e.full_name AS driver_name
