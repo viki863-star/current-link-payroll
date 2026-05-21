@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 
-<div class="db-shell">
+<div class="db-shell" style="max-width:none;width:auto;margin:0;padding:0;">
 
   <div class="db-header">
     <div>
@@ -285,9 +285,10 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 
 <style>
-.dashboard-body .page-content { padding:20px 24px !important; max-width:100% !important; }
-.dashboard-body .page { max-width:100% !important; width:100% !important; }
-.db-shell { max-width:100% !important; margin:0 !important; }
+.dashboard-body .main-content { flex:1 1 0; min-width:0; }
+.dashboard-body .page-content { padding:20px 24px !important; flex:1 1 0; min-width:0; width:auto !important; box-sizing:border-box; }
+.dashboard-body .page { max-width:none !important; width:auto !important; margin:0 !important; }
+.db-shell { max-width:none !important; width:auto !important; margin:0 !important; box-sizing:border-box; }
 .db-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:24px; }
 .db-header h1 { margin:0; font-size:1.5rem; font-weight:700; color:var(--text); }
 .db-header p { margin:2px 0 0; font-size:0.88rem; color:var(--text-secondary); }
