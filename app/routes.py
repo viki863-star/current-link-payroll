@@ -928,7 +928,7 @@ def register_routes(app: Flask) -> None:
                 
                 flash(f"Welcome Field Staff {technician['technician_code']}.", "success")
                 
-                return redirect(url_for("technician_portal"))
+                return redirect(url_for("technician_simple"))
                 
             except ValidationError as exc:
                 _record_failed_login(db, "technician", identifier)
@@ -1143,6 +1143,59 @@ def register_routes(app: Flask) -> None:
         _archive_supplier_statement_pdf_record(app, party, pdf_path, "supplier_statement_pdf_generated")
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
+
+    @app.route("/portal/technician/simple", methods=["GET", "POST"])
+    def technician_simple():
+        db = open_db()
+        technician_code = session.get("technician_code", "")
+        if not technician_code:
+            session.clear()
+            flash("Field staff session expired. Please login again.", "error")
+            return redirect(url_for("technician_login"))
+        technician = db.execute("SELECT * FROM technicians WHERE technician_code = ?", (technician_code,)).fetchone()
+        if technician is None or (technician["status"] or "") != "Active":
+            session.clear()
+            flash("Account not active.", "error")
+            return redirect(url_for("technician_login"))
+        vehicles = db.execute("SELECT * FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
+        _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
+        if request.method == "POST":
+            vehicle_id = request.form.get("vehicle_id", "").strip()
+            amount = request.form.get("amount", "").strip()
+            category = request.form.get("category", "").strip()
+            description = request.form.get("description", "").strip()
+            if not amount or not category:
+                flash("Amount and category are required.", "error")
+                return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v=request.form)
+            attachment_name = None
+            attachment_data = None
+            attachment_type = None
+            if "attachment" in request.files:
+                f = request.files["attachment"]
+                if f.filename:
+                    import base64
+                    attachment_name = f.filename
+                    attachment_data = base64.b64encode(f.read()).decode("utf-8")
+                    attachment_type = f.content_type
+            db.execute(
+                "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status) VALUES (?,?,?,?,?,?,?,?,'pending')",
+                (vehicle_id or "N/A", technician_code, float(amount), category, description, attachment_name, attachment_data, attachment_type),
+            )
+            db.commit()
+            flash("Job submitted for approval.", "success")
+            return redirect(url_for("technician_simple"))
+        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v={})
+
+    @app.route("/portal/technician/my-jobs")
+    def technician_my_jobs():
+        db = open_db()
+        technician_code = session.get("technician_code", "")
+        if not technician_code:
+            session.clear()
+            flash("Field staff session expired. Please login again.", "error")
+            return redirect(url_for("technician_login"))
+        jobs = db.execute("SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id WHERE mj.staff_id = ? ORDER BY mj.created_at DESC", (technician_code,)).fetchall()
+        return render_template("fleet/staff_jobs.html", jobs=jobs)
 
     @app.route("/portal/technician", methods=["GET", "POST"])
     @_login_required("technician")
@@ -1390,7 +1443,7 @@ def register_routes(app: Flask) -> None:
                         )
                         db.commit()
                         flash(f"Job {requested_paper_no} deleted.", "success")
-                        return redirect(url_for("technician_portal"))
+                        return redirect(url_for("technician_simple"))
                     except Exception as exc:
                         db.rollback()
                         flash(f"Could not delete job {requested_paper_no}: {exc}", "error")
@@ -1515,9 +1568,9 @@ def register_routes(app: Flask) -> None:
                                 "success",
                             )
                         if not row_errors:
-                            return redirect(url_for("technician_portal"))
-                    for error in row_errors:
-                        flash(error, "error")
+                            return redirect(url_for("technician_simple"))
+                        for error in row_errors:
+                            flash(error, "error")
         
         return render_template(
             "technician_portal.html",
