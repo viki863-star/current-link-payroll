@@ -290,6 +290,10 @@ def _ensure_tables():
     db.commit()
     db.close()
     sync_parties_to_suppliers()
+    try:
+        _migrate_old_supplier_data()
+    except Exception:
+        pass
 
 
 def sync_parties_to_suppliers():
@@ -330,6 +334,128 @@ def sync_parties_to_suppliers():
                  r["created_at"] or "CURRENT_TIMESTAMP"),
             )
     db.commit()
+
+
+def _migrate_old_supplier_data():
+    """Migrate invoices, payments, expenses, loans from old SQLite DB to new PostgreSQL supplier tables."""
+    import sqlite3
+    sqlite_path = current_app.config.get("DATABASE")
+    if not sqlite_path or not os.path.exists(sqlite_path):
+        return
+
+    old = sqlite3.connect(sqlite_path)
+    old.row_factory = sqlite3.Row
+    new = _get_db()
+
+    # Build map: party_code → new supplier id
+    new_suppliers = {r["supplier_code"]: r["id"] for r in new.execute("SELECT supplier_code, id FROM suppliers").fetchall()}
+
+    # ── Invoices ──
+    try:
+        old_inv = old.execute("SELECT * FROM supplier_invoices").fetchall()
+    except Exception:
+        old_inv = []
+    for inv in old_inv:
+        sup_id = new_suppliers.get(inv["supplier_id"])
+        if not sup_id:
+            # old supplier_invoices uses supplier_id (SQLite auto id), not supplier_code
+            old_sup = old.execute("SELECT supplier_code FROM suppliers WHERE id=?", (inv["supplier_id"],)).fetchone()
+            if old_sup:
+                sup_id = new_suppliers.get(old_sup["supplier_code"])
+        if not sup_id:
+            continue
+        existing = new.execute("SELECT id FROM supplier_invoices WHERE invoice_no=? AND supplier_id=?", (inv["invoice_no"], sup_id)).fetchone()
+        if not existing:
+            new.execute(
+                """INSERT INTO supplier_invoices (supplier_id, invoice_no, invoice_date, due_date,
+                   amount, vat_percentage, vat_amount, total_amount, description,
+                   attachment_name, attachment_data, attachment_type, status,
+                   payment_date, payment_method, payment_ref, notes, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (sup_id, inv["invoice_no"], inv["invoice_date"], inv["due_date"],
+                 inv["amount"], inv["vat_percentage"], inv["vat_amount"], inv["total_amount"],
+                 inv["description"], inv["attachment_name"], inv["attachment_data"],
+                 inv["attachment_type"], inv["status"], inv["payment_date"],
+                 inv["payment_method"], inv["payment_ref"], inv["notes"], inv["created_at"]),
+            )
+
+    # ── Payments ──
+    try:
+        old_pay = old.execute("SELECT * FROM supplier_payment_records").fetchall()
+    except Exception:
+        old_pay = []
+    for pay in old_pay:
+        sup_id = new_suppliers.get(pay["supplier_id"])
+        if not sup_id:
+            old_sup = old.execute("SELECT supplier_code FROM suppliers WHERE id=?", (pay["supplier_id"],)).fetchone()
+            if old_sup:
+                sup_id = new_suppliers.get(old_sup["supplier_code"])
+        if not sup_id:
+            continue
+        existing = new.execute("SELECT id FROM supplier_payment_records WHERE reference_no=? AND supplier_id=? AND amount=?",
+                               (pay["reference_no"], sup_id, pay["amount"])).fetchone()
+        if not existing:
+            new.execute(
+                """INSERT INTO supplier_payment_records (supplier_id, invoice_id, payment_date, amount,
+                   payment_method, reference_no, notes, created_at)
+                   VALUES (?,NULL,?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (sup_id, pay["payment_date"], pay["amount"],
+                 pay["payment_method"], pay["reference_no"], pay["notes"], pay["created_at"]),
+            )
+
+    # ── Expenses ──
+    try:
+        old_exp = old.execute("SELECT * FROM supplier_expenses").fetchall()
+    except Exception:
+        old_exp = []
+    for exp in old_exp:
+        sup_id = new_suppliers.get(exp["supplier_id"])
+        if not sup_id:
+            old_sup = old.execute("SELECT supplier_code FROM suppliers WHERE id=?", (exp["supplier_id"],)).fetchone()
+            if old_sup:
+                sup_id = new_suppliers.get(old_sup["supplier_code"])
+        if not sup_id:
+            continue
+        existing = new.execute("SELECT id FROM supplier_expenses WHERE expense_date=? AND amount=? AND supplier_id=?",
+                               (exp["expense_date"], exp["amount"], sup_id)).fetchone()
+        if not existing:
+            new.execute(
+                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category,
+                   description, receipt_name, receipt_data, receipt_type, status,
+                   approved_by, approved_at, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (sup_id, exp["expense_date"], exp["amount"], exp["category"],
+                 exp["description"], exp["receipt_name"], exp["receipt_data"],
+                 exp["receipt_type"], exp["status"], exp["approved_by"],
+                 exp["approved_at"], exp["created_at"]),
+            )
+
+    # ── Loans ──
+    try:
+        old_loans = old.execute("SELECT * FROM supplier_loans").fetchall()
+    except Exception:
+        old_loans = []
+    for loan in old_loans:
+        sup_id = new_suppliers.get(loan["supplier_id"])
+        if not sup_id:
+            old_sup = old.execute("SELECT supplier_code FROM suppliers WHERE id=?", (loan["supplier_id"],)).fetchone()
+            if old_sup:
+                sup_id = new_suppliers.get(old_sup["supplier_code"])
+        if not sup_id:
+            continue
+        existing = new.execute("SELECT id FROM supplier_loans WHERE entry_date=? AND amount=? AND supplier_id=?",
+                               (loan["entry_date"], loan["amount"], sup_id)).fetchone()
+        if not existing:
+            new.execute(
+                """INSERT INTO supplier_loans (supplier_id, entry_date, loan_type, amount,
+                   payment_method, reference_no, notes, created_at)
+                   VALUES (?,?,?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (sup_id, loan["entry_date"], loan["loan_type"], loan["amount"],
+                 loan["payment_method"], loan["reference_no"], loan["notes"], loan["created_at"]),
+            )
+
+    new.commit()
+    old.close()
 
 
 
