@@ -50,8 +50,27 @@ def migrate_drivers_to_employees(db):
 
     db.executescript(EMPLOYEE_SCHEMA)
 
+    try:
+        columns = [c[1] for c in db.execute("PRAGMA table_info(drivers)").fetchall()]
+    except Exception:
+        columns = []
+
     drivers = db.execute("SELECT * FROM drivers").fetchall()
     for d in drivers:
+        emp_id = d["driver_id"]
+        name = d["full_name"]
+        phone = (d.get("phone_number") if "phone_number" in columns else d["phone_number"]) or ""
+        duty_start = (d.get("duty_start") if "duty_start" in columns else "") or date.today().isoformat()
+        salary = (d.get("basic_salary") if "basic_salary" in columns else 0) or 0
+        ot = (d.get("ot_rate") if "ot_rate" in columns else 0) or 0
+        photo_name = (d.get("photo_name") if "photo_name" in columns else None)
+        photo_data = (d.get("photo_data") if "photo_data" in columns else None)
+        photo_ct = (d.get("photo_content_type") if "photo_content_type" in columns else None)
+        status = (d.get("status") if "status" in columns else "Active") or "Active"
+        remarks = d.get("remarks") if "remarks" in columns else None
+        shift = (d.get("shift") if "shift" in columns else "Morning") or "Morning"
+        created = d.get("created_at") if "created_at" in columns else None
+
         db.execute(
             """
             INSERT OR IGNORE INTO employees (
@@ -61,21 +80,8 @@ def migrate_drivers_to_employees(db):
                 shift, created_at
             ) VALUES (?, ?, ?, 'Driver', 'Transport', 'Driver', ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
             """,
-            (
-                d["driver_id"],
-                d["full_name"],
-                d["phone_number"] or "",
-                d["duty_start"] or date.today().isoformat(),
-                d["basic_salary"] or 0,
-                d["ot_rate"] or 0,
-                d["photo_name"],
-                d["photo_data"],
-                d["photo_content_type"],
-                d["status"] or "Active",
-                d["remarks"],
-                d["shift"] or "Morning",
-                d.get("created_at"),
-            ),
+            (emp_id, name, phone, duty_start, salary, ot,
+             photo_name, photo_data, photo_ct, status, remarks, shift, created),
         )
     db.commit()
 
