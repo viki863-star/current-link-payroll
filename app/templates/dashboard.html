@@ -4,232 +4,349 @@
 {% block page_title %}Admin Dashboard{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
 <div class="db-shell">
 
-    <div class="db-header">
-        <h1>Admin Dashboard</h1>
-        <p>Welcome back, {{ current_user_name or "Admin" }}. Here's your overview.</p>
+  <div class="db-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p>Welcome back, {{ current_user_name or "Admin" }} &middot; {{ current_month_label }}</p>
     </div>
-
-    <div class="kpi-grid">
-        <div class="kpi-card">
-            <div class="kpi-icon">
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/>
-                </svg>
-            </div>
-            <div class="kpi-title">Employees</div>
-            <div class="kpi-number">{{ total_drivers or 0 }}</div>
-            <a class="kpi-action" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">View all &rarr;</a>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
-                    <path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
-                </svg>
-            </div>
-            <div class="kpi-title">Drivers</div>
-            <div class="kpi-number">{{ active_drivers or 0 }}</div>
-            <a class="kpi-action" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">Active &rarr;</a>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
-                    <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                </svg>
-            </div>
-            <div class="kpi-title">Payroll Pending</div>
-            <div class="kpi-number">{{ total_payroll or 0 }}</div>
-            <a class="kpi-action" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">Process &rarr;</a>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                </svg>
-            </div>
-            <div class="kpi-title">Advances</div>
-            <div class="kpi-number">0</div>
-            <a class="kpi-action" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">Manage &rarr;</a>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
-                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
-                </svg>
-            </div>
-            <div class="kpi-title">Loans</div>
-            <div class="kpi-number">0</div>
-            <a class="kpi-action" href="{{ url_for('switch_workspace', workspace_key='accounts') }}">View &rarr;</a>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
-                    <path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
-                </svg>
-            </div>
-            <div class="kpi-title">Fleet</div>
-            <div class="kpi-number">{{ vehicle_chart|length if vehicle_chart else 0 }}</div>
-            <a class="kpi-action" href="{{ url_for('fleet_maintenance') }}">Manage &rarr;</a>
-        </div>
+    <div class="db-header-badges">
+      <span class="db-badge db-badge-green">{{ active_drivers }} Active Drivers</span>
+      <span class="db-badge db-badge-blue">{{ stored_this_month }} Payroll This Month</span>
     </div>
+  </div>
 
-    <div class="quick-access">
-        <a class="quick-card" href="{{ url_for('hr.employee_new') if is_admin else '#' }}">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
-            </svg>
-            <span>Add Employee</span>
-        </a>
-        <a class="quick-card" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
-            <span>Process Payroll</span>
-        </a>
-        <a class="quick-card" href="{{ url_for('fleet_maintenance') }}">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-                <path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/>
-            </svg>
-            <span>Add Vehicle</span>
-        </a>
-        <a class="quick-card" href="{{ url_for('suppliers') }}">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-                <rect x="2" y="7" width="16" height="12" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
-            </svg>
-            <span>Add Supplier</span>
-        </a>
-        <a class="quick-card" href="{{ url_for('reports_center') }}">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-                <path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/>
-            </svg>
-            <span>View Reports</span>
-        </a>
-        <a class="quick-card" href="{{ url_for('fleet.staff_login') }}" style="border-color:var(--orange);background:#fff8f0">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="10 17 10 10 17 10"/><line x1="10" y1="10" x2="21" y2="21"/>
-            </svg>
-            <span>Staff Login Portal</span>
-        </a>
+  {# ── KPI Row ── #}
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-card-drivers">
+      <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <div class="kpi-title">Total Drivers</div>
+      <div class="kpi-number">{{ total_drivers }}</div>
+      <div class="kpi-sub">{{ active_drivers }} active</div>
     </div>
-
-    <div class="panels-grid">
-        <div class="panel-card">
-            <div class="panel-card-header">
-                <h3>
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-                        <path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/>
-                    </svg>
-                    Recent Activity
-                </h3>
-                <a href="#">View all</a>
-            </div>
-            <div class="panel-card-body">
-                <div class="activity-row">
-                    <span class="activity-dot green"></span>
-                    <div class="activity-text">
-                        <strong>Payroll Processed</strong>
-                        <p>{{ current_month_label }} payroll for {{ active_drivers }} drivers</p>
-                    </div>
-                    <span class="activity-time">Today</span>
-                </div>
-                <div class="activity-row">
-                    <span class="activity-dot orange"></span>
-                    <div class="activity-text">
-                        <strong>New Driver Added</strong>
-                        <p>Driver records updated in the system</p>
-                    </div>
-                    <span class="activity-time">Today</span>
-                </div>
-                <div class="activity-row">
-                    <span class="activity-dot blue"></span>
-                    <div class="activity-text">
-                        <strong>Supplier Updated</strong>
-                        <p>Supplier desk activity recorded</p>
-                    </div>
-                    <span class="activity-time">Yesterday</span>
-                </div>
-                <div class="activity-row">
-                    <span class="activity-dot purple"></span>
-                    <div class="activity-text">
-                        <strong>Invoice Generated</strong>
-                        <p>New customer invoice created</p>
-                    </div>
-                    <span class="activity-time">2 days ago</span>
-                </div>
-                <div class="activity-row">
-                    <span class="activity-dot orange"></span>
-                    <div class="activity-text">
-                        <strong>Backup Completed</strong>
-                        <p>System backup successfully created</p>
-                    </div>
-                    <span class="activity-time">3 days ago</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="panel-card">
-            <div class="panel-card-header">
-                <h3>
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
-                        <path d="M10 2a6 6 0 0 0-6 6c0 4-2 5-2 5h16s-2-1-2-5a6 6 0 0 0-6-6z"/><path d="M8 17a2 2 0 0 0 4 0"/>
-                    </svg>
-                    Important Alerts
-                </h3>
-                <a href="#">View all</a>
-            </div>
-            <div class="panel-card-body">
-                <div class="alert-row">
-                    <div class="alert-icon warning">
-                        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                            <path d="M10 1L1 18h18L10 1z"/><line x1="10" y1="7" x2="10" y2="13"/><circle cx="10" cy="16" r="0.5" fill="currentColor"/>
-                        </svg>
-                    </div>
-                    <div class="alert-text">
-                        <strong>Payroll Approval Pending</strong>
-                        <p>{{ stored_this_month or 0 }} driver salaries need review</p>
-                        <span class="alert-badge high">HIGH</span>
-                    </div>
-                </div>
-                <div class="alert-row">
-                    <div class="alert-icon danger">
-                        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                            <circle cx="10" cy="10" r="9"/><line x1="10" y1="6" x2="10" y2="12"/><circle cx="10" cy="14" r="0.5" fill="currentColor"/>
-                        </svg>
-                    </div>
-                    <div class="alert-text">
-                        <strong>Owner Fund Balance Low</strong>
-                        <p>Current balance: {{ owner_fund_balance or 0 }}</p>
-                        <span class="alert-badge high">HIGH</span>
-                    </div>
-                </div>
-                <div class="alert-row">
-                    <div class="alert-icon success">
-                        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                            <circle cx="10" cy="10" r="9"/><path d="M7 10l2 2 4-4"/>
-                        </svg>
-                    </div>
-                    <div class="alert-text">
-                        <strong>All Systems Operational</strong>
-                        <p>ERP running normally</p>
-                        <span class="alert-badge low">LOW</span>
-                    </div>
-                </div>
-                <div class="alert-row">
-                    <div class="alert-icon warning">
-                        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                            <path d="M10 1L1 18h18L10 1z"/><line x1="10" y1="7" x2="10" y2="13"/><circle cx="10" cy="16" r="0.5" fill="currentColor"/>
-                        </svg>
-                    </div>
-                    <div class="alert-text">
-                        <strong>Supplier Invoices Due</strong>
-                        <p>Outstanding invoices need attention</p>
-                        <span class="alert-badge medium">MEDIUM</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="kpi-card kpi-card-payroll">
+      <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <div class="kpi-title">Payroll Pool</div>
+      <div class="kpi-number">AED {{ "{:,.0f}".format(total_payroll) }}</div>
+      <div class="kpi-sub">{{ stored_this_month }} salaries this month</div>
     </div>
+    <div class="kpi-card kpi-card-owner">
+      <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 9v6"/><path d="M9 12h6"/></svg></div>
+      <div class="kpi-title">Owner Fund</div>
+      <div class="kpi-number" style="color:{% if owner_fund_balance < 0 %}#ef4444{% else %}#22c55e{% endif %}">AED {{ "{:,.0f}".format(owner_fund_balance) }}</div>
+      <div class="kpi-sub">IN {{ "{:,.0f}".format(owner_fund_incoming) }} / OUT {{ "{:,.0f}".format(owner_fund_outgoing) }}</div>
+    </div>
+    <div class="kpi-card kpi-card-supplier">
+      <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+      <div class="kpi-title">Suppliers</div>
+      <div class="kpi-number">{{ supplier_summary.supplier_count if supplier_summary else 0 }}</div>
+      <div class="kpi-sub">{{ supplier_summary.open_purchase_invoices if supplier_summary else 0 }} open invoices</div>
+    </div>
+    <div class="kpi-card kpi-card-customer">
+      <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <div class="kpi-title">Customers</div>
+      <div class="kpi-number">{{ customer_summary.customer_count if customer_summary else 0 }}</div>
+      <div class="kpi-sub">{{ customer_summary.open_sales_invoices if customer_summary else 0 }} open invoices</div>
+    </div>
+    <div class="kpi-card kpi-card-fleet">
+      <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 17H3v-4l2-4h10l4 4v4h-2"/><path d="M5 11h14"/><path d="M7 11V7h6l2 4"/></svg></div>
+      <div class="kpi-title">Fleet</div>
+      <div class="kpi-number">{{ vehicle_chart|length if vehicle_chart else 0 }}</div>
+      <div class="kpi-sub">vehicle types</div>
+    </div>
+  </div>
 
+  {# ── Charts Row ── #}
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h3>Vehicle Types</h3>
+      </div>
+      <div class="chart-card-body">
+        <canvas id="vehicleChart" height="200"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h3>Shift Distribution</h3>
+      </div>
+      <div class="chart-card-body">
+        <canvas id="shiftChart" height="200"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h3>Owner Fund Overview</h3>
+      </div>
+      <div class="chart-card-body">
+        <canvas id="ownerFundChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {# ── Financial Row ── #}
+  <div class="fin-grid">
+    <div class="fin-card">
+      <div class="fin-card-header">
+        <h3>Supplier Financials</h3>
+        <a href="{{ url_for('suppliers') }}">Manage &rarr;</a>
+      </div>
+      <div class="fin-card-body">
+        <div class="fin-row">
+          <span>Payable Total</span>
+          <strong>AED {{ "{:,.0f}".format(supplier_summary.payable_total if supplier_summary else 0) }}</strong>
+        </div>
+        <div class="fin-row">
+          <span>Hire Total</span>
+          <strong>AED {{ "{:,.0f}".format(supplier_summary.hire_total if supplier_summary else 0) }}</strong>
+        </div>
+        <div class="fin-row">
+          <span>Open Invoices</span>
+          <strong>{{ supplier_summary.open_purchase_invoices if supplier_summary else 0 }}</strong>
+        </div>
+        <div class="fin-row">
+          <span>Suppliers</span>
+          <strong>{{ supplier_summary.supplier_count if supplier_summary else 0 }}</strong>
+        </div>
+      </div>
+    </div>
+    <div class="fin-card">
+      <div class="fin-card-header">
+        <h3>Customer Financials</h3>
+        <a href="{{ url_for('customers') }}">Manage &rarr;</a>
+      </div>
+      <div class="fin-card-body">
+        <div class="fin-row">
+          <span>Receivable Total</span>
+          <strong>AED {{ "{:,.0f}".format(customer_summary.receivable_total if customer_summary else 0) }}</strong>
+        </div>
+        <div class="fin-row">
+          <span>Rental Total</span>
+          <strong>AED {{ "{:,.0f}".format(customer_summary.rental_total if customer_summary else 0) }}</strong>
+        </div>
+        <div class="fin-row">
+          <span>Open Invoices</span>
+          <strong>{{ customer_summary.open_sales_invoices if customer_summary else 0 }}</strong>
+        </div>
+        <div class="fin-row">
+          <span>Customers</span>
+          <strong>{{ customer_summary.customer_count if customer_summary else 0 }}</strong>
+        </div>
+      </div>
+    </div>
+    <div class="fin-card">
+      <div class="fin-card-header">
+        <h3>Invoice Center</h3>
+        <a href="{{ url_for('invoice_center') }}">View &rarr;</a>
+      </div>
+      <div class="fin-card-body">
+        <div class="fin-row">
+          <span>Sales Total</span>
+          <strong>AED {{ "{:,.0f}".format(invoice_summary.sales_total if invoice_summary else 0) }}</strong>
+        </div>
+        <div class="fin-row">
+          <span>Purchase Total</span>
+          <strong>AED {{ "{:,.0f}".format(invoice_summary.purchase_total if invoice_summary else 0) }}</strong>
+        </div>
+        <div class="fin-row">
+          <span>Received</span>
+          <strong>AED {{ "{:,.0f}".format(invoice_summary.received_total if invoice_summary else 0) }}</strong>
+        </div>
+        <div class="fin-row">
+          <span>Paid</span>
+          <strong>AED {{ "{:,.0f}".format(invoice_summary.paid_total if invoice_summary else 0) }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Bottom Row: Alerts + Import History ── #}
+  <div class="panels-grid">
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <h3>Alerts &amp; Notifications</h3>
+      </div>
+      <div class="panel-card-body">
+        {% if stored_this_month > 0 %}
+        <div class="alert-row">
+          <span class="alert-dot warning"></span>
+          <div class="alert-text">
+            <strong>Payroll Pending Review</strong>
+            <p>{{ stored_this_month }} driver salaries for {{ current_month_label }}</p>
+          </div>
+        </div>
+        {% endif %}
+        {% if owner_fund_balance < 0 %}
+        <div class="alert-row">
+          <span class="alert-dot danger"></span>
+          <div class="alert-text">
+            <strong>Owner Fund Negative</strong>
+            <p>Balance: AED {{ "{:,.0f}".format(owner_fund_balance) }}</p>
+          </div>
+        </div>
+        {% else %}
+        <div class="alert-row">
+          <span class="alert-dot success"></span>
+          <div class="alert-text">
+            <strong>Owner Fund Positive</strong>
+            <p>Balance: AED {{ "{:,.0f}".format(owner_fund_balance) }}</p>
+          </div>
+        </div>
+        {% endif %}
+        {% if loan_summary and loan_summary.outstanding > 0 %}
+        <div class="alert-row">
+          <span class="alert-dot warning"></span>
+          <div class="alert-text">
+            <strong>Loans Outstanding</strong>
+            <p>AED {{ "{:,.0f}".format(loan_summary.outstanding) }}</p>
+          </div>
+        </div>
+        {% endif %}
+        <div class="alert-row">
+          <span class="alert-dot success"></span>
+          <div class="alert-text">
+            <strong>System Status</strong>
+            <p>ERP running normally</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <h3>Recent Imports</h3>
+      </div>
+      <div class="panel-card-body">
+        {% if import_history %}
+          {% for h in import_history %}
+          <div class="activity-row">
+            <span class="activity-dot blue"></span>
+            <div class="activity-text">
+              <strong>{{ h.source_type }}</strong>
+              <p>{{ h.file_name }} &middot; {{ h.imported_count }} records</p>
+            </div>
+            <span class="activity-time">{{ h.created_at[:10] if h.created_at else '' }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">No imports yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  function getColors(count) {
+    var palette = ["#f59e0b","#3b82f6","#22c55e","#ef4444","#8b5cf6","#ec4899","#14b8a6","#f97316"];
+    return Array.from({ length: count }, function (_, i) { return palette[i % palette.length]; });
+  }
+
+  {# ── Vehicle Chart ── #}
+  var vLabels = [{% for v in vehicle_chart %}"{{ v.label }}"{% if not loop.last %},{% endif %}{% endfor %}];
+  var vData = [{% for v in vehicle_chart %}{{ v.value }}{% if not loop.last %},{% endif %}{% endfor %}];
+  if (vLabels.length) {
+    new Chart(document.getElementById("vehicleChart"), {
+      type: "bar",
+      data: { labels: vLabels, datasets: [{ label: "Vehicles", data: vData, backgroundColor: getColors(vData.length), borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } }, x: { grid: { display: false } } } }
+    });
+  } else {
+    document.getElementById("vehicleChart").parentNode.innerHTML = '<div class="empty-state">No vehicle data</div>';
+  }
+
+  {# ── Shift Chart ── #}
+  var sLabels = [{% for s in shift_chart %}"{{ s.label }}"{% if not loop.last %},{% endif %}{% endfor %}];
+  var sData = [{% for s in shift_chart %}{{ s.value }}{% if not loop.last %},{% endif %}{% endfor %}];
+  if (sLabels.length) {
+    new Chart(document.getElementById("shiftChart"), {
+      type: "doughnut",
+      data: { labels: sLabels, datasets: [{ data: sData, backgroundColor: getColors(sData.length), borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 10, padding: 12, font: { size: 11 } } } } }
+    });
+  } else {
+    document.getElementById("shiftChart").parentNode.innerHTML = '<div class="empty-state">No shift data</div>';
+  }
+
+  {# ── Owner Fund Chart ── #}
+  var ofLabels = ["Incoming", "Outgoing", "Balance"];
+  var ofData = [{{ owner_fund_incoming }}, {{ owner_fund_outgoing }}, {{ owner_fund_balance }}];
+  new Chart(document.getElementById("ownerFundChart"), {
+    type: "bar",
+    data: { labels: ofLabels, datasets: [{ label: "AED", data: ofData, backgroundColor: ["#22c55e", "#ef4444", "#3b82f6"], borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } }, x: { grid: { display: false } } } }
+  });
+});
+</script>
+
+<style>
+.db-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:24px; }
+.db-header h1 { margin:0; font-size:1.5rem; font-weight:700; color:var(--text); }
+.db-header p { margin:2px 0 0; font-size:0.88rem; color:var(--text-secondary); }
+.db-header-badges { display:flex; gap:8px; flex-wrap:wrap; }
+.db-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; }
+.db-badge-green { background:#22c55e1a; color:#16a34a; }
+.db-badge-blue { background:#3b82f61a; color:#2563eb; }
+
+.kpi-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:24px; }
+@media (max-width:1100px) { .kpi-grid { grid-template-columns:repeat(3,1fr); } }
+@media (max-width:600px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
+.kpi-card { background:var(--card); border-radius:var(--radius); padding:16px 14px 14px; box-shadow:var(--shadow-sm); border:1px solid var(--border); border-left:3px solid var(--border); transition:all 0.15s ease; }
+.kpi-card:hover { box-shadow:var(--shadow); transform:translateY(-1px); }
+.kpi-card-drivers { border-left-color:#3b82f6; }
+.kpi-card-payroll { border-left-color:#22c55e; }
+.kpi-card-owner { border-left-color:#f59e0b; }
+.kpi-card-supplier { border-left-color:#8b5cf6; }
+.kpi-card-customer { border-left-color:#ec4899; }
+.kpi-card-fleet { border-left-color:#14b8a6; }
+.kpi-icon { width:34px; height:34px; border-radius:9px; display:grid; place-items:center; margin-bottom:10px; color:var(--orange); background:rgba(255,138,31,0.1); }
+.kpi-title { font-size:0.7rem; font-weight:500; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:3px; }
+.kpi-number { font-size:1.4rem; font-weight:700; color:var(--text); line-height:1.1; margin-bottom:2px; }
+.kpi-sub { font-size:0.67rem; color:var(--muted); }
+
+.charts-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+@media (max-width:900px) { .charts-grid { grid-template-columns:1fr; } }
+.chart-card { background:var(--card); border-radius:var(--radius); border:1px solid var(--border); box-shadow:var(--shadow-sm); overflow:hidden; }
+.chart-card-header { padding:14px 16px; border-bottom:1px solid var(--border); }
+.chart-card-header h3 { margin:0; font-size:0.85rem; font-weight:700; color:var(--text); }
+.chart-card-body { padding:12px 16px 16px; min-height:180px; }
+
+.fin-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+@media (max-width:900px) { .fin-grid { grid-template-columns:1fr; } }
+.fin-card { background:var(--card); border-radius:var(--radius); border:1px solid var(--border); box-shadow:var(--shadow-sm); overflow:hidden; }
+.fin-card-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); }
+.fin-card-header h3 { margin:0; font-size:0.85rem; font-weight:700; color:var(--text); }
+.fin-card-header a { font-size:0.72rem; font-weight:600; color:var(--orange); text-decoration:none; }
+.fin-card-header a:hover { text-decoration:underline; }
+.fin-card-body { padding:4px 0; }
+.fin-row { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-bottom:1px solid #f1f5f9; font-size:0.82rem; }
+.fin-row:last-child { border-bottom:none; }
+.fin-row span { color:var(--text-secondary); }
+.fin-row strong { color:var(--text); font-weight:700; }
+
+.panels-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:32px; }
+@media (max-width:700px) { .panels-grid { grid-template-columns:1fr; } }
+.panel-card { background:var(--card); border-radius:var(--radius); border:1px solid var(--border); box-shadow:var(--shadow-sm); overflow:hidden; }
+.panel-card-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); }
+.panel-card-header h3 { margin:0; font-size:0.85rem; font-weight:700; color:var(--text); }
+.panel-card-body { padding:4px 0; }
+.activity-row, .alert-row { display:flex; align-items:flex-start; gap:12px; padding:11px 16px; border-bottom:1px solid #f1f5f9; transition:background 0.1s; }
+.activity-row:last-child, .alert-row:last-child { border-bottom:none; }
+.activity-row:hover, .alert-row:hover { background:#f8fafc; }
+.activity-dot, .alert-dot { width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+.activity-dot.blue, .alert-dot.danger { background:#ef4444; }
+.activity-dot.green, .alert-dot.success { background:#22c55e; }
+.activity-dot.orange, .alert-dot.warning { background:#f59e0b; }
+.activity-text { flex:1; min-width:0; }
+.activity-text strong { display:block; font-size:0.82rem; color:var(--text); }
+.activity-text p { margin:1px 0 0; font-size:0.75rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.activity-time { font-size:0.7rem; color:var(--muted); white-space:nowrap; }
+.empty-state { text-align:center; padding:24px 16px; color:var(--muted); font-size:0.85rem; }
+</style>
 </div>
 {% endblock %}
