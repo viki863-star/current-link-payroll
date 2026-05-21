@@ -16,6 +16,9 @@ from flask import (
 
 from . import supplier_bp
 
+from ..database import open_db
+
+
 MAINTENANCE_CATEGORIES = [
     "Engine", "Transmission", "Brakes", "Tires", "Electrical",
     "AC", "Body", "Fuel System", "Suspension", "Inspection",
@@ -39,19 +42,20 @@ PAYMENT_METHODS = ["Cash", "Bank Transfer", "Cheque", "Card"]
 # ── Helpers ──────────────────────────────────────────────
 
 def _get_db():
-    import sqlite3
-
-    db_path = current_app.config.get("DATABASE") or "payroll.db"
-    db = sqlite3.connect(db_path)
-    db.row_factory = sqlite3.Row
-    return db
+    return open_db()
 
 
 def _ensure_tables():
     db = _get_db()
-    db.executescript("""
+    backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+
+    id_col = "id BIGSERIAL PRIMARY KEY" if backend == "postgres" else "id INTEGER PRIMARY KEY AUTOINCREMENT"
+    now_val = "CURRENT_TIMESTAMP" if backend == "postgres" else "(datetime('now'))"
+    real_type = "DOUBLE PRECISION" if backend == "postgres" else "REAL"
+
+    db.executescript(f"""
         CREATE TABLE IF NOT EXISTS suppliers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            {id_col},
             supplier_code TEXT UNIQUE NOT NULL,
             supplier_name TEXT NOT NULL,
             supplier_type TEXT NOT NULL DEFAULT 'with_invoice',
@@ -67,19 +71,19 @@ def _ensure_tables():
             iban TEXT,
             status TEXT NOT NULL DEFAULT 'Active',
             notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            created_at TEXT NOT NULL DEFAULT {now_val}
         );
 
         CREATE TABLE IF NOT EXISTS supplier_invoices (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            {id_col},
             supplier_id INTEGER NOT NULL,
             invoice_no TEXT NOT NULL,
             invoice_date TEXT NOT NULL,
             due_date TEXT,
-            amount REAL NOT NULL,
-            vat_percentage REAL DEFAULT 5.0,
-            vat_amount REAL DEFAULT 0.0,
-            total_amount REAL NOT NULL,
+            amount {real_type} NOT NULL,
+            vat_percentage {real_type} DEFAULT 5.0,
+            vat_amount {real_type} DEFAULT 0.0,
+            total_amount {real_type} NOT NULL,
             description TEXT,
             attachment_name TEXT,
             attachment_data TEXT,
@@ -89,15 +93,15 @@ def _ensure_tables():
             payment_method TEXT,
             payment_ref TEXT,
             notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            created_at TEXT NOT NULL DEFAULT {now_val},
             FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
         );
 
         CREATE TABLE IF NOT EXISTS supplier_expenses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            {id_col},
             supplier_id INTEGER NOT NULL,
             expense_date TEXT NOT NULL,
-            amount REAL NOT NULL,
+            amount {real_type} NOT NULL,
             category TEXT,
             description TEXT,
             receipt_name TEXT,
@@ -106,53 +110,53 @@ def _ensure_tables():
             status TEXT NOT NULL DEFAULT 'pending',
             approved_by TEXT,
             approved_at TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            created_at TEXT NOT NULL DEFAULT {now_val},
             FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
         );
 
         CREATE TABLE IF NOT EXISTS supplier_payment_records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            {id_col},
             supplier_id INTEGER NOT NULL,
             invoice_id INTEGER,
             payment_date TEXT NOT NULL,
-            amount REAL NOT NULL,
+            amount {real_type} NOT NULL,
             payment_method TEXT NOT NULL DEFAULT 'Cash',
             reference_no TEXT,
             notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            created_at TEXT NOT NULL DEFAULT {now_val},
             FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
             FOREIGN KEY (invoice_id) REFERENCES supplier_invoices(id)
         );
 
         CREATE TABLE IF NOT EXISTS supplier_loans (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            {id_col},
             supplier_id INTEGER NOT NULL,
             entry_date TEXT NOT NULL,
             loan_type TEXT NOT NULL DEFAULT 'given',
-            amount REAL NOT NULL,
+            amount {real_type} NOT NULL,
             payment_method TEXT DEFAULT 'Cash',
             reference_no TEXT,
             notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            created_at TEXT NOT NULL DEFAULT {now_val},
             FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
         );
     """)
 
-    db.executescript("""
+    db.executescript(f"""
         CREATE TABLE IF NOT EXISTS supplier_lpos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            {id_col},
             supplier_id INTEGER NOT NULL,
             lpo_no TEXT NOT NULL,
             lpo_date TEXT NOT NULL,
-            amount REAL DEFAULT 0,
+            amount {real_type} DEFAULT 0,
             description TEXT,
             status TEXT NOT NULL DEFAULT 'open',
             notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            created_at TEXT NOT NULL DEFAULT {now_val},
             FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
         );
         CREATE TABLE IF NOT EXISTS supplier_documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            {id_col},
             supplier_id INTEGER NOT NULL,
             doc_type TEXT NOT NULL,
             doc_name TEXT NOT NULL,
@@ -161,51 +165,51 @@ def _ensure_tables():
             file_type TEXT,
             expiry_date TEXT,
             notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            created_at TEXT NOT NULL DEFAULT {now_val},
             FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
         );
     """)
 
-    db.executescript("""
+    db.executescript(f"""
         CREATE TABLE IF NOT EXISTS supplier_quotations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            {id_col},
             supplier_id INTEGER NOT NULL,
             quotation_no TEXT NOT NULL,
             quotation_date TEXT NOT NULL,
-            amount REAL DEFAULT 0,
+            amount {real_type} DEFAULT 0,
             description TEXT,
             file_data TEXT,
             file_type TEXT,
             notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            created_at TEXT NOT NULL DEFAULT {now_val},
             FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
         );
     """)
 
-    db.executescript("""
+    db.executescript(f"""
         CREATE TABLE IF NOT EXISTS supplier_quotation_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            {id_col},
             quotation_id INTEGER NOT NULL,
             description TEXT NOT NULL,
-            qty REAL DEFAULT 1,
+            qty {real_type} DEFAULT 1,
             basis_type TEXT DEFAULT 'trip',
             shift_type TEXT DEFAULT 'single',
-            day_rate REAL DEFAULT 0,
-            night_rate REAL DEFAULT 0,
-            amount REAL DEFAULT 0,
+            day_rate {real_type} DEFAULT 0,
+            night_rate {real_type} DEFAULT 0,
+            amount {real_type} DEFAULT 0,
             sort_order INTEGER DEFAULT 0,
             FOREIGN KEY (quotation_id) REFERENCES supplier_quotations(id) ON DELETE CASCADE
         );
         CREATE TABLE IF NOT EXISTS supplier_lpo_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            {id_col},
             lpo_id INTEGER NOT NULL,
             description TEXT NOT NULL,
-            qty REAL DEFAULT 1,
+            qty {real_type} DEFAULT 1,
             basis_type TEXT DEFAULT 'trip',
             shift_type TEXT DEFAULT 'single',
-            day_rate REAL DEFAULT 0,
-            night_rate REAL DEFAULT 0,
-            amount REAL DEFAULT 0,
+            day_rate {real_type} DEFAULT 0,
+            night_rate {real_type} DEFAULT 0,
+            amount {real_type} DEFAULT 0,
             sort_order INTEGER DEFAULT 0,
             FOREIGN KEY (lpo_id) REFERENCES supplier_lpos(id) ON DELETE CASCADE
         );
@@ -223,7 +227,7 @@ def _ensure_tables():
         except Exception:
             pass
 
-    for col, dtype in [("earning_type", "TEXT DEFAULT 'fixed'"), ("quantity", "REAL"), ("rate", "REAL")]:
+    for col, dtype in [("earning_type", "TEXT DEFAULT 'fixed'"), ("quantity", real_type), ("rate", real_type)]:
         try:
             db.execute(f"ALTER TABLE supplier_expenses ADD COLUMN {col} {dtype}")
         except Exception:
@@ -235,13 +239,13 @@ def _ensure_tables():
         except Exception:
             pass
 
-    db.execute("""CREATE TABLE IF NOT EXISTS owner_funds (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        amount REAL NOT NULL,
+    db.execute(f"""CREATE TABLE IF NOT EXISTS owner_funds (
+        {id_col},
+        amount {real_type} NOT NULL,
         fund_date TEXT NOT NULL,
         description TEXT,
         notes TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        created_at TEXT NOT NULL DEFAULT {now_val}
     )""")
     for col, dtype in [("owner_name", "TEXT DEFAULT 'Owner'"), ("transaction_type", "TEXT DEFAULT 'deposit'")]:
         try:
@@ -264,7 +268,7 @@ def _ensure_tables():
             pass
 
     db.commit()
-    db.close()
+
 
 
 # ═══════════════════════════════════════════════════════════
@@ -292,7 +296,7 @@ def supplier_dashboard():
            ORDER BY si.created_at DESC LIMIT 5"""
     ).fetchall()
 
-    db.close()
+
     return render_template(
         "supplier/dashboard.html",
         suppliers=suppliers,
@@ -331,7 +335,7 @@ def supplier_list():
         sql += " WHERE " + " AND ".join(conditions)
     sql += " ORDER BY supplier_name"
     suppliers = db.execute(sql, params).fetchall()
-    db.close()
+
     return render_template("supplier/list.html", suppliers=suppliers, q=q, typ=typ)
 
 
@@ -371,11 +375,11 @@ def supplier_add():
              data["bank_account"], data["iban"], data["notes"]),
         )
         db.commit()
-        db.close()
+
         flash(f"Supplier {data['supplier_name']} added.", "success")
         return redirect(url_for("supplier.supplier_list"))
 
-    db.close()
+
     return render_template("supplier/form.html", s={}, code=code, is_edit=False)
 
 
@@ -408,11 +412,11 @@ def supplier_edit(sup_id):
              data["bank_account"], data["iban"], data["notes"], data["status"], sup_id),
         )
         db.commit()
-        db.close()
+
         flash("Supplier updated.", "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id))
 
-    db.close()
+
     return render_template("supplier/form.html", s=s, code=s["supplier_code"], is_edit=True)
 
 
@@ -499,7 +503,7 @@ def supplier_profile(sup_id):
         (sup_id,),
     ).fetchall()
 
-    db.close()
+
     return render_template(
         "supplier/profile.html",
         s=s,
@@ -577,11 +581,11 @@ def supplier_invoice_add(sup_id):
              int(lpo_id) if lpo_id and lpo_id != "none" else None),
         )
         db.commit()
-        db.close()
+
         flash("Invoice added.", "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="invoices"))
 
-    db.close()
+
     lpos = _get_db().execute("SELECT * FROM supplier_lpos WHERE supplier_id=? AND status='open' ORDER BY lpo_date DESC", (sup_id,)).fetchall()
     return render_template("supplier/invoice_form.html", s=s, inv={}, lpos=lpos, categories=SUPPLIER_CATEGORIES)
 
@@ -638,11 +642,11 @@ def supplier_invoice_edit(sup_id, inv_id):
              int(lpo_id) if lpo_id and lpo_id != "none" else None, inv_id),
         )
         db.commit()
-        db.close()
+
         flash("Invoice updated.", "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="invoices"))
 
-    db.close()
+
     lpos = _get_db().execute("SELECT * FROM supplier_lpos WHERE supplier_id=? ORDER BY lpo_date DESC", (sup_id,)).fetchall()
     return render_template("supplier/invoice_form.html", s=s, inv=inv, lpos=lpos, categories=SUPPLIER_CATEGORIES)
 
@@ -651,7 +655,7 @@ def supplier_invoice_edit(sup_id, inv_id):
 def supplier_invoice_attachment(inv_id):
     db = _get_db()
     inv = db.execute("SELECT * FROM supplier_invoices WHERE id = ?", (inv_id,)).fetchone()
-    db.close()
+
     if not inv or not inv["attachment_data"]:
         flash("Attachment not found.", "error")
         return redirect(url_for("supplier.supplier_dashboard"))
@@ -683,14 +687,14 @@ def supplier_lpo_list(sup_id):
     db = _get_db()
     s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
-        db.close()
+
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
     lpos = db.execute(
         "SELECT sl.*, sq.quotation_no FROM supplier_lpos sl LEFT JOIN supplier_quotations sq ON sl.quotation_id=sq.id WHERE sl.supplier_id = ? ORDER BY sl.lpo_date DESC",
         (sup_id,),
     ).fetchall()
-    db.close()
+
     return render_template("supplier/lpo_list.html", s=s, lpos=lpos)
 
 
@@ -700,7 +704,7 @@ def supplier_lpo_add(sup_id):
     db = _get_db()
     s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
-        db.close()
+
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
 
@@ -716,11 +720,11 @@ def supplier_lpo_add(sup_id):
             return render_template("supplier/lpo_form.html", s=s, lpo={}, lpo_types=LPO_TYPES, quotations=[], qitems=[])
         qid = int(quotation_id) if quotation_id and quotation_id != "none" else None
 
-        cur = db.execute(
-            "INSERT INTO supplier_lpos (supplier_id, lpo_no, lpo_date, lpo_type, quotation_id, amount, description, notes) VALUES (?,?,?,?,?,?,?,?)",
+        row = db.execute(
+            "INSERT INTO supplier_lpos (supplier_id, lpo_no, lpo_date, lpo_type, quotation_id, amount, description, notes) VALUES (?,?,?,?,?,?,?,?) RETURNING id",
             (sup_id, lpo_no, lpo_date, lpo_type, qid, 0, description, notes),
-        )
-        lpo_id = cur.lastrowid
+        ).fetchone()
+        lpo_id = row["id"]
 
         total_amount = 0
         descriptions = request.form.getlist("item_desc[]")
@@ -744,12 +748,12 @@ def supplier_lpo_add(sup_id):
 
         db.execute("UPDATE supplier_lpos SET amount=? WHERE id=?", (round(total_amount, 2), lpo_id))
         db.commit()
-        db.close()
+
         flash("LPO added.", "success")
         return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
 
     quotations = db.execute("SELECT * FROM supplier_quotations WHERE supplier_id=? ORDER BY quotation_date DESC", (sup_id,)).fetchall()
-    db.close()
+
     return render_template("supplier/lpo_form.html", s=s, lpo={}, lpo_types=LPO_TYPES, quotations=quotations, qitems=[])
 
 
@@ -759,7 +763,7 @@ def supplier_lpo_close(sup_id, lpo_id):
     db = _get_db()
     db.execute("UPDATE supplier_lpos SET status='closed' WHERE id=? AND supplier_id=?", (lpo_id, sup_id))
     db.commit()
-    db.close()
+
     flash("LPO closed.", "info")
     return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
 
@@ -782,7 +786,7 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     quotation = None
     if lpo and lpo["quotation_id"]:
         quotation = db.execute("SELECT * FROM supplier_quotations WHERE id=?", (lpo["quotation_id"],)).fetchone()
-    db.close()
+
 
     if not s or not lpo:
         flash("LPO not found.", "error")
@@ -1005,14 +1009,14 @@ def supplier_quotation_list(sup_id):
     db = _get_db()
     s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
-        db.close()
+
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
     quotations = db.execute(
         "SELECT * FROM supplier_quotations WHERE supplier_id = ? ORDER BY quotation_date DESC",
         (sup_id,),
     ).fetchall()
-    db.close()
+
     return render_template("supplier/quotation_list.html", s=s, quotations=quotations)
 
 
@@ -1022,7 +1026,7 @@ def supplier_quotation_add(sup_id):
     db = _get_db()
     s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
-        db.close()
+
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
 
@@ -1049,11 +1053,11 @@ def supplier_quotation_add(sup_id):
         basis_types = request.form.getlist("item_basis[]")
         rates = request.form.getlist("item_rate[]")
 
-        cur = db.execute(
-            "INSERT INTO supplier_quotations (supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes) VALUES (?,?,?,?,?,?,?,?)",
+        row = db.execute(
+            "INSERT INTO supplier_quotations (supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes) VALUES (?,?,?,?,?,?,?,?) RETURNING id",
             (sup_id, q_no, q_date, 0, description, file_data, file_type, notes),
-        )
-        q_id = cur.lastrowid
+        ).fetchone()
+        q_id = row["id"]
 
         for i in range(len(descriptions)):
             desc = descriptions[i].strip()
@@ -1071,11 +1075,11 @@ def supplier_quotation_add(sup_id):
 
         db.execute("UPDATE supplier_quotations SET amount=? WHERE id=?", (total_amount, q_id))
         db.commit()
-        db.close()
+
         flash("Quotation added.", "success")
         return redirect(url_for("supplier.supplier_quotation_list", sup_id=sup_id))
 
-    db.close()
+
     return render_template("supplier/quotation_form.html", s=s, quotation={})
 
 
@@ -1084,7 +1088,7 @@ def supplier_quotation_items_api(sup_id, q_id):
     _ensure_tables()
     db = _get_db()
     items = db.execute("SELECT * FROM supplier_quotation_items WHERE quotation_id=? ORDER BY sort_order", (q_id,)).fetchall()
-    db.close()
+
     from flask import jsonify
     return jsonify([dict(i) for i in items])
 
@@ -1094,7 +1098,7 @@ def supplier_quotation_download(sup_id, q_id):
     _ensure_tables()
     db = _get_db()
     q = db.execute("SELECT * FROM supplier_quotations WHERE id=? AND supplier_id=?", (q_id, sup_id)).fetchone()
-    db.close()
+
     if not q or not q["file_data"]:
         flash("Quotation file not found.", "error")
         return redirect(url_for("supplier.supplier_quotation_list", sup_id=sup_id))
@@ -1113,7 +1117,7 @@ def supplier_quotation_delete(sup_id, q_id):
     db = _get_db()
     db.execute("DELETE FROM supplier_quotations WHERE id=? AND supplier_id=?", (q_id, sup_id))
     db.commit()
-    db.close()
+
     flash("Quotation deleted.", "info")
     return redirect(url_for("supplier.supplier_quotation_list", sup_id=sup_id))
 
@@ -1186,11 +1190,11 @@ def supplier_expense_add(sup_id):
              receipt_name, receipt_data, receipt_type, earning_type, qty_f, rate_f, fund_source),
         )
         db.commit()
-        db.close()
+
         flash("Expense added.", "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="expenses"))
 
-    db.close()
+
     return render_template("supplier/expense_form.html", s=s, exp={})
 
 
@@ -1200,7 +1204,7 @@ def supplier_expense_approve(sup_id, exp_id):
     db = _get_db()
     db.execute("UPDATE supplier_expenses SET status='approved' WHERE id=? AND supplier_id=?", (exp_id, sup_id))
     db.commit()
-    db.close()
+
     flash("Expense approved.", "success")
     return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="expenses"))
 
@@ -1272,11 +1276,11 @@ def supplier_payment_add(sup_id):
             )
 
         db.commit()
-        db.close()
+
         flash("Payment recorded." + (f" Qarz {deduct_amt} deducted." if deduct_amt else ""), "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
 
-    db.close()
+
     return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS, qarz_balance=qarz_balance)
 
 
@@ -1317,11 +1321,11 @@ def supplier_loan_add(sup_id):
             (sup_id, entry_date, loan_type, float(amount), payment_method, reference_no, notes, deduct, fund_source),
         )
         db.commit()
-        db.close()
+
         flash("Loan entry recorded.", "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
 
-    db.close()
+
     return render_template("supplier/loan_form.html", s=s, loan={}, methods=PAYMENT_METHODS)
 
 
@@ -1345,7 +1349,7 @@ def supplier_loans_list(sup_id):
         "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='recovered'",
         (sup_id,),
     ).fetchone()[0]
-    db.close()
+
     return render_template(
         "supplier/loans_list.html",
         s=s,
@@ -1462,7 +1466,7 @@ def supplier_kata(sup_id):
     total_debit = sum(r["debit"] for r in ledger)
     closing = round(total_credit - total_debit, 2)
 
-    db.close()
+
     return render_template(
         "supplier/kata.html",
         s=s,
@@ -1494,7 +1498,7 @@ def supplier_delete(sup_id):
         db.execute("DELETE FROM suppliers WHERE id = ?", (sup_id,))
         db.commit()
         flash(f"Supplier {s['supplier_name']} deleted.", "info")
-    db.close()
+
     return redirect(url_for("supplier.supplier_list"))
 
 
@@ -1531,7 +1535,7 @@ def owner_fund_add():
             (float(amount), fund_date, owner_name, transaction_type, description, notes),
         )
         db.commit()
-        db.close()
+
         flash("Owner fund entry added.", "success")
         return redirect(url_for("owner_fund"))
     return redirect(url_for("owner_fund"))
@@ -1550,14 +1554,14 @@ def supplier_doc_list(sup_id):
     db = _get_db()
     s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
-        db.close()
+
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
     docs = db.execute(
         "SELECT * FROM supplier_documents WHERE supplier_id = ? ORDER BY created_at DESC",
         (sup_id,),
     ).fetchall()
-    db.close()
+
     return render_template("supplier/doc_list.html", s=s, docs=docs, today=date.today().isoformat())
 
 
@@ -1572,7 +1576,7 @@ def supplier_doc_add(sup_id):
     db = _get_db()
     s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
-        db.close()
+
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
 
@@ -1599,11 +1603,11 @@ def supplier_doc_add(sup_id):
             (sup_id, doc_type, doc_name, doc_ref or None, file_data, file_type, expiry_date or None, notes),
         )
         db.commit()
-        db.close()
+
         flash("Document uploaded.", "success")
         return redirect(url_for("supplier.supplier_doc_list", sup_id=sup_id))
 
-    db.close()
+
     return render_template("supplier/doc_form.html", s=s, doc={}, doc_types=DOC_TYPES)
 
 
@@ -1612,7 +1616,7 @@ def supplier_doc_download(sup_id, doc_id):
     _ensure_tables()
     db = _get_db()
     doc = db.execute("SELECT * FROM supplier_documents WHERE id=? AND supplier_id=?", (doc_id, sup_id)).fetchone()
-    db.close()
+
     if not doc:
         flash("Document not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -1634,6 +1638,6 @@ def supplier_doc_delete(sup_id, doc_id):
     db = _get_db()
     db.execute("DELETE FROM supplier_documents WHERE id=? AND supplier_id=?", (doc_id, sup_id))
     db.commit()
-    db.close()
+
     flash("Document deleted.", "info")
     return redirect(url_for("supplier.supplier_doc_list", sup_id=sup_id))
