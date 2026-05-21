@@ -41,13 +41,7 @@ CREATE TABLE IF NOT EXISTS employees (
 """
 
 
-def migrate_drivers_to_employees(db):
-    existing = db.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='employees'"
-    ).fetchone()
-    if existing:
-        return
-
+def sync_drivers_to_employees(db):
     db.executescript(EMPLOYEE_SCHEMA)
 
     try:
@@ -71,18 +65,36 @@ def migrate_drivers_to_employees(db):
         shift = (d.get("shift") if "shift" in columns else "Morning") or "Morning"
         created = d.get("created_at") if "created_at" in columns else None
 
-        db.execute(
-            """
-            INSERT OR IGNORE INTO employees (
-                employee_id, full_name, phone_number, employee_type,
-                department, designation, join_date, basic_salary, ot_rate,
-                photo_name, photo_data, photo_content_type, status, remarks,
-                shift, created_at
-            ) VALUES (?, ?, ?, 'Driver', 'Transport', 'Driver', ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
-            """,
-            (emp_id, name, phone, duty_start, salary, ot,
-             photo_name, photo_data, photo_ct, status, remarks, shift, created),
-        )
+        existing = db.execute(
+            "SELECT id FROM employees WHERE employee_id = ?",
+            (emp_id,),
+        ).fetchone()
+
+        if existing:
+            db.execute(
+                """
+                UPDATE employees SET
+                    full_name=?, phone_number=?, join_date=?, basic_salary=?,
+                    ot_rate=?, photo_name=?, photo_data=?, photo_content_type=?,
+                    status=?, remarks=?, shift=?
+                WHERE employee_id=?
+                """,
+                (name, phone, duty_start, salary, ot,
+                 photo_name, photo_data, photo_ct, status, remarks, shift, emp_id),
+            )
+        else:
+            db.execute(
+                """
+                INSERT INTO employees (
+                    employee_id, full_name, phone_number, employee_type,
+                    department, designation, join_date, basic_salary, ot_rate,
+                    photo_name, photo_data, photo_content_type, status, remarks,
+                    shift, created_at
+                ) VALUES (?, ?, ?, 'Driver', 'Transport', 'Driver', ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+                """,
+                (emp_id, name, phone, duty_start, salary, ot,
+                 photo_name, photo_data, photo_ct, status, remarks, shift, created),
+            )
     db.commit()
 
 

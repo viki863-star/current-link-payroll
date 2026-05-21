@@ -28,7 +28,7 @@ from .forms import (
     GENDER_OPTIONS, SHIFT_OPTIONS, CONTRACT_TYPE_OPTIONS
 )
 from .services import (
-    migrate_drivers_to_employees, save_employee_photo,
+    sync_drivers_to_employees, save_employee_photo,
     employee_search_filter, next_employee_id,
     employee_departments, employee_types
 )
@@ -36,10 +36,7 @@ from .services import (
 
 def ensure_employees_table():
     db = open_db()
-    try:
-        migrate_drivers_to_employees(db)
-    except Exception:
-        pass
+    sync_drivers_to_employees(db)
 
 
 def _fetch_employee(db, employee_id):
