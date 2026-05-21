@@ -13,3 +13,4 @@ generated/
 *.vsix
 
 .tmp.drivedownload/
+pic/
