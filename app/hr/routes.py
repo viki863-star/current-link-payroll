@@ -31,6 +31,7 @@ from .services import (
     sync_drivers_to_employees, save_employee_photo,
     employee_search_filter, next_employee_id,
     employee_departments, employee_types,
+    sync_field_staff_to_employees,
     EMPLOYEE_SCHEMA, EMPLOYEE_SCHEMA_POSTGRES
 )
 
@@ -45,6 +46,11 @@ def ensure_employees_table():
 
     try:
         sync_drivers_to_employees(db)
+    except Exception:
+        db.rollback()
+
+    try:
+        sync_field_staff_to_employees(db)
     except Exception:
         db.rollback()
 

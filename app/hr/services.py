@@ -198,3 +198,33 @@ def employee_types(db):
         "SELECT DISTINCT employee_type FROM employees WHERE employee_type IS NOT NULL AND employee_type != '' ORDER BY employee_type"
     ).fetchall()
     return [r["employee_type"] for r in rows]
+
+
+def sync_field_staff_to_employees(db):
+    """Sync field_staff table into employees as 'Field Staff' type."""
+    try:
+        staff = db.execute("SELECT * FROM field_staff").fetchall()
+    except Exception:
+        return
+    for s in staff:
+        emp_id = s["staff_id"]
+        name = s["full_name"]
+        phone = s["phone"] or ""
+        active = "Active" if s.get("is_active", 1) else "Inactive"
+        created = s.get("created_at") or None
+
+        existing = db.execute(
+            "SELECT id FROM employees WHERE employee_id = ?", (emp_id,)
+        ).fetchone()
+        if existing:
+            db.execute(
+                "UPDATE employees SET full_name=?, phone_number=?, status=? WHERE employee_id=?",
+                (name, phone, active, emp_id),
+            )
+        else:
+            db.execute(
+                """INSERT INTO employees (employee_id, full_name, phone_number, employee_type,
+                   department, designation, join_date, status, created_at)
+                   VALUES (?,?,?,'Field Staff','Field Staff','Field Staff',date('now'),?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (emp_id, name, phone, active, created),
+            )
