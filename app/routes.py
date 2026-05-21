@@ -6520,14 +6520,21 @@ def register_routes(app: Flask) -> None:
         count_funds = db.execute("SELECT COUNT(*) FROM owner_funds").fetchone()[0]
         db.execute("DELETE FROM owner_fund_entries")
         db.execute("DELETE FROM owner_funds")
+        db.execute("UPDATE driver_transactions SET source='Cleared' WHERE source='Owner Fund'")
+        db.execute("UPDATE salary_payments SET payment_source='Cleared' WHERE payment_source='Owner Fund'")
+        db.execute("UPDATE salary_slips SET payment_source='Cleared' WHERE payment_source='Owner Fund'")
+        db.execute("UPDATE maintenance_staff_advances SET funding_source='Cleared' WHERE funding_source='Owner Fund'")
+        db.execute("UPDATE supplier_payment_records SET fund_source='Cleared' WHERE fund_source='owner_fund'")
+        db.execute("UPDATE supplier_expenses SET fund_source='Cleared' WHERE fund_source='owner_fund'")
+        db.execute("UPDATE supplier_loans SET fund_source='Cleared' WHERE fund_source='owner_fund'")
         _audit_log(
             db,
             "owner_fund_cleared",
             entity_type="owner_fund",
-            details=f"Cleared {count_entries} entries + {count_funds} summary records. Driver/salary records kept.",
+            details=f"Owner fund reset: deleted {count_entries} entries + {count_funds} summaries, unlinked driver/salary/supplier records from Owner Fund",
         )
         db.commit()
-        flash(f"Owner fund cleared ({count_entries} entries + {count_funds} summary records removed). Driver salary records kept.", "success")
+        flash("Owner fund fully reset. Payment records kept but unlinked from Owner Fund.", "success")
         return redirect(url_for("owner_fund"))
 
     @app.get("/owner-fund/pdf")
