@@ -410,6 +410,71 @@ def _migrate_old_supplier_data():
                 (sup_id, v["issue_date"], v["total_amount"], v["notes"], v["created_at"]),
             )
 
+    # ── Cash Supplier Trips as Invoices ──
+    try:
+        cash_trips = new.execute(
+            "SELECT trip_no, party_code, entry_date, total_amount, notes, created_at "
+            "FROM cash_supplier_trips"
+        ).fetchall()
+    except Exception:
+        cash_trips = []
+    for t in cash_trips:
+        sup_id = new_suppliers.get(t["party_code"])
+        if not sup_id:
+            continue
+        existing = new.execute("SELECT id FROM supplier_invoices WHERE invoice_no=? AND supplier_id=?",
+                               (t["trip_no"], sup_id)).fetchone()
+        if not existing:
+            new.execute(
+                """INSERT INTO supplier_invoices (supplier_id, invoice_no, invoice_date, amount, total_amount, description, status, created_at)
+                   VALUES (?,?,?,?,?,?,'paid',COALESCE(?,CURRENT_TIMESTAMP))""",
+                (sup_id, t["trip_no"], t["entry_date"], t["total_amount"],
+                 t["total_amount"], t["notes"], t["created_at"]),
+            )
+
+    # ── Cash Supplier Debits as Loans ──
+    try:
+        cash_debits = new.execute(
+            "SELECT debit_no, party_code, entry_date, debit_type, amount, description, notes, created_at "
+            "FROM cash_supplier_debits"
+        ).fetchall()
+    except Exception:
+        cash_debits = []
+    for d in cash_debits:
+        sup_id = new_suppliers.get(d["party_code"])
+        if not sup_id:
+            continue
+        existing = new.execute("SELECT id FROM supplier_loans WHERE entry_date=? AND amount=? AND supplier_id=?",
+                               (d["entry_date"], d["amount"], sup_id)).fetchone()
+        if not existing:
+            new.execute(
+                """INSERT INTO supplier_loans (supplier_id, entry_date, loan_type, amount, notes, created_at)
+                   VALUES (?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (sup_id, d["entry_date"], d["debit_type"], d["amount"], d["notes"], d["created_at"]),
+            )
+
+    # ── Cash Supplier Payments ──
+    try:
+        cash_pay = new.execute(
+            "SELECT payment_no, party_code, entry_date, amount, payment_method, reference, notes, created_at "
+            "FROM cash_supplier_payments"
+        ).fetchall()
+    except Exception:
+        cash_pay = []
+    for p in cash_pay:
+        sup_id = new_suppliers.get(p["party_code"])
+        if not sup_id:
+            continue
+        existing = new.execute("SELECT id FROM supplier_payment_records WHERE reference_no=? AND supplier_id=? AND amount=?",
+                               (p["payment_no"], sup_id, p["amount"])).fetchone()
+        if not existing:
+            new.execute(
+                """INSERT INTO supplier_payment_records (supplier_id, payment_date, amount, payment_method, reference_no, notes, created_at)
+                   VALUES (?,?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (sup_id, p["entry_date"], p["amount"], p["payment_method"],
+                 p["payment_no"], p["notes"], p["created_at"]),
+            )
+
     new.commit()
 
 
