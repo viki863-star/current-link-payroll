@@ -136,57 +136,64 @@ def fleet_dashboard():
 @fleet_bp.route("/fleet/vehicles")
 @_login_required("admin")
 def vehicle_list():
-    _touch_admin_workspace("fleet")
-    ensure_fleet_tables()
-    db = open_db()
+    try:
+        _touch_admin_workspace("fleet")
+        ensure_fleet_tables()
+        db = open_db()
 
-    q = request.args.get("q", "").strip()
-    type_filter = request.args.get("type", "").strip()
-    ownership_filter = request.args.get("ownership", "").strip()
-    status_filter = request.args.get("status", "").strip()
+        q = request.args.get("q", "").strip()
+        type_filter = request.args.get("type", "").strip()
+        ownership_filter = request.args.get("ownership", "").strip()
+        status_filter = request.args.get("status", "").strip()
 
-    where = []
-    params = []
-    if q:
-        where.append("(plate_no LIKE ? OR vehicle_type LIKE ? OR model LIKE ? OR partner_name LIKE ?)")
-        like = f"%{q}%"
-        params.extend([like, like, like, like])
-    if type_filter:
-        where.append("vehicle_type = ?")
-        params.append(type_filter)
-    if ownership_filter:
-        where.append("ownership_type = ?")
-        params.append(ownership_filter)
-    if status_filter:
-        where.append("status = ?")
-        params.append(status_filter)
+        where = []
+        params = []
+        if q:
+            where.append("(plate_no LIKE ? OR vehicle_type LIKE ? OR model LIKE ? OR partner_name LIKE ?)")
+            like = f"%{q}%"
+            params.extend([like, like, like, like])
+        if type_filter:
+            where.append("vehicle_type = ?")
+            params.append(type_filter)
+        if ownership_filter:
+            where.append("ownership_type = ?")
+            params.append(ownership_filter)
+        if status_filter:
+            where.append("status = ?")
+            params.append(status_filter)
 
-    where_sql = " AND ".join(where) if where else "1"
+        where_sql = " AND ".join(where) if where else "1"
 
-    vehicles = db.execute(
-        f"""SELECT v.*, va.driver_id, e.full_name AS driver_name
-            FROM vehicles v
-            LEFT JOIN vehicle_assignments va ON va.vehicle_id = v.plate_no AND va.is_current = 1
-            LEFT JOIN employees e ON e.employee_id = va.driver_id
-            WHERE {where_sql}
-            ORDER BY v.plate_no""",
-        params,
-    ).fetchall()
+        vehicles = db.execute(
+            f"""SELECT v.*, va.driver_id, e.full_name AS driver_name
+                FROM vehicles v
+                LEFT JOIN vehicle_assignments va ON va.vehicle_id = v.plate_no AND va.is_current = 1
+                LEFT JOIN employees e ON e.employee_id = va.driver_id
+                WHERE {where_sql}
+                ORDER BY v.plate_no""",
+            params,
 
-    stats = {"total": len(vehicles)}
-    stats["active"] = sum(1 for v in vehicles if (v["status"] or "").lower() == "active")
+        ).fetchall()
 
-    return render_template(
-        "fleet/vehicle_list.html",
-        vehicles=vehicles,
-        stats=stats,
-        q=q,
-        type_filter=type_filter,
-        ownership_filter=ownership_filter,
-        status_filter=status_filter,
-        vehicle_types=VEHICLE_TYPES,
-        ownership_types=OWNERSHIP_TYPES,
-    )
+        all_types = [r[0] for r in db.execute("SELECT DISTINCT vehicle_type FROM vehicles ORDER BY vehicle_type").fetchall()]
+        all_ownership = [r[0] for r in db.execute("SELECT DISTINCT ownership_type FROM vehicles ORDER BY ownership_type").fetchall()]
+
+        return render_template(
+            "fleet/vehicle_list.html",
+            vehicles=vehicles,
+            q=q,
+            type_filter=type_filter,
+            ownership_filter=ownership_filter,
+            status_filter=status_filter,
+            all_types=all_types,
+            all_ownership=all_ownership,
+            VEHICLE_TYPES=VEHICLE_TYPES,
+            OWNERSHIP_TYPES=OWNERSHIP_TYPES,
+        )
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return f"<h2>Fleet Error</h2><pre>{e}\n\n{tb}</pre>", 500
 
 
 # ── Add Vehicle ─────────────────────────────────────────────────
