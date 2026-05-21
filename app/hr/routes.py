@@ -36,7 +36,10 @@ from .services import (
 
 def ensure_employees_table():
     db = open_db()
-    sync_drivers_to_employees(db)
+    try:
+        sync_drivers_to_employees(db)
+    except Exception:
+        pass
 
 
 def _fetch_employee(db, employee_id):
