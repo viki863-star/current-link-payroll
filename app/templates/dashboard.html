@@ -228,7 +228,7 @@
               <strong>{{ h.source_type }}</strong>
               <p>{{ h.file_name }} &middot; {{ h.imported_count }} records</p>
             </div>
-            <span class="activity-time">{{ h.created_at[:10] if h.created_at else '' }}</span>
+            <span class="activity-time">{{ h.created_at }}</span>
           </div>
           {% endfor %}
         {% else %}
