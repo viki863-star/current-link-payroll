@@ -175,18 +175,20 @@ def vehicle_list():
 
         ).fetchall()
 
-        all_types = [r[0] for r in db.execute("SELECT DISTINCT vehicle_type FROM vehicles ORDER BY vehicle_type").fetchall()]
-        all_ownership = [r[0] for r in db.execute("SELECT DISTINCT ownership_type FROM vehicles ORDER BY ownership_type").fetchall()]
+        vehicle_types = [r[0] for r in db.execute("SELECT DISTINCT vehicle_type FROM vehicles ORDER BY vehicle_type").fetchall()]
+        ownership_types = [r[0] for r in db.execute("SELECT DISTINCT ownership_type FROM vehicles ORDER BY ownership_type").fetchall()]
+        stats = {"total": len(vehicles), "active": sum(1 for v in vehicles if (v["status"] or "").lower() == "active")}
 
         return render_template(
             "fleet/vehicle_list.html",
             vehicles=vehicles,
+            stats=stats,
             q=q,
             type_filter=type_filter,
             ownership_filter=ownership_filter,
             status_filter=status_filter,
-            all_types=all_types,
-            all_ownership=all_ownership,
+            vehicle_types=vehicle_types,
+            ownership_types=ownership_types,
             VEHICLE_TYPES=VEHICLE_TYPES,
             OWNERSHIP_TYPES=OWNERSHIP_TYPES,
         )
