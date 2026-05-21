@@ -5,9 +5,7 @@ from flask import current_app
 from werkzeug.security import generate_password_hash
 
 
-EMPLOYEE_SCHEMA = """
-CREATE TABLE IF NOT EXISTS employees (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+EMPLOYEE_COLUMNS = """
     employee_id TEXT NOT NULL UNIQUE,
     full_name TEXT NOT NULL,
     phone_number TEXT NOT NULL,
@@ -37,6 +35,19 @@ CREATE TABLE IF NOT EXISTS employees (
     remarks TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+"""
+
+EMPLOYEE_SCHEMA = f"""
+CREATE TABLE IF NOT EXISTS employees (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    {EMPLOYEE_COLUMNS}
+);
+"""
+
+EMPLOYEE_SCHEMA_POSTGRES = f"""
+CREATE TABLE IF NOT EXISTS employees (
+    id SERIAL PRIMARY KEY,
+    {EMPLOYEE_COLUMNS}
 );
 """
 

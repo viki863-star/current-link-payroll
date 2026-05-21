@@ -36,6 +36,22 @@ from .services import (
 
 def ensure_employees_table():
     db = open_db()
+    backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+
+    # Step 1: ensure employees table exists (use correct DDL for backend)
+    try:
+        if backend == "postgres":
+            db.executescript(EMPLOYEE_SCHEMA_POSTGRES)
+        else:
+            db.executescript(EMPLOYEE_SCHEMA)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    # Step 2: sync drivers → employees (PostgreSQL likely has no drivers table, skip)
+    if backend == "postgres":
+        return
+
     try:
         sync_drivers_to_employees(db)
     except Exception:
