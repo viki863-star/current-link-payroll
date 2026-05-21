@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}HR Dashboard — Current Link ERP{% endblock %}
+{% block body_class %}dashboard-body{% endblock %}
+{% block page_title %}HR &amp; Employees{% endblock %}
+
+{% block content %}
+<div class="db-shell">
+    <div class="db-header">
+        <h1>HR &amp; Employees</h1>
+        <p>Manage employees, salary store, payroll, and monthly statements.</p>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg>
+            </div>
+            <div class="kpi-title">Total Employees</div>
+            <div class="kpi-number">{{ total }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="color:var(--green)">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="kpi-title">Active</div>
+            <div class="kpi-number" style="color:var(--green)">{{ active_count }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="color:var(--danger)">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="1" y1="1" x2="19" y2="19"/></svg>
+            </div>
+            <div class="kpi-title">Inactive</div>
+            <div class="kpi-number" style="color:var(--danger)">{{ inactive_count }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="color:var(--orange)">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M6 1v3"/><path d="M14 1v3"/><path d="M2 9h16"/></svg>
+            </div>
+            <div class="kpi-title">Salary Store</div>
+            <div class="kpi-number" style="color:var(--orange)">{{ stored_this_month }}</div>
+            <div class="kpi-sub">entries this month</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="color:#d32f2f">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+            </div>
+            <div class="kpi-title">Advances Pending</div>
+            <div class="kpi-number" style="color:#d32f2f">{{ advances_pending }}</div>
+            <div class="kpi-sub">unsettled</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="color:#7b1fa2">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+            </div>
+            <div class="kpi-title">Payroll Ready</div>
+            <div class="kpi-number" style="color:#7b1fa2">{{ stored_this_month }}</div>
+            <div class="kpi-sub">to process</div>
+        </div>
+    </div>
+
+    <div class="quick-access">
+        <a class="quick-card" href="{{ url_for('hr.employee_list') }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
+            <span>Employee List</span>
+        </a>
+        <a class="quick-card" href="{{ url_for('hr.employee_new') }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
+            <span>Add Employee</span>
+        </a>
+        <a class="quick-card" href="{{ url_for('hr.employee_list') }}?department=&type=&status=active">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M5 3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2"/><path d="M8 2v4"/><path d="M12 2v4"/><path d="M2 9h16"/></svg>
+            <span>Salary Store</span>
+        </a>
+        <a class="quick-card" href="{{ url_for('hr.employee_list') }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span>Run Salary</span>
+        </a>
+        <a class="quick-card" href="{{ url_for('hr.employee_list') }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+            <span>Monthly Statement</span>
+        </a>
+        <a class="quick-card" href="{{ url_for('reports_center') }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg>
+            <span>HR Reports</span>
+        </a>
+    </div>
+</div>
+{% endblock %}

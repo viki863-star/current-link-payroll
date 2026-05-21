@@ -1,32 +1,74 @@
 {% extends "base.html" %}
+{% block title %}Accounts Dashboard{% endblock %}
+{% block page_title %}Accounts & Finance{% endblock %}
 
 {% block content %}
-<section class="admin-desk-shell">
-    <article class="card admin-desk-toolbar">
-        <div class="admin-toolbar-row">
-            <div class="admin-toolbar-actions">
-                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a class="button" href="{{ url_for('owner_fund') }}">Owner Fund</a>
-            </div>
-            <div class="admin-mini-stats">
-                <span><strong>AED {{ "%.0f"|format(customer_summary.receivable_total) }}</strong><small>Receivable</small></span>
-                <span><strong>AED {{ "%.0f"|format(supplier_summary.payable_total) }}</strong><small>Payable</small></span>
-                <span><strong>AED {{ "%.0f"|format(tax_summary.net_vat) }}</strong><small>Net VAT</small></span>
-            </div>
-        </div>
-        <div class="section-heading slim-heading" style="margin-top: 16px;">
-            <div>
-                <p class="eyebrow">Accounts Desk</p>
-                <h2>Core Controls</h2>
-            </div>
-        </div>
-    </article>
+<div class="profile-shell">
+<style>
+.acc-stat { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center; transition:box-shadow 0.15s; }
+.acc-stat:hover { box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+.acc-stat .lbl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
+.acc-stat .val { font-size:1.4rem; font-weight:700; margin-top:6px; }
+.acc-link { display:flex; align-items:center; gap:14px; text-decoration:none; color:inherit; cursor:pointer; padding:16px; border-radius:12px; border:1px solid var(--line); background:var(--surface); transition:box-shadow 0.15s; }
+.acc-link:hover { box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+.acc-link .icon-box { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; }
+</style>
 
-    <section class="accounts-link-grid">
-        <a class="card accounts-link-card" href="{{ url_for('owner_fund') }}"><strong>Owner Fund</strong><span>In / out cash report</span></a>
-        <a class="card accounts-link-card" href="{{ url_for('tax_center') }}"><strong>Tax</strong><span>VAT report</span></a>
-        <a class="card accounts-link-card" href="{{ url_for('fleet_maintenance') }}"><strong>Fleet Maintenance</strong><span>Vehicles, field staff and papers</span></a>
-        <a class="card accounts-link-card" href="{{ url_for('company_setup') }}"><strong>Company Setup</strong><span>Company master controls</span></a>
-    </section>
-</section>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+    <div class="acc-stat">
+        <div class="lbl">Receivable</div>
+        <div class="val" style="color:var(--primary)">AED {{ "%.0f"|format(customer_summary.receivable_total) }}</div>
+    </div>
+    <div class="acc-stat">
+        <div class="lbl">Payable</div>
+        <div class="val" style="color:#e65100">AED {{ "%.0f"|format(supplier_summary.payable_total) }}</div>
+    </div>
+    <div class="acc-stat">
+        <div class="lbl">Loans Outstanding</div>
+        <div class="val" style="color:#c62828">AED {{ "%.0f"|format(loan_summary.outstanding) }}</div>
+    </div>
+    <div class="acc-stat">
+        <div class="lbl">Annual Fees Due</div>
+        <div class="val" style="color:#e65100">{{ annual_fee_summary.due_count }}</div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px">
+    <a href="{{ url_for('owner_fund') }}" class="acc-link">
+        <div class="icon-box" style="background:#fff3e0">&#9733;</div>
+        <div><div style="font-weight:600;font-size:0.9rem">Owner Fund</div><div style="font-size:0.75rem;color:var(--muted)">Cash in/out & utilization</div></div>
+    </a>
+    <a href="{{ url_for('loans_center') }}" class="acc-link">
+        <div class="icon-box" style="background:#fce4ec">&#36;</div>
+        <div><div style="font-weight:600;font-size:0.9rem">Loans</div><div style="font-size:0.75rem;color:var(--muted)">Given/recovered tracking</div></div>
+    </a>
+    <a href="{{ url_for('annual_fees') }}" class="acc-link">
+        <div class="icon-box" style="background:#e8eaf6">&#128197;</div>
+        <div><div style="font-weight:600;font-size:0.9rem">Annual Fees</div><div style="font-size:0.75rem;color:var(--muted)">Visa & vehicle fee management</div></div>
+    </a>
+</div>
+
+{% if top_receivables %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>Top Receivables</h3>
+    </div>
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Party</th><th>Code</th><th>Balance</th><th>TRN</th></tr></thead>
+            <tbody>
+                {% for item in top_receivables %}
+                <tr>
+                    <td style="font-weight:600">{{ item.party_name }}</td>
+                    <td class="mono">{{ item.party_code }}</td>
+                    <td class="mono" style="color:#c62828;font-weight:600">AED {{ "%.0f"|format(item.balance_amount) }}</td>
+                    <td class="mono">{{ item.trn_no or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+</div>
 {% endblock %}

@@ -1,237 +1,222 @@
 {% extends "base.html" %}
+{% block title %}Owner Fund{% endblock %}
+{% block page_title %}Owner Fund{% endblock %}
 
 {% block content %}
-<section class="stats compact-stats">
-    <article class="card stat-card">
-        <span>View Incoming</span>
-        <strong>AED {{ "%.2f"|format(view_incoming) }}</strong>
-    </article>
-    <article class="card stat-card">
-        <span>View Used</span>
-        <strong>AED {{ "%.2f"|format(view_outgoing) }}</strong>
-    </article>
-    <article class="card stat-card">
-        <span>View Net</span>
-        <strong>AED {{ "%.2f"|format(view_net) }}</strong>
-    </article>
-    <article class="card stat-card">
-        <span>Closing Balance</span>
-        <strong>AED {{ "%.2f"|format(view_closing if statement else balance) }}</strong>
-    </article>
-</section>
+<div class="profile-shell">
+<style>
+.of-stat { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center; transition:box-shadow 0.15s; }
+.of-stat:hover { box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+.of-stat .lbl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
+.of-stat .val { font-size:1.4rem; font-weight:700; margin-top:6px; }
+</style>
 
-<section class="card search-panel">
-    <div class="section-heading slim-heading">
-        <div>
-            <p class="eyebrow">Report Filter</p>
-            <h2>Owner Fund View</h2>
-        </div>
-        <a class="button button-secondary inline-button" href="{{ pdf_url }}">Download PDF</a>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+    <div class="of-stat">
+        <div class="lbl">Incoming</div>
+        <div class="val" style="color:var(--green)">AED {{ "%.2f"|format(view_incoming) }}</div>
     </div>
-    <form method="get" class="entry-form two-column-form">
-        <label>
-            <span>Month</span>
-            <input type="month" name="month" value="{{ filters.month }}">
-        </label>
-        <label>
-            <span>Movement</span>
-            <select name="movement">
+    <div class="of-stat">
+        <div class="lbl">Used</div>
+        <div class="val" style="color:#e65100">AED {{ "%.2f"|format(view_outgoing) }}</div>
+    </div>
+    <div class="of-stat">
+        <div class="lbl">Net</div>
+        <div class="val" style="color:var(--primary)">AED {{ "%.2f"|format(view_net) }}</div>
+    </div>
+    <div class="of-stat">
+        <div class="lbl">Closing Balance</div>
+        <div class="val" style="color:#c62828">AED {{ "%.2f"|format(view_closing if statement else balance) }}</div>
+    </div>
+</div>
+
+<div class="profile-card" style="margin-bottom:16px">
+    <div class="section-header">
+        <h3>Filter</h3>
+        <a href="{{ pdf_url }}" class="btn btn-primary btn-sm">Download PDF</a>
+    </div>
+    <form method="get" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px">
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Month</label>
+            <input type="month" name="month" value="{{ filters.month }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+        </div>
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Movement</label>
+            <select name="movement" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
                 {% for item in movement_options %}
                     <option value="{{ item }}" {% if filters.movement == item %}selected{% endif %}>{{ item }}</option>
                 {% endfor %}
             </select>
-        </label>
-        <label class="full-span">
-            <span>Search</span>
-            <input type="search" name="search" value="{{ filters.search }}" placeholder="Owner, driver, details, amount">
-        </label>
-        <div class="form-actions left-actions">
-            <button class="button" type="submit">Apply Filter</button>
-            <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Clear</a>
+        </div>
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Search</label>
+            <input type="search" name="search" value="{{ filters.search }}" placeholder="Owner, driver, details..." style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:6px">
+            <button type="submit" class="btn btn-sm" style="padding:6px 16px">Apply</button>
+            <a href="{{ url_for('owner_fund') }}" class="btn btn-sm btn-outline" style="padding:6px 12px">Clear</a>
         </div>
     </form>
-</section>
+</div>
 
-<section class="detail-layout owner-fund-layout">
-    <article class="card form-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Owner Fund</p>
-                <h2>{% if can_edit %}New Entry{% else %}Owner View{% endif %}</h2>
-            </div>
-        </div>
-        {% if can_edit %}
-            <form method="post" class="entry-form two-column-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="entry_id" value="{{ values.entry_id }}">
-                <label>
-                    <span>Owner Name</span>
-                    <input type="text" name="owner_name" value="{{ values.owner_name }}" required>
-                </label>
-                <label>
-                    <span>Date</span>
-                    <input type="date" name="entry_date" value="{{ values.entry_date }}" required>
-                </label>
-                <label>
-                    <span>Amount</span>
-                    <input type="number" name="amount" step="0.01" min="0" value="{{ values.amount }}" required>
-                </label>
-                <label>
-                    <span>Received By</span>
-                    <input type="text" name="received_by" value="{{ values.received_by }}" placeholder="Waqar / Office">
-                </label>
-                <label>
-                    <span>Payment Method</span>
-                    <select name="payment_method">
-                        {% for item in ["Cash", "Bank", "Cheque", "Other"] %}
-                            <option value="{{ item }}" {% if values.payment_method == item %}selected{% endif %}>{{ item }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <label>
-                    <span>Transaction Type</span>
-                    <select name="transaction_type">
-                        <option value="IN" {% if values.transaction_type == 'IN' %}selected{% endif %}>IN (Money In)</option>
-                        <option value="OUT" {% if values.transaction_type == 'OUT' %}selected{% endif %}>OUT (Money Out)</option>
-                    </select>
-                </label>
-                <label class="full-span">
-                    <span>Details</span>
-                    <textarea name="details" rows="4">{{ values.details }}</textarea>
-                </label>
-                <div class="form-actions">
-                    <button class="button" type="submit">{{ 'Update Owner Fund' if values.entry_id else 'Save Owner Fund' }}</button>
-                    {% if values.entry_id %}
-                        <a class="button button-secondary" href="{{ url_for('owner_fund') }}">Cancel Edit</a>
-                    {% endif %}
-                </div>
-            </form>
-        {% else %}
-            <div class="panel-note">Owner login read-only hai. Yahan se aap owner fund statement aur PDF dekh sakte hain.</div>
-            <div class="form-actions left-actions">
-                <a class="button" href="{{ pdf_url }}">Open Owner Fund PDF</a>
-            </div>
-        {% endif %}
-    </article>
-
-    <article class="card info-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">Recent</p>
-                <h2>Owner Fund Entries</h2>
-            </div>
-        </div>
-        {% if entries %}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Owner</th>
-                            <th>Type</th>
-                            <th>Amount</th>
-                            <th>Received By</th>
-                            <th>Method</th>
-                            {% if can_edit %}<th>Actions</th>{% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in entries %}
-                            <tr>
-                                <td>{{ item.entry_date }}</td>
-                                <td>{{ item.owner_name }}</td>
-                                <td>
-                                    <span class="status-badge {% if item.transaction_type == 'IN' %}status-badge-success{% else %}status-badge-warning{% endif %}">
-                                        {{ item.transaction_type or 'IN' }}
-                                    </span>
-                                </td>
-                                <td>AED {{ "%.2f"|format(item.amount) }}</td>
-                                <td>{{ item.received_by or "-" }}</td>
-                                <td>{{ item.payment_method or "-" }}</td>
-                                {% if can_edit %}
-                                    <td>
-                                        <div class="table-actions">
-                                            <a class="mini-action-link" href="{{ url_for('owner_fund', edit=item.id) }}">Edit</a>
-                                            <form method="post" action="{{ url_for('delete_owner_fund_entry', entry_id=item.id) }}" onsubmit="return confirm('Delete this owner fund entry?');">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                <button class="mini-action-button" type="submit">Delete</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                {% endif %}
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="muted-text">Abhi tak owner fund entry nahi bani.</p>
-        {% endif %}
-    </article>
-</section>
-
-<section class="card table-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">PDF Files</p>
-                <h2>Owner Fund Reports</h2>
-            </div>
-        <a class="button button-secondary inline-button" href="{{ pdf_url }}">Generate PDF</a>
+{% if can_edit %}
+<div class="profile-card" style="margin-bottom:16px">
+    <div class="section-header">
+        <h3>{% if values.entry_id %}Edit Entry{% else %}New Entry{% endif %}</h3>
     </div>
-    {% if pdf_files %}
-        <ul class="result-list">
-            {% for file in pdf_files %}
-                <li>
-                    <span>{{ file.split('/')[-1] }}</span>
-                    <a href="{{ url_for('generated_file', filename=file) }}" target="_blank">Open PDF</a>
-                </li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p class="muted-text">Abhi owner fund PDF generate nahi hui.</p>
-    {% endif %}
-</section>
-
-<section class="card table-card">
-    <div class="section-heading slim-heading">
+    <form method="post" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="entry_id" value="{{ values.entry_id }}">
         <div>
-            <p class="eyebrow">Statement</p>
-            <h2>Owner Fund Kata</h2>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Owner Name</label>
+            <input type="text" name="owner_name" value="{{ values.owner_name }}" required style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+        </div>
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Date</label>
+            <input type="date" name="entry_date" value="{{ values.entry_date }}" required style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+        </div>
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Amount</label>
+            <input type="number" step="0.01" min="0" name="amount" value="{{ values.amount }}" required style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+        </div>
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Received By</label>
+            <input type="text" name="received_by" value="{{ values.received_by }}" placeholder="Waqar / Office" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+        </div>
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Method</label>
+            <select name="payment_method" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+                {% for item in ["Cash", "Bank", "Cheque", "Other"] %}
+                    <option value="{{ item }}" {% if values.payment_method == item %}selected{% endif %}>{{ item }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Type</label>
+            <select name="transaction_type" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+                <option value="IN" {% if values.transaction_type == 'IN' %}selected{% endif %}>IN (Money In)</option>
+                <option value="OUT" {% if values.transaction_type == 'OUT' %}selected{% endif %}>OUT (Money Out)</option>
+            </select>
+        </div>
+        <div style="grid-column:1/-1">
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Details</label>
+            <textarea name="details" rows="2" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">{{ values.details }}</textarea>
+        </div>
+        <div style="grid-column:1/-1;display:flex;gap:6px">
+            <button class="btn btn-primary btn-sm" type="submit">{{ 'Update' if values.entry_id else 'Save' }}</button>
+            {% if values.entry_id %}<a href="{{ url_for('owner_fund') }}" class="btn btn-outline btn-sm">Cancel</a>{% endif %}
+        </div>
+    </form>
+</div>
+{% else %}
+<div class="profile-card" style="margin-bottom:16px;background:#fff8e1;border-color:#ffe082">
+    <p style="margin:0;font-size:0.85rem;color:#795548">Owner login read-only. You can view the statement and download PDF.</p>
+    <a href="{{ pdf_url }}" class="btn btn-primary btn-sm" style="margin-top:8px">Open PDF</a>
+</div>
+{% endif %}
+
+<div class="profile-card" style="margin-bottom:16px">
+    <div class="section-header">
+        <h3>Entries</h3>
+    </div>
+    {% if entries %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Date</th><th>Owner</th><th>Type</th><th>Amount</th><th>Received By</th><th>Method</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+            <tbody>
+                {% for item in entries %}
+                <tr>
+                    <td class="mono">{{ item.entry_date }}</td>
+                    <td style="font-weight:600">{{ item.owner_name }}</td>
+                    <td><span class="badge" style="background:{% if item.transaction_type == 'IN' %}#22c55e33;color:#16a34a{% else %}#e6510033;color:#e65100{% endif %}">{{ item.transaction_type or 'IN' }}</span></td>
+                    <td class="mono" style="font-weight:600">AED {{ "%.2f"|format(item.amount) }}</td>
+                    <td>{{ item.received_by or '-' }}</td>
+                    <td>{{ item.payment_method or '-' }}</td>
+                    {% if can_edit %}
+                    <td>
+                        <div style="display:flex;gap:4px">
+                            <a href="{{ url_for('owner_fund', edit=item.id) }}" class="btn btn-xs btn-outline">&#9998;</a>
+                            <form method="post" action="{{ url_for('delete_owner_fund_entry', entry_id=item.id) }}" onsubmit="return confirm('Delete this entry?');" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-xs btn-outline" type="submit" style="color:#e65100">&#10005;</button>
+                            </form>
+                        </div>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}<p class="empty-state">No entries yet.</p>{% endif %}
+</div>
+
+{% if sup_funds %}
+<div class="profile-card" style="margin-bottom:16px">
+    <div class="section-header">
+        <h3>Supplier Owner Fund</h3>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+        <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Deposits</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--green)">AED {{ "%.0f"|format(sup_deposits) }}</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Withdrawals</div>
+            <div style="font-size:1rem;font-weight:700;color:#e65100">AED {{ "%.0f"|format(sup_withdrawals) }}</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Utilized</div>
+            <div style="font-size:1rem;font-weight:700;color:#c62828">AED {{ "%.0f"|format(sup_used) }}</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Balance</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--primary)">AED {{ "%.0f"|format(sup_balance) }}</div>
         </div>
     </div>
-    {% if statement %}
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Type</th>
-                        <th>Reference</th>
-                        <th>Party</th>
-                        <th>Details</th>
-                        <th>Incoming</th>
-                        <th>Outgoing</th>
-                        <th>Balance</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in statement %}
-                        <tr>
-                            <td>{{ item.entry_date }}</td>
-                            <td>{{ item.movement }}</td>
-                            <td>{{ item.reference }}</td>
-                            <td>{{ item.party }}</td>
-                            <td>{{ item.details }}</td>
-                            <td>AED {{ "%.2f"|format(item.incoming) }}</td>
-                            <td>AED {{ "%.2f"|format(item.outgoing) }}</td>
-                            <td>AED {{ "%.2f"|format(item.balance) }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="muted-text">Owner fund statement abhi khali hai.</p>
-    {% endif %}
-</section>
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Description</th></tr></thead>
+            <tbody>
+                {% for f in sup_funds %}
+                <tr>
+                    <td class="mono">{{ f.fund_date }}</td>
+                    <td><span class="badge" style="background:{% if f.transaction_type == 'deposit' %}#22c55e33;color:#16a34a{% else %}#e6510033;color:#e65100{% endif %}">{{ f.transaction_type }}</span></td>
+                    <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(f.amount) }}</td>
+                    <td style="font-size:0.78rem">{{ f.description or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if statement %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>Statement (Kata)</h3>
+    </div>
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Party</th><th>Details</th><th>Incoming</th><th>Outgoing</th><th>Balance</th></tr></thead>
+            <tbody>
+                {% for item in statement %}
+                <tr>
+                    <td class="mono">{{ item.entry_date }}</td>
+                    <td>{{ item.movement }}</td>
+                    <td class="mono">{{ item.reference }}</td>
+                    <td>{{ item.party }}</td>
+                    <td style="font-size:0.78rem">{{ item.details }}</td>
+                    <td class="mono" style="color:var(--green);font-weight:600">{% if item.incoming %}AED {{ "%.2f"|format(item.incoming) }}{% endif %}</td>
+                    <td class="mono" style="color:#e65100;font-weight:600">{% if item.outgoing %}AED {{ "%.2f"|format(item.outgoing) }}{% endif %}</td>
+                    <td class="mono" style="font-weight:700">AED {{ "%.2f"|format(item.balance) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+</div>
 {% endblock %}

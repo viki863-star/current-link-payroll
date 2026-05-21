@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Supplier Dashboard{% endblock %}
+{% block page_title %}Supplier Management{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    {# KPI Row #}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center">
+            <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Total Suppliers</div>
+            <div style="font-size:1.5rem;font-weight:700;color:var(--primary)">{{ total }}</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center">
+            <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Active</div>
+            <div style="font-size:1.5rem;font-weight:700;color:var(--green)">{{ active }}</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center">
+            <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">With Invoice</div>
+            <div style="font-size:1.5rem;font-weight:700;color:var(--primary)">{{ with_inv }}</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center">
+            <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Cash Suppliers</div>
+            <div style="font-size:1.5rem;font-weight:700;color:#e65100">{{ without_inv }}</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center">
+            <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Outstanding (AED)</div>
+            <div style="font-size:1.3rem;font-weight:700;color:#e65100">{{ "%.0f"|format(total_outstanding) }}</div>
+        </div>
+    </div>
+
+    {# Quick Actions #}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">
+        <a href="{{ url_for('supplier.supplier_add') }}" class="profile-card" style="display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;cursor:pointer;transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
+            <div style="width:44px;height:44px;background:#e3f0ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem">+</div>
+            <div><div style="font-weight:600;font-size:0.9rem">Add Supplier</div><div style="font-size:0.75rem;color:var(--muted)">Register new supplier</div></div>
+        </a>
+        <a href="{{ url_for('supplier.supplier_list') }}" class="profile-card" style="display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;cursor:pointer;transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
+            <div style="width:44px;height:44px;background:#e8f5e9;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem">&#9776;</div>
+            <div><div style="font-weight:600;font-size:0.9rem">View All Suppliers</div><div style="font-size:0.75rem;color:var(--muted)">List, search and manage</div></div>
+        </a>
+
+    </div>
+
+    {# Recent Invoices #}
+    <div class="profile-card">
+        <h3 style="margin:0 0 12px;font-size:0.95rem">Recent Invoices</h3>
+        {% if recent_invoices %}
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>Date</th><th>Supplier</th><th>Invoice #</th><th>Amount</th><th>VAT</th><th>Total</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for inv in recent_invoices %}
+                    <tr>
+                        <td class="mono">{{ inv.invoice_date }}</td>
+                        <td><a href="{{ url_for('supplier.supplier_profile', sup_id=inv.supplier_id) }}" style="font-weight:600">{{ inv.supplier_name }}</a></td>
+                        <td class="mono">{{ inv.invoice_no }}</td>
+                        <td class="mono">{{ "%.0f"|format(inv.amount) }}</td>
+                        <td class="mono">{{ "%.0f"|format(inv.vat_amount) }}</td>
+                        <td class="mono" style="font-weight:600">{{ "%.0f"|format(inv.total_amount) }}</td>
+                        <td><span class="status-badge {% if inv.status == 'paid' %}active{% elif inv.status == 'approved' %}approved{% else %}pending{% endif %}">{{ inv.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">No invoices yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

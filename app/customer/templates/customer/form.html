@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{% if cus.id %}Edit Customer{% else %}Add Customer{% endif %}{% endblock %}
+{% block page_title %}Customer{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:620px;margin:0 auto">
+    <div class="profile-card">
+        <div style="margin-bottom:16px">
+            <a href="{% if cus.id %}{{ url_for('customer.customer_profile', cid=cus.id) }}{% else %}{{ url_for('customer.customer_dashboard') }}{% endif %}" class="btn btn-outline btn-sm">&larr; Back</a>
+        </div>
+        <h3 style="margin:0 0 4px;font-size:1.1rem">{% if cus.id %}Edit Customer{% else %}Register New Customer{% endif %}</h3>
+        <p style="color:var(--muted);font-size:0.82rem;margin:0 0 16px">Company jis ko aap invoice aur statement provide karein gay</p>
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;gap:14px">
+                <div class="form-row">
+                    <label class="form-label">Company Name *</label>
+                    <input type="text" name="customer_name" class="form-control" required value="{{ cus.customer_name or '' }}" placeholder="e.g. Al Futtaim Logistics">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="form-row">
+                        <label class="form-label">Customer Code</label>
+                        <input type="text" name="customer_code" class="form-control" value="{{ cus.customer_code or code or '' }}">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-control">
+                            <option value="active" {% if cus.status == 'active' %}selected{% endif %}>Active</option>
+                            <option value="inactive" {% if cus.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="form-row">
+                        <label class="form-label">Contact Person</label>
+                        <input type="text" name="contact_person" class="form-control" value="{{ cus.contact_person or '' }}">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Phone</label>
+                        <input type="text" name="phone" class="form-control" value="{{ cus.phone or '' }}" placeholder="+971 50 123 4567">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" value="{{ cus.email or '' }}" placeholder="company@example.ae">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Address</label>
+                    <textarea name="address" class="form-control" rows="2" placeholder="Office / warehouse address">{{ cus.address or '' }}</textarea>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="form-row">
+                        <label class="form-label">TRN (VAT No.)</label>
+                        <input type="text" name="trn" class="form-control" value="{{ cus.trn or '' }}" placeholder="1001234567000">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Trade License</label>
+                        <input type="text" name="trade_license" class="form-control" value="{{ cus.trade_license or '' }}" placeholder="License number">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="form-row">
+                        <label class="form-label">Credit Limit (AED)</label>
+                        <input type="number" name="credit_limit" class="form-control" value="{{ cus.credit_limit or 0 }}" step="0.01" min="0" placeholder="e.g. 200000">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Payment Terms</label>
+                        <input type="text" name="payment_terms" class="form-control" value="{{ cus.payment_terms or '' }}" placeholder="e.g. 30 days">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2" placeholder="Any special instructions or remarks">{{ cus.notes or '' }}</textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">{% if cus.id %}Update{% else %}Register{% endif %} Customer</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

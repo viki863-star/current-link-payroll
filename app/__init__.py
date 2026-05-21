@@ -203,6 +203,14 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     csrf.init_app(app)
     init_db(app)
+    from .hr import hr_bp
+    app.register_blueprint(hr_bp)
+    from .fleet import fleet_bp
+    app.register_blueprint(fleet_bp)
+    from .supplier import supplier_bp
+    app.register_blueprint(supplier_bp)
+    from .customer import customer_bp
+    app.register_blueprint(customer_bp)
     if not app.config.get("TESTING"):
         try:
             from .backup_service import ensure_daily_backup_for_today

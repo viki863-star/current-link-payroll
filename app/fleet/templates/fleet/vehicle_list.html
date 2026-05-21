@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Vehicle Registry — Current Link ERP{% endblock %}
+{% block body_class %}list-body{% endblock %}
+{% block page_title %}Vehicle Registry{% endblock %}
+
+{% block content %}
+<div class="list-shell">
+    <div class="filter-bar">
+        <div class="filter-bar-top">
+            <div class="filter-bar-title">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg>
+                Vehicles
+            </div>
+            <a href="{{ url_for('fleet.vehicle_add') }}" class="btn btn-primary">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+                Add Vehicle
+            </a>
+        </div>
+        <form method="GET" class="filter-bar-form">
+            <input type="text" name="q" value="{{ q }}" placeholder="Search plate, type, model, partner..." class="search-input">
+            <select name="type" class="filter-select">
+                <option value="">All Types</option>
+                {% for t in vehicle_types %}<option value="{{ t }}" {% if type_filter == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+            </select>
+            <select name="ownership" class="filter-select">
+                <option value="">All Ownership</option>
+                {% for o in ownership_types %}<option value="{{ o }}" {% if ownership_filter == o %}selected{% endif %}>{{ o }}</option>{% endfor %}
+            </select>
+            <select name="status" class="filter-select">
+                <option value="">All Status</option>
+                <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Search</button>
+            <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline btn-sm">Clear</a>
+        </form>
+    </div>
+
+    <div class="kpi-mini-row">
+        <span class="kpi-mini">Total: <strong>{{ stats.total }}</strong></span>
+        <span class="kpi-mini active">Active: <strong>{{ stats.active }}</strong></span>
+    </div>
+
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead>
+                <tr>
+                    <th>Plate</th>
+                    <th>Type</th>
+                    <th>Model</th>
+                    <th>Owner</th>
+                    <th>Driver</th>
+                    <th>Status</th>
+                    <th class="th-actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vehicles %}
+                <tr class="emp-row" onclick="window.location='{{ url_for('fleet.vehicle_profile', plate_no=v.plate_no) }}'">
+                    <td class="mono" style="font-weight:600;font-size:0.9rem">{{ v.plate_no }}</td>
+                    <td><span class="badge badge-dept">{{ v.vehicle_type }}</span></td>
+                    <td>{{ v.model or '-' }}</td>
+                    <td>{% if v.ownership_type == 'Partnership' %}{{ v.partner_name or '-' }} ({{ "%.0f"|format(v.partner_percent or 0) }}%){% else %}<span class="badge badge-type">Standard</span>{% endif %}</td>
+                    <td>{{ v.driver_name or '—' }}</td>
+                    <td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td>
+                    <td class="action-cell">
+                        <a href="{{ url_for('fleet.vehicle_profile', plate_no=v.plate_no) }}" class="btn btn-sm btn-primary">Profile</a>
+                        <a href="{{ url_for('fleet.vehicle_edit', plate_no=v.plate_no) }}" class="btn btn-sm btn-outline" onclick="event.stopPropagation()">Edit</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="empty-state">No vehicles found. <a href="{{ url_for('fleet.vehicle_add') }}">Add your first vehicle</a>.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

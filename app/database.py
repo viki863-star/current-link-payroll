@@ -755,6 +755,69 @@ CREATE TABLE IF NOT EXISTS auth_rate_limits (
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(role, identifier)
 );
+
+CREATE TABLE IF NOT EXISTS vehicles (
+    plate_no TEXT PRIMARY KEY,
+    vehicle_type TEXT NOT NULL,
+    model TEXT,
+    year INTEGER,
+    ownership_type TEXT NOT NULL DEFAULT 'Standard',
+    partner_name TEXT,
+    partner_percent REAL,
+    status TEXT NOT NULL DEFAULT 'Active',
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS vehicle_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    vehicle_id TEXT NOT NULL,
+    driver_id TEXT NOT NULL,
+    assigned_from TEXT NOT NULL,
+    assigned_until TEXT,
+    is_current INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no)
+);
+
+CREATE TABLE IF NOT EXISTS field_staff (
+    staff_id TEXT PRIMARY KEY,
+    full_name TEXT NOT NULL,
+    phone TEXT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS cash_receipts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    staff_id TEXT NOT NULL,
+    given_by TEXT NOT NULL,
+    amount REAL NOT NULL,
+    receipt_date TEXT NOT NULL,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    vehicle_id TEXT NOT NULL,
+    staff_id TEXT NOT NULL,
+    amount REAL NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT,
+    attachment_name TEXT,
+    attachment_data TEXT,
+    attachment_type TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    admin_notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    approved_at TEXT,
+    FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no),
+    FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
+);
 """
 
 
@@ -1465,6 +1528,69 @@ CREATE TABLE IF NOT EXISTS auth_rate_limits (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(role, identifier)
+);
+
+CREATE TABLE IF NOT EXISTS vehicles (
+    plate_no TEXT PRIMARY KEY,
+    vehicle_type TEXT NOT NULL,
+    model TEXT,
+    year INTEGER,
+    ownership_type TEXT NOT NULL DEFAULT 'Standard',
+    partner_name TEXT,
+    partner_percent DOUBLE PRECISION,
+    status TEXT NOT NULL DEFAULT 'Active',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS vehicle_assignments (
+    id BIGSERIAL PRIMARY KEY,
+    vehicle_id TEXT NOT NULL,
+    driver_id TEXT NOT NULL,
+    assigned_from TEXT NOT NULL,
+    assigned_until TEXT,
+    is_current INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no)
+);
+
+CREATE TABLE IF NOT EXISTS field_staff (
+    staff_id TEXT PRIMARY KEY,
+    full_name TEXT NOT NULL,
+    phone TEXT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS cash_receipts (
+    id BIGSERIAL PRIMARY KEY,
+    staff_id TEXT NOT NULL,
+    given_by TEXT NOT NULL,
+    amount DOUBLE PRECISION NOT NULL,
+    receipt_date TEXT NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_jobs (
+    id BIGSERIAL PRIMARY KEY,
+    vehicle_id TEXT NOT NULL,
+    staff_id TEXT NOT NULL,
+    amount DOUBLE PRECISION NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT,
+    attachment_name TEXT,
+    attachment_data TEXT,
+    attachment_type TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    admin_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    approved_at TIMESTAMP,
+    FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no),
+    FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
 );
 """
 

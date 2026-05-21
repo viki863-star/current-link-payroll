@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Upload Document{% endblock %}
+{% block page_title %}Document{% endblock %}
+
+{% block content %}
+<div class="form-shell" style="max-width:600px">
+    <div class="profile-card">
+        <div style="margin-bottom:16px">
+            <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='documents') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        </div>
+        <h3>Upload Document</h3>
+        <p style="color:var(--muted);font-size:0.85rem">Supplier: <strong>{{ s.supplier_name }}</strong></p>
+
+        <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="form-row">
+                    <label class="form-label">Document Type *</label>
+                    <select name="doc_type" class="form-control" required>
+                        <option value="">— Select —</option>
+                        {% for dt in doc_types %}
+                        <option value="{{ dt }}" {% if doc.doc_type == dt %}selected{% endif %}>{{ dt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Document Name *</label>
+                    <input type="text" name="doc_name" value="{{ doc.doc_name or '' }}" class="form-control" required placeholder="e.g. Trade License 2024">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Reference No.</label>
+                    <input type="text" name="doc_ref" value="{{ doc.doc_ref or '' }}" class="form-control" placeholder="e.g. license #">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Expiry Date</label>
+                    <input type="date" name="expiry_date" value="{{ doc.expiry_date or '' }}" class="form-control">
+                </div>
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Attach File (PDF/Image)</label>
+                    <input type="file" name="file" accept="image/*,.pdf" class="form-control">
+                </div>
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2">{{ doc.notes or '' }}</textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:12px">Upload</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

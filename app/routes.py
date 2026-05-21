@@ -111,13 +111,19 @@ GENERAL_MAINTENANCE_VEHICLE_NO = "GENERAL"
 BRANCH_STATUS_OPTIONS = ["Active", "Inactive"]
 FINANCIAL_YEAR_STATUS_OPTIONS = ["Open", "Closed", "Archived"]
 INVOICE_LINE_SLOTS = 4
-ADMIN_WORKSPACE_ORDER = ["universal", "drivers", "suppliers-normal", "suppliers-partnership", "suppliers-managed", "suppliers-cash", "customers", "accounts", "technicians"]
+ADMIN_WORKSPACE_ORDER = ["universal", "hr", "drivers", "suppliers-normal", "suppliers-partnership", "suppliers-managed", "suppliers-cash", "customers", "accounts", "technicians"]
 ADMIN_WORKSPACE_META = {
     "universal": {
         "label": "Universal",
         "eyebrow": "Dashboard",
         "title": "Main Dashboard",
         "summary": "Pick a desk.",
+    },
+    "hr": {
+        "label": "HR",
+        "eyebrow": "HR Desk",
+        "title": "HR & Employee Management",
+        "summary": "Employee directory, profiles, and HR operations.",
     },
     "drivers": {
         "label": "Drivers",
@@ -186,6 +192,12 @@ def register_routes(app: Flask) -> None:
         current_role = _current_role() if request_active else ""
         current_workspace = _current_admin_workspace() if current_role == "admin" else ""
         workspace_home_endpoint = _workspace_home_endpoint(current_workspace) if current_role == "admin" else ""
+        try:
+            cdb = open_db()
+            cpx = cdb.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+            cdb.close()
+        except:
+            cpx = None
         return {
             "current_role": current_role,
             "current_driver_id": session.get("driver_id") if request_active else "",
@@ -202,6 +214,7 @@ def register_routes(app: Flask) -> None:
             "admin_workspace_home_endpoint": workspace_home_endpoint,
             "admin_workspace_home_url": url_for(workspace_home_endpoint) if request_active and workspace_home_endpoint else "",
             "admin_workspace_home_label": f"{ADMIN_WORKSPACE_META[current_workspace]['title']}" if current_role == "admin" and current_workspace in ADMIN_WORKSPACE_META and current_workspace != "universal" else "",
+            "company": cpx,
         }
 
     @app.route("/")
@@ -5745,13 +5758,7 @@ def register_routes(app: Flask) -> None:
     @app.get("/tax")
     @_login_required("admin")
     def tax_center():
-        _touch_admin_workspace("accounts")
-        db = open_db()
-        return render_template(
-            "tax_center.html",
-            summary=_tax_summary(db),
-            invoices=_invoice_rows(db, limit=10),
-        )
+        return redirect(url_for("reports_center"))
 
     @app.get("/reports")
     @_login_required("admin")
@@ -6452,6 +6459,20 @@ def register_routes(app: Flask) -> None:
             search=filters["search"],
         )
 
+        # ── Supplier owner fund data ──
+        try:
+            sup_deposits = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM owner_funds WHERE transaction_type='deposit'").fetchone()[0])
+            sup_withdrawals = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM owner_funds WHERE transaction_type='withdrawal'").fetchone()[0])
+            sup_net = round(sup_deposits - sup_withdrawals, 2)
+            sup_payments = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records WHERE fund_source='owner_fund'").fetchone()[0])
+            sup_expenses = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_expenses WHERE fund_source='owner_fund' AND status='approved'").fetchone()[0])
+            sup_loans = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE fund_source='owner_fund' AND loan_type='given'").fetchone()[0])
+            sup_used = round(sup_payments + sup_expenses + sup_loans, 2)
+            sup_balance = round(sup_net - sup_used, 2)
+            sup_funds = db.execute("SELECT * FROM owner_funds ORDER BY fund_date DESC LIMIT 20").fetchall()
+        except Exception:
+            sup_deposits = sup_withdrawals = sup_net = sup_payments = sup_expenses = sup_loans = sup_used = sup_balance = 0
+            sup_funds = []
         return render_template(
             "owner_fund.html",
             values=values,
@@ -6469,6 +6490,9 @@ def register_routes(app: Flask) -> None:
             filters=filters,
             movement_options=OWNER_FUND_MOVEMENT_OPTIONS,
             pdf_url=pdf_url,
+            sup_deposits=sup_deposits, sup_withdrawals=sup_withdrawals, sup_net=sup_net,
+            sup_payments=sup_payments, sup_expenses=sup_expenses, sup_loans=sup_loans,
+            sup_used=sup_used, sup_balance=sup_balance, sup_funds=sup_funds,
         )
 
     @app.post("/owner-fund/<int:entry_id>/delete")
@@ -8395,6 +8419,7 @@ def _touch_admin_workspace(workspace: str) -> None:
 def _workspace_home_endpoint(workspace: str) -> str:
     return {
         "universal": "dashboard",
+        "hr": "hr.employee_list",
         "drivers": "driver_list",
         "suppliers": "suppliers",
         "suppliers-normal": "suppliers",
@@ -8468,6 +8493,10 @@ def _admin_module_links(workspace: str):
     workspace_key = workspace or "universal"
     module_map = {
         "universal": [],
+        "hr": [
+            {"label": "Add Employee", "endpoint": "hr.employee_new", "primary": True},
+            {"label": "Employee Directory", "endpoint": "hr.employee_list"},
+        ],
         "drivers": [
             {"label": "Add Driver", "endpoint": "create_driver", "primary": True},
         ],
@@ -14734,7 +14763,7 @@ def _open_invoice_rows(db):
 
 
 def _loan_rows(db, limit: int = 12):
-    return db.execute(f"SELECT l.loan_no, l.party_code, p.party_name, l.entry_date, l.loan_type, l.amount, l.payment_method, l.reference, l.notes FROM loan_entries l LEFT JOIN parties p ON p.party_code = l.party_code ORDER BY l.entry_date DESC, l.id DESC LIMIT {int(limit)}").fetchall()
+    return db.execute(f"SELECT l.loan_no, l.party_code, p.party_name, p.party_kind, p.party_roles, l.entry_date, l.loan_type, l.amount, l.payment_method, l.reference, l.notes FROM loan_entries l LEFT JOIN parties p ON p.party_code = l.party_code ORDER BY l.entry_date DESC, l.id DESC LIMIT {int(limit)}").fetchall()
 
 
 def _annual_fee_rows(db, limit: int = 12, due_only: bool = False):

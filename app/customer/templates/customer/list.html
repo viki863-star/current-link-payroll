@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}All Customers{% endblock %}
+{% block page_title %}Customers{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    <style>
+    .cus-card { display:flex; align-items:center; gap:16px; padding:18px; border-radius:12px; border:1px solid var(--line); background:var(--surface); cursor:pointer; transition:box-shadow 0.15s; text-decoration:none; color:inherit; }
+    .cus-card:hover { box-shadow:0 2px 12px rgba(0,0,0,0.08); }
+    .cus-avatar { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:700; color:#fff; background:var(--primary); flex-shrink:0; }
+    .cus-info { flex:1; min-width:0; }
+    .cus-info .name { font-weight:600; font-size:0.95rem; }
+    .cus-info .meta { font-size:0.75rem; color:var(--muted); margin-top:2px; }
+    .cus-info .meta span { margin-right:8px; }
+    </style>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <h3 style="margin:0;font-size:1rem;font-weight:600">All Customers</h3>
+        <div style="display:flex;gap:8px">
+            <form method="get" style="display:flex;gap:6px">
+                <input type="text" name="search" class="form-control" placeholder="Search by name, phone..." value="{{ search }}" style="width:220px">
+                <button class="btn btn-outline btn-sm" type="submit">Search</button>
+                {% if search %}<a href="{{ url_for('customer.customer_list') }}" class="btn btn-outline btn-sm">Clear</a>{% endif %}
+            </form>
+            <a href="{{ url_for('customer.customer_add') }}" class="btn btn-primary btn-sm">+ Add Customer</a>
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">
+        {% for c in customers %}
+        <a href="{{ url_for('customer.customer_profile', cid=c.id) }}" class="cus-card">
+            <div class="cus-avatar">{{ c.customer_name[:2]|upper }}</div>
+            <div class="cus-info">
+                <div class="name">{{ c.customer_name }}</div>
+                <div class="meta">
+                    <span class="mono">{{ c.customer_code or '' }}</span>
+                    <span>{{ c.phone or '' }}</span>
+                    {% if c.trn %}<span>TRN: {{ c.trn }}</span>{% endif %}
+                </div>
+            </div>
+            <span class="status-badge {{ 'active' if c.status == 'active' else 'pending' }}">{{ c.status }}</span>
+        </a>
+        {% else %}
+        <div class="profile-card" style="grid-column:1/-1;text-align:center;padding:50px">
+            <p class="empty-state" style="margin:0">No customers found. <a href="{{ url_for('customer.customer_add') }}">Register your first customer</a>.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

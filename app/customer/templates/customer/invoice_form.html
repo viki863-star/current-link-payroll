@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if edit else 'New' }} Invoice{% endblock %}
+{% block page_title %}Invoice — {{ c.customer_name }}{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:760px;margin:0 auto">
+<style>
+.line-item-row { display:grid; grid-template-columns:1fr 70px 90px 100px 36px; gap:6px; align-items:center; margin-bottom:4px; }
+.line-item-row input { padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; outline:none; }
+.line-item-row input:focus { border-color:var(--primary); }
+.line-item-row .item-amt { font-weight:600; font-size:0.85rem; text-align:right; padding:6px 8px; }
+.line-item-row .btn-remove { width:32px; height:32px; border-radius:6px; border:1px solid #e0e0e0; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#c62828; font-size:1rem; }
+.line-item-row .btn-remove:hover { background:#fee; }
+</style>
+
+<div class="profile-card">
+    <div style="margin-bottom:16px">
+        <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='invoices') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+    </div>
+
+    <h3 style="margin:0 0 4px;font-size:1.1rem">{{ 'Edit' if edit else 'New' }} Tax Invoice</h3>
+    <p style="color:var(--muted);font-size:0.82rem;margin:0 0 16px">
+        Customer: <strong>{{ c.customer_name }}</strong>
+        {% if c.trn %} &middot; TRN: <span class="mono">{{ c.trn }}</span>{% endif %}
+    </p>
+
+    <form method="POST" id="invoiceForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {# ─── Invoice Details ─── #}
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Invoice Date</label>
+                <input type="date" name="invoice_date" value="{{ inv.invoice_date or today }}" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+            </div>
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Invoice No.</label>
+                <input type="text" name="invoice_no" value="{{ inv.invoice_no or '' }}" placeholder="{{ 'INV-01' if not edit else '' }}" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                {% if not edit and next_no %}<span style="font-size:0.65rem;color:var(--muted)">Auto: {{ next_no }}</span>{% endif %}
+            </div>
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">VAT %</label>
+                <input type="number" name="vat_percent" value="{{ inv.vat_percent or 5 }}" step="0.01" min="0" id="vatPercent" oninput="calcTotals()" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+            </div>
+        </div>
+
+        {# ─── LPO Reference ─── #}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">LPO No. (Customer PO)</label>
+                <div style="display:flex;gap:6px">
+                    <input type="text" name="lpo_no" id="lpoNo" value="{{ inv.lpo_no or '' }}" placeholder="e.g. PO-001" style="flex:1;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem" list="lpoList">
+                    <datalist id="lpoList">
+                        {% for l in lpos %}<option value="{{ l.lpo_no }}">{% endfor %}
+                    </datalist>
+                    <input type="date" name="lpo_date" id="lpoDate" value="{{ inv.lpo_date or '' }}" style="width:140px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                </div>
+            </div>
+        </div>
+
+        {# ─── Line Items ─── #}
+        <div style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <h4 style="margin:0;font-size:0.9rem;font-weight:600">Invoice Line Items</h4>
+                <button type="button" class="btn btn-outline btn-sm" onclick="addItem()">+ Add Line</button>
+            </div>
+
+            <div style="background:#f8fafc;border-radius:10px;padding:10px;border:1px solid #eef2f6">
+                {# Header #}
+                <div style="display:grid;grid-template-columns:1fr 70px 90px 100px 36px;gap:6px;margin-bottom:6px;padding:0 4px">
+                    <span style="font-size:0.65rem;color:var(--muted);font-weight:600">Description</span>
+                    <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">QTY</span>
+                    <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:right">Rate (AED)</span>
+                    <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:right">Amount</span>
+                    <span></span>
+                </div>
+                <div id="itemsContainer">
+                {% if edit and items %}
+                    {% for it in items %}
+                    <div class="line-item-row">
+                        <input type="text" name="item_desc[]" value="{{ it.description or '' }}" placeholder="Service description" style="width:100%">
+                        <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
+                        <input type="number" name="item_rate[]" value="{{ it.rate or 0 }}" min="0" step="0.01" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.00">
+                        <span class="item-amt" id="itemAmt_{{ loop.index0 }}">{{ "%.2f"|format(it.amount) }}</span>
+                        <button type="button" class="btn-remove" onclick="removeItem(this)" {% if loop.first %}style="display:none"{% endif %}>&times;</button>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="line-item-row">
+                        <input type="text" name="item_desc[]" placeholder="Service description" style="width:100%">
+                        <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
+                        <input type="number" name="item_rate[]" value="0" min="0" step="0.01" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.00">
+                        <span class="item-amt" id="itemAmt_0">0.00</span>
+                        <button type="button" class="btn-remove" onclick="removeItem(this)" style="display:none">&times;</button>
+                    </div>
+                {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# ─── Totals ─── #}
+        <div style="margin-left:auto;width:320px;border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:16px;background:#f8fafc">
+            <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
+                <span>Sub Total</span><span class="mono" id="subTotalDisplay" style="font-weight:600">{{ "%.2f"|format(inv.amount or 0) }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
+                <span>VAT <span id="vatLabel">@ {{ inv.vat_percent or 5 }}%</span></span><span class="mono" id="vatDisplay" style="font-weight:600;color:#c62828">{{ "%.2f"|format(inv.vat_amount or 0) }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:2px solid var(--primary);margin-top:4px;font-size:1.05rem">
+                <span style="font-weight:700">Total Due</span><span class="mono" id="totalDisplay" style="font-weight:800;font-size:1.2rem;color:var(--primary)">{{ "%.2f"|format(inv.total_amount or 0) }}</span>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Payment terms, delivery notes, etc.">{{ inv.notes or '' }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top:6px;width:100%;padding:12px;font-size:1rem">{{ 'Update Invoice' if edit else 'Create Invoice' }}</button>
+    </form>
+</div>
+</div>
+
+<script>
+let itemCount = {{ items|length if edit and items else 1 }};
+function addItem() {
+    const container = document.getElementById('itemsContainer');
+    const row = document.createElement('div');
+    row.className = 'line-item-row';
+    row.innerHTML = `
+        <input type="text" name="item_desc[]" placeholder="Service description">
+        <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
+        <input type="number" name="item_rate[]" value="0" min="0" step="0.01" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.00">
+        <span class="item-amt" id="itemAmt_${itemCount}">0.00</span>
+        <button type="button" class="btn-remove" onclick="removeItem(this)">&times;</button>
+    `;
+    container.appendChild(row);
+    itemCount++;
+}
+function removeItem(btn) {
+    const rows = document.querySelectorAll('.line-item-row');
+    if (rows.length <= 1) return;
+    btn.closest('.line-item-row').remove();
+    calcTotals();
+}
+function calcItem(el) {
+    const row = el.closest('.line-item-row');
+    const qty = parseFloat(row.querySelector('input[name*="item_qty"]').value) || 0;
+    const rate = parseFloat(row.querySelector('input[name*="item_rate"]').value) || 0;
+    const amt = qty * rate;
+    row.querySelector('.item-amt').textContent = amt.toFixed(2);
+}
+function calcTotals() {
+    const rows = document.querySelectorAll('.line-item-row');
+    let sub = 0;
+    rows.forEach(row => {
+        const qty = parseFloat(row.querySelector('input[name*="item_qty"]').value) || 0;
+        const rate = parseFloat(row.querySelector('input[name*="item_rate"]').value) || 0;
+        sub += qty * rate;
+    });
+    const vatPct = parseFloat(document.getElementById('vatPercent').value) || 0;
+    const vat = sub * vatPct / 100;
+    const total = sub + vat;
+    document.getElementById('subTotalDisplay').textContent = sub.toFixed(2);
+    document.getElementById('vatLabel').textContent = '@ ' + vatPct + '%';
+    document.getElementById('vatDisplay').textContent = vat.toFixed(2);
+    document.getElementById('totalDisplay').textContent = total.toFixed(2);
+}
+calcTotals();
+</script>
+{% endblock %}

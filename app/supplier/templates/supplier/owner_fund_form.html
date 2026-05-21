@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Owner Fund Entry{% endblock %}
+{% block page_title %}Owner Fund{% endblock %}
+
+{% block content %}
+<div class="form-shell" style="max-width:520px">
+    <div class="profile-card">
+        <div style="margin-bottom:14px">
+            <a href="{{ url_for('supplier.owner_fund_dashboard') }}" class="btn btn-outline btn-sm">&larr; Back to Dashboard</a>
+        </div>
+        <h3>New Owner Fund Entry</h3>
+        <p style="color:var(--muted);font-size:0.85rem">Record money received from or returned to the owner.</p>
+
+        <form method="POST" style="margin-top:16px">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;gap:14px">
+                <div class="form-row">
+                    <label class="form-label">Transaction Type *</label>
+                    <select name="transaction_type" class="form-control" required>
+                        <option value="deposit">Deposit — Owner nay paise diye</option>
+                        <option value="withdrawal">Withdrawal — Owner ko paise wapas gaye</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Owner Name *</label>
+                    <input type="text" name="owner_name" class="form-control" value="Owner" placeholder="e.g. Waqar, Faisal">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Amount (AED) *</label>
+                    <input type="number" name="amount" class="form-control" required step="0.01" min="0.01" placeholder="e.g. 100000">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Date</label>
+                    <input type="date" name="fund_date" class="form-control" value="{{ today }}">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Description</label>
+                    <input type="text" name="description" class="form-control" placeholder="e.g. Monthly cash injection">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2" placeholder="Optional details"></textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:14px">Save Entry</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

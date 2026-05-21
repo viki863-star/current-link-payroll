@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}New Job — Staff Portal{% endblock %}
+{% block body_class %}staff-body{% endblock %}
+{% block page_title %}New Job{% endblock %}
+
+{% block content %}
+<style>
+.app-layout .erp-sidebar { display: none !important; }
+.app-layout .main-content { margin-left: 0 !important; width: 100% !important; }
+</style>
+<div class="staff-container">
+    <div class="staff-header">
+        <h1 class="staff-title">New Maintenance Job</h1>
+        <a href="{{ url_for('fleet.staff_dashboard') }}" class="staff-back-btn">&#8592; Back</a>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="staff-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {# ── Step 1: Select Vehicle ── #}
+        <div class="staff-card staff-section">
+            <div class="staff-section-label">Step 1</div>
+            <h2 class="staff-section-title">Select Vehicle</h2>
+            <div class="staff-search-box">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/></svg>
+                <input type="text" id="vehicleSearch" class="staff-search-input" placeholder="Search vehicle by plate or type..." oninput="filterVehicles(this.value)">
+            </div>
+            <div class="vehicle-grid" id="vehicleGrid">
+                <div class="vehicle-option general-expense" data-search="general expense no vehicle" onclick="selectVehicle('', this)" style="border:2px dashed var(--line);background:#f9fafb">
+                    <div class="vehicle-option-badge" style="background:#757575;font-size:0.7rem">GE</div>
+                    <div class="vehicle-option-text">
+                        <div class="vehicle-option-plate">General Expense</div>
+                        <div class="vehicle-option-type">Not vehicle-related</div>
+                    </div>
+                    <div class="vehicle-option-check">&#10003;</div>
+                </div>
+                {% for v in vehicles %}
+                <div class="vehicle-option" data-search="{{ v.plate_no }} {{ v.vehicle_type }}" onclick="selectVehicle('{{ v.plate_no }}', this)">
+                    <div class="vehicle-option-badge type-{{ v.vehicle_type|lower|replace(' ','') }}">{{ v.vehicle_type[:2]|upper }}</div>
+                    <div class="vehicle-option-text">
+                        <div class="vehicle-option-plate">{{ v.plate_no }}</div>
+                        <div class="vehicle-option-type">{{ v.vehicle_type }}</div>
+                    </div>
+                    <div class="vehicle-option-check">&#10003;</div>
+                </div>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="vehicle_id" id="vehicle_id" value="">
+            <div id="selectedVehicleDisplay" class="staff-selected-vehicle" style="display:none"></div>
+        </div>
+
+        {# ── Step 2: Job Details ── #}
+        <div class="staff-card staff-section">
+            <div class="staff-section-label">Step 2</div>
+            <h2 class="staff-section-title">Job Details</h2>
+            <div class="staff-field-group">
+                <label class="staff-label">Amount Spent (AED)</label>
+                <input type="number" name="amount" value="{{ v.amount or '' }}" class="staff-input" step="0.01" min="0" required placeholder="e.g. 500">
+            </div>
+            <div class="staff-field-group">
+                <label class="staff-label">Category</label>
+                <select name="category" class="staff-input" required>
+                    <option value="">Select category</option>
+                    {% for c in categories %}
+                    <option value="{{ c }}" {% if (v.category or '') == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="staff-field-group">
+                <label class="staff-label">Description</label>
+                <textarea name="description" class="staff-input staff-textarea" rows="3" placeholder="What work was done?">{{ v.description or '' }}</textarea>
+            </div>
+            <div class="staff-field-group">
+                <label class="staff-label">Attach Photo / Paper</label>
+                <div class="staff-file-area">
+                    <input type="file" name="attachment" accept="image/*,.pdf" id="fileInput">
+                    <label for="fileInput" class="staff-file-label">
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M10 3v14"/><path d="M3 10h14"/></svg>
+                        Tap to add photo
+                    </label>
+                    <span id="fileName" class="staff-file-name"></span>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="staff-submit-btn">Submit Job</button>
+    </form>
+</div>
+
+<script>
+function filterVehicles(query) {
+    var q = query.toLowerCase().trim();
+    document.querySelectorAll('.vehicle-option').forEach(function(el) {
+        var search = el.getAttribute('data-search').toLowerCase();
+        el.style.display = (!q || search.includes(q)) ? '' : 'none';
+    });
+}
+
+function selectVehicle(plate, el) {
+    document.querySelectorAll('.vehicle-option').forEach(function(c) { c.classList.remove('selected'); });
+    el.classList.add('selected');
+    document.getElementById('vehicle_id').value = plate;
+    var display = document.getElementById('selectedVehicleDisplay');
+    display.innerHTML = plate ? 'Selected: <strong>' + plate + '</strong>' : 'Selected: <strong>General Expense</strong>';
+    display.style.display = 'block';
+}
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    if (e.target.files.length > 0) {
+        document.getElementById('fileName').textContent = e.target.files[0].name;
+    }
+});
+</script>
+
+<style>
+.staff-container { max-width: 600px; margin: 0 auto; padding: 12px; }
+.staff-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.staff-title { margin: 0; font-size: 1.2rem; font-weight: 700; }
+.staff-back-btn { font-size: 0.85rem; color: var(--primary); text-decoration: none; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.staff-section { margin-bottom: 16px; }
+.staff-section-label { font-size: 0.7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+.staff-section-title { margin: 0 0 12px; font-size: 1rem; font-weight: 600; }
+.staff-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.staff-search-box { display: flex; align-items: center; gap: 8px; background: #f5f7fa; border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
+.staff-search-box svg { flex-shrink: 0; color: var(--muted); }
+.staff-search-input { border: none; background: none; flex: 1; font-size: 0.9rem; font-family: inherit; outline: none; }
+.vehicle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 320px; overflow-y: auto; }
+.vehicle-option { display: flex; align-items: center; gap: 10px; padding: 12px; border: 2px solid var(--line); border-radius: 12px; cursor: pointer; transition: all 0.12s; position: relative; }
+.vehicle-option:hover { border-color: var(--primary); background: #f0f4ff; }
+.vehicle-option.selected { border-color: var(--primary); background: #e8f0fe; }
+.vehicle-option.selected .vehicle-option-check { opacity: 1; }
+.vehicle-option-badge { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.type-tanker { background: #1c568b; }
+.type-trailer { background: #e65100; }
+.type-boxtruck { background: #7b1fa2; }
+.type-flatbed { background: #2e7d32; }
+.type-other { background: #546e7a; }
+.vehicle-option-text { flex: 1; min-width: 0; }
+.vehicle-option-plate { font-weight: 700; font-size: 0.85rem; }
+.vehicle-option-type { font-size: 0.7rem; color: var(--muted); }
+.vehicle-option-check { position: absolute; top: 6px; right: 6px; color: var(--primary); font-weight: 700; font-size: 0.85rem; opacity: 0; transition: opacity 0.12s; }
+.staff-selected-vehicle { margin-top: 8px; padding: 10px; background: #e8f5e9; border-radius: 8px; font-size: 0.85rem; text-align: center; }
+.staff-field-group { margin-bottom: 14px; }
+.staff-label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+.staff-input { width: 100%; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 10px; font-size: 0.9rem; font-family: inherit; background: #fff; box-sizing: border-box; }
+.staff-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28,86,139,0.1); }
+.staff-textarea { resize: vertical; min-height: 80px; }
+.staff-file-area { position: relative; }
+.staff-file-area input[type=file] { position: absolute; opacity: 0; width: 0.1px; height: 0.1px; }
+.staff-file-label { display: flex; align-items: center; gap: 8px; padding: 14px; border: 2px dashed var(--line); border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: var(--muted); justify-content: center; transition: all 0.15s; }
+.staff-file-label:hover { border-color: var(--primary); color: var(--primary); background: #f0f4ff; }
+.staff-file-name { display: block; margin-top: 6px; font-size: 0.78rem; color: var(--green); text-align: center; }
+.staff-submit-btn { width: 100%; padding: 14px; background: var(--primary); color: #fff; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 700; cursor: pointer; transition: opacity 0.15s; margin-top: 4px; }
+.staff-submit-btn:hover { opacity: 0.85; }
+@media (max-width: 480px) { .vehicle-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}

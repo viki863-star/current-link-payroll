@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if is_edit else 'Add' }} Supplier{% endblock %}
+{% block page_title %}{{ 'Edit' if is_edit else 'Add' }} Supplier{% endblock %}
+
+{% block content %}
+<div class="form-shell" style="max-width:700px">
+    <div class="profile-card">
+        <div style="margin-bottom:16px">
+            <a href="{{ url_for('supplier.supplier_list') }}" class="btn btn-outline btn-sm">&larr; Back to List</a>
+        </div>
+        <h3>{{ 'Edit' if is_edit else 'Add New' }} Supplier</h3>
+        {% if is_edit %}<p style="color:var(--muted);font-size:0.85rem">Code: <strong>{{ code }}</strong></p>{% endif %}
+
+        <form method="POST" style="margin-top:16px">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Supplier Name *</label>
+                    <input type="text" name="supplier_name" value="{{ s.supplier_name or '' }}" class="form-control" required>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Supplier Code</label>
+                    <input type="text" value="{{ code }}" class="form-control" style="background:#f5f7fa" readonly>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Type</label>
+                    <select name="supplier_type" class="form-control">
+                        <option value="with_invoice" {% if (s.supplier_type or 'with_invoice') == 'with_invoice' %}selected{% endif %}>With Invoice (VAT)</option>
+                        <option value="without_invoice" {% if s.supplier_type == 'without_invoice' %}selected{% endif %}>Without Invoice (Cash)</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Contact Person</label>
+                    <input type="text" name="contact_person" value="{{ s.contact_person or '' }}" class="form-control">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Phone</label>
+                    <input type="text" name="phone" value="{{ s.phone or '' }}" class="form-control">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" value="{{ s.email or '' }}" class="form-control">
+                </div>
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Address</label>
+                    <textarea name="address" class="form-control" rows="2">{{ s.address or '' }}</textarea>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">TRN (Tax Registration No.)</label>
+                    <input type="text" name="trn" value="{{ s.trn or '' }}" class="form-control" placeholder="For VAT invoices">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Payment Terms</label>
+                    <select name="payment_terms" class="form-control">
+                        <option value="Due on receipt" {% if (s.payment_terms or 'Due on receipt') == 'Due on receipt' %}selected{% endif %}>Due on receipt</option>
+                        <option value="Net 15" {% if s.payment_terms == 'Net 15' %}selected{% endif %}>Net 15</option>
+                        <option value="Net 30" {% if s.payment_terms == 'Net 30' %}selected{% endif %}>Net 30</option>
+                        <option value="Net 45" {% if s.payment_terms == 'Net 45' %}selected{% endif %}>Net 45</option>
+                        <option value="Net 60" {% if s.payment_terms == 'Net 60' %}selected{% endif %}>Net 60</option>
+                        <option value="Cash" {% if s.payment_terms == 'Cash' %}selected{% endif %}>Cash</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-control">
+                        <option value="">Select category</option>
+                        {% for c in ['Spare Parts','Tires','Lubricants','Fuel','Services','Transport','Stationery','Food & Beverage','Cleaning','Safety Equipment','Tools','Other'] %}
+                        <option value="{{ c }}" {% if s.category == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Bank Name</label>
+                    <input type="text" name="bank_name" value="{{ s.bank_name or '' }}" class="form-control">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Bank Account</label>
+                    <input type="text" name="bank_account" value="{{ s.bank_account or '' }}" class="form-control">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">IBAN</label>
+                    <input type="text" name="iban" value="{{ s.iban or '' }}" class="form-control">
+                </div>
+                {% if is_edit %}
+                <div class="form-row">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-control">
+                        <option value="Active" {% if s.status == 'Active' %}selected{% endif %}>Active</option>
+                        <option value="Inactive" {% if s.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+                {% endif %}
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2">{{ s.notes or '' }}</textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:12px">{{ 'Update' if is_edit else 'Add' }} Supplier</button>
+            {% if is_edit %}
+            <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" class="btn btn-outline" style="margin-top:12px">Cancel</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}LPOs{% endblock %}
+{% block page_title %}LPOs{% endblock %}
+
+{% set LPO_TYPE_LABELS = {'trip':'Trip','hour':'Hour','monthly':'Monthly','fixed':'Fixed','other':'Other'} %}
+
+{% block content %}
+<div class="profile-shell">
+    <div style="margin-bottom:16px">
+        <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" class="btn btn-outline btn-sm">&larr; Back to Profile</a>
+    </div>
+    <div class="profile-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="margin:0;font-size:0.95rem">LPOs — {{ s.supplier_name }}</h3>
+            <a href="{{ url_for('supplier.supplier_lpo_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add LPO</a>
+        </div>
+        {% if lpos %}
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>LPO #</th><th>Date</th><th>Basis</th><th>Amount</th><th>Quotation</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    {% for lpo in lpos %}
+                    <tr>
+                        <td class="mono" style="font-weight:600">{{ lpo.lpo_no }}</td>
+                        <td class="mono">{{ lpo.lpo_date }}</td>
+                        <td><span class="badge badge-type">{{ LPO_TYPE_LABELS.get(lpo.lpo_type, lpo.lpo_type) }}</span></td>
+                        <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(lpo.amount) }}</td>
+                        <td class="mono" style="font-size:0.75rem">{{ lpo.quotation_no or '—' }}</td>
+                        <td><span class="status-badge {% if lpo.status == 'closed' %}active{% else %}pending{% endif %}">{{ lpo.status }}</span></td>
+                        <td style="display:flex;gap:4px">
+                            <a href="{{ url_for('supplier.supplier_lpo_pdf', sup_id=s.id, lpo_id=lpo.id) }}" class="btn btn-xs btn-primary" target="_blank">PDF</a>
+                            {% if lpo.status == 'open' %}
+                            <form method="POST" action="{{ url_for('supplier.supplier_lpo_close', sup_id=s.id, lpo_id=lpo.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-xs btn-outline">Close</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">No LPOs yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

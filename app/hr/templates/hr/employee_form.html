@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} — Current Link ERP{% endblock %}
+{% block body_class %}form-body{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="form-shell">
+    <form method="POST" enctype="multipart/form-data" class="smart-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-grid two-col">
+            <div class="form-section">
+                <h3>Basic Information</h3>
+                <div class="form-group">
+                    <label>Employee ID</label>
+                    <input type="text" name="employee_id" value="{{ values.employee_id or '' }}" class="form-control" placeholder="EMP-0001" {% if edit_mode %}readonly{% endif %}>
+                </div>
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" name="full_name" value="{{ values.full_name or '' }}" class="form-control" required placeholder="Enter full name">
+                </div>
+                <div class="form-group">
+                    <label>Phone Number *</label>
+                    <input type="text" name="phone_number" value="{{ values.phone_number or '' }}" class="form-control" required placeholder="+971 50 123 4567">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" value="{{ values.email or '' }}" class="form-control" placeholder="email@example.com">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select name="gender" class="form-control">
+                            <option value="">Select...</option>
+                            {% for opt in gender_options %}
+                            <option value="{{ opt }}" {% if values.gender == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nationality</label>
+                        <input type="text" name="nationality" value="{{ values.nationality or '' }}" class="form-control" placeholder="e.g. UAE, India">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Employment Details</h3>
+                <div class="form-group">
+                    <label>Employee Type *</label>
+                    <select name="employee_type" class="form-control" required>
+                        <option value="">Select type...</option>
+                        {% for opt in employee_types %}
+                        <option value="{{ opt }}" {% if values.employee_type == opt %}selected{% endif %}>{{ opt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Department *</label>
+                    <select name="department" class="form-control" required>
+                        <option value="">Select department...</option>
+                        {% for opt in departments %}
+                        <option value="{{ opt }}" {% if values.department == opt %}selected{% endif %}>{{ opt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Designation *</label>
+                    <select name="designation" class="form-control" required>
+                        <option value="">Select designation...</option>
+                        {% for opt in designations %}
+                        <option value="{{ opt }}" {% if values.designation == opt %}selected{% endif %}>{{ opt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Shift</label>
+                        <select name="shift" class="form-control">
+                            {% for opt in shift_options %}
+                            <option value="{{ opt }}" {% if values.shift == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Contract Type</label>
+                        <select name="contract_type" class="form-control">
+                            {% for opt in contract_options %}
+                            <option value="{{ opt }}" {% if values.contract_type == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Join Date *</label>
+                    <input type="date" name="join_date" value="{{ values.join_date or '' }}" class="form-control" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-grid two-col">
+            <div class="form-section">
+                <h3>Salary & Compensation</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Basic Salary (AED) *</label>
+                        <input type="number" name="basic_salary" value="{{ values.basic_salary or '' }}" class="form-control" required step="0.01" min="0" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>OT Rate (AED/hr)</label>
+                        <input type="number" name="ot_rate" value="{{ values.ot_rate or '0' }}" class="form-control" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Identity Documents</h3>
+                <div class="form-group">
+                    <label>Iqama No.</label>
+                    <input type="text" name="iqama_no" value="{{ values.iqama_no or '' }}" class="form-control" placeholder="Emirates ID / Iqama number">
+                </div>
+                <div class="form-group">
+                    <label>Passport No.</label>
+                    <input type="text" name="passport_no" value="{{ values.passport_no or '' }}" class="form-control" placeholder="Passport number">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-grid two-col">
+            <div class="form-section">
+                <h3>Bank Details</h3>
+                <div class="form-group">
+                    <label>Bank Name</label>
+                    <input type="text" name="bank_name" value="{{ values.bank_name or '' }}" class="form-control" placeholder="e.g. Emirates NBD">
+                </div>
+                <div class="form-group">
+                    <label>Account Number</label>
+                    <input type="text" name="bank_account" value="{{ values.bank_account or '' }}" class="form-control" placeholder="Account number">
+                </div>
+                <div class="form-group">
+                    <label>IBAN</label>
+                    <input type="text" name="iban" value="{{ values.iban or '' }}" class="form-control" placeholder="AE...">
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Emergency Contact</h3>
+                <div class="form-group">
+                    <label>Contact Person</label>
+                    <input type="text" name="emergency_name" value="{{ values.emergency_name or '' }}" class="form-control" placeholder="Full name">
+                </div>
+                <div class="form-group">
+                    <label>Contact Phone</label>
+                    <input type="text" name="emergency_contact" value="{{ values.emergency_contact or '' }}" class="form-control" placeholder="Phone number">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-grid two-col">
+            <div class="form-section">
+                <h3>Photo</h3>
+                <div class="form-group">
+                    <label>Upload Photo</label>
+                    <input type="file" name="photo_file" class="form-control" accept="image/*">
+                    {% if edit_mode and values.photo_name %}
+                    <small class="form-hint">Current: {{ values.photo_name }}. Upload new to replace.</small>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Status & Notes</h3>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select name="status" class="form-control">
+                        {% for opt in status_options %}
+                        <option value="{{ opt }}" {% if values.status == opt %}selected{% endif %}>{{ opt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <textarea name="address" class="form-control" rows="2" placeholder="Full address">{{ values.address or '' }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Remarks</label>
+                    <textarea name="remarks" class="form-control" rows="2" placeholder="Any notes...">{{ values.remarks or '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('hr.employee_list') }}" class="btn btn-outline">Cancel</a>
+            <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Customer Dashboard{% endblock %}
+{% block page_title %}Customer Management{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    <style>
+    .dash-stat { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center; transition:box-shadow 0.15s; }
+    .dash-stat:hover { box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+    .dash-stat .lbl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
+    .dash-stat .val { font-size:1.4rem; font-weight:700; margin-top:6px; }
+    .dash-action { display:flex; align-items:center; gap:14px; text-decoration:none; color:inherit; cursor:pointer; padding:16px; border-radius:12px; border:1px solid var(--line); background:var(--surface); transition:box-shadow 0.15s; }
+    .dash-action:hover { box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+    .dash-action .icon-box { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; }
+    </style>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+        <div class="dash-stat">
+            <div class="lbl">Total Customers</div>
+            <div class="val" style="color:var(--primary)">{{ total }}</div>
+        </div>
+        <div class="dash-stat">
+            <div class="lbl">Active</div>
+            <div class="val" style="color:var(--green)">{{ active }}</div>
+        </div>
+        <div class="dash-stat">
+            <div class="lbl">Invoices</div>
+            <div class="val" style="color:var(--primary)">{{ inv_count }}</div>
+        </div>
+        <div class="dash-stat">
+            <div class="lbl">Receivable</div>
+            <div class="val" style="color:#c62828">AED {{ "%.0f"|format(total_receivable) }}</div>
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px">
+        <a href="{{ url_for('customer.customer_add') }}" class="dash-action">
+            <div class="icon-box" style="background:#e3f0ff">+</div>
+            <div><div style="font-weight:600;font-size:0.9rem">Add Customer</div><div style="font-size:0.75rem;color:var(--muted)">Register a new company</div></div>
+        </a>
+        <a href="{{ url_for('customer.customer_list') }}" class="dash-action">
+            <div class="icon-box" style="background:#e8f5e9">&#9776;</div>
+            <div><div style="font-weight:600;font-size:0.9rem">All Customers</div><div style="font-size:0.75rem;color:var(--muted)">Search &amp; manage</div></div>
+        </a>
+    </div>
+
+    <div class="profile-card">
+        <h3 style="margin:0 0 12px;font-size:0.95rem">Recent Invoices</h3>
+        {% if recent_invoices %}
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>Date</th><th>Customer</th><th>Invoice #</th><th>Amount</th><th>VAT</th><th>Total</th></tr></thead>
+                <tbody>
+                    {% for inv in recent_invoices %}
+                    <tr>
+                        <td class="mono">{{ inv.invoice_date }}</td>
+                        <td><a href="{{ url_for('customer.customer_profile', cid=inv.customer_id) }}" style="font-weight:600">{{ inv.customer_name }}</a></td>
+                        <td class="mono">{{ inv.invoice_no }}</td>
+                        <td class="mono">{{ "%.0f"|format(inv.amount) }}</td>
+                        <td class="mono">{{ "%.0f"|format(inv.vat_amount) }}</td>
+                        <td class="mono" style="font-weight:600">{{ "%.0f"|format(inv.total_amount) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}<p class="empty-state">No invoices yet.</p>{% endif %}
+    </div>
+</div>
+{% endblock %}

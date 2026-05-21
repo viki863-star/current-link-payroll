@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}{{ v.plate_no }} — Vehicle Profile{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block page_title %}Vehicle Profile{% endblock %}
+
+{% block content %}
+<style>
+.vp-tabs {
+    display: flex; gap: 4px; margin-bottom: 20px;
+    background: #f0f2f5; border-radius: 10px; padding: 4px;
+}
+.vp-tab {
+    flex: 1; text-align: center; padding: 10px 16px;
+    font-size: 0.85rem; font-weight: 600; color: #666;
+    text-decoration: none; border-radius: 8px;
+    transition: all 0.15s;
+}
+.vp-tab:hover { color: var(--primary); background: rgba(28,86,139,0.06); }
+.vp-tab.is-active { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+</style>
+<div class="profile-shell">
+
+    {# ─── Header ─── #}
+    <div class="profile-header" style="border-left:4px solid var(--primary)">
+        <div class="profile-avatar">
+            <div class="avatar-placeholder" style="width:70px;height:70px;font-size:1.2rem;background:var(--primary)">{{ v.plate_no[:2] }}</div>
+        </div>
+        <div class="profile-info">
+            <div class="profile-name-row">
+                <h1 style="font-size:1.4rem">{{ v.plate_no }}</h1>
+                <span class="badge badge-dept">{{ v.vehicle_type }}</span>
+                <span class="status-badge {{ v.status|lower }}">{{ v.status }}</span>
+            </div>
+            <p class="profile-badge">
+                {% if v.model %}{{ v.model }}{% if v.year %} ({{ v.year }}){% endif %} &middot;{% endif %}
+                {{ v.ownership_type }}{% if v.ownership_type == 'Partnership' %} &middot; {{ v.partner_name }} ({{ "%.0f"|format(v.partner_percent) }}%){% endif %}
+            </p>
+            <p class="profile-id mono">
+                <strong>{{ v.job_count }}</strong> jobs &middot; AED <strong>{{ "%.0f"|format(v.total_cost) }}</strong> total
+                {% if v.current_driver %} &middot; Driver: {{ v.current_driver.full_name }}{% endif %}
+            </p>
+        </div>
+        <div class="profile-actions">
+            <a href="{{ url_for('fleet.vehicle_edit', plate_no=v.plate_no) }}" class="btn btn-primary btn-sm">&#9998; Edit</a>
+            <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline btn-sm">&#8592; Back</a>
+        </div>
+    </div>
+
+    {# ─── Tabs ─── #}
+    <div class="vp-tabs">
+        <a class="vp-tab {% if active_tab == 'overview' %}is-active{% endif %}" href="?tab=overview">Overview</a>
+        <a class="vp-tab {% if active_tab == 'driver' %}is-active{% endif %}" href="?tab=driver">Driver</a>
+        <a class="vp-tab {% if active_tab == 'jobs' %}is-active{% endif %}" href="?tab=jobs">Maintenance Jobs</a>
+    </div>
+
+    {# ═══════ OVERVIEW ═══════ #}
+    {% if active_tab == 'overview' %}
+    <div class="panel-row">
+        <div class="panel-half">
+            <div class="profile-card">
+                <h3 style="margin:0 0 12px;font-size:0.95rem">Vehicle Information</h3>
+                <table class="info-table" style="width:100%">
+                    <tr><td style="width:40%">Plate Number</td><td class="mono" style="font-weight:600">{{ v.plate_no }}</td></tr>
+                    <tr><td>Type</td><td>{{ v.vehicle_type }}</td></tr>
+                    <tr><td>Model</td><td>{{ v.model or '—' }}</td></tr>
+                    <tr><td>Year</td><td>{{ v.year or '—' }}</td></tr>
+                    <tr><td>Status</td><td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td></tr>
+                </table>
+            </div>
+            <div class="profile-card" style="margin-top:1rem">
+                <h3 style="margin:0 0 12px;font-size:0.95rem">Ownership</h3>
+                <table class="info-table" style="width:100%">
+                    <tr><td style="width:40%">Type</td><td><strong>{{ v.ownership_type }}</strong></td></tr>
+                    {% if v.ownership_type == 'Partnership' %}
+                    <tr><td>Partner</td><td><strong>{{ v.partner_name }}</strong></td></tr>
+                    <tr><td>Share</td><td><strong>{{ "%.0f"|format(v.partner_percent) }}%</strong></td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+        <div class="panel-half">
+            <div class="profile-card">
+                <h3 style="margin:0 0 12px;font-size:0.95rem">Current Driver</h3>
+                {% if v.current_driver %}
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div class="emp-avatar-letter" style="width:44px;height:44px;font-size:1rem">{{ v.current_driver.full_name[:1]|upper }}</div>
+                    <div>
+                        <div style="font-weight:600">{{ v.current_driver.full_name }}</div>
+                        <div class="mono" style="font-size:0.78rem;color:var(--muted)">{{ v.current_driver.employee_id }}</div>
+                        <div style="font-size:0.78rem;color:var(--muted)">Since {{ v.current_driver.assigned_from }}</div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="empty-state" style="padding:20px">No driver assigned.</p>
+                {% endif %}
+            </div>
+            <div class="profile-card" style="margin-top:1rem">
+                <h3 style="margin:0 0 12px;font-size:0.95rem">Stats</h3>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div style="background:#f8fafd;border-radius:8px;padding:12px;text-align:center">
+                        <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Jobs Done</div>
+                        <div style="font-size:1.3rem;font-weight:700;color:var(--primary)">{{ v.job_count }}</div>
+                    </div>
+                    <div style="background:#f8fafd;border-radius:8px;padding:12px;text-align:center">
+                        <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Total Cost</div>
+                        <div style="font-size:1.1rem;font-weight:700;color:#e65100">AED {{ "%.0f"|format(v.total_cost) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══════ DRIVER ═══════ #}
+    {% elif active_tab == 'driver' %}
+    <div class="panel-row">
+        <div class="panel-half">
+            <div class="profile-card">
+                <h3 style="margin:0 0 12px;font-size:0.95rem">Assign / Replace Driver</h3>
+                <form method="POST" action="{{ url_for('fleet.vehicle_assign_driver', plate_no=v.plate_no) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-row">
+                        <label class="form-label">Driver</label>
+                        <select name="driver_id" class="form-control" required>
+                            <option value="">— Select —</option>
+                            {% for d in all_drivers %}
+                            <option value="{{ d.employee_id }}">{{ d.full_name }} ({{ d.employee_id }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Effective From</label>
+                        <input type="date" name="assigned_from" value="{{ date.today().isoformat() }}" class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Assign Driver</button>
+                </form>
+            </div>
+        </div>
+        <div class="panel-half">
+            <div class="profile-card">
+                <h3 style="margin:0 0 12px;font-size:0.95rem">Driver History</h3>
+                {% if driver_history %}
+                <table class="smart-table">
+                    <thead><tr><th>Driver</th><th>From</th><th>Until</th></tr></thead>
+                    <tbody>
+                        {% for a in driver_history %}
+                        <tr>
+                            <td><strong>{{ a.driver_name }}</strong> {% if a.is_current %}<span class="status-badge active">Current</span>{% endif %}</td>
+                            <td class="mono">{{ a.assigned_from }}</td>
+                            <td class="mono">{{ a.assigned_until or 'Present' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="empty-state">No driver history.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# ═══════ MAINTENANCE JOBS ═══════ #}
+    {% elif active_tab == 'jobs' %}
+    <div class="profile-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="margin:0;font-size:0.95rem">Approved Maintenance Jobs</h3>
+            <span class="badge badge-dept">{{ approved_jobs|length }} jobs</span>
+        </div>
+        {% if approved_jobs %}
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>Date</th><th>Staff</th><th>Amount</th><th>Category</th><th>Description</th><th>Attachment</th></tr></thead>
+                <tbody>
+                    {% for j in approved_jobs %}
+                    <tr>
+                        <td class="mono">{{ j.created_at[:10] }}</td>
+                        <td><strong>{{ j.staff_name }}</strong></td>
+                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount) }}</td>
+                        <td><span class="badge badge-type">{{ j.category }}</span></td>
+                        <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
+                        <td>{% if j.attachment_data %}<a href="{{ url_for('fleet.vehicle_profile', plate_no=v.plate_no) }}?download={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}—{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top:12px;padding:12px;background:#f8fafd;border-radius:8px;text-align:right">
+            <strong>Total: AED {{ "%.0f"|format(approved_jobs|sum(attribute='amount')) }}</strong>
+        </div>
+        {% else %}
+        <p class="empty-state">No approved maintenance jobs yet.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Suppliers{% endblock %}
+{% block page_title %}Suppliers{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    <div class="profile-card" style="margin-bottom:16px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <form method="GET" style="display:flex;gap:8px;flex:1;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:6px;background:#f5f7fa;border:1.5px solid var(--line);border-radius:10px;padding:8px 12px;flex:1;min-width:180px">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/></svg>
+                    <input type="text" name="q" value="{{ q }}" placeholder="Search by name, code, phone..." style="border:none;background:none;flex:1;font-size:0.85rem;outline:none;font-family:inherit">
+                </div>
+                <select name="type" style="padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:0.82rem;background:#fff;font-family:inherit">
+                    <option value="">All Types</option>
+                    <option value="with_invoice" {% if typ == 'with_invoice' %}selected{% endif %}>With Invoice</option>
+                    <option value="without_invoice" {% if typ == 'without_invoice' %}selected{% endif %}>Without Invoice</option>
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm">Search</button>
+                <a href="{{ url_for('supplier.supplier_list') }}" class="btn btn-outline btn-sm">Clear</a>
+            </form>
+            <a href="{{ url_for('supplier.supplier_add') }}" class="btn btn-primary btn-sm">+ Add Supplier</a>
+        </div>
+    </div>
+
+    <div class="profile-card" style="padding:0">
+        {% if suppliers %}
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Phone</th>
+                        <th>TRN</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in suppliers %}
+                    <tr class="clickable-row" onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'" style="cursor:pointer">
+                        <td class="mono">{{ s.supplier_code }}</td>
+                        <td><strong>{{ s.supplier_name }}</strong></td>
+                        <td><span class="badge badge-dept">{{ 'With Invoice' if s.supplier_type == 'with_invoice' else 'Cash' }}</span></td>
+                        <td>{{ s.phone or '-' }}</td>
+                        <td class="mono">{{ s.trn or '-' }}</td>
+                        <td><span class="badge badge-type">{{ s.category or '-' }}</span></td>
+                        <td><span class="status-badge {{ s.status|lower }}">{{ s.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding:40px;text-align:center;color:var(--muted)">
+            <div style="font-size:2rem;margin-bottom:8px">&#127970;</div>
+            No suppliers found.
+            <a href="{{ url_for('supplier.supplier_add') }}" style="display:block;margin-top:12px">Add your first supplier</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -591,6 +591,140 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
     return str(output_path)
 
 
+def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_deduction, remaining, month_value, output_dir: str, assets_dir: str) -> str:
+    normalized_month = format_month_label(month_value) if month_value else ""
+    file_suffix = f"kata-{month_value}" if month_value else "kata-statement"
+    output_path = Path(output_dir) / f"{driver['driver_id']}_{file_suffix}.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+
+    def _draw_driver_info():
+        info_y = PAGE_HEIGHT - 82 * mm
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(16 * mm, info_y, 178 * mm, 15 * mm, 3 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(16 * mm, info_y, 178 * mm, 15 * mm, 3 * mm, fill=0, stroke=1)
+        pdf.setFillColor(TEXT)
+        pdf.setFont("Helvetica-Bold", 9)
+        pdf.drawString(20 * mm, info_y + 9 * mm, f"Employee: {driver.get('full_name', '-')}")
+        pdf.drawString(85 * mm, info_y + 9 * mm, f"ID: {driver.get('driver_id', '-')}")
+        pdf.drawString(140 * mm, info_y + 9 * mm, f"Month: {normalized_month}")
+        pdf.setFont("Helvetica", 7.5)
+        pdf.setFillColor(MUTED)
+        pdf.drawString(20 * mm, info_y + 3 * mm, f"Basic Salary: AED {format_currency(float(driver.get('basic_salary', 0)))}")
+
+    def _draw_income_section():
+        sec_y = PAGE_HEIGHT - 104 * mm
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(16 * mm, sec_y, 178 * mm, 40 * mm, 3 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(16 * mm, sec_y, 178 * mm, 40 * mm, 3 * mm, fill=0, stroke=1)
+
+        basic = float(salary_row.get("basic_salary") or 0) if salary_row else 0
+        personal = float(salary_row.get("personal_vehicle") or 0) if salary_row else 0
+        personal_note = str(salary_row.get("personal_vehicle_note") or "") if salary_row else ""
+        ot_amt = float(salary_row.get("ot_amount") or 0) if salary_row else 0
+        ot_month = str(salary_row.get("ot_month") or "-") if salary_row else "-"
+        net_sal = float(salary_row.get("net_salary") or 0) if salary_row else 0
+
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont("Helvetica-Bold", 8.5)
+        pdf.drawString(20 * mm, sec_y + 34 * mm, "INCOME — Salary Breakdown")
+
+        row_y = sec_y + 27 * mm
+        pdf.setFont("Helvetica", 7.5)
+        pdf.setFillColor(TEXT)
+        pdf.drawString(20 * mm, row_y, "Basic Salary")
+        pdf.drawRightString(170 * mm, row_y, f"AED {format_currency(basic)}")
+        row_y -= 6.5 * mm
+        if personal > 0:
+            label = f"Personal Expense ({personal_note})" if personal_note else "Personal Expense"
+            pdf.drawString(20 * mm, row_y, label)
+            pdf.setFillColor(colors.HexColor("#2E7D32"))
+            pdf.drawRightString(170 * mm, row_y, f"+AED {format_currency(personal)}")
+            row_y -= 6.5 * mm
+            pdf.setFillColor(TEXT)
+        if ot_amt > 0:
+            pdf.drawString(20 * mm, row_y, f"OT Hours ({ot_month})")
+            pdf.setFillColor(colors.HexColor("#2E7D32"))
+            pdf.drawRightString(170 * mm, row_y, f"+AED {format_currency(ot_amt)}")
+            row_y -= 6.5 * mm
+            pdf.setFillColor(TEXT)
+        pdf.setStrokeColor(LINE)
+        pdf.line(20 * mm, row_y, 170 * mm, row_y)
+        row_y -= 6.5 * mm
+        pdf.setFont("Helvetica-Bold", 9)
+        pdf.setFillColor(colors.HexColor("#2E7D32"))
+        pdf.drawString(20 * mm, row_y, "TOTAL SALARY")
+        pdf.drawRightString(170 * mm, row_y, f"AED {format_currency(net_sal)}")
+
+    def _draw_advances_section():
+        advances_y = PAGE_HEIGHT - 150 * mm
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(16 * mm, advances_y, 178 * mm, 42 * mm, 3 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(16 * mm, advances_y, 178 * mm, 42 * mm, 3 * mm, fill=0, stroke=1)
+
+        pdf.setFillColor(colors.HexColor("#D32F2F"))
+        pdf.setFont("Helvetica-Bold", 8.5)
+        pdf.drawString(20 * mm, advances_y + 36 * mm, "ADVANCES GIVEN (FIFO)")
+
+        headers = ["Date", "Amount", "Given By", "Details", "Deducted", "Remaining"]
+        col_x = [20 * mm, 48 * mm, 72 * mm, 96 * mm, 127 * mm, 152 * mm]
+        row_h = 5.5 * mm
+        hdr_y = advances_y + 28 * mm
+        pdf.setFont("Helvetica-Bold", 6.5)
+        pdf.setFillColor(MUTED)
+        for i, h in enumerate(headers):
+            if i >= 4:
+                pdf.drawRightString(col_x[i] + 18 * mm, hdr_y, h)
+            else:
+                pdf.drawString(col_x[i], hdr_y, h)
+
+        row_y = advances_y + 28 * mm - row_h
+        pdf.setFont("Helvetica", 6.5)
+        is_alt = False
+        for a in advances[:5]:
+            if is_alt:
+                pdf.setFillColor(SOFT)
+                pdf.rect(col_x[0], row_y, 170 * mm, row_h, fill=1, stroke=0)
+            is_alt = not is_alt
+            pdf.setFillColor(TEXT)
+            pdf.drawString(col_x[0], row_y + 1.5 * mm, str(a.get("entry_date", ""))[:10])
+            pdf.drawRightString(col_x[1] + 16 * mm, row_y + 1.5 * mm, f"AED {format_currency(float(a.get('amount', 0)))}")
+            pdf.drawString(col_x[2], row_y + 1.5 * mm, str(a.get("given_by", "-"))[:10])
+            pdf.drawString(col_x[3], row_y + 1.5 * mm, str(a.get("details", "-"))[:14])
+            ded = float(a.get("deducted", 0))
+            rem = float(a.get("remaining", 0))
+            pdf.drawRightString(col_x[4] + 18 * mm, row_y + 1.5 * mm, f"AED {format_currency(ded)}" if ded > 0 else "-")
+            if rem > 0:
+                pdf.setFillColor(colors.HexColor("#D32F2F"))
+            pdf.drawRightString(col_x[5] + 18 * mm, row_y + 1.5 * mm, f"AED {format_currency(rem)}" if rem > 0 else "-")
+            pdf.setFillColor(TEXT)
+            row_y -= row_h
+
+    def _draw_summary_boxes():
+        sum_y = 56 * mm
+        _draw_stat_box(pdf, 16 * mm, sum_y, 86 * mm, 16 * mm, "DEDUCTION APPLIED", f"AED {format_currency(this_deduction)}", fill_color=colors.HexColor("#FFF4E8"), text_color=ORANGE, border_color=ORANGE)
+        _draw_stat_box(pdf, 108 * mm, sum_y, 86 * mm, 16 * mm, "REMAINING ADVANCE", f"AED {format_currency(remaining)}", fill_color=colors.HexColor("#E8F5E9"), text_color=colors.HexColor("#2E7D32"), border_color=colors.HexColor("#4CAF50"))
+
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 6.5)
+        pdf.drawString(20 * mm, sum_y - 4 * mm, f"Previous: AED {format_currency(prev_remaining)}  →  Deducted: AED {format_currency(this_deduction)}  →  Remaining: AED {format_currency(remaining)}")
+
+    _draw_header(pdf, assets_dir)
+    _draw_title(pdf, "Employee Monthly Statement", normalized_month)
+    _draw_driver_info()
+    if salary_row:
+        _draw_income_section()
+    _draw_advances_section()
+    _draw_summary_boxes()
+    _draw_footer_banner(pdf, assets_dir)
+    pdf.save()
+    return str(output_path)
+
+
 def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir: str, filters=None) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = Path(output_dir) / f"owner-fund-kata_{timestamp}.pdf"
@@ -1604,7 +1738,7 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
     title = invoice.get("document_type") or ("Tax Invoice" if (invoice.get("invoice_kind") or "Sales") == "Sales" else "Supplier Bill")
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_header(pdf, assets_dir)
+    _draw_header(pdf, assets_dir, company_profile)
     _draw_title(pdf, title, "Commercial invoice with seller, bill-to, line items and VAT")
 
     seller_x = 16 * mm
@@ -1721,13 +1855,51 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
     return str(output_path)
 
 
-def _draw_header(pdf: canvas.Canvas, assets_dir: str) -> None:
-    premium_banner = Path(assets_dir) / "current-link-header-premium.png"
-    banner = premium_banner if premium_banner.exists() else Path(assets_dir) / "current-link-header.png"
+def _draw_header(pdf: canvas.Canvas, assets_dir: str, company_profile: dict | None = None) -> None:
     header_x = 15 * mm
     header_y = PAGE_HEIGHT - 45 * mm
     header_w = 180 * mm
     header_h = 39 * mm
+
+    logo_data = (company_profile or {}).get("logo_data")
+    logo_type = (company_profile or {}).get("logo_type")
+
+    if logo_data and logo_type:
+        try:
+            logo_binary = base64.b64decode(logo_data)
+            logo_buf = BytesIO(logo_binary)
+            logo_img = ImageReader(logo_buf)
+            target_h = 34 * mm
+            target_w = 34 * mm
+            pdf.setFillColor(colors.white)
+            pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
+            pdf.drawImage(
+                logo_img,
+                header_x + 3 * mm,
+                header_y + (header_h - target_h) / 2,
+                width=target_w,
+                height=target_h,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+            company = company_profile or {}
+            pdf.setFillColor(BLUE_DARK)
+            pdf.setFont("Helvetica-Bold", 11)
+            pdf.drawString(header_x + 42 * mm, header_y + 22 * mm, (company.get("company_name") or "Company Name")[:40])
+            pdf.setFillColor(MUTED)
+            pdf.setFont("Helvetica", 6.8)
+            c_addr = (company.get("address") or "")[:60]
+            c_info = f"TRN: {company.get('trn_no') or '-'}"
+            pdf.drawString(header_x + 42 * mm, header_y + 15 * mm, c_addr)
+            pdf.drawString(header_x + 42 * mm, header_y + 10 * mm, c_info)
+            pdf.setFillColor(BLUE)
+            pdf.rect(15 * mm, PAGE_HEIGHT - 46 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
+            return
+        except Exception:
+            pass
+
+    premium_banner = Path(assets_dir) / "current-link-header-premium.png"
+    banner = premium_banner if premium_banner.exists() else Path(assets_dir) / "current-link-header.png"
 
     pdf.setFillColor(colors.white)
     pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
@@ -2097,7 +2269,7 @@ def _draw_driver_photo(pdf: canvas.Canvas, driver, generated_dir: str, x: float,
         except Exception:
             pass
 
-    photo_name = driver["photo_name"] or ""
+    photo_name = driver.get("photo_name", "") or ""
     if not photo_name:
         return False
 

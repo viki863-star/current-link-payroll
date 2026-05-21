@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Record Payment{% endblock %}
+{% block page_title %}Payment — {{ c.customer_name }}{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:520px;margin:0 auto">
+    <div class="profile-card">
+        <div style="margin-bottom:16px">
+            <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='payments') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        </div>
+        <h3 style="margin:0 0 4px;font-size:1.1rem">Record Payment Received</h3>
+        <p style="color:var(--muted);font-size:0.82rem;margin:0 0 16px">
+            Customer: <strong>{{ c.customer_name }}</strong>
+            &middot; Balance: <strong style="color:#c62828">AED {{ "%.0f"|format(invoices|sum(attribute='total_amount') - 0) }}</strong>
+        </p>
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;gap:14px">
+                <div class="form-row">
+                    <label class="form-label">Payment Date</label>
+                    <input type="date" name="payment_date" class="form-control" value="{{ today }}">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Amount (AED) *</label>
+                    <input type="number" name="amount" class="form-control" required step="0.01" min="0.01" placeholder="e.g. 10000" id="amountInput">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="form-row">
+                        <label class="form-label">Payment Method</label>
+                        <select name="payment_method" class="form-control">
+                            {% for m in ['Cash','Bank Transfer','Cheque','Card','Other'] %}
+                            <option value="{{ m }}">{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Reference No.</label>
+                        <input type="text" name="reference_no" class="form-control" placeholder="Chq # / TXN ID">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Allocate to Invoice</label>
+                    <select name="invoice_id" class="form-control">
+                        <option value="">— General (unallocated) —</option>
+                        {% for inv in invoices %}
+                        <option value="{{ inv.id }}">{{ inv.invoice_no }} &mdash; AED {{ "%.0f"|format(inv.total_amount) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2" placeholder="Any remarks about this payment"></textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Payment</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Field Staff — Fleet{% endblock %}
+{% block body_class %}list-body{% endblock %}
+{% block page_title %}Field Staff{% endblock %}
+
+{% block content %}
+<div class="list-shell">
+    <div class="filter-bar">
+        <div class="filter-bar-top">
+            <div class="filter-bar-title">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg>
+                Field Staff
+            </div>
+            <a href="{{ url_for('fleet.fleet_staff_add') }}" class="btn btn-primary">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+                Add Staff
+            </a>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead>
+                <tr>
+                    <th>Staff ID</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Username</th>
+                    <th>Status</th>
+                    <th class="th-actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in staff_list %}
+                <tr>
+                    <td class="mono">{{ s.staff_id }}</td>
+                    <td><strong>{{ s.full_name }}</strong></td>
+                    <td>{{ s.phone or '-' }}</td>
+                    <td class="mono">{{ s.username }}</td>
+                    <td><span class="status-badge {{ 'active' if s.is_active else 'inactive' }}">{{ 'Active' if s.is_active else 'Inactive' }}</span></td>
+                    <td class="action-cell">
+                        <a href="{{ url_for('fleet.fleet_staff_edit', staff_id=s.staff_id) }}" class="btn btn-xs btn-outline">Edit</a>
+                        <a href="{{ url_for('fleet.fleet_staff_receipts', staff_id=s.staff_id) }}" class="btn btn-xs btn-primary">Cash</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="empty-state">No field staff yet. <a href="{{ url_for('fleet.fleet_staff_add') }}">Add your first staff member</a>.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

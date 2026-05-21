@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+<style>
+.stng-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:24px; margin-bottom:16px; }
+.stng-card h3 { margin:0 0 4px; font-size:1rem; font-weight:700; }
+.stng-card .desc { font-size:0.78rem; color:var(--muted); margin-bottom:16px; }
+.form-2col { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.form-2col .full { grid-column:1/-1; }
+.logo-preview { width:120px; height:120px; border-radius:12px; border:2px dashed var(--line); display:flex; align-items:center; justify-content:center; overflow:hidden; background:#f8fafc; margin-bottom:12px; }
+.logo-preview img { max-width:100%; max-height:100%; object-fit:contain; }
+.logo-preview .placeholder { font-size:0.72rem; color:var(--muted); text-align:center; padding:8px; }
+.theme-presets { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.theme-swatch { width:44px; height:44px; border-radius:10px; cursor:pointer; border:3px solid transparent; transition:all 0.15s; }
+.theme-swatch:hover { transform:scale(1.1); }
+.theme-swatch.active { border-color:var(--text); }
+</style>
+
+{# ─── Company Details ─── #}
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="action" value="save_company">
+<div class="stng-card">
+    <h3>Company Details</h3>
+    <p class="desc">Ye info invoice aur reports mein use hogi</p>
+    <div class="form-2col">
+        <div class="full form-row">
+            <label class="form-label">Company Name *</label>
+            <input type="text" name="company_name" class="form-control" value="{{ company.company_name or '' }}" required placeholder="Al Saqr Transport">
+        </div>
+        <div class="form-row">
+            <label class="form-label">Legal Name</label>
+            <input type="text" name="legal_name" class="form-control" value="{{ company.legal_name or '' }}" placeholder="Legal entity name">
+        </div>
+        <div class="form-row">
+            <label class="form-label">Trade License No.</label>
+            <input type="text" name="trade_license_no" class="form-control" value="{{ company.trade_license_no or '' }}">
+        </div>
+        <div class="form-row">
+            <label class="form-label">Trade License Expiry</label>
+            <input type="date" name="trade_license_expiry" class="form-control" value="{{ company.trade_license_expiry or '' }}">
+        </div>
+        <div class="form-row">
+            <label class="form-label">TRN (VAT No.)</label>
+            <input type="text" name="trn_no" class="form-control" value="{{ company.trn_no or '' }}" placeholder="1000000000000">
+        </div>
+        <div class="form-row">
+            <label class="form-label">VAT Status</label>
+            <select name="vat_status" class="form-control">
+                {% for v in ['Registered','Not Registered','Exempt'] %}
+                <option value="{{ v }}" {% if (company.vat_status or 'Registered') == v %}selected{% endif %}>{{ v }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-row">
+            <label class="form-label">Phone</label>
+            <input type="text" name="phone_number" class="form-control" value="{{ company.phone_number or '' }}" placeholder="+971 4 123 4567">
+        </div>
+        <div class="form-row">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" value="{{ company.email or '' }}" placeholder="info@example.ae">
+        </div>
+        <div class="full form-row">
+            <label class="form-label">Address</label>
+            <textarea name="address" class="form-control" rows="2" placeholder="P.O. Box XXXXX, Dubai, UAE">{{ company.address or '' }}</textarea>
+        </div>
+        <div class="full form-row">
+            <label class="form-label">Invoice Terms</label>
+            <input type="text" name="invoice_terms" class="form-control" value="{{ company.invoice_terms or '' }}" placeholder="e.g. Payment due within 30 days">
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:12px">Save Company Details</button>
+</div>
+</form>
+
+{# ─── Logo ─── #}
+<form method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="action" value="save_logo">
+<div class="stng-card">
+    <h3>Company Logo</h3>
+    <p class="desc">Yeh logo invoice header mein show hoga. Recommended: PNG with transparent background.</p>
+    <div class="logo-preview">
+        {% if company and company.logo_data %}
+        <img src="data:{{ company.logo_type }};base64,{{ company.logo_data }}" alt="Logo">
+        {% else %}
+        <div class="placeholder">No logo<br>Upload karein</div>
+        {% endif %}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="file" name="logo_file" accept="image/png,image/jpeg,image/webp" style="font-size:0.85rem;padding:6px 0;flex:1;min-width:160px">
+        <button type="submit" class="btn btn-primary btn-sm">Upload</button>
+        {% if company and company.logo_data %}
+        <button type="submit" name="action" value="remove_logo" class="btn btn-outline btn-sm" style="color:#c62828" onclick="return confirm('Remove logo?')">Remove</button>
+        {% endif %}
+    </div>
+</div>
+</form>
+
+{# ─── Theme ─── #}
+<form method="POST" id="themeForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="action" value="save_theme">
+<div class="stng-card">
+    <h3>Theme Color</h3>
+    <p class="desc">Apni company ka primary color choose karein. Yeh sidebar, buttons, aur invoices mein use hoga.</p>
+    <div class="theme-presets">
+        {% set colors = [
+            ('#0F2B52', 'Navy Blue'),
+            ('#1a3f6a', 'Dark Blue'),
+            ('#c62828', 'Red'),
+            ('#2e7d32', 'Green'),
+            ('#e65100', 'Orange'),
+            ('#6a1b9a', 'Purple'),
+            ('#00838f', 'Teal'),
+            ('#37474f', 'Dark Grey'),
+        ] %}
+        {% for code, name in colors %}
+        <div class="theme-swatch {% if (company.theme_color or '#0F2B52') == code %}active{% endif %}"
+             style="background:{{ code }}"
+             onclick="selectTheme('{{ code }}', this)"
+             title="{{ name }}"></div>
+        {% endfor %}
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:0.82rem;color:var(--muted)">Custom:</label>
+        <input type="color" name="theme_color" id="themeColorPicker" value="{{ company.theme_color or '#0F2B52' }}" style="width:50px;height:40px;border:none;padding:0;cursor:pointer" oninput="updatePreview(this.value)">
+        <span id="themeCode" style="font-family:monospace;font-size:0.82rem">{{ company.theme_color or '#0F2B52' }}</span>
+        <button type="submit" class="btn btn-primary btn-sm" style="margin-left:8px">Apply Theme</button>
+    </div>
+</div>
+</form>
+
+{# ─── Invoice Preview ─── #}
+<div class="stng-card" style="background:#f8fafc">
+    <h3>Invoice Preview</h3>
+    <p class="desc">Aap ki settings k according invoice kaisa dikhe ga</p>
+    <div id="invoicePreview" style="border:2px solid var(--line);border-radius:10px;padding:20px;background:#fff;max-width:600px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid {{ company.theme_color or '#0F2B52' }};padding-bottom:12px;margin-bottom:12px;gap:12px">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+                {% if company and company.logo_data %}
+                <div style="width:60px;height:60px;flex-shrink:0;border-radius:6px;border:1px solid #eee;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff">
+                    <img src="data:{{ company.logo_type }};base64,{{ company.logo_data }}" style="width:100%;height:100%;object-fit:contain">
+                </div>
+                {% endif %}
+                <div>
+                    <div style="font-size:1.1rem;font-weight:800;color:{{ company.theme_color or '#0F2B52' }}" class="preview-company-name">{{ company.company_name or 'Your Company' }}</div>
+                    <div style="font-size:0.65rem;color:#999;margin-top:2px">{{ company.address or 'Address here' }}</div>
+                    <div style="font-size:0.65rem;color:#999">TRN: {{ company.trn_no or 'XXXXXXXXXX' }}</div>
+                </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+                <div style="font-size:1.2rem;font-weight:800;color:{{ company.theme_color or '#0F2B52' }}" class="preview-title">TAX INVOICE</div>
+                <div style="font-size:0.7rem;color:#999"># INV-0001 &middot; 19-May-2026</div>
+            </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px;font-size:0.75rem">
+            <div><strong>Bill To:</strong> Customer Name Here</div>
+            <div><strong>Total:</strong> <span style="font-weight:700;color:{{ company.theme_color or '#0F2B52' }}" class="preview-total">AED 10,500.00</span></div>
+        </div>
+        <div style="text-align:center;font-size:0.65rem;color:#bbb;border-top:1px solid #eee;padding-top:8px">
+            This is how your invoice will appear with current settings.
+        </div>
+    </div>
+</div>
+
+</div>
+
+<script>
+function selectTheme(color, el) {
+    document.querySelectorAll('.theme-swatch').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('themeColorPicker').value = color;
+    document.getElementById('themeCode').textContent = color;
+    updatePreview(color);
+}
+function updatePreview(color) {
+    var box = document.getElementById('invoicePreview');
+    if (box) {
+        box.querySelectorAll('[style*="border-bottom"]').forEach(el => el.style.borderBottomColor = color);
+        box.querySelectorAll('.preview-company-name, .preview-title, .preview-total').forEach(el => el.style.color = color);
+    }
+    document.getElementById('themeCode').textContent = color;
+}
+</script>
+{% endblock %}

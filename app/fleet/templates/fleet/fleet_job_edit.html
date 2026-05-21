@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Edit Job #{{ job.id }} — Fleet{% endblock %}
+{% block body_class %}form-body{% endblock %}
+{% block page_title %}Edit Job #{{ job.id }}{% endblock %}
+
+{% block content %}
+<div class="form-shell" style="max-width:640px">
+    <div class="profile-card">
+        <div style="margin-bottom:16px">
+            <a href="{{ url_for('fleet.fleet_approvals') }}" class="btn btn-xs btn-outline">&larr; Back to Approvals</a>
+        </div>
+        <h3>Edit Maintenance Job</h3>
+        <p style="color:var(--muted);font-size:0.85rem">Staff: <strong>{{ job.staff_name }}</strong> &middot; Submitted: {{ job.created_at[:10] }} &middot; Status: <span class="badge badge-dept">{{ job.status }}</span></p>
+
+        <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-row">
+                <label class="form-label">Vehicle</label>
+                <select name="vehicle_id" class="form-control">
+                    <option value="">General Expense (no vehicle)</option>
+                    {% for v in vehicles %}
+                    <option value="{{ v.plate_no }}" {% if v.plate_no == job.vehicle_id %}selected{% endif %}>{{ v.plate_no }} — {{ v.vehicle_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label class="form-label">Amount (AED)</label>
+                <input type="number" name="amount" class="form-control" step="0.01" min="0" value="{{ '%.0f'|format(job.amount) }}" required>
+            </div>
+
+            <div class="form-row">
+                <label class="form-label">Category</label>
+                <input type="text" name="category" class="form-control" value="{{ job.category }}" required>
+            </div>
+
+            <div class="form-row">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="3">{{ job.description or '' }}</textarea>
+            </div>
+
+            <div class="form-row">
+                <label class="form-label">Attachment</label>
+                {% if job.attachment_name %}
+                <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px">Current: {{ job.attachment_name }}</div>
+                {% endif %}
+                <input type="file" name="attachment" class="form-control" accept="image/*,.pdf">
+            </div>
+
+            <button type="submit" class="btn btn-primary">Update Job</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

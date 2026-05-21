@@ -1,221 +1,234 @@
 {% extends "base.html" %}
 {% block title %}Admin Dashboard — Current Link ERP{% endblock %}
 {% block body_class %}dashboard-body{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
 
 {% block content %}
 <div class="db-shell">
 
-    {# ── Dashboard Header ── #}
     <div class="db-header">
-        <div class="db-header-left">
-            <div class="db-title-row">
-                <div class="db-title-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22">
-                        <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
-                        <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="db-title">Admin Dashboard</h1>
-                    <p class="db-subtitle">Select a workspace to begin your session</p>
-                </div>
+        <h1>Admin Dashboard</h1>
+        <p>Welcome back, {{ current_user_name or "Admin" }}. Here's your overview.</p>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/>
+                </svg>
             </div>
+            <div class="kpi-title">Employees</div>
+            <div class="kpi-number">{{ total_drivers or 0 }}</div>
+            <a class="kpi-action" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">View all &rarr;</a>
         </div>
-        <div class="db-header-badges">
-            <div class="db-kpi-pill">
-                <span class="db-kpi-dot db-kpi-green"></span>
-                <span>6 Workspaces Active</span>
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                    <path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
+                </svg>
             </div>
-            <div class="db-kpi-pill">
-                <span class="db-kpi-dot db-kpi-orange"></span>
-                <span>ERP Live</span>
+            <div class="kpi-title">Drivers</div>
+            <div class="kpi-number">{{ active_drivers or 0 }}</div>
+            <a class="kpi-action" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">Active &rarr;</a>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                    <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
             </div>
+            <div class="kpi-title">Payroll Pending</div>
+            <div class="kpi-number">{{ total_payroll or 0 }}</div>
+            <a class="kpi-action" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">Process &rarr;</a>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                </svg>
+            </div>
+            <div class="kpi-title">Advances</div>
+            <div class="kpi-number">0</div>
+            <a class="kpi-action" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">Manage &rarr;</a>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+                </svg>
+            </div>
+            <div class="kpi-title">Loans</div>
+            <div class="kpi-number">0</div>
+            <a class="kpi-action" href="{{ url_for('switch_workspace', workspace_key='accounts') }}">View &rarr;</a>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                    <path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
+                </svg>
+            </div>
+            <div class="kpi-title">Fleet</div>
+            <div class="kpi-number">{{ vehicle_chart|length if vehicle_chart else 0 }}</div>
+            <a class="kpi-action" href="{{ url_for('fleet_maintenance') }}">Manage &rarr;</a>
         </div>
     </div>
 
-    {# ── Workspace Cards Grid ── #}
-    <div class="db-grid">
-
-        {# ── Driver Desk ── #}
-        <a class="wc wc-driver" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">
-            <div class="wc-shimmer"></div>
-            <div class="wc-bg-icon">🚛</div>
-            <div class="wc-top">
-                <div class="wc-icon-badge wc-badge-driver">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                        <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
-                        <circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>
-                        <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                    </svg>
-                </div>
-                <div class="wc-meta">
-                    <span class="wc-tag">Workspace</span>
-                    <span class="wc-category">Drivers</span>
-                </div>
-            </div>
-            <div class="wc-body">
-                <h2 class="wc-title">Driver Desk</h2>
-                <p class="wc-desc">Payroll management, trip records, advances & driver control panel.</p>
-            </div>
-            <div class="wc-footer">
-                <div class="wc-quick-stats">
-                    <span class="wc-stat wc-stat-driver">Payroll</span>
-                    <span class="wc-stat wc-stat-driver">Trips</span>
-                    <span class="wc-stat wc-stat-driver">Advances</span>
-                </div>
-                <div class="wc-cta">
-                    <span class="wc-cta-text">Open</span>
-                    <span class="wc-cta-arrow">
-                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
-                    </span>
-                </div>
-            </div>
+    <div class="quick-access">
+        <a class="quick-card" href="{{ url_for('hr.employee_new') if is_admin else '#' }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
+            </svg>
+            <span>Add Employee</span>
         </a>
-
-        {# ── Supplier Desk ── #}
-        <a class="wc wc-supplier" href="{{ url_for('supplier_desk_home') }}">
-            <div class="wc-shimmer"></div>
-            <div class="wc-bg-icon">🏢</div>
-            <div class="wc-top">
-                <div class="wc-icon-badge wc-badge-supplier">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                        <rect x="2" y="7" width="20" height="14" rx="2"/>
-                        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
-                        <line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
-                    </svg>
-                </div>
-                <div class="wc-meta">
-                    <span class="wc-tag">Workspace</span>
-                    <span class="wc-category">Suppliers</span>
-                </div>
-            </div>
-            <div class="wc-body">
-                <h2 class="wc-title">Supplier Desk</h2>
-                <p class="wc-desc">All supplier types: Online, Cash, Managed & Partnership accounts with unified ledger and editable transactions.</p>
-            </div>
-            <div class="wc-footer">
-                <div class="wc-quick-stats">
-                    <span class="wc-stat wc-stat-supplier">Online</span>
-                    <span class="wc-stat wc-stat-supplier">Cash</span>
-                    <span class="wc-stat wc-stat-supplier">Managed</span>
-                    <span class="wc-stat wc-stat-supplier">Partner</span>
-                </div>
-                <div class="wc-cta">
-                    <span class="wc-cta-text">Open Supplier Desk</span>
-                    <span class="wc-cta-arrow">
-                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
-                    </span>
-                </div>
-            </div>
+        <a class="quick-card" href="{{ url_for('switch_workspace', workspace_key='drivers') }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+            <span>Process Payroll</span>
         </a>
-
-        {# ── Customer Desk ── #}
-        <a class="wc wc-customer" href="{{ url_for('switch_workspace', workspace_key='customers') }}">
-            <div class="wc-shimmer"></div>
-            <div class="wc-bg-icon">🎯</div>
-            <div class="wc-top">
-                <div class="wc-icon-badge wc-badge-customer">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                        <path d="M20 12V22H4V12"/>
-                        <path d="M22 7H2v5h20V7z"/>
-                        <path d="M12 22V7"/>
-                        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
-                        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
-                    </svg>
-                </div>
-                <div class="wc-meta">
-                    <span class="wc-tag">Workspace</span>
-                    <span class="wc-category">Customers</span>
-                </div>
-            </div>
-            <div class="wc-body">
-                <h2 class="wc-title">Customer Desk</h2>
-                <p class="wc-desc">Customer invoices, statements, receivables & contract management.</p>
-            </div>
-            <div class="wc-footer">
-                <div class="wc-quick-stats">
-                    <span class="wc-stat wc-stat-customer">Invoices</span>
-                    <span class="wc-stat wc-stat-customer">Statements</span>
-                    <span class="wc-stat wc-stat-customer">Contracts</span>
-                </div>
-                <div class="wc-cta">
-                    <span class="wc-cta-text">Open</span>
-                    <span class="wc-cta-arrow">
-                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
-                    </span>
-                </div>
-            </div>
+        <a class="quick-card" href="{{ url_for('fleet_maintenance') }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+                <path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/>
+            </svg>
+            <span>Add Vehicle</span>
         </a>
-
-        {# ── Accounts Desk ── #}
-        <a class="wc wc-accounts" href="{{ url_for('switch_workspace', workspace_key='accounts') }}">
-            <div class="wc-shimmer"></div>
-            <div class="wc-bg-icon">💰</div>
-            <div class="wc-top">
-                <div class="wc-icon-badge wc-badge-accounts">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                        <line x1="12" y1="1" x2="12" y2="23"/>
-                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                    </svg>
-                </div>
-                <div class="wc-meta">
-                    <span class="wc-tag">Workspace</span>
-                    <span class="wc-category">Accounts</span>
-                </div>
-            </div>
-            <div class="wc-body">
-                <h2 class="wc-title">Accounts Desk</h2>
-                <p class="wc-desc">Fund management, tax records, financial reports & full audit trails.</p>
-            </div>
-            <div class="wc-footer">
-                <div class="wc-quick-stats">
-                    <span class="wc-stat wc-stat-accounts">Funds</span>
-                    <span class="wc-stat wc-stat-accounts">Tax</span>
-                    <span class="wc-stat wc-stat-accounts">Reports</span>
-                </div>
-                <div class="wc-cta">
-                    <span class="wc-cta-text">Open</span>
-                    <span class="wc-cta-arrow">
-                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
-                    </span>
-                </div>
-            </div>
+        <a class="quick-card" href="{{ url_for('suppliers') }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+                <rect x="2" y="7" width="16" height="12" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
+            </svg>
+            <span>Add Supplier</span>
         </a>
-
-        {# ── Field Staff Desk ── #}
-        <a class="wc wc-technician" href="{{ url_for('switch_workspace', workspace_key='technicians') }}">
-            <div class="wc-shimmer"></div>
-            <div class="wc-bg-icon">🔧</div>
-            <div class="wc-top">
-                <div class="wc-icon-badge wc-badge-technician">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
-                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-                    </svg>
-                </div>
-                <div class="wc-meta">
-                    <span class="wc-tag">Workspace</span>
-                    <span class="wc-category">Field Staff</span>
-                </div>
-            </div>
-            <div class="wc-body">
-                <h2 class="wc-title">Field Staff Desk</h2>
-                <p class="wc-desc">Manage staff logins, issue owner cash, and track workshop, fuel, and general expense entries.</p>
-            </div>
-            <div class="wc-footer">
-                <div class="wc-quick-stats">
-                    <span class="wc-stat wc-stat-technician">Staff</span>
-                    <span class="wc-stat wc-stat-technician">Payments</span>
-                    <span class="wc-stat wc-stat-technician">Portal</span>
-                </div>
-                <div class="wc-cta">
-                    <span class="wc-cta-text">Open</span>
-                    <span class="wc-cta-arrow">
-                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
-                    </span>
-                </div>
-            </div>
+        <a class="quick-card" href="{{ url_for('reports_center') }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+                <path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/>
+            </svg>
+            <span>View Reports</span>
         </a>
+        <a class="quick-card" href="{{ url_for('fleet.staff_login') }}" style="border-color:var(--orange);background:#fff8f0">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="10 17 10 10 17 10"/><line x1="10" y1="10" x2="21" y2="21"/>
+            </svg>
+            <span>Staff Login Portal</span>
+        </a>
+    </div>
 
+    <div class="panels-grid">
+        <div class="panel-card">
+            <div class="panel-card-header">
+                <h3>
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+                        <path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/>
+                    </svg>
+                    Recent Activity
+                </h3>
+                <a href="#">View all</a>
+            </div>
+            <div class="panel-card-body">
+                <div class="activity-row">
+                    <span class="activity-dot green"></span>
+                    <div class="activity-text">
+                        <strong>Payroll Processed</strong>
+                        <p>{{ current_month_label }} payroll for {{ active_drivers }} drivers</p>
+                    </div>
+                    <span class="activity-time">Today</span>
+                </div>
+                <div class="activity-row">
+                    <span class="activity-dot orange"></span>
+                    <div class="activity-text">
+                        <strong>New Driver Added</strong>
+                        <p>Driver records updated in the system</p>
+                    </div>
+                    <span class="activity-time">Today</span>
+                </div>
+                <div class="activity-row">
+                    <span class="activity-dot blue"></span>
+                    <div class="activity-text">
+                        <strong>Supplier Updated</strong>
+                        <p>Supplier desk activity recorded</p>
+                    </div>
+                    <span class="activity-time">Yesterday</span>
+                </div>
+                <div class="activity-row">
+                    <span class="activity-dot purple"></span>
+                    <div class="activity-text">
+                        <strong>Invoice Generated</strong>
+                        <p>New customer invoice created</p>
+                    </div>
+                    <span class="activity-time">2 days ago</span>
+                </div>
+                <div class="activity-row">
+                    <span class="activity-dot orange"></span>
+                    <div class="activity-text">
+                        <strong>Backup Completed</strong>
+                        <p>System backup successfully created</p>
+                    </div>
+                    <span class="activity-time">3 days ago</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-card">
+            <div class="panel-card-header">
+                <h3>
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+                        <path d="M10 2a6 6 0 0 0-6 6c0 4-2 5-2 5h16s-2-1-2-5a6 6 0 0 0-6-6z"/><path d="M8 17a2 2 0 0 0 4 0"/>
+                    </svg>
+                    Important Alerts
+                </h3>
+                <a href="#">View all</a>
+            </div>
+            <div class="panel-card-body">
+                <div class="alert-row">
+                    <div class="alert-icon warning">
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                            <path d="M10 1L1 18h18L10 1z"/><line x1="10" y1="7" x2="10" y2="13"/><circle cx="10" cy="16" r="0.5" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <div class="alert-text">
+                        <strong>Payroll Approval Pending</strong>
+                        <p>{{ stored_this_month or 0 }} driver salaries need review</p>
+                        <span class="alert-badge high">HIGH</span>
+                    </div>
+                </div>
+                <div class="alert-row">
+                    <div class="alert-icon danger">
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                            <circle cx="10" cy="10" r="9"/><line x1="10" y1="6" x2="10" y2="12"/><circle cx="10" cy="14" r="0.5" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <div class="alert-text">
+                        <strong>Owner Fund Balance Low</strong>
+                        <p>Current balance: {{ owner_fund_balance or 0 }}</p>
+                        <span class="alert-badge high">HIGH</span>
+                    </div>
+                </div>
+                <div class="alert-row">
+                    <div class="alert-icon success">
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                            <circle cx="10" cy="10" r="9"/><path d="M7 10l2 2 4-4"/>
+                        </svg>
+                    </div>
+                    <div class="alert-text">
+                        <strong>All Systems Operational</strong>
+                        <p>ERP running normally</p>
+                        <span class="alert-badge low">LOW</span>
+                    </div>
+                </div>
+                <div class="alert-row">
+                    <div class="alert-icon warning">
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                            <path d="M10 1L1 18h18L10 1z"/><line x1="10" y1="7" x2="10" y2="13"/><circle cx="10" cy="16" r="0.5" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <div class="alert-text">
+                        <strong>Supplier Invoices Due</strong>
+                        <p>Outstanding invoices need attention</p>
+                        <span class="alert-badge medium">MEDIUM</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
 </div>

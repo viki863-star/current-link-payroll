@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} — Current Link ERP{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:700px">
+    <div class="profile-header" style="margin-bottom:24px">
+        <div class="profile-info">
+            <h1 style="margin:0">{{ page_title }}</h1>
+        </div>
+        <div class="profile-actions">
+            <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline btn-sm">&#8592; Back</a>
+        </div>
+    </div>
+
+    <div class="profile-card">
+        <form method="POST" class="smart-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Plate Number *</label>
+                    <input type="text" name="plate_no" value="{{ v.plate_no or '' }}" class="form-control" maxlength="20" {% if v.plate_no %}readonly style="background:#f5f7fa"{% endif %} placeholder="e.g. 71725">
+                </div>
+                <div class="form-group">
+                    <label>Vehicle Type *</label>
+                    <select name="vehicle_type" class="form-control">
+                        <option value="">Select type</option>
+                        {% for t in vehicle_types %}
+                        <option value="{{ t }}" {% if (v.vehicle_type or '') == t %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Model</label>
+                    <input type="text" name="model" value="{{ v.model or '' }}" class="form-control" placeholder="e.g. Volvo FH">
+                </div>
+                <div class="form-group">
+                    <label>Year</label>
+                    <input type="number" name="year" value="{{ v.year or '' }}" class="form-control" min="1990" max="2030">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Ownership Type</label>
+                    <select name="ownership_type" class="form-control" id="ownershipType" onchange="togglePartner(this.value)">
+                        {% for o in ownership_types %}
+                        <option value="{{ o }}" {% if (v.ownership_type or 'Standard') == o %}selected{% endif %}>{{ o }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" id="partnerNameGroup" style="{% if (v.ownership_type or 'Standard') != 'Partnership' %}display:none{% endif %}">
+                    <label>Partner Name</label>
+                    <input type="text" name="partner_name" value="{{ v.partner_name or '' }}" class="form-control">
+                </div>
+                <div class="form-group" id="partnerPercentGroup" style="{% if (v.ownership_type or 'Standard') != 'Partnership' %}display:none{% endif %}">
+                    <label>Partner %</label>
+                    <input type="number" name="partner_percent" value="{{ v.partner_percent or '' }}" class="form-control" min="1" max="100" step="0.1">
+                </div>
+            </div>
+            {% if not v.plate_no %}
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label>Assign Driver (optional)</label>
+                    <select name="driver_id" class="form-control">
+                        <option value="">— No driver —</option>
+                        {% for d in drivers %}
+                        <option value="{{ d.employee_id }}">{{ d.full_name }} ({{ d.employee_id }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            {% endif %}
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label>Notes</label>
+                    <textarea name="notes" class="form-control" rows="2">{{ v.notes or '' }}</textarea>
+                </div>
+            </div>
+            {% if v.plate_no %}
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Status</label>
+                    <select name="status" class="form-control">
+                        <option value="Active" {% if (v.status or '') == 'Active' %}selected{% endif %}>Active</option>
+                        <option value="Inactive" {% if (v.status or '') == 'Inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+            </div>
+            {% endif %}
+            <div style="margin-top:16px">
+                <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+                <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function togglePartner(val) {
+    document.getElementById('partnerNameGroup').style.display = val === 'Partnership' ? '' : 'none';
+    document.getElementById('partnerPercentGroup').style.display = val === 'Partnership' ? '' : 'none';
+}
+</script>
+{% endblock %}

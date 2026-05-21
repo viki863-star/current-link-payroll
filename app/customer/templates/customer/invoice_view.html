@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Invoice {{ inv.invoice_no }}{% endblock %}
+{% block page_title %}Invoice{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:800px;margin:0 auto">
+<style>
+.inv-box { background:#fff; border:2px solid var(--line); border-radius:14px; padding:30px 32px; }
+.inv-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid var(--primary); padding-bottom:16px; margin-bottom:20px; }
+.inv-company h2 { margin:0; font-size:1.3rem; font-weight:800; color:var(--primary); }
+.inv-company .detail { font-size:0.75rem; color:var(--muted); margin-top:2px; }
+.inv-title { text-align:right; }
+.inv-title h1 { margin:0; font-size:1.5rem; font-weight:800; color:var(--primary); letter-spacing:1px; }
+.inv-title .meta { font-size:0.8rem; color:var(--muted); margin-top:2px; }
+.inv-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+.inv-info-card { background:#f8fafc; border-radius:10px; padding:14px 16px; border:1px solid #eef2f6; }
+.inv-info-card h4 { margin:0 0 6px; font-size:0.7rem; text-transform:uppercase; color:var(--muted); letter-spacing:0.5px; }
+.inv-info-card .row { display:flex; justify-content:space-between; font-size:0.82rem; padding:2px 0; }
+@media (max-width:600px) {
+    .inv-box { padding:16px; }
+    .inv-header { flex-direction:column; gap:12px; }
+    .inv-title { text-align:left; width:100%; }
+    .inv-info-grid { grid-template-columns:1fr; }
+    .inv-company { flex-wrap:wrap; }
+}
+@media print {
+    .btn,.btn-primary,.btn-outline { display:none !important; }
+    .inv-box { border:none; padding:0; }
+}
+</style>
+
+<div class="inv-box" style="{% if company and company.theme_color %}--primary:{{ company.theme_color }}{% endif %}">
+    {# ─── HEADER ─── #}
+    <div class="inv-header">
+        <div class="inv-company" style="display:flex;gap:16px;align-items:flex-start">
+            {% if company and company.logo_data %}
+            <div style="width:120px;height:120px;flex-shrink:0;border-radius:10px;border:1px solid #eef2f6;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff">
+                <img src="data:{{ company.logo_type }};base64,{{ company.logo_data }}" style="width:100%;height:100%;object-fit:contain">
+            </div>
+            {% endif %}
+            <div style="padding-top:{% if company and company.logo_data %}4px{% else %}0{% endif %}">
+                <h2 style="font-size:1.4rem;font-weight:800">{{ company.company_name if company else "AL SAQR TRANSPORT" }}</h2>
+                <div class="detail" style="font-size:0.78rem;margin-top:4px">{{ company.address if company else "Dubai, UAE" }}</div>
+                <div class="detail" style="font-size:0.78rem">Phone: {{ company.phone_number or "+971" if company else "+971" }} &middot; Email: {{ company.email if company else "info@example.ae" }}</div>
+                <div class="detail" style="font-weight:700;margin-top:6px;font-size:0.82rem;color:var(--primary)">TRN: {{ company.trn_no if company else "XXXXXXXXXX" }}</div>
+            </div>
+        </div>
+        <div class="inv-title" style="min-width:200px">
+            <h1 style="font-size:1.6rem">TAX INVOICE</h1>
+            <div class="meta" style="font-size:0.85rem;margin-top:4px"># {{ inv.invoice_no }} &middot; {{ inv.invoice_date }}</div>
+        </div>
+    </div>
+
+    {# ─── INFO ─── #}
+    <div class="inv-info-grid" style="gap:20px">
+        <div class="inv-info-card" style="background:var(--surface);border:1px solid var(--line);padding:16px 18px">
+            <h4 style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Bill To</h4>
+            <div style="font-weight:700;font-size:1rem;color:var(--text)">{{ c.customer_name }}</div>
+            {% if c.address %}<div style="font-size:0.82rem;color:var(--muted);margin-top:3px">{{ c.address }}</div>{% endif %}
+            {% if c.phone %}<div style="font-size:0.82rem;color:var(--muted)">{{ c.phone }}</div>{% endif %}
+            {% if c.trn %}<div style="font-size:0.8rem;margin-top:6px;padding-top:6px;border-top:1px solid #eef2f6">TRN: <span class="mono" style="font-weight:600">{{ c.trn }}</span></div>{% endif %}
+        </div>
+        <div class="inv-info-card" style="background:var(--surface);border:1px solid var(--line);padding:16px 18px">
+            <h4 style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Invoice Details</h4>
+            <div class="row" style="padding:3px 0"><span>Invoice #</span><span class="mono" style="font-weight:700;font-size:0.9rem">{{ inv.invoice_no }}</span></div>
+            <div class="row" style="padding:3px 0"><span>Date</span><span style="font-weight:600">{{ inv.invoice_date }}</span></div>
+            {% if inv.lpo_no %}<div class="row" style="padding:3px 0"><span>LPO No.</span><span class="mono" style="font-weight:600">{{ inv.lpo_no }}</span></div>{% endif %}
+            {% if inv.lpo_date %}<div class="row" style="padding:3px 0"><span>LPO Date</span><span style="font-weight:600">{{ inv.lpo_date }}</span></div>{% endif %}
+        </div>
+    </div>
+
+    {# ─── ITEMS TABLE ─── #}
+    <table class="smart-table" style="margin-bottom:16px">
+        <thead>
+            <tr style="background:var(--primary);color:#fff">
+                <th style="text-align:center;width:40px">#</th>
+                <th>Description</th>
+                <th style="text-align:center;width:70px">QTY</th>
+                <th style="text-align:right;width:100px">Rate (AED)</th>
+                <th style="text-align:right;width:110px">Amount (AED)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for it in items %}
+            <tr>
+                <td style="text-align:center;font-weight:600">{{ loop.index }}</td>
+                <td>{{ it.description or '—' }}</td>
+                <td style="text-align:center">{{ "%.2f"|format(it.quantity) }}</td>
+                <td style="text-align:right;font-family:mono">{{ "%.2f"|format(it.rate) }}</td>
+                <td style="text-align:right;font-weight:600;font-family:mono">{{ "%.2f"|format(it.amount) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# ─── TOTALS ─── #}
+    <div style="margin-left:auto;width:300px;border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin-bottom:16px;background:#f8fafc">
+        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
+            <span>Sub Total</span><span class="mono" style="font-weight:600">AED {{ "%.2f"|format(inv.amount) }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
+            <span>VAT @ {{ "%.0f"|format(inv.vat_percent) }}%</span><span class="mono" style="font-weight:600;color:#c62828">AED {{ "%.2f"|format(inv.vat_amount) }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:2px solid var(--primary);margin-top:4px;font-size:1.05rem">
+            <span style="font-weight:700">Total Due</span><span class="mono" style="font-weight:800;font-size:1.15rem;color:var(--primary)">AED {{ "%.2f"|format(inv.total_amount) }}</span>
+        </div>
+    </div>
+
+    {# ─── NOTES ─── #}
+    {% if inv.notes %}
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:16px;padding:12px;background:#f8fafc;border-radius:8px">
+        <strong>Notes:</strong> {{ inv.notes }}
+    </div>
+    {% endif %}
+
+    {# ─── ACTIONS ─── #}
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+        <a href="{{ url_for('customer.customer_invoice_edit', cid=c.id, iid=inv.id) }}" class="btn btn-outline">Edit</a>
+        <a href="{{ url_for('customer.customer_invoice_pdf', cid=c.id, iid=inv.id) }}" class="btn btn-primary" target="_blank">Download PDF</a>
+        <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='invoices') }}" class="btn btn-outline">&larr; Back</a>
+    </div>
+</div>
+</div>
+{% endblock %}

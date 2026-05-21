@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Staff Login{% endblock %}
+{% block body_class %}login-body{% endblock %}
+{% block page_title %}Staff Login{% endblock %}
+
+{% block content %}
+<style>
+.app-layout .erp-sidebar { display: none !important; }
+.app-layout .main-content { margin-left: 0 !important; width: 100% !important; }
+</style>
+<div class="staff-login-page">
+    <div class="staff-login-card">
+        <div class="staff-login-icon">
+            <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="28" height="28"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg>
+        </div>
+        <h2 class="staff-login-title">Field Staff Portal</h2>
+        <p class="staff-login-sub">Enter your credentials to continue</p>
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="staff-login-field">
+                <label>Username</label>
+                <input type="text" name="username" class="staff-login-input" placeholder="Enter username" required autofocus>
+            </div>
+            <div class="staff-login-field">
+                <label>Password</label>
+                <input type="password" name="password" class="staff-login-input" placeholder="Enter password" required>
+            </div>
+            <button type="submit" class="staff-login-btn">Login</button>
+        </form>
+        <div class="staff-login-footer">
+            <a href="{{ url_for('dashboard') }}">Back to Admin</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.staff-login-page { max-width: 380px; margin: 40px auto; padding: 0 16px; }
+.staff-login-card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 28px 24px; text-align: center; }
+.staff-login-icon { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg,var(--primary),#4a90d9); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+.staff-login-title { margin: 0; font-size: 1.2rem; font-weight: 700; }
+.staff-login-sub { margin: 4px 0 20px; font-size: 0.85rem; color: var(--muted); }
+.staff-login-field { text-align: left; margin-bottom: 14px; }
+.staff-login-field label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; }
+.staff-login-input { width: 100%; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 10px; font-size: 0.9rem; font-family: inherit; box-sizing: border-box; }
+.staff-login-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28,86,139,0.1); }
+.staff-login-btn { width: 100%; padding: 13px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 4px; }
+.staff-login-btn:hover { opacity: 0.85; }
+.staff-login-footer { margin-top: 18px; font-size: 0.8rem; }
+.staff-login-footer a { color: var(--primary); text-decoration: none; }
+</style>
+{% endblock %}

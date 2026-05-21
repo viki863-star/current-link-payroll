@@ -1,0 +1,623 @@
+{% extends "base.html" %}
+{% block title %}{{ employee.full_name }} — Employee Profile{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block page_title %}Employee Profile{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    {# ─── Profile Header ─── #}
+    <div class="profile-header">
+        <div class="profile-avatar">
+            {% if photo_url %}
+            <img src="{{ photo_url }}" alt="{{ employee.full_name }}" class="avatar-img">
+            {% else %}
+            <div class="avatar-placeholder">{{ employee.full_name[:2]|upper }}</div>
+            {% endif %}
+        </div>
+        <div class="profile-info">
+            <div class="profile-name-row">
+                <h1>{{ employee.full_name }}</h1>
+                {% set s = employee.status|lower %}
+                <span class="status-badge {% if s == 'active' %}active{% elif s == 'on leave' %}warning{% elif s == 'terminated' %}danger{% else %}inactive{% endif %}">{{ employee.status }}</span>
+            </div>
+            <p class="profile-badge">
+                <span class="badge badge-type">{{ employee.employee_type }}</span>
+                <span class="badge badge-dept">{{ employee.department }}</span>
+                <span class="badge badge-desig">{{ employee.designation }}</span>
+            </p>
+            <p class="profile-id mono">{{ employee.employee_id }} &middot; Joined {{ employee.join_date }}</p>
+            <div class="profile-mini-stats">
+                <span><strong>Salary:</strong> AED {{ "%.0f"|format(employee.basic_salary or 0) }}</span>
+                <span><strong>Phone:</strong> {{ employee.phone_number or '-' }}</span>
+            </div>
+        </div>
+        <div class="profile-actions">
+            <a href="{{ url_for('hr.employee_edit', employee_id=employee.employee_id) }}" class="btn btn-primary btn-sm">&#9998; Edit</a>
+            <a href="{{ url_for('hr.employee_list') }}" class="btn btn-outline btn-sm">&#8592; Back</a>
+        </div>
+    </div>
+
+    {# ─── Tab Navigation ─── #}
+    <div class="tab-bar">
+        <a class="tab-link {{ 'is-active' if active_tab == 'transactions' }}"
+           href="{{ url_for('hr.employee_transactions', employee_id=employee.employee_id) }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+            Transactions
+        </a>
+        <a class="tab-link {{ 'is-active' if active_tab == 'salary_store' }}"
+           href="{{ url_for('hr.employee_salary_store', employee_id=employee.employee_id) }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
+            Store Salary
+        </a>
+        <a class="tab-link {{ 'is-active' if active_tab == 'salary_slip' }}"
+           href="{{ url_for('hr.employee_salary_slip', employee_id=employee.employee_id) }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+            Run Salary
+        </a>
+        <a class="tab-link {{ 'is-active' if active_tab == 'kata' }}"
+           href="{{ url_for('hr.employee_kata', employee_id=employee.employee_id) }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="3" width="16" height="14" rx="2"/><line x1="2" y1="7" x2="18" y2="7"/><line x1="7" y1="11" x2="13" y2="11"/></svg>
+            Kata
+        </a>
+    </div>
+
+    {# ─── Tab Content ─── #}
+    <div class="tab-content">
+
+        {# ════════════════════════════════════════════ #}
+        {# TAB 1: TRANSACTIONS                         #}
+        {# ════════════════════════════════════════════ #}
+        {% if active_tab == 'transactions' %}
+        <div class="tab-pane">
+            <div class="panel-row">
+                {# ── Transaction Form ── #}
+                <div class="panel-half">
+                    <div class="profile-card">
+                        <h3>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                            New Transaction
+                        </h3>
+                        <form method="POST" class="smart-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="form-group">
+                                <label>Type</label>
+                                <select name="txn_type" class="form-control">
+                                    <option value="Advance">Advance</option>
+                                    <option value="Loan">Loan</option>
+                                    <option value="Payment">Payment</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Amount (AED) *</label>
+                                <input type="number" name="amount" value="{{ txn_form.amount or '' }}" class="form-control" required step="0.01" min="0.01" placeholder="0.00">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Date</label>
+                                    <input type="date" name="entry_date" value="{{ txn_form.entry_date or '' }}" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Month</label>
+                                    <select name="salary_month" class="form-control">
+                                        {% for m in range(1, 13) %}
+                                        {% set ym = "%04d-%02d"|format(date.today().year, m) %}
+                                        <option value="{{ ym }}" {% if ym == (txn_form.salary_month or '') %}selected{% endif %}>{{ ym }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Source</label>
+                                <select name="source" class="form-control">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank">Bank</option>
+                                    <option value="Owner Fund">Owner Fund</option>
+                                    <option value="Current Link">Current Link</option>
+                                    <option value="Office">Office</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Given By *</label>
+                                <input type="text" name="given_by" value="{{ txn_form.given_by or '' }}" class="form-control" required placeholder="Person who issued">
+                            </div>
+                            <div class="form-group">
+                                <label>Details / Reason *</label>
+                                <textarea name="details" class="form-control" rows="2" required placeholder="Why this amount was given">{{ txn_form.details or '' }}</textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width:100%">Record Transaction</button>
+                        </form>
+                    </div>
+                </div>
+
+                {# ── Transaction History ── #}
+                <div class="panel-half">
+                    <div class="profile-card">
+                        <h3>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg>
+                            Transaction History
+                            <span class="badge badge-dept" style="margin-left:8px">Total: AED {{ "%.0f"|format(total_advance or 0) }}</span>
+                        </h3>
+                        <div class="table-wrap" style="border:none;padding:0">
+                            <table class="smart-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Amount</th>
+                                        <th>Source</th>
+                                        <th>Given By</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for txn in transactions %}
+                                    <tr>
+                                        <td class="mono" style="font-size:0.75rem">{{ txn.entry_date }}</td>
+                                        <td><span class="badge badge-type">{{ txn.txn_type }}</span></td>
+                                        <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(txn.amount or 0) }}</td>
+                                        <td>{{ txn.source }}</td>
+                                        <td>{{ txn.given_by or '-' }}</td>
+                                        <td style="max-width:180px;white-space:normal">{{ txn.details }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="6" class="empty-state">No transactions yet.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ════════════════════════════════════════════ #}
+        {# TAB 2: STORE SALARY                          #}
+        {# ════════════════════════════════════════════ #}
+        {% elif active_tab == 'salary_store' %}
+        <div class="tab-pane">
+            <div class="panel-row">
+                {# ── Salary Store Form ── #}
+                <div class="panel-two-thirds">
+                    <div class="profile-card">
+                        <h3>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
+                            Store Salary — {{ selected_month_label }}
+                        </h3>
+                        <form method="POST" class="smart-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Salary Month</label>
+                                    <select name="salary_month" class="form-control">
+                                        {% for m in range(1, 13) %}
+                                        {% set ym = "%04d-%02d"|format(date.today().year, m) %}
+                                        <option value="{{ ym }}" {% if ym == (salary_form.salary_month or '') %}selected{% endif %}>{{ ym }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Entry Date</label>
+                                    <input type="date" name="entry_date" value="{{ salary_form.entry_date or '' }}" class="form-control">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Salary Mode</label>
+                                    <select name="salary_mode" class="form-control" id="salaryMode">
+                                        {% for key, label in salary_mode_options %}
+                                        <option value="{{ key }}" {% if (salary_form.salary_mode or 'full') == key %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Timesheet Hours</label>
+                                    <input type="text" class="form-control" value="{{ timesheet_hours or 0 }}" readonly style="background:#f5f7fa">
+                                </div>
+                            </div>
+
+                            <div id="prorataFields" class="form-row" {% if (salary_form.salary_mode or 'full') == 'full' %}style="display:none"{% endif %}>
+                                <div class="form-group">
+                                    <label>Prorata Start Date</label>
+                                    <input type="date" name="prorata_start_date" value="{{ salary_form.prorata_start_date or '' }}" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Prorata End Date</label>
+                                    <input type="date" name="prorata_end_date" value="{{ salary_form.prorata_end_date or '' }}" class="form-control">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>OT Hours</label>
+                                    <input type="number" name="ot_hours" value="{{ salary_form.ot_hours or '0' }}" class="form-control" step="0.5" min="0" placeholder="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Personal Expenses (AED)</label>
+                                    <input type="number" name="personal_vehicle" value="{{ salary_form.personal_vehicle or '0' }}" class="form-control" step="0.01" min="0" placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Personal Expenses Note</label>
+                                <input type="text" name="personal_vehicle_note" value="{{ salary_form.personal_vehicle_note or '' }}" class="form-control" placeholder="e.g. Mobile recharge, spare parts">
+                            </div>
+                            <div class="form-group">
+                                <label>Remarks</label>
+                                <textarea name="remarks" class="form-control" rows="2">{{ salary_form.remarks or '' }}</textarea>
+                            </div>
+
+                            {# ── Salary Preview ── #}
+                            {% if salary_preview %}
+                            <div class="salary-preview">
+                                <h4>Salary Preview</h4>
+                                <div class="preview-grid">
+                                    <div class="preview-item">
+                                        <span class="preview-label">Mode</span>
+                                        <span class="preview-value">{{ salary_preview.salary_mode_label }}</span>
+                                    </div>
+                                    <div class="preview-item">
+                                        <span class="preview-label">Days</span>
+                                        <span class="preview-value">{{ salary_preview.salary_days }}</span>
+                                    </div>
+                                    <div class="preview-item">
+                                        <span class="preview-label">Daily Rate</span>
+                                        <span class="preview-value">AED {{ "%.2f"|format(salary_preview.daily_rate) }}</span>
+                                    </div>
+                                    <div class="preview-item">
+                                        <span class="preview-label">Basic Salary</span>
+                                        <span class="preview-value">AED {{ "%.2f"|format(salary_preview.basic_salary) }}</span>
+                                    </div>
+                                    <div class="preview-item">
+                                        <span class="preview-label">OT Hours</span>
+                                        <span class="preview-value">{{ salary_preview.ot_hours }} hrs</span>
+                                    </div>
+                                    <div class="preview-item">
+                                        <span class="preview-label">OT Amount</span>
+                                        <span class="preview-value">AED {{ "%.2f"|format(salary_preview.ot_amount) }}</span>
+                                    </div>
+                                    <div class="preview-item">
+                                        <span class="preview-label">Personal Exp.</span>
+                                        <span class="preview-value green">+AED {{ "%.2f"|format(salary_preview.personal_vehicle) }}</span>
+                                    </div>
+                                    <div class="preview-item highlight">
+                                        <span class="preview-label">Net Salary</span>
+                                        <span class="preview-value">AED {{ "%.2f"|format(salary_preview.net_salary) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <div class="form-actions" style="border:none;padding:12px 0 0">
+                                <button type="submit" name="action" value="calculate" class="btn btn-outline">Calculate</button>
+                                <button type="submit" name="action" value="save" class="btn btn-primary">Save Salary</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                {# ── Saved Salary History ── #}
+                <div class="panel-third">
+                    <div class="profile-card">
+                        <h3>Salary History</h3>
+                        <div class="table-wrap" style="border:none;padding:0">
+                            <table class="smart-table compact">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th>Mode</th>
+                                        <th>Net</th>
+                                        <th style="width:80px">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in salary_rows %}
+                                    <tr>
+                                        <td class="mono">{{ row.salary_month }}</td>
+                                        <td><span class="badge {% if row.salary_mode == 'prorata' %}badge-desig{% else %}badge-dept{% endif %}">{{ row.salary_mode }}</span></td>
+                                        <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(row.net_salary or 0) }}</td>
+                                        <td>
+                                            <a href="{{ url_for('hr.employee_salary_store', employee_id=employee.employee_id, month=row.salary_month) }}" class="btn btn-xs btn-outline" title="Edit">&#9998;</a>
+                                            <a href="{{ url_for('hr.employee_salary_store_delete', employee_id=employee.employee_id, store_id=row.id) }}" class="btn btn-xs btn-outline" style="color:#d32f2f" title="Delete" onclick="return confirm('Delete salary store for {{ row.salary_month }}?')">&#128465;</a>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="4" class="empty-state">No salary stored yet.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if existing_month %}
+                        <p style="margin-top:8px;font-size:0.75rem;color:var(--orange)">&#9432; Salary already exists for this month. Save to update.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ════════════════════════════════════════════ #}
+        {# TAB 3: RUN SALARY / SALARY SLIP              #}
+        {# ════════════════════════════════════════════ #}
+        {% elif active_tab == 'salary_slip' %}
+        <div class="tab-pane">
+            <div class="panel-row">
+                {# ── Left: Salary Selection + Advance Summary ── #}
+                <div class="panel-half">
+                    <div class="profile-card">
+                        <h3>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                            Advance Summary
+                        </h3>
+                        <div class="advance-cards">
+                            <div class="advance-card total">
+                                <span class="adv-label">Total Advance</span>
+                                <span class="adv-value">AED {{ "%.0f"|format(slip_advance_summary.total_advance|float) }}</span>
+                            </div>
+                            <div class="advance-card deducted">
+                                <span class="adv-label">Deducted</span>
+                                <span class="adv-value">-AED {{ "%.0f"|format(slip_advance_summary.total_deducted|float) }}</span>
+                            </div>
+                            <div class="advance-card remaining">
+                                <span class="adv-label">Remaining Advance</span>
+                                <span class="adv-value">AED {{ "%.0f"|format(slip_advance_summary.remaining_advance|float) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-card" style="margin-top:1rem">
+                        <h3>Select Salary Month</h3>
+                        <table class="data-table" style="border:none;margin:0">
+                            <thead>
+                                <tr><th>Month</th><th>Net Salary</th><th style="width:50px">Status</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for s in slip_salary_rows %}
+                                <tr class="clickable-row {{'is-active' if slip_selected_salary and s.id == slip_selected_salary.id}}" onclick="window.location='{{ url_for('hr.employee_salary_slip', employee_id=employee.employee_id, salary_store_id=s.id) }}'" style="cursor:pointer">
+                                    <td class="mono">{{ s.salary_month }}</td>
+                                    <td class="mono">AED {{ "%.0f"|format(s.net_salary or 0) }}</td>
+                                    <td style="text-align:center">{% if s.id in slip_store_ids %}<span class="tick-mark">&#10004;</span>{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {# ── Right: Salary Slip Generation ── #}
+                <div class="panel-half">
+                    <div class="profile-card">
+                        <h3>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
+                            Generate Salary Slip
+                        </h3>
+
+                        {% if slip_selected_salary %}
+                        <form method="POST" class="smart-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="salary_store_id" value="{{ slip_selected_salary.id }}">
+
+                            <div class="deduction-box">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Deduct Advance (AED)</label>
+                                        <input type="number" name="deduction_amount" value="{{ slip_values.deduction_amount or '0' }}" class="form-control" step="0.01" min="0" max="{{ slip_available_advance }}">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Max available</label>
+                                        <input type="text" class="form-control" value="AED {{ '%.0f'|format(slip_available_advance) }}" readonly style="background:#f5f7fa">
+                                    </div>
+                                </div>
+
+                                {% if slip_existing_slip %}
+                                <div class="alert-box info" style="margin:8px 0">
+                                    <strong>Slip already exists.</strong> Save to regenerate.
+                                    {% if slip_existing_slip.pdf_path %}
+                                    <a href="{{ url_for('generated_file', filename=slip_existing_slip.pdf_path) }}" target="_blank" class="btn btn-xs btn-outline" style="margin-left:8px">View PDF</a>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+
+                                {% if slip_selected_salary.net_salary and slip_selected_salary.net_salary > 0 %}
+                                {% set deduction = (slip_values.deduction_amount or '0')|float %}
+                                {% set payable = (slip_selected_salary.net_salary or 0)|float - deduction %}
+                                <div class="salary-preview" style="margin:12px 0">
+                                    <h4>Slip Preview</h4>
+                                    <div class="preview-grid two-col">
+                                        <div class="preview-item"><span class="preview-label">Net Salary</span><span class="preview-value">AED {{ "%.2f"|format(slip_selected_salary.net_salary) }}</span></div>
+                                        <div class="preview-item"><span class="preview-label">Deduction</span><span class="preview-value">-AED {{ "%.2f"|format(deduction) }}</span></div>
+                                        <div class="preview-item highlight" style="grid-column:1/-1">
+                                            <span class="preview-label">Net Payable</span>
+                                            <span class="preview-value">AED {{ "%.2f"|format(payable) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Payment Source</label>
+                                    <select name="payment_source" class="form-control">
+                                        {% for src in ['Owner Fund','Owner Direct','Current Link','Office','Cash','Bank','Other'] %}
+                                        <option value="{{ src }}" {% if slip_values.payment_source == src %}selected{% endif %}>{{ src }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Paid By</label>
+                                    <input type="text" name="paid_by" value="{{ slip_values.paid_by or '' }}" class="form-control" placeholder="Person name">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Notes</label>
+                                <textarea name="payment_notes" class="form-control" rows="2">{{ slip_values.payment_notes or '' }}</textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px">
+                                {% if slip_existing_slip %}Regenerate{% else %}Generate{% endif %} Salary Slip
+                            </button>
+                        </form>
+
+                        {% if slip_existing_slip and slip_existing_slip.pdf_path %}
+                        <div class="slip-actions" style="margin-top:12px;text-align:center">
+                            <a href="{{ url_for('generated_file', filename=slip_existing_slip.pdf_path) }}" target="_blank" class="btn btn-primary">
+                                &#128196; View / Print Salary Slip
+                            </a>
+                            <a href="{{ url_for('hr.employee_salary_slip_delete', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" class="btn btn-outline" style="color:#d32f2f;margin-left:8px" onclick="return confirm('Delete salary slip for {{ slip_selected_salary.salary_month }}?')">&#128465; Delete</a>
+                        </div>
+                        {% endif %}
+
+                        {% else %}
+                        <div class="empty-state" style="padding:30px;text-align:center;color:var(--muted)">
+                            <p>Select a salary month from the left panel to generate the slip.</p>
+                            <p style="font-size:0.75rem">Make sure you have stored salary first via <strong>Store Salary</strong> tab.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% elif active_tab == 'kata' %}
+        <div class="tab-pane">
+            <div class="panel-row">
+                {# ── Left: Income + Summary ── #}
+                <div class="panel-half">
+                    <div class="profile-card">
+                        <h3>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
+                            Kata — {{ kata_selected_month or '' }}
+                        </h3>
+                        <div class="form-row" style="align-items:center;gap:1rem;flex-wrap:wrap">
+                            <select name="month" id="kataMonth" onchange="window.location='{{ url_for('hr.employee_kata', employee_id=employee.employee_id) }}?month='+this.value" style="flex:1;max-width:200px">
+                                {% for m in kata_available_months %}
+                                <option value="{{ m.salary_month }}" {% if m.salary_month == kata_selected_month %}selected{% endif %}>{{ m.salary_month }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    {% if kata_salary_row %}
+                    {% set s = kata_salary_row %}
+                    {# ── INCOME ── #}
+                    <div class="profile-card" style="margin-top:1rem">
+                        <h3 style="color:var(--green)">&#43; Income</h3>
+                        <div class="preview-grid two-col" style="margin-top:8px">
+                            <div class="preview-item"><span class="preview-label">Basic Salary</span><span class="preview-value">AED {{ "%.2f"|format(s.basic_salary or 0) }}</span></div>
+                            {% if s.personal_vehicle and s.personal_vehicle|float > 0 %}
+                            <div class="preview-item"><span class="preview-label">Personal Exp.{% if s.personal_vehicle_note %} ({{ s.personal_vehicle_note }}){% endif %}</span><span class="preview-value green">+AED {{ "%.2f"|format(s.personal_vehicle) }}</span></div>
+                            {% endif %}
+                            {% if s.ot_amount and s.ot_amount|float > 0 %}
+                            <div class="preview-item"><span class="preview-label">OT ({{ s.ot_month or '-' }})</span><span class="preview-value green">+AED {{ "%.2f"|format(s.ot_amount) }}</span></div>
+                            {% endif %}
+                            <div class="preview-item highlight" style="grid-column:1/-1;margin-top:4px">
+                                <span class="preview-label" style="font-weight:700">Total Salary</span>
+                                <span class="preview-value" style="font-size:1.1rem;font-weight:700;color:var(--green)">AED {{ "%.2f"|format(s.net_salary or 0) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# ── Deduction + Remaining ── #}
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
+                        <div class="profile-card" style="border-color:var(--orange)">
+                            <h3 style="color:var(--orange);font-size:0.85rem">&#8722; Deduction</h3>
+                            <div style="font-size:1.5rem;font-weight:700;color:var(--orange)">AED {{ "%.0f"|format(kata_this_deduction) }}</div>
+                        </div>
+                        <div class="profile-card" style="background:#e8f5e9;border-color:#4caf50">
+                            <h3 style="color:#2e7d32;font-size:0.85rem">&#9650; Remaining</h3>
+                            <div style="font-size:1.5rem;font-weight:700;color:#2e7d32">AED {{ "%.0f"|format(kata_remaining) }}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:4px;padding:6px 12px;background:#f8f9fa;border-radius:6px;font-size:0.8rem;color:#666;text-align:center">
+                        Previous: AED {{ "%.0f"|format(kata_prev_remaining) }} &rarr; Deducted: AED {{ "%.0f"|format(kata_this_deduction) }} &rarr; Remaining: AED {{ "%.0f"|format(kata_remaining) }}
+                    </div>
+
+                    {% else %}
+                    <div class="profile-card" style="margin-top:1rem">
+                        <p class="empty-state">No salary data for {{ kata_selected_month or 'this month' }}.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {# ── Right: Advances Table + PDF ── #}
+                <div class="panel-half">
+                    {% if kata_salary_row %}
+                    <div class="profile-card">
+                        <h3>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                            Advances Given (FIFO)
+                        </h3>
+                        {% if kata_advances %}
+                        <div class="table-wrap" style="max-height:320px;overflow-y:auto">
+                            <table class="smart-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Given By</th>
+                                        <th>Details</th>
+                                        <th>Deducted</th>
+                                        <th>Left</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for a in kata_advances %}
+                                    <tr>
+                                        <td class="mono" style="font-size:0.75rem">{{ a.entry_date }}</td>
+                                        <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(a.amount) }}</td>
+                                        <td>{{ a.given_by or '-' }}</td>
+                                        <td style="max-width:100px;white-space:normal;font-size:0.75rem">{{ a.details }}</td>
+                                        <td class="mono green">{% if a.deducted > 0 %}AED {{ "%.0f"|format(a.deducted) }}{% endif %}</td>
+                                        <td class="mono {% if a.remaining > 0 %}red{% endif %}">{% if a.remaining > 0 %}AED {{ "%.0f"|format(a.remaining) }}{% else %}-{% endif %}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="empty-state">No advances.</p>
+                        {% endif %}
+
+                        {% if kata_selected_month and kata_salary_row %}
+                        <div style="margin-top:1rem">
+                            <a href="{{ url_for('hr.employee_kata', employee_id=employee.employee_id, month=kata_selected_month, download='pdf') }}" class="btn btn-primary" style="width:100%">Download Kata PDF</a>
+                        </div>
+                        {% endif %}
+
+                        {% if kata_pdf_url %}
+                        <div style="margin-top:8px;padding:10px;background:#e8f5e9;border-radius:6px;border:1px solid #c8e6c9;text-align:center">
+                            <strong>PDF Ready:</strong>
+                            <a href="{{ kata_pdf_url }}" target="_blank" class="btn btn-sm btn-outline" style="margin-left:8px">Open PDF</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="profile-card">
+                        <h3>Advances</h3>
+                        <p class="empty-state">No salary data yet. Store salary first.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var modeSelect = document.getElementById('salaryMode');
+    if (modeSelect) {
+        modeSelect.addEventListener('change', function() {
+            var prorataFields = document.getElementById('prorataFields');
+            if (prorataFields) {
+                prorataFields.style.display = this.value === 'prorata' ? 'flex' : 'none';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

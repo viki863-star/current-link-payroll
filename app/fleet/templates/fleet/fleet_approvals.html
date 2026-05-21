@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Job Approvals — Fleet{% endblock %}
+{% block body_class %}list-body{% endblock %}
+{% block page_title %}Job Approvals{% endblock %}
+
+{% block content %}
+<div class="list-shell">
+    {% if pending_jobs %}
+    <div class="profile-card" style="margin-bottom:20px;border-color:var(--orange)">
+        <h3 style="color:var(--orange);margin-bottom:12px">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Pending Approval ({{ pending_jobs|length }})
+        </h3>
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Staff</th>
+                        <th>Vehicle</th>
+                        <th>Amount</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Attachment</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for j in pending_jobs %}
+                    <tr>
+                        <td class="mono">{{ j.created_at[:10] }}</td>
+                        <td><strong>{{ j.staff_name }}</strong></td>
+                        <td>{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted)">General Expense</span>{% else %}<a href="{{ url_for('fleet.vehicle_profile', plate_no=j.plate_no) }}" class="mono" style="font-weight:600">{{ j.plate_no }}</a> <span class="badge badge-dept">{{ j.vehicle_type }}</span>{% endif %}</td>
+                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount) }}</td>
+                        <td><span class="badge badge-type">{{ j.category }}</span></td>
+                        <td style="max-width:150px;white-space:normal;font-size:0.75rem">{{ j.description or '-' }}</td>
+                        <td>
+                            {% if j.attachment_data %}
+                            <a href="#" onclick="viewAttachment('{{ j.id }}')" class="btn btn-xs btn-outline">View</a>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td class="action-cell">
+                            <form method="POST" action="{{ url_for('fleet.fleet_job_approve', job_id=j.id) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-xs btn-primary" style="background:var(--green);border-color:var(--green)">&#10003; Approve</button>
+                            </form>
+                            <button type="button" class="btn btn-xs btn-outline" style="color:var(--danger);border-color:var(--danger)" onclick="rejectJob({{ j.id }})">&#10005; Reject</button>
+                            <form method="POST" action="{{ url_for('fleet.fleet_job_reject', job_id=j.id) }}" id="rejectForm{{ j.id }}" style="display:none">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="admin_notes" id="rejectNotes{{ j.id }}" value="">
+                            </form>
+                            <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline" style="margin-top:4px">&#9998; Edit</a>
+                            <form method="POST" action="{{ url_for('fleet.fleet_job_delete', job_id=j.id) }}" style="display:inline" onsubmit="return confirm('Delete this job?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-xs btn-outline" style="color:var(--danger);border-color:var(--danger);margin-top:4px">&#10005; Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="profile-card" style="margin-bottom:20px">
+        <h3 style="color:var(--green);margin-bottom:4px">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="10" cy="10" r="9"/><path d="M7 10l2 2 4-4"/></svg>
+            All Caught Up
+        </h3>
+        <p style="color:var(--muted);margin:0">No pending approvals.</p>
+    </div>
+    {% endif %}
+
+    <div class="profile-card">
+        <h3 style="margin-bottom:12px">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg>
+            Recent Activity
+        </h3>
+        {% if recent_approved %}
+        <div class="table-wrap">
+            <table class="smart-table" style="font-size:0.78rem">
+                <thead><tr><th>Date</th><th>Vehicle</th><th>Staff</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for j in recent_approved %}
+                    <tr>
+                        <td class="mono">{{ j.created_at[:10] }}</td>
+                        <td class="mono">{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted)">General Expense</span>{% else %}{{ j.plate_no }}{% endif %}</td>
+                        <td>{{ j.staff_name }}</td>
+                        <td class="mono">AED {{ "%.0f"|format(j.amount) }}</td>
+                        <td><span class="status-badge {{ 'active' if j.status == 'approved' else 'danger' }}">{{ j.status }}</span></td>
+                        <td class="action-cell" style="white-space:nowrap">
+                            <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline">&#9998; Edit</a>
+                            <form method="POST" action="{{ url_for('fleet.fleet_job_delete', job_id=j.id) }}" style="display:inline" onsubmit="return confirm('Delete this job?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-xs btn-outline" style="color:var(--danger);border-color:var(--danger)">&#10005; Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">No activity yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function viewAttachment(id) {
+    window.open("/fleet/attachment/" + id);
+}
+function rejectJob(id) {
+    var reason = prompt("Rejection reason:");
+    if (reason !== null) {
+        document.getElementById('rejectNotes' + id).value = reason || 'Rejected by admin';
+        document.getElementById('rejectForm' + id).submit();
+    }
+}
+</script>
+{% endblock %}
