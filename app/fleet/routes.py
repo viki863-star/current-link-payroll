@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import date, datetime
 from pathlib import Path
 
@@ -7,7 +8,7 @@ from flask import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from ..database import open_db
+from ..database import open_db, _connect_sqlite
 from ..routes import _login_required, _touch_admin_workspace
 from . import fleet_bp
 
@@ -615,12 +616,151 @@ def _migrate_old_staff_entries(db):
                   j["admin_notes"] or "", j["created_at"]))
 
 
+def _import_field_staff_from_sqlite(db):
+    backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+    if backend != "postgres":
+        return
+    existing = db.execute("SELECT COUNT(*) AS c FROM field_staff").fetchone()["c"] or 0
+    if existing > 0:
+        return
+    try:
+        sqlite_path = Path(current_app.config.get("DATABASE", "payroll.db"))
+        if not sqlite_path.exists():
+            sqlite_path = Path(current_app.root_path).parent / "payroll.db"
+        if not sqlite_path.exists():
+            return
+        sdb = sqlite3.connect(str(sqlite_path))
+        sdb.row_factory = sqlite3.Row
+    except Exception:
+        return
+
+    try:
+        old_staff = sdb.execute("SELECT * FROM field_staff").fetchall()
+    except Exception:
+        old_staff = []
+
+    for s in old_staff:
+        try:
+            pw_hash = s["password_hash"] or generate_password_hash("changeme123")
+            db.execute(
+                """INSERT INTO field_staff (staff_id, full_name, phone, username, password_hash, is_active, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))""",
+                (s["staff_id"], s["full_name"], s["phone"] or "", s["username"],
+                 pw_hash, s["is_active"], s.get("created_at")),
+            )
+        except Exception:
+            pass
+    if old_staff:
+        db.commit()
+
+    try:
+        old_jobs = sdb.execute("SELECT * FROM maintenance_jobs").fetchall()
+    except Exception:
+        old_jobs = []
+
+    existing_papers = set()
+    try:
+        rows = db.execute("SELECT paper_no FROM maintenance_papers").fetchall()
+        existing_papers = {r["paper_no"] for r in rows}
+    except Exception:
+        pass
+
+    for j in old_jobs:
+        pno = f"PAPER-{j['id']:04d}"
+        if pno in existing_papers:
+            continue
+        status_map = {"pending": "Pending", "approved": "Approved", "rejected": "Rejected"}
+        rev_status = status_map.get(j["status"], "Pending")
+        paper_date = (j["created_at"] or "")[:10] or "2025-01-01"
+        try:
+            db.execute("""
+                INSERT INTO maintenance_papers
+                (paper_no, paper_date, vehicle_id, technician_code, work_summary,
+                 total_amount, review_status, payment_status, notes, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)
+            """, (pno, paper_date, j["vehicle_id"], j["staff_id"],
+                  j["description"] or "", j["amount"], rev_status,
+                  j["admin_notes"] or "", j["created_at"]))
+            existing_papers.add(pno)
+        except Exception:
+            pass
+    if old_jobs:
+        db.commit()
+
+    try:
+        old_cash = sdb.execute("SELECT * FROM cash_receipts").fetchall()
+    except Exception:
+        old_cash = []
+
+    for c in old_cash:
+        last_adv = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
+        num = 1
+        if last_adv:
+            parts = last_adv["advance_no"].split("-")
+            if len(parts) == 2 and parts[1].isdigit():
+                num = int(parts[1]) + 1
+        adv_no = f"ADV-{num:04d}"
+        try:
+            db.execute("""
+                INSERT INTO maintenance_staff_advances
+                (advance_no, staff_code, entry_date, funding_source, amount, reference, notes)
+                VALUES (?, ?, ?, 'Owner Fund', ?, ?, ?)
+            """, (adv_no, c["staff_id"], c["receipt_date"], c["amount"],
+                  c["given_by"], c["notes"] or ""))
+        except Exception:
+            pass
+    if old_cash:
+        db.commit()
+
+    try:
+        sdb.close()
+    except Exception:
+        pass
+
+
+def _import_orphaned_maintenance_jobs(db):
+    orphan_staff = db.execute("""
+        SELECT DISTINCT mj.staff_id FROM maintenance_jobs mj
+        LEFT JOIN field_staff fs ON fs.staff_id = mj.staff_id
+        WHERE fs.staff_id IS NULL
+    """).fetchall()
+    for row in orphan_staff:
+        staff_id = row["staff_id"]
+        sample = db.execute(
+            "SELECT mj.* FROM maintenance_jobs mj WHERE mj.staff_id = ? LIMIT 1",
+            (staff_id,),
+        ).fetchone()
+        if not sample:
+            continue
+        name = f"Staff {staff_id}"
+        username = staff_id.lower()
+        pw_hash = generate_password_hash("changeme123")
+        try:
+            db.execute("""
+                INSERT INTO field_staff (staff_id, full_name, phone, username, password_hash, is_active)
+                VALUES (?, ?, '', ?, ?, 1)
+            """, (staff_id, name, username, pw_hash))
+        except Exception:
+            continue
+        try:
+            db.execute("""
+                INSERT INTO technicians (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+                VALUES (?, NULL, ?, ?, '', ?, 'Active')
+            """, (staff_id, username, pw_hash, name))
+        except Exception:
+            pass
+    if orphan_staff:
+        db.commit()
+
+
 @fleet_bp.route("/fleet/staff")
 @_login_required("admin")
 def fleet_staff_list():
     _touch_admin_workspace("fleet")
     ensure_fleet_tables()
     db = open_db()
+    _import_field_staff_from_sqlite(db)
+    _import_orphaned_maintenance_jobs(db)
 
     unsynced = db.execute("""
         SELECT fs.* FROM field_staff fs
