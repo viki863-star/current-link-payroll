@@ -7841,55 +7841,70 @@ html {
 }
 
 .erp-sidebar-head {
-    padding: 20px 18px 16px;
+    padding: 22px 18px 18px;
     display: flex;
     align-items: center;
     gap: 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
 .erp-brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     text-decoration: none;
 }
 
 .erp-brand-mark {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.1);
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.08);
     display: grid;
     place-items: center;
     overflow: hidden;
+    position: relative;
 }
 
 .erp-brand-mark img {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     object-fit: contain;
+}
+
+.erp-brand-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    border: 1.5px solid rgba(255,138,31,0.3);
+    pointer-events: none;
 }
 
 .erp-brand-copy {
     display: flex;
     flex-direction: column;
-    line-height: 1.2;
+    line-height: 1.3;
 }
 
-.erp-brand-copy strong {
+.erp-brand-name {
     color: #fff;
-    font-size: 0.85rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
 }
 
-.erp-brand-copy small {
-    color: rgba(255,255,255,0.5);
-    font-size: 0.65rem;
-    font-weight: 500;
+.erp-brand-sub {
+    color: var(--orange);
+    font-size: 0.62rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
+}
+
+.erp-sidebar-accent {
+    height: 2px;
+    background: linear-gradient(90deg, var(--orange), rgba(255,138,31,0.1));
+    margin: 0 18px;
+    border-radius: 1px;
 }
 
 .erp-sidebar-toggle-desktop {
@@ -8780,6 +8795,7 @@ html {
         min-width: 60px;
     }
     .erp-sidebar .erp-brand-copy,
+    .erp-sidebar .erp-sidebar-accent,
     .erp-sidebar .erp-nav-copy,
     .erp-sidebar .erp-back-dashboard span,
     .erp-sidebar .erp-sidebar-user-text,
@@ -8791,6 +8807,10 @@ html {
     .erp-sidebar .erp-nav-expandable {
         justify-content: center;
         padding: 10px;
+    }
+    .erp-sidebar .erp-sidebar-head {
+        padding: 14px 10px;
+        justify-content: center;
     }
     .erp-sidebar .erp-nav-children {
         display: none !important;

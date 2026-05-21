@@ -3,13 +3,15 @@
         <a class="erp-brand" href="{{ url_for('dashboard') }}">
             <span class="erp-brand-mark">
                 <img src="{{ url_for('static', filename='logo.png') }}" alt="{{ config['COMPANY_NAME'] }}">
+                <span class="erp-brand-ring"></span>
             </span>
             <span class="erp-brand-copy">
-                <strong>{{ config["COMPANY_NAME"] }}</strong>
-                <small>Enterprise ERP</small>
+                <strong class="erp-brand-name">{{ config["COMPANY_NAME"] }}</strong>
+                <small class="erp-brand-sub">Enterprise ERP</small>
             </span>
         </a>
     </div>
+    <div class="erp-sidebar-accent"></div>
 
     {% set nav_items = [
         {"label": "Dashboard", "endpoint": "dashboard", "icon": "grid"},
