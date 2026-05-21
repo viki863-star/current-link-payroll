@@ -20,6 +20,35 @@ MAINTENANCE_CATEGORIES = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", 
 def ensure_fleet_tables():
     db = open_db()
     db.execute("SELECT 1 FROM vehicles LIMIT 1")
+    _migrate_vehicle_master(db)
+
+
+def _migrate_vehicle_master(db):
+    """Copy vehicles from old vehicle_master table into vehicles table."""
+    try:
+        old = db.execute("SELECT * FROM vehicle_master").fetchall()
+    except Exception:
+        return
+    for v in old:
+        existing = db.execute("SELECT plate_no FROM vehicles WHERE plate_no = ?", (v["vehicle_no"],)).fetchone()
+        if existing:
+            continue
+        partner_percent = None
+        try:
+            partner_percent = float(v.get("partner_share_percent") or 0)
+        except (ValueError, TypeError):
+            pass
+        try:
+            db.execute(
+                """INSERT INTO vehicles (plate_no, vehicle_type, model, ownership_type, partner_name, partner_percent, status, notes, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (v["vehicle_no"], v["vehicle_type"], v["make_model"],
+                 v["ownership_mode"], v["partner_name"], partner_percent,
+                 v["status"], v["notes"], v["created_at"]),
+            )
+        except Exception:
+            pass
+    db.commit()
 
 
 def _vehicle_full(plate_no):
