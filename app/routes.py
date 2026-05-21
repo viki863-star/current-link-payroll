@@ -15914,7 +15914,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "movement": "Outgoing",
             }
         )
-    rows.sort(key=lambda item: (item["entry_date"], item["movement"], item["reference"]))
+    rows.sort(key=lambda item: (item["entry_date"].isoformat() if hasattr(item["entry_date"], "isoformat") else str(item["entry_date"]), item["movement"], item["reference"]))
     balance = 0.0
     for row in rows:
         balance += row["incoming"] - row["outgoing"]
