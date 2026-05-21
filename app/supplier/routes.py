@@ -301,15 +301,9 @@ def sync_parties_to_suppliers():
         "COALESCE(pr.supplier_mode, 'Normal') AS supplier_mode "
         "FROM parties p "
         "LEFT JOIN supplier_profile pr ON pr.party_code = p.party_code "
-        "WHERE p.party_roles LIKE ?",
+        "WHERE LOWER(p.party_roles) LIKE LOWER(?)",
         ("%supplier%",)
     ).fetchall()
-    if not rows:
-        all_rows = db.execute("SELECT party_code, party_name, party_roles FROM parties").fetchall()
-        raise Exception(
-            f"No supplier rows found. Parties table has {len(all_rows)} total rows. "
-            f"Sample roles: {[r['party_roles'] for r in all_rows[:5]]}"
-        )
 
     for r in rows:
         supplier_type = "without_invoice" if (r["supplier_mode"] or "").lower() == "cash" else "with_invoice"
