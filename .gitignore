@@ -11,3 +11,5 @@ generated/
 .phase1a_runtime/
 .tmp.driveupload/
 *.vsix
+
+.tmp.drivedownload/
