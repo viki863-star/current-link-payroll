@@ -1,14 +1,14 @@
 :root {
-  --bg-950: #07111d;
-  --bg-900: #0d1b2d;
-  --bg-850: #13263d;
-  --bg-800: #1b3554;
-  --gold-500: #d6a24c;
-  --gold-400: #e8bd73;
-  --gold-100: rgba(214, 162, 76, 0.12);
+  --bg-950: #0F2B52;
+  --bg-900: #0F2B52;
+  --bg-850: #1a3a6b;
+  --bg-800: #254a7a;
+  --navy: #0F2B52;
+  --orange: #FF8A1F;
+  --orange-soft: rgba(255, 138, 31, 0.12);
   --white: #ffffff;
-  --panel-dark: rgba(10, 22, 36, 0.82);
-  --panel-dark-strong: rgba(10, 22, 36, 0.92);
+  --panel-dark: rgba(15, 43, 82, 0.85);
+  --panel-dark-strong: rgba(15, 43, 82, 0.95);
   --panel-line: rgba(255, 255, 255, 0.12);
   --text-strong: #f8fbff;
   --text-soft: rgba(236, 242, 249, 0.72);
@@ -26,7 +26,7 @@
   --info-bg: rgba(39, 90, 153, 0.24);
   --info-line: rgba(121, 174, 255, 0.2);
   --info-text: #b8d5ff;
-  --admin: #7fa8e6;
+  --admin: #FF8A1F;
   --driver: #e7b04d;
   --supplier: #5ed0c4;
   --staff: #b08fff;
@@ -84,25 +84,17 @@ a {
 
 .portal-bg {
   z-index: -3;
-<<<<<<< HEAD
   background:
-    linear-gradient(90deg, rgba(7, 17, 29, 0.22) 0%, rgba(7, 17, 29, 0.08) 34%, rgba(7, 17, 29, 0.04) 100%),
-    url("/static/portal-new.png") center center / cover no-repeat;
+    linear-gradient(90deg, rgba(15, 43, 82, 0.15) 0%, rgba(15, 43, 82, 0.05) 50%, rgba(15, 43, 82, 0) 100%),
+    url("/static/Portal.png") center center / cover no-repeat;
   transform: scale(1.02);
-=======
-  background: url("/static/portal-new.png") center center / cover no-repeat;
->>>>>>> 81b171a37c0da07076c9e838973cdd261de05d41
 }
 
 .portal-overlay {
   z-index: -2;
   background:
-<<<<<<< HEAD
-    linear-gradient(95deg, rgba(7, 17, 29, 0.82) 0%, rgba(10, 22, 36, 0.7) 26%, rgba(14, 28, 44, 0.44) 48%, rgba(16, 31, 50, 0.16) 72%, rgba(16, 31, 50, 0.04) 100%),
-=======
-    linear-gradient(95deg, rgba(7, 17, 29, 0.95) 0%, rgba(10, 22, 36, 0.9) 32%, rgba(14, 28, 44, 0.78) 52%, rgba(16, 31, 50, 0.42) 72%, rgba(16, 31, 50, 0.16) 100%),
->>>>>>> 81b171a37c0da07076c9e838973cdd261de05d41
-    radial-gradient(circle at right top, rgba(255, 255, 255, 0.08), transparent 28%);
+    linear-gradient(95deg, rgba(15, 43, 82, 0.85) 0%, rgba(15, 43, 82, 0.6) 32%, rgba(15, 43, 82, 0.3) 52%, rgba(15, 43, 82, 0.1) 72%, rgba(15, 43, 82, 0) 100%),
+    radial-gradient(circle at right top, rgba(255, 138, 31, 0.08), transparent 28%);
 }
 
 .portal-noise {
@@ -131,7 +123,7 @@ a {
   top: 92px;
   width: 86px;
   height: 2px;
-  background: linear-gradient(90deg, var(--gold-500), rgba(214, 162, 76, 0));
+  background: linear-gradient(90deg, var(--orange), rgba(255, 138, 31, 0));
 }
 
 .portal-layout {
@@ -178,7 +170,7 @@ a {
   height: 2px;
   margin-bottom: 24px;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--gold-500), rgba(214, 162, 76, 0.08));
+  background: linear-gradient(90deg, var(--orange), rgba(255, 138, 31, 0.08));
 }
 
 .portal-wordmark {
@@ -196,7 +188,7 @@ a {
 }
 
 .portal-wordmark-link {
-  color: var(--gold-400);
+  color: var(--orange);
 }
 
 .portal-company-subtitle {
@@ -239,7 +231,7 @@ a {
   height: 18px;
   flex: 0 0 18px;
   border-radius: 50%;
-  border: 1.5px solid var(--gold-500);
+  border: 1.5px solid var(--orange);
 }
 
 .portal-feature-icon::after {
@@ -247,7 +239,7 @@ a {
   position: absolute;
   inset: 4px;
   border-radius: 50%;
-  background: var(--gold-500);
+  background: var(--orange);
 }
 
 .portal-bottom-copy {
@@ -428,7 +420,7 @@ a {
 
 .portal-card-footer i,
 .portal-form-footer i {
-  color: var(--gold-500);
+  color: var(--orange);
 }
 
 .portal-form-stage {
@@ -634,7 +626,7 @@ a {
 .portal-checkbox input {
   width: 16px;
   height: 16px;
-  accent-color: var(--gold-500);
+  accent-color: var(--orange);
 }
 
 .portal-help-link {
