@@ -1142,6 +1142,7 @@ def customer_list():
 def settings():
     _ensure_tables()
     db = _get_db()
+    db.execute("CREATE TABLE IF NOT EXISTS company_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, company_name TEXT)")
     company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     if request.method == "POST":
         action = request.form.get("action", "")

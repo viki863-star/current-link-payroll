@@ -11,6 +11,7 @@ def inject_globals():
         db_path = current_app.config.get("DATABASE") or os.path.join(current_app.root_path, "..", "payroll.db")
         db = sqlite3.connect(db_path)
         db.row_factory = sqlite3.Row
+        db.executescript("CREATE TABLE IF NOT EXISTS company_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, company_name TEXT)")
         co = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
         db.close()
     except:
