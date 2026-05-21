@@ -688,7 +688,21 @@ def fleet_staff_list():
     _migrate_old_staff_entries(db)
     db.commit()
 
-    staff_list = db.execute("SELECT * FROM field_staff ORDER BY full_name").fetchall()
+    staff_list = db.execute("""
+        SELECT fs.*,
+            COALESCE(ec.entry_count, 0) AS entry_count,
+            COALESCE(ac.advance_count, 0) AS advance_count
+        FROM field_staff fs
+        LEFT JOIN (
+            SELECT technician_code, COUNT(*) AS entry_count
+            FROM maintenance_papers GROUP BY technician_code
+        ) ec ON ec.technician_code = fs.staff_id
+        LEFT JOIN (
+            SELECT staff_code, COUNT(*) AS advance_count
+            FROM maintenance_staff_advances GROUP BY staff_code
+        ) ac ON ac.staff_code = fs.staff_id
+        ORDER BY fs.full_name
+    """).fetchall()
     return render_template("fleet/fleet_staff_list.html", staff_list=staff_list)
 
 
@@ -731,6 +745,22 @@ def fleet_staff_add():
         return redirect(url_for("fleet.fleet_staff_list"))
 
     return render_template("fleet/fleet_staff_form.html", page_title="Add Field Staff", submit_label="Add Staff", s={})
+
+
+@fleet_bp.route("/fleet/staff/<staff_id>/delete", methods=["POST"])
+@_login_required("admin")
+def fleet_staff_delete(staff_id):
+    _touch_admin_workspace("fleet")
+    db = open_db()
+    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    if not s:
+        flash("Staff not found.", "error")
+        return redirect(url_for("fleet.fleet_staff_list"))
+    db.execute("DELETE FROM field_staff WHERE staff_id = ?", (staff_id,))
+    db.execute("DELETE FROM technicians WHERE technician_code = ?", (staff_id,))
+    db.commit()
+    flash(f"Staff {s['full_name']} deleted.", "success")
+    return redirect(url_for("fleet.fleet_staff_list"))
 
 
 @fleet_bp.route("/fleet/staff/<staff_id>/edit", methods=["GET", "POST"])

@@ -4,6 +4,13 @@
 {% block page_title %}Field Staff{% endblock %}
 
 {% block content %}
+<style>
+.staff-entry-summary { font-size:0.72rem; color:var(--muted); display:flex; gap:10px; margin-top:2px; }
+.staff-entry-summary span { display:inline-flex; align-items:center; gap:3px; }
+.btn-delete { color:#ef4444; border-color:#ef4444; }
+.btn-delete:hover { background:#fef2f2; }
+</style>
+
 <div class="list-shell">
     <div class="filter-bar">
         <div class="filter-bar-top">
@@ -27,6 +34,7 @@
                     <th>Phone</th>
                     <th>Username</th>
                     <th>Status</th>
+                    <th>Entries</th>
                     <th class="th-actions"></th>
                 </tr>
             </thead>
@@ -38,13 +46,18 @@
                     <td>{{ s.phone or '-' }}</td>
                     <td class="mono">{{ s.username }}</td>
                     <td><span class="status-badge {{ 'active' if s.is_active else 'inactive' }}">{{ 'Active' if s.is_active else 'Inactive' }}</span></td>
+                    <td><span class="staff-entry-summary"><span>Papers: {{ s.entry_count }}</span> <span>Cash: {{ s.advance_count }}</span></span></td>
                     <td class="action-cell">
                         <a href="{{ url_for('fleet.fleet_staff_edit', staff_id=s.staff_id) }}" class="btn btn-xs btn-outline">Edit</a>
                         <a href="{{ url_for('fleet.fleet_staff_receipts', staff_id=s.staff_id) }}" class="btn btn-xs btn-primary">Cash</a>
+                        <form method="post" action="{{ url_for('fleet.fleet_staff_delete', staff_id=s.staff_id) }}" style="display:inline" onsubmit="return confirm('Delete {{ s.full_name }}?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-xs btn-outline btn-delete">Delete</button>
+                        </form>
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6" class="empty-state">No field staff yet. <a href="{{ url_for('fleet.fleet_staff_add') }}">Add your first staff member</a>.</td></tr>
+                <tr><td colspan="7" class="empty-state">No field staff yet. <a href="{{ url_for('fleet.fleet_staff_add') }}">Add your first staff member</a>.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
