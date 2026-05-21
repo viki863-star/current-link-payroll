@@ -6516,16 +6516,18 @@ def register_routes(app: Flask) -> None:
     @_login_required("admin")
     def clear_all_owner_fund():
         db = open_db()
+        count_entries = db.execute("SELECT COUNT(*) FROM owner_fund_entries").fetchone()[0]
         count_funds = db.execute("SELECT COUNT(*) FROM owner_funds").fetchone()[0]
+        db.execute("DELETE FROM owner_fund_entries")
         db.execute("DELETE FROM owner_funds")
         _audit_log(
             db,
             "owner_fund_cleared",
             entity_type="owner_fund",
-            details=f"Cleared {count_funds} records from owner_funds table (entries preserved)",
+            details=f"Cleared {count_entries} entries + {count_funds} summary records. Driver/salary records kept.",
         )
         db.commit()
-        flash(f"Owner fund report cleared ({count_funds} summary records removed). Individual entries are kept.", "success")
+        flash(f"Owner fund cleared ({count_entries} entries + {count_funds} summary records removed). Driver salary records kept.", "success")
         return redirect(url_for("owner_fund"))
 
     @app.get("/owner-fund/pdf")
