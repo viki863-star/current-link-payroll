@@ -31,14 +31,14 @@
     <div class="kpi-card kpi-card-payroll">
       <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
       <div class="kpi-title">Payroll Pool</div>
-      <div class="kpi-number">AED {{ "{:,.0f}".format(total_payroll) }}</div>
+      <div class="kpi-number">AED {{ total_payroll|int }}</div>
       <div class="kpi-sub">{{ stored_this_month }} salaries this month</div>
     </div>
     <div class="kpi-card kpi-card-owner">
       <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 9v6"/><path d="M9 12h6"/></svg></div>
       <div class="kpi-title">Owner Fund</div>
-      <div class="kpi-number" style="color:{% if owner_fund_balance < 0 %}#ef4444{% else %}#22c55e{% endif %}">AED {{ "{:,.0f}".format(owner_fund_balance) }}</div>
-      <div class="kpi-sub">IN {{ "{:,.0f}".format(owner_fund_incoming) }} / OUT {{ "{:,.0f}".format(owner_fund_outgoing) }}</div>
+      <div class="kpi-number" style="color:{% if owner_fund_balance < 0 %}#ef4444{% else %}#22c55e{% endif %}">AED {{ owner_fund_balance }}</div>
+      <div class="kpi-sub">IN {{ owner_fund_incoming }} / OUT {{ owner_fund_outgoing }}</div>
     </div>
     <div class="kpi-card kpi-card-supplier">
       <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
@@ -98,11 +98,11 @@
       <div class="fin-card-body">
         <div class="fin-row">
           <span>Payable Total</span>
-          <strong>AED {{ "{:,.0f}".format(supplier_summary.payable_total if supplier_summary else 0) }}</strong>
+          <strong>AED {{ supplier_summary.payable_total if supplier_summary else 0 }}</strong>
         </div>
         <div class="fin-row">
           <span>Hire Total</span>
-          <strong>AED {{ "{:,.0f}".format(supplier_summary.hire_total if supplier_summary else 0) }}</strong>
+          <strong>AED {{ supplier_summary.hire_total if supplier_summary else 0 }}</strong>
         </div>
         <div class="fin-row">
           <span>Open Invoices</span>
@@ -122,11 +122,11 @@
       <div class="fin-card-body">
         <div class="fin-row">
           <span>Receivable Total</span>
-          <strong>AED {{ "{:,.0f}".format(customer_summary.receivable_total if customer_summary else 0) }}</strong>
+          <strong>AED {{ customer_summary.receivable_total if customer_summary else 0 }}</strong>
         </div>
         <div class="fin-row">
           <span>Rental Total</span>
-          <strong>AED {{ "{:,.0f}".format(customer_summary.rental_total if customer_summary else 0) }}</strong>
+          <strong>AED {{ customer_summary.rental_total if customer_summary else 0 }}</strong>
         </div>
         <div class="fin-row">
           <span>Open Invoices</span>
@@ -146,19 +146,19 @@
       <div class="fin-card-body">
         <div class="fin-row">
           <span>Sales Total</span>
-          <strong>AED {{ "{:,.0f}".format(invoice_summary.sales_total if invoice_summary else 0) }}</strong>
+          <strong>AED {{ invoice_summary.sales_total if invoice_summary else 0 }}</strong>
         </div>
         <div class="fin-row">
           <span>Purchase Total</span>
-          <strong>AED {{ "{:,.0f}".format(invoice_summary.purchase_total if invoice_summary else 0) }}</strong>
+          <strong>AED {{ invoice_summary.purchase_total if invoice_summary else 0 }}</strong>
         </div>
         <div class="fin-row">
           <span>Received</span>
-          <strong>AED {{ "{:,.0f}".format(invoice_summary.received_total if invoice_summary else 0) }}</strong>
+          <strong>AED {{ invoice_summary.received_total if invoice_summary else 0 }}</strong>
         </div>
         <div class="fin-row">
           <span>Paid</span>
-          <strong>AED {{ "{:,.0f}".format(invoice_summary.paid_total if invoice_summary else 0) }}</strong>
+          <strong>AED {{ invoice_summary.paid_total if invoice_summary else 0 }}</strong>
         </div>
       </div>
     </div>
@@ -185,7 +185,7 @@
           <span class="alert-dot danger"></span>
           <div class="alert-text">
             <strong>Owner Fund Negative</strong>
-            <p>Balance: AED {{ "{:,.0f}".format(owner_fund_balance) }}</p>
+            <p>Balance: AED {{ owner_fund_balance }}</p>
           </div>
         </div>
         {% else %}
@@ -193,7 +193,7 @@
           <span class="alert-dot success"></span>
           <div class="alert-text">
             <strong>Owner Fund Positive</strong>
-            <p>Balance: AED {{ "{:,.0f}".format(owner_fund_balance) }}</p>
+            <p>Balance: AED {{ owner_fund_balance }}</p>
           </div>
         </div>
         {% endif %}
@@ -202,7 +202,7 @@
           <span class="alert-dot warning"></span>
           <div class="alert-text">
             <strong>Loans Outstanding</strong>
-            <p>AED {{ "{:,.0f}".format(loan_summary.outstanding) }}</p>
+            <p>AED {{ loan_summary.outstanding }}</p>
           </div>
         </div>
         {% endif %}

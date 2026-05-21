@@ -186,6 +186,11 @@ def register_routes(app: Flask) -> None:
         flash("Your session form expired or the request was not secure. Please try again.", "error")
         return redirect(request.referrer or url_for(_role_home_endpoint()))
 
+    @app.errorhandler(500)
+    def handle_500(error):
+        import traceback
+        return f"<h2>Internal Error</h2><pre>{traceback.format_exc()}</pre>", 500
+
     @app.context_processor
     def inject_auth_context():
         request_active = has_request_context()
