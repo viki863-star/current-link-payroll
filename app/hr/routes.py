@@ -43,8 +43,10 @@ def ensure_employees_table():
     db.executescript(schema)
     db.commit()
 
-    if backend == "sqlite":
+    try:
         sync_drivers_to_employees(db)
+    except Exception:
+        db.rollback()
 
 
 def _fetch_employee(db, employee_id):

@@ -53,12 +53,19 @@ CREATE TABLE IF NOT EXISTS employees (
 
 
 def sync_drivers_to_employees(db):
-    db.executescript(EMPLOYEE_SCHEMA)
+    backend = db.backend
 
-    try:
-        columns = [c[1] for c in db.execute("PRAGMA table_info(drivers)").fetchall()]
-    except Exception:
-        columns = []
+    # Get drivers table columns (backend-agnostic)
+    if backend == "postgres":
+        cols = db.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'drivers'"
+        ).fetchall()
+        columns = [r["column_name"] for r in cols]
+    else:
+        try:
+            columns = [c[1] for c in db.execute("PRAGMA table_info(drivers)").fetchall()]
+        except Exception:
+            columns = []
 
     drivers = db.execute("SELECT * FROM drivers").fetchall()
     for d in drivers:
