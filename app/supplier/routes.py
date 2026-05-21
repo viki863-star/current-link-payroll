@@ -268,6 +268,52 @@ def _ensure_tables():
             pass
 
     db.commit()
+    try:
+        sync_parties_to_suppliers()
+    except Exception:
+        pass
+
+
+def sync_parties_to_suppliers():
+    """Copy suppliers from main app's parties+supplier_profile into supplier blueprint's suppliers table."""
+    db = _get_db()
+    try:
+        rows = db.execute(
+            "SELECT p.party_code, p.party_name, p.contact_person, p.phone_number, p.email, "
+            "p.trn_no, p.address, p.notes, p.status, p.created_at, "
+            "COALESCE(pr.supplier_mode, 'Normal') AS supplier_mode "
+            "FROM parties p "
+            "LEFT JOIN supplier_profile pr ON pr.party_code = p.party_code "
+            "WHERE p.party_roles LIKE '%supplier%'"
+        ).fetchall()
+    except Exception:
+        return
+
+    for r in rows:
+        supplier_type = "without_invoice" if (r["supplier_mode"] or "").lower() == "cash" else "with_invoice"
+        existing = db.execute(
+            "SELECT id FROM suppliers WHERE supplier_code = ?", (r["party_code"],)
+        ).fetchone()
+        if existing:
+            db.execute(
+                """UPDATE suppliers SET supplier_name=?, supplier_type=?,
+                   contact_person=?, phone=?, email=?, trn=?, address=?,
+                   notes=?, status=? WHERE supplier_code=?""",
+                (r["party_name"], supplier_type, r["contact_person"],
+                 r["phone_number"], r["email"], r["trn_no"], r["address"],
+                 r["notes"], r["status"], r["party_code"]),
+            )
+        else:
+            db.execute(
+                """INSERT INTO suppliers (supplier_code, supplier_name, supplier_type,
+                   contact_person, phone, email, trn, address, notes, status, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                (r["party_code"], r["party_name"], supplier_type,
+                 r["contact_person"], r["phone_number"], r["email"],
+                 r["trn_no"], r["address"], r["notes"], r["status"],
+                 r["created_at"] or "CURRENT_TIMESTAMP"),
+            )
+    db.commit()
 
 
 
