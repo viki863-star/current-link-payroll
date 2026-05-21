@@ -62,35 +62,40 @@ def _employee_photo_url(app, employee):
 @hr_bp.route("/hr")
 @_login_required("admin")
 def hr_dashboard():
-    _touch_admin_workspace("hr")
-    ensure_employees_table()
-    db = open_db()
+    try:
+        _touch_admin_workspace("hr")
+        ensure_employees_table()
+        db = open_db()
 
-    employees = db.execute(
-        "SELECT employee_id, full_name, status FROM employees ORDER BY full_name"
-    ).fetchall()
+        employees = db.execute(
+            "SELECT employee_id, full_name, status FROM employees ORDER BY full_name"
+        ).fetchall()
 
-    total = len(employees)
-    active = sum(1 for e in employees if (e["status"] or "").lower() == "active")
-    inactive = total - active
+        total = len(employees)
+        active = sum(1 for e in employees if (e["status"] or "").lower() == "active")
+        inactive = total - active
 
-    stored_this_month = db.execute(
-        "SELECT COUNT(*) AS c FROM salary_store WHERE salary_month = ?",
-        (_current_month_value(),),
-    ).fetchone()["c"] or 0
+        stored_this_month = db.execute(
+            "SELECT COUNT(*) AS c FROM salary_store WHERE salary_month = ?",
+            (_current_month_value(),),
+        ).fetchone()["c"] or 0
 
-    advances_pending = db.execute(
-        "SELECT COUNT(*) AS c FROM driver_transactions WHERE txn_type IN ('advance','loan')"
-    ).fetchone()["c"] or 0
+        advances_pending = db.execute(
+            "SELECT COUNT(*) AS c FROM driver_transactions WHERE txn_type IN ('advance','loan')"
+        ).fetchone()["c"] or 0
 
-    return render_template(
-        "hr/dashboard.html",
-        total=total,
-        active_count=active,
-        inactive_count=inactive,
-        stored_this_month=stored_this_month,
-        advances_pending=advances_pending,
-    )
+        return render_template(
+            "hr/dashboard.html",
+            total=total,
+            active_count=active,
+            inactive_count=inactive,
+            stored_this_month=stored_this_month,
+            advances_pending=advances_pending,
+        )
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return f"<h2>HR Dashboard Error</h2><pre>{e}\n\n{tb}</pre>", 500
 
 
 # ── Employee List ────────────────────────────────────────────────
