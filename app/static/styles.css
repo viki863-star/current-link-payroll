@@ -7887,7 +7887,7 @@ html {
 
 .erp-brand-name {
     color: #fff;
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 800;
     letter-spacing: -0.02em;
 }
@@ -8784,6 +8784,38 @@ html {
     .topbar-center {
         display: none;
     }
+}
+
+/* ── Sidebar collapsed toggle ── */
+.erp-sidebar.is-collapsed {
+    width: 60px;
+    min-width: 60px;
+}
+.erp-sidebar.is-collapsed .erp-brand-copy,
+.erp-sidebar.is-collapsed .erp-sidebar-accent,
+.erp-sidebar.is-collapsed .erp-nav-copy,
+.erp-sidebar.is-collapsed .erp-back-dashboard span,
+.erp-sidebar.is-collapsed .erp-sidebar-user-text,
+.erp-sidebar.is-collapsed .erp-side-note,
+.erp-sidebar.is-collapsed .erp-nav-chevron {
+    display: none;
+}
+.erp-sidebar.is-collapsed .erp-nav-link,
+.erp-sidebar.is-collapsed .erp-nav-expandable {
+    justify-content: center;
+    padding: 10px;
+}
+.erp-sidebar.is-collapsed .erp-sidebar-head {
+    padding: 14px 10px;
+    justify-content: center;
+}
+.erp-sidebar.is-collapsed .erp-nav-children {
+    display: none !important;
+}
+.erp-sidebar.is-collapsed ~ .main-content {
+    margin-left: 60px;
+    max-width: calc(100% - 60px);
+    width: calc(100% - 60px);
 }
 
 @media (max-width: 640px) {

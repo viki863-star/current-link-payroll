@@ -128,6 +128,18 @@
 </div>
 
 <script>
+(function() {
+    var btn = document.getElementById('sidebarToggle');
+    var sidebar = document.getElementById('erpSidebar');
+    if (btn && sidebar) {
+        var key = 'erp_sidebar_collapsed';
+        if (localStorage.getItem(key) === 'true') sidebar.classList.add('is-collapsed');
+        btn.addEventListener('click', function() {
+            sidebar.classList.toggle('is-collapsed');
+            localStorage.setItem(key, sidebar.classList.contains('is-collapsed'));
+        });
+    }
+})();
 if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
         navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js', v='20260416d') }}");
