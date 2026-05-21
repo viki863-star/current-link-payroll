@@ -45,13 +45,24 @@ def _get_db():
     return open_db()
 
 
-def _ensure_tables():
-    db = _get_db()
+def _schema_db():
+    """Open a separate connection for schema setup to isolate transaction aborts."""
+    from ..database import _connect_postgres, _connect_sqlite, DatabaseAdapter
     backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+    if backend == "postgres":
+        conn = _connect_postgres(current_app.config["DATABASE_URL"])
+    else:
+        conn = _connect_sqlite(current_app.config["DATABASE_PATH"])
+    return DatabaseAdapter(conn, backend)
 
-    id_col = "id BIGSERIAL PRIMARY KEY" if backend == "postgres" else "id INTEGER PRIMARY KEY AUTOINCREMENT"
-    now_val = "CURRENT_TIMESTAMP" if backend == "postgres" else "(datetime('now'))"
-    real_type = "DOUBLE PRECISION" if backend == "postgres" else "REAL"
+
+def _ensure_tables():
+    db = _schema_db()
+    try:
+        backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+        id_col = "id BIGSERIAL PRIMARY KEY" if backend == "postgres" else "id INTEGER PRIMARY KEY AUTOINCREMENT"
+        now_val = "CURRENT_TIMESTAMP" if backend == "postgres" else "(datetime('now'))"
+        real_type = "DOUBLE PRECISION" if backend == "postgres" else "REAL"
 
     db.executescript(f"""
         CREATE TABLE IF NOT EXISTS suppliers (
@@ -268,6 +279,7 @@ def _ensure_tables():
             pass
 
     db.commit()
+    db.close()
     try:
         sync_parties_to_suppliers()
     except Exception:
