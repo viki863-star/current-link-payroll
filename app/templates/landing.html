@@ -71,8 +71,6 @@
             <div class="bh-nav-inner">
                 <div class="bh-nav-links">
                     <a class="bh-link" href="/">Home</a>
-                    <a class="bh-link" href="{{ url_for('supplier_register') }}">Supplier Register</a>
-                    <a class="bh-link" href="{{ url_for('supplier_login') }}">Supplier Login</a>
                     <a class="bh-link bh-active" href="{{ url_for('login') }}">Portal Login</a>
                 </div>
             </div>
@@ -109,10 +107,8 @@
                         &amp; general contracting across the UAE — licensed, certified, operational 24/7.
                     </p>
                     <div class="lp-hero-actions">
-                        <a class="lp-btn-orange" href="{{ url_for('services') }}#quote">Get a Quote</a>
+                        <a class="lp-btn-orange" href="{{ url_for('login') }}">Portal Login</a>
                         <a class="lp-btn-outline-white" href="{{ url_for('services') }}">Our Services</a>
-                        <a class="lp-btn-outline-white" href="{{ url_for('supplier_register') }}">Supplier Register</a>
-                        <a class="lp-btn-outline-white" href="{{ url_for('supplier_login') }}">Supplier Login</a>
                     </div>
                 </div>
             </div>
@@ -221,23 +217,14 @@
             <div class="lp-section-inner">
                 <div class="lp-section-header">
                     <span class="lp-section-eyebrow">System Access</span>
-                    <h2 class="lp-section-title">Portal Access</h2>
-                    <p class="lp-section-sub">Register as a supplier or log in to your dedicated workspace portal.</p>
+                    <h2 class="lp-section-title">Portal Login</h2>
+                    <p class="lp-section-sub">Log in to your dedicated workspace for ERP, fleet management, field staff, and reporting.</p>
                 </div>
                 <div class="lp-portal-grid">
-                    <div class="lp-portal-card lp-portal-supplier">
-                        <div class="lp-portal-icon">🏢</div>
-                        <h3 class="lp-portal-title">Supplier Portal</h3>
-                        <p class="lp-portal-desc">Register your company, submit quotations, track LPOs and manage your invoices &amp; payments — all in one place.</p>
-                        <div class="lp-portal-actions">
-                            <a class="lp-btn-orange" href="{{ url_for('supplier_register') }}">Register Now</a>
-                            <a class="lp-btn-outline-navy" href="{{ url_for('supplier_login') }}">Login</a>
-                        </div>
-                    </div>
-                    <div class="lp-portal-card lp-portal-internal">
+                    <div class="lp-portal-card lp-portal-internal" style="max-width:480px;margin:0 auto">
                         <div class="lp-portal-icon">⚙️</div>
-                        <h3 class="lp-portal-title">Internal Portal</h3>
-                        <p class="lp-portal-desc">Admin, driver &amp; owner access to the full ERP dashboard, driver payroll, fleet management, and reporting system.</p>
+                        <h3 class="lp-portal-title">ERP Dashboard</h3>
+                        <p class="lp-portal-desc">Admin, driver, field staff &amp; fleet access to the full ERP system, payroll, maintenance, and reporting.</p>
                         <div class="lp-portal-actions">
                             <a class="lp-btn-navy" href="{{ url_for('login') }}">Portal Login</a>
                         </div>
