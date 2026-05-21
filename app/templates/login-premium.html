@@ -76,13 +76,6 @@
                 <span class="portal-role-accent"></span>
               </button>
 
-              <button type="button" class="portal-role-card" data-role="supplier">
-                <span class="portal-role-stripe role-supplier"></span>
-                <span class="portal-role-icon role-supplier"><i class="fa-solid fa-box-open"></i></span>
-                <span class="portal-role-title">Supplier</span>
-                <span class="portal-role-text">Supply chain</span>
-                <span class="portal-role-accent"></span>
-              </button>
 
               <button type="button" class="portal-role-card" data-role="staff">
                 <span class="portal-role-stripe role-staff"></span>
@@ -202,41 +195,6 @@
                   </button>
                 </form>
 
-                <form method="post" action="{{ url_for('supplier_login') }}" class="portal-login-form role-form" data-form-role="supplier" autocomplete="off">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                  <div class="portal-form-group">
-                    <label for="supplierUser">Username / Email</label>
-                    <div class="portal-input-wrap">
-                      <i class="fa-solid fa-user"></i>
-                      <input type="text" id="supplierUser" name="user_id" placeholder="Enter username or email">
-                    </div>
-                  </div>
-
-                  <div class="portal-form-group">
-                    <label for="supplierPassword">Supplier Password</label>
-                    <div class="portal-input-wrap">
-                      <i class="fa-solid fa-lock"></i>
-                      <input type="password" id="supplierPassword" name="password" placeholder="Enter supplier password" autocomplete="current-password">
-                      <button type="button" class="portal-eye-toggle" data-toggle-target="supplierPassword" aria-label="Toggle password visibility">
-                        <i class="fa-regular fa-eye"></i>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="portal-form-tools">
-                    <label class="portal-checkbox">
-                      <input type="checkbox" name="remember">
-                      <span>Remember me</span>
-                    </label>
-                    <a href="{{ url_for('supplier_forgot_password') }}" class="portal-help-link">Forgot Password?</a>
-                  </div>
-
-                  <button type="submit" class="portal-submit-button">
-                    <span>Sign In</span>
-                    <i class="fa-solid fa-arrow-right"></i>
-                  </button>
-                </form>
 
                 <form method="post" action="{{ url_for('technician_login') }}" class="portal-login-form role-form" data-form-role="staff" autocomplete="off">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -319,15 +277,6 @@
           footer: "Driver access works only with the registered mobile number and active PIN.",
           colorClass: "role-driver",
           focusId: "driverPhone"
-        },
-        supplier: {
-          icon: "fa-solid fa-box-open",
-          label: "Supplier",
-          title: "Supplier Login",
-          subtitle: "Supply chain access — use your approved portal account",
-          footer: "Supplier access is limited to approved vendor portal accounts.",
-          colorClass: "role-supplier",
-          focusId: "supplierUser"
         },
         staff: {
           icon: "fa-solid fa-helmet-safety",
@@ -579,7 +528,7 @@
         animateParticles();
       }
 
-      var initialRole = "{{ active_role if active_role in ['admin', 'driver', 'supplier', 'staff'] else 'admin' }}";
+      var initialRole = "{{ active_role if active_role in ['admin', 'driver', 'staff'] else 'admin' }}";
       var shouldOpenForm = {{ 'true' if show_form_on_load else 'false' }};
 
       updateRoleVisual(initialRole);

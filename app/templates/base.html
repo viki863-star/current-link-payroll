@@ -47,10 +47,7 @@
             <div class="topbar-center">
                 <nav style="display:flex;gap:6px;align-items:center">
                     {% if current_role %}
-                        {% if is_owner %}
-                            <a href="{{ url_for('home') }}" style="padding:6px 12px;border-radius:6px;font-size:0.8rem;font-weight:500;color:var(--text-secondary);text-decoration:none">Home</a>
-                            <a href="{{ url_for('owner_fund') }}" style="padding:6px 12px;border-radius:6px;font-size:0.8rem;font-weight:500;color:var(--text-secondary);text-decoration:none">Owner Fund</a>
-                        {% elif is_driver %}
+                        {% if is_driver %}
                             <a href="{{ url_for('home') }}" style="padding:6px 12px;border-radius:6px;font-size:0.8rem;font-weight:500;color:var(--text-secondary);text-decoration:none">Home</a>
                             <a href="{{ url_for('driver_portal') }}" style="padding:6px 12px;border-radius:6px;font-size:0.8rem;font-weight:500;color:var(--text-secondary);text-decoration:none">My Portal</a>
                         {% elif is_supplier %}

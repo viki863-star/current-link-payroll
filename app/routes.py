@@ -204,7 +204,7 @@ def register_routes(app: Flask) -> None:
             "current_user_name": session.get("display_name", "") if request_active else "",
             "is_admin": current_role == "admin",
             "is_driver": current_role == "driver",
-            "is_owner": current_role == "owner",
+
             "is_supplier": current_role == "supplier",
             "current_supplier_party_code": session.get("supplier_party_code", "") if request_active else "",
             "current_admin_workspace": current_workspace,
@@ -238,7 +238,7 @@ def register_routes(app: Flask) -> None:
             db = open_db()
             identifier = _auth_identifier(role, phone_number)
 
-            if role in {"admin", "owner", "driver"}:
+            if role in {"admin", "driver"}:
                 lock_info = _get_login_lock(db, role, identifier)
                 if lock_info["locked"]:
                     flash(lock_info["message"], "error")
@@ -268,21 +268,7 @@ def register_routes(app: Flask) -> None:
                     _audit_log(db, "login_failed", entity_type="auth", entity_id="admin", status="failed", details="Admin password mismatch")
                     db.commit()
                     flash(_latest_login_error(db, "admin", identifier, "Admin password is not correct."), "error")
-            elif role == "owner":
-                if not password:
-                    flash("Owner access code is required.", "error")
-                elif _verify_env_secret(app.config["OWNER_PASSWORD"], app.config.get("OWNER_PASSWORD_HASH", ""), password):
-                    _clear_failed_login(db, "owner", identifier)
-                    _audit_log(db, "login_success", entity_type="auth", entity_id="owner", details="Owner login")
-                    db.commit()
-                    _set_session("owner", display_name="Owner")
-                    flash("Owner login successful.", "success")
-                    return redirect(url_for("owner_fund"))
-                else:
-                    _record_failed_login(db, "owner", identifier)
-                    _audit_log(db, "login_failed", entity_type="auth", entity_id="owner", status="failed", details="Owner password mismatch")
-                    db.commit()
-                    flash(_latest_login_error(db, "owner", identifier, "Owner access code is not correct."), "error")
+
             elif role == "driver":
                 normalized_phone = _normalize_phone(phone_number)
                 driver = _find_driver_by_phone(db, normalized_phone)
@@ -6322,7 +6308,7 @@ def register_routes(app: Flask) -> None:
         )
 
     @app.route("/owner-fund", methods=["GET", "POST"])
-    @_login_required("admin", "owner")
+    @_login_required("admin")
     def owner_fund():
         if _current_role() == "admin":
             _touch_admin_workspace("accounts")
@@ -6522,8 +6508,24 @@ def register_routes(app: Flask) -> None:
         flash("Owner fund entry deleted.", "success")
         return redirect(url_for("owner_fund"))
 
+    @app.post("/owner-fund/clear-all")
+    @_login_required("admin")
+    def clear_all_owner_fund():
+        db = open_db()
+        count_funds = db.execute("SELECT COUNT(*) FROM owner_funds").fetchone()[0]
+        db.execute("DELETE FROM owner_funds")
+        _audit_log(
+            db,
+            "owner_fund_cleared",
+            entity_type="owner_fund",
+            details=f"Cleared {count_funds} records from owner_funds table (entries preserved)",
+        )
+        db.commit()
+        flash(f"Owner fund report cleared ({count_funds} summary records removed). Individual entries are kept.", "success")
+        return redirect(url_for("owner_fund"))
+
     @app.get("/owner-fund/pdf")
-    @_login_required("admin", "owner")
+    @_login_required("admin")
     def owner_fund_pdf():
         db = open_db()
         incoming, outgoing, balance = _owner_fund_totals(db)
@@ -8213,7 +8215,7 @@ def register_routes(app: Flask) -> None:
         abort(404)
 
     @app.get("/generated/<path:filename>")
-    @_login_required("admin", "owner", "driver", "supplier")
+    @_login_required("admin", "driver", "supplier")
     def generated_file(filename: str):
         if not _can_access_generated_file(filename):
             flash("You do not have access to that file.", "error")
@@ -8383,8 +8385,6 @@ def _role_home_endpoint() -> str:
     role = _current_role()
     if role == "admin":
         return _workspace_home_endpoint(_current_admin_workspace())
-    if role == "owner":
-        return "owner_fund"
     if role == "driver":
         return "driver_portal"
     if role == "supplier":
@@ -8437,14 +8437,6 @@ def _current_workspace_meta() -> dict[str, str]:
     if role == "admin":
         workspace = _current_admin_workspace() or "universal"
         return {"key": workspace, **ADMIN_WORKSPACE_META[workspace]}
-    if role == "owner":
-        return {
-            "key": "owner",
-            "label": "Owner",
-            "eyebrow": "Owner Workspace",
-            "title": "Owner Fund Desk",
-            "summary": "Track owner fund movement, support salary payouts and keep monthly backing visible.",
-        }
     if role == "driver":
         return {
             "key": "driver",
@@ -17797,8 +17789,6 @@ def _can_access_generated_file(filename: str) -> bool:
     role = _current_role()
     if role == "admin":
         return True
-    if role == "owner":
-        return filename.startswith("owner_fund/")
     if role == "supplier":
         party_code = _current_supplier_party_code()
         if not party_code:

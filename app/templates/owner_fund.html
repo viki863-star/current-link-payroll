@@ -118,6 +118,12 @@
 <div class="profile-card" style="margin-bottom:16px">
     <div class="section-header">
         <h3>Entries</h3>
+        {% if can_edit %}
+        <form method="post" action="{{ url_for('clear_all_owner_fund') }}" onsubmit="return confirm('Clear ALL owner fund history? This cannot be undone.');" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline" type="submit" style="color:#e65100">Clear All History</button>
+        </form>
+        {% endif %}
     </div>
     {% if entries %}
     <div class="table-wrap">

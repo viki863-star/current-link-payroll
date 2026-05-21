@@ -542,27 +542,6 @@ def _migrate_old_supplier_data():
                 (sup_id, a["agreement_no"], a["agreement_no"], content, a["created_at"]),
             )
 
-    # ── Owner Fund Entries ──
-    try:
-        old_of = new.execute(
-            "SELECT owner_name, entry_date, amount, received_by, payment_method, details, created_at "
-            "FROM owner_fund_entries"
-        ).fetchall()
-    except Exception:
-        old_of = []
-    for of in old_of:
-        existing = new.execute("SELECT id FROM owner_funds WHERE amount=? AND fund_date=?",
-                               (of["amount"], of["entry_date"])).fetchone()
-        if not existing:
-            new.execute(
-                """INSERT INTO owner_funds (amount, fund_date, description, notes, created_at)
-                   VALUES (?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
-                (of["amount"], of["entry_date"],
-                 f"Owner: {of['owner_name']} - {of['details'] or ''}",
-                 f"Received by: {of['received_by'] or ''}, Method: {of['payment_method'] or ''}",
-                 of["created_at"]),
-            )
-
     new.commit()
 
 
