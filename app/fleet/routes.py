@@ -575,6 +575,7 @@ staff_job_delete.csrf_exempt = True
 
 def _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw_hash, is_active):
     status = "Active" if is_active else "Inactive"
+
     existing = db.execute(
         "SELECT technician_code FROM technicians WHERE technician_code = ?",
         (staff_id,),
@@ -586,12 +587,26 @@ def _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw
                 specialization = ?, status = ?
             WHERE technician_code = ?
         """, (username, pw_hash, phone, full_name, status, staff_id))
-    else:
+        return
+
+    user_taken = db.execute(
+        "SELECT technician_code FROM technicians WHERE user_id = ?",
+        (username,),
+    ).fetchone()
+    if user_taken:
         db.execute("""
-            INSERT INTO technicians
-            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
-            VALUES (?, NULL, ?, ?, ?, ?, ?)
-        """, (staff_id, username, pw_hash, phone, full_name, status))
+            UPDATE technicians
+            SET technician_code = ?, password_hash = ?, phone_number = ?,
+                specialization = ?, status = ?
+            WHERE user_id = ?
+        """, (staff_id, pw_hash, phone, full_name, status, username))
+        return
+
+    db.execute("""
+        INSERT INTO technicians
+        (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+        VALUES (?, NULL, ?, ?, ?, ?, ?)
+    """, (staff_id, username, pw_hash, phone, full_name, status))
 
 
 @fleet_bp.route("/fleet/staff")
