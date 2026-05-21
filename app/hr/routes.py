@@ -39,7 +39,7 @@ def ensure_employees_table():
     try:
         sync_drivers_to_employees(db)
     except Exception:
-        pass
+        db.rollback()
 
 
 def _fetch_employee(db, employee_id):
