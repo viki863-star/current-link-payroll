@@ -1198,16 +1198,8 @@ def register_routes(app: Flask) -> None:
         return render_template("fleet/staff_jobs.html", jobs=jobs)
 
     @app.route("/portal/technician", methods=["GET", "POST"])
-    @_login_required("technician")
     def technician_portal():
-        db = open_db()
-        technician_code = session.get("technician_code", "")
-        party_code = session.get("technician_party_code", "")
-        
-        if not technician_code:
-            session.clear()
-            flash("Field staff session expired. Please login again.", "error")
-            return redirect(url_for("technician_login"))
+        return redirect(url_for("technician_simple"))
         
         # Fetch technician details
         technician = db.execute(
