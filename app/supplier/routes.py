@@ -225,29 +225,35 @@ def _ensure_tables():
         );
     """)
 
+    db.commit()
+
     for col, dtype in [("lpo_id", "INTEGER")]:
         try:
             db.execute(f"ALTER TABLE supplier_invoices ADD COLUMN {col} {dtype}")
+            db.commit()
         except Exception:
-            pass
+            db.rollback()
 
     for col, dtype in [("lpo_type", "TEXT DEFAULT 'fixed'"), ("quotation_id", "INTEGER")]:
         try:
             db.execute(f"ALTER TABLE supplier_lpos ADD COLUMN {col} {dtype}")
+            db.commit()
         except Exception:
-            pass
+            db.rollback()
 
     for col, dtype in [("earning_type", "TEXT DEFAULT 'fixed'"), ("quantity", real_type), ("rate", real_type)]:
         try:
             db.execute(f"ALTER TABLE supplier_expenses ADD COLUMN {col} {dtype}")
+            db.commit()
         except Exception:
-            pass
+            db.rollback()
 
     for col, dtype in [("deduct_from_balance", "INTEGER DEFAULT 0")]:
         try:
             db.execute(f"ALTER TABLE supplier_loans ADD COLUMN {col} {dtype}")
+            db.commit()
         except Exception:
-            pass
+            db.rollback()
 
     db.execute(f"""CREATE TABLE IF NOT EXISTS owner_funds (
         {id_col},
@@ -260,22 +266,26 @@ def _ensure_tables():
     for col, dtype in [("owner_name", "TEXT DEFAULT 'Owner'"), ("transaction_type", "TEXT DEFAULT 'deposit'")]:
         try:
             db.execute(f"ALTER TABLE owner_funds ADD COLUMN {col} {dtype}")
+            db.commit()
         except Exception:
-            pass
+            db.rollback()
 
     for col, dtype in [("fund_source", "TEXT DEFAULT 'cash_bank'")]:
         try:
             db.execute(f"ALTER TABLE supplier_payment_records ADD COLUMN {col} {dtype}")
+            db.commit()
         except Exception:
-            pass
+            db.rollback()
         try:
             db.execute(f"ALTER TABLE supplier_expenses ADD COLUMN {col} {dtype}")
+            db.commit()
         except Exception:
-            pass
+            db.rollback()
         try:
             db.execute(f"ALTER TABLE supplier_loans ADD COLUMN {col} {dtype}")
+            db.commit()
         except Exception:
-            pass
+            db.rollback()
 
     db.commit()
     db.close()
