@@ -301,7 +301,8 @@ def sync_parties_to_suppliers():
         "COALESCE(pr.supplier_mode, 'Normal') AS supplier_mode "
         "FROM parties p "
         "LEFT JOIN supplier_profile pr ON pr.party_code = p.party_code "
-        "WHERE p.party_roles LIKE '%supplier%'"
+        "WHERE p.party_roles LIKE ?",
+        ("%supplier%",)
     ).fetchall()
     if not rows:
         all_rows = db.execute("SELECT party_code, party_name, party_roles FROM parties").fetchall()
