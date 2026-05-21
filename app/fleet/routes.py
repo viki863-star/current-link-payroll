@@ -380,26 +380,7 @@ def _staff_login_required(f):
 
 @fleet_bp.route("/staff/login", methods=["GET", "POST"])
 def staff_login():
-    # Clear any admin session to avoid sidebar conflict
-    session.pop("role", None)
-
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "").strip()
-        db = open_db()
-        staff = db.execute(
-            "SELECT * FROM field_staff WHERE username = ? AND is_active = 1", (username,)
-        ).fetchone()
-        if staff:
-            if check_password_hash(staff["password_hash"], password):
-                session["staff_id"] = staff["staff_id"]
-                session["staff_name"] = staff["full_name"]
-                flash("Welcome, " + staff["full_name"], "success")
-                return redirect(url_for("fleet.staff_dashboard"))
-        flash("Invalid username or password.", "error")
-        return redirect(url_for("fleet.staff_login"))
-
-    return render_template("fleet/staff_login.html")
+    return redirect(url_for("login"))
 
 
 staff_login.csrf_exempt = True
@@ -407,41 +388,12 @@ staff_login.csrf_exempt = True
 
 @fleet_bp.route("/staff/logout")
 def staff_logout():
-    session.pop("staff_id", None)
-    session.pop("staff_name", None)
-    return redirect(url_for("fleet.staff_login"))
+    return redirect(url_for("logout"))
 
 
 @fleet_bp.route("/staff/dashboard")
-@_staff_login_required
 def staff_dashboard():
-    db = open_db()
-    staff_id = session["staff_id"]
-
-    cash_receipts = db.execute(
-        "SELECT * FROM cash_receipts WHERE staff_id = ? ORDER BY receipt_date DESC", (staff_id,)
-    ).fetchall()
-    total_received = sum(r["amount"] for r in cash_receipts)
-
-    jobs = db.execute(
-        "SELECT * FROM maintenance_jobs WHERE staff_id = ? ORDER BY created_at DESC", (staff_id,)
-    ).fetchall()
-    total_spent = sum(j["amount"] for j in jobs)
-    pending_count = sum(1 for j in jobs if j["status"] == "pending")
-    approved_count = sum(1 for j in jobs if j["status"] == "approved")
-
-    balance = total_received - total_spent
-
-    return render_template(
-        "fleet/staff_dashboard.html",
-        cash_receipts=cash_receipts,
-        total_received=total_received,
-        jobs=jobs,
-        total_spent=total_spent,
-        pending_count=pending_count,
-        approved_count=approved_count,
-        balance=balance,
-    )
+    return redirect(url_for("technician_portal"))
 
 
 @fleet_bp.route("/staff/jobs/new", methods=["GET", "POST"])
