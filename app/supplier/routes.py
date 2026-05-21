@@ -475,6 +475,94 @@ def _migrate_old_supplier_data():
                  p["payment_no"], p["notes"], p["created_at"]),
             )
 
+    # ── LPOs from lpos table ──
+    try:
+        old_lpos = new.execute(
+            "SELECT l.lpo_no, l.party_code, l.issue_date, l.amount, l.description, l.status, l.notes, l.created_at "
+            "FROM lpos l"
+        ).fetchall()
+    except Exception:
+        old_lpos = []
+    for l in old_lpos:
+        sup_id = new_suppliers.get(l["party_code"])
+        if not sup_id:
+            continue
+        existing = new.execute("SELECT id FROM supplier_lpos WHERE lpo_no=? AND supplier_id=?",
+                               (l["lpo_no"], sup_id)).fetchone()
+        if not existing:
+            new.execute(
+                """INSERT INTO supplier_lpos (supplier_id, lpo_no, lpo_date, amount, description, status, notes, created_at)
+                   VALUES (?,?,?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (sup_id, l["lpo_no"], l["issue_date"], l["amount"],
+                 l["description"], l["status"], l["notes"], l["created_at"]),
+            )
+
+    # ── Quotations from supplier_quotation_submissions ──
+    try:
+        old_q = new.execute(
+            "SELECT q.quotation_no, q.party_code, q.quotation_date, q.job_title, q.amount, q.notes, q.created_at "
+            "FROM supplier_quotation_submissions q"
+        ).fetchall()
+    except Exception:
+        old_q = []
+    for q in old_q:
+        sup_id = new_suppliers.get(q["party_code"])
+        if not sup_id:
+            continue
+        existing = new.execute("SELECT id FROM supplier_quotations WHERE quotation_no=? AND supplier_id=?",
+                               (q["quotation_no"], sup_id)).fetchone()
+        if not existing:
+            new.execute(
+                """INSERT INTO supplier_quotations (supplier_id, quotation_no, quotation_date, amount, description, notes, created_at)
+                   VALUES (?,?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (sup_id, q["quotation_no"], q["quotation_date"], q["amount"],
+                 q["job_title"], q["notes"], q["created_at"]),
+            )
+
+    # ── Agreements as Documents ──
+    try:
+        old_ag = new.execute(
+            "SELECT a.agreement_no, a.party_code, a.agreement_kind, a.start_date, a.end_date, "
+            "a.amount, a.scope, a.notes, a.status, a.created_at "
+            "FROM agreements a"
+        ).fetchall()
+    except Exception:
+        old_ag = []
+    for a in old_ag:
+        sup_id = new_suppliers.get(a["party_code"])
+        if not sup_id:
+            continue
+        content = f"Agreement: {a['agreement_no']} ({a['agreement_kind']})\nScope: {a['scope']}\nAmount: {a['amount']}\nPeriod: {a['start_date']} to {a['end_date'] or 'Open'}\nStatus: {a['status']}"
+        existing = new.execute("SELECT id FROM supplier_documents WHERE doc_ref=? AND supplier_id=?",
+                               (a["agreement_no"], sup_id)).fetchone()
+        if not existing:
+            new.execute(
+                """INSERT INTO supplier_documents (supplier_id, doc_type, doc_name, doc_ref, notes, created_at)
+                   VALUES (?,'Agreement',?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (sup_id, a["agreement_no"], a["agreement_no"], content, a["created_at"]),
+            )
+
+    # ── Owner Fund Entries ──
+    try:
+        old_of = new.execute(
+            "SELECT owner_name, entry_date, amount, received_by, payment_method, details, created_at "
+            "FROM owner_fund_entries"
+        ).fetchall()
+    except Exception:
+        old_of = []
+    for of in old_of:
+        existing = new.execute("SELECT id FROM owner_funds WHERE amount=? AND fund_date=?",
+                               (of["amount"], of["entry_date"])).fetchone()
+        if not existing:
+            new.execute(
+                """INSERT INTO owner_funds (amount, fund_date, description, notes, created_at)
+                   VALUES (?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                (of["amount"], of["entry_date"],
+                 f"Owner: {of['owner_name']} - {of['details'] or ''}",
+                 f"Received by: {of['received_by'] or ''}, Method: {of['payment_method'] or ''}",
+                 of["created_at"]),
+            )
+
     new.commit()
 
 
