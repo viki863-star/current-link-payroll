@@ -38,24 +38,12 @@ def ensure_employees_table():
     db = open_db()
     backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
 
-    # Step 1: ensure employees table exists (use correct DDL for backend)
-    try:
-        if backend == "postgres":
-            db.executescript(EMPLOYEE_SCHEMA_POSTGRES)
-        else:
-            db.executescript(EMPLOYEE_SCHEMA)
-        db.commit()
-    except Exception:
-        db.rollback()
+    schema = EMPLOYEE_SCHEMA_POSTGRES if backend == "postgres" else EMPLOYEE_SCHEMA
+    db.executescript(schema)
+    db.commit()
 
-    # Step 2: sync drivers → employees (PostgreSQL likely has no drivers table, skip)
-    if backend == "postgres":
-        return
-
-    try:
+    if backend == "sqlite":
         sync_drivers_to_employees(db)
-    except Exception:
-        db.rollback()
 
 
 def _fetch_employee(db, employee_id):
