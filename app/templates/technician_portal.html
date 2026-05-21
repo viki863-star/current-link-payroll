@@ -3,6 +3,27 @@
 {% block content %}
 <section class="admin-desk-shell maintenance-workspace-shell field-staff-portal-shell">
     <style>
+        /* Vehicle Card Picker */
+        .veh-pick-wrap { display:flex; flex-direction:column; gap:8px; }
+        .veh-pick-wrap > span { font-size:0.82rem; font-weight:600; color:var(--text); }
+        .veh-search-box input { width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; font-size:0.85rem; background:#fff; box-sizing:border-box; outline:none; }
+        .veh-search-box input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(28,86,139,0.1); }
+        .veh-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; max-height:220px; overflow-y:auto; }
+        .veh-card { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:8px 10px; border:2px solid var(--line); border-radius:10px; cursor:pointer; transition:all 0.12s; position:relative; font-size:0.78rem; }
+        .veh-card:hover { border-color:var(--primary); background:#f0f4ff; }
+        .veh-card.selected { border-color:var(--primary); background:#e8f0fe; }
+        .veh-card.selected .veh-tick { opacity:1; }
+        .veh-badge { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:0.65rem; font-weight:700; color:#fff; flex-shrink:0; }
+        .veh-badge-1 { background:#1c568b; }
+        .veh-badge-2 { background:#e65100; }
+        .veh-badge-3 { background:#7b1fa2; }
+        .veh-badge-4 { background:#2e7d32; }
+        .veh-badge-5 { background:#546e7a; }
+        .veh-label { font-weight:700; font-size:0.82rem; }
+        .veh-sub { width:100%; font-size:0.68rem; color:var(--muted); }
+        .veh-tick { position:absolute; top:4px; right:4px; color:var(--primary); font-weight:700; font-size:0.75rem; opacity:0; transition:opacity 0.12s; }
+        .veh-selected { margin-top:2px; padding:6px 10px; background:#e8f5e9; border-radius:8px; font-size:0.78rem; text-align:center; }
+
         /* New Field Staff Welcome Card Styles */
         .field-staff-portal-shell .field-staff-welcome-card {
             background: linear-gradient(135deg, #1c568b 0%, #2a6ba8 100%);
@@ -619,18 +640,31 @@
                                 <span>Date</span>
                                 <input type="date" name="entry_date_{{ row.row_no }}" value="{{ row.entry_date }}">
                             </label>
-                            <label>
+                            <div class="veh-pick-wrap">
                                 <span>Vehicle</span>
-                                <select name="vehicle_id_{{ row.row_no }}">
-                                    <option value="" {% if not row.vehicle_id %}selected{% endif %}>General Entry / No Vehicle</option>
-                                    <option value="GENERAL" {% if row.vehicle_id == 'GENERAL' %}selected{% endif %}>General Entry</option>
+                                <div class="veh-search-box">
+                                    <input type="text" class="veh-search-input" data-row="{{ row.row_no }}" placeholder="Search vehicle..." oninput="vehFilter(this)">
+                                </div>
+                                <div class="veh-grid" data-row="{{ row.row_no }}">
+                                    <div class="veh-card ge-card" data-value="" onclick="vehSelect(this, {{ row.row_no }})" data-search="general entry no vehicle">
+                                        <span class="veh-badge" style="background:#757575">GE</span>
+                                        <span class="veh-label">General Expense</span>
+                                        <span class="veh-tick">&#10003;</span>
+                                    </div>
                                     {% for vehicle in vehicle_options %}
-                                    <option value="{{ vehicle.vehicle_id }}" {% if row.vehicle_id == vehicle.vehicle_id %}selected{% endif %}>
-                                        {{ vehicle.vehicle_no }} - {{ vehicle.vehicle_name or 'Vehicle' }} ({{ vehicle.ownership_mode }})
-                                    </option>
+                                    <div class="veh-card {% if row.vehicle_id == vehicle.vehicle_id %}selected{% endif %}" data-value="{{ vehicle.vehicle_id }}" onclick="vehSelect(this, {{ row.row_no }})" data-search="{{ vehicle.vehicle_no }} {{ vehicle.vehicle_name or 'Vehicle' }} {{ vehicle.ownership_mode }}">
+                                        <span class="veh-badge veh-badge-{{ loop.index % 5 + 1 }}">{{ (vehicle.vehicle_no or 'V')[:2]|upper }}</span>
+                                        <span class="veh-label">{{ vehicle.vehicle_no }}</span>
+                                        <span class="veh-sub">{{ vehicle.vehicle_name or 'Vehicle' }} / {{ vehicle.ownership_mode }}</span>
+                                        <span class="veh-tick">&#10003;</span>
+                                    </div>
                                     {% endfor %}
-                                </select>
-                            </label>
+                                </div>
+                                <input type="hidden" name="vehicle_id_{{ row.row_no }}" value="{{ row.vehicle_id or '' }}">
+                                <div class="veh-selected" id="veh-selected-{{ row.row_no }}" {% if not row.vehicle_id %}style="display:none"{% endif %}>
+                                    Selected: <strong>{% if row.vehicle_id %}{{ row.vehicle_id }}{% else %}General Expense{% endif %}</strong>
+                                </div>
+                            </div>
                             <label class="full-span">
                                 <span>Shop / Vendor / Place</span>
                                 <input type="text" name="workshop_name_{{ row.row_no }}" value="{{ row.workshop_name }}" placeholder="Workshop, fuel station, restaurant or site">
@@ -850,18 +884,31 @@
                     <span>Date</span>
                     <input type="date" name="entry_date___ROW__" value="">
                 </label>
-                <label>
+                <div class="veh-pick-wrap">
                     <span>Vehicle</span>
-                    <select name="vehicle_id___ROW__">
-                        <option value="" selected>General Entry / No Vehicle</option>
-                        <option value="GENERAL">General Entry</option>
+                    <div class="veh-search-box">
+                        <input type="text" class="veh-search-input" data-row="__ROW__" placeholder="Search vehicle..." oninput="vehFilter(this)">
+                    </div>
+                    <div class="veh-grid" data-row="__ROW__">
+                        <div class="veh-card ge-card selected" data-value="" onclick="vehSelect(this, '__ROW__')" data-search="general entry no vehicle">
+                            <span class="veh-badge" style="background:#757575">GE</span>
+                            <span class="veh-label">General Expense</span>
+                            <span class="veh-tick">&#10003;</span>
+                        </div>
                         {% for vehicle in vehicle_options %}
-                        <option value="{{ vehicle.vehicle_id }}">
-                            {{ vehicle.vehicle_no }} - {{ vehicle.vehicle_name or 'Vehicle' }} ({{ vehicle.ownership_mode }})
-                        </option>
+                        <div class="veh-card" data-value="{{ vehicle.vehicle_id }}" onclick="vehSelect(this, '__ROW__')" data-search="{{ vehicle.vehicle_no }} {{ vehicle.vehicle_name or 'Vehicle' }} {{ vehicle.ownership_mode }}">
+                            <span class="veh-badge veh-badge-{{ loop.index % 5 + 1 }}">{{ (vehicle.vehicle_no or 'V')[:2]|upper }}</span>
+                            <span class="veh-label">{{ vehicle.vehicle_no }}</span>
+                            <span class="veh-sub">{{ vehicle.vehicle_name or 'Vehicle' }} / {{ vehicle.ownership_mode }}</span>
+                            <span class="veh-tick">&#10003;</span>
+                        </div>
                         {% endfor %}
-                    </select>
-                </label>
+                    </div>
+                    <input type="hidden" name="vehicle_id___ROW__" value="">
+                    <div class="veh-selected" id="veh-selected-__ROW__" style="display:none">
+                        Selected: <strong>General Expense</strong>
+                    </div>
+                </div>
                 <label class="full-span">
                     <span>Shop / Vendor / Place</span>
                     <input type="text" name="workshop_name___ROW__" value="" placeholder="Workshop, fuel station, restaurant or site">
@@ -925,6 +972,29 @@
 </section>
 
 <script>
+function vehFilter(input) {
+    var q = (input.value || '').toLowerCase().trim();
+    var grid = input.closest('.veh-pick-wrap').querySelector('.veh-grid');
+    if (!grid) return;
+    grid.querySelectorAll('.veh-card').forEach(function(c) {
+        c.style.display = (!q || (c.dataset.search || '').toLowerCase().includes(q)) ? '' : 'none';
+    });
+}
+
+function vehSelect(card, rowNo) {
+    var wrap = card.closest('.veh-pick-wrap');
+    if (!wrap) return;
+    wrap.querySelectorAll('.veh-card').forEach(function(c) { c.classList.remove('selected'); });
+    card.classList.add('selected');
+    var val = card.dataset.value || '';
+    wrap.querySelector('input[type=hidden]').value = val;
+    var disp = document.getElementById('veh-selected-' + rowNo);
+    if (disp) {
+        disp.innerHTML = 'Selected: <strong>' + (val || 'General Expense') + '</strong>';
+        disp.style.display = 'block';
+    }
+}
+
 (function () {
     const rowsContainer = document.getElementById("field-staff-rows");
     const rowIndexesInput = document.getElementById("field-staff-row-indexes");
