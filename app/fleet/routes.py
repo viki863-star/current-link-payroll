@@ -609,6 +609,60 @@ def _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw
     """, (staff_id, username, pw_hash, phone, full_name, status))
 
 
+def _migrate_old_staff_entries(db):
+    synced = db.execute("""
+        SELECT fs.staff_id, fs.full_name FROM field_staff fs
+        JOIN technicians t ON t.technician_code = fs.staff_id
+    """).fetchall()
+    for s in synced:
+        old_cash = db.execute("""
+            SELECT cr.* FROM cash_receipts cr
+            LEFT JOIN maintenance_staff_advances msa
+                ON msa.staff_code = cr.staff_id
+                AND msa.amount = cr.amount
+                AND msa.entry_date = cr.receipt_date
+                AND msa.reference = cr.given_by
+            WHERE cr.staff_id = ? AND msa.id IS NULL
+        """, (s["staff_id"],)).fetchall()
+        for c in old_cash:
+            last = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
+            num = 1
+            if last:
+                num = int(last["advance_no"].split("-")[1]) + 1
+            adv_no = f"ADV-{num:04d}"
+            db.execute("""
+                INSERT INTO maintenance_staff_advances
+                (advance_no, staff_code, entry_date, funding_source, amount, reference, notes)
+                VALUES (?, ?, ?, 'Owner Fund', ?, ?, ?)
+            """, (adv_no, s["staff_id"], c["receipt_date"], c["amount"], c["given_by"], c["notes"] or ""))
+
+        old_jobs = db.execute("""
+            SELECT mj.* FROM maintenance_jobs mj
+            LEFT JOIN maintenance_papers mp
+                ON mp.technician_code = mj.staff_id
+                AND mp.total_amount = mj.amount
+                AND mp.work_summary = mj.description
+            WHERE mj.staff_id = ? AND mp.id IS NULL
+        """, (s["staff_id"],)).fetchall()
+        for j in old_jobs:
+            last = db.execute("SELECT paper_no FROM maintenance_papers ORDER BY id DESC LIMIT 1").fetchone()
+            num = 1
+            if last:
+                num = int(last["paper_no"].split("-")[1]) + 1
+            pno = f"PAPER-{num:04d}"
+            status_map = {"pending": "Pending", "approved": "Approved", "rejected": "Rejected"}
+            rev_status = status_map.get(j["status"], "Pending")
+            paper_date = (j["created_at"] or "")[:10] or "2025-01-01"
+            db.execute("""
+                INSERT INTO maintenance_papers
+                (paper_no, paper_date, vehicle_id, technician_code, work_summary,
+                 total_amount, review_status, payment_status, notes, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)
+            """, (pno, paper_date, j["vehicle_id"], s["staff_id"],
+                  j["description"] or "", j["amount"], rev_status,
+                  j["admin_notes"] or "", j["created_at"]))
+
+
 @fleet_bp.route("/fleet/staff")
 @_login_required("admin")
 def fleet_staff_list():
@@ -630,6 +684,9 @@ def fleet_staff_list():
         )
     if unsynced:
         db.commit()
+
+    _migrate_old_staff_entries(db)
+    db.commit()
 
     staff_list = db.execute("SELECT * FROM field_staff ORDER BY full_name").fetchall()
     return render_template("fleet/fleet_staff_list.html", staff_list=staff_list)
