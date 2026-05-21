@@ -30,7 +30,8 @@ from .forms import (
 from .services import (
     sync_drivers_to_employees, save_employee_photo,
     employee_search_filter, next_employee_id,
-    employee_departments, employee_types
+    employee_departments, employee_types,
+    EMPLOYEE_SCHEMA, EMPLOYEE_SCHEMA_POSTGRES
 )
 
 
