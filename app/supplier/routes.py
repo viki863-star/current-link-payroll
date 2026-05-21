@@ -290,10 +290,7 @@ def _ensure_tables():
     db.commit()
     db.close()
     sync_parties_to_suppliers()
-    try:
-        _migrate_old_supplier_data()
-    except Exception:
-        pass
+    _migrate_old_supplier_data()
 
 
 def sync_parties_to_suppliers():
@@ -339,20 +336,34 @@ def sync_parties_to_suppliers():
 def _migrate_old_supplier_data():
     """Migrate invoices, payments, expenses, loans from old SQLite DB to new PostgreSQL supplier tables."""
     import sqlite3
+    import os
     sqlite_path = current_app.config.get("DATABASE")
     if not sqlite_path or not os.path.exists(sqlite_path):
-        return
+        raise Exception(f"SQLite DB not found at: {sqlite_path}")
 
     old = sqlite3.connect(sqlite_path)
     old.row_factory = sqlite3.Row
     new = _get_db()
 
-    # Build map: party_code → new supplier id
     new_suppliers = {r["supplier_code"]: r["id"] for r in new.execute("SELECT supplier_code, id FROM suppliers").fetchall()}
 
-    # ── Invoices ──
+    # Check old tables
+    old_tables = old.execute("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('suppliers','supplier_invoices','supplier_payment_records','supplier_expenses','supplier_loans')").fetchall()
+    table_names = [t["name"] for t in old_tables]
+    if not table_names:
+        old.close()
+        raise Exception(f"No old supplier tables found in SQLite at {sqlite_path}")
+
+    old_sup_count = 0
+    try:
+        old_sup_count = len(old.execute("SELECT * FROM suppliers").fetchall())
+    except Exception:
+        pass
+
+    old_inv_count = 0
     try:
         old_inv = old.execute("SELECT * FROM supplier_invoices").fetchall()
+        old_inv_count = len(old_inv)
     except Exception:
         old_inv = []
     for inv in old_inv:
@@ -456,6 +467,12 @@ def _migrate_old_supplier_data():
 
     new.commit()
     old.close()
+    raise Exception(
+        f"Migration complete. Old tables: {table_names}. "
+        f"Suppliers: {old_sup_count}. "
+        f"Invoices migrated: {old_inv_count}. "
+        f"New suppliers in PG: {len(new_suppliers)}"
+    )
 
 
 
