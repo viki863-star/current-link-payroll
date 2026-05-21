@@ -573,12 +573,49 @@ staff_job_delete.csrf_exempt = True
 # ADMIN: Field Staff Management
 # ═════════════════════════════════════════════════════════════════
 
+def _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw_hash, is_active):
+    status = "Active" if is_active else "Inactive"
+    existing = db.execute(
+        "SELECT technician_code FROM technicians WHERE technician_code = ?",
+        (staff_id,),
+    ).fetchone()
+    if existing:
+        db.execute("""
+            UPDATE technicians
+            SET user_id = ?, password_hash = ?, phone_number = ?,
+                specialization = ?, status = ?
+            WHERE technician_code = ?
+        """, (username, pw_hash, phone, full_name, status, staff_id))
+    else:
+        db.execute("""
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, NULL, ?, ?, ?, ?, ?)
+        """, (staff_id, username, pw_hash, phone, full_name, status))
+
+
 @fleet_bp.route("/fleet/staff")
 @_login_required("admin")
 def fleet_staff_list():
     _touch_admin_workspace("fleet")
     ensure_fleet_tables()
     db = open_db()
+
+    unsynced = db.execute("""
+        SELECT fs.* FROM field_staff fs
+        LEFT JOIN technicians t ON t.technician_code = fs.staff_id
+        WHERE t.technician_code IS NULL
+    """).fetchall()
+    for row in unsynced:
+        pw_hash = row["password_hash"] or generate_password_hash("changeme123")
+        _sync_field_staff_to_technician(
+            db, row["staff_id"], row["full_name"],
+            row["phone"] or "", row["username"],
+            pw_hash, row["is_active"],
+        )
+    if unsynced:
+        db.commit()
+
     staff_list = db.execute("SELECT * FROM field_staff ORDER BY full_name").fetchall()
     return render_template("fleet/fleet_staff_list.html", staff_list=staff_list)
 
@@ -616,6 +653,7 @@ def fleet_staff_add():
             "INSERT INTO field_staff (staff_id, full_name, phone, username, password_hash) VALUES (?,?,?,?,?)",
             (staff_id, full_name, phone, username, pw_hash),
         )
+        _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw_hash, 1)
         db.commit()
         flash(f"Staff {full_name} added.", "success")
         return redirect(url_for("fleet.fleet_staff_list"))
@@ -650,8 +688,10 @@ def fleet_staff_edit(staff_id):
             db.execute("UPDATE field_staff SET full_name=?, phone=?, username=?, password_hash=?, is_active=? WHERE staff_id=?",
                        (full_name, phone, username, pw_hash, is_active, staff_id))
         else:
+            pw_hash = s["password_hash"]
             db.execute("UPDATE field_staff SET full_name=?, phone=?, username=?, is_active=? WHERE staff_id=?",
                        (full_name, phone, username, is_active, staff_id))
+        _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw_hash, is_active)
         db.commit()
         flash("Staff updated.", "success")
         return redirect(url_for("fleet.fleet_staff_list"))
