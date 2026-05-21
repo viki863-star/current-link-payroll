@@ -1159,6 +1159,9 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("technician_login"))
         vehicles = db.execute("SELECT * FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
         _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
+        total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM cash_receipts WHERE staff_id = ?", (technician_code,)).fetchone()["t"] or 0
+        total_spent = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status IN ('approved','pending')", (technician_code,)).fetchone()["t"] or 0
+        balance = float(total_received) - float(total_spent)
         if request.method == "POST":
             vehicle_id = request.form.get("vehicle_id", "").strip()
             amount = request.form.get("amount", "").strip()
@@ -1184,7 +1187,8 @@ def register_routes(app: Flask) -> None:
             db.commit()
             flash("Job submitted for approval.", "success")
             return redirect(url_for("technician_simple"))
-        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v={})
+        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v={},
+                               total_received=total_received, total_spent=total_spent, balance=balance)
 
     @app.route("/portal/technician/my-jobs")
     def technician_my_jobs():

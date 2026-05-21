@@ -11,8 +11,22 @@
 <div class="staff-container">
     <div class="staff-header">
         <h1 class="staff-title">New Maintenance Job</h1>
-        <a href="{{ url_for('technician_simple') }}" class="staff-back-btn">&#8592; Back</a>
-        <a href="{{ url_for('technician_my_jobs') }}" style="font-size:0.85rem;color:var(--primary);text-decoration:none;padding:6px 12px;border:1px solid var(--line);border-radius:8px;margin-left:auto">My Jobs</a>
+        <a href="{{ url_for('technician_my_jobs') }}" style="font-size:0.85rem;color:var(--primary);text-decoration:none;padding:6px 12px;border:1px solid var(--line);border-radius:8px">My Jobs</a>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:16px;padding:12px 16px;background:#f0f7ff;border-radius:12px;border:1px solid #d6e8ff">
+        <div style="flex:1;text-align:center">
+            <div style="font-size:0.7rem;font-weight:600;color:#5b7494;text-transform:uppercase">Received</div>
+            <div style="font-size:1.2rem;font-weight:800;color:#1a5c42">AED {{ "%.0f"|format(total_received or 0) }}</div>
+        </div>
+        <div style="flex:1;text-align:center">
+            <div style="font-size:0.7rem;font-weight:600;color:#5b7494;text-transform:uppercase">Spent</div>
+            <div style="font-size:1.2rem;font-weight:800;color:#b93636">AED {{ "%.0f"|format(total_spent or 0) }}</div>
+        </div>
+        <div style="flex:1;text-align:center">
+            <div style="font-size:0.7rem;font-weight:600;color:#5b7494;text-transform:uppercase">Balance</div>
+            <div style="font-size:1.2rem;font-weight:800;color:#1c568b">AED {{ "%.0f"|format(balance or 0) }}</div>
+        </div>
     </div>
 
     <form method="POST" enctype="multipart/form-data" class="staff-form">
