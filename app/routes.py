@@ -6310,176 +6310,180 @@ def register_routes(app: Flask) -> None:
     @app.route("/owner-fund", methods=["GET", "POST"])
     @_login_required("admin")
     def owner_fund():
-        if _current_role() == "admin":
-            _touch_admin_workspace("accounts")
-        db = open_db()
-        can_edit = _current_role() == "admin"
-        filters = _owner_fund_filter_values(request)
-        edit_entry_id = request.args.get("edit", "").strip()
-        values = {
-            "entry_id": "",
-            "owner_name": "",
-            "entry_date": date.today().isoformat(),
-            "amount": "",
-            "received_by": "",
-            "payment_method": "Cash",
-            "transaction_type": "IN",
-            "details": "",
-        }
+        try:
+            if _current_role() == "admin":
+                _touch_admin_workspace("accounts")
+            db = open_db()
+            can_edit = _current_role() == "admin"
+            filters = _owner_fund_filter_values(request)
+            edit_entry_id = request.args.get("edit", "").strip()
+            values = {
+                "entry_id": "",
+                "owner_name": "",
+                "entry_date": date.today().isoformat(),
+                "amount": "",
+                "received_by": "",
+                "payment_method": "Cash",
+                "transaction_type": "IN",
+                "details": "",
+            }
 
-        if edit_entry_id:
-            existing_entry = db.execute(
+            if edit_entry_id:
+                existing_entry = db.execute(
+                    """
+                    SELECT id, owner_name, entry_date, amount, received_by, payment_method, transaction_type, details
+                    FROM owner_fund_entries
+                    WHERE id = ?
+                    """,
+                    (edit_entry_id,),
+                ).fetchone()
+                if existing_entry and can_edit:
+                    values = {
+                        "entry_id": str(existing_entry["id"]),
+                        "owner_name": existing_entry["owner_name"],
+                        "entry_date": existing_entry["entry_date"],
+                        "amount": f"{float(existing_entry['amount']):.2f}",
+                        "received_by": existing_entry["received_by"] or "",
+                        "payment_method": existing_entry["payment_method"] or "Cash",
+                        "transaction_type": existing_entry["transaction_type"] or "IN",
+                        "details": existing_entry["details"] or "",
+                    }
+
+            if request.method == "POST":
+                if not can_edit:
+                    flash("Owner view is read-only.", "error")
+                    return redirect(url_for("owner_fund"))
+
+                values = {
+                    "entry_id": request.form.get("entry_id", "").strip(),
+                    "owner_name": request.form.get("owner_name", "").strip(),
+                    "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
+                    "amount": request.form.get("amount", "").strip(),
+                    "received_by": request.form.get("received_by", "").strip(),
+                    "payment_method": request.form.get("payment_method", "Cash").strip() or "Cash",
+                    "transaction_type": request.form.get("transaction_type", "IN").strip() or "IN",
+                    "details": request.form.get("details", "").strip(),
+                }
+                try:
+                    amount = _parse_decimal(values["amount"], "Amount", minimum=0.01)
+                except ValidationError as exc:
+                    flash(str(exc), "error")
+                else:
+                    if not values["owner_name"]:
+                        flash("Owner name is required.", "error")
+                    else:
+                        if values["entry_id"]:
+                            db.execute(
+                                """
+                                UPDATE owner_fund_entries
+                                SET owner_name = ?, entry_date = ?, amount = ?, received_by = ?, payment_method = ?, transaction_type = ?, details = ?
+                                WHERE id = ?
+                                """,
+                                (
+                                    values["owner_name"],
+                                    values["entry_date"],
+                                    amount,
+                                    values["received_by"],
+                                    values["payment_method"],
+                                    values["transaction_type"],
+                                    values["details"],
+                                    values["entry_id"],
+                                ),
+                            )
+                            _audit_log(
+                                db,
+                                "owner_fund_updated",
+                                entity_type="owner_fund",
+                                entity_id=values["entry_id"],
+                                details=f"{values['owner_name']} / AED {amount:.2f}",
+                            )
+                            message = "Owner fund entry updated."
+                        else:
+                            db.execute(
+                                """
+                                INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                """,
+                                (
+                                    values["owner_name"],
+                                    values["entry_date"],
+                                    amount,
+                                    values["received_by"],
+                                    values["payment_method"],
+                                    values["transaction_type"],
+                                    values["details"],
+                                ),
+                            )
+                            _audit_log(
+                                db,
+                                "owner_fund_created",
+                                entity_type="owner_fund",
+                                entity_id=values["owner_name"],
+                                details=f"{values['owner_name']} / AED {amount:.2f}",
+                            )
+                            message = "Owner fund entry saved."
+                        db.commit()
+                        flash(message, "success")
+                        return redirect(url_for("owner_fund"))
+
+            incoming, outgoing, balance = _owner_fund_totals(db)
+            view_rows = _owner_fund_statement(db, reverse=False, filters=filters)
+            view_incoming, view_outgoing, view_net, view_closing = _owner_fund_view_totals(view_rows)
+            entries = db.execute(
                 """
                 SELECT id, owner_name, entry_date, amount, received_by, payment_method, transaction_type, details
                 FROM owner_fund_entries
-                WHERE id = ?
-                """,
-                (edit_entry_id,),
-            ).fetchone()
-            if existing_entry and can_edit:
-                values = {
-                    "entry_id": str(existing_entry["id"]),
-                    "owner_name": existing_entry["owner_name"],
-                    "entry_date": existing_entry["entry_date"],
-                    "amount": f"{float(existing_entry['amount']):.2f}",
-                    "received_by": existing_entry["received_by"] or "",
-                    "payment_method": existing_entry["payment_method"] or "Cash",
-                    "transaction_type": existing_entry["transaction_type"] or "IN",
-                    "details": existing_entry["details"] or "",
-                }
+                ORDER BY entry_date DESC, id DESC
+                LIMIT 20
+                """
+            ).fetchall()
+            statement = list(reversed(view_rows))
+            pdf_files = _recent_generated_files(Path(app.config["GENERATED_DIR"]) / "owner_fund", "owner-fund-kata")
+            pdf_url = url_for(
+                "owner_fund_pdf",
+                month=filters["month"],
+                movement=filters["movement"],
+                search=filters["search"],
+            )
 
-        if request.method == "POST":
-            if not can_edit:
-                flash("Owner view is read-only.", "error")
-                return redirect(url_for("owner_fund"))
-
-            values = {
-                "entry_id": request.form.get("entry_id", "").strip(),
-                "owner_name": request.form.get("owner_name", "").strip(),
-                "entry_date": request.form.get("entry_date", date.today().isoformat()).strip() or date.today().isoformat(),
-                "amount": request.form.get("amount", "").strip(),
-                "received_by": request.form.get("received_by", "").strip(),
-                "payment_method": request.form.get("payment_method", "Cash").strip() or "Cash",
-                "transaction_type": request.form.get("transaction_type", "IN").strip() or "IN",
-                "details": request.form.get("details", "").strip(),
-            }
+            # ── Supplier owner fund data ──
             try:
-                amount = _parse_decimal(values["amount"], "Amount", minimum=0.01)
-            except ValidationError as exc:
-                flash(str(exc), "error")
-            else:
-                if not values["owner_name"]:
-                    flash("Owner name is required.", "error")
-                else:
-                    if values["entry_id"]:
-                        db.execute(
-                            """
-                            UPDATE owner_fund_entries
-                            SET owner_name = ?, entry_date = ?, amount = ?, received_by = ?, payment_method = ?, transaction_type = ?, details = ?
-                            WHERE id = ?
-                            """,
-                            (
-                                values["owner_name"],
-                                values["entry_date"],
-                                amount,
-                                values["received_by"],
-                                values["payment_method"],
-                                values["transaction_type"],
-                                values["details"],
-                                values["entry_id"],
-                            ),
-                        )
-                        _audit_log(
-                            db,
-                            "owner_fund_updated",
-                            entity_type="owner_fund",
-                            entity_id=values["entry_id"],
-                            details=f"{values['owner_name']} / AED {amount:.2f}",
-                        )
-                        message = "Owner fund entry updated."
-                    else:
-                        db.execute(
-                            """
-                            INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                values["owner_name"],
-                                values["entry_date"],
-                                amount,
-                                values["received_by"],
-                                values["payment_method"],
-                                values["transaction_type"],
-                                values["details"],
-                            ),
-                        )
-                        _audit_log(
-                            db,
-                            "owner_fund_created",
-                            entity_type="owner_fund",
-                            entity_id=values["owner_name"],
-                            details=f"{values['owner_name']} / AED {amount:.2f}",
-                        )
-                        message = "Owner fund entry saved."
-                    db.commit()
-                    flash(message, "success")
-                    return redirect(url_for("owner_fund"))
-
-        incoming, outgoing, balance = _owner_fund_totals(db)
-        view_rows = _owner_fund_statement(db, reverse=False, filters=filters)
-        view_incoming, view_outgoing, view_net, view_closing = _owner_fund_view_totals(view_rows)
-        entries = db.execute(
-            """
-            SELECT id, owner_name, entry_date, amount, received_by, payment_method, transaction_type, details
-            FROM owner_fund_entries
-            ORDER BY entry_date DESC, id DESC
-            LIMIT 20
-            """
-        ).fetchall()
-        statement = list(reversed(view_rows))
-        pdf_files = _recent_generated_files(Path(app.config["GENERATED_DIR"]) / "owner_fund", "owner-fund-kata")
-        pdf_url = url_for(
-            "owner_fund_pdf",
-            month=filters["month"],
-            movement=filters["movement"],
-            search=filters["search"],
-        )
-
-        # ── Supplier owner fund data ──
-        try:
-            sup_deposits = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM owner_funds WHERE transaction_type='deposit'").fetchone()[0])
-            sup_withdrawals = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM owner_funds WHERE transaction_type='withdrawal'").fetchone()[0])
-            sup_net = round(sup_deposits - sup_withdrawals, 2)
-            sup_payments = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records WHERE fund_source='owner_fund'").fetchone()[0])
-            sup_expenses = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_expenses WHERE fund_source='owner_fund' AND status='approved'").fetchone()[0])
-            sup_loans = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE fund_source='owner_fund' AND loan_type='given'").fetchone()[0])
-            sup_used = round(sup_payments + sup_expenses + sup_loans, 2)
-            sup_balance = round(sup_net - sup_used, 2)
-            sup_funds = db.execute("SELECT * FROM owner_funds ORDER BY fund_date DESC LIMIT 20").fetchall()
-        except Exception:
-            sup_deposits = sup_withdrawals = sup_net = sup_payments = sup_expenses = sup_loans = sup_used = sup_balance = 0
-            sup_funds = []
-        return render_template(
-            "owner_fund.html",
-            values=values,
-            incoming=incoming,
-            outgoing=outgoing,
-            balance=balance,
-            view_incoming=view_incoming,
-            view_outgoing=view_outgoing,
-            view_net=view_net,
-            view_closing=view_closing,
-            entries=entries,
-            statement=statement,
-            can_edit=can_edit,
-            pdf_files=pdf_files,
-            filters=filters,
-            movement_options=OWNER_FUND_MOVEMENT_OPTIONS,
-            pdf_url=pdf_url,
-            sup_deposits=sup_deposits, sup_withdrawals=sup_withdrawals, sup_net=sup_net,
-            sup_payments=sup_payments, sup_expenses=sup_expenses, sup_loans=sup_loans,
-            sup_used=sup_used, sup_balance=sup_balance, sup_funds=sup_funds,
-        )
+                sup_deposits = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM owner_funds WHERE transaction_type='deposit'").fetchone()[0])
+                sup_withdrawals = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM owner_funds WHERE transaction_type='withdrawal'").fetchone()[0])
+                sup_net = round(sup_deposits - sup_withdrawals, 2)
+                sup_payments = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records WHERE fund_source='owner_fund'").fetchone()[0])
+                sup_expenses = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_expenses WHERE fund_source='owner_fund' AND status='approved'").fetchone()[0])
+                sup_loans = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE fund_source='owner_fund' AND loan_type='given'").fetchone()[0])
+                sup_used = round(sup_payments + sup_expenses + sup_loans, 2)
+                sup_balance = round(sup_net - sup_used, 2)
+                sup_funds = db.execute("SELECT * FROM owner_funds ORDER BY fund_date DESC LIMIT 20").fetchall()
+            except Exception:
+                sup_deposits = sup_withdrawals = sup_net = sup_payments = sup_expenses = sup_loans = sup_used = sup_balance = 0
+                sup_funds = []
+            return render_template(
+                "owner_fund.html",
+                values=values,
+                incoming=incoming,
+                outgoing=outgoing,
+                balance=balance,
+                view_incoming=view_incoming,
+                view_outgoing=view_outgoing,
+                view_net=view_net,
+                view_closing=view_closing,
+                entries=entries,
+                statement=statement,
+                can_edit=can_edit,
+                pdf_files=pdf_files,
+                filters=filters,
+                movement_options=OWNER_FUND_MOVEMENT_OPTIONS,
+                pdf_url=pdf_url,
+                sup_deposits=sup_deposits, sup_withdrawals=sup_withdrawals, sup_net=sup_net,
+                sup_payments=sup_payments, sup_expenses=sup_expenses, sup_loans=sup_loans,
+                sup_used=sup_used, sup_balance=sup_balance, sup_funds=sup_funds,
+            )
+        except Exception as e:
+            import traceback
+            return f"<h2>Owner Fund Error</h2><pre>{traceback.format_exc()}</pre>", 500
 
     @app.post("/owner-fund/<int:entry_id>/delete")
     @_login_required("admin")
