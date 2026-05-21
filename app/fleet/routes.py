@@ -380,7 +380,7 @@ def _staff_login_required(f):
 
 @fleet_bp.route("/staff/login", methods=["GET", "POST"])
 def staff_login():
-    return redirect(url_for("login"))
+    return redirect(url_for("technician_login"))
 
 
 staff_login.csrf_exempt = True
