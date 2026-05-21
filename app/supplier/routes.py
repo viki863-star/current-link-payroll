@@ -58,11 +58,10 @@ def _schema_db():
 
 def _ensure_tables():
     db = _schema_db()
-    try:
-        backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
-        id_col = "id BIGSERIAL PRIMARY KEY" if backend == "postgres" else "id INTEGER PRIMARY KEY AUTOINCREMENT"
-        now_val = "CURRENT_TIMESTAMP" if backend == "postgres" else "(datetime('now'))"
-        real_type = "DOUBLE PRECISION" if backend == "postgres" else "REAL"
+    backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+    id_col = "id BIGSERIAL PRIMARY KEY" if backend == "postgres" else "id INTEGER PRIMARY KEY AUTOINCREMENT"
+    now_val = "CURRENT_TIMESTAMP" if backend == "postgres" else "(datetime('now'))"
+    real_type = "DOUBLE PRECISION" if backend == "postgres" else "REAL"
 
     db.executescript(f"""
         CREATE TABLE IF NOT EXISTS suppliers (
