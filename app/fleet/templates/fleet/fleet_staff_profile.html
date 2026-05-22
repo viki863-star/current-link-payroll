@@ -44,8 +44,8 @@
             <div class="sp-card-value red">AED {{ "%.0f"|format(total_spent) }}</div>
         </div>
         <div class="sp-card">
-            <div class="sp-card-label">Balance</div>
-            <div class="sp-card-value blue">AED {{ "%.0f"|format(balance) }}</div>
+            <div class="sp-card-label">{% if balance >= 0 %}Remaining{% else %}Due{% endif %}</div>
+            <div class="sp-card-value {% if balance >= 0 %}blue{% else %}red{% endif %}">AED {{ "%.0f"|format(balance * -1 if balance < 0 else balance) }}</div>
         </div>
     </div>
 
