@@ -1200,6 +1200,20 @@ def settings():
                      request.form.get("financial_year_end")))
             db.commit()
             flash("Company details saved.", "success")
+        elif action == "save_bank":
+            if company:
+                db.execute("""UPDATE company_profile SET bank_name=?,bank_account_name=?,bank_account_number=?,iban=?,swift_code=? WHERE id=?""",
+                    (request.form.get("bank_name"), request.form.get("bank_account_name"),
+                     request.form.get("bank_account_number"), request.form.get("iban"),
+                     request.form.get("swift_code"), company["id"]))
+            else:
+                db.execute("""INSERT INTO company_profile (company_name,bank_name,bank_account_name,bank_account_number,iban,swift_code)
+                    VALUES ('My Company',?,?,?,?,?)""",
+                    (request.form.get("bank_name"), request.form.get("bank_account_name"),
+                     request.form.get("bank_account_number"), request.form.get("iban"),
+                     request.form.get("swift_code")))
+            db.commit()
+            flash("Bank details saved.", "success")
         elif action == "save_logo":
             file = request.files.get("logo_file")
             if file and file.filename:
