@@ -1160,7 +1160,9 @@ def register_routes(app: Flask) -> None:
         vehicles = db.execute("SELECT * FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
         _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
         total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM cash_receipts WHERE staff_id = ?", (technician_code,)).fetchone()["t"] or 0
-        total_spent = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status IN ('approved','pending')", (technician_code,)).fetchone()["t"] or 0
+        spent_jobs = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status IN ('approved','pending')", (technician_code,)).fetchone()["t"] or 0
+        spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status IN ('Approved','Pending')", (technician_code,)).fetchone()["t"] or 0
+        total_spent = float(spent_jobs) + float(spent_papers)
         balance = float(total_received) - float(total_spent)
         if request.method == "POST":
             vehicle_id = request.form.get("vehicle_id", "").strip()
@@ -1199,7 +1201,18 @@ def register_routes(app: Flask) -> None:
             flash("Field staff session expired. Please login again.", "error")
             return redirect(url_for("technician_login"))
         jobs = db.execute("SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id WHERE mj.staff_id = ? ORDER BY mj.created_at DESC", (technician_code,)).fetchall()
-        return render_template("fleet/staff_jobs.html", jobs=jobs)
+        papers = db.execute("""
+            SELECT mp.paper_no AS id, mp.vehicle_id, mp.technician_code AS staff_id,
+                   mp.total_amount AS amount, mp.work_summary AS description,
+                   mp.review_status AS status, mp.notes AS admin_notes,
+                   mp.attachment_path AS attachment_name, mp.created_at,
+                   'Maintenance' AS category, v.vehicle_type
+            FROM maintenance_papers mp
+            LEFT JOIN vehicles v ON v.plate_no = mp.vehicle_id
+            WHERE mp.technician_code = ?
+            ORDER BY mp.created_at DESC
+        """, (technician_code,)).fetchall()
+        return render_template("fleet/staff_jobs.html", jobs=jobs, papers=papers)
 
     @app.route("/portal/technician", methods=["GET", "POST"])
     def technician_portal():

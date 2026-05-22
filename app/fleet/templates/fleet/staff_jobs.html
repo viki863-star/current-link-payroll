@@ -23,7 +23,8 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
         </a>
     </div>
 
-    {% if jobs %}
+    {% set has_jobs = jobs or papers %}
+    {% if has_jobs %}
     <div class="staff-card" style="padding:0">
         {% for j in jobs %}
         <div class="staff-job-item">
@@ -72,6 +73,40 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
                 </form>
             </div>
             {% endif %}
+        </div>
+        {% endfor %}
+        {% for p in papers %}
+        <div class="staff-job-item">
+            <div class="staff-job-item-top">
+                <span class="staff-job-item-plate">{{ p.vehicle_id or 'N/A' }}</span>
+                <span class="staff-job-status staff-status-{{ p.status|lower }}">{{ p.status }}</span>
+            </div>
+            <div class="staff-job-item-body">
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Amount</span>
+                    <span class="staff-job-item-value">AED {{ "%.0f"|format(p.amount) }}</span>
+                </div>
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Category</span>
+                    <span><span class="job-cat-badge">{{ p.category }}</span></span>
+                </div>
+                {% if p.description %}
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Details</span>
+                    <span style="font-size:0.8rem;color:var(--text)">{{ p.description }}</span>
+                </div>
+                {% endif %}
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Date</span>
+                    <span class="mono" style="font-size:0.78rem;color:var(--muted)">{{ (p.created_at or '')[:10] }}</span>
+                </div>
+                {% if p.admin_notes %}
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Reason</span>
+                    <span style="font-size:0.78rem;color:var(--danger)">{{ p.admin_notes }}</span>
+                </div>
+                {% endif %}
+            </div>
         </div>
         {% endfor %}
     </div>
