@@ -98,7 +98,7 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
                 {% endif %}
                 <div class="staff-job-item-row">
                     <span class="staff-job-item-label">Date</span>
-                    <span class="mono" style="font-size:0.78rem;color:var(--muted)">{{ (p.created_at or '')[:10] }}</span>
+                    <span class="mono" style="font-size:0.78rem;color:var(--muted)">{{ (p.created_at or '')|string|truncate(10, True, '') }}</span>
                 </div>
                 {% if p.admin_notes %}
                 <div class="staff-job-item-row">

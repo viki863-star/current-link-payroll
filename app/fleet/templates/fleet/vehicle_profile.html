@@ -173,7 +173,7 @@
                 <tbody>
                     {% for j in all_entries|sort(attribute='created_at', reverse=True) %}
                     <tr>
-                        <td class="mono">{{ (j.created_at or '')[:10] }}</td>
+                        <td class="mono">{{ (j.created_at or '')|string|truncate(10, True, '') }}</td>
                         <td><strong>{{ j.staff_name or '-' }}</strong></td>
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount|float) }}</td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>

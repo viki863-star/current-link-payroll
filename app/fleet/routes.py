@@ -327,7 +327,7 @@ def vehicle_profile(plate_no):
         (plate_no,),
     ).fetchall()
 
-    maintenance_papers_list = db.execute(
+    raw_papers = db.execute(
         """SELECT mp.paper_no AS id, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
                   mp.total_amount AS amount, mp.work_summary AS description,
                   mp.review_status AS status, mp.notes AS admin_notes,
@@ -343,6 +343,12 @@ def vehicle_profile(plate_no):
            ORDER BY mp.created_at DESC""",
         (plate_no,),
     ).fetchall()
+    maintenance_papers_list = []
+    for r in raw_papers:
+        d = dict(r)
+        if isinstance(d.get("created_at"), datetime):
+            d["created_at"] = d["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+        maintenance_papers_list.append(d)
 
     combined = sorted(
         approved_jobs + maintenance_papers_list,

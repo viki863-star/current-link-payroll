@@ -1201,7 +1201,7 @@ def register_routes(app: Flask) -> None:
             flash("Field staff session expired. Please login again.", "error")
             return redirect(url_for("technician_login"))
         jobs = db.execute("SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id WHERE mj.staff_id = ? ORDER BY mj.created_at DESC", (technician_code,)).fetchall()
-        papers = db.execute("""
+        raw_papers = db.execute("""
             SELECT mp.paper_no AS id, mp.vehicle_id, mp.technician_code AS staff_id,
                    mp.total_amount AS amount, mp.work_summary AS description,
                    mp.review_status AS status, mp.notes AS admin_notes,
@@ -1212,6 +1212,12 @@ def register_routes(app: Flask) -> None:
             WHERE mp.technician_code = ?
             ORDER BY mp.created_at DESC
         """, (technician_code,)).fetchall()
+        papers = []
+        for r in raw_papers:
+            d = dict(r)
+            if isinstance(d.get("created_at"), datetime):
+                d["created_at"] = d["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+            papers.append(d)
         return render_template("fleet/staff_jobs.html", jobs=jobs, papers=papers)
 
     @app.route("/portal/technician", methods=["GET", "POST"])
