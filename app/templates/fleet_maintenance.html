@@ -1,376 +1,382 @@
 {% extends "base.html" %}
-
 {% block content %}
-<section class="admin-desk-shell maintenance-workspace-shell fleet-smart-shell">
-    <article class="card fleet-smart-hero">
-        <div class="admin-toolbar-row">
-            <div class="admin-toolbar-actions">
-                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a class="button button-secondary" href="{{ url_for('reports_center') }}">Accounts Desk</a>
-            </div>
-            <div class="admin-mini-stats">
-                <span><strong>{{ summary.vehicle_count }}</strong><small>Fleet Vehicles</small></span>
-                <span><strong>{{ summary.month_papers }}</strong><small>Month Papers</small></span>
-                <span><strong>AED {{ "%.0f"|format(summary.month_total) }}</strong><small>Month Spend</small></span>
-                <span><strong>AED {{ "%.0f"|format(summary.month_tax) }}</strong><small>Month VAT</small></span>
-            </div>
-        </div>
+<style>
+.fm-container { max-width:1100px; margin:0 auto; }
+.fm-hero { background:linear-gradient(145deg,#0F2B52,#1a3d6e); border-radius:20px; padding:24px 28px; margin-bottom:22px; position:relative; overflow:hidden; }
+.fm-hero::before { content:''; position:absolute; top:0; left:0; right:0; height:55%; background:linear-gradient(180deg,rgba(255,255,255,0.08) 0%,transparent 100%); pointer-events:none; border-radius:20px 20px 0 0; }
+.fm-hero-top { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; position:relative; }
+.fm-hero-top a { font-size:0.8rem; font-weight:600; color:rgba(255,255,255,0.8); text-decoration:none; padding:5px 12px; border-radius:8px; background:rgba(255,255,255,0.1); }
+.fm-hero-top a:hover { background:rgba(255,255,255,0.2); color:#fff; }
+.fm-hero h1 { margin:0; font-size:1.3rem; font-weight:700; color:#fff; position:relative; }
+.fm-hero p { margin:2px 0 0; font-size:0.82rem; color:rgba(255,255,255,0.65); position:relative; }
+.fm-stats { display:flex; gap:14px; margin-top:12px; flex-wrap:wrap; position:relative; }
+.fm-stat { display:flex; align-items:center; gap:8px; padding:6px 14px; border-radius:12px; background:rgba(255,255,255,0.1); font-size:0.75rem; color:rgba(255,255,255,0.85); }
+.fm-stat strong { color:#fff; font-size:0.85rem; }
 
-        <div class="fleet-smart-head">
-            <div>
-                <span class="admin-desk-label">Fleet Maintenance</span>
-                <h1>Smart Vehicle Control Desk</h1>
-                <p>Search fast, open vehicle history instantly, and use separate clean screens for vehicles, imports, and maintenance papers.</p>
-            </div>
-            <div class="fleet-smart-search-chip">
-                <strong>{{ filters.search or "No search yet" }}</strong>
-                <span>Search tracks vehicle no, workshop, paper no, bill and work summary.</span>
-            </div>
-        </div>
+.fm-filter { display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:20px; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 20px; }
+.fm-filter label { display:flex; flex-direction:column; gap:2px; font-size:0.68rem; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; color:var(--muted); }
+.fm-filter input,.fm-filter select { padding:7px 10px; border:1px solid var(--line); border-radius:8px; font-size:0.82rem; background:var(--bg); min-width:120px; }
+.fm-filter-actions { display:flex; gap:8px; align-items:end; padding-bottom:1px; }
 
-        <form method="get" class="admin-filter-grid maintenance-filter-grid fleet-smart-filter">
-            <input type="hidden" name="screen" value="{{ current_screen }}">
-            <label>
-                <span>Search Fleet</span>
-                <input type="text" name="search" value="{{ filters.search }}" placeholder="Type vehicle no, workshop, bill or paper no">
-            </label>
-            <label>
-                <span>Month</span>
-                <input type="month" name="month" value="{{ filters.month }}">
-            </label>
-            <label>
-                <span>Vehicle</span>
-                <select name="vehicle_id">
-                    <option value="">All vehicles</option>
-                    {% for item in filter_vehicle_rows %}
-                        <option value="{{ item.vehicle_id }}" {% if filters.vehicle_id == item.vehicle_id %}selected{% endif %}>{{ item.vehicle_no }} | {{ item.vehicle_type }} | {{ item.source_type }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>
-                <span>Funding</span>
-                <select name="funding_source">
-                    <option value="">All sources</option>
-                    {% for item in funding_source_options %}
-                        <option value="{{ item }}" {% if filters.funding_source == item %}selected{% endif %}>{{ item }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <div class="admin-filter-actions">
-                <button class="button" type="submit">Search Now</button>
-                <a class="button button-secondary" href="{{ url_for('fleet_maintenance', screen=current_screen) }}">Reset</a>
-            </div>
-        </form>
-    </article>
+.fm-tabs { display:flex; gap:8px; margin-bottom:22px; flex-wrap:wrap; }
+.fm-tab { display:flex; flex-direction:column; padding:14px 20px; border-radius:14px; background:var(--surface); border:1px solid var(--line); text-decoration:none; color:var(--text); font-size:0.75rem; font-weight:600; transition:all 0.15s; flex:1; min-width:120px; }
+.fm-tab:hover { border-color:var(--primary); box-shadow:0 4px 15px rgba(15,43,82,0.08); }
+.fm-tab.active { background:linear-gradient(145deg,#0F2B52,#1a3d6e); border-color:transparent; color:#fff; box-shadow:0 4px 15px rgba(15,43,82,0.25); }
+.fm-tab small { font-weight:400; font-size:0.68rem; color:var(--muted); margin-top:2px; }
+.fm-tab.active small { color:rgba(255,255,255,0.7); }
 
-    {% if current_screen == 'overview' and focus_vehicle %}
-    <article class="card fleet-smart-focus-card">
-        <div class="fleet-smart-focus-head">
-            <div>
-                <span class="admin-desk-label">Search Result</span>
-                <h2>{{ focus_vehicle.vehicle_no }}</h2>
-                <p>{{ focus_vehicle.vehicle_type }} | {{ focus_vehicle.make_model or 'No model added' }} | {{ focus_vehicle.shift_mode }}</p>
-            </div>
-            <div class="fleet-focus-pills">
-                <span class="status-chip {{ focus_vehicle.status|lower }}">{{ focus_vehicle.status }}</span>
-                {% if (focus_vehicle.ownership_mode or '') == 'Partnership' %}
-                    <span class="mini-link-pill">This Vehicle Is On Partnership</span>
-                {% endif %}
-            </div>
+.fm-card { background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; margin-bottom:20px; box-shadow:0 2px 10px rgba(0,0,0,0.04); }
+.fm-card-head { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border-bottom:1px solid var(--line); }
+.fm-card-head h2 { margin:0; font-size:0.9rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+.fm-card-head .fm-label { font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--muted); }
+.fm-card-body { padding:16px 20px; }
+
+.fm-form { display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; }
+.fm-form .full { grid-column:1/-1; }
+.fm-form label { display:flex; flex-direction:column; gap:3px; font-size:0.7rem; font-weight:600; color:var(--muted); }
+.fm-form input,.fm-form select,.fm-form textarea { padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:0.85rem; background:var(--bg); }
+.fm-form input:focus,.fm-form select:focus,.fm-form textarea:focus { border-color:var(--primary); outline:none; box-shadow:0 0 0 2px rgba(15,43,82,0.1); }
+
+.fm-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+.fm-summary-card { border-radius:14px; padding:16px; text-align:center; background:linear-gradient(145deg,#f8fafd,#f1f5f9); border:1px solid var(--line); }
+.fm-summary-card strong { display:block; font-size:1.1rem; font-weight:800; color:var(--text); }
+.fm-summary-card span { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
+
+.fm-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+.fm-table th { text-align:left; padding:8px 12px; font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; color:var(--muted); background:rgba(0,0,0,0.02); border-bottom:1px solid var(--line); }
+.fm-table td { padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
+.fm-table tr:last-child td { border-bottom:none; }
+.fm-table tr.clickable { cursor:pointer; transition:background 0.1s; }
+.fm-table tr.clickable:hover { background:rgba(15,43,82,0.04); }
+
+.fm-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.fm-veh-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+.fm-veh-card { border-radius:14px; padding:14px; border:1px solid var(--line); background:var(--surface); transition:all 0.15s; }
+.fm-veh-card:hover { box-shadow:0 4px 15px rgba(0,0,0,0.06); }
+.fm-veh-card h3 { margin:0 0 4px; font-size:0.9rem; font-weight:700; display:flex; justify-content:space-between; align-items:center; }
+.fm-veh-card .details { font-size:0.72rem; color:var(--muted); }
+.fm-veh-card .actions { display:flex; gap:8px; margin-top:8px; }
+.fm-veh-card .actions a,.fm-veh-card .actions button { font-size:0.68rem; font-weight:600; padding:4px 10px; border-radius:6px; text-decoration:none; background:rgba(15,43,82,0.06); color:var(--primary); border:none; cursor:pointer; }
+.fm-veh-card .actions button:hover { background:rgba(15,43,82,0.12); }
+.fm-veh-card .actions form { display:inline; }
+
+.fm-ledger { padding:0; margin:0; }
+.fm-ledger li { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); font-size:0.82rem; list-style:none; }
+.fm-ledger li:last-child { border-bottom:none; }
+.fm-ledger li strong { font-weight:600; }
+
+.fm-btn { display:inline-flex; align-items:center; gap:5px; padding:8px 18px; border-radius:9px; font-size:0.8rem; font-weight:600; text-decoration:none; border:none; cursor:pointer; transition:all 0.12s; }
+.fm-btn-primary { background:var(--primary); color:#fff; }
+.fm-btn-primary:hover { background:var(--primary-hover); }
+.fm-btn-secondary { background:var(--surface); border:1px solid var(--line); color:var(--text); }
+.fm-btn-secondary:hover { border-color:var(--primary); color:var(--primary); }
+.fm-btn-danger { background:transparent; color:#dc3545; border:1px solid #dc3545; padding:4px 10px; font-size:0.7rem; border-radius:6px; }
+.fm-btn-danger:hover { background:#dc3545; color:#fff; }
+.fm-btn-xs { padding:4px 10px; font-size:0.7rem; border-radius:6px; }
+
+@media(max-width:768px){
+  .fm-form { grid-template-columns:1fr; }
+  .fm-grid { grid-template-columns:1fr; }
+  .fm-filter { flex-direction:column; align-items:stretch; }
+  .fm-filter-actions { flex-direction:row; }
+  .fm-tabs { flex-direction:column; }
+}
+</style>
+
+<div class="fm-container">
+  {# ═════ HERO ═════ #}
+  <div class="fm-hero">
+    <div class="fm-hero-top">
+      <div>
+        <h1>Fleet Maintenance</h1>
+        <p>Vehicles, maintenance papers, workshop payable &amp; partnership splits</p>
+      </div>
+      <a href="{{ url_for('dashboard') }}">&larr; Dashboard</a>
+    </div>
+    <div class="fm-stats">
+      <span class="fm-stat">Vehicles <strong>{{ summary.vehicle_count }}</strong></span>
+      <span class="fm-stat">Month Papers <strong>{{ summary.month_papers }}</strong></span>
+      <span class="fm-stat">Spend <strong>AED {{ "%.0f"|format(summary.month_total) }}</strong></span>
+      <span class="fm-stat">VAT <strong>AED {{ "%.0f"|format(summary.month_tax) }}</strong></span>
+    </div>
+  </div>
+
+  {# ═════ FILTER ═════ #}
+  <form method="get" class="fm-filter">
+    <input type="hidden" name="screen" value="{{ current_screen }}">
+    <label>Search <input type="text" name="search" value="{{ filters.search }}" placeholder="Vehicle, workshop, bill or paper no"></label>
+    <label>Month <input type="month" name="month" value="{{ filters.month }}"></label>
+    <label>Vehicle <select name="vehicle_id"><option value="">All</option>{% for item in filter_vehicle_rows %}<option value="{{ item.vehicle_id }}" {% if filters.vehicle_id == item.vehicle_id %}selected{% endif %}>{{ item.vehicle_no }} | {{ item.vehicle_type }}</option>{% endfor %}</select></label>
+    <label>Funding <select name="funding_source"><option value="">All</option>{% for item in funding_source_options %}<option value="{{ item }}" {% if filters.funding_source == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+    <div class="fm-filter-actions">
+      <button class="fm-btn fm-btn-primary" type="submit">Search</button>
+      <a class="fm-btn fm-btn-secondary" href="{{ url_for('fleet_maintenance', screen=current_screen) }}">Reset</a>
+    </div>
+  </form>
+
+  {# ═════ TABS ═════ #}
+  <div class="fm-tabs">
+    <a class="fm-tab {% if current_screen == 'overview' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
+      <span>Overview</span>
+      <small>Search, vehicles, spend &amp; history</small>
+    </a>
+    <a class="fm-tab {% if current_screen == 'vehicles' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='vehicles', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
+      <span>Vehicle Master</span>
+      <small>Register or edit a vehicle</small>
+    </a>
+    <a class="fm-tab {% if current_screen == 'papers' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='papers', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
+      <span>Maintenance Entry</span>
+      <small>Add or edit a paper with bill details</small>
+    </a>
+  </div>
+
+  {# ═══════ FOCUS VEHICLE ═══════ #}
+  {% if current_screen == 'overview' and focus_vehicle %}
+  <div class="fm-card" style="border-left:3px solid #ff8a1f">
+    <div class="fm-card-head">
+      <div>
+        <span class="fm-label">Search Result</span>
+        <h2>{{ focus_vehicle.vehicle_no }}</h2>
+        <span style="font-size:0.78rem;color:var(--muted)">{{ focus_vehicle.vehicle_type }} | {{ focus_vehicle.make_model or 'No model' }} | {{ focus_vehicle.shift_mode }}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="status-chip {{ focus_vehicle.status|lower }}">{{ focus_vehicle.status }}</span>
+        {% if (focus_vehicle.ownership_mode or '') == 'Partnership' %}<span style="font-size:0.72rem;padding:3px 10px;border-radius:10px;background:rgba(124,58,237,0.1);color:#6d28d9">Partnership</span>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ═══════ VEHICLES SCREEN ═══════ #}
+  {% if current_screen == 'vehicles' %}
+  <div class="fm-card">
+    <div class="fm-card-head"><span class="fm-label">Separate Screen</span><h2>Vehicle Master</h2></div>
+    <div class="fm-card-body">
+      <form method="post" class="fm-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="save_vehicle">
+        <input type="hidden" name="original_vehicle_id" value="{{ vehicle_values.original_vehicle_id }}">
+        <label>Vehicle ID <input type="text" name="vehicle_id" value="{{ vehicle_values.vehicle_id }}"></label>
+        <label>Vehicle No <input type="text" name="vehicle_no" value="{{ vehicle_values.vehicle_no }}" placeholder="Plate / fleet number"></label>
+        <label>Vehicle Type <input type="text" name="vehicle_type" value="{{ vehicle_values.vehicle_type }}" placeholder="Tanker / Trailer / Pickup"></label>
+        <label>Make / Model <input type="text" name="make_model" value="{{ vehicle_values.make_model }}"></label>
+        <label>Shift Mode <select name="shift_mode">{% for item in shift_mode_options %}<option value="{{ item }}" {% if vehicle_values.shift_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label>Ownership <select name="ownership_mode">{% for item in ownership_mode_options %}<option value="{{ item }}" {% if vehicle_values.ownership_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label>Partner Party <select name="partner_party_code"><option value="">Optional</option>{% for item in partner_parties %}<option value="{{ item.party_code }}" {% if vehicle_values.partner_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>{% endfor %}</select></label>
+        <label>Partner Name <input type="text" name="partner_name" value="{{ vehicle_values.partner_name }}" placeholder="If not registered"></label>
+        <label>Company Share % <input type="number" step="0.01" name="company_share_percent" value="{{ vehicle_values.company_share_percent }}"></label>
+        <label>Partner Share % <input type="number" step="0.01" name="partner_share_percent" value="{{ vehicle_values.partner_share_percent }}"></label>
+        <label>Status <select name="status"><option value="Active" {% if vehicle_values.status == 'Active' %}selected{% endif %}>Active</option><option value="Inactive" {% if vehicle_values.status == 'Inactive' %}selected{% endif %}>Inactive</option></select></label>
+        <label class="full">Notes <textarea name="notes" rows="3">{{ vehicle_values.notes }}</textarea></label>
+        <div class="full" style="display:flex;gap:10px">
+          <button class="fm-btn fm-btn-primary" type="submit">{% if vehicle_values.original_vehicle_id %}Update Vehicle{% else %}Save Vehicle{% endif %}</button>
+          <a class="fm-btn fm-btn-secondary" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Back</a>
         </div>
-    </article>
+      </form>
+    </div>
+  </div>
+
+  {# ═══════ IMPORT SCREEN ═══════ #}
+  {% elif current_screen == 'import' %}
+  <div class="fm-card">
+    <div class="fm-card-head"><span class="fm-label">Separate Screen</span><h2>Import Vehicle List From PDF</h2></div>
+    <div class="fm-card-body">
+      <form method="post" enctype="multipart/form-data" class="fm-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="import_vehicle_pdf">
+        <label class="full">PDF File <input type="file" name="vehicle_pdf" accept=".pdf"></label>
+        <div class="full" style="font-size:0.82rem;color:var(--muted);padding:10px 0">Upload PDF — system auto-registers matching vehicles.</div>
+        <div class="full" style="display:flex;gap:10px">
+          <button class="fm-btn fm-btn-primary" type="submit">Import &amp; Register</button>
+          <a class="fm-btn fm-btn-secondary" href="{{ url_for('fleet_maintenance', screen='overview') }}">Back</a>
+        </div>
+      </form>
+    </div>
+    {% if recent_vehicle_imports %}
+    <div style="border-top:1px solid var(--line)">
+      <ul class="fm-ledger">
+        {% for item in recent_vehicle_imports %}
+        <li><strong>{{ item.filename }}</strong><span>{{ item.updated_at }} <a class="fm-btn fm-btn-xs fm-btn-secondary" href="{{ url_for('generated_file', filename=item.relative_path) }}">Open PDF</a></span></li>
+        {% endfor %}
+      </ul>
+    </div>
     {% endif %}
+  </div>
 
-    <section class="fleet-smart-actions">
-        <a class="fleet-smart-action-card {% if current_screen == 'overview' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
-            <span class="fleet-action-kicker">Overview</span>
-            <strong>Search And History</strong>
-            <small>See spend, vehicle cards, workshop payable and recent papers.</small>
-        </a>
-        <a class="fleet-smart-action-card {% if current_screen == 'vehicles' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='vehicles', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
-            <span class="fleet-action-kicker">Add New</span>
-            <strong>Vehicle Master</strong>
-            <small>Register or edit a vehicle on its own clean screen.</small>
-        </a>
-        <a class="fleet-smart-action-card {% if current_screen == 'papers' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='papers', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
-            <span class="fleet-action-kicker">Add Paper</span>
-            <strong>Maintenance Entry</strong>
-            <small>Save manual maintenance paper with bill and split details.</small>
-        </a>
-    </section>
-
-    {% if current_screen == 'vehicles' %}
-    <article class="card desk-panel-card fleet-screen-card" id="vehicle-master">
-        <div class="desk-panel-head">
-            <div>
-                <span class="admin-desk-label">Separate Screen</span>
-                <h2>Vehicle Master</h2>
-            </div>
+  {# ═══════ PAPERS SCREEN ═══════ #}
+  {% elif current_screen == 'papers' %}
+  <div class="fm-card">
+    <div class="fm-card-head"><span class="fm-label">Separate Screen</span><h2>Maintenance Paper Entry</h2></div>
+    <div class="fm-card-body">
+      <form method="post" enctype="multipart/form-data" class="fm-form invoice-form-grid">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="save_paper">
+        <input type="hidden" name="original_paper_no" value="{{ paper_values.original_paper_no }}">
+        <label>Paper No <input type="text" name="paper_no" value="{{ paper_values.paper_no }}"></label>
+        <label>Paper Date <input type="date" name="paper_date" value="{{ paper_values.paper_date }}"></label>
+        <label>Target Class <select name="target_class">{% for item in target_class_options %}<option value="{{ item }}" {% if paper_values.target_class == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label>Own Fleet Vehicle <select name="vehicle_id"><option value="">Select</option>{% for item in vehicle_rows %}<option value="{{ item.vehicle_id }}" {% if paper_values.vehicle_id == item.vehicle_id %}selected{% endif %}>{{ item.vehicle_no }} | {{ item.vehicle_type }}</option>{% endfor %}</select></label>
+        <label>Supplier Vehicle <select name="target_asset_code"><option value="">Select</option>{% for item in partnership_supplier_assets %}<option value="{{ item.asset_code }}" {% if paper_values.target_asset_code == item.asset_code %}selected{% endif %}>{{ item.party_name }} | {{ item.asset_name }}{% if item.vehicle_no %} | {{ item.vehicle_no }}{% endif %}</option>{% endfor %}</select></label>
+        <label>Workshop <select name="workshop_party_code"><option value="">Optional</option>{% for item in workshop_parties %}<option value="{{ item.party_code }}" {% if paper_values.workshop_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>{% endfor %}</select></label>
+        <label>Tax Mode <select name="tax_mode">{% for item in tax_mode_options %}<option value="{{ item }}" {% if paper_values.tax_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label>Funding Source <select name="funding_source">{% for item in funding_source_options %}<option value="{{ item }}" {% if paper_values.funding_source == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label>Supplier Bill No <input type="text" name="supplier_bill_no" value="{{ paper_values.supplier_bill_no }}"></label>
+        <label>Paid By <select name="paid_by">{% for item in paid_by_options %}<option value="{{ item }}" {% if paper_values.paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label>VAT Amount <input type="number" step="0.01" name="tax_amount" value="{{ paper_values.tax_amount }}"></label>
+        <label>Attachment <input type="file" name="attachment" accept=".pdf,.png,.jpg,.jpeg,.webp"></label>
+        <label class="full">Work Summary <input type="text" name="work_summary" value="{{ paper_values.work_summary }}" placeholder="Gearbox, welding, hose, tyre, pump, electrical work"></label>
+        <div class="full">
+          <div style="display:flex;gap:8px;background:var(--bg);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:0.7rem;font-weight:600;color:var(--muted)">
+            <span style="flex:2">Description</span><span style="flex:1;text-align:center">Qty</span><span style="flex:1;text-align:center">Rate</span><span style="flex:1;text-align:center">Amount</span>
+          </div>
+          {% for line in paper_line_rows %}
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <input type="text" name="line_description_{{ line.line_no }}" value="{{ line.description }}" placeholder="Part / labour" style="flex:2;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;">
+            <input type="number" step="0.01" name="line_quantity_{{ line.line_no }}" value="{{ line.quantity }}" style="flex:1;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;text-align:center">
+            <input type="number" step="0.01" name="line_rate_{{ line.line_no }}" value="{{ line.rate }}" style="flex:1;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;text-align:center">
+            <input type="number" step="0.01" name="line_amount_{{ line.line_no }}" value="{{ line.amount }}" readonly style="flex:1;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;text-align:center;background:var(--bg)">
+          </div>
+          {% endfor %}
         </div>
-        <form method="post" class="desk-form-grid">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="save_vehicle">
-            <input type="hidden" name="original_vehicle_id" value="{{ vehicle_values.original_vehicle_id }}">
-
-            <label><span>Vehicle ID</span><input type="text" name="vehicle_id" value="{{ vehicle_values.vehicle_id }}"></label>
-            <label><span>Vehicle No</span><input type="text" name="vehicle_no" value="{{ vehicle_values.vehicle_no }}" placeholder="Plate / fleet number"></label>
-            <label><span>Vehicle Type</span><input type="text" name="vehicle_type" value="{{ vehicle_values.vehicle_type }}" placeholder="Tanker / Trailer / Pickup"></label>
-            <label><span>Make / Model</span><input type="text" name="make_model" value="{{ vehicle_values.make_model }}"></label>
-            <label><span>Shift Mode</span><select name="shift_mode">{% for item in shift_mode_options %}<option value="{{ item }}" {% if vehicle_values.shift_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-            <label><span>Ownership</span><select name="ownership_mode">{% for item in ownership_mode_options %}<option value="{{ item }}" {% if vehicle_values.ownership_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-            <label><span>Partner Party</span><select name="partner_party_code"><option value="">Optional</option>{% for item in partner_parties %}<option value="{{ item.party_code }}" {% if vehicle_values.partner_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>{% endfor %}</select></label>
-            <label><span>Partner Name</span><input type="text" name="partner_name" value="{{ vehicle_values.partner_name }}" placeholder="If party not registered"></label>
-            <label><span>Company Share %</span><input type="number" step="0.01" name="company_share_percent" value="{{ vehicle_values.company_share_percent }}"></label>
-            <label><span>Partner Share %</span><input type="number" step="0.01" name="partner_share_percent" value="{{ vehicle_values.partner_share_percent }}"></label>
-            <label><span>Status</span><select name="status"><option value="Active" {% if vehicle_values.status == 'Active' %}selected{% endif %}>Active</option><option value="Inactive" {% if vehicle_values.status == 'Inactive' %}selected{% endif %}>Inactive</option></select></label>
-            <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ vehicle_values.notes }}</textarea></label>
-            <div class="form-actions left-actions full-span">
-                <button class="button" type="submit">{% if vehicle_values.original_vehicle_id %}Update Vehicle{% else %}Save Vehicle{% endif %}</button>
-                <a class="button button-secondary" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Back To Overview</a>
-            </div>
-        </form>
-    </article>
-    {% elif current_screen == 'import' %}
-    <article class="card desk-panel-card fleet-screen-card" id="vehicle-import">
-        <div class="desk-panel-head">
-            <div>
-                <span class="admin-desk-label">Separate Screen</span>
-                <h2>Import Vehicle List From PDF</h2>
-            </div>
+        <label class="full">Notes <textarea name="notes" rows="3">{{ paper_values.notes }}</textarea></label>
+        <div class="full" style="display:flex;gap:10px">
+          <button class="fm-btn fm-btn-primary" type="submit">{% if paper_values.original_paper_no %}Update Paper{% else %}Save Paper{% endif %}</button>
+          <a class="fm-btn fm-btn-secondary" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Back</a>
         </div>
-        <form method="post" enctype="multipart/form-data" class="desk-form-grid">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="import_vehicle_pdf">
-            <label class="full-span"><span>PDF File</span><input type="file" name="vehicle_pdf" accept=".pdf"></label>
-            <label class="full-span"><span>Smart Import</span><textarea rows="4" readonly>Upload PDF, let the system auto-register matching vehicles, and then open fleet history directly from Overview.</textarea></label>
-            <div class="form-actions left-actions full-span">
-                <button class="button" type="submit">Import And Register Vehicles</button>
-                <a class="button button-secondary" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Back To Overview</a>
-            </div>
-        </form>
-        <div class="mini-ledger-list">
-            {% for item in recent_vehicle_imports %}
-                <div class="mini-ledger-row stacked-row">
-                    <strong>{{ item.filename }}</strong>
-                    <span>{{ item.updated_at }}</span>
-                    <a class="mini-link-pill" href="{{ url_for('generated_file', filename=item.relative_path) }}">Open PDF</a>
-                </div>
+      </form>
+    </div>
+  </div>
+
+  {# ═══════ OVERVIEW SCREEN ═══════ #}
+  {% else %}
+  <div class="fm-summary">
+    <div class="fm-summary-card"><strong>{{ summary.double_shift_count }}</strong><span>Double Shift</span></div>
+    <div class="fm-summary-card"><strong>{{ summary.partnership_count }}</strong><span>Partnership</span></div>
+    <div class="fm-summary-card"><strong>AED {{ "%.0f"|format(summary.workshop_credit_balance) }}</strong><span>Workshop Credit</span></div>
+    <div class="fm-summary-card"><strong>{{ vehicle_statement_rows|length }}</strong><span>Vehicles With Spend</span></div>
+  </div>
+
+  <div class="fm-grid">
+    <div class="fm-card">
+      <div class="fm-card-head"><span class="fm-label">Fleet</span><h2>Registered Vehicles</h2></div>
+      <div class="fm-veh-grid" style="padding:16px 20px">
+        {% for item in fleet_vehicle_rows %}
+        <div class="fm-veh-card">
+          <h3>
+            <span>{{ item.vehicle_no }}</span>
+            <span class="status-chip {{ item.status|lower }}">{{ item.status }}</span>
+          </h3>
+          <div class="details">{{ item.vehicle_type }} | {{ item.shift_mode }} | {{ item.ownership_mode }}{% if item.make_model %} | {{ item.make_model }}{% endif %}</div>
+          <div class="actions">
+            <a href="{{ url_for('fleet_vehicle_detail', vehicle_id=item.vehicle_id) }}">History</a>
+            <a href="{{ url_for('fleet_maintenance', screen='vehicles', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search, edit_vehicle=item.vehicle_id) }}">Edit</a>
+            <form method="post" action="{{ url_for('delete_fleet_vehicle', vehicle_id=item.vehicle_id) }}" onsubmit="return confirm('Delete this vehicle?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit">Delete</button>
+            </form>
+          </div>
+        </div>
+        {% else %}
+        <div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted)">No vehicles found</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="fm-card">
+      <div class="fm-card-head"><span class="fm-label">Spend Overview</span><h2>Vehicle Statement</h2></div>
+      <div style="overflow-x:auto">
+        <table class="fm-table">
+          <thead><tr><th>Vehicle</th><th>Papers</th><th>Subtotal</th><th>VAT</th><th>Total</th><th>Co. Paid</th><th>Partner Paid</th><th></th></tr></thead>
+          <tbody>
+            {% for item in vehicle_statement_rows %}
+            <tr>
+              <td><strong>{{ item.vehicle_no }}</strong><br><small style="color:var(--muted)">{{ item.vehicle_type }} / {{ item.shift_mode }}</small></td>
+              <td>{{ item.paper_count }}</td>
+              <td>AED {{ "%.2f"|format(item.subtotal) }}</td>
+              <td>AED {{ "%.2f"|format(item.tax_amount) }}</td>
+              <td style="font-weight:600">AED {{ "%.2f"|format(item.total_amount) }}</td>
+              <td>AED {{ "%.2f"|format(item.company_paid_amount) }}</td>
+              <td>AED {{ "%.2f"|format(item.partner_paid_amount) }}</td>
+              <td><a class="fm-btn fm-btn-xs fm-btn-secondary" href="{{ url_for('fleet_vehicle_detail', vehicle_id=item.vehicle_id, month=filters.month) }}">Open</a></td>
+            </tr>
             {% else %}
-                <p class="muted-text">No vehicle import PDFs uploaded yet.</p>
+            <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted)">No data yet</td></tr>
             {% endfor %}
-        </div>
-    </article>
-    {% elif current_screen == 'papers' %}
-    <article class="card desk-panel-card fleet-screen-card" id="paper-entry">
-        <div class="desk-panel-head">
-            <div>
-                <span class="admin-desk-label">Separate Screen</span>
-                <h2>Maintenance Paper Entry</h2>
-            </div>
-        </div>
-        <form method="post" enctype="multipart/form-data" class="desk-form-grid invoice-form-grid">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="save_paper">
-            <input type="hidden" name="original_paper_no" value="{{ paper_values.original_paper_no }}">
-            <label><span>Paper No</span><input type="text" name="paper_no" value="{{ paper_values.paper_no }}"></label>
-            <label><span>Paper Date</span><input type="date" name="paper_date" value="{{ paper_values.paper_date }}"></label>
-            <label><span>Target Class</span><select name="target_class">{% for item in target_class_options %}<option value="{{ item }}" {% if paper_values.target_class == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-            <label><span>Own Fleet Vehicle</span><select name="vehicle_id"><option value="">Select own fleet</option>{% for item in vehicle_rows %}<option value="{{ item.vehicle_id }}" {% if paper_values.vehicle_id == item.vehicle_id %}selected{% endif %}>{{ item.vehicle_no }} | {{ item.vehicle_type }} | {{ item.shift_mode }}</option>{% endfor %}</select></label>
-            <label><span>Partnership Supplier Vehicle</span><select name="target_asset_code"><option value="">Select supplier vehicle</option>{% for item in partnership_supplier_assets %}<option value="{{ item.asset_code }}" {% if paper_values.target_asset_code == item.asset_code %}selected{% endif %}>{{ item.party_name }} | {{ item.asset_name }}{% if item.vehicle_no %} | {{ item.vehicle_no }}{% endif %}</option>{% endfor %}</select></label>
-            <label><span>Workshop / Auto Shop</span><select name="workshop_party_code"><option value="">Optional</option>{% for item in workshop_parties %}<option value="{{ item.party_code }}" {% if paper_values.workshop_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>{% endfor %}</select></label>
-            <label><span>Tax Mode</span><select name="tax_mode">{% for item in tax_mode_options %}<option value="{{ item }}" {% if paper_values.tax_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-            <label><span>Funding Source</span><select name="funding_source">{% for item in funding_source_options %}<option value="{{ item }}" {% if paper_values.funding_source == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-            <label><span>Supplier Bill No</span><input type="text" name="supplier_bill_no" value="{{ paper_values.supplier_bill_no }}"></label>
-            <label><span>Paid By</span><select name="paid_by">{% for item in paid_by_options %}<option value="{{ item }}" {% if paper_values.paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-            <label><span>VAT Amount</span><input type="number" step="0.01" name="tax_amount" value="{{ paper_values.tax_amount }}"></label>
-            <label><span>Attachment</span><input type="file" name="attachment" accept=".pdf,.png,.jpg,.jpeg,.webp"></label>
-            <label class="full-span"><span>Work Summary</span><input type="text" name="work_summary" value="{{ paper_values.work_summary }}" placeholder="Gearbox, welding, hose, tyre, pump, electrical work"></label>
-            <div class="full-span maintenance-line-editor">
-                <div class="maintenance-line-header"><span>Description</span><span>Qty</span><span>Rate</span><span>Amount</span></div>
-                {% for line in paper_line_rows %}
-                    <div class="maintenance-line-row">
-                        <input type="text" name="line_description_{{ line.line_no }}" value="{{ line.description }}" placeholder="Part / labour detail">
-                        <input type="number" step="0.01" name="line_quantity_{{ line.line_no }}" value="{{ line.quantity }}" placeholder="1">
-                        <input type="number" step="0.01" name="line_rate_{{ line.line_no }}" value="{{ line.rate }}" placeholder="0.00">
-                        <input type="number" step="0.01" name="line_amount_{{ line.line_no }}" value="{{ line.amount }}" placeholder="Auto" readonly>
-                    </div>
-                {% endfor %}
-            </div>
-            <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ paper_values.notes }}</textarea></label>
-            <div class="form-actions left-actions full-span">
-                <button class="button" type="submit">{% if paper_values.original_paper_no %}Update Paper{% else %}Save Paper{% endif %}</button>
-                <a class="button button-secondary" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Back To Overview</a>
-            </div>
-        </form>
-    </article>
-    {% else %}
-    <section class="accounts-link-grid maintenance-summary-grid">
-        <article class="card accounts-link-card"><strong>{{ summary.double_shift_count }}</strong><span>Double Shift Fleet</span></article>
-        <article class="card accounts-link-card"><strong>{{ summary.partnership_count }}</strong><span>Partnership Vehicles</span></article>
-        <article class="card accounts-link-card"><strong>AED {{ "%.0f"|format(summary.workshop_credit_balance) }}</strong><span>Workshop Credit</span></article>
-        <article class="card accounts-link-card"><strong>{{ vehicle_statement_rows|length }}</strong><span>Vehicles With Spend</span></article>
-    </section>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-    <section class="desk-content-grid compact-content-grid">
-        <article class="card desk-panel-card fleet-overview-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Fleet</span>
-                    <h2>Registered Vehicles</h2>
-                </div>
-            </div>
-            <section class="directory-card-grid">
-                {% for item in fleet_vehicle_rows %}
-                    <article class="card directory-card customer-directory-card fleet-showcase-card">
-                        <div class="directory-card-head">
-                            <span class="vehicle-icon-chip" aria-hidden="true">V</span>
-                            <span class="status-chip {{ item.status|lower }}">{{ item.status }}</span>
-                        </div>
-                        <div class="directory-card-body">
-                            <h2>{{ item.vehicle_no }}</h2>
-                            <div class="directory-card-lines">
-                                <span class="directory-line"><strong>Type</strong><small>{{ item.vehicle_type }}</small></span>
-                                <span class="directory-line"><strong>Shift</strong><small>{{ item.shift_mode }}</small></span>
-                                <span class="directory-line"><strong>Mode</strong><small>{{ item.ownership_mode }}</small></span>
-                                <span class="directory-line"><strong>Model</strong><small>{{ item.make_model or '-' }}</small></span>
-                            </div>
-                            <div class="table-actions">
-                                <a class="mini-action-link" href="{{ url_for('fleet_vehicle_detail', vehicle_id=item.vehicle_id) }}">Maintenance History</a>
-                                <a class="mini-action-link" href="{{ url_for('fleet_maintenance', screen='vehicles', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search, edit_vehicle=item.vehicle_id) }}">Edit</a>
-                                <form method="post" action="{{ url_for('delete_fleet_vehicle', vehicle_id=item.vehicle_id) }}" onsubmit="return confirm('Delete this vehicle?');">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button class="mini-action-button" type="submit">Delete</button>
-                                </form>
-                            </div>
-                        </div>
-                    </article>
-                {% else %}
-                    <article class="card directory-empty"><h2>No Matching Vehicle</h2><p>Try another search or clear the current filter.</p></article>
-                {% endfor %}
-            </section>
-        </article>
+  <div class="fm-grid">
+    <div class="fm-card">
+      <div class="fm-card-head"><span class="fm-label">Workshop Credit</span><h2>Open Payable</h2></div>
+      <ul class="fm-ledger">
+        {% for item in workshop_payables %}
+        <li><strong>{{ item.party_name }}</strong><span>{{ item.paper_count }} paper(s) &middot; AED {{ "%.2f"|format(item.balance_amount) }}</span></li>
+        {% else %}
+        <li style="justify-content:center;color:var(--muted)">No workshop credit open</li>
+        {% endfor %}
+      </ul>
+    </div>
 
-        <article class="card desk-panel-card fleet-overview-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Spend Overview</span>
-                    <h2>Vehicle Maintenance Statement</h2>
-                </div>
-            </div>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>Vehicle</th><th>Papers</th><th>Subtotal</th><th>VAT</th><th>Total</th><th>Company Paid</th><th>Partner Paid</th><th>History</th></tr></thead>
-                    <tbody>
-                        {% for item in vehicle_statement_rows %}
-                            <tr>
-                                <td><strong>{{ item.vehicle_no }}</strong><br><small>{{ item.vehicle_type }} / {{ item.shift_mode }}</small></td>
-                                <td>{{ item.paper_count }}</td>
-                                <td>AED {{ "%.2f"|format(item.subtotal) }}</td>
-                                <td>AED {{ "%.2f"|format(item.tax_amount) }}</td>
-                                <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
-                                <td>AED {{ "%.2f"|format(item.company_paid_amount) }}</td>
-                                <td>AED {{ "%.2f"|format(item.partner_paid_amount) }}</td>
-                                <td><a class="mini-link-pill" href="{{ url_for('fleet_vehicle_detail', vehicle_id=item.vehicle_id, month=filters.month) }}">Open</a></td>
-                            </tr>
-                        {% else %}
-                            <tr><td colspan="8">No vehicle statement rows yet.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </article>
-    </section>
+    <div class="fm-card">
+      <div class="fm-card-head"><span class="fm-label">Partnership</span><h2>Month-End Split</h2></div>
+      <div style="overflow-x:auto">
+        <table class="fm-table">
+          <thead><tr><th>Vehicle</th><th>Partner</th><th>Total</th><th>Co. Share</th><th>Partner Share</th><th>Co. Paid</th><th>Partner Paid</th></tr></thead>
+          <tbody>
+            {% for item in partnership_rows %}
+            <tr>
+              <td><strong>{{ item.vehicle_no }}</strong><br><small style="color:var(--muted)">{{ item.vehicle_type }}</small></td>
+              <td>{{ item.partner_name }}</td>
+              <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+              <td>AED {{ "%.2f"|format(item.company_share_amount) }}</td>
+              <td>AED {{ "%.2f"|format(item.partner_share_amount) }}</td>
+              <td>AED {{ "%.2f"|format(item.company_paid_amount) }}</td>
+              <td>AED {{ "%.2f"|format(item.partner_paid_amount) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted)">No partnership rows</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-    <section class="desk-content-grid compact-content-grid">
-        <article class="card desk-panel-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Workshop Credit</span>
-                    <h2>Open Workshop Payable</h2>
-                </div>
-            </div>
-            <div class="mini-ledger-list">
-                {% for item in workshop_payables %}
-                    <div class="mini-ledger-row stacked-row">
-                        <strong>{{ item.party_name }}</strong>
-                        <span>{{ item.paper_count }} paper(s)</span>
-                        <span>AED {{ "%.2f"|format(item.balance_amount) }}</span>
-                    </div>
-                {% else %}
-                    <p class="muted-text">No workshop credit open.</p>
-                {% endfor %}
-            </div>
-        </article>
-
-        <article class="card desk-panel-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Partnership Result</span>
-                    <h2>Month-End Split</h2>
-                </div>
-            </div>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>Vehicle</th><th>Partner</th><th>Total</th><th>Company Share</th><th>Partner Share</th><th>Company Paid</th><th>Partner Paid</th></tr></thead>
-                    <tbody>
-                        {% for item in partnership_rows %}
-                            <tr>
-                                <td><strong>{{ item.vehicle_no }}</strong><br><small>{{ item.vehicle_type }}</small></td>
-                                <td>{{ item.partner_name }}</td>
-                                <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
-                                <td>AED {{ "%.2f"|format(item.company_share_amount) }}</td>
-                                <td>AED {{ "%.2f"|format(item.partner_share_amount) }}</td>
-                                <td>AED {{ "%.2f"|format(item.company_paid_amount) }}</td>
-                                <td>AED {{ "%.2f"|format(item.partner_paid_amount) }}</td>
-                            </tr>
-                        {% else %}
-                            <tr><td colspan="7">No partnership maintenance rows yet.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </article>
-    </section>
-
-    <article class="card desk-panel-card" id="recent-papers">
-        <div class="desk-panel-head">
-            <div>
-                <span class="admin-desk-label">Papers</span>
-                <h2>Recent Maintenance Papers</h2>
-            </div>
-        </div>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Paper</th><th>Vehicle</th><th>Workshop</th><th>Funding</th><th>Total</th><th>Attachment</th><th>Actions</th></tr></thead>
-                <tbody>
-                    {% for item in paper_rows %}
-                        <tr>
-                            <td><strong>{{ item.paper_no }}</strong><br><small>{{ item.paper_date }}</small></td>
-                            <td>{{ item.vehicle_no }}<br><small>{{ item.vehicle_type }} / {{ item.shift_mode }} / {{ item.target_class }}</small></td>
-                            <td>{{ item.workshop_name }}</td>
-                            <td>{{ item.funding_source }}<br><small>{{ item.tax_mode }}</small></td>
-                            <td>AED {{ "%.2f"|format(item.total_amount) }}<br><small>{{ item.work_summary }}</small></td>
-                            <td>{% if item.attachment_path %}<a class="mini-link-pill" href="{{ url_for('generated_file', filename=item.attachment_path) }}">Open File</a>{% else %}<span class="muted-text">No file</span>{% endif %}</td>
-                            <td>
-                                <div class="table-actions">
-                                    {% if item.vehicle_id %}
-                                        <a class="mini-action-link" href="{{ url_for('fleet_vehicle_detail', vehicle_id=item.vehicle_id) }}">History</a>
-                                    {% endif %}
-                                    <a class="mini-action-link" href="{{ url_for('fleet_maintenance', screen='papers', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search, edit_paper=item.paper_no) }}">Edit</a>
-                                    <form method="post" action="{{ url_for('delete_maintenance_paper', paper_no=item.paper_no) }}" onsubmit="return confirm('Delete this maintenance paper?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button class="mini-action-button" type="submit">Delete</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="7">No maintenance papers found for current filter.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </article>
-    {% endif %}
-</section>
+  <div class="fm-card" id="recent-papers">
+    <div class="fm-card-head"><span class="fm-label">Papers</span><h2>Recent Maintenance Papers</h2></div>
+    <div style="overflow-x:auto">
+      <table class="fm-table">
+        <thead><tr><th>Paper</th><th>Vehicle</th><th>Workshop</th><th>Funding</th><th>Total</th><th>File</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for item in paper_rows %}
+          <tr>
+            <td><strong>{{ item.paper_no }}</strong><br><small style="color:var(--muted)">{{ item.paper_date }}</small></td>
+            <td>{{ item.vehicle_no }}<br><small style="color:var(--muted)">{{ item.vehicle_type }} / {{ item.target_class }}</small></td>
+            <td>{{ item.workshop_name }}</td>
+            <td>{{ item.funding_source }}<br><small style="color:var(--muted)">{{ item.tax_mode }}</small></td>
+            <td style="font-weight:600">AED {{ "%.2f"|format(item.total_amount) }}<br><small style="color:var(--muted)">{{ item.work_summary }}</small></td>
+            <td>{% if item.attachment_path %}<a class="fm-btn fm-btn-xs fm-btn-secondary" href="{{ url_for('generated_file', filename=item.attachment_path) }}">Open</a>{% else %}<span style="color:var(--muted);font-size:0.72rem">—</span>{% endif %}</td>
+            <td>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                {% if item.vehicle_id %}<a class="fm-btn fm-btn-xs fm-btn-secondary" href="{{ url_for('fleet_vehicle_detail', vehicle_id=item.vehicle_id) }}">History</a>{% endif %}
+                <a class="fm-btn fm-btn-xs fm-btn-secondary" href="{{ url_for('fleet_maintenance', screen='papers', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search, edit_paper=item.paper_no) }}">Edit</a>
+                <form method="post" action="{{ url_for('delete_maintenance_paper', paper_no=item.paper_no) }}" onsubmit="return confirm('Delete this maintenance paper?');" style="display:inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="fm-btn fm-btn-danger" type="submit">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted)">No papers found for current filter</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
 {% endblock %}
