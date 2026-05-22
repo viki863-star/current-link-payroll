@@ -76,6 +76,39 @@
 </div>
 </form>
 
+{# ─── Bank Details ─── #}
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="action" value="save_company">
+<div class="stng-card">
+    <h3>Bank Details</h3>
+    <p class="desc">Yeh bank details invoice aur PDF mein show honge</p>
+    <div class="form-2col">
+        <div class="form-row">
+            <label class="form-label">Bank Name</label>
+            <input type="text" name="bank_name" class="form-control" value="{{ company.bank_name or '' }}" placeholder="e.g. Emirates NBD">
+        </div>
+        <div class="form-row">
+            <label class="form-label">Account Name</label>
+            <input type="text" name="bank_account_name" class="form-control" value="{{ company.bank_account_name or '' }}" placeholder="Account holder name">
+        </div>
+        <div class="form-row">
+            <label class="form-label">Account Number</label>
+            <input type="text" name="bank_account_number" class="form-control" value="{{ company.bank_account_number or '' }}" placeholder="1234567890">
+        </div>
+        <div class="form-row">
+            <label class="form-label">IBAN</label>
+            <input type="text" name="iban" class="form-control" value="{{ company.iban or '' }}" placeholder="AE070331234567890123456">
+        </div>
+        <div class="form-row">
+            <label class="form-label">Swift Code</label>
+            <input type="text" name="swift_code" class="form-control" value="{{ company.swift_code or '' }}" placeholder="EBILAEAD">
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:12px">Save Bank Details</button>
+</div>
+</form>
+
 {# ─── Logo ─── #}
 <form method="POST" enctype="multipart/form-data">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -135,37 +168,47 @@
 </form>
 
 {# ─── Invoice Preview ─── #}
-<div class="stng-card" style="background:#f8fafc">
-    <h3>Invoice Preview</h3>
-    <p class="desc">Aap ki settings k according invoice kaisa dikhe ga</p>
-    <div id="invoicePreview" style="border:2px solid var(--line);border-radius:10px;padding:20px;background:#fff;max-width:600px">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid {{ company.theme_color or '#0F2B52' }};padding-bottom:12px;margin-bottom:12px;gap:12px">
-            <div style="display:flex;gap:12px;align-items:flex-start">
-                {% if company and company.logo_data %}
-                <div style="width:60px;height:60px;flex-shrink:0;border-radius:6px;border:1px solid #eee;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff">
-                    <img src="data:{{ company.logo_type }};base64,{{ company.logo_data }}" style="width:100%;height:100%;object-fit:contain">
+    <div class="stng-card" style="background:#f8fafc">
+        <h3>Invoice Preview</h3>
+        <p class="desc">Aap ki settings k according invoice kaisa dikhe ga</p>
+        <div id="invoicePreview" style="border:2px solid var(--line);border-radius:10px;padding:20px;background:#fff;max-width:600px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid {{ company.theme_color or '#0F2B52' }};padding-bottom:12px;margin-bottom:12px;gap:12px">
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                    {% if company and company.logo_data %}
+                    <div style="width:60px;height:60px;flex-shrink:0;border-radius:6px;border:1px solid #eee;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff">
+                        <img src="data:{{ company.logo_type }};base64,{{ company.logo_data }}" style="width:100%;height:100%;object-fit:contain">
+                    </div>
+                    {% endif %}
+                    <div>
+                        <div style="font-size:1.1rem;font-weight:800;color:{{ company.theme_color or '#0F2B52' }}" class="preview-company-name">{{ company.company_name or 'Your Company' }}</div>
+                        <div style="font-size:0.65rem;color:#999;margin-top:2px">{{ company.address or 'Address here' }}</div>
+                        <div style="font-size:0.65rem;color:#999">Phone: {{ company.phone_number or '+971' }} &middot; Email: {{ company.email or 'info@example.ae' }} &middot; <strong>TRN: {{ company.trn_no or 'XXXXXXXXXX' }}</strong></div>
+                    </div>
                 </div>
-                {% endif %}
-                <div>
-                    <div style="font-size:1.1rem;font-weight:800;color:{{ company.theme_color or '#0F2B52' }}" class="preview-company-name">{{ company.company_name or 'Your Company' }}</div>
-                    <div style="font-size:0.65rem;color:#999;margin-top:2px">{{ company.address or 'Address here' }}</div>
-                    <div style="font-size:0.65rem;color:#999">TRN: {{ company.trn_no or 'XXXXXXXXXX' }}</div>
+                <div style="text-align:right;flex-shrink:0">
+                    <div style="font-size:1.2rem;font-weight:800;color:{{ company.theme_color or '#0F2B52' }}" class="preview-title">TAX INVOICE</div>
+                    <div style="font-size:0.7rem;color:#999"># INV-0001 &middot; 19-May-2026</div>
                 </div>
             </div>
-            <div style="text-align:right;flex-shrink:0">
-                <div style="font-size:1.2rem;font-weight:800;color:{{ company.theme_color or '#0F2B52' }}" class="preview-title">TAX INVOICE</div>
-                <div style="font-size:0.7rem;color:#999"># INV-0001 &middot; 19-May-2026</div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px;font-size:0.75rem">
+                <div><strong>Bill To:</strong> Customer Name Here</div>
+                <div><strong>Total:</strong> <span style="font-weight:700;color:{{ company.theme_color or '#0F2B52' }}" class="preview-total">AED 10,500.00</span></div>
             </div>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:12px;font-size:0.75rem">
-            <div><strong>Bill To:</strong> Customer Name Here</div>
-            <div><strong>Total:</strong> <span style="font-weight:700;color:{{ company.theme_color or '#0F2B52' }}" class="preview-total">AED 10,500.00</span></div>
-        </div>
-        <div style="text-align:center;font-size:0.65rem;color:#bbb;border-top:1px solid #eee;padding-top:8px">
-            This is how your invoice will appear with current settings.
+            {% if company and (company.bank_name or company.bank_account_name or company.bank_account_number or company.iban) %}
+            <div style="font-size:0.68rem;color:#999;border-top:1px solid #eee;padding-top:8px;margin-top:8px">
+                <strong style="color:#666">Bank Details:</strong>
+                {% if company.bank_name %}{{ company.bank_name }}{% endif %}
+                {% if company.bank_account_name %} &middot; {{ company.bank_account_name }}{% endif %}
+                {% if company.bank_account_number %} &middot; A/C: {{ company.bank_account_number }}{% endif %}
+                {% if company.iban %} &middot; IBAN: {{ company.iban }}{% endif %}
+                {% if company.swift_code %} &middot; Swift: {{ company.swift_code }}{% endif %}
+            </div>
+            {% endif %}
+            <div style="text-align:center;font-size:0.65rem;color:#bbb;border-top:1px solid #eee;padding-top:8px">
+                This is how your invoice will appear with current settings.
+            </div>
         </div>
     </div>
-</div>
 
 </div>
 
