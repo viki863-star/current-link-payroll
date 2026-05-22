@@ -152,7 +152,7 @@ def _next_code(db):
 def _next_invoice_no(db):
     db.execute("UPDATE invoice_sequence SET last_number = last_number + 1")
     n = db.execute("SELECT last_number FROM invoice_sequence").fetchone()[0]
-    return f"NS884-{n:03d}"
+    return f"NS{n + 883}"
 
 def _get_customer_or_404(cid):
     db = _get_db()
