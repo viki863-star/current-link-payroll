@@ -36,7 +36,7 @@
     </div>
 
     <div class="sp-summary">
-        <div class="sp-card">
+        <div class="sp-card" onclick="toggleDetail('advancesSection')" style="cursor:pointer">
             <div class="sp-card-label">Advances</div>
             <div class="sp-card-value orange">AED {{ "%.0f"|format(total_advances) }}</div>
         </div>
@@ -51,7 +51,7 @@
     </div>
 
     {% if advances %}
-    <div class="profile-card sp-section">
+    <div id="advancesSection" class="profile-card sp-section" style="display:none">
         <h3 class="sp-section-title">Advances Given <span class="badge badge-dept">{{ advances|length }}</span></h3>
         <div class="table-wrap">
             <table class="smart-table">
@@ -154,13 +154,18 @@
             </table>
         </div>
     </div>
-    <script>
-    function toggleDetail(id) {
-        var el = document.getElementById(id);
-        if (el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+<script>
+function toggleDetail(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var tag = el.tagName.toLowerCase();
+    if (tag === 'tr') {
+        el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+    } else {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
     }
-    </script>
-    {% endif %}
+}
+</script>
 
     {% if not jobs and not papers and not receipts and not advances %}
     <div class="profile-card" style="text-align:center;padding:40px">
