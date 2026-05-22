@@ -5,10 +5,10 @@
 
 {% block content %}
 <style>
-* { -webkit-tap-highlight-color: transparent; }
+* { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust:100%; text-size-adjust:100%; box-sizing:border-box; }
 .app-layout .erp-sidebar { display: none !important; }
-.app-layout .main-content { margin-left: 0 !important; width: 100% !important; padding:0 !important; }
-body.staff-body { background:#f4f7fb; }
+.app-layout .main-content { margin-left: 0 !important; width: 100% !important; max-width:100% !important; padding:0 !important; }
+body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
 </style>
 <div class="staff-container">
     <div class="staff-header">
@@ -89,7 +89,7 @@ body.staff-body { background:#f4f7fb; }
 .staff-title { margin: 0; font-size: 1.1rem; font-weight: 700; }
 .staff-back-btn { font-size: 0.85rem; color: var(--primary); text-decoration: none; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; display:inline-flex;align-items:center;gap:4px; }
 .staff-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
-.staff-action-btn { display: inline-flex; align-items: center; justify-content:center; gap: 6px; background: var(--primary); color: #fff; border-radius: 12px; text-decoration: none; font-size: 0.95rem; font-weight: 600; padding:14px; transition: opacity 0.15s; }
+.staff-action-btn { display: inline-flex; align-items: center; justify-content:center; gap: 6px; background: var(--primary); color: #fff; border-radius: 12px; text-decoration: none; font-size: 0.95rem; font-weight: 600; padding:14px; transition: opacity 0.15s; touch-action:manipulation; }
 .staff-action-btn:active { opacity:0.75; }
 .staff-job-item { border-bottom: 1px solid var(--line); padding: 16px; }
 .staff-job-item:last-child { border-bottom: none; }
