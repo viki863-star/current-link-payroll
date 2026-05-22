@@ -718,6 +718,73 @@ def _import_field_staff_from_sqlite(db):
         pass
 
 
+def _import_maintenance_staff_from_sqlite(db):
+    backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+    if backend != "postgres":
+        return
+    try:
+        sqlite_path = Path(current_app.config.get("DATABASE", "payroll.db"))
+        if not sqlite_path.exists():
+            sqlite_path = Path(current_app.root_path).parent / "payroll.db"
+        if not sqlite_path.exists():
+            return
+        sdb = sqlite3.connect(str(sqlite_path))
+        sdb.row_factory = sqlite3.Row
+    except Exception:
+        return
+    try:
+        old_staff = sdb.execute("SELECT * FROM maintenance_staff").fetchall()
+    except Exception:
+        old_staff = []
+    for s in old_staff:
+        code = s["staff_code"]
+        existing = db.execute("SELECT staff_code FROM maintenance_staff WHERE staff_code = ?", (code,)).fetchone()
+        if existing:
+            continue
+        try:
+            db.execute("""
+                INSERT INTO maintenance_staff (staff_code, staff_name, phone_number, status, notes, created_at)
+                VALUES (?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+            """, (code, s["staff_name"], s["phone_number"] or "", s["status"] or "Active",
+                  s["notes"] or "", s.get("created_at")))
+        except Exception:
+            pass
+        already = db.execute("SELECT staff_id FROM field_staff WHERE staff_id = ?", (code,)).fetchone()
+        if already:
+            continue
+        name = s["staff_name"]
+        username = (code + name)[:20].lower().replace("-", "").replace(" ", "")
+        pw_hash = generate_password_hash("changeme123")
+        try:
+            db.execute("""
+                INSERT INTO field_staff (staff_id, full_name, phone, username, password_hash, is_active)
+                VALUES (?, ?, ?, ?, ?, 1)
+            """, (code, name, s["phone_number"] or "", username, pw_hash))
+        except Exception:
+            continue
+        try:
+            db.execute("""
+                INSERT INTO technicians (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+                VALUES (?, NULL, ?, ?, ?, ?, 'Active')
+            """, (code, username, pw_hash, s["phone_number"] or "", name))
+        except Exception:
+            pass
+    db.execute("""
+        UPDATE maintenance_papers mp
+        SET technician_code = fs.staff_id
+        FROM field_staff fs
+        WHERE mp.technician_code IS NULL
+        AND mp.staff_code IS NOT NULL
+        AND mp.staff_code = fs.staff_id
+    """)
+    if old_staff:
+        db.commit()
+    try:
+        sdb.close()
+    except Exception:
+        pass
+
+
 def _import_orphaned_maintenance_jobs(db):
     orphan_staff = db.execute("""
         SELECT DISTINCT mj.staff_id FROM maintenance_jobs mj
@@ -760,6 +827,7 @@ def fleet_staff_list():
     ensure_fleet_tables()
     db = open_db()
     _import_field_staff_from_sqlite(db)
+    _import_maintenance_staff_from_sqlite(db)
     _import_orphaned_maintenance_jobs(db)
 
     unsynced = db.execute("""
