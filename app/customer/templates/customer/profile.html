@@ -140,7 +140,6 @@ td .mono-sm { font-size:0.75rem; }
         <div style="display:flex;gap:6px">
             <a href="{{ url_for('customer.customer_kata', cid=c.id) }}" class="btn btn-outline btn-sm">SOA / Statement</a>
         <a href="{{ url_for('customer.customer_invoice_add', cid=c.id) }}" class="btn btn-primary btn-sm">+ New Invoice</a>
-        <a href="{{ url_for('customer.customer_invoice_nourol_add', cid=c.id) }}" class="btn btn-outline btn-sm" style="border-color:#6b21a8;color:#6b21a8">+ Nourol Invoice</a>
         </div>
     </div>
     {% if invoices %}
