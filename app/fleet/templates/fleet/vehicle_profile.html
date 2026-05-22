@@ -169,7 +169,7 @@
         {% if all_entries %}
         <div class="table-wrap">
             <table class="smart-table">
-                <thead><tr><th>Date</th><th>Staff</th><th>Amount</th><th>Category</th><th>Description</th><th>Source</th></tr></thead>
+                <thead><tr><th>Date</th><th>Staff</th><th>Amount</th><th>Category</th><th>Description</th><th>Action</th></tr></thead>
                 <tbody>
                     {% for j in all_entries|sort(attribute='created_at', reverse=True) %}
                     <tr>
@@ -178,7 +178,7 @@
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount|float) }}</td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
                         <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
-                        <td><span class="badge badge-dept">{% if j.attachment_data %}Portal{% else %}Old{% endif %}</span></td>
+                        <td>{% if j.category == 'Maintenance' %}<a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline" target="_blank">View Paper</a>{% elif j.attachment_data %}<a href="?download={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}—{% endif %}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
