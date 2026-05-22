@@ -1,49 +1,69 @@
 {% extends "base.html" %}
-
 {% block body_class %}login-page-body{% endblock %}
-
 {% block content %}
-<section class="login-page-shell">
-    <article class="card login-page-brand-card">
-        <div class="login-page-brand-css">
-            <img class="lpb-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
-            <div class="lpb-text">
-                <div class="lpb-name"><span>CURRENT</span><span class="lpb-link">LINK</span></div>
-                <div class="lpb-tagline">TRANSPORT AND GENERAL CONTRACTING LLC SPC</div>
-            </div>
+<style>
+.tl-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; background:linear-gradient(135deg,#0a1a30 0%,#0F2B52 40%,#1a3d6e 100%); position:relative; }
+.tl-wrap::before { content:''; position:absolute; inset:0; background:url("{{ url_for('static', filename='Portal.png') }}") center/cover no-repeat; opacity:0.08; pointer-events:none; }
+.tl-inner { width:100%; max-width:440px; position:relative; }
+.tl-card { background:rgba(255,255,255,0.97); border-radius:24px; padding:36px 32px 32px; box-shadow:0 25px 60px rgba(0,0,0,0.3); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
+.tl-logo { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
+.tl-logo img { width:42px; height:42px; border-radius:10px; }
+.tl-logo-text { font-size:1.05rem; font-weight:800; letter-spacing:-0.3px; }
+.tl-logo-text span { color:#0F2B52; }
+.tl-logo-text .accent { color:#ff8a1f; }
+.tl-sub { font-size:0.65rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px; }
+.tl-title { font-size:1.25rem; font-weight:700; color:#0F2B52; margin:0 0 20px; }
+.tl-field { margin-bottom:16px; }
+.tl-field label { display:block; font-size:0.72rem; font-weight:600; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.3px; }
+.tl-field input { width:100%; padding:11px 14px; border:1.5px solid #e0e4ea; border-radius:12px; font-size:0.9rem; transition:all 0.15s; box-sizing:border-box; }
+.tl-field input:focus { border-color:#ff8a1f; outline:none; box-shadow:0 0 0 3px rgba(255,138,31,0.15); }
+.tl-btn { width:100%; padding:12px; border:none; border-radius:12px; font-size:0.9rem; font-weight:700; cursor:pointer; background:linear-gradient(145deg,#ff8a1f,#e67600); color:#fff; transition:all 0.15s; margin-top:6px; }
+.tl-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(230,118,0,0.35); }
+.tl-btn:active { transform:scale(0.97); }
+.tl-footer { text-align:center; margin-top:18px; font-size:0.75rem; color:var(--muted); }
+.tl-footer a { color:#0F2B52; font-weight:600; text-decoration:none; }
+.tl-footer a:hover { color:#ff8a1f; }
+.tl-error { background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:12px 14px; margin-bottom:16px; font-size:0.82rem; color:#dc2626; }
+/* hide sidebar on login page */
+.app-layout .sidebar { display:none !important; }
+.app-layout .main-content { margin-left:0 !important; width:100% !important; }
+</style>
+<div class="tl-wrap">
+  <div class="tl-inner">
+    <div class="tl-card">
+      <div class="tl-logo">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
+        <div class="tl-logo-text"><span>CURRENT</span><span class="accent">LINK</span></div>
+      </div>
+      <div class="tl-sub">Field Staff Access</div>
+      <h1 class="tl-title">Staff Portal Login</h1>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+        <div class="tl-error">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+      {% endwith %}
+
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="tl-field">
+          <label>User ID / Staff Code</label>
+          <input type="text" name="user_id" value="{{ values.user_id }}" placeholder="e.g. FS-01" required>
         </div>
-        <div class="login-page-copy">
-            <div class="public-page-topline">
-                <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
-            </div>
-            <p class="eyebrow">Field Staff Access</p>
-            <h2>Field staff portal login</h2>
+        <div class="tl-field">
+          <label>Password</label>
+          <input type="password" name="password" placeholder="Enter your password" required>
         </div>
-    </article>
+        <button class="tl-btn" type="submit">Enter Field Staff Portal</button>
+      </form>
 
-    <article class="card login-stage-card">
-        <div class="login-stage-head">
-            <p class="eyebrow">Step 2</p>
-            <h3>Login with User ID and Password</h3>
-        </div>
-        <form method="post" class="stage-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-            <label>
-                <span>User ID / Staff Code</span>
-                <input type="text" name="user_id" value="{{ values.user_id }}" placeholder="tech.001" required>
-            </label>
-
-            <label>
-                <span>Password</span>
-                <input type="password" name="password" placeholder="Enter password" required>
-            </label>
-
-            <div class="login-stage-footer">
-                <div class="login-tip">Only active field staff accounts can log in.</div>
-                <button class="button login-submit-button" type="submit">Enter Field Staff Portal</button>
-            </div>
-        </form>
-    </article>
-</section>
+      <div class="tl-footer">
+        Only active field staff accounts can log in.<br>
+        <a href="{{ url_for('home') }}">&larr; Back to Home</a>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
