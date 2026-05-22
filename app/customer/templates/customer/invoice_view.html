@@ -54,18 +54,18 @@
     <div class="inv-info-grid" style="gap:20px">
         <div class="inv-info-card" style="background:var(--surface);border:1px solid var(--line);padding:16px 18px">
             <h4 style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Bill To</h4>
-            <div style="font-weight:700;font-size:1rem;color:var(--text)">{{ c.customer_name }}</div>
-            {% if c.address %}<div style="font-size:0.82rem;color:var(--muted);margin-top:3px">{{ c.address }}</div>{% endif %}
-            {% if c.phone %}<div style="font-size:0.82rem;color:var(--muted)">{{ c.phone }}</div>{% endif %}
-            {% if c.trn %}<div style="font-size:0.8rem;margin-top:6px;padding-top:6px;border-top:1px solid #eef2f6">TRN: <span class="mono" style="font-weight:600">{{ c.trn }}</span></div>{% endif %}
+            <div class="row" style="padding:3px 0"><span>Customer</span><span style="font-weight:700;font-size:0.9rem;text-align:right;max-width:60%">{{ c.customer_name }}</span></div>
+            {% if c.address %}<div class="row" style="padding:3px 0"><span>Address</span><span style="text-align:right;max-width:60%">{{ c.address }}</span></div>{% endif %}
+            {% if c.phone %}<div class="row" style="padding:3px 0"><span>Phone</span><span style="font-weight:600;text-align:right">{{ c.phone }}</span></div>{% endif %}
+            {% if c.trn %}<div class="row" style="padding:3px 0"><span>TRN</span><span class="mono" style="font-weight:600;text-align:right">{{ c.trn }}</span></div>{% endif %}
         </div>
         <div class="inv-info-card" style="background:var(--surface);border:1px solid var(--line);padding:16px 18px">
             <h4 style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Invoice Details</h4>
-            <div class="row" style="padding:3px 0"><span>Invoice #</span><span class="mono" style="font-weight:700;font-size:0.9rem">{{ inv.invoice_no }}</span></div>
-            <div class="row" style="padding:3px 0"><span>Date</span><span style="font-weight:600">{{ inv.invoice_date }}</span></div>
-            {% if inv.lpo_no %}<div class="row" style="padding:3px 0"><span>LPO No.</span><span class="mono" style="font-weight:600">{{ inv.lpo_no }}</span></div>{% endif %}
-            {% if inv.lpo_date %}<div class="row" style="padding:3px 0"><span>LPO Date</span><span style="font-weight:600">{{ inv.lpo_date }}</span></div>{% endif %}
-            {% if inv.project_no %}<div class="row" style="padding:3px 0"><span>Project No.</span><span class="mono" style="font-weight:600">{{ inv.project_no }}</span></div>{% endif %}
+            <div class="row" style="padding:3px 0"><span>Invoice #</span><span class="mono" style="font-weight:700;font-size:0.9rem;text-align:right">{{ inv.invoice_no }}</span></div>
+            <div class="row" style="padding:3px 0"><span>Date</span><span style="font-weight:600;text-align:right">{{ inv.invoice_date }}</span></div>
+            {% if inv.lpo_no %}<div class="row" style="padding:3px 0"><span>LPO No.</span><span class="mono" style="font-weight:600;text-align:right">{{ inv.lpo_no }}</span></div>{% endif %}
+            {% if inv.lpo_date %}<div class="row" style="padding:3px 0"><span>LPO Date</span><span style="font-weight:600;text-align:right">{{ inv.lpo_date }}</span></div>{% endif %}
+            {% if inv.project_no %}<div class="row" style="padding:3px 0"><span>Project No.</span><span class="mono" style="font-weight:600;text-align:right">{{ inv.project_no }}</span></div>{% endif %}
         </div>
     </div>
 
