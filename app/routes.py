@@ -5146,6 +5146,33 @@ def register_routes(app: Flask) -> None:
             partnership_supplier_assets=_partnership_supplier_asset_options(db),
         )
 
+    @app.route("/fleet/paper/<paper_no>", methods=["GET"])
+    @_login_required("admin")
+    def fleet_paper_detail(paper_no: str):
+        db = open_db()
+        paper = db.execute("""
+            SELECT mp.*, vm.vehicle_no,
+                   (SELECT staff_name FROM field_staff WHERE staff_id = mp.staff_code LIMIT 1) AS staff_name,
+                   (SELECT party_name FROM parties WHERE party_code = mp.workshop_party_code LIMIT 1) AS workshop_name
+            FROM maintenance_papers mp
+            LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
+            WHERE mp.paper_no = ?
+        """, (paper_no.upper(),)).fetchone()
+        if paper is None:
+            flash("Paper not found.", "error")
+            return redirect(url_for("fleet_maintenance"))
+        lines = db.execute("""
+            SELECT line_no, description, quantity, rate, amount
+            FROM maintenance_paper_lines
+            WHERE paper_no = ?
+            ORDER BY line_no
+        """, (paper_no.upper(),)).fetchall()
+        return render_template(
+            "fleet_paper_detail.html",
+            paper=paper,
+            lines=lines,
+        )
+
     @app.post("/fleet-maintenance/vehicles/<vehicle_id>/delete")
     @_login_required("admin")
     def delete_fleet_vehicle(vehicle_id: str):

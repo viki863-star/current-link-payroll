@@ -191,7 +191,7 @@
                                 {% if j.admin_notes %}<div style="grid-column:1/-1"><strong>Notes:</strong> {{ j.admin_notes }}</div>{% endif %}
                                 <div><strong>Status:</strong> <span class="status-badge {{ j.status|lower }}">{{ j.status }}</span></div>
                                 {% if j.category == 'Maintenance' %}
-                                <div><a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline" target="_blank">Open in Maintenance &#8599;</a></div>
+                                <div><a href="/fleet/paper/{{ j.id }}" class="btn btn-xs btn-outline">View Full Paper &#8599;</a></div>
                                 {% endif %}
                             </div>
                         </td>
