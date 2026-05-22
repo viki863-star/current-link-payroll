@@ -171,16 +171,18 @@
             <table class="smart-table">
                 <thead><tr><th>Date</th><th>Staff</th><th>Amount</th><th>Category</th><th>Description</th><th>Action</th></tr></thead>
                 <tbody>
+                    {% set hl = highlight|string %}
                     {% for j in all_entries|sort(attribute='created_at', reverse=True) %}
-                    <tr class="clickable-row" onclick="togglePaper('paper-detail-{{ loop.index }}')">
+                    {% set is_hl = (j.id|string == hl) %}
+                    <tr id="entry-row-{{ loop.index }}" class="clickable-row{% if is_hl %} highlight-row{% endif %}" onclick="togglePaper('paper-detail-{{ loop.index }}')">
                         <td class="mono">{{ (j.created_at or '')|string|truncate(10, True, '') }}</td>
                         <td><strong>{{ j.staff_name or '-' }}</strong></td>
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount|float) }}</td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
                         <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
-                        <td>{% if j.attachment_data %}<a href="?download={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.72rem;color:var(--muted)">&#9654; Details</span>{% endif %}</td>
+                        <td>{% if j.attachment_data %}<a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.72rem;color:var(--muted)">&#9654; Details</span>{% endif %}</td>
                     </tr>
-                    <tr id="paper-detail-{{ loop.index }}" style="display:none">
+                    <tr id="paper-detail-{{ loop.index }}" style="{% if is_hl %}display:table-row{% else %}display:none{% endif %}">
                         <td colspan="6" style="padding:14px 18px;background:#f8fafd">
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:0.85rem">
                                 <div><strong>Date:</strong> {{ (j.created_at or '')|string|truncate(10, True, '') }}</div>
@@ -190,8 +192,19 @@
                                 {% if j.description %}<div style="grid-column:1/-1"><strong>Description:</strong> {{ j.description }}</div>{% endif %}
                                 {% if j.admin_notes %}<div style="grid-column:1/-1"><strong>Notes:</strong> {{ j.admin_notes }}</div>{% endif %}
                                 <div><strong>Status:</strong> <span class="status-badge {{ j.status|lower }}">{{ j.status }}</span></div>
+                                {% if j.category == 'Maintenance' and j.attachment_name %}
+                                <div style="grid-column:1/-1;margin-top:2px"><span class="badge badge-type">File: {{ j.attachment_name }}</span></div>
+                                {% elif j.attachment_data %}
+                                <div style="grid-column:1/-1;margin-top:2px"><a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">&#128206; View Attachment</a></div>
+                                {% endif %}
                                 {% if j.category == 'Maintenance' %}
-                                <div><a href="/fleet/paper/{{ j.id }}" class="btn btn-xs btn-outline">View Full Paper &#8599;</a></div>
+                                <div style="grid-column:1/-1;margin-top:4px;display:flex;gap:8px">
+                                    <a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">&#9998; Edit</a>
+                                    <form method="post" action="/fleet-maintenance/{{ j.id }}/delete" onsubmit="return confirm('Delete paper {{ j.id }}?');" style="display:inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-xs btn-outline" style="color:#dc3545;border-color:#dc3545">&#10005; Delete</button>
+                                    </form>
+                                </div>
                                 {% endif %}
                             </div>
                         </td>
@@ -210,10 +223,26 @@
     </div>
     {% endif %}
 </div>
+<style>
+.highlight-row { background:#fff8e1 !important; box-shadow:inset 3px 0 0 #ff8a1f; }
+</style>
 <script>
 function togglePaper(id) {
     var el = document.getElementById(id);
     if (el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
 }
+{% if highlight %}
+(function() {
+    var hl = '{{ highlight|string }}';
+    var els = document.querySelectorAll('[id^="entry-row-"]');
+    for (var i = 0; i < els.length; i++) {
+        var detail = document.getElementById(els[i].id.replace('entry-row-', 'paper-detail-'));
+        if (detail && detail.style.display === 'table-row') {
+            setTimeout(function() { els[i].scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+            break;
+        }
+    }
+})();
+{% endif %}
 </script>
 {% endblock %}

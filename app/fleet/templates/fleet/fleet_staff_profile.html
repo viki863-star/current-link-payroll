@@ -89,7 +89,7 @@
                 <thead><tr><th>Date</th><th>Vehicle</th><th>Amount</th><th>Category</th><th>Description</th><th>Status</th></tr></thead>
                 <tbody>
                     {% for j in jobs %}
-                    <tr>
+                    <tr class="clickable-row" onclick="window.location='/fleet/vehicles/{{ j.vehicle_id }}?tab=jobs&highlight={{ j.id }}'">
                         <td class="mono">{{ j.created_at[:10] }}</td>
                         <td>{{ j.vehicle_id }}</td>
                         <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(j.amount) }}</td>
@@ -112,26 +112,13 @@
                 <thead><tr><th>Date</th><th>Vehicle</th><th>Amount</th><th>Description</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                     {% for p in papers %}
-                    <tr class="clickable-row" onclick="toggleDetail('paper-detail-{{ loop.index }}')">
+                    <tr class="clickable-row" onclick="window.location='/fleet/vehicles/{{ p.vehicle_id }}?tab=jobs&highlight={{ p.id }}'">
                         <td class="mono">{{ (p.created_at or '')|string|truncate(10, True, '') }}</td>
                         <td>{{ p.vehicle_id or '-' }}</td>
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(p.amount|float) }}</td>
                         <td style="max-width:200px;white-space:normal">{{ p.description or '-' }}</td>
                         <td><span class="status-badge {{ p.status|lower }}">{{ p.status }}</span></td>
-                        <td><span style="font-size:0.72rem;color:var(--muted);cursor:pointer">&#9654; Details</span></td>
-                    </tr>
-                    <tr id="paper-detail-{{ loop.index }}" style="display:none">
-                        <td colspan="6" style="padding:14px 18px;background:#f8fafd">
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:0.85rem">
-                                <div><strong>Date:</strong> {{ (p.created_at or '')|string|truncate(10, True, '') }}</div>
-                                <div><strong>Vehicle:</strong> {{ p.vehicle_id or '-' }}</div>
-                                <div><strong>Amount:</strong> AED {{ "%.0f"|format(p.amount|float) }}</div>
-                                <div><strong>Status:</strong> <span class="status-badge {{ p.status|lower }}">{{ p.status }}</span></div>
-                                {% if p.description %}<div style="grid-column:1/-1"><strong>Description:</strong> {{ p.description }}</div>{% endif %}
-                                {% if p.admin_notes %}<div style="grid-column:1/-1"><strong>Notes:</strong> {{ p.admin_notes }}</div>{% endif %}
-                                <div style="grid-column:1/-1;margin-top:4px"><a href="/fleet/paper/{{ p.id }}" class="btn btn-xs btn-outline">View Full Paper &#8599;</a></div>
-                            </div>
-                        </td>
+                        <td><span style="font-size:0.72rem;color:var(--muted)">&#9654; View in Vehicle</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>

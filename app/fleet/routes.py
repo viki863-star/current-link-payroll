@@ -309,6 +309,7 @@ def vehicle_profile(plate_no):
         return redirect(url_for("fleet.vehicle_list"))
 
     active_tab = request.args.get("tab", "overview")
+    highlight = request.args.get("highlight", "")
 
     # Driver history
     driver_history = db.execute(
@@ -328,7 +329,8 @@ def vehicle_profile(plate_no):
     ).fetchall()
 
     raw_papers = db.execute(
-        """SELECT mp.paper_no AS id, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
+        """SELECT mp.paper_no AS id, vm.vehicle_no AS vehicle_id, mp.vehicle_id AS edit_vehicle_id,
+                  mp.technician_code AS staff_id,
                   mp.total_amount AS amount, mp.work_summary AS description,
                   mp.review_status AS status, mp.notes AS admin_notes,
                   mp.attachment_path AS attachment_name, mp.created_at,
@@ -359,6 +361,7 @@ def vehicle_profile(plate_no):
         "fleet/vehicle_profile.html",
         v=v,
         active_tab=active_tab,
+        highlight=highlight,
         driver_history=driver_history,
         approved_jobs=approved_jobs,
         maintenance_papers_list=maintenance_papers_list,
