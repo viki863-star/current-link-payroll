@@ -172,13 +172,29 @@
                 <thead><tr><th>Date</th><th>Staff</th><th>Amount</th><th>Category</th><th>Description</th><th>Action</th></tr></thead>
                 <tbody>
                     {% for j in all_entries|sort(attribute='created_at', reverse=True) %}
-                    <tr>
+                    <tr class="clickable-row" onclick="togglePaper('paper-detail-{{ loop.index }}')">
                         <td class="mono">{{ (j.created_at or '')|string|truncate(10, True, '') }}</td>
                         <td><strong>{{ j.staff_name or '-' }}</strong></td>
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount|float) }}</td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
                         <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
-                        <td>{% if j.category == 'Maintenance' %}<a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline" target="_blank">View Paper</a>{% elif j.attachment_data %}<a href="?download={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}—{% endif %}</td>
+                        <td>{% if j.attachment_data %}<a href="?download={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.72rem;color:var(--muted)">&#9654; Details</span>{% endif %}</td>
+                    </tr>
+                    <tr id="paper-detail-{{ loop.index }}" style="display:none">
+                        <td colspan="6" style="padding:14px 18px;background:#f8fafd">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:0.85rem">
+                                <div><strong>Date:</strong> {{ (j.created_at or '')|string|truncate(10, True, '') }}</div>
+                                <div><strong>Staff:</strong> {{ j.staff_name or '-' }}</div>
+                                <div><strong>Amount:</strong> AED {{ "%.0f"|format(j.amount|float) }}</div>
+                                <div><strong>Category:</strong> {{ j.category }}</div>
+                                {% if j.description %}<div style="grid-column:1/-1"><strong>Description:</strong> {{ j.description }}</div>{% endif %}
+                                {% if j.admin_notes %}<div style="grid-column:1/-1"><strong>Notes:</strong> {{ j.admin_notes }}</div>{% endif %}
+                                <div><strong>Status:</strong> <span class="status-badge {{ j.status|lower }}">{{ j.status }}</span></div>
+                                {% if j.category == 'Maintenance' %}
+                                <div><a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline" target="_blank">Open in Maintenance &#8599;</a></div>
+                                {% endif %}
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -194,4 +210,10 @@
     </div>
     {% endif %}
 </div>
+<script>
+function togglePaper(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+}
+</script>
 {% endblock %}
