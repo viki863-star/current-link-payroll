@@ -1152,6 +1152,18 @@ def settings():
     _ensure_tables()
     db = _get_db()
     db.execute("CREATE TABLE IF NOT EXISTS company_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, company_name TEXT)")
+    for col, dtype in [("legal_name", "TEXT"), ("trade_license_no", "TEXT"), ("trade_license_expiry", "TEXT"),
+                       ("trn_no", "TEXT"), ("vat_status", "TEXT"), ("phone_number", "TEXT"),
+                       ("email", "TEXT"), ("address", "TEXT"), ("bank_name", "TEXT"),
+                       ("bank_account_name", "TEXT"), ("bank_account_number", "TEXT"), ("iban", "TEXT"),
+                       ("swift_code", "TEXT"), ("invoice_terms", "TEXT"), ("base_currency", "TEXT"),
+                       ("financial_year_label", "TEXT"), ("financial_year_start", "TEXT"),
+                       ("financial_year_end", "TEXT"), ("logo_data", "TEXT"), ("logo_type", "TEXT"),
+                       ("theme_color", "TEXT DEFAULT '#0F2B52'")]:
+        try:
+            db.execute(f"ALTER TABLE company_profile ADD COLUMN {col} {dtype}")
+        except Exception:
+            pass
     company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     if request.method == "POST":
         action = request.form.get("action", "")
