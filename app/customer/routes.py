@@ -249,6 +249,7 @@ def customer_profile(cid):
 
 @customer_bp.route("/<int:cid>/invoice/add", methods=["GET", "POST"])
 def customer_invoice_add(cid):
+    _ensure_tables()
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
@@ -302,6 +303,7 @@ def customer_invoice_add(cid):
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/edit", methods=["GET", "POST"])
 def customer_invoice_edit(cid, iid):
+    _ensure_tables()
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
@@ -359,6 +361,7 @@ def customer_invoice_edit(cid, iid):
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>")
 def customer_invoice_view(cid, iid):
+    _ensure_tables()
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
