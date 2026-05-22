@@ -113,6 +113,20 @@
     </div>
     {% endif %}
 
+    {# ─── BANK DETAILS ─── #}
+    {% if company and (company.bank_name or company.bank_account_name or company.bank_account_number or company.iban) %}
+    <div style="margin-bottom:16px;padding:12px 16px;background:#f8fafc;border-radius:8px;border:1px solid #eef2f6">
+        <h4 style="margin:0 0 6px;font-size:0.7rem;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px">Bank Details</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;font-size:0.78rem">
+            {% if company.bank_name %}<div><span style="color:var(--muted)">Bank:</span> <strong>{{ company.bank_name }}</strong></div>{% endif %}
+            {% if company.bank_account_name %}<div><span style="color:var(--muted)">Account Name:</span> <strong>{{ company.bank_account_name }}</strong></div>{% endif %}
+            {% if company.bank_account_number %}<div><span style="color:var(--muted)">Account No.:</span> <strong>{{ company.bank_account_number }}</strong></div>{% endif %}
+            {% if company.iban %}<div><span style="color:var(--muted)">IBAN:</span> <strong>{{ company.iban }}</strong></div>{% endif %}
+            {% if company.swift_code %}<div><span style="color:var(--muted)">Swift Code:</span> <strong>{{ company.swift_code }}</strong></div>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     {# ─── ACTIONS ─── #}
     <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
         <a href="{{ url_for('customer.customer_invoice_edit', cid=c.id, iid=inv.id) }}" class="btn btn-outline">Edit</a>
