@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Nourol Invoice {{ inv.invoice_no }}{% endblock %}
+{% block page_title %}Nourol Invoice{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:850px;margin:0 auto">
+<style>
+body, .inv-box, table, td, th, div, span, p { font-family:'Times New Roman',Times,serif; }
+.inv-box { background:#fff; border:1px solid #000; padding:20px 24px; }
+.inv-title-box { border:1px solid #000; padding:8px 12px; text-align:center; font-size:1.2rem; font-weight:700; font-style:italic; text-transform:uppercase; margin-bottom:16px; }
+.inv-header-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.inv-header-box { border:1px solid #000; padding:6px 10px; font-size:0.82rem; }
+.inv-header-box .lbl { font-weight:600; }
+.cust-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.cust-box { border:1px solid #000; padding:8px 10px; font-size:0.78rem; line-height:1.5; }
+.cust-box .name { font-weight:700; font-size:0.85rem; }
+.inv-table { width:100%; border-collapse:collapse; margin-bottom:10px; font-size:0.72rem; }
+.inv-table th, .inv-table td { border:1px solid #000; padding:4px 5px; text-align:center; }
+.inv-table th { background:#eee; font-weight:700; font-size:0.68rem; }
+.inv-table td.left { text-align:left; }
+.inv-table td.right { text-align:right; }
+.totals-table { width:350px; margin-left:auto; border-collapse:collapse; font-size:0.78rem; margin-bottom:12px; }
+.totals-table td { border:1px solid #000; padding:3px 8px; }
+.totals-table td:first-child { font-weight:600; }
+.totals-table .grand td { font-weight:700; font-size:0.85rem; }
+.words-box { border:1px solid #000; padding:6px 10px; font-size:0.78rem; font-weight:600; margin-bottom:14px; }
+.bottom-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px; }
+.bottom-box { border:1px solid #000; padding:10px; text-align:center; font-size:0.78rem; min-height:60px; display:flex; flex-direction:column; justify-content:flex-end; }
+.footer { text-align:center; font-size:0.78rem; font-style:italic; padding-top:8px; border-top:1px solid #000; }
+@media print { .btn { display:none !important; } }
+</style>
+
+<div class="inv-box">
+    <div class="inv-title-box">TAX INVOICE</div>
+
+    {# ─── HEADER ROW ─── #}
+    <div class="inv-header-grid">
+        <div class="inv-header-box">
+            <span class="lbl">Invoice # :</span> {{ inv.invoice_no }}
+        </div>
+        <div class="inv-header-box">
+            <span class="lbl">Invoice Date :</span> {{ inv.invoice_date }}
+        </div>
+    </div>
+
+    {# ─── CUSTOMER DETAILS ─── #}
+    <div class="cust-grid">
+        <div class="cust-box">
+            <div class="name">{{ company.company_name if company else "NUROL L.L.C - O.P.C" }}</div>
+            <div>P.O. Box # 46254</div>
+            <div>Abu Dhabi, U.A.E</div>
+            <div>TRN # {{ company.trn_no or "100000937100003" }}</div>
+        </div>
+        <div class="cust-box">
+            <div class="name">M/S {{ c.customer_name }}</div>
+            {% if c.address %}<div>{{ c.address }}</div>{% endif %}
+            <div>TRN #{{ c.trn or "—" }}</div>
+            {% if inv.ref_no %}<div>REF NO: {{ inv.ref_no }}</div>{% endif %}
+            <div>DATE : {{ inv.invoice_date }}</div>
+        </div>
+    </div>
+
+    {# ─── ITEMS TABLE ─── #}
+    <table class="inv-table">
+        <thead>
+            <tr>
+                <th style="width:28%">Description</th>
+                <th style="width:8%">Capacity In Gallon</th>
+                <th style="width:7%">Total QTY</th>
+                <th style="width:6%">Unit</th>
+                <th style="width:9%">Unit Price</th>
+                <th style="width:10%">Taxable Amount</th>
+                <th style="width:5%">VAT %</th>
+                <th style="width:8%">VAT Amount</th>
+                <th style="width:12%">Total (Incl. VAT)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for it in items %}
+            <tr>
+                <td class="left">{{ it.description or '—' }}</td>
+                <td>{{ it.capacity_gallon or '5000' }}</td>
+                <td>{{ "%.0f"|format(it.quantity) }}</td>
+                <td>{{ it.unit or 'Trips' }}</td>
+                <td class="right">{{ "%.2f"|format(it.rate) }}</td>
+                <td class="right">{{ "%.2f"|format(it.amount) }}</td>
+                <td>{{ "%.0f"|format(it.vat_percent_item or 5) }}%</td>
+                <td class="right">{{ "%.2f"|format(it.vat_amount_item or 0) }}</td>
+                <td class="right">{{ "%.2f"|format(it.total_incl_vat or (it.amount + (it.vat_amount_item or 0))) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# ─── EXTRA ROW ─── #}
+    {% if inv.notes %}
+    <div style="font-size:0.75rem;margin-bottom:8px;font-style:italic">{{ inv.notes }}</div>
+    {% endif %}
+
+    {# ─── TOTALS ─── #}
+    {% set sub_total = inv.amount or 0 %}
+    {% set discount = inv.discount or 0 %}
+    {% set vat_total = inv.vat_amount or 0 %}
+    {% set grand_total = inv.total_amount or 0 %}
+    <table class="totals-table">
+        <tr><td>Sub Total</td><td class="right">AED {{ "%.2f"|format(sub_total) }}</td></tr>
+        <tr><td>Discount</td><td class="right">AED {{ "%.2f"|format(discount) }}</td></tr>
+        <tr><td>VAT 5% Total</td><td class="right">AED {{ "%.2f"|format(vat_total) }}</td></tr>
+        <tr class="grand"><td>Grand Total</td><td class="right">AED {{ "%.2f"|format(grand_total) }}</td></tr>
+    </table>
+
+    {# ─── AMOUNT IN WORDS ─── #}
+    <div class="words-box">{{ amount_words or "FOUR THOUSAND THREE HUNDRED SIXTY EIGHT DIRHAMS ONLY" }}</div>
+
+    {# ─── BOTTOM ─── #}
+    <div class="bottom-grid">
+        <div class="bottom-box">
+            <div>Receiver Sign and Stamp</div>
+        </div>
+        <div class="bottom-box" style="align-items:center">
+            <div style="width:60px;height:60px;border-radius:50%;border:2px solid #000;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-size:0.55rem;text-align:center;line-height:1.2">COMPANY<br>SEAL</div>
+        </div>
+        <div class="bottom-box">
+            <div>Authorized Signatory</div>
+        </div>
+    </div>
+
+    <div class="footer">Thank you for doing business with us.</div>
+</div>
+
+<div style="display:flex;gap:8px;justify-content:center;margin-top:16px">
+    <a href="{{ url_for('customer.customer_invoice_pdf', cid=c.id, iid=inv.id) }}" class="btn btn-primary" target="_blank">Download PDF</a>
+    <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='invoices') }}" class="btn btn-outline">&larr; Back</a>
+</div>
+</div>
+{% endblock %}

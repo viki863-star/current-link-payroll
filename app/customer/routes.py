@@ -113,9 +113,18 @@ def _ensure_tables():
             FOREIGN KEY (invoice_id) REFERENCES customer_invoices(id) ON DELETE CASCADE
         );
     """)
-    for col, dtype in [("lpo_no", "TEXT"), ("lpo_date", "TEXT"), ("project_no", "TEXT")]:
+    for col, dtype in [("lpo_no", "TEXT"), ("lpo_date", "TEXT"), ("project_no", "TEXT"),
+                       ("invoice_template", "TEXT DEFAULT 'standard'"), ("discount", "REAL DEFAULT 0"),
+                       ("ref_no", "TEXT")]:
         try:
             db.execute(f"ALTER TABLE customer_invoices ADD COLUMN {col} {dtype}")
+        except Exception:
+            pass
+    for col, dtype in [("capacity_gallon", "TEXT"), ("unit", "TEXT"),
+                       ("vat_percent_item", "REAL"), ("vat_amount_item", "REAL"),
+                       ("total_incl_vat", "REAL")]:
+        try:
+            db.execute(f"ALTER TABLE customer_invoice_items ADD COLUMN {col} {dtype}")
         except Exception:
             pass
     for col, dtype in [("logo_data", "TEXT"), ("logo_type", "TEXT"), ("theme_color", "TEXT DEFAULT '#0F2B52'"),
@@ -301,7 +310,72 @@ def customer_invoice_add(cid):
     db.close()
     return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, today=date.today().isoformat(), next_no=next_no)
 
-@customer_bp.route("/<int:cid>/invoice/<int:iid>/edit", methods=["GET", "POST"])
+# ─── NOUROL INVOICE ───
+
+@customer_bp.route("/<int:cid>/invoice/nourol/add", methods=["GET", "POST"])
+def customer_invoice_nourol_add(cid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    next_no = _next_invoice_no(db)
+    if request.method == "POST":
+        inv_date = request.form.get("invoice_date", date.today().isoformat())
+        inv_no = request.form.get("invoice_no", "").strip() or next_no
+        existing = db.execute("SELECT id FROM customer_invoices WHERE invoice_no=?", (inv_no,)).fetchone()
+        if existing:
+            flash(f"Invoice number '{inv_no}' already exists.", "error")
+            db.close()
+            return render_template("customer/nourol_invoice_form.html", c=c, inv={}, today=date.today().isoformat(), next_no=next_no)
+        ref_no = request.form.get("ref_no", "").strip() or None
+        discount = float(request.form.get("discount", 0).strip() or 0)
+        notes = request.form.get("notes", "").strip()
+        descs = request.form.getlist("item_desc[]")
+        caps = request.form.getlist("item_capacity[]")
+        qtys = request.form.getlist("item_qty[]")
+        units = request.form.getlist("item_unit[]")
+        rates = request.form.getlist("item_rate[]")
+        vat_pcts = request.form.getlist("item_vat_pct[]")
+        items = []
+        sub_total = 0
+        for i in range(len(descs)):
+            desc = descs[i].strip()
+            if not desc: continue
+            cap = caps[i].strip() if i < len(caps) else ""
+            qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+            unit = units[i].strip() if i < len(units) else "Trips"
+            rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            vp = float(vat_pcts[i]) if i < len(vat_pcts) and vat_pcts[i].strip() else 5
+            taxable = round(qty * rate, 2)
+            vat_amt_item = round(taxable * vp / 100, 2)
+            total_inc = round(taxable + vat_amt_item, 2)
+            sub_total += taxable
+            items.append({"desc": desc, "cap": cap, "qty": qty, "unit": unit, "rate": rate,
+                          "taxable": taxable, "vp": vp, "vat_amt": vat_amt_item, "total_inc": total_inc})
+        if not items:
+            flash("At least one line item is required.", "error")
+            db.close()
+            return render_template("customer/nourol_invoice_form.html", c=c, inv={}, today=date.today().isoformat(), next_no=next_no)
+        vat_total = round(sum(it["vat_amt"] for it in items), 2)
+        grand_total = round(sub_total + vat_total - discount, 2)
+        c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,discount,ref_no,notes,invoice_template)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, inv_no, inv_date, sub_total, 0, vat_total, grand_total, discount, ref_no, notes, "nourol"))
+        inv_id = c_inv.lastrowid
+        for idx, it in enumerate(items):
+            db.execute("""INSERT INTO customer_invoice_items
+                (invoice_id,description,quantity,rate,amount,sort_order,capacity_gallon,unit,vat_percent_item,vat_amount_item,total_incl_vat)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                (inv_id, it["desc"], it["qty"], it["rate"], it["taxable"], idx,
+                 it["cap"], it["unit"], it["vp"], it["vat_amt"], it["total_inc"]))
+        db.commit()
+        db.close()
+        flash(f"Nourol Invoice {inv_no} created.", "success")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
+    db.close()
+    return render_template("customer/nourol_invoice_form.html", c=c, inv={}, today=date.today().isoformat(), next_no=next_no)
+
+@customer_bp.route("/<int:cid>/invoice/<int:iid>/edit")
 def customer_invoice_edit(cid, iid):
     _ensure_tables()
     c = _get_customer_or_404(cid)
@@ -373,7 +447,9 @@ def customer_invoice_view(cid, iid):
     items = db.execute("SELECT * FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     db.close()
-    return render_template("customer/invoice_view.html", c=c, inv=inv, items=items, company=company)
+    template_map = {"nourol": "customer/nourol_invoice_view.html"}
+    tmpl = template_map.get(inv.get("invoice_template", ""), "customer/invoice_view.html")
+    return render_template(tmpl, c=c, inv=inv, items=items, company=company)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/pdf")
 def customer_invoice_pdf(cid, iid):
@@ -397,6 +473,9 @@ def customer_invoice_pdf(cid, iid):
     if not c or not inv:
         flash("Invoice not found.", "error")
         return redirect(url_for("customer.customer_dashboard"))
+
+    if inv.get("invoice_template") == "nourol":
+        return _nourol_invoice_pdf(c, inv, items, company, _logo_tmp_files)
 
     buf = BytesIO()
     LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 12*mm
@@ -705,6 +784,227 @@ def customer_invoice_pdf(cid, iid):
         except: pass
     pdf_data = buf.getvalue(); buf.close()
     return send_file(BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True, download_name=f"Invoice_{inv_no}.pdf")
+
+def _nourol_invoice_pdf(c, inv, items, company, _logo_tmp_files):
+    import tempfile
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from io import BytesIO
+
+    buf = BytesIO()
+    LM, RM, TM, BM = 16*mm, 16*mm, 12*mm, 10*mm
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = A4[0] - LM - RM
+
+    BK = colors.black; WH = colors.white; GY = colors.HexColor("#eeeeee")
+
+    def S(name, **kw):
+        kw.setdefault("fontName", "Times-Roman")
+        kw.setdefault("fontSize", 8)
+        kw.setdefault("leading", 11)
+        return ParagraphStyle(name, **kw)
+
+    def P(t, **kw):
+        return Paragraph(str(t), S("_p", **kw))
+
+    def B(t, **kw):
+        kw.setdefault("fontName", "Times-Bold")
+        return Paragraph(str(t), S("_b", **kw))
+
+    def C(t, **kw):
+        kw.setdefault("alignment", TA_CENTER)
+        return Paragraph(str(t), S("_c", **kw))
+
+    def R(t, **kw):
+        kw.setdefault("alignment", TA_RIGHT)
+        return Paragraph(str(t), S("_r", **kw))
+
+    safe = lambda v, d="": str(v) if v else d
+    els = []
+
+    # ═══ TITLE ═══
+    title = Table([["TAX INVOICE"]], colWidths=[W])
+    title.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),0.5,BK),
+        ("FONTNAME",(0,0),(-1,-1),"Times-Bold"),
+        ("FONTSIZE",(0,0),(-1,-1),13),
+        ("ITALIC",(0,0),(-1,-1)),
+        ("ALIGN",(0,0),(-1,-1),"CENTER"),
+        ("TOPPADDING",(0,0),(-1,-1),6), ("BOTTOMPADDING",(0,0),(-1,-1),6),
+    ]))
+    els.append(title)
+    els.append(Spacer(1, 3*mm))
+
+    # ═══ HEADER ROW ═══
+    hdr_t = Table([
+        [B(f"Invoice # : {inv['invoice_no']}", fontSize=9),
+         B(f"Invoice Date : {inv['invoice_date']}", fontSize=9, alignment=TA_RIGHT)],
+    ], colWidths=[W*0.50, W*0.50])
+    hdr_t.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),0.5,BK),
+        ("BOX",(0,0),(0,0),0.5,BK), ("BOX",(1,0),(1,0),0.5,BK),
+        ("TOPPADDING",(0,0),(-1,-1),5), ("BOTTOMPADDING",(0,0),(-1,-1),5),
+        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
+    ]))
+    els.append(hdr_t)
+    els.append(Spacer(1, 3*mm))
+
+    # ═══ CUSTOMER DETAILS ═══
+    cn = company["company_name"] or "NUROL L.L.C - O.P.C"
+    trn = company["trn_no"] or "100000937100003"
+    left = f"<b>{cn}</b><br/>P.O. Box # 46254<br/>Abu Dhabi, U.A.E<br/>TRN # {trn}"
+    right = f"<b>M/S {c['customer_name']}</b><br/>{safe(c.get('address',''),'')}<br/>TRN #{safe(c['trn'],'—')}"
+    if inv.get("ref_no"): right += f"<br/>REF NO: {inv['ref_no']}"
+    right += f"<br/>DATE : {inv['invoice_date']}"
+
+    cust_t = Table([
+        [P(left, fontSize=8, leading=12), P(right, fontSize=8, leading=12)],
+    ], colWidths=[W*0.50, W*0.50])
+    cust_t.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),0.5,BK),
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("TOPPADDING",(0,0),(-1,-1),6), ("BOTTOMPADDING",(0,0),(-1,-1),6),
+        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
+    ]))
+    els.append(cust_t)
+    els.append(Spacer(1, 3*mm))
+
+    # ═══ ITEMS TABLE ═══
+    cols = ["Description", "Capacity In Gallon", "Total QTY", "Unit", "Unit Price",
+            "Taxable Amount", "VAT %", "VAT Amount", "Total (Incl. VAT)"]
+    cw = [W*0.26, W*0.08, W*0.07, W*0.06, W*0.09, W*0.10, W*0.06, W*0.09, W*0.12]
+    hdr = [C(f"<b>{x}</b>", fontSize=6.5, fontName="Times-Bold", leading=9) for x in cols]
+    rws = [hdr]
+    for it in items:
+        taxable = it["amount"] or 0
+        vat_item = it["vat_amount_item"] or 0
+        total_inc = it["total_incl_vat"] or (taxable + vat_item)
+        rws.append([
+            P(it["description"] or "—", fontSize=7, leading=9),
+            C(it["capacity_gallon"] or "5000", fontSize=7),
+            C(f"{it['quantity'] or 0:,.0f}", fontSize=7),
+            C(it.get("unit") or "Trips", fontSize=7),
+            R(f"{it['rate'] or 0:,.2f}", fontSize=7),
+            R(f"{taxable:,.2f}", fontSize=7),
+            C(f"{it.get('vat_percent_item') or 5:.0f}%", fontSize=7),
+            R(f"{vat_item:,.2f}", fontSize=7),
+            R(f"{total_inc:,.2f}", fontSize=7),
+        ])
+    itt = Table(rws, colWidths=cw, repeatRows=1)
+    itt.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),0.5,BK),
+        ("INNERGRID",(0,0),(-1,-1),0.3,BK),
+        ("BACKGROUND",(0,0),(-1,0),GY),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
+        ("LEFTPADDING",(0,0),(-1,-1),4), ("RIGHTPADDING",(0,0),(-1,-1),4),
+    ]))
+    els.append(itt)
+    els.append(Spacer(1, 2*mm))
+
+    # ═══ NOTES ═══
+    if inv.get("notes"):
+        els.append(P(f"<i>{inv['notes']}</i>", fontSize=8, leading=11))
+        els.append(Spacer(1, 2*mm))
+
+    # ═══ TOTALS ═══
+    sub = inv["amount"] or 0
+    disc = inv["discount"] or 0
+    vat_tot = inv["vat_amount"] or 0
+    grand = inv["total_amount"] or 0
+    tw = 100*mm
+    trows = [
+        [B("Sub Total", fontSize=8), R(f"AED {sub:,.2f}", fontSize=8)],
+        [B("Discount", fontSize=8), R(f"AED {disc:,.2f}", fontSize=8)],
+        [B("VAT 5% Total", fontSize=8), R(f"AED {vat_tot:,.2f}", fontSize=8)],
+        [B("Grand Total", fontSize=9), R(f"<b>AED {grand:,.2f}</b>", fontSize=9)],
+    ]
+    tt = Table(trows, colWidths=[tw*0.40, tw*0.60])
+    tt.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),0.5,BK),
+        ("INNERGRID",(0,0),(-1,-1),0.3,BK),
+        ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
+        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
+        ("LINEABOVE",(0,3),(-1,3),1,BK),
+    ]))
+    ft = Table([["", tt]], colWidths=[W - tw, tw])
+    ft.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(Spacer(1, 2*mm))
+    els.append(ft)
+
+    # ═══ AMOUNT IN WORDS ═══
+    def n2w(n):
+        if n == 0: return "Zero"
+        o = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve",
+             "Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"]
+        t = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
+        sc = ["","Thousand","Million","Billion"]
+        def h(num):
+            r = ""
+            if num >= 100: r += o[num//100] + " Hundred"; num %= 100
+            if num and r: r += " "
+            if num >= 20: r += t[num//10]; num %= 10
+            if num and r: r += " "
+            if num > 0: r += o[num]
+            return r.strip()
+        ip = int(n)
+        dp = min(int(round((n - ip) * 100)), 99)
+        if ip == 0: w = "Zero"
+        else:
+            w = ""; i = 0
+            while ip > 0:
+                ck = ip % 1000
+                if ck:
+                    cw = h(ck)
+                    if sc[i]: cw += " " + sc[i]
+                    w = cw + (" " + w if w else "")
+                ip //= 1000; i += 1
+        if dp: w += f" and {dp:02d}/100"
+        return w + " ONLY"
+
+    aw = Table([[B(f"{n2w(grand)}", fontSize=8)]], colWidths=[W])
+    aw.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),0.5,BK),
+        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
+        ("TOPPADDING",(0,0),(-1,-1),5), ("BOTTOMPADDING",(0,0),(-1,-1),5),
+    ]))
+    els.append(Spacer(1, 3*mm))
+    els.append(aw)
+    els.append(Spacer(1, 5*mm))
+
+    # ═══ BOTTOM ═══
+    bottom = Table([
+        [C("Receiver Sign<br/>and Stamp", fontSize=8, leading=11),
+         C("<br/><br/>", fontSize=8),
+         C("Authorized<br/>Signatory", fontSize=8, leading=11)],
+    ], colWidths=[W*0.30, W*0.40, W*0.30])
+    bottom.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),0.5,BK),
+        ("BOX",(0,0),(0,0),0.5,BK), ("BOX",(2,0),(2,0),0.5,BK),
+        ("VALIGN",(0,0),(-1,-1),"BOTTOM"),
+        ("TOPPADDING",(0,0),(-1,-1),8), ("BOTTOMPADDING",(0,0),(-1,-1),6),
+        ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
+    ]))
+    els.append(bottom)
+
+    # ═══ FOOTER ═══
+    els.append(Spacer(1, 3*mm))
+    els.append(P("<i>Thank you for doing business with us.</i>", fontSize=8, alignment=TA_CENTER))
+    els.append(Spacer(1, 2*mm))
+    fh = Table([[""]], colWidths=[W], rowHeights=[0.5])
+    fh.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BK),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(fh)
+
+    doc.build(els)
+    for f in _logo_tmp_files:
+        try: os.remove(f)
+        except: pass
+    pdf_data = buf.getvalue(); buf.close()
+    return send_file(BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True, download_name=f"Nourol_Invoice_{inv['invoice_no']}.pdf")
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/delete", methods=["POST"])
 def customer_invoice_delete(cid, iid):
