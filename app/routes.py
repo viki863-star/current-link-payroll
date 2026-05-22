@@ -866,9 +866,7 @@ def register_routes(app: Flask) -> None:
     
     @app.route("/technician-login", methods=["GET", "POST"])
     def technician_login():
-        if _current_role():
-            return redirect(url_for(_role_home_endpoint()))
-        
+        # Allow viewing login page even if already logged in
         values = {"user_id": ""}
         
         if request.method == "POST":
