@@ -42,6 +42,10 @@
         </div>
         <div class="profile-actions">
             <a href="{{ url_for('fleet.vehicle_edit', plate_no=v.plate_no) }}" class="btn btn-primary btn-sm">&#9998; Edit</a>
+            <form method="post" action="{{ url_for('fleet.vehicle_delete', plate_no=v.plate_no) }}" onsubmit="return confirm('Delete vehicle {{ v.plate_no }}? All assignments will also be removed. This cannot be undone.');" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm">&#10005; Delete</button>
+            </form>
             <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline btn-sm">&#8592; Back</a>
         </div>
     </div>

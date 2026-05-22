@@ -388,6 +388,24 @@ def vehicle_profile(plate_no):
     )
 
 
+# ── Delete Vehicle ────────────────────────────────────────────
+
+@fleet_bp.route("/fleet/vehicles/<plate_no>/delete", methods=["POST"])
+@_login_required("admin")
+def vehicle_delete(plate_no):
+    _touch_admin_workspace("fleet")
+    db = open_db()
+    v = _vehicle_full(plate_no)
+    if not v:
+        flash("Vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_list"))
+    db.execute("DELETE FROM vehicle_assignments WHERE vehicle_id = ?", (plate_no,))
+    db.execute("DELETE FROM vehicles WHERE plate_no = ?", (plate_no,))
+    db.commit()
+    flash(f"Vehicle {plate_no} deleted.", "success")
+    return redirect(url_for("fleet.vehicle_list"))
+
+
 # ── Assign/Replace Driver ───────────────────────────────────────
 
 @fleet_bp.route("/fleet/vehicles/<plate_no>/assign", methods=["POST"])
