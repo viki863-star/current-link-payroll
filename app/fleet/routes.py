@@ -1041,6 +1041,19 @@ def fleet_staff_receipts(staff_id):
     return render_template("fleet/fleet_staff_receipts.html", s=s, receipts=receipts, total=total)
 
 
+@fleet_bp.route("/fleet/staff/<staff_id>/receipts/<int:receipt_id>/delete", methods=["POST"])
+@_login_required("admin")
+def fleet_staff_receipt_delete(staff_id, receipt_id):
+    _touch_admin_workspace("fleet")
+    db = open_db()
+    r = db.execute("SELECT * FROM cash_receipts WHERE id = ? AND staff_id = ?", (receipt_id, staff_id)).fetchone()
+    if r:
+        db.execute("DELETE FROM cash_receipts WHERE id = ?", (receipt_id,))
+        db.commit()
+        flash("Receipt deleted.", "success")
+    return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+
+
 # ── ADMIN: Staff Profile ─────────────────────────────────────────
 
 @fleet_bp.route("/fleet/staff/<staff_id>/profile")

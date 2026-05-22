@@ -41,10 +41,6 @@
             <div class="sp-card-value orange">AED {{ "%.0f"|format(total_advances) }}</div>
         </div>
         <div class="sp-card">
-            <div class="sp-card-label">Cash Received</div>
-            <div class="sp-card-value green">AED {{ "%.0f"|format(total_cash) }}</div>
-        </div>
-        <div class="sp-card">
             <div class="sp-card-label">Total Spent</div>
             <div class="sp-card-value red">AED {{ "%.0f"|format(total_spent) }}</div>
         </div>
@@ -126,21 +122,44 @@
     <div class="profile-card sp-section">
         <h3 class="sp-section-title">Cash Receipts <span class="badge badge-dept">{{ receipts|length }}</span></h3>
         <div class="table-wrap">
-            <table class="smart-table">
-                <thead><tr><th>Date</th><th>Given By</th><th>Amount</th><th>Notes</th></tr></thead>
+            <table class="smart-table" id="receiptsTable">
+                <thead><tr><th>Date</th><th>Given By</th><th>Amount</th><th>Notes</th><th></th></tr></thead>
                 <tbody>
                     {% for r in receipts %}
-                    <tr>
+                    <tr class="clickable-row" onclick="toggleDetail('receipt-detail-{{ r.id }}')">
                         <td class="mono">{{ r.receipt_date }}</td>
                         <td>{{ r.given_by }}</td>
                         <td class="mono" style="font-weight:600;color:#1a7a4e">AED {{ "%.0f"|format(r.amount) }}</td>
                         <td>{{ r.notes or '-' }}</td>
+                        <td>
+                            <form method="post" action="{{ url_for('fleet.fleet_staff_receipt_delete', staff_id=s.staff_id, receipt_id=r.id) }}" style="display:inline" onsubmit="return confirm('Delete this receipt?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-xs btn-outline" style="color:#ef4444;border-color:#ef4444">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr id="receipt-detail-{{ r.id }}" style="display:none">
+                        <td colspan="5" style="padding:12px 16px;background:#f8fafd">
+                            <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:0.85rem">
+                                <div><strong>Amount:</strong> AED {{ "%.0f"|format(r.amount) }}</div>
+                                <div><strong>Given By:</strong> {{ r.given_by }}</div>
+                                <div><strong>Date:</strong> {{ r.receipt_date }}</div>
+                                <div><strong>Notes:</strong> {{ r.notes or '—' }}</div>
+                                <div><strong>Created:</strong> {{ r.created_at[:10] if r.created_at else '—' }}</div>
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+    <script>
+    function toggleDetail(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+    }
+    </script>
     {% endif %}
 
     {% if not jobs and not papers and not receipts and not advances %}
