@@ -5152,7 +5152,7 @@ def register_routes(app: Flask) -> None:
         db = open_db()
         paper = db.execute("""
             SELECT mp.*, vm.vehicle_no,
-                   (SELECT staff_name FROM field_staff WHERE staff_id = mp.staff_code LIMIT 1) AS staff_name,
+                   (SELECT full_name FROM field_staff WHERE staff_id = mp.staff_code LIMIT 1) AS staff_name,
                    (SELECT party_name FROM parties WHERE party_code = mp.workshop_party_code LIMIT 1) AS workshop_name
             FROM maintenance_papers mp
             LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
