@@ -10,7 +10,7 @@
             <a href="{{ url_for('fleet.fleet_approvals') }}" class="btn btn-xs btn-outline">&larr; Back to Approvals</a>
         </div>
         <h3>Edit Maintenance Job</h3>
-        <p style="color:var(--muted);font-size:0.85rem">Staff: <strong>{{ job.staff_name }}</strong> &middot; Submitted: {{ job.created_at[:10] }} &middot; Status: <span class="badge badge-dept">{{ job.status }}</span></p>
+        <p style="color:var(--muted);font-size:0.85rem">Staff: <strong>{{ job.staff_name }}</strong> &middot; Submitted: {{ job.created_at.strftime("%Y-%m-%d") }} &middot; Status: <span class="badge badge-dept">{{ job.status }}</span></p>
 
         <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

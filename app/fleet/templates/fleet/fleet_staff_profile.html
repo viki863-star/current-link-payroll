@@ -90,7 +90,7 @@
                 <tbody>
                     {% for j in jobs %}
                     <tr class="clickable-row" onclick="window.location='/fleet/vehicles/{{ j.vehicle_id }}?tab=jobs&highlight={{ j.id }}'">
-                        <td class="mono">{{ j.created_at[:10] }}</td>
+                        <td class="mono">{{ j.created_at.strftime("%Y-%m-%d") }}</td>
                         <td>{{ j.vehicle_id }}</td>
                         <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(j.amount) }}</td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
@@ -154,7 +154,7 @@
                                 <div><strong>Given By:</strong> {{ r.given_by }}</div>
                                 <div><strong>Date:</strong> {{ r.receipt_date }}</div>
                                 <div><strong>Notes:</strong> {{ r.notes or '—' }}</div>
-                                <div><strong>Created:</strong> {{ r.created_at[:10] if r.created_at else '—' }}</div>
+                                <div><strong>Created:</strong> {{ r.created_at.strftime("%Y-%m-%d") if r.created_at else '—' }}</div>
                             </div>
                         </td>
                     </tr>

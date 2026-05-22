@@ -28,7 +28,7 @@
                 <tbody>
                     {% for j in pending_jobs %}
                     <tr>
-                        <td class="mono">{{ j.created_at[:10] }}</td>
+                        <td class="mono">{{ j.created_at.strftime("%Y-%m-%d") }}</td>
                         <td><strong>{{ j.staff_name }}</strong></td>
                         <td>{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted)">General Expense</span>{% else %}<a href="{{ vehicle_url(j.plate_no) }}" class="mono" style="font-weight:600">{{ j.plate_no }}</a> <span class="badge badge-dept">{{ j.vehicle_type }}</span>{% endif %}</td>
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount) }}</td>
@@ -85,7 +85,7 @@
                 <tbody>
                     {% for j in recent_approved %}
                     <tr>
-                        <td class="mono">{{ j.created_at[:10] }}</td>
+                        <td class="mono">{{ j.created_at.strftime("%Y-%m-%d") }}</td>
                         <td class="mono">{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted)">General Expense</span>{% else %}{{ j.plate_no }}{% endif %}</td>
                         <td>{{ j.staff_name }}</td>
                         <td class="mono">AED {{ "%.0f"|format(j.amount) }}</td>
