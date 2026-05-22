@@ -501,7 +501,7 @@ def customer_invoice_pdf(cid, iid):
     # 2. BILL TO / INVOICE INFO
     # ═══════════════════════════════════
     def card(title, pairs):
-        cw = W*0.47
+        cw = W*0.50
         r = [[
             Paragraph(f"<b>{title}</b>", S("_ch", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=10)),
             Paragraph("", S("_cs", fontSize=4, leading=4)),
@@ -509,9 +509,9 @@ def customer_invoice_pdf(cid, iid):
         for a, b in pairs:
             r.append([
                 Paragraph(a, S("_cl", fontSize=8, textColor=C5, leading=11)),
-                Paragraph(f"<b>{b}</b>", S("_cv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12, alignment=TA_RIGHT)),
+                Paragraph(f"<b>{b}</b>", S("_cv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12, alignment=TA_LEFT)),
             ])
-        t = Table(r, colWidths=[cw*0.40, cw*0.60])
+        t = Table(r, colWidths=[cw*0.30, cw*0.70])
         t.setStyle(TableStyle([
             ("VALIGN",(0,0),(-1,-1),"TOP"),
             ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
@@ -531,7 +531,7 @@ def customer_invoice_pdf(cid, iid):
     except (IndexError, KeyError):
         pass
 
-    iw = Table([[card("BILL TO", bd), Spacer(1, 4*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.47, 4*mm, W*0.53])
+    iw = Table([[card("BILL TO", bd), Spacer(1, 4*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 4*mm, W*0.50])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(iw)
     els.append(Spacer(1, 5*mm))
@@ -646,7 +646,8 @@ def customer_invoice_pdf(cid, iid):
     if company:
         bk = []
         for lb, ky in [("Bank Name","bank_name"),("Account Name","bank_account_name"),
-                       ("Account No.","bank_account_number"),("IBAN","iban")]:
+                       ("Account No.","bank_account_number"),("IBAN","iban"),
+                       ("Swift Code","swift_code")]:
             v = company[ky] or "—"
             bk.append([L(lb, fontSize=7.5), V(v, fontSize=8.5)])
         if bk:
@@ -659,12 +660,12 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════
     # 7. SIGNATURES
     # ═══════════════════════════════════
-    els.append(Spacer(1, 7*mm))
-    sg = ParagraphStyle("SG", fontSize=9, alignment=TA_CENTER, leading=13)
+    els.append(Spacer(1, 10*mm))
+    sg = ParagraphStyle("SG", fontSize=9, alignment=TA_CENTER, leading=14)
     sgt = Table([[
-        Paragraph("_________________________<br/><b>Authorized Signatory</b><br/><font size=7 color='#6b7280'>Stamp</font>", sg),
+        Paragraph("_________________________<br/><br/><b>Authorized Signatory</b><br/><font size=7 color='#6b7280'>Stamp</font>", sg),
         C("", fontSize=4),
-        Paragraph("_________________________<br/><b>Customer Signature</b><br/><font size=7 color='#6b7280'>Accepted By</font>", sg),
+        Paragraph("_________________________<br/><br/><b>Customer Signature</b><br/><font size=7 color='#6b7280'>Accepted By</font>", sg),
     ]], colWidths=[W*0.35, W*0.30, W*0.35])
     sgt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"TOP"),
