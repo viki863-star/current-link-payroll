@@ -113,7 +113,7 @@ def _ensure_tables():
             FOREIGN KEY (invoice_id) REFERENCES customer_invoices(id) ON DELETE CASCADE
         );
     """)
-    for col, dtype in [("lpo_no", "TEXT"), ("lpo_date", "TEXT")]:
+    for col, dtype in [("lpo_no", "TEXT"), ("lpo_date", "TEXT"), ("project_no", "TEXT")]:
         try:
             db.execute(f"ALTER TABLE customer_invoices ADD COLUMN {col} {dtype}")
         except Exception:
@@ -265,6 +265,7 @@ def customer_invoice_add(cid):
         vat_pct = float(request.form.get("vat_percent", 5))
         lpo_no = request.form.get("lpo_no", "").strip() or None
         lpo_date = request.form.get("lpo_date", "").strip() or None
+        project_no = request.form.get("project_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
         descs = request.form.getlist("item_desc[]")
         qtys = request.form.getlist("item_qty[]")
@@ -285,9 +286,9 @@ def customer_invoice_add(cid):
             return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, today=date.today().isoformat(), next_no=next_no)
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
-        c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, notes))
+        c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,project_no,notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, project_no, notes))
         inv_id = c_inv.lastrowid
         for idx, it in enumerate(items):
             db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
@@ -322,6 +323,7 @@ def customer_invoice_edit(cid, iid):
         vat_pct = float(request.form.get("vat_percent", 5))
         lpo_no = request.form.get("lpo_no", "").strip() or None
         lpo_date = request.form.get("lpo_date", "").strip() or None
+        project_no = request.form.get("project_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
         descs = request.form.getlist("item_desc[]")
         qtys = request.form.getlist("item_qty[]")
@@ -342,8 +344,8 @@ def customer_invoice_edit(cid, iid):
             return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, today=date.today().isoformat(), edit=True)
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
-        db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,notes=? WHERE id=?""",
-            (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, notes, iid))
+        db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,project_no=?,notes=? WHERE id=?""",
+            (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, project_no, notes, iid))
         db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
         for idx, it in enumerate(new_items):
             db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
@@ -521,6 +523,7 @@ def customer_invoice_pdf(cid, iid):
     id_ = [("Invoice #", inv_no), ("Date", inv_dt)]
     if inv["lpo_no"]: id_.append(("LPO No.", inv["lpo_no"]))
     if inv["lpo_date"]: id_.append(("LPO Date", inv["lpo_date"]))
+    if inv.get("project_no"): id_.append(("Project No.", inv["project_no"]))
 
     iw = Table([[card("BILL TO", bd), Spacer(1, 4*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.47, 4*mm, W*0.53])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))

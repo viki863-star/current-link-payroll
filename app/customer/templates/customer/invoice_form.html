@@ -56,6 +56,10 @@
                     <input type="date" name="lpo_date" id="lpoDate" value="{{ inv.lpo_date or '' }}" style="width:140px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
                 </div>
             </div>
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Project No.</label>
+                <input type="text" name="project_no" value="{{ inv.project_no or '' }}" placeholder="e.g. PROJ-001" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+            </div>
         </div>
 
         {# ─── Line Items ─── #}
