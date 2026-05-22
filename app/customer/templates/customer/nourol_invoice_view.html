@@ -3,127 +3,163 @@
 {% block page_title %}Nourol Invoice{% endblock %}
 
 {% block content %}
+{% set sub = inv.amount or 0 %}
+{% set disc = inv.discount or 0 %}
+{% set vat_tot = inv.vat_amount or 0 %}
+{% set grand = inv.total_amount or 0 %}
+{% set taxable = sub %}
+
 <div class="profile-shell" style="max-width:850px;margin:0 auto">
 <style>
-body, .inv-box, table, td, th, div, span, p { font-family:'Times New Roman',Times,serif; }
-.inv-box { background:#fff; border:1px solid #000; padding:20px 24px; }
-.inv-title-box { border:1px solid #000; padding:8px 12px; text-align:center; font-size:1.2rem; font-weight:700; font-style:italic; text-transform:uppercase; margin-bottom:16px; }
-.inv-header-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
-.inv-header-box { border:1px solid #000; padding:6px 10px; font-size:0.82rem; }
-.inv-header-box .lbl { font-weight:600; }
-.cust-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
-.cust-box { border:1px solid #000; padding:8px 10px; font-size:0.78rem; line-height:1.5; }
-.cust-box .name { font-weight:700; font-size:0.85rem; }
-.inv-table { width:100%; border-collapse:collapse; margin-bottom:10px; font-size:0.72rem; }
-.inv-table th, .inv-table td { border:1px solid #000; padding:4px 5px; text-align:center; }
-.inv-table th { background:#eee; font-weight:700; font-size:0.68rem; }
-.inv-table td.left { text-align:left; }
-.inv-table td.right { text-align:right; }
-.totals-table { width:350px; margin-left:auto; border-collapse:collapse; font-size:0.78rem; margin-bottom:12px; }
-.totals-table td { border:1px solid #000; padding:3px 8px; }
-.totals-table td:first-child { font-weight:600; }
-.totals-table .grand td { font-weight:700; font-size:0.85rem; }
-.words-box { border:1px solid #000; padding:6px 10px; font-size:0.78rem; font-weight:600; margin-bottom:14px; }
-.bottom-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px; }
-.bottom-box { border:1px solid #000; padding:10px; text-align:center; font-size:0.78rem; min-height:60px; display:flex; flex-direction:column; justify-content:flex-end; }
-.footer { text-align:center; font-size:0.78rem; font-style:italic; padding-top:8px; border-top:1px solid #000; }
+body, .inv-box, table, td, th, div, span, p, input, textarea { font-family:'Times New Roman',Times,serif; }
+.inv-box { background:#fff; border:1.5pt solid #000; padding:18px; }
+.inv-title { text-align:center; font-size:16pt; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.inv-box table { width:100%; border-collapse:collapse; margin-bottom:10px; }
+.inv-box table td, .inv-box table th { border:1px solid #000; padding:5px 6px; vertical-align:top; font-size:10pt; }
+.grey { background:#e6e6e6; }
+.center { text-align:center; }
+.right { text-align:right; }
+.left { text-align:left; }
+.bold { font-weight:700; }
+.meta-box { width:280px; border:1.5pt solid #000; margin-left:auto; margin-bottom:10px; }
+.meta-box td { border:1px solid #000; padding:4px 8px; font-size:9pt; border-collapse:collapse; }
+.meta-box table { margin-bottom:0; }
+.company-section td { padding:8px; }
+.company-section .label { font-weight:700; font-size:10pt; margin-bottom:4px; }
+.company-section .value { font-size:10pt; }
+.items-table th { text-align:center; font-size:9pt; background:#e6e6e6; border:1px solid #000; }
+.items-table td { font-size:9pt; border:1px solid #000; vertical-align:top; }
+.items-table .sum-row td { background:#e6e6e6; font-weight:700; }
+.fin-stack { width:320px; margin-left:auto; }
+.fin-stack table { margin-bottom:0; }
+.fin-stack td { border:1px solid #000; padding:4px 10px; font-size:10pt; font-weight:700; background:#e6e6e6; }
+.words-box { border:1.5pt solid #000; padding:6px 8px; }
+.words-box .label { font-weight:700; font-size:10pt; }
+.words-box .text { font-weight:700; font-size:10pt; }
+.sig-box { border:1.5pt solid #000; padding:16px 8px 8px; text-align:center; font-weight:700; font-size:10pt; vertical-align:bottom; min-height:80px; }
+.stamp-circle { width:85px;height:85px;border:2.5px solid #0066cc;border-radius:50%;color:#0066cc;font-weight:700;display:flex;align-items:center;justify-content:center;text-align:center;font-size:7pt;line-height:1.3;margin:0 auto 4px; }
+.footer { text-align:left; margin-top:12px; font-size:10pt; }
+.bottom-row { display:flex; gap:12px; margin-bottom:12px; }
+.bottom-row > div { flex:1; }
 @media print { .btn { display:none !important; } }
 </style>
 
 <div class="inv-box">
-    <div class="inv-title-box">TAX INVOICE</div>
+    <div class="inv-title">TAX INVOICE</div>
 
-    {# ─── HEADER ROW ─── #}
-    <div class="inv-header-grid">
-        <div class="inv-header-box">
-            <span class="lbl">Invoice # :</span> {{ inv.invoice_no }}
-        </div>
-        <div class="inv-header-box">
-            <span class="lbl">Invoice Date :</span> {{ inv.invoice_date }}
-        </div>
+    {# ─── META-BLOCK: Invoice # and Date right-aligned ─── #}
+    <div class="meta-box">
+        <table>
+            <tr><td><b>Invoice # :</b> {{ inv.invoice_no }}</td></tr>
+            <tr><td><b>Invoice Date :</b> {{ inv.invoice_date }}</td></tr>
+        </table>
     </div>
 
-    {# ─── CUSTOMER DETAILS ─── #}
-    <div class="cust-grid">
-        <div class="cust-box">
-            <div class="name">{{ company.company_name if company else "NUROL L.L.C - O.P.C" }}</div>
-            <div>P.O. Box # 46254</div>
-            <div>Abu Dhabi, U.A.E</div>
-            <div>TRN # {{ company.trn_no or "100000937100003" }}</div>
-        </div>
-        <div class="cust-box">
-            <div class="name">M/S {{ c.customer_name }}</div>
-            {% if c.address %}<div>{{ c.address }}</div>{% endif %}
-            <div>TRN #{{ c.trn or "—" }}</div>
-            {% if inv.ref_no %}<div>REF NO: {{ inv.ref_no }}</div>{% endif %}
-            <div>DATE : {{ inv.invoice_date }}</div>
-        </div>
-    </div>
+    {# ─── SUPPLIER & CUSTOMER DETAILS ─── #}
+    <table class="company-section">
+        <tr>
+            <td width="50%">
+                <div class="label">Company Name:</div>
+                <div class="value bold">{{ company.company_name if company else "NUROL L.L.C - O.P.C" }}</div>
+                <br>
+                <div class="label">Address:</div>
+                <div class="value">P.O. BOX # 46254<br>Abu Dhabi, U.A.E</div>
+                <br>
+                <div class="value bold">TRN # {{ company.trn_no or "100000937100003" }}</div>
+            </td>
+            <td width="50%">
+                <div class="label">M/s {{ c.customer_name }}</div>
+                <br>
+                <div class="label">Address:</div>
+                <div class="value">{% if c.address %}{{ c.address }}{% else %}P.O. Box # 91800<br>Abu Dhabi, UAE{% endif %}</div>
+                <br>
+                <div class="value"><b>TRN #</b> {{ c.trn or "105046792500003" }}</div>
+                {% if inv.ref_no %}<div class="value"><b>REF NO:</b> {{ inv.ref_no }}</div>{% endif %}
+                <div class="value"><b>DATE :</b> {{ inv.invoice_date }}</div>
+            </td>
+        </tr>
+    </table>
 
     {# ─── ITEMS TABLE ─── #}
-    <table class="inv-table">
+    <table class="items-table">
         <thead>
             <tr>
-                <th style="width:28%">Description</th>
-                <th style="width:8%">Capacity In Gallon</th>
-                <th style="width:7%">Total QTY</th>
-                <th style="width:6%">Unit</th>
-                <th style="width:9%">Unit Price</th>
-                <th style="width:10%">Taxable Amount</th>
-                <th style="width:5%">VAT %</th>
-                <th style="width:8%">VAT Amount</th>
-                <th style="width:12%">Total (Incl. VAT)</th>
+                <th width="35%">Description</th>
+                <th width="10%">Capacity In Gallon</th>
+                <th width="7%">Total QTY</th>
+                <th width="7%">Unit</th>
+                <th width="9%">Unit Price</th>
+                <th width="10%">Taxable Amount</th>
+                <th width="6%">VAT %</th>
+                <th width="8%">VAT Amount</th>
+                <th width="11%">Total Amount<br>(Including VAT)</th>
             </tr>
         </thead>
         <tbody>
             {% for it in items %}
+            {% set vat_item = it.vat_amount_item or 0 %}
+            {% set total_inc = it.total_incl_vat or (it.amount + vat_item) %}
             <tr>
                 <td class="left">{{ it.description or '—' }}</td>
-                <td>{{ it.capacity_gallon or '5000' }}</td>
-                <td>{{ "%.0f"|format(it.quantity) }}</td>
-                <td>{{ it.unit or 'Trips' }}</td>
+                <td class="center">{{ it.capacity_gallon or '5000' }}</td>
+                <td class="center">{{ "%.0f"|format(it.quantity) }}</td>
+                <td class="center">{{ it.unit or 'Trips' }}</td>
                 <td class="right">{{ "%.2f"|format(it.rate) }}</td>
                 <td class="right">{{ "%.2f"|format(it.amount) }}</td>
-                <td>{{ "%.0f"|format(it.vat_percent_item or 5) }}%</td>
-                <td class="right">{{ "%.2f"|format(it.vat_amount_item or 0) }}</td>
-                <td class="right">{{ "%.2f"|format(it.total_incl_vat or (it.amount + (it.vat_amount_item or 0))) }}</td>
+                <td class="center">{{ "%.0f"|format(it.vat_percent_item or 5) }}%</td>
+                <td class="right">{{ "%.2f"|format(vat_item) }}</td>
+                <td class="right bold">{{ "%.2f"|format(total_inc) }}</td>
             </tr>
             {% endfor %}
+            {% if items and items[0].rate %}
+            <tr>
+                <td colspan="9" class="left bold">Rate Per Trip: AED {{ "%.2f"|format(items[0].rate) }}/-</td>
+            </tr>
+            {% endif %}
+            {# Horizontal summary row #}
+            <tr class="sum-row">
+                <td class="bold">Total</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="right bold">{{ "%.2f"|format(sum_taxable) }}</td>
+                <td></td>
+                <td class="right bold">{{ "%.2f"|format(sum_vat) }}</td>
+                <td class="right bold">{{ "%.2f"|format(sum_total) }}</td>
+            </tr>
         </tbody>
     </table>
 
-    {# ─── EXTRA ROW ─── #}
-    {% if inv.notes %}
-    <div style="font-size:0.75rem;margin-bottom:8px;font-style:italic">{{ inv.notes }}</div>
-    {% endif %}
-
-    {# ─── TOTALS ─── #}
-    {% set sub_total = inv.amount or 0 %}
-    {% set discount = inv.discount or 0 %}
-    {% set vat_total = inv.vat_amount or 0 %}
-    {% set grand_total = inv.total_amount or 0 %}
-    <table class="totals-table">
-        <tr><td>Sub Total</td><td class="right">AED {{ "%.2f"|format(sub_total) }}</td></tr>
-        <tr><td>Discount</td><td class="right">AED {{ "%.2f"|format(discount) }}</td></tr>
-        <tr><td>VAT 5% Total</td><td class="right">AED {{ "%.2f"|format(vat_total) }}</td></tr>
-        <tr class="grand"><td>Grand Total</td><td class="right">AED {{ "%.2f"|format(grand_total) }}</td></tr>
-    </table>
-
-    {# ─── AMOUNT IN WORDS ─── #}
-    <div class="words-box">{{ amount_words or "FOUR THOUSAND THREE HUNDRED SIXTY EIGHT DIRHAMS ONLY" }}</div>
-
-    {# ─── BOTTOM ─── #}
-    <div class="bottom-grid">
-        <div class="bottom-box">
-            <div>Receiver Sign and Stamp</div>
+    {# ─── BOTTOM ROW: Amount in Words (left) + Financial Stack (right) ─── #}
+    <div style="display:flex; gap:12px; margin-bottom:12px;">
+        <div style="flex:1;">
+            <table class="words-box" style="width:100%;">
+                <tr><td><b>Amount In Words AED :</b></td></tr>
+                <tr><td class="bold">{{ amount_words or "FOUR THOUSAND THREE HUNDRED SIXTY EIGHT AND 00/100 FILS ONLY" }}</td></tr>
+            </table>
         </div>
-        <div class="bottom-box" style="align-items:center">
-            <div style="width:60px;height:60px;border-radius:50%;border:2px solid #000;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-size:0.55rem;text-align:center;line-height:1.2">COMPANY<br>SEAL</div>
-        </div>
-        <div class="bottom-box">
-            <div>Authorized Signatory</div>
+        <div style="width:320px;">
+            <table class="fin-stack" style="width:100%;">
+                <tr><td width="45%">Sub Total</td><td width="55%" class="right">AED {{ "%.2f"|format(taxable) }}</td></tr>
+                <tr><td>Discount</td><td class="right">AED {{ "%.2f"|format(disc) }}</td></tr>
+                <tr><td>VAT 5% Total</td><td class="right">AED {{ "%.2f"|format(vat_tot) }}</td></tr>
+                <tr><td>Grand Total</td><td class="right">AED {{ "%.2f"|format(grand) }}</td></tr>
+            </table>
         </div>
     </div>
+
+    {# ─── SIGNATURE FOOTER ─── #}
+    <table>
+        <tr>
+            <td width="33.33%" class="sig-box">Receiver Sign<br>and Stamp</td>
+            <td width="33.34%" class="sig-box" style="vertical-align:middle">
+                <div class="stamp-circle">COMPANY<br>SEAL<br>APPROVED</div>
+                <div>Company Seal</div>
+            </td>
+            <td width="33.33%" class="sig-box">Auth. Signatory</td>
+        </tr>
+    </table>
 
     <div class="footer">Thank you for doing business with us.</div>
 </div>

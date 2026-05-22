@@ -453,7 +453,10 @@ def customer_invoice_view(cid, iid):
         tmpl_t = "standard"
     template_map = {"nourol": "customer/nourol_invoice_view.html"}
     tmpl = template_map.get(tmpl_t, "customer/invoice_view.html")
-    return render_template(tmpl, c=c, inv=inv, items=items, company=company)
+    sum_taxable = sum(it["amount"] or 0 for it in items)
+    sum_vat = sum(it["vat_amount_item"] or 0 for it in items)
+    sum_total = sum((it["total_incl_vat"] or (it["amount"] or 0) + (it["vat_amount_item"] or 0)) for it in items)
+    return render_template(tmpl, c=c, inv=inv, items=items, company=company, sum_taxable=sum_taxable, sum_vat=sum_vat, sum_total=sum_total)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/pdf")
 def customer_invoice_pdf(cid, iid):
@@ -794,11 +797,10 @@ def customer_invoice_pdf(cid, iid):
     return send_file(BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True, download_name=f"Invoice_{inv_no}.pdf")
 
 def _nourol_invoice_pdf(c, inv, items, company, _logo_tmp_files):
-    import tempfile
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
     from io import BytesIO
@@ -808,12 +810,13 @@ def _nourol_invoice_pdf(c, inv, items, company, _logo_tmp_files):
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
     W = A4[0] - LM - RM
 
-    BK = colors.black; WH = colors.white; GY = colors.HexColor("#eeeeee")
+    BK = colors.black; WH = colors.white; GY = colors.HexColor("#e6e6e6")
+    BL = colors.HexColor("#0066cc")
 
     def S(name, **kw):
         kw.setdefault("fontName", "Times-Roman")
-        kw.setdefault("fontSize", 8)
-        kw.setdefault("leading", 11)
+        kw.setdefault("fontSize", 10)
+        kw.setdefault("leading", 14)
         return ParagraphStyle(name, **kw)
 
     def P(t, **kw):
@@ -834,123 +837,172 @@ def _nourol_invoice_pdf(c, inv, items, company, _logo_tmp_files):
     safe = lambda v, d="": str(v) if v else d
     els = []
 
-    # ═══ TITLE ═══
-    title = Table([["TAX INVOICE"]], colWidths=[W])
-    title.setStyle(TableStyle([
-        ("BOX",(0,0),(-1,-1),0.5,BK),
-        ("FONTNAME",(0,0),(-1,-1),"Times-Bold"),
-        ("FONTSIZE",(0,0),(-1,-1),13),
-        ("ITALIC",(0,0),(-1,-1)),
-        ("ALIGN",(0,0),(-1,-1),"CENTER"),
-        ("TOPPADDING",(0,0),(-1,-1),6), ("BOTTOMPADDING",(0,0),(-1,-1),6),
-    ]))
-    els.append(title)
-    els.append(Spacer(1, 3*mm))
-
-    # ═══ HEADER ROW ═══
-    hdr_t = Table([
-        [B(f"Invoice # : {inv['invoice_no']}", fontSize=9),
-         B(f"Invoice Date : {inv['invoice_date']}", fontSize=9, alignment=TA_RIGHT)],
-    ], colWidths=[W*0.50, W*0.50])
-    hdr_t.setStyle(TableStyle([
-        ("BOX",(0,0),(-1,-1),0.5,BK),
-        ("BOX",(0,0),(0,0),0.5,BK), ("BOX",(1,0),(1,0),0.5,BK),
-        ("TOPPADDING",(0,0),(-1,-1),5), ("BOTTOMPADDING",(0,0),(-1,-1),5),
-        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
-    ]))
-    els.append(hdr_t)
-    els.append(Spacer(1, 3*mm))
-
-    # ═══ CUSTOMER DETAILS ═══
-    cn = company["company_name"] or "NUROL L.L.C - O.P.C"
-    trn = company["trn_no"] or "100000937100003"
-    left = f"<b>{cn}</b><br/>P.O. Box # 46254<br/>Abu Dhabi, U.A.E<br/>TRN # {trn}"
-    right = f"<b>M/S {c['customer_name']}</b><br/>{safe(c['address'] if 'address' in c and c['address'] else '','')}<br/>TRN #{safe(c['trn'],'—')}"
-    try:
-        if inv["ref_no"]: right += f"<br/>REF NO: {inv['ref_no']}"
-    except (IndexError, KeyError):
-        pass
-    right += f"<br/>DATE : {inv['invoice_date']}"
-
-    cust_t = Table([
-        [P(left, fontSize=8, leading=12), P(right, fontSize=8, leading=12)],
-    ], colWidths=[W*0.50, W*0.50])
-    cust_t.setStyle(TableStyle([
-        ("BOX",(0,0),(-1,-1),0.5,BK),
-        ("VALIGN",(0,0),(-1,-1),"TOP"),
-        ("TOPPADDING",(0,0),(-1,-1),6), ("BOTTOMPADDING",(0,0),(-1,-1),6),
-        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
-    ]))
-    els.append(cust_t)
-    els.append(Spacer(1, 3*mm))
-
-    # ═══ ITEMS TABLE ═══
-    cols = ["Description", "Capacity In Gallon", "Total QTY", "Unit", "Unit Price",
-            "Taxable Amount", "VAT %", "VAT Amount", "Total (Incl. VAT)"]
-    cw = [W*0.26, W*0.08, W*0.07, W*0.06, W*0.09, W*0.10, W*0.06, W*0.09, W*0.12]
-    hdr = [C(f"<b>{x}</b>", fontSize=6.5, fontName="Times-Bold", leading=9) for x in cols]
-    rws = [hdr]
-    for it in items:
-        taxable = it["amount"] or 0
-        vat_item = it["vat_amount_item"] or 0
-        total_inc = it["total_incl_vat"] or (taxable + vat_item)
-        rws.append([
-            P(it["description"] or "—", fontSize=7, leading=9),
-            C(it["capacity_gallon"] or "5000", fontSize=7),
-            C(f"{it['quantity'] or 0:,.0f}", fontSize=7),
-            C(it["unit"] or "Trips", fontSize=7),
-            R(f"{it['rate'] or 0:,.2f}", fontSize=7),
-            R(f"{taxable:,.2f}", fontSize=7),
-            C(f"{it['vat_percent_item'] or 5:.0f}%", fontSize=7),
-            R(f"{vat_item:,.2f}", fontSize=7),
-            R(f"{total_inc:,.2f}", fontSize=7),
-        ])
-    itt = Table(rws, colWidths=cw, repeatRows=1)
-    itt.setStyle(TableStyle([
-        ("BOX",(0,0),(-1,-1),0.5,BK),
-        ("INNERGRID",(0,0),(-1,-1),0.3,BK),
-        ("BACKGROUND",(0,0),(-1,0),GY),
-        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
-        ("LEFTPADDING",(0,0),(-1,-1),4), ("RIGHTPADDING",(0,0),(-1,-1),4),
-    ]))
-    els.append(itt)
-    els.append(Spacer(1, 2*mm))
-
-    # ═══ NOTES ═══
-    try:
-        if inv["notes"]:
-            els.append(P(f"<i>{inv['notes']}</i>", fontSize=8, leading=11))
-            els.append(Spacer(1, 2*mm))
-    except (IndexError, KeyError):
-        pass
-
-    # ═══ TOTALS ═══
     sub = inv["amount"] or 0
     disc = inv["discount"] or 0
     vat_tot = inv["vat_amount"] or 0
     grand = inv["total_amount"] or 0
-    tw = 100*mm
-    trows = [
-        [B("Sub Total", fontSize=8), R(f"AED {sub:,.2f}", fontSize=8)],
-        [B("Discount", fontSize=8), R(f"AED {disc:,.2f}", fontSize=8)],
-        [B("VAT 5% Total", fontSize=8), R(f"AED {vat_tot:,.2f}", fontSize=8)],
-        [B("Grand Total", fontSize=9), R(f"<b>AED {grand:,.2f}</b>", fontSize=9)],
-    ]
-    tt = Table(trows, colWidths=[tw*0.40, tw*0.60])
-    tt.setStyle(TableStyle([
-        ("BOX",(0,0),(-1,-1),0.5,BK),
-        ("INNERGRID",(0,0),(-1,-1),0.3,BK),
-        ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
-        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
-        ("LINEABOVE",(0,3),(-1,3),1,BK),
-    ]))
-    ft = Table([["", tt]], colWidths=[W - tw, tw])
-    ft.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(Spacer(1, 2*mm))
-    els.append(ft)
 
-    # ═══ AMOUNT IN WORDS ═══
+    # ═══ TITLE ═══
+    els.append(P("TAX INVOICE", fontSize=16, fontName="Times-Bold", alignment=TA_CENTER, leading=20, spaceAfter=8))
+
+    # ═══ META-BLOCK (right-aligned boxes for Invoice # and Date) ═══
+    meta_w = 70*mm
+    meta = Table([
+        [P(f"<b>Invoice # :</b> {inv['invoice_no']}", fontSize=9, alignment=TA_LEFT, leading=12)],
+        [P(f"<b>Invoice Date :</b> {inv['invoice_date']}", fontSize=9, alignment=TA_LEFT, leading=12)],
+    ], colWidths=[meta_w])
+    meta.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),1.5,BK),
+        ("BOX",(0,1),(-1,1),1,BK),
+        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
+        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
+    ]))
+    meta_wrap = Table([["", meta]], colWidths=[W - meta_w, meta_w])
+    meta_wrap.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
+    els.append(meta_wrap)
+    els.append(Spacer(1, 2*mm))
+
+    # ═══ SUPPLIER & CUSTOMER DETAILS ═══
+    cn = company["company_name"] or "NUROL L.L.C - O.P.C"
+    trn = company["trn_no"] or "100000937100003"
+
+    caddr = safe(c["address"]) if c and c["address"] else "P.O. Box # 91800<br/>Abu Dhabi, UAE"
+
+    l_cell = Table([
+        [B("Company Name:", fontSize=10)],
+        [B(cn, fontSize=10)],
+        [P("", fontSize=4)],
+        [B("Address:", fontSize=10)],
+        [P("P.O. BOX # 46254<br/>Abu Dhabi, U.A.E", fontSize=10, leading=13)],
+        [P("", fontSize=4)],
+        [B(f"TRN # {trn}", fontSize=10)],
+    ], colWidths=[W*0.50 - 16])
+    l_cell.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),0),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
+
+    r_items = [[B(f"M/s {c['customer_name']}", fontSize=10)],
+               [P("", fontSize=4)],
+               [B("Address:", fontSize=10)],
+               [P(caddr, fontSize=10, leading=13)],
+               [P("", fontSize=4)],
+               [P(f"<b>TRN #</b> {safe(c['trn'] or '105046792500003')}", fontSize=10, leading=13)]]
+    try:
+        if inv["ref_no"]:
+            r_items.append([P(f"<b>REF NO:</b> {inv['ref_no']}", fontSize=10)])
+    except (IndexError, KeyError):
+        pass
+    r_items.append([P(f"<b>DATE :</b> {inv['invoice_date']}", fontSize=10)])
+
+    r_cell = Table(r_items, colWidths=[W*0.50 - 16])
+    r_cell.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),0),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
+
+    cust_t = Table([
+        [l_cell, r_cell],
+    ], colWidths=[W*0.50, W*0.50])
+    cust_t.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),1.5,BK),
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("TOPPADDING",(0,0),(-1,-1),8), ("BOTTOMPADDING",(0,0),(-1,-1),8),
+        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
+    ]))
+    els.append(cust_t)
+    els.append(Spacer(1, 2*mm))
+
+    # ═══ ITEMS TABLE ═══
+    cols = ["Description", "Capacity In\nGallon", "Total\nQTY", "Unit", "Unit\nPrice",
+            "Taxable\nAmount", "VAT\n%", "VAT\nAmount", "Total Amount\n(Including VAT)"]
+    cw = [W*0.35, W*0.10, W*0.07, W*0.07, W*0.09, W*0.10, W*0.06, W*0.08, W*0.11]
+    fs = 9
+    hdr = [C(f"<b>{x}</b>", fontSize=fs, fontName="Times-Bold", leading=11, textColor=BK) for x in cols]
+    rws = [hdr]
+    first_rate = 0
+    sum_taxable = 0
+    sum_vat = 0
+    sum_total = 0
+    for it in items:
+        taxable = it["amount"] or 0
+        vat_item = it["vat_amount_item"] or 0
+        total_inc = it["total_incl_vat"] or (taxable + vat_item)
+        sum_taxable += taxable
+        sum_vat += vat_item
+        sum_total += total_inc
+        if first_rate == 0: first_rate = it["rate"] or 0
+        rws.append([
+            P(it["description"] or "—", fontSize=9, leading=12),
+            C(it["capacity_gallon"] or "5000", fontSize=9),
+            C(f"{it['quantity'] or 0:,.0f}", fontSize=9),
+            C(it["unit"] or "Trips", fontSize=9),
+            R(f"{it['rate'] or 0:,.2f}", fontSize=9),
+            R(f"{taxable:,.2f}", fontSize=9),
+            C(f"{it['vat_percent_item'] or 5:.0f}%", fontSize=9),
+            R(f"{vat_item:,.2f}", fontSize=9),
+            R(f"<b>{total_inc:,.2f}</b>", fontSize=9),
+        ])
+    # Rate Per Trip row
+    if first_rate:
+        rws.append([P(f"<b>Rate Per Trip: AED {first_rate:,.2f}/-</b>", fontSize=9, leading=12)] + [P("", fontSize=4)]*8)
+    # Horizontal summary row
+    rws.append([
+        P("<b>Total</b>", fontSize=9),
+        P("", fontSize=4),
+        P("", fontSize=4),
+        P("", fontSize=4),
+        P("", fontSize=4),
+        R(f"<b>{sum_taxable:,.2f}</b>", fontSize=9),
+        P("", fontSize=4),
+        R(f"<b>{sum_vat:,.2f}</b>", fontSize=9),
+        R(f"<b>{sum_total:,.2f}</b>", fontSize=9),
+    ])
+    itt = Table(rws, colWidths=cw, repeatRows=1)
+    itt.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),1.5,BK),
+        ("INNERGRID",(0,0),(-1,-1),1,BK),
+        ("BACKGROUND",(0,0),(-1,0),GY),
+        ("BACKGROUND",(0,-1),(-1,-1),GY),
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("TOPPADDING",(0,0),(-1,-1),5), ("BOTTOMPADDING",(0,0),(-1,-1),5),
+        ("LEFTPADDING",(0,0),(-1,-1),4), ("RIGHTPADDING",(0,0),(-1,-1),4),
+    ]))
+    els.append(itt)
+    els.append(Spacer(1, 3*mm))
+
+    # ═══ BOTTOM ROW: Amount in Words (left) + Financial Stack (right) ═══
+    ftw = 80*mm  # financial table width
+    trows = [
+        [P("<b>Sub Total</b>", fontSize=10, alignment=TA_LEFT),
+         P(f"<b>AED {sub:,.2f}</b>", fontSize=10, alignment=TA_RIGHT)],
+        [P("<b>Discount</b>", fontSize=10, alignment=TA_LEFT),
+         P(f"<b>AED {disc:,.2f}</b>", fontSize=10, alignment=TA_RIGHT)],
+        [P("<b>VAT 5% Total</b>", fontSize=10, alignment=TA_LEFT),
+         P(f"<b>AED {vat_tot:,.2f}</b>", fontSize=10, alignment=TA_RIGHT)],
+        [P("<b>Grand Total</b>", fontSize=10, alignment=TA_LEFT),
+         P(f"<b>AED {grand:,.2f}</b>", fontSize=10, alignment=TA_RIGHT)],
+    ]
+    ft = Table(trows, colWidths=[ftw*0.45, ftw*0.55])
+    ft.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),1.5,BK),
+        ("INNERGRID",(0,0),(-1,-1),1,BK),
+        ("BACKGROUND",(0,0),(-1,-1),GY),
+        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
+        ("LEFTPADDING",(0,0),(-1,-1),10), ("RIGHTPADDING",(0,0),(-1,-1),10),
+    ]))
+    ft_wrap = Table([["", ft]], colWidths=[W - ftw, ftw])
+    ft_wrap.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
+
+    # Amount in words
     def n2w(n):
         if n == 0: return "Zero"
         o = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve",
@@ -977,41 +1029,78 @@ def _nourol_invoice_pdf(c, inv, items, company, _logo_tmp_files):
                     if sc[i]: cw += " " + sc[i]
                     w = cw + (" " + w if w else "")
                 ip //= 1000; i += 1
-        if dp: w += f" and {dp:02d}/100"
-        return w + " ONLY"
+        if dp: w += f" AND {dp:02d}/100"
+        return w + " FILS ONLY"
 
-    aw = Table([[B(f"{n2w(grand)}", fontSize=8)]], colWidths=[W])
+    words = n2w(grand)
+    aw = Table([
+        [P("<b>Amount In Words AED :</b>", fontSize=10, alignment=TA_LEFT)],
+        [P(f"<b>{words}</b>", fontSize=10, leading=15)],
+    ], colWidths=[W - ftw])
     aw.setStyle(TableStyle([
-        ("BOX",(0,0),(-1,-1),0.5,BK),
+        ("BOX",(0,0),(-1,-1),1.5,BK),
         ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
-        ("TOPPADDING",(0,0),(-1,-1),5), ("BOTTOMPADDING",(0,0),(-1,-1),5),
+        ("TOPPADDING",(0,0),(-1,-1),6), ("BOTTOMPADDING",(0,0),(-1,-1),6),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
     ]))
-    els.append(Spacer(1, 3*mm))
-    els.append(aw)
-    els.append(Spacer(1, 5*mm))
 
-    # ═══ BOTTOM ═══
-    bottom = Table([
-        [C("Receiver Sign<br/>and Stamp", fontSize=8, leading=11),
-         C("<br/><br/>", fontSize=8),
-         C("Authorized<br/>Signatory", fontSize=8, leading=11)],
-    ], colWidths=[W*0.30, W*0.40, W*0.30])
-    bottom.setStyle(TableStyle([
-        ("BOX",(0,0),(-1,-1),0.5,BK),
-        ("BOX",(0,0),(0,0),0.5,BK), ("BOX",(2,0),(2,0),0.5,BK),
+    bottom_row = Table([
+        [aw, ft],
+    ], colWidths=[W - ftw, ftw])
+    bottom_row.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
+    els.append(bottom_row)
+    els.append(Spacer(1, 4*mm))
+
+    # ═══ SIGNATURE FOOTER ═══
+    stamp_text = "COMPANY<br/>SEAL<br/>APPROVED"
+    stamp = Table([[P(stamp_text, fontSize=7, alignment=TA_CENTER, leading=9, fontName="Times-Bold", textColor=BL)]],
+                  colWidths=[22*mm], rowHeights=[22*mm])
+    stamp.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),2.5,BL),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("ALIGN",(0,0),(-1,-1),"CENTER"),
+        ("LEFTPADDING",(0,0),(-1,-1),4), ("RIGHTPADDING",(0,0),(-1,-1),4),
+        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
+    ]))
+
+    middle_col = Table([
+        [stamp],
+        [P("Company Seal", fontSize=10, alignment=TA_CENTER, leading=13)],
+    ], colWidths=[W*0.333])
+    middle_col.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("ALIGN",(0,0),(-1,-1),"CENTER"),
+        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
+
+    sig = Table([
+        [P("<b>Receiver Sign<br/>and Stamp</b>", fontSize=10, alignment=TA_CENTER, leading=14),
+         middle_col,
+         P("<b>Auth. Signatory</b>", fontSize=10, alignment=TA_CENTER, leading=14)],
+    ], colWidths=[W*0.333, W*0.334, W*0.333])
+    sig.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),1.5,BK),
+        ("INNERGRID",(0,0),(-1,-1),1,BK),
         ("VALIGN",(0,0),(-1,-1),"BOTTOM"),
-        ("TOPPADDING",(0,0),(-1,-1),8), ("BOTTOMPADDING",(0,0),(-1,-1),6),
-        ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
+        ("TOPPADDING",(0,0),(-1,-1),16), ("BOTTOMPADDING",(0,0),(-1,-1),8),
+        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
     ]))
-    els.append(bottom)
+    els.append(sig)
 
-    # ═══ FOOTER ═══
-    els.append(Spacer(1, 3*mm))
-    els.append(P("<i>Thank you for doing business with us.</i>", fontSize=8, alignment=TA_CENTER))
-    els.append(Spacer(1, 2*mm))
-    fh = Table([[""]], colWidths=[W], rowHeights=[0.5])
-    fh.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BK),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(fh)
+    # ═══ FOOTER NOTE ═══
+    els.append(Spacer(1, 4*mm))
+    els.append(P("Thank you for doing business with us.", fontSize=10, alignment=TA_LEFT, leading=14))
+
+    doc.build(els)
+    for f in _logo_tmp_files:
+        try: os.remove(f)
+        except: pass
+    pdf_data = buf.getvalue(); buf.close()
+    return send_file(BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True, download_name=f"Nourol_Invoice_{inv['invoice_no']}.pdf")
 
     doc.build(els)
     for f in _logo_tmp_files:
