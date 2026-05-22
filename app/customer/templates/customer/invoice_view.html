@@ -127,6 +127,20 @@
     </div>
     {% endif %}
 
+    {# ─── SIGNATURES ─── #}
+    <div style="display:flex;justify-content:space-between;margin:28px 0 16px;gap:40px">
+        <div style="text-align:center;flex:1">
+            <div style="border-top:1px solid #999;width:100%;margin-bottom:4px"></div>
+            <div style="font-size:0.82rem;font-weight:600">Authorized Signatory</div>
+            <div style="font-size:0.7rem;color:var(--muted)">Stamp</div>
+        </div>
+        <div style="text-align:center;flex:1">
+            <div style="border-top:1px solid #999;width:100%;margin-bottom:4px"></div>
+            <div style="font-size:0.82rem;font-weight:600">Customer Signature</div>
+            <div style="font-size:0.7rem;color:var(--muted)">Accepted By</div>
+        </div>
+    </div>
+
     {# ─── ACTIONS ─── #}
     <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
         <a href="{{ url_for('customer.customer_invoice_edit', cid=c.id, iid=inv.id) }}" class="btn btn-outline">Edit</a>

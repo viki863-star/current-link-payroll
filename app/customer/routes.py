@@ -665,7 +665,7 @@ def customer_invoice_pdf(cid, iid):
         Paragraph("_________________________<br/><b>Authorized Signatory</b><br/><font size=7 color='#6b7280'>Stamp</font>", sg),
         C("", fontSize=4),
         Paragraph("_________________________<br/><b>Customer Signature</b><br/><font size=7 color='#6b7280'>Accepted By</font>", sg),
-    ]], colWidths=[W*0.40, W*0.20, W*0.40])
+    ]], colWidths=[W*0.35, W*0.30, W*0.35])
     sgt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"TOP"),
         ("LINEABOVE",(0,0),(0,0),0.5,C5), ("LINEABOVE",(2,0),(2,0),0.5,C5),
