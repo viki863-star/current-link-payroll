@@ -15,8 +15,9 @@
 .inv-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
 .inv-info-card { background:#f8fafc; border-radius:10px; padding:14px 16px; border:1px solid #eef2f6; }
 .inv-info-card h4 { margin:0 0 6px; font-size:0.7rem; text-transform:uppercase; color:var(--muted); letter-spacing:0.5px; }
-.inv-info-card .row { display:flex; gap:6px; font-size:0.82rem; padding:2px 0; }
-.inv-info-card .row span:first-child { color:var(--muted); white-space:nowrap; }
+.inv-info-card .row { display:flex; padding:3px 0; font-size:0.82rem; }
+.inv-info-card .row .lbl { color:var(--muted); min-width:90px; flex-shrink:0; }
+.inv-info-card .row .val { font-weight:600; color:var(--text); }
 @media (max-width:600px) {
     .inv-box { padding:16px; }
     .inv-header { flex-direction:column; gap:12px; }
@@ -56,17 +57,17 @@
         <div class="inv-info-card" style="background:var(--surface);border:1px solid var(--line);padding:16px 18px">
             <h4 style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Bill To</h4>
             <div style="font-weight:700;font-size:0.95rem;color:var(--text);line-height:1.4;margin-bottom:6px">{{ c.customer_name }}</div>
-            {% if c.address %}<div style="font-size:0.82rem;color:var(--muted);margin-bottom:6px">{{ c.address }}</div>{% endif %}
-            {% if c.phone %}<div style="font-size:0.82rem;margin-bottom:2px"><span style="color:var(--muted)">Phone:</span> <span style="font-weight:600">{{ c.phone }}</span></div>{% endif %}
-            {% if c.trn %}<div style="font-size:0.82rem"><span style="color:var(--muted)">TRN:</span> <span class="mono" style="font-weight:600">{{ c.trn }}</span></div>{% endif %}
+            {% if c.address %}<div style="font-size:0.82rem;color:var(--muted);margin-bottom:4px">{{ c.address }}</div>{% endif %}
+            {% if c.phone %}<div style="font-size:0.82rem;margin-bottom:3px"><span class="lbl" style="color:var(--muted);display:inline-block;min-width:60px">Phone:</span><span style="font-weight:600">{{ c.phone }}</span></div>{% endif %}
+            {% if c.trn %}<div style="font-size:0.82rem"><span class="lbl" style="color:var(--muted);display:inline-block;min-width:60px">TRN:</span><span class="mono" style="font-weight:600">{{ c.trn }}</span></div>{% endif %}
         </div>
         <div class="inv-info-card" style="background:var(--surface);border:1px solid var(--line);padding:16px 18px">
             <h4 style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Invoice Details</h4>
-            <div class="row" style="padding:2px 0"><span>Invoice #</span><span class="mono" style="font-weight:700;font-size:0.9rem">{{ inv.invoice_no }}</span></div>
-            <div class="row" style="padding:2px 0"><span>Date</span><span style="font-weight:600">{{ inv.invoice_date }}</span></div>
-            {% if inv.lpo_no %}<div class="row" style="padding:2px 0"><span>LPO No.</span><span class="mono" style="font-weight:600">{{ inv.lpo_no }}</span></div>{% endif %}
-            {% if inv.lpo_date %}<div class="row" style="padding:2px 0"><span>LPO Date</span><span style="font-weight:600">{{ inv.lpo_date }}</span></div>{% endif %}
-            {% if inv.project_no %}<div class="row" style="padding:2px 0"><span>Project No.</span><span class="mono" style="font-weight:600">{{ inv.project_no }}</span></div>{% endif %}
+            <div class="row"><span class="lbl">Invoice #</span><span class="val">{{ inv.invoice_no }}</span></div>
+            <div class="row"><span class="lbl">Date</span><span class="val">{{ inv.invoice_date }}</span></div>
+            {% if inv.lpo_no %}<div class="row"><span class="lbl">LPO No.</span><span class="val">{{ inv.lpo_no }}</span></div>{% endif %}
+            {% if inv.lpo_date %}<div class="row"><span class="lbl">LPO Date</span><span class="val">{{ inv.lpo_date }}</span></div>{% endif %}
+            {% if inv.project_no %}<div class="row"><span class="lbl">Project No.</span><span class="val">{{ inv.project_no }}</span></div>{% endif %}
         </div>
     </div>
 
