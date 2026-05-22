@@ -526,7 +526,10 @@ def customer_invoice_pdf(cid, iid):
     id_ = [("Invoice #", inv_no), ("Date", inv_dt)]
     if inv["lpo_no"]: id_.append(("LPO No.", inv["lpo_no"]))
     if inv["lpo_date"]: id_.append(("LPO Date", inv["lpo_date"]))
-    if inv.get("project_no"): id_.append(("Project No.", inv["project_no"]))
+    try:
+        if inv["project_no"]: id_.append(("Project No.", inv["project_no"]))
+    except (IndexError, KeyError):
+        pass
 
     iw = Table([[card("BILL TO", bd), Spacer(1, 4*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.47, 4*mm, W*0.53])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
