@@ -447,8 +447,12 @@ def customer_invoice_view(cid, iid):
     items = db.execute("SELECT * FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     db.close()
+    try:
+        tmpl_t = inv["invoice_template"] or "standard"
+    except (IndexError, KeyError):
+        tmpl_t = "standard"
     template_map = {"nourol": "customer/nourol_invoice_view.html"}
-    tmpl = template_map.get(inv.get("invoice_template", ""), "customer/invoice_view.html")
+    tmpl = template_map.get(tmpl_t, "customer/invoice_view.html")
     return render_template(tmpl, c=c, inv=inv, items=items, company=company)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/pdf")
@@ -474,7 +478,11 @@ def customer_invoice_pdf(cid, iid):
         flash("Invoice not found.", "error")
         return redirect(url_for("customer.customer_dashboard"))
 
-    if inv.get("invoice_template") == "nourol":
+    try:
+        is_nourol = inv["invoice_template"] == "nourol"
+    except (IndexError, KeyError):
+        is_nourol = False
+    if is_nourol:
         return _nourol_invoice_pdf(c, inv, items, company, _logo_tmp_files)
 
     buf = BytesIO()
@@ -857,8 +865,11 @@ def _nourol_invoice_pdf(c, inv, items, company, _logo_tmp_files):
     cn = company["company_name"] or "NUROL L.L.C - O.P.C"
     trn = company["trn_no"] or "100000937100003"
     left = f"<b>{cn}</b><br/>P.O. Box # 46254<br/>Abu Dhabi, U.A.E<br/>TRN # {trn}"
-    right = f"<b>M/S {c['customer_name']}</b><br/>{safe(c.get('address',''),'')}<br/>TRN #{safe(c['trn'],'—')}"
-    if inv.get("ref_no"): right += f"<br/>REF NO: {inv['ref_no']}"
+    right = f"<b>M/S {c['customer_name']}</b><br/>{safe(c['address'] if 'address' in c and c['address'] else '','')}<br/>TRN #{safe(c['trn'],'—')}"
+    try:
+        if inv["ref_no"]: right += f"<br/>REF NO: {inv['ref_no']}"
+    except (IndexError, KeyError):
+        pass
     right += f"<br/>DATE : {inv['invoice_date']}"
 
     cust_t = Table([
@@ -887,10 +898,10 @@ def _nourol_invoice_pdf(c, inv, items, company, _logo_tmp_files):
             P(it["description"] or "—", fontSize=7, leading=9),
             C(it["capacity_gallon"] or "5000", fontSize=7),
             C(f"{it['quantity'] or 0:,.0f}", fontSize=7),
-            C(it.get("unit") or "Trips", fontSize=7),
+            C(it["unit"] or "Trips", fontSize=7),
             R(f"{it['rate'] or 0:,.2f}", fontSize=7),
             R(f"{taxable:,.2f}", fontSize=7),
-            C(f"{it.get('vat_percent_item') or 5:.0f}%", fontSize=7),
+            C(f"{it['vat_percent_item'] or 5:.0f}%", fontSize=7),
             R(f"{vat_item:,.2f}", fontSize=7),
             R(f"{total_inc:,.2f}", fontSize=7),
         ])
@@ -907,9 +918,12 @@ def _nourol_invoice_pdf(c, inv, items, company, _logo_tmp_files):
     els.append(Spacer(1, 2*mm))
 
     # ═══ NOTES ═══
-    if inv.get("notes"):
-        els.append(P(f"<i>{inv['notes']}</i>", fontSize=8, leading=11))
-        els.append(Spacer(1, 2*mm))
+    try:
+        if inv["notes"]:
+            els.append(P(f"<i>{inv['notes']}</i>", fontSize=8, leading=11))
+            els.append(Spacer(1, 2*mm))
+    except (IndexError, KeyError):
+        pass
 
     # ═══ TOTALS ═══
     sub = inv["amount"] or 0
