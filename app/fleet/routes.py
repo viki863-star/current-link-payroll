@@ -1054,10 +1054,17 @@ def fleet_staff_profile(staff_id):
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
 
-    total_received = db.execute(
+    total_advances = db.execute(
+        "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?",
+        (staff_id,),
+    ).fetchone()["t"] or 0
+
+    total_cash = db.execute(
         "SELECT COALESCE(SUM(amount),0) AS t FROM cash_receipts WHERE staff_id = ?",
         (staff_id,),
     ).fetchone()["t"] or 0
+
+    total_received = float(total_advances) + float(total_cash)
 
     total_jobs = db.execute(
         "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status IN ('approved','pending')",
@@ -1070,7 +1077,12 @@ def fleet_staff_profile(staff_id):
     ).fetchone()["t"] or 0
 
     total_spent = float(total_jobs) + float(total_papers)
-    balance = float(total_received) - total_spent
+    balance = total_received - total_spent
+
+    advances = db.execute(
+        "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
+        (staff_id,),
+    ).fetchall()
 
     jobs = db.execute("""
         SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
@@ -1106,11 +1118,14 @@ def fleet_staff_profile(staff_id):
         "fleet/fleet_staff_profile.html",
         s=s,
         total_received=total_received,
+        total_advances=total_advances,
+        total_cash=total_cash,
         total_spent=total_spent,
         balance=balance,
         jobs=jobs,
         papers=papers,
         receipts=receipts,
+        advances=advances,
     )
 
 

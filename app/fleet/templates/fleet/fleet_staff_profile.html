@@ -9,13 +9,14 @@
 .sp-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
 .sp-name { margin:0; font-size:1.3rem; font-weight:700; }
 .sp-id { font-size:0.8rem; color:var(--muted); font-family:monospace; }
-.sp-summary { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
-.sp-card { flex:1; min-width:120px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; text-align:center; }
-.sp-card-label { font-size:0.65rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
-.sp-card-value { font-size:1.25rem; font-weight:800; }
+.sp-summary { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+.sp-card { flex:1; min-width:110px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 10px; text-align:center; }
+.sp-card-label { font-size:0.6rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
+.sp-card-value { font-size:1.1rem; font-weight:800; }
 .sp-card-value.green { color:#1a7a4e; }
 .sp-card-value.red { color:#c0392b; }
 .sp-card-value.blue { color:#1c568b; }
+.sp-card-value.orange { color:#e65100; }
 .sp-section { margin-bottom:20px; }
 .sp-section-title { font-size:0.95rem; font-weight:700; margin:0 0 12px; display:flex; align-items:center; gap:8px; }
 .sp-section-title .badge { font-size:0.7rem; }
@@ -36,11 +37,15 @@
 
     <div class="sp-summary">
         <div class="sp-card">
-            <div class="sp-card-label">Received</div>
-            <div class="sp-card-value green">AED {{ "%.0f"|format(total_received) }}</div>
+            <div class="sp-card-label">Advances</div>
+            <div class="sp-card-value orange">AED {{ "%.0f"|format(total_advances) }}</div>
         </div>
         <div class="sp-card">
-            <div class="sp-card-label">Spent</div>
+            <div class="sp-card-label">Cash Received</div>
+            <div class="sp-card-value green">AED {{ "%.0f"|format(total_cash) }}</div>
+        </div>
+        <div class="sp-card">
+            <div class="sp-card-label">Total Spent</div>
             <div class="sp-card-value red">AED {{ "%.0f"|format(total_spent) }}</div>
         </div>
         <div class="sp-card">
@@ -48,6 +53,28 @@
             <div class="sp-card-value {% if balance >= 0 %}blue{% else %}red{% endif %}">AED {{ "%.0f"|format(balance * -1 if balance < 0 else balance) }}</div>
         </div>
     </div>
+
+    {% if advances %}
+    <div class="profile-card sp-section">
+        <h3 class="sp-section-title">Advances Given <span class="badge badge-dept">{{ advances|length }}</span></h3>
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>Date</th><th>Amount</th><th>Reference</th><th>Source</th><th>Notes</th></tr></thead>
+                <tbody>
+                    {% for a in advances %}
+                    <tr>
+                        <td class="mono">{{ a.entry_date }}</td>
+                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(a.amount) }}</td>
+                        <td>{{ a.reference or '-' }}</td>
+                        <td>{{ a.funding_source }}</td>
+                        <td>{{ a.notes or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 
     {% if jobs %}
     <div class="profile-card sp-section">
@@ -116,7 +143,7 @@
     </div>
     {% endif %}
 
-    {% if not jobs and not papers and not receipts %}
+    {% if not jobs and not papers and not receipts and not advances %}
     <div class="profile-card" style="text-align:center;padding:40px">
         <p style="color:var(--muted);margin:0">No activity for this staff member yet.</p>
     </div>
