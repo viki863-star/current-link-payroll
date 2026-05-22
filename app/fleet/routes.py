@@ -68,12 +68,24 @@ def _vehicle_full(plate_no):
         "SELECT COUNT(*) AS c FROM maintenance_jobs WHERE vehicle_id = ? AND status = 'approved'",
         (plate_no,),
     ).fetchone()["c"] or 0
+    paper_count = db.execute(
+        """SELECT COUNT(*) AS c FROM maintenance_papers mp
+           JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
+           WHERE vm.vehicle_no = ? AND mp.review_status = 'Approved'""",
+        (plate_no,),
+    ).fetchone()["c"] or 0
     total_cost = db.execute(
         "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE vehicle_id = ? AND status = 'approved'",
         (plate_no,),
     ).fetchone()["t"] or 0
-    v["job_count"] = job_count
-    v["total_cost"] = total_cost
+    paper_cost = db.execute(
+        """SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp
+           JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
+           WHERE vm.vehicle_no = ? AND mp.review_status = 'Approved'""",
+        (plate_no,),
+    ).fetchone()["t"] or 0
+    v["job_count"] = job_count + paper_count
+    v["total_cost"] = float(total_cost) + float(paper_cost)
     return v
 
 
@@ -306,7 +318,7 @@ def vehicle_profile(plate_no):
         (plate_no,),
     ).fetchall()
 
-    # Approved jobs
+    # Approved jobs (maintenance_jobs + maintenance_papers)
     approved_jobs = db.execute(
         """SELECT mj.*, s.full_name AS staff_name FROM maintenance_jobs mj
            JOIN field_staff s ON s.staff_id = mj.staff_id
@@ -315,12 +327,36 @@ def vehicle_profile(plate_no):
         (plate_no,),
     ).fetchall()
 
+    maintenance_papers_list = db.execute(
+        """SELECT mp.paper_no AS id, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
+                  mp.total_amount AS amount, mp.work_summary AS description,
+                  mp.review_status AS status, mp.notes AS admin_notes,
+                  mp.attachment_path AS attachment_name, mp.created_at,
+                  'Maintenance' AS category, '' AS attachment_type,
+                  NULL AS attachment_data,
+                  COALESCE(s.full_name, '') AS staff_name
+           FROM maintenance_papers mp
+           JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
+           LEFT JOIN field_staff s ON s.staff_id = mp.technician_code
+           WHERE vm.vehicle_no = ?
+             AND mp.review_status IN ('Approved', 'Pending')
+           ORDER BY mp.created_at DESC""",
+        (plate_no,),
+    ).fetchall()
+
+    combined = sorted(
+        approved_jobs + maintenance_papers_list,
+        key=lambda x: (x.get("created_at") or ""),
+        reverse=True,
+    )
     return render_template(
         "fleet/vehicle_profile.html",
         v=v,
         active_tab=active_tab,
         driver_history=driver_history,
         approved_jobs=approved_jobs,
+        maintenance_papers_list=maintenance_papers_list,
+        combined_jobs=combined,
         all_drivers=_all_employees_drivers(),
     )
 

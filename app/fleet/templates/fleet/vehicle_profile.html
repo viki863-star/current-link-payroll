@@ -165,29 +165,31 @@
             <h3 style="margin:0;font-size:0.95rem">Approved Maintenance Jobs</h3>
             <span class="badge badge-dept">{{ approved_jobs|length }} jobs</span>
         </div>
-        {% if approved_jobs %}
+        {% set all_entries = approved_jobs + maintenance_papers_list %}
+        {% if all_entries %}
         <div class="table-wrap">
             <table class="smart-table">
-                <thead><tr><th>Date</th><th>Staff</th><th>Amount</th><th>Category</th><th>Description</th><th>Attachment</th></tr></thead>
+                <thead><tr><th>Date</th><th>Staff</th><th>Amount</th><th>Category</th><th>Description</th><th>Source</th></tr></thead>
                 <tbody>
-                    {% for j in approved_jobs %}
+                    {% for j in all_entries|sort(attribute='created_at', reverse=True) %}
                     <tr>
-                        <td class="mono">{{ j.created_at[:10] }}</td>
-                        <td><strong>{{ j.staff_name }}</strong></td>
-                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount) }}</td>
+                        <td class="mono">{{ (j.created_at or '')[:10] }}</td>
+                        <td><strong>{{ j.staff_name or '-' }}</strong></td>
+                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount|float) }}</td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
                         <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
-                        <td>{% if j.attachment_data %}<a href="{{ url_for('fleet.vehicle_profile', plate_no=v.plate_no) }}?download={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}—{% endif %}</td>
+                        <td><span class="badge badge-dept">{% if j.attachment_data %}Portal{% else %}Old{% endif %}</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% set total = all_entries|sum(attribute='amount') %}
         <div style="margin-top:12px;padding:12px;background:#f8fafd;border-radius:8px;text-align:right">
-            <strong>Total: AED {{ "%.0f"|format(approved_jobs|sum(attribute='amount')) }}</strong>
+            <strong>Total: AED {{ "%.0f"|format(total|float) }}</strong>
         </div>
         {% else %}
-        <p class="empty-state">No approved maintenance jobs yet.</p>
+        <p class="empty-state">No maintenance jobs yet.</p>
         {% endif %}
     </div>
     {% endif %}
