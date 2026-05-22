@@ -19,7 +19,7 @@
 .theme-swatch.active { border-color:var(--text); }
 </style>
 
-{# ─── Company Details ─── #}
+{# ─── Company & Bank Details ─── #}
 <form method="POST">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="action" value="save_company">
@@ -72,16 +72,7 @@
             <input type="text" name="invoice_terms" class="form-control" value="{{ company.invoice_terms or '' }}" placeholder="e.g. Payment due within 30 days">
         </div>
     </div>
-    <button type="submit" class="btn btn-primary" style="margin-top:12px">Save Company Details</button>
-</div>
-</form>
-
-{# ─── Bank Details ─── #}
-<form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<input type="hidden" name="action" value="save_bank">
-<div class="stng-card">
-    <h3>Bank Details</h3>
+    <h3 style="margin:20px 0 4px;font-size:1rem;font-weight:700">Bank Details</h3>
     <p class="desc">Yeh bank details invoice aur PDF mein show honge</p>
     <div class="form-2col">
         <div class="form-row">
@@ -105,7 +96,7 @@
             <input type="text" name="swift_code" class="form-control" value="{{ company.swift_code or '' }}" placeholder="EBILAEAD">
         </div>
     </div>
-    <button type="submit" class="btn btn-primary" style="margin-top:12px">Save Bank Details</button>
+    <button type="submit" class="btn btn-primary" style="margin-top:16px">Save All Details</button>
 </div>
 </form>
 
