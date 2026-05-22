@@ -180,7 +180,7 @@
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount|float) }}</td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
                         <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
-                        <td>{% if j.attachment_data %}<a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.72rem;color:var(--muted)">&#9654; Details</span>{% endif %}</td>
+                        <td>{% if j.attachment_data %}<a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">View</a>{% elif j.attachment_name %}<a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.7rem;color:var(--muted)">—</span>{% endif %}</td>
                     </tr>
                     <tr id="paper-detail-{{ loop.index }}" style="{% if is_hl %}display:table-row{% else %}display:none{% endif %}">
                         <td colspan="6" style="padding:14px 18px;background:#f8fafd">
@@ -192,10 +192,16 @@
                                 {% if j.description %}<div style="grid-column:1/-1"><strong>Description:</strong> {{ j.description }}</div>{% endif %}
                                 {% if j.admin_notes %}<div style="grid-column:1/-1"><strong>Notes:</strong> {{ j.admin_notes }}</div>{% endif %}
                                 <div><strong>Status:</strong> <span class="status-badge {{ j.status|lower }}">{{ j.status }}</span></div>
-                                {% if j.category == 'Maintenance' and j.attachment_name %}
-                                <div style="grid-column:1/-1;margin-top:2px"><span class="badge badge-type">File: {{ j.attachment_name }}</span></div>
+                                {% if j.category == 'Maintenance' %}
+                                  {% if j.attachment_name %}
+                                  <div style="grid-column:1/-1;margin-top:2px"><a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">&#128206; View Attachment</a></div>
+                                  {% else %}
+                                  <div style="grid-column:1/-1;margin-top:2px"><span style="font-size:0.78rem;color:var(--muted)">No attachment</span></div>
+                                  {% endif %}
                                 {% elif j.attachment_data %}
                                 <div style="grid-column:1/-1;margin-top:2px"><a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">&#128206; View Attachment</a></div>
+                                {% else %}
+                                <div style="grid-column:1/-1;margin-top:2px"><span style="font-size:0.78rem;color:var(--muted)">No attachment</span></div>
                                 {% endif %}
                                 {% if j.category == 'Maintenance' %}
                                 <div style="grid-column:1/-1;margin-top:4px;display:flex;gap:8px">
