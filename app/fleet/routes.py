@@ -56,7 +56,21 @@ def _vehicle_full(plate_no):
     db = open_db()
     v = db.execute("SELECT * FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
     if not v:
-        return None
+        vm = db.execute("SELECT * FROM vehicle_master WHERE vehicle_no = ?", (plate_no,)).fetchone()
+        if vm:
+            v = {
+                "plate_no": vm["vehicle_no"],
+                "vehicle_type": vm["vehicle_type"],
+                "model": vm["make_model"],
+                "ownership_type": vm["ownership_mode"],
+                "partner_name": vm["partner_name"],
+                "partner_percent": vm.get("partner_share_percent"),
+                "status": vm["status"],
+                "notes": vm["notes"],
+                "vehicle_id": vm["vehicle_id"],
+            }
+        else:
+            return None
     driver = db.execute(
         """SELECT e.*, va.assigned_from FROM vehicle_assignments va
            JOIN employees e ON e.employee_id = va.driver_id
