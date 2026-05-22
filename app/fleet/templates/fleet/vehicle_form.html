@@ -15,7 +15,7 @@
     </div>
 
     <div class="profile-card">
-        <form method="POST" class="smart-form">
+        <form method="POST" class="smart-form" action="{% if v.plate_no %}{{ url_for('fleet.vehicle_edit', plate_no=v.plate_no) }}{% else %}{{ url_for('fleet.vehicle_add') }}{% endif %}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-row">
                 <div class="form-group">
