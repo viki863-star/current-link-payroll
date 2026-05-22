@@ -1041,6 +1041,79 @@ def fleet_staff_receipts(staff_id):
     return render_template("fleet/fleet_staff_receipts.html", s=s, receipts=receipts, total=total)
 
 
+# ── ADMIN: Staff Profile ─────────────────────────────────────────
+
+@fleet_bp.route("/fleet/staff/<staff_id>/profile")
+@_login_required("admin")
+def fleet_staff_profile(staff_id):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    if not s:
+        flash("Staff not found.", "error")
+        return redirect(url_for("fleet.fleet_staff_list"))
+
+    total_received = db.execute(
+        "SELECT COALESCE(SUM(amount),0) AS t FROM cash_receipts WHERE staff_id = ?",
+        (staff_id,),
+    ).fetchone()["t"] or 0
+
+    total_jobs = db.execute(
+        "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status IN ('approved','pending')",
+        (staff_id,),
+    ).fetchone()["t"] or 0
+
+    total_papers = db.execute(
+        "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status IN ('Approved','Pending')",
+        (staff_id,),
+    ).fetchone()["t"] or 0
+
+    total_spent = float(total_jobs) + float(total_papers)
+    balance = float(total_received) - total_spent
+
+    jobs = db.execute("""
+        SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
+        LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
+        WHERE mj.staff_id = ? ORDER BY mj.created_at DESC
+    """, (staff_id,)).fetchall()
+
+    raw_papers = db.execute("""
+        SELECT mp.paper_no AS id, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
+               mp.total_amount AS amount, mp.work_summary AS description,
+               mp.review_status AS status, mp.notes AS admin_notes,
+               mp.created_at, 'Maintenance' AS category, '-' AS attachment_type,
+               NULL AS attachment_data, NULL AS attachment_name
+        FROM maintenance_papers mp
+        LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
+        WHERE mp.technician_code = ?
+        ORDER BY mp.created_at DESC
+    """, (staff_id,)).fetchall()
+
+    papers = []
+    for r in raw_papers:
+        d = dict(r)
+        if isinstance(d.get("created_at"), datetime):
+            d["created_at"] = d["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+        papers.append(d)
+
+    receipts = db.execute(
+        "SELECT * FROM cash_receipts WHERE staff_id = ? ORDER BY receipt_date DESC",
+        (staff_id,),
+    ).fetchall()
+
+    return render_template(
+        "fleet/fleet_staff_profile.html",
+        s=s,
+        total_received=total_received,
+        total_spent=total_spent,
+        balance=balance,
+        jobs=jobs,
+        papers=papers,
+        receipts=receipts,
+    )
+
+
 # ── ADMIN: Pending Approvals ────────────────────────────────────
 
 @fleet_bp.route("/fleet/approvals")

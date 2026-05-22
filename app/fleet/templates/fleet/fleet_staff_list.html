@@ -42,7 +42,7 @@
                 {% for s in staff_list %}
                 <tr>
                     <td class="mono">{{ s.staff_id }}</td>
-                    <td><strong>{{ s.full_name }}</strong></td>
+                    <td><a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="font-weight:600;color:var(--primary);text-decoration:none">{{ s.full_name }}</a></td>
                     <td>{{ s.phone or '-' }}</td>
                     <td class="mono">{{ s.username }}</td>
                     <td><span class="status-badge {{ 'active' if s.is_active else 'inactive' }}">{{ 'Active' if s.is_active else 'Inactive' }}</span></td>

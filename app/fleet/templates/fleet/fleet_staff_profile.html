@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}{{ s.full_name }} — Staff Profile{% endblock %}
+{% block body_class %}profile-body{% endblock %}
+{% block page_title %}Staff Profile{% endblock %}
+
+{% block content %}
+<style>
+.sp-container { max-width:900px; margin:0 auto; }
+.sp-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+.sp-name { margin:0; font-size:1.3rem; font-weight:700; }
+.sp-id { font-size:0.8rem; color:var(--muted); font-family:monospace; }
+.sp-summary { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.sp-card { flex:1; min-width:120px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; text-align:center; }
+.sp-card-label { font-size:0.65rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
+.sp-card-value { font-size:1.25rem; font-weight:800; }
+.sp-card-value.green { color:#1a7a4e; }
+.sp-card-value.red { color:#c0392b; }
+.sp-card-value.blue { color:#1c568b; }
+.sp-section { margin-bottom:20px; }
+.sp-section-title { font-size:0.95rem; font-weight:700; margin:0 0 12px; display:flex; align-items:center; gap:8px; }
+.sp-section-title .badge { font-size:0.7rem; }
+</style>
+
+<div class="sp-container">
+    <div class="sp-header">
+        <div>
+            <h1 class="sp-name">{{ s.full_name }}</h1>
+            <span class="sp-id">{{ s.staff_id }} · {{ s.phone or '—' }} · {{ s.username }}</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="{{ url_for('fleet.fleet_staff_edit', staff_id=s.staff_id) }}" class="btn btn-sm btn-outline">Edit</a>
+            <a href="{{ url_for('fleet.fleet_staff_receipts', staff_id=s.staff_id) }}" class="btn btn-sm btn-primary">Add Cash</a>
+            <a href="{{ url_for('fleet.fleet_staff_list') }}" class="btn btn-sm btn-outline">&larr; Back</a>
+        </div>
+    </div>
+
+    <div class="sp-summary">
+        <div class="sp-card">
+            <div class="sp-card-label">Received</div>
+            <div class="sp-card-value green">AED {{ "%.0f"|format(total_received) }}</div>
+        </div>
+        <div class="sp-card">
+            <div class="sp-card-label">Spent</div>
+            <div class="sp-card-value red">AED {{ "%.0f"|format(total_spent) }}</div>
+        </div>
+        <div class="sp-card">
+            <div class="sp-card-label">Balance</div>
+            <div class="sp-card-value blue">AED {{ "%.0f"|format(balance) }}</div>
+        </div>
+    </div>
+
+    {% if jobs %}
+    <div class="profile-card sp-section">
+        <h3 class="sp-section-title">Portal Jobs <span class="badge badge-dept">{{ jobs|length }}</span></h3>
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>Date</th><th>Vehicle</th><th>Amount</th><th>Category</th><th>Description</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for j in jobs %}
+                    <tr>
+                        <td class="mono">{{ j.created_at[:10] }}</td>
+                        <td>{{ j.vehicle_id }}</td>
+                        <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(j.amount) }}</td>
+                        <td><span class="badge badge-type">{{ j.category }}</span></td>
+                        <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
+                        <td><span class="status-badge {{ j.status }}">{{ j.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if papers %}
+    <div class="profile-card sp-section">
+        <h3 class="sp-section-title">Maintenance Papers <span class="badge badge-dept">{{ papers|length }}</span></h3>
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>Date</th><th>Vehicle</th><th>Amount</th><th>Description</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    {% for p in papers %}
+                    <tr>
+                        <td class="mono">{{ (p.created_at or '')|string|truncate(10, True, '') }}</td>
+                        <td>{{ p.vehicle_id or '-' }}</td>
+                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(p.amount|float) }}</td>
+                        <td style="max-width:200px;white-space:normal">{{ p.description or '-' }}</td>
+                        <td><span class="status-badge {{ p.status|lower }}">{{ p.status }}</span></td>
+                        <td><a href="/fleet-maintenance?edit_paper={{ p.id }}" class="btn btn-xs btn-outline" target="_blank">View</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if receipts %}
+    <div class="profile-card sp-section">
+        <h3 class="sp-section-title">Cash Receipts <span class="badge badge-dept">{{ receipts|length }}</span></h3>
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>Date</th><th>Given By</th><th>Amount</th><th>Notes</th></tr></thead>
+                <tbody>
+                    {% for r in receipts %}
+                    <tr>
+                        <td class="mono">{{ r.receipt_date }}</td>
+                        <td>{{ r.given_by }}</td>
+                        <td class="mono" style="font-weight:600;color:#1a7a4e">AED {{ "%.0f"|format(r.amount) }}</td>
+                        <td>{{ r.notes or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not jobs and not papers and not receipts %}
+    <div class="profile-card" style="text-align:center;padding:40px">
+        <p style="color:var(--muted);margin:0">No activity for this staff member yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
