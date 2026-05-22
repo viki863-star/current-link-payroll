@@ -30,7 +30,7 @@
                     <tr>
                         <td class="mono">{{ j.created_at[:10] }}</td>
                         <td><strong>{{ j.staff_name }}</strong></td>
-                        <td>{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted)">General Expense</span>{% else %}<a href="{{ url_for('fleet.vehicle_profile', plate_no=j.plate_no) }}" class="mono" style="font-weight:600">{{ j.plate_no }}</a> <span class="badge badge-dept">{{ j.vehicle_type }}</span>{% endif %}</td>
+                        <td>{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted)">General Expense</span>{% else %}<a href="{{ vehicle_url(j.plate_no) }}" class="mono" style="font-weight:600">{{ j.plate_no }}</a> <span class="badge badge-dept">{{ j.vehicle_type }}</span>{% endif %}</td>
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount) }}</td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
                         <td style="max-width:150px;white-space:normal;font-size:0.75rem">{{ j.description or '-' }}</td>

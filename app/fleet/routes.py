@@ -280,7 +280,7 @@ def vehicle_add():
 
 # ── Edit Vehicle ────────────────────────────────────────────────
 
-@fleet_bp.route("/fleet/vehicles/<plate_no>/edit", methods=["GET", "POST"])
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/edit", methods=["GET", "POST"])
 @_login_required("admin")
 def vehicle_edit(plate_no):
     _touch_admin_workspace("fleet")
@@ -315,7 +315,7 @@ def vehicle_edit(plate_no):
 
 # ── Vehicle Profile ─────────────────────────────────────────────
 
-@fleet_bp.route("/fleet/vehicles/<plate_no>")
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>")
 @_login_required("admin")
 def vehicle_profile(plate_no):
     _touch_admin_workspace("fleet")
@@ -390,7 +390,7 @@ def vehicle_profile(plate_no):
 
 # ── Delete Vehicle ────────────────────────────────────────────
 
-@fleet_bp.route("/fleet/vehicles/<plate_no>/delete", methods=["POST"])
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/delete", methods=["POST"])
 @_login_required("admin")
 def vehicle_delete(plate_no):
     _touch_admin_workspace("fleet")
@@ -408,7 +408,7 @@ def vehicle_delete(plate_no):
 
 # ── Assign/Replace Driver ───────────────────────────────────────
 
-@fleet_bp.route("/fleet/vehicles/<plate_no>/assign", methods=["POST"])
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/assign", methods=["POST"])
 @_login_required("admin")
 def vehicle_assign_driver(plate_no):
     _touch_admin_workspace("fleet")

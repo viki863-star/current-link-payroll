@@ -56,7 +56,7 @@
             </thead>
             <tbody>
                 {% for v in vehicles %}
-                <tr class="emp-row" onclick="window.location='{{ url_for('fleet.vehicle_profile', plate_no=v.plate_no) }}'">
+                <tr class="emp-row" onclick="window.location='{{ vehicle_url(v.plate_no) }}'">
                     <td class="mono" style="font-weight:600;font-size:0.9rem">{{ v.plate_no }}</td>
                     <td><span class="badge badge-dept">{{ v.vehicle_type }}</span></td>
                     <td>{{ v.model or '-' }}</td>
@@ -64,7 +64,7 @@
                     <td>{{ v.driver_name or '—' }}</td>
                     <td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td>
                     <td class="action-cell">
-                        <a href="{{ url_for('fleet.vehicle_profile', plate_no=v.plate_no) }}" class="btn btn-sm btn-primary">Profile</a>
+                        <a href="{{ vehicle_url(v.plate_no) }}" class="btn btn-sm btn-primary">Profile</a>
                         <a href="{{ url_for('fleet.vehicle_edit', plate_no=v.plate_no) }}" class="btn btn-sm btn-outline" onclick="event.stopPropagation()">Edit</a>
                     </td>
                 </tr>

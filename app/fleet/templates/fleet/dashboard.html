@@ -166,7 +166,7 @@
         <thead><tr><th>Plate</th><th>Type</th><th>Owner</th><th>Driver</th><th>Status</th></tr></thead>
         <tbody>
           {% for v in vehicles[:8] %}
-          <tr class="clickable" onclick="window.location='{{ url_for('fleet.vehicle_profile', plate_no=v.plate_no) }}'">
+          <tr class="clickable" onclick="window.location='{{ vehicle_url(v.plate_no) }}'">
             <td style="font-weight:600;font-family:monospace">{{ v.plate_no }}</td>
             <td>{{ v.vehicle_type }}</td>
             <td>{% if v.ownership_type == 'Partnership' %}{{ v.partner_name or 'Partner' }} ({{ "%.0f"|format(v.partner_percent) }}%){% else %}Standard{% endif %}</td>
@@ -188,7 +188,7 @@
         <thead><tr><th>Vehicle</th><th>Staff</th><th>Amount</th><th>Category</th></tr></thead>
         <tbody>
           {% for j in recent_jobs %}
-          <tr class="clickable" onclick="window.location='{{ url_for('fleet.vehicle_profile', plate_no=j.plate_no) }}'">
+          <tr class="clickable" onclick="window.location='{{ vehicle_url(j.plate_no) }}'">
             <td style="font-family:monospace">{{ j.plate_no }}</td>
             <td>{{ j.staff_name }}</td>
             <td style="font-weight:600">AED {{ "%.0f"|format(j.amount) }}</td>
