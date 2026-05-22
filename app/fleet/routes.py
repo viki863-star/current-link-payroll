@@ -125,6 +125,10 @@ def fleet_dashboard():
     total_maintenance_cost = db.execute(
         "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE status = 'approved'"
     ).fetchone()["t"] or 0
+    paper_cost = db.execute(
+        "SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE review_status = 'Approved'"
+    ).fetchone()["t"] or 0
+    total_maintenance_cost = float(total_maintenance_cost) + float(paper_cost)
 
     recent_jobs = db.execute(
         "SELECT mj.*, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, v.vehicle_type, s.full_name AS staff_name FROM maintenance_jobs mj LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id JOIN field_staff s ON s.staff_id = mj.staff_id WHERE mj.status = 'approved' ORDER BY mj.created_at DESC LIMIT 10"
