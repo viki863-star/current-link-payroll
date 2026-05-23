@@ -6,6 +6,7 @@
     <title>{% block title %}{{ config["COMPANY_NAME"] }}{% endblock %} — ERP Portal</title>
     <meta name="theme-color" content="#0F2B52">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest', v='20260415a') }}">
     <link rel="icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
@@ -354,10 +355,12 @@ if ("serviceWorker" in navigator) {
                 '<div class="notif-item-time">' + (n.created_at || '') + '</div>';
             if (n.link) { item.style.cursor = 'pointer'; item.addEventListener('click', function(){ window.location.href = n.link; }); }
             if (n.is_read === 0) {
-                item.addEventListener('click', function(){
+                item.addEventListener('click', function(ev){
+                    if (n.link) { window.location.href = n.link; return; }
                     var xhr = new XMLHttpRequest();
                     xhr.open('POST', '/notifications/read/' + n.id);
                     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                    xhr.setRequestHeader('X-CSRFToken', csrfToken());
                     xhr.send();
                 });
             }
@@ -366,6 +369,8 @@ if ("serviceWorker" in navigator) {
     }
 
     function escHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function csrfToken() { var m = document.querySelector('meta[name=csrf-token]'); return m ? m.getAttribute('content') : ''; }
 
     bell.addEventListener('click', function(e){
         e.stopPropagation();
@@ -385,7 +390,8 @@ if ("serviceWorker" in navigator) {
             var xhr = new XMLHttpRequest();
             xhr.open('POST', '/notifications/read-all');
             xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-            xhr.onload = function(){ fetchNotifs(); };
+            xhr.setRequestHeader('X-CSRFToken', csrfToken());
+            xhr.onload = function(){ if (xhr.status === 200) fetchNotifs(); };
             xhr.send();
         });
     }
