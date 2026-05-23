@@ -5996,14 +5996,54 @@ def register_routes(app: Flask) -> None:
     def reports_center():
         _touch_admin_workspace("accounts")
         db = open_db()
+        months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+        chart_sales = [0.0]*12
+        chart_output_vat = [0.0]*12
+        chart_purchases = [0.0]*12
+        chart_input_vat = [0.0]*12
+        cust_count = 0
+        supp_count = 0
+        recv_total = 0.0
+        pay_total = 0.0
+        open_sales = 0
+        open_purchases = 0
+        # Customer data from SQLite payroll.db
         pdb = _open_payroll_db()
         if pdb:
-            payroll_chart = _payroll_monthly_chart_data(pdb)
-            payroll_summ = _payroll_summary(pdb)
+            try:
+                rows = pdb.execute("SELECT invoice_date, amount, vat_amount FROM customer_invoices").fetchall()
+                for r in rows:
+                    try:
+                        parts = r["invoice_date"].split("-")
+                        if len(parts) >= 2:
+                            m = int(parts[1]) - 1
+                            chart_sales[m] += float(r["amount"] or 0)
+                            chart_output_vat[m] += float(r["vat_amount"] or 0)
+                    except (IndexError, ValueError, TypeError):
+                        pass
+                cust_count = int(pdb.execute("SELECT COUNT(*) FROM customers").fetchone()[0])
+                recv_total = float(pdb.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices").fetchone()[0])
+                open_sales = int(pdb.execute("SELECT COUNT(*) FROM customer_invoices WHERE status != 'Paid'").fetchone()[0])
+            except Exception:
+                pass
             pdb.close()
-        else:
-            payroll_chart = {"sales": [0.0]*12, "purchases": [0.0]*12, "output_vat": [0.0]*12, "input_vat": [0.0]*12}
-            payroll_summ = {"customer_count": 0, "supplier_count": 0, "receivable_total": 0.0, "payable_total": 0.0, "open_sales": 0, "open_purchases": 0}
+        # Supplier data from main DB (supplier blueprint uses open_db)
+        try:
+            rows = db.execute("SELECT issue_date, subtotal, tax_amount FROM account_invoices WHERE invoice_kind = 'Purchase'").fetchall()
+            for r in rows:
+                try:
+                    parts = r["issue_date"].split("-")
+                    if len(parts) >= 2:
+                        m = int(parts[1]) - 1
+                        chart_purchases[m] += float(r["subtotal"] or 0)
+                        chart_input_vat[m] += float(r["tax_amount"] or 0)
+                except (IndexError, ValueError, TypeError):
+                    pass
+        except Exception:
+            pass
+        ssupp = _supplier_summary(db)
+        payroll_chart = {"months": months, "sales": chart_sales, "purchases": chart_purchases, "output_vat": chart_output_vat, "input_vat": chart_input_vat}
+        payroll_summ = {"customer_count": cust_count, "supplier_count": ssupp["supplier_count"], "receivable_total": recv_total, "payable_total": ssupp["payable_total"], "open_sales": open_sales, "open_purchases": ssupp["open_purchase_invoices"]}
         return render_template(
             "reports_center.html",
             supplier_summary=_supplier_summary(db),
