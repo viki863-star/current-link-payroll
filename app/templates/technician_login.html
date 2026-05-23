@@ -27,6 +27,23 @@
 /* hide sidebar on login page */
 .app-layout .sidebar { display:none !important; }
 .app-layout .main-content { margin-left:0 !important; width:100% !important; }
+@media (max-width:560px) {
+ .tl-wrap { padding:12px; align-items:flex-start; padding-top:40px; min-height:100dvh; }
+ .tl-card { padding:24px 18px 20px; border-radius:18px; }
+ .tl-logo { margin-bottom:16px; }
+ .tl-logo img { width:34px; height:34px; }
+ .tl-logo-text { font-size:0.9rem; }
+ .tl-title { font-size:1.05rem; margin-bottom:16px; }
+ .tl-field { margin-bottom:14px; }
+ .tl-field label { font-size:0.68rem; }
+ .tl-field input { padding:12px 12px; font-size:16px; border-radius:10px; }
+ .tl-btn { padding:14px; font-size:0.95rem; border-radius:10px; }
+}
+@media (max-width:380px) {
+ .tl-wrap { padding:8px; padding-top:24px; }
+ .tl-card { padding:18px 14px 16px; border-radius:14px; }
+ .tl-title { font-size:0.95rem; }
+}
 </style>
 <div class="tl-wrap">
   <div class="tl-inner">
