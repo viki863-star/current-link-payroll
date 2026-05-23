@@ -47,7 +47,7 @@
     <div class="kpi-grid">
         <div class="kpi-card"><div class="lbl">Receivable Total</div><div class="val">AED {{ "%.0f"|format(payroll_summ.receivable_total) }}</div></div>
         <div class="kpi-card"><div class="lbl">Open Invoices</div><div class="val">{{ payroll_summ.open_sales }}</div></div>
-        <div class="kpi-card"><div class="lbl">Customers</div><div class="val">{{ payroll_summ.customer_count }}</div></div>
+        <div class="kpi-card"><div class="lbl">Customers</div><div class="val">{{ customer_summary.customer_count }}</div></div>
         <div class="kpi-card"><div class="lbl">Total Invoices</div><div class="val">{{ payroll_summ.invoice_count if payroll_summ.invoice_count is defined else '—' }}</div></div>
     </div>
     <div class="chart-pair">
@@ -62,7 +62,7 @@
     <div class="kpi-grid">
         <div class="kpi-card"><div class="lbl">Payable Total</div><div class="val">AED {{ "%.0f"|format(payroll_summ.payable_total) }}</div></div>
         <div class="kpi-card"><div class="lbl">Open Invoices</div><div class="val">{{ payroll_summ.open_purchases }}</div></div>
-        <div class="kpi-card"><div class="lbl">Suppliers</div><div class="val">{{ payroll_summ.supplier_count }}</div></div>
+        <div class="kpi-card"><div class="lbl">Suppliers</div><div class="val">{{ supplier_summary.supplier_count }}</div></div>
         <div class="kpi-card"><div class="lbl">Total Invoices</div><div class="val">{{ payroll_summ.purchase_count if payroll_summ.purchase_count is defined else '—' }}</div></div>
     </div>
     <div class="chart-pair">
