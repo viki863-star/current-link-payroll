@@ -2029,7 +2029,6 @@ def register_routes(app: Flask) -> None:
                         message="Review and approve/reject pending maintenance jobs",
                         link="/fleet/approvals",
                     )
-            db.close()
         except:
             pass
         notifs = get_unread_notifications(role=role)
