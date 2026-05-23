@@ -15560,14 +15560,22 @@ def _monthly_chart_data(db):
 
 
 def _open_payroll_db():
-    p = Path(current_app.config.get("DATABASE", "payroll.db"))
-    if not p.exists():
-        p = Path(current_app.root_path).parent / "payroll.db"
-    if not p.exists():
+    db_path = current_app.config.get("DATABASE", "payroll.db")
+    try:
+        p = Path(db_path)
+        if not p.exists():
+            alt = Path(current_app.root_path).parent / "payroll.db"
+            if alt.exists():
+                p = alt
+            else:
+                p = Path.cwd() / "payroll.db"
+                if not p.exists():
+                    return None
+        db = sqlite3.connect(str(p))
+        db.row_factory = sqlite3.Row
+        return db
+    except Exception:
         return None
-    db = sqlite3.connect(str(p))
-    db.row_factory = sqlite3.Row
-    return db
 
 
 def _payroll_monthly_chart_data(pdb):
