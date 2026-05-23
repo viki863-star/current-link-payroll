@@ -1167,8 +1167,8 @@ def register_routes(app: Flask) -> None:
             amount = request.form.get("amount", "").strip()
             category = request.form.get("category", "").strip()
             description = request.form.get("description", "").strip()
-            if not amount or not category:
-                flash("Amount and category are required.", "error")
+            if not amount:
+                flash("Amount is required.", "error")
                 return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v=request.form)
             attachment_name = None
             attachment_data = None
@@ -1185,7 +1185,7 @@ def register_routes(app: Flask) -> None:
             )
             db.execute(
                 "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status) VALUES (?,?,?,?,?,?,?,?,'pending')",
-                (vehicle_id or "N/A", technician_code, float(amount), category, description, attachment_name, attachment_data, attachment_type),
+                (vehicle_id or "N/A", technician_code, float(amount), category or "Other", description, attachment_name, attachment_data, attachment_type),
             )
             db.commit()
             flash("Job submitted for approval.", "success")

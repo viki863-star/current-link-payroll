@@ -76,8 +76,8 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
             </div>
             <div class="staff-field-group">
                 <label class="staff-label">Category</label>
-                <select name="category" class="staff-input" required>
-                    <option value="">Select category</option>
+                <select name="category" class="staff-input">
+                    <option value="">Select category (optional)</option>
                     {% for c in categories %}
                     <option value="{{ c }}" {% if (v.category or '') == c %}selected{% endif %}>{{ c }}</option>
                     {% endfor %}
