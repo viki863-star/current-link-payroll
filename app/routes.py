@@ -6003,8 +6003,7 @@ def register_routes(app: Flask) -> None:
             loan_summary=_loan_summary(db),
             annual_fee_summary=_annual_fee_summary(db),
             tax_summary=_tax_summary(db),
-            top_receivables=_party_balance_rows(db, invoice_kind="Sales", limit=6),
-            top_payables=_party_balance_rows(db, invoice_kind="Purchase", limit=6),
+            chart_data=_monthly_chart_data(db),
             due_fees=_annual_fee_rows(db, limit=6, due_only=True),
             recent_loans=_loan_rows(db, limit=6),
         )
@@ -15483,6 +15482,21 @@ def _tax_summary(db):
     return {"taxable_sales": output_sales, "output_vat": output_vat, "taxable_purchases": input_purchase, "input_vat": input_vat, "net_vat": output_vat - input_vat}
 
 
+def _monthly_chart_data(db):
+    import datetime
+    year = datetime.date.today().year
+    months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    out = {"months_json": months, "sales": [0.0]*12, "purchases": [0.0]*12, "output_vat": [0.0]*12, "input_vat": [0.0]*12}
+    for kind, key, vat_key in [("Sales","sales","output_vat"), ("Purchase","purchases","input_vat")]:
+        rows = db.execute("SELECT issue_date, subtotal, tax_amount FROM account_invoices WHERE invoice_kind = ? AND issue_date LIKE ?", (kind, f"{year}-%")).fetchall()
+        for r in rows:
+            try:
+                m = int(r["issue_date"].split("-")[1]) - 1
+                out[key][m] += float(r["subtotal"] or 0)
+                out[vat_key][m] += float(r["tax_amount"] or 0)
+            except (IndexError, ValueError, TypeError):
+                pass
+    return out
 def _party_balance_rows(db, invoice_kind: str, limit: int = 8):
     return db.execute(f"SELECT i.party_code, p.party_name, COUNT(*) AS invoice_count, COALESCE(SUM(i.total_amount), 0) AS total_amount, COALESCE(SUM(i.total_amount - COALESCE(pay.paid, 0)), 0) AS balance_amount FROM account_invoices i LEFT JOIN parties p ON p.party_code = i.party_code LEFT JOIN (SELECT invoice_no, SUM(amount) AS paid FROM account_payments GROUP BY invoice_no) pay ON pay.invoice_no = i.invoice_no WHERE i.invoice_kind = ? GROUP BY i.party_code, p.party_name HAVING COALESCE(SUM(i.total_amount), 0) > 0 ORDER BY balance_amount DESC, p.party_name ASC LIMIT {int(limit)}", (invoice_kind,)).fetchall()
 

@@ -2,6 +2,10 @@
 {% block title %}Accounts Dashboard{% endblock %}
 {% block page_title %}Accounts & Finance{% endblock %}
 
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="profile-shell">
 <style>
@@ -12,6 +16,8 @@
 .acc-link { display:flex; align-items:center; gap:14px; text-decoration:none; color:inherit; cursor:pointer; padding:16px; border-radius:12px; border:1px solid var(--line); background:var(--surface); transition:box-shadow 0.15s; }
 .acc-link:hover { box-shadow:0 2px 8px rgba(0,0,0,0.08); }
 .acc-link .icon-box { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; }
+.chart-wrap { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px; }
+.chart-wrap h3 { margin:0 0 12px; font-size:0.95rem; color:var(--heading); }
 </style>
 
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
@@ -48,27 +54,93 @@
     </a>
 </div>
 
-{% if top_receivables %}
-<div class="profile-card">
-    <div class="section-header">
-        <h3>Top Receivables</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div class="chart-wrap">
+        <h3>Monthly NET Sales vs Purchases</h3>
+        <canvas id="salesPurchasesChart" height="200"></canvas>
     </div>
-    <div class="table-wrap">
-        <table class="smart-table">
-            <thead><tr><th>Party</th><th>Code</th><th>Balance</th><th>TRN</th></tr></thead>
-            <tbody>
-                {% for item in top_receivables %}
-                <tr>
-                    <td style="font-weight:600">{{ item.party_name }}</td>
-                    <td class="mono">{{ item.party_code }}</td>
-                    <td class="mono" style="color:#c62828;font-weight:600">AED {{ "%.0f"|format(item.balance_amount) }}</td>
-                    <td class="mono">{{ item.trn_no or '—' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="chart-wrap">
+        <h3>Monthly Output VAT vs Input VAT</h3>
+        <canvas id="vatChart" height="200"></canvas>
     </div>
 </div>
-{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="chart-wrap">
+        <h3>Tax Summary (YTD)</h3>
+        <canvas id="taxDonutChart" height="200"></canvas>
+    </div>
+    <div class="chart-wrap" style="display:flex;flex-direction:column;justify-content:center;padding:24px">
+        <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;">Net VAT Payable</div>
+        <div style="font-size:1.8rem;font-weight:700;margin-top:4px;color:{% if tax_summary.net_vat >= 0 %}#c62828{% else %}#2CB15C{% endif %}">AED {{ "%.0f"|format(tax_summary.net_vat) }}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px">
+            <div><div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">Output VAT</div><div style="font-size:1.1rem;font-weight:600;color:#17345e;">AED {{ "%.0f"|format(tax_summary.output_vat) }}</div></div>
+            <div><div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">Input VAT</div><div style="font-size:1.1rem;font-weight:600;color:#f7931e;">AED {{ "%.0f"|format(tax_summary.input_vat) }}</div></div>
+        </div>
+    </div>
 </div>
+</div>
+
+<script>
+const months = {{ chart_data.months_json|tojson }};
+const salesData = {{ chart_data.sales|tojson }};
+const purchasesData = {{ chart_data.purchases|tojson }};
+const outputVatData = {{ chart_data.output_vat|tojson }};
+const inputVatData = {{ chart_data.input_vat|tojson }};
+
+new Chart(document.getElementById('salesPurchasesChart'), {
+    type: 'bar',
+    data: {
+        labels: months,
+        datasets: [
+            { label: 'NET Sales', data: salesData, backgroundColor: '#255f99', borderRadius: 4 },
+            { label: 'NET Purchases', data: purchasesData, backgroundColor: '#f7931e', borderRadius: 4 }
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12 } } },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => 'AED ' + v.toLocaleString() } } }
+    }
+});
+
+new Chart(document.getElementById('vatChart'), {
+    type: 'bar',
+    data: {
+        labels: months,
+        datasets: [
+            { label: 'Output VAT', data: outputVatData, backgroundColor: '#c62828', borderRadius: 4 },
+            { label: 'Input VAT', data: inputVatData, backgroundColor: '#2CB15C', borderRadius: 4 }
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12 } } },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => 'AED ' + v.toLocaleString() } } }
+    }
+});
+
+new Chart(document.getElementById('taxDonutChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Output VAT', 'Input VAT', 'NET Sales', 'NET Purchases'],
+        datasets: [{
+            data: [
+                {{ tax_summary.output_vat }},
+                {{ tax_summary.input_vat }},
+                {{ tax_summary.taxable_sales }},
+                {{ tax_summary.taxable_purchases }}
+            ],
+            backgroundColor: ['#c62828', '#2CB15C', '#255f99', '#f7931e']
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10 } },
+            tooltip: { callbacks: { label: ctx => ctx.label + ': AED ' + ctx.parsed.toLocaleString() } }
+        }
+    }
+});
+</script>
 {% endblock %}
