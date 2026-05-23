@@ -111,6 +111,48 @@ def hr_dashboard():
         return f"<h2>HR Dashboard Error</h2><pre>{e}\n\n{tb}</pre>", 500
 
 
+# ── Employee Report ──────────────────────────────────────────────
+
+@hr_bp.route("/hr/employee-report")
+@_login_required("admin")
+def employee_report():
+    try:
+        _touch_admin_workspace("hr")
+        ensure_employees_table()
+        db = open_db()
+
+        employees = db.execute(
+            "SELECT employee_id, full_name, department, designation, basic_salary, status, join_date FROM employees ORDER BY full_name"
+        ).fetchall()
+
+        total = len(employees)
+        active = sum(1 for e in employees if (e["status"] or "").lower() == "active")
+        total_salary = sum(float(e["basic_salary"] or 0) for e in employees if (e["status"] or "").lower() == "active")
+
+        month = f"{date.today().year}-{date.today().month:02d}"
+        advances = db.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE txn_type IN ('advance','loan')"
+        ).fetchone()[0]
+
+        stored_count = db.execute(
+            "SELECT COUNT(*) FROM salary_store WHERE salary_month = ?", (month,)
+        ).fetchone()[0]
+
+        return render_template(
+            "hr/employee_report.html",
+            employees=employees,
+            total=total,
+            active_count=active,
+            total_salary=total_salary,
+            advances_total=float(advances or 0),
+            stored_count=stored_count,
+        )
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return f"<h2>Employee Report Error</h2><pre>{e}\n\n{tb}</pre>", 500
+
+
 # ── Employee List ────────────────────────────────────────────────
 
 @hr_bp.route("/hr/employees")
