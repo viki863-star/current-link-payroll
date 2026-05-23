@@ -6013,37 +6013,27 @@ def register_routes(app: Flask) -> None:
         pdb = _open_payroll_db()
         if pdb:
             try:
-                rows = pdb.execute("SELECT invoice_date, amount, vat_amount FROM customer_invoices").fetchall()
-                for r in rows:
-                    try:
-                        parts = r["invoice_date"].split("-")
-                        if len(parts) >= 2:
-                            m = int(parts[1]) - 1
-                            chart_sales[m] += float(r["amount"] or 0)
-                            chart_output_vat[m] += float(r["vat_amount"] or 0)
-                    except (IndexError, ValueError, TypeError):
-                        pass
+                crows = pdb.execute("SELECT CAST(SUBSTR(invoice_date, 6, 2) AS INTEGER) AS mon, amount, vat_amount FROM customer_invoices").fetchall()
+                for r in crows:
+                    m = int(r["mon"]) - 1
+                    if 0 <= m < 12:
+                        chart_sales[m] += float(r["amount"] or 0)
+                        chart_output_vat[m] += float(r["vat_amount"] or 0)
                 cust_count = int(pdb.execute("SELECT COUNT(*) FROM customers").fetchone()[0])
                 recv_total = float(pdb.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices").fetchone()[0])
-                open_sales = int(pdb.execute("SELECT COUNT(*) FROM customer_invoices WHERE status != 'Paid'").fetchone()[0])
                 cust_inv_count = int(pdb.execute("SELECT COUNT(*) FROM customer_invoices").fetchone()[0])
             except Exception:
                 pass
             pdb.close()
         # Supplier data from main DB (supplier_invoices table)
         try:
-            rows = db.execute("SELECT invoice_date, amount, vat_amount FROM supplier_invoices").fetchall()
-            for r in rows:
-                try:
-                    parts = r["invoice_date"].split("-")
-                    if len(parts) >= 2:
-                        m = int(parts[1]) - 1
-                        chart_purchases[m] += float(r["amount"] or 0)
-                        chart_input_vat[m] += float(r["vat_amount"] or 0)
-                except (IndexError, ValueError, TypeError):
-                    pass
+            srows = db.execute("SELECT CAST(SUBSTR(invoice_date, 6, 2) AS INTEGER) AS mon, amount, vat_amount FROM supplier_invoices").fetchall()
+            for r in srows:
+                m = int(r["mon"]) - 1
+                if 0 <= m < 12:
+                    chart_purchases[m] += float(r["amount"] or 0)
+                    chart_input_vat[m] += float(r["vat_amount"] or 0)
             pay_total = float(db.execute("SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices").fetchone()[0])
-            open_purchases = int(db.execute("SELECT COUNT(*) FROM supplier_invoices WHERE status != 'Paid'").fetchone()[0])
             supp_inv_count = int(db.execute("SELECT COUNT(*) FROM supplier_invoices").fetchone()[0])
         except Exception:
             pass
@@ -15560,7 +15550,6 @@ def _monthly_chart_data(db):
 
 
 def _open_payroll_db():
-    import sqlite3
     db_path = current_app.config.get("DATABASE") or "payroll.db"
     db = sqlite3.connect(db_path)
     db.row_factory = sqlite3.Row
