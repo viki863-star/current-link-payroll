@@ -1267,10 +1267,16 @@ def settings():
 @customer_bp.route("/download-backup")
 def download_db_backup():
     import glob
+    from ..backup_service import create_backup_now, latest_backup_file
     root = current_app.config.get("GENERATED_BACKUP_DIR") or os.path.join(os.path.dirname(current_app.config.get("DATABASE", "payroll.db")), "backups")
     if not os.path.isdir(root):
-        flash("Backup directory not found.", "error")
-        return redirect(url_for("customer.settings"))
+        os.makedirs(root, exist_ok=True)
+    files = sorted(glob.glob(os.path.join(root, "**", "*.sql"), recursive=True) + glob.glob(os.path.join(root, "**", "*.zip"), recursive=True), key=os.path.getmtime, reverse=True)
+    if not files:
+        result = create_backup_now("daily", current_app)
+        if not result["ok"]:
+            flash(result["message"], "error")
+            return redirect(url_for("customer.settings"))
     files = sorted(glob.glob(os.path.join(root, "**", "*.sql"), recursive=True) + glob.glob(os.path.join(root, "**", "*.zip"), recursive=True), key=os.path.getmtime, reverse=True)
     if not files:
         flash("No backup file available.", "error")
