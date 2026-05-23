@@ -87,7 +87,7 @@
                     <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color:var(--muted)">
                         <path d="M5.293 7.293a1 1 0 0 1 1.414 0L10 10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 0-1.414z"/>
                     </svg>
-                    <div class="profile-dropdown-menu" id="profileMenu">
+                    <div class="profile-dropdown-menu" id="profileMenu" style="display:none">
                         <div class="profile-dropdown-header">
                             <strong>{{ current_user_name or "Admin" }}</strong>
                             <span class="profile-dropdown-role">{{ current_role|capitalize }}</span>
@@ -173,9 +173,16 @@
     if (profile && menu) {
         profile.addEventListener('click', function(e) {
             e.stopPropagation();
-            menu.classList.toggle('is-open');
+            if (menu.style.display === 'none' || !menu.style.display || menu.style.display === '') {
+                menu.style.display = 'block';
+                menu.classList.add('is-open');
+            } else {
+                menu.style.display = 'none';
+                menu.classList.remove('is-open');
+            }
         });
         document.addEventListener('click', function() {
+            menu.style.display = 'none';
             menu.classList.remove('is-open');
         });
         menu.addEventListener('click', function(e) {
