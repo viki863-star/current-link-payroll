@@ -1745,6 +1745,89 @@ def register_routes(app: Flask) -> None:
             backup_summary=backup_summary,
         )
 
+    @app.route("/search")
+    @_login_required("admin")
+    def global_search():
+        _touch_admin_workspace("universal")
+        q = request.args.get("q", "").strip()
+        json_mode = request.args.get("json")
+        if not q:
+            if json_mode:
+                return {"results": []}
+            return redirect(url_for("dashboard"))
+        db = open_db()
+
+        results = []
+        seen = set()
+
+        # employees
+        for row in db.execute(
+            "SELECT employee_id AS id, full_name AS name, 'employee' AS type, employee_id AS label FROM employees WHERE employee_id LIKE ? OR full_name LIKE ? OR phone_number LIKE ? LIMIT 10",
+            (f"%{q}%", f"%{q}%", f"%{q}%"),
+        ).fetchall():
+            key = ("employee", row["id"])
+            if key not in seen:
+                seen.add(key)
+                results.append(dict(row))
+
+        # drivers
+        for row in db.execute(
+            "SELECT driver_id AS id, full_name AS name, 'driver' AS type, vehicle_no AS label FROM drivers WHERE driver_id LIKE ? OR full_name LIKE ? OR phone_number LIKE ? OR vehicle_no LIKE ? LIMIT 10",
+            (f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"),
+        ).fetchall():
+            key = ("driver", row["id"])
+            if key not in seen:
+                seen.add(key)
+                results.append(dict(row))
+
+        # customers
+        for row in db.execute(
+            "SELECT party_code AS id, party_name AS name, 'customer' AS type, party_code AS label FROM parties WHERE party_type='customer' AND (party_code LIKE ? OR party_name LIKE ?) LIMIT 10",
+            (f"%{q}%", f"%{q}%"),
+        ).fetchall():
+            key = ("customer", row["id"])
+            if key not in seen:
+                seen.add(key)
+                results.append(dict(row))
+
+        # suppliers
+        for row in db.execute(
+            "SELECT party_code AS id, party_name AS name, 'supplier' AS type, party_code AS label FROM parties WHERE party_type='supplier' AND (party_code LIKE ? OR party_name LIKE ?) LIMIT 10",
+            (f"%{q}%", f"%{q}%"),
+        ).fetchall():
+            key = ("supplier", row["id"])
+            if key not in seen:
+                seen.add(key)
+                results.append(dict(row))
+
+        # invoices
+        for row in db.execute(
+            "SELECT invoice_no AS id, company_name AS name, 'invoice' AS type, invoice_no AS label FROM customer_invoices WHERE invoice_no LIKE ? LIMIT 10",
+            (f"%{q}%",),
+        ).fetchall():
+            key = ("invoice", row["id"])
+            if key not in seen:
+                seen.add(key)
+                results.append(dict(row))
+
+        if json_mode:
+            return {"results": results}
+
+        if len(results) == 1:
+            r = results[0]
+            if r["type"] == "employee":
+                return redirect(url_for("hr.employee_detail", employee_id=r["id"]))
+            if r["type"] == "driver":
+                return redirect(url_for("driver_detail", driver_id=r["id"]))
+            if r["type"] == "customer":
+                return redirect(url_for("party_detail", party_code=r["id"]))
+            if r["type"] == "supplier":
+                return redirect(url_for("party_detail", party_code=r["id"]))
+            if r["type"] == "invoice":
+                return redirect(url_for("customer.invoice_view", invoice_no=r["id"]))
+
+        return render_template("search_results.html", query=q, results=results)
+
     @app.get("/admin/backups")
     @_login_required("admin")
     def admin_backups():

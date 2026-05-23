@@ -64,11 +64,12 @@
             </div>
             {% else %}
             <div class="topbar-center">
-                <div class="topbar-search">
+                <div class="topbar-search js-search-wrap">
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15">
                         <circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/>
                     </svg>
-                    <input type="text" placeholder="Search drivers, suppliers, invoices..." id="globalSearch">
+                    <input type="text" placeholder="Search drivers, suppliers, invoices..." id="globalSearch" autocomplete="off">
+                    <div class="search-dropdown" id="searchDropdown"></div>
                 </div>
             </div>
             {% endif %}
@@ -145,6 +146,100 @@ if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js', v='20260416d') }}");
     });
 }
+
+(function(){
+    var input = document.getElementById('globalSearch');
+    var dropdown = document.getElementById('searchDropdown');
+    if (!input || !dropdown) return;
+    var timer, activeIdx = -1;
+
+    function fetchResults(q, cb) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/search?q=' + encodeURIComponent(q) + '&json=1');
+        xhr.onload = function(){
+            if (xhr.status === 200) {
+                try { cb(JSON.parse(xhr.responseText).results); } catch(e) { cb([]); }
+            } else { cb([]); }
+        };
+        xhr.onerror = function(){ cb([]); };
+        xhr.send();
+    }
+
+    function renderDropdown(results) {
+        dropdown.innerHTML = '';
+        activeIdx = -1;
+        if (!results || results.length === 0) { dropdown.classList.remove('is-open'); return; }
+        var list = document.createElement('div');
+        list.className = 'search-dropdown-list';
+        results.forEach(function(r, i){
+            var item = document.createElement('a');
+            item.className = 'search-dropdown-item';
+            item.href = (function(){
+                if (r.type === 'employee') return '/hr/employees/' + encodeURIComponent(r.id);
+                if (r.type === 'driver') return '/drivers/' + encodeURIComponent(r.id);
+                if (r.type === 'customer' || r.type === 'supplier') return '/parties/' + encodeURIComponent(r.id);
+                if (r.type === 'invoice') return '/customer/invoice/' + encodeURIComponent(r.id);
+                return '#';
+            })();
+            var badge = document.createElement('span');
+            badge.className = 'search-dropdown-badge';
+            badge.textContent = r.type;
+            var nameSpan = document.createElement('span');
+            nameSpan.className = 'search-dropdown-name';
+            nameSpan.textContent = r.name;
+            var labelSpan = document.createElement('span');
+            labelSpan.className = 'search-dropdown-label';
+            labelSpan.textContent = r.label || r.id;
+            item.appendChild(badge);
+            item.appendChild(nameSpan);
+            item.appendChild(labelSpan);
+            item.addEventListener('click', function(){ dropdown.classList.remove('is-open'); });
+            list.appendChild(item);
+        });
+        dropdown.appendChild(list);
+        dropdown.classList.add('is-open');
+    }
+
+    input.addEventListener('input', function(){
+        var val = input.value.trim();
+        if (val.length < 1) { dropdown.classList.remove('is-open'); return; }
+        clearTimeout(timer);
+        timer = setTimeout(function(){
+            fetchResults(val, renderDropdown);
+        }, 250);
+    });
+
+    input.addEventListener('keydown', function(e){
+        var items = dropdown.querySelectorAll('.search-dropdown-item');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIdx = Math.min(activeIdx + 1, items.length - 1);
+            items.forEach(function(el, i){ el.classList.toggle('is-active', i === activeIdx); });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIdx = Math.max(activeIdx - 1, -1);
+            items.forEach(function(el, i){ el.classList.toggle('is-active', i === activeIdx); });
+        } else if (e.key === 'Enter') {
+            if (activeIdx >= 0 && items[activeIdx]) {
+                window.location.href = items[activeIdx].href;
+                return;
+            }
+            var val = input.value.trim();
+            if (val) window.location.href = '/search?q=' + encodeURIComponent(val);
+        } else if (e.key === 'Escape') {
+            dropdown.classList.remove('is-open');
+            input.blur();
+        }
+    });
+
+    input.addEventListener('blur', function(){
+        setTimeout(function(){ dropdown.classList.remove('is-open'); }, 200);
+    });
+    input.addEventListener('focus', function(){
+        var val = input.value.trim();
+        if (val.length >= 1) fetchResults(val, renderDropdown);
+    });
+})();
 </script>
 </body>
 </html>
