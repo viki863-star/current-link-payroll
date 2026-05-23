@@ -9916,16 +9916,24 @@ textarea.form-control {
     .topbar-search input { font-size: 0.78rem; }
     .topbar-right { gap: 4px; }
     .topbar-icon-btn { width: 32px; height: 32px; }
+    .profile-dropdown-menu { min-width: 200px; right: -8px; }
+    .profile-dropdown-item { padding: 10px 12px; font-size: 0.85rem; }
 }
 @media (max-width: 480px) {
     .topbar { padding: 0 8px; gap: 4px; height: 50px; }
     .topbar-breadcrumb { font-size: 0.72rem; gap: 4px; }
     .topbar-breadcrumb span { font-size: 0.74rem; }
     .topbar-center nav { display: none; }
-    .topbar-search { width: min(200px, 100%); height: 32px; padding: 0 10px; }
-    .topbar-search input { font-size: 0.74rem; }
+    .topbar-search { width: min(160px, 100%); height: 30px; padding: 0 10px; }
+    .topbar-search input { font-size: 0.72rem; }
     .topbar-profile-avatar { width: 28px; height: 28px; font-size: 0.7rem; border-radius: 6px; }
-    .topbar-left { gap: 8px; }
+    .topbar-left { gap: 6px; }
+    .topbar-right { gap: 2px; }
+    .topbar-icon-btn { width: 28px; height: 28px; }
+    .topbar-icon-btn svg { width: 15px; height: 15px; }
+    .profile-dropdown-menu { min-width: 180px; right: -4px; position: fixed; top: 56px; }
+    .profile-dropdown-item { padding: 12px 10px; font-size: 0.88rem; }
+    .profile-dropdown-header strong { font-size: 0.9rem; }
 }
 
 .mono.red { color: #d32f2f; }
