@@ -131,10 +131,13 @@ def employee_list():
         f"""
         SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
                e.department, e.designation, e.join_date, e.basic_salary, e.status, e.photo_name,
-               (SELECT v.plate_no FROM vehicle_assignments va
-                JOIN vehicles v ON v.plate_no = va.vehicle_id
-                WHERE va.driver_id = e.employee_id
-                ORDER BY va.id DESC LIMIT 1) AS plate_no
+               COALESCE(
+                   (SELECT v.plate_no FROM vehicle_assignments va
+                    JOIN vehicles v ON v.plate_no = va.vehicle_id
+                    WHERE va.driver_id = e.employee_id
+                    ORDER BY va.id DESC LIMIT 1),
+                   (SELECT d.vehicle_no FROM drivers d WHERE d.driver_id = e.employee_id LIMIT 1)
+               ) AS plate_no
         FROM employees e
         {where_sql}
         ORDER BY CASE WHEN e.status = 'Active' THEN 0 ELSE 1 END, e.full_name ASC
