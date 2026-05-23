@@ -148,7 +148,7 @@ def employee_search_filter(query, status_filter, department_filter, employee_typ
 
     if query:
         conditions.append(
-            "(e.employee_id LIKE ? OR e.full_name LIKE ? OR e.phone_number LIKE ? OR e.department LIKE ? OR e.designation LIKE ? OR va_latest.plate_no LIKE ?)"
+            "(e.employee_id LIKE ? OR e.full_name LIKE ? OR e.phone_number LIKE ? OR e.department LIKE ? OR e.designation LIKE ? OR EXISTS (SELECT 1 FROM vehicle_assignments va2 JOIN vehicles v2 ON v2.plate_no = va2.vehicle_id WHERE va2.driver_id = e.employee_id AND v2.plate_no LIKE ?))"
         )
         like_q = f"%{query}%"
         params.extend([like_q, like_q, like_q, like_q, like_q, like_q])

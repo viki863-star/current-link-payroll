@@ -129,21 +129,15 @@ def employee_list():
 
     employees = db.execute(
         f"""
-        SELECT DISTINCT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
+        SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
                e.department, e.designation, e.join_date, e.basic_salary, e.status, e.photo_name,
-               va_latest.plate_no,
-               CASE WHEN e.status = 'Active' THEN 0 ELSE 1 END AS sort_order
+               (SELECT v.plate_no FROM vehicle_assignments va
+                JOIN vehicles v ON v.plate_no = va.vehicle_id
+                WHERE va.driver_id = e.employee_id
+                ORDER BY va.id DESC LIMIT 1) AS plate_no
         FROM employees e
-        LEFT JOIN (
-            SELECT va.driver_id, v.plate_no
-            FROM vehicle_assignments va
-            JOIN vehicles v ON v.plate_no = va.vehicle_id
-            WHERE va.id IN (
-                SELECT MAX(id) FROM vehicle_assignments GROUP BY driver_id
-            )
-        ) va_latest ON va_latest.driver_id = e.employee_id
         {where_sql}
-        ORDER BY sort_order, e.full_name ASC
+        ORDER BY CASE WHEN e.status = 'Active' THEN 0 ELSE 1 END, e.full_name ASC
         """,
         params,
     ).fetchall()
