@@ -1804,14 +1804,17 @@ def register_routes(app: Flask) -> None:
                 results.append(dict(row))
 
         # invoices
-        for row in db.execute(
-            "SELECT invoice_no AS id, company_name AS name, 'invoice' AS type, invoice_no AS label FROM customer_invoices WHERE invoice_no LIKE ? LIMIT 10",
-            (f"%{q}%",),
-        ).fetchall():
-            key = ("invoice", row["id"])
-            if key not in seen:
-                seen.add(key)
-                results.append(dict(row))
+        try:
+            for row in db.execute(
+                "SELECT invoice_no AS id, company_name AS name, 'invoice' AS type, invoice_no AS label FROM customer_invoices WHERE invoice_no LIKE ? LIMIT 10",
+                (f"%{q}%",),
+            ).fetchall():
+                key = ("invoice", row["id"])
+                if key not in seen:
+                    seen.add(key)
+                    results.append(dict(row))
+        except Exception:
+            pass
 
         if json_mode:
             return {"results": results}
