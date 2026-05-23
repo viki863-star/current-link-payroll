@@ -521,8 +521,15 @@ def staff_job_new():
         try:
             from app.notification_service import add_notification
             add_notification(
+                title=f"Job submitted for approval",
+                type="success",
+                role="technician",
+                message=f"{category} — AED {amount} on {vehicle_id or 'N/A'}",
+            )
+            add_notification(
                 title=f"New job submitted by {session.get('staff_name','Field Staff')}",
                 type="pending_approvals",
+                role="admin",
                 message=f"{category} — AED {amount} on {vehicle_id or 'N/A'}",
                 link="/fleet/approvals",
             )
@@ -1247,8 +1254,23 @@ def fleet_job_approve(job_id):
         add_notification(
             title=f"Job #{job_id} approved",
             type="success",
+            role="admin",
             message=job.get("category","") + " — AED " + str(job.get("amount","")),
             link="/fleet/approvals",
+        )
+        try:
+            staff_id = job.get("staff_id")
+            staff_name = "Technician"
+            if staff_id:
+                s = db.execute("SELECT full_name FROM field_staff WHERE staff_id=?", (staff_id,)).fetchone()
+                if s: staff_name = s[0]
+        except:
+            staff_name = "Technician"
+        add_notification(
+            title=f"Job #{job_id} approved by admin",
+            type="success",
+            role="technician",
+            message=job.get("category","") + " — AED " + str(job.get("amount","")),
         )
     except:
         pass
@@ -1272,8 +1294,20 @@ def fleet_job_reject(job_id):
         add_notification(
             title=f"Job #{job_id} rejected",
             type="error",
+            role="admin",
             message=notes,
             link="/fleet/approvals",
+        )
+        try:
+            job = db.execute("SELECT * FROM maintenance_jobs WHERE id = ?", (job_id,)).fetchone()
+            staff_id = job.get("staff_id") if job else None
+        except:
+            staff_id = None
+        add_notification(
+            title=f"Job #{job_id} rejected by admin",
+            type="error",
+            role="technician",
+            message=notes,
         )
     except:
         pass

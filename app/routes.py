@@ -1999,47 +1999,49 @@ def register_routes(app: Flask) -> None:
         return redirect(url_for("admin_backups"))
 
     @app.route("/notifications")
-    @_login_required("admin")
+    @_login_required()
     def notification_list():
         from .notification_service import get_unread_notifications, unread_count, add_notification
         from .database import open_db
+        role = _current_role() or "admin"
         try:
             db = open_db()
             pending = db.execute("SELECT COUNT(*) FROM maintenance_jobs WHERE status='pending'").fetchone()[0]
-            if pending > 0:
-                existing = db.execute("SELECT COUNT(*) FROM notifications WHERE type=? AND is_read=0", ("pending_approvals",)).fetchone()[0]
+            if pending > 0 and role == "admin":
+                existing = db.execute("SELECT COUNT(*) FROM notifications WHERE type=? AND role=? AND is_read=0", ("pending_approvals", "admin")).fetchone()[0]
                 if existing == 0:
                     add_notification(
                         title=f"{pending} field staff job{'s' if pending>1 else ''} pending approval",
                         type="pending_approvals",
+                        role="admin",
                         message="Review and approve/reject pending maintenance jobs",
                         link="/fleet/approvals",
                     )
             db.close()
         except:
             pass
-        notifs = get_unread_notifications()
-        count = unread_count()
+        notifs = get_unread_notifications(role=role)
+        count = unread_count(role=role)
         return {"notifications": notifs, "unread": count}
 
     @app.route("/notifications/unread-count")
-    @_login_required("admin")
+    @_login_required()
     def notification_unread_count():
         from .notification_service import unread_count
-        return {"unread": unread_count()}
+        return {"unread": unread_count(role=_current_role() or "admin")}
 
     @app.route("/notifications/read/<int:notif_id>", methods=["POST"])
-    @_login_required("admin")
+    @_login_required()
     def notification_mark_read(notif_id):
         from .notification_service import mark_as_read
         mark_as_read(notif_id)
         return {"ok": True}
 
     @app.route("/notifications/read-all", methods=["POST"])
-    @_login_required("admin")
+    @_login_required()
     def notification_mark_all_read():
         from .notification_service import mark_all_read
-        mark_all_read()
+        mark_all_read(role=_current_role() or "admin")
         return {"ok": True}
 
     @app.route("/company-setup", methods=["GET", "POST"])
