@@ -26,53 +26,54 @@
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px;">
         <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Taxable Sales</div>
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total NET Sales</div>
             <div style="margin-top:8px;font-size:22px;font-weight:800;color:#17345e;">AED {{ "{:,.2f}".format(total_taxable) }}</div>
         </div>
         <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Output VAT</div>
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total VAT</div>
             <div style="margin-top:8px;font-size:22px;font-weight:800;color:#f7931e;">AED {{ "{:,.2f}".format(total_vat) }}</div>
         </div>
         <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Invoiced (incl. VAT)</div>
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total GROSS Sales</div>
             <div style="margin-top:8px;font-size:22px;font-weight:800;color:#2CB15C;">AED {{ "{:,.2f}".format(total_invoiced) }}</div>
+        </div>
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Invoices</div>
+            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#17345e;">{{ invoices|length }}</div>
         </div>
     </div>
 
-    <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow:hidden;">
-        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+    <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:700px;">
             <thead>
                 <tr style="background:#f5f8fe;text-align:left">
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">Customer</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">Code</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">TRN</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:center">Invoices</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right">Taxable (AED)</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right">VAT (AED)</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right">Total (AED)</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">DATE</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">INVOICE NO</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">DETAIL</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">NET Sale</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">VAT</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">GROSS Sale</th>
                 </tr>
             </thead>
             <tbody>
-                {% for c in customers %}
+                {% for inv in invoices %}
                 <tr style="border-top:1px solid #eef3fa">
-                    <td style="padding:10px 14px;font-weight:600;color:#17345e;">{{ c.customer_name }}</td>
-                    <td style="padding:10px 14px;color:#7b92b6;">{{ c.customer_code or '—' }}</td>
-                    <td style="padding:10px 14px;color:#7b92b6;">{{ c.trn or '—' }}</td>
-                    <td style="padding:10px 14px;text-align:center;font-weight:600;">{{ c.invoice_count }}</td>
-                    <td style="padding:10px 14px;text-align:right;">{{ "{:,.2f}".format(c.total_taxable) }}</td>
-                    <td style="padding:10px 14px;text-align:right;color:#f7931e;">{{ "{:,.2f}".format(c.total_vat) }}</td>
-                    <td style="padding:10px 14px;text-align:right;font-weight:600;">{{ "{:,.2f}".format(c.total_invoiced) }}</td>
+                    <td style="padding:10px 14px;white-space:nowrap;">{{ inv.invoice_date }}</td>
+                    <td style="padding:10px 14px;white-space:nowrap;font-weight:600;">{{ inv.invoice_no or '—' }}</td>
+                    <td style="padding:10px 14px;color:#17345e;">{{ inv.customer_name }}</td>
+                    <td style="padding:10px 14px;text-align:right;">{{ "{:,.2f}".format(inv.net_sale) }}</td>
+                    <td style="padding:10px 14px;text-align:right;color:#f7931e;">{{ "{:,.2f}".format(inv.vat_amount) }}</td>
+                    <td style="padding:10px 14px;text-align:right;font-weight:600;">{{ "{:,.2f}".format(inv.total_amount) }}</td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" style="padding:32px;text-align:center;color:#a0b5cf;">No customer data found.</td>
+                    <td colspan="6" style="padding:32px;text-align:center;color:#a0b5cf;">No invoices found.</td>
                 </tr>
                 {% endfor %}
             </tbody>
             <tfoot>
                 <tr style="background:#f5f8fe;font-weight:700">
-                    <td colspan="3" style="padding:12px 14px;color:#17345e;">Totals</td>
-                    <td style="padding:12px 14px;text-align:center;">{{ customers|length }}</td>
+                    <td colspan="3" style="padding:12px 14px;color:#17345e;">TOTALS</td>
                     <td style="padding:12px 14px;text-align:right;">{{ "{:,.2f}".format(total_taxable) }}</td>
                     <td style="padding:12px 14px;text-align:right;color:#f7931e;">{{ "{:,.2f}".format(total_vat) }}</td>
                     <td style="padding:12px 14px;text-align:right;">{{ "{:,.2f}".format(total_invoiced) }}</td>

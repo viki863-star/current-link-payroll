@@ -1308,6 +1308,30 @@ def customer_tax_report():
         GROUP BY c.id
         ORDER BY c.customer_name
     """, params).fetchall()
+    invoices = db.execute(f"""
+        SELECT i.invoice_date, i.invoice_no, c.customer_name,
+               i.amount AS net_sale, i.vat_amount, i.total_amount
+        FROM customer_invoices i
+        JOIN customers c ON c.id = i.customer_id
+        WHERE 1=1 {where.replace('i.','')}
+        ORDER BY i.invoice_date DESC, i.invoice_no DESC
+    """, params).fetchall()
+    invoices_where = ""
+    invoices_params = []
+    if from_filter:
+        invoices_where += " AND i.invoice_date >= ?"
+        invoices_params.append(from_filter)
+    if to_filter:
+        invoices_where += " AND i.invoice_date <= ?"
+        invoices_params.append(to_filter)
+    invoices = db.execute(f"""
+        SELECT i.invoice_date, i.invoice_no, c.customer_name,
+               i.amount AS net_sale, i.vat_amount, i.total_amount
+        FROM customer_invoices i
+        JOIN customers c ON c.id = i.customer_id
+        WHERE 1=1 {invoices_where}
+        ORDER BY i.invoice_date DESC, i.invoice_no DESC
+    """, invoices_params).fetchall()
     total_taxable = sum(r["total_taxable"] for r in customers)
     total_vat = sum(r["total_vat"] for r in customers)
     total_invoiced = sum(r["total_invoiced"] for r in customers)
@@ -1315,6 +1339,7 @@ def customer_tax_report():
     return render_template(
         "customer/tax_report.html",
         customers=customers,
+        invoices=invoices,
         total_taxable=total_taxable,
         total_vat=total_vat,
         total_invoiced=total_invoiced,
