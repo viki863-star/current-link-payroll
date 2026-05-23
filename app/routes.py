@@ -15483,17 +15483,17 @@ def _tax_summary(db):
 
 
 def _monthly_chart_data(db):
-    import datetime
-    year = datetime.date.today().year
     months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     out = {"months_json": months, "sales": [0.0]*12, "purchases": [0.0]*12, "output_vat": [0.0]*12, "input_vat": [0.0]*12}
     for kind, key, vat_key in [("Sales","sales","output_vat"), ("Purchase","purchases","input_vat")]:
-        rows = db.execute("SELECT issue_date, subtotal, tax_amount FROM account_invoices WHERE invoice_kind = ? AND issue_date LIKE ?", (kind, f"{year}-%")).fetchall()
+        rows = db.execute("SELECT issue_date, subtotal, tax_amount FROM account_invoices WHERE invoice_kind = ?", (kind,)).fetchall()
         for r in rows:
             try:
-                m = int(r["issue_date"].split("-")[1]) - 1
-                out[key][m] += float(r["subtotal"] or 0)
-                out[vat_key][m] += float(r["tax_amount"] or 0)
+                parts = r["issue_date"].split("-")
+                if len(parts) >= 2:
+                    m = int(parts[1]) - 1
+                    out[key][m] += float(r["subtotal"] or 0)
+                    out[vat_key][m] += float(r["tax_amount"] or 0)
             except (IndexError, ValueError, TypeError):
                 pass
     return out
