@@ -1782,7 +1782,7 @@ def register_routes(app: Flask) -> None:
 
         # customers
         for row in db.execute(
-            "SELECT party_code AS id, party_name AS name, 'customer' AS type, party_code AS label FROM parties WHERE party_roles LIKE '%Customer%' AND (party_code LIKE ? OR party_name LIKE ?) LIMIT 10",
+            "SELECT party_code AS id, party_name AS name, 'customer' AS type, party_code AS label FROM parties WHERE party_roles LIKE '%%Customer%%' AND (party_code LIKE ? OR party_name LIKE ?) LIMIT 10",
             (f"%{q}%", f"%{q}%"),
         ).fetchall():
             key = ("customer", row["id"])
@@ -1792,7 +1792,7 @@ def register_routes(app: Flask) -> None:
 
         # suppliers
         for row in db.execute(
-            "SELECT party_code AS id, party_name AS name, 'supplier' AS type, party_code AS label FROM parties WHERE party_roles LIKE '%Supplier%' AND (party_code LIKE ? OR party_name LIKE ?) LIMIT 10",
+            "SELECT party_code AS id, party_name AS name, 'supplier' AS type, party_code AS label FROM parties WHERE party_roles LIKE '%%Supplier%%' AND (party_code LIKE ? OR party_name LIKE ?) LIMIT 10",
             (f"%{q}%", f"%{q}%"),
         ).fetchall():
             key = ("supplier", row["id"])
