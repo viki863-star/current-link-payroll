@@ -1263,3 +1263,16 @@ def settings():
     company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     db.close()
     return render_template("customer/settings.html", company=company)
+
+@customer_bp.route("/download-backup")
+def download_db_backup():
+    import glob
+    root = current_app.config.get("GENERATED_BACKUP_DIR") or os.path.join(os.path.dirname(current_app.config.get("DATABASE", "payroll.db")), "backups")
+    if not os.path.isdir(root):
+        flash("Backup directory not found.", "error")
+        return redirect(url_for("customer.settings"))
+    files = sorted(glob.glob(os.path.join(root, "**", "*.sql"), recursive=True) + glob.glob(os.path.join(root, "**", "*.zip"), recursive=True), key=os.path.getmtime, reverse=True)
+    if not files:
+        flash("No backup file available.", "error")
+        return redirect(url_for("customer.settings"))
+    return send_file(files[0], as_attachment=True)
