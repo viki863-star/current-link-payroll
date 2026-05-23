@@ -6007,6 +6007,8 @@ def register_routes(app: Flask) -> None:
         pay_total = 0.0
         open_sales = 0
         open_purchases = 0
+        cust_inv_count = 0
+        supp_inv_count = 0
         # Customer data from SQLite payroll.db
         pdb = _open_payroll_db()
         if pdb:
@@ -6024,26 +6026,30 @@ def register_routes(app: Flask) -> None:
                 cust_count = int(pdb.execute("SELECT COUNT(*) FROM customers").fetchone()[0])
                 recv_total = float(pdb.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices").fetchone()[0])
                 open_sales = int(pdb.execute("SELECT COUNT(*) FROM customer_invoices WHERE status != 'Paid'").fetchone()[0])
+                cust_inv_count = int(pdb.execute("SELECT COUNT(*) FROM customer_invoices").fetchone()[0])
             except Exception:
                 pass
             pdb.close()
-        # Supplier data from main DB (supplier blueprint uses open_db)
+        # Supplier data from main DB (supplier_invoices table)
         try:
-            rows = db.execute("SELECT issue_date, subtotal, tax_amount FROM account_invoices WHERE invoice_kind = 'Purchase'").fetchall()
+            rows = db.execute("SELECT invoice_date, amount, vat_amount FROM supplier_invoices").fetchall()
             for r in rows:
                 try:
-                    parts = r["issue_date"].split("-")
+                    parts = r["invoice_date"].split("-")
                     if len(parts) >= 2:
                         m = int(parts[1]) - 1
-                        chart_purchases[m] += float(r["subtotal"] or 0)
-                        chart_input_vat[m] += float(r["tax_amount"] or 0)
+                        chart_purchases[m] += float(r["amount"] or 0)
+                        chart_input_vat[m] += float(r["vat_amount"] or 0)
                 except (IndexError, ValueError, TypeError):
                     pass
+            pay_total = float(db.execute("SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices").fetchone()[0])
+            open_purchases = int(db.execute("SELECT COUNT(*) FROM supplier_invoices WHERE status != 'Paid'").fetchone()[0])
+            supp_inv_count = int(db.execute("SELECT COUNT(*) FROM supplier_invoices").fetchone()[0])
         except Exception:
             pass
         ssupp = _supplier_summary(db)
         payroll_chart = {"months": months, "sales": chart_sales, "purchases": chart_purchases, "output_vat": chart_output_vat, "input_vat": chart_input_vat}
-        payroll_summ = {"customer_count": cust_count, "supplier_count": ssupp["supplier_count"], "receivable_total": recv_total, "payable_total": ssupp["payable_total"], "open_sales": open_sales, "open_purchases": ssupp["open_purchase_invoices"]}
+        payroll_summ = {"customer_count": cust_count, "supplier_count": ssupp["supplier_count"], "receivable_total": recv_total, "payable_total": pay_total, "open_sales": open_sales, "open_purchases": open_purchases, "cust_inv_count": cust_inv_count, "supp_inv_count": supp_inv_count}
         return render_template(
             "reports_center.html",
             supplier_summary=_supplier_summary(db),
