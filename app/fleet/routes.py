@@ -388,7 +388,7 @@ def vehicle_profile(plate_no):
         active_tab=active_tab,
         highlight=highlight,
         driver_history=driver_history,
-        approved_jobs=approved_jobs,
+        approved_jobs=approved_jobs_list,
         maintenance_papers_list=maintenance_papers_list,
         combined_jobs=combined,
         all_drivers=_all_employees_drivers(),
