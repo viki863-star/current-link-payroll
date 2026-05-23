@@ -818,6 +818,17 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no),
     FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
 );
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role TEXT NOT NULL DEFAULT 'admin',
+    type TEXT NOT NULL DEFAULT 'info',
+    title TEXT NOT NULL,
+    message TEXT,
+    link TEXT,
+    is_read INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -1591,6 +1602,17 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     approved_at TIMESTAMP,
     FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no),
     FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGSERIAL PRIMARY KEY,
+    role TEXT NOT NULL DEFAULT 'admin',
+    type TEXT NOT NULL DEFAULT 'info',
+    title TEXT NOT NULL,
+    message TEXT,
+    link TEXT,
+    is_read INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 """
 

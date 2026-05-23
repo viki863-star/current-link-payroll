@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import current_app
 from .database import open_db
 
-NOTIF_TABLE = """
+NOTIF_TABLE_SQLITE = """
 CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     role TEXT NOT NULL DEFAULT 'admin',
@@ -17,11 +17,31 @@ CREATE TABLE IF NOT EXISTS notifications (
 )
 """
 
+NOTIF_TABLE_POSTGRES = """
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGSERIAL PRIMARY KEY,
+    role TEXT NOT NULL DEFAULT 'admin',
+    type TEXT NOT NULL DEFAULT 'info',
+    title TEXT NOT NULL,
+    message TEXT,
+    link TEXT,
+    is_read INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+"""
+
 
 def _ensure_table():
     db = open_db()
-    db.execute(NOTIF_TABLE)
-    db.commit()
+    try:
+        db.execute("SELECT 1 FROM notifications LIMIT 1")
+    except Exception:
+        backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+        if backend == "postgres":
+            db.executescript(NOTIF_TABLE_POSTGRES)
+        else:
+            db.executescript(NOTIF_TABLE_SQLITE)
+        db.commit()
     db.close()
 
 
