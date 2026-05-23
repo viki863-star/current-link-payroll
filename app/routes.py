@@ -6004,6 +6004,9 @@ def register_routes(app: Flask) -> None:
             annual_fee_summary=_annual_fee_summary(db),
             tax_summary=_tax_summary(db),
             chart_data=_monthly_chart_data(db),
+            employee_data=_employee_report_data(db),
+            top_receivables=_party_balance_rows(db, invoice_kind="Sales", limit=5),
+            top_payables=_party_balance_rows(db, invoice_kind="Purchase", limit=5),
             due_fees=_annual_fee_rows(db, limit=6, due_only=True),
             recent_loans=_loan_rows(db, limit=6),
         )
@@ -15497,6 +15500,36 @@ def _monthly_chart_data(db):
             except (IndexError, ValueError, TypeError):
                 pass
     return out
+
+
+def _employee_report_data(db):
+    employees = db.execute("SELECT employee_id, full_name, department, basic_salary, status FROM employees ORDER BY full_name").fetchall()
+    total = len(employees)
+    active = sum(1 for e in employees if (e["status"] or "").lower() == "active")
+    total_salary = sum(float(e["basic_salary"] or 0) for e in employees if (e["status"] or "").lower() == "active")
+    advances = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE txn_type IN ('advance','loan')").fetchone()[0] or 0)
+    month = f"{date.today().year}-{date.today().month:02d}"
+    stored = int(db.execute("SELECT COUNT(*) FROM salary_store WHERE salary_month = ?", (month,)).fetchone()[0] or 0)
+    months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    salary_by_month = [0.0]*12
+    rows = db.execute("SELECT salary_month, net_salary FROM salary_store").fetchall()
+    for r in rows:
+        try:
+            parts = r["salary_month"].split("-")
+            if len(parts) >= 2:
+                m = int(parts[1]) - 1
+                salary_by_month[m] += float(r["net_salary"] or 0)
+        except (IndexError, ValueError, TypeError):
+            pass
+    dept_counts = {}
+    for e in employees:
+        d = e["department"] or "Other"
+        dept_counts[d] = dept_counts.get(d, 0) + 1
+    dept_labels = list(dept_counts.keys())
+    dept_values = list(dept_counts.values())
+    return {"total": total, "active": active, "total_salary": total_salary, "advances": advances, "stored": stored, "months": months, "salary_by_month": salary_by_month, "dept_labels": dept_labels, "dept_values": dept_values}
+
+
 def _party_balance_rows(db, invoice_kind: str, limit: int = 8):
     return db.execute(f"SELECT i.party_code, p.party_name, COUNT(*) AS invoice_count, COALESCE(SUM(i.total_amount), 0) AS total_amount, COALESCE(SUM(i.total_amount - COALESCE(pay.paid, 0)), 0) AS balance_amount FROM account_invoices i LEFT JOIN parties p ON p.party_code = i.party_code LEFT JOIN (SELECT invoice_no, SUM(amount) AS paid FROM account_payments GROUP BY invoice_no) pay ON pay.invoice_no = i.invoice_no WHERE i.invoice_kind = ? GROUP BY i.party_code, p.party_name HAVING COALESCE(SUM(i.total_amount), 0) > 0 ORDER BY balance_amount DESC, p.party_name ASC LIMIT {int(limit)}", (invoice_kind,)).fetchall()
 

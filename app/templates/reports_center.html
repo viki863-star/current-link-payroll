@@ -9,138 +9,143 @@
 {% block content %}
 <div class="profile-shell">
 <style>
-.acc-stat { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center; transition:box-shadow 0.15s; }
-.acc-stat:hover { box-shadow:0 2px 12px rgba(0,0,0,0.06); }
-.acc-stat .lbl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
-.acc-stat .val { font-size:1.4rem; font-weight:700; margin-top:6px; }
-.acc-link { display:flex; align-items:center; gap:14px; text-decoration:none; color:inherit; cursor:pointer; padding:16px; border-radius:12px; border:1px solid var(--line); background:var(--surface); transition:box-shadow 0.15s; }
-.acc-link:hover { box-shadow:0 2px 8px rgba(0,0,0,0.08); }
-.acc-link .icon-box { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; }
-.chart-wrap { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px; }
-.chart-wrap h3 { margin:0 0 12px; font-size:0.95rem; color:var(--heading); }
+.report-section { margin-bottom:28px; }
+.report-section h2 { font-size:1.1rem; font-weight:700; color:#17345e; margin:0 0 14px; display:flex; align-items:center; gap:10px; }
+.report-section h2 .badge { font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; padding:3px 10px; border-radius:20px; background:#eef3fa; color:#7b92b6; }
+.kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:16px; }
+.kpi-card { background:#fff; border:1px solid #d8e4f5; border-radius:14px; padding:14px 16px; }
+.kpi-card .lbl { font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; color:#7b92b6; }
+.kpi-card .val { font-size:1.35rem; font-weight:800; margin-top:4px; color:#17345e; }
+.chart-pair { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.chart-box { background:#fff; border:1px solid #d8e4f5; border-radius:14px; padding:16px; }
+.chart-box h3 { margin:0 0 10px; font-size:0.85rem; font-weight:600; color:#17345e; }
+@media (max-width:700px){ .chart-pair { grid-template-columns:1fr; } }
 </style>
 
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
-    <div class="acc-stat">
-        <div class="lbl">Receivable</div>
-        <div class="val" style="color:var(--primary)">AED {{ "%.0f"|format(customer_summary.receivable_total) }}</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px">
+    <div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">Receivable</div>
+        <div style="font-size:1.3rem;font-weight:700;margin-top:4px;color:var(--primary)">AED {{ "%.0f"|format(customer_summary.receivable_total) }}</div>
     </div>
-    <div class="acc-stat">
-        <div class="lbl">Payable</div>
-        <div class="val" style="color:#e65100">AED {{ "%.0f"|format(supplier_summary.payable_total) }}</div>
+    <div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">Payable</div>
+        <div style="font-size:1.3rem;font-weight:700;margin-top:4px;color:#e65100">AED {{ "%.0f"|format(supplier_summary.payable_total) }}</div>
     </div>
-    <div class="acc-stat">
-        <div class="lbl">Loans Outstanding</div>
-        <div class="val" style="color:#c62828">AED {{ "%.0f"|format(loan_summary.outstanding) }}</div>
+    <div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">Loans Outstanding</div>
+        <div style="font-size:1.3rem;font-weight:700;margin-top:4px;color:#c62828">AED {{ "%.0f"|format(loan_summary.outstanding) }}</div>
     </div>
-    <div class="acc-stat">
-        <div class="lbl">Annual Fees Due</div>
-        <div class="val" style="color:#e65100">{{ annual_fee_summary.due_count }}</div>
-    </div>
-</div>
-
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px">
-    <a href="{{ url_for('owner_fund') }}" class="acc-link">
-        <div class="icon-box" style="background:#fff3e0">&#9733;</div>
-        <div><div style="font-weight:600;font-size:0.9rem">Owner Fund</div><div style="font-size:0.75rem;color:var(--muted)">Cash in/out & utilization</div></div>
-    </a>
-    <a href="{{ url_for('loans_center') }}" class="acc-link">
-        <div class="icon-box" style="background:#fce4ec">&#36;</div>
-        <div><div style="font-weight:600;font-size:0.9rem">Loans</div><div style="font-size:0.75rem;color:var(--muted)">Given/recovered tracking</div></div>
-    </a>
-    <a href="{{ url_for('annual_fees') }}" class="acc-link">
-        <div class="icon-box" style="background:#e8eaf6">&#128197;</div>
-        <div><div style="font-weight:600;font-size:0.9rem">Annual Fees</div><div style="font-size:0.75rem;color:var(--muted)">Visa & vehicle fee management</div></div>
-    </a>
-</div>
-
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
-    <div class="chart-wrap">
-        <h3>Monthly NET Sales vs Purchases</h3>
-        <canvas id="salesPurchasesChart" height="200"></canvas>
-    </div>
-    <div class="chart-wrap">
-        <h3>Monthly Output VAT vs Input VAT</h3>
-        <canvas id="vatChart" height="200"></canvas>
+    <div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">Annual Fees</div>
+        <div style="font-size:1.3rem;font-weight:700;margin-top:4px;color:#e65100">{{ annual_fee_summary.due_count }} Due</div>
     </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-    <div class="chart-wrap">
-        <h3>Tax Summary (YTD)</h3>
-        <canvas id="taxDonutChart" height="200"></canvas>
+{# ═══════════════ CUSTOMER SECTION ═══════════════ #}
+<div class="report-section">
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="#255f99" stroke-width="2" width="20" height="20"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Customer Report <span class="badge">Sales & Receivables</span></h2>
+    <div class="kpi-grid">
+        <div class="kpi-card"><div class="lbl">Receivable Total</div><div class="val">AED {{ "%.0f"|format(customer_summary.receivable_total) }}</div></div>
+        <div class="kpi-card"><div class="lbl">Open Invoices</div><div class="val">{{ customer_summary.open_sales_invoices }}</div></div>
+        <div class="kpi-card"><div class="lbl">Customers</div><div class="val">{{ customer_summary.customer_count }}</div></div>
+        <div class="kpi-card"><div class="lbl">Rental Total</div><div class="val">AED {{ "%.0f"|format(customer_summary.rental_total) }}</div></div>
     </div>
-    <div class="chart-wrap" style="display:flex;flex-direction:column;justify-content:center;padding:24px">
-        <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;">Net VAT Payable</div>
-        <div style="font-size:1.8rem;font-weight:700;margin-top:4px;color:{% if tax_summary.net_vat >= 0 %}#c62828{% else %}#2CB15C{% endif %}">AED {{ "%.0f"|format(tax_summary.net_vat) }}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px">
-            <div><div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">Output VAT</div><div style="font-size:1.1rem;font-weight:600;color:#17345e;">AED {{ "%.0f"|format(tax_summary.output_vat) }}</div></div>
-            <div><div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;">Input VAT</div><div style="font-size:1.1rem;font-weight:600;color:#f7931e;">AED {{ "%.0f"|format(tax_summary.input_vat) }}</div></div>
-        </div>
+    <div class="chart-pair">
+        <div class="chart-box"><h3>Monthly NET Sales</h3><canvas id="custSalesChart" height="160"></canvas></div>
+        <div class="chart-box"><h3>Top Receivables</h3><canvas id="topReceivablesChart" height="160"></canvas></div>
     </div>
 </div>
+
+{# ═══════════════ SUPPLIER SECTION ═══════════════ #}
+<div class="report-section">
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="#f7931e" stroke-width="2" width="20" height="20"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h.01"/><path d="M9 13h.01"/><path d="M9 17h.01"/><path d="M15 9h.01"/><path d="M15 13h.01"/><path d="M15 17h.01"/></svg> Supplier Report <span class="badge">Purchases & Payables</span></h2>
+    <div class="kpi-grid">
+        <div class="kpi-card"><div class="lbl">Payable Total</div><div class="val">AED {{ "%.0f"|format(supplier_summary.payable_total) }}</div></div>
+        <div class="kpi-card"><div class="lbl">Open Purchase Invoices</div><div class="val">{{ supplier_summary.open_purchase_invoices }}</div></div>
+        <div class="kpi-card"><div class="lbl">Suppliers</div><div class="val">{{ supplier_summary.supplier_count }}</div></div>
+        <div class="kpi-card"><div class="lbl">Hire Total</div><div class="val">AED {{ "%.0f"|format(supplier_summary.hire_total) }}</div></div>
+    </div>
+    <div class="chart-pair">
+        <div class="chart-box"><h3>Monthly NET Purchases</h3><canvas id="suppPurchasesChart" height="160"></canvas></div>
+        <div class="chart-box"><h3>Top Payables</h3><canvas id="topPayablesChart" height="160"></canvas></div>
+    </div>
 </div>
+
+{# ═══════════════ EMPLOYEE SECTION ═══════════════ #}
+<div class="report-section">
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="#7b1fa2" stroke-width="2" width="20" height="20"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 8.54a4 4 0 0 0-2.83-6.52"/><path d="M17.5 6.5a2 2 0 0 0-2.83-2.83"/></svg> Employee Report <span class="badge">Payroll & HR</span></h2>
+    <div class="kpi-grid">
+        <div class="kpi-card"><div class="lbl">Total Employees</div><div class="val">{{ employee_data.total }} <span style="font-size:0.75rem;font-weight:600;color:#2CB15C;">({{ employee_data.active }} Active)</span></div></div>
+        <div class="kpi-card"><div class="lbl">Monthly Salary Cost</div><div class="val">AED {{ "%.0f"|format(employee_data.total_salary) }}</div></div>
+        <div class="kpi-card"><div class="lbl">Advances Outstanding</div><div class="val" style="color:#c62828">AED {{ "%.0f"|format(employee_data.advances) }}</div></div>
+        <div class="kpi-card"><div class="lbl">Salary Stored This Month</div><div class="val">{{ employee_data.stored }}</div></div>
+    </div>
+    <div class="chart-pair">
+        <div class="chart-box"><h3>Monthly Salary Cost</h3><canvas id="empSalaryChart" height="160"></canvas></div>
+        <div class="chart-box"><h3>Department-wise</h3><canvas id="empDeptChart" height="160"></canvas></div>
+    </div>
+</div>
+
+</div><!-- profile-shell -->
 
 <script>
 const months = {{ chart_data.months_json|tojson }};
 const salesData = {{ chart_data.sales|tojson }};
 const purchasesData = {{ chart_data.purchases|tojson }};
-const outputVatData = {{ chart_data.output_vat|tojson }};
-const inputVatData = {{ chart_data.input_vat|tojson }};
 
-new Chart(document.getElementById('salesPurchasesChart'), {
+// Top Receivables data
+const topReceivLabels = [{% for r in top_receivables %}'{{ r.party_name|replace("'","\\'") }}'{% if not loop.last %},{% endif %}{% endfor %}];
+const topReceivValues = [{% for r in top_receivables %}{{ r.balance_amount }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+// Top Payables data  
+const topPayLabels = [{% for r in top_payables %}'{{ r.party_name|replace("'","\\'") }}'{% if not loop.last %},{% endif %}{% endfor %}];
+const topPayValues = [{% for r in top_payables %}{{ r.balance_amount }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+// Employee data
+const empSalaryByMonth = {{ employee_data.salary_by_month|tojson }};
+const empDeptLabels = {{ employee_data.dept_labels|tojson }};
+const empDeptValues = {{ employee_data.dept_values|tojson }};
+
+// ─── Customer Sales Chart ───
+new Chart(document.getElementById('custSalesChart'), {
     type: 'bar',
-    data: {
-        labels: months,
-        datasets: [
-            { label: 'NET Sales', data: salesData, backgroundColor: '#255f99', borderRadius: 4 },
-            { label: 'NET Purchases', data: purchasesData, backgroundColor: '#f7931e', borderRadius: 4 }
-        ]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12 } } },
-        scales: { y: { beginAtZero: true, ticks: { callback: v => 'AED ' + v.toLocaleString() } } }
-    }
+    data: { labels: months, datasets: [{ label: 'NET Sales', data: salesData, backgroundColor: '#255f99', borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'AED ' + v.toLocaleString() } } } }
 });
 
-new Chart(document.getElementById('vatChart'), {
+// ─── Top Receivables Horizontal Bar ───
+new Chart(document.getElementById('topReceivablesChart'), {
     type: 'bar',
-    data: {
-        labels: months,
-        datasets: [
-            { label: 'Output VAT', data: outputVatData, backgroundColor: '#c62828', borderRadius: 4 },
-            { label: 'Input VAT', data: inputVatData, backgroundColor: '#2CB15C', borderRadius: 4 }
-        ]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12 } } },
-        scales: { y: { beginAtZero: true, ticks: { callback: v => 'AED ' + v.toLocaleString() } } }
-    }
+    data: { labels: topReceivLabels, datasets: [{ label: 'Balance', data: topReceivValues, backgroundColor: '#c62828', borderRadius: 4 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { callback: v => 'AED ' + v.toLocaleString() } } } }
 });
 
-new Chart(document.getElementById('taxDonutChart'), {
+// ─── Supplier Purchases Chart ───
+new Chart(document.getElementById('suppPurchasesChart'), {
+    type: 'bar',
+    data: { labels: months, datasets: [{ label: 'NET Purchases', data: purchasesData, backgroundColor: '#f7931e', borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'AED ' + v.toLocaleString() } } } }
+});
+
+// ─── Top Payables Horizontal Bar ───
+new Chart(document.getElementById('topPayablesChart'), {
+    type: 'bar',
+    data: { labels: topPayLabels, datasets: [{ label: 'Balance', data: topPayValues, backgroundColor: '#e65100', borderRadius: 4 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { callback: v => 'AED ' + v.toLocaleString() } } } }
+});
+
+// ─── Employee Monthly Salary Cost ───
+new Chart(document.getElementById('empSalaryChart'), {
+    type: 'bar',
+    data: { labels: months, datasets: [{ label: 'Salary Cost', data: empSalaryByMonth, backgroundColor: '#7b1fa2', borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'AED ' + v.toLocaleString() } } } }
+});
+
+// ─── Employee Department Doughnut ───
+new Chart(document.getElementById('empDeptChart'), {
     type: 'doughnut',
-    data: {
-        labels: ['Output VAT', 'Input VAT', 'NET Sales', 'NET Purchases'],
-        datasets: [{
-            data: [
-                {{ tax_summary.output_vat }},
-                {{ tax_summary.input_vat }},
-                {{ tax_summary.taxable_sales }},
-                {{ tax_summary.taxable_purchases }}
-            ],
-            backgroundColor: ['#c62828', '#2CB15C', '#255f99', '#f7931e']
-        }]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10 } },
-            tooltip: { callbacks: { label: ctx => ctx.label + ': AED ' + ctx.parsed.toLocaleString() } }
-        }
-    }
+    data: { labels: empDeptLabels, datasets: [{ data: empDeptValues, backgroundColor: ['#255f99','#f7931e','#7b1fa2','#c62828','#2CB15C','#e65100','#17345e'] }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8 } } } }
 });
 </script>
 {% endblock %}
