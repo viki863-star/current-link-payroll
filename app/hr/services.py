@@ -148,7 +148,7 @@ def employee_search_filter(query, status_filter, department_filter, employee_typ
 
     if query:
         conditions.append(
-            "(e.employee_id LIKE ? OR e.full_name LIKE ? OR e.phone_number LIKE ? OR e.department LIKE ? OR e.designation LIKE ? OR v.plate_no LIKE ?)"
+            "(e.employee_id LIKE ? OR e.full_name LIKE ? OR e.phone_number LIKE ? OR e.department LIKE ? OR e.designation LIKE ? OR va_latest.plate_no LIKE ?)"
         )
         like_q = f"%{query}%"
         params.extend([like_q, like_q, like_q, like_q, like_q, like_q])

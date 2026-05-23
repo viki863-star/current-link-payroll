@@ -131,11 +131,17 @@ def employee_list():
         f"""
         SELECT DISTINCT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
                e.department, e.designation, e.join_date, e.basic_salary, e.status, e.photo_name,
-               v.plate_no,
+               va_latest.plate_no,
                CASE WHEN e.status = 'Active' THEN 0 ELSE 1 END AS sort_order
         FROM employees e
-        LEFT JOIN vehicle_assignments va ON va.driver_id = e.employee_id AND va.is_current = 1
-        LEFT JOIN vehicles v ON v.plate_no = va.vehicle_id
+        LEFT JOIN (
+            SELECT va.driver_id, v.plate_no
+            FROM vehicle_assignments va
+            JOIN vehicles v ON v.plate_no = va.vehicle_id
+            WHERE va.id IN (
+                SELECT MAX(id) FROM vehicle_assignments GROUP BY driver_id
+            )
+        ) va_latest ON va_latest.driver_id = e.employee_id
         {where_sql}
         ORDER BY sort_order, e.full_name ASC
         """,
