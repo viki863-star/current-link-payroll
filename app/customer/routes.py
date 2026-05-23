@@ -1304,7 +1304,7 @@ def customer_tax_report():
                COALESCE(SUM(i.vat_amount),0) AS total_vat,
                COALESCE(SUM(i.total_amount),0) AS total_invoiced
         FROM customers c
-        LEFT JOIN customer_invoices i ON i.customer_id = c.id AND i.status != 'cancelled' {where}
+        LEFT JOIN customer_invoices i ON i.customer_id = c.id {where}
         GROUP BY c.id
         ORDER BY c.customer_name
     """, params).fetchall()
