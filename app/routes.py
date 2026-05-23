@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import sqlite3
 import shutil
 from calendar import monthrange
 from datetime import date, datetime, timedelta
@@ -5995,6 +5996,14 @@ def register_routes(app: Flask) -> None:
     def reports_center():
         _touch_admin_workspace("accounts")
         db = open_db()
+        pdb = _open_payroll_db()
+        if pdb:
+            payroll_chart = _payroll_monthly_chart_data(pdb)
+            payroll_summ = _payroll_summary(pdb)
+            pdb.close()
+        else:
+            payroll_chart = {"sales": [0.0]*12, "purchases": [0.0]*12, "output_vat": [0.0]*12, "input_vat": [0.0]*12}
+            payroll_summ = {"customer_count": 0, "supplier_count": 0, "receivable_total": 0.0, "payable_total": 0.0, "open_sales": 0, "open_purchases": 0}
         return render_template(
             "reports_center.html",
             supplier_summary=_supplier_summary(db),
@@ -6004,6 +6013,8 @@ def register_routes(app: Flask) -> None:
             annual_fee_summary=_annual_fee_summary(db),
             tax_summary=_tax_summary(db),
             chart_data=_monthly_chart_data(db),
+            payroll_chart=payroll_chart,
+            payroll_summ=payroll_summ,
             employee_data=_employee_report_data(db),
             top_receivables=_party_balance_rows(db, invoice_kind="Sales", limit=5),
             top_payables=_party_balance_rows(db, invoice_kind="Purchase", limit=5),
@@ -15499,6 +15510,63 @@ def _monthly_chart_data(db):
                     out[vat_key][m] += float(r["tax_amount"] or 0)
             except (IndexError, ValueError, TypeError):
                 pass
+    return out
+
+
+def _open_payroll_db():
+    p = Path(current_app.config.get("DATABASE", "payroll.db"))
+    if not p.exists():
+        p = Path(current_app.root_path).parent / "payroll.db"
+    if not p.exists():
+        return None
+    db = sqlite3.connect(str(p))
+    db.row_factory = sqlite3.Row
+    return db
+
+
+def _payroll_monthly_chart_data(pdb):
+    months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    out = {"sales": [0.0]*12, "purchases": [0.0]*12, "output_vat": [0.0]*12, "input_vat": [0.0]*12}
+    try:
+        rows = pdb.execute("SELECT invoice_date, amount, vat_amount FROM customer_invoices").fetchall()
+        for r in rows:
+            try:
+                parts = r["invoice_date"].split("-")
+                if len(parts) >= 2:
+                    m = int(parts[1]) - 1
+                    out["sales"][m] += float(r["amount"] or 0)
+                    out["output_vat"][m] += float(r["vat_amount"] or 0)
+            except (IndexError, ValueError, TypeError):
+                pass
+    except Exception:
+        pass
+    try:
+        rows = pdb.execute("SELECT invoice_date, amount, vat_amount FROM supplier_invoices").fetchall()
+        for r in rows:
+            try:
+                parts = r["invoice_date"].split("-")
+                if len(parts) >= 2:
+                    m = int(parts[1]) - 1
+                    out["purchases"][m] += float(r["amount"] or 0)
+                    out["input_vat"][m] += float(r["vat_amount"] or 0)
+            except (IndexError, ValueError, TypeError):
+                pass
+    except Exception:
+        pass
+    return out
+
+
+def _payroll_summary(pdb):
+    out = {"customer_count": 0, "supplier_count": 0, "receivable_total": 0.0, "payable_total": 0.0, "open_sales": 0, "open_purchases": 0}
+    try:
+        out["customer_count"] = int(pdb.execute("SELECT COUNT(*) FROM customers").fetchone()[0])
+        out["supplier_count"] = int(pdb.execute("SELECT COUNT(*) FROM suppliers").fetchone()[0])
+        out["receivable_total"] = float(pdb.execute("SELECT COALESCE(SUM(total_amount), 0) FROM customer_invoices").fetchone()[0])
+        out["payable_total"] = float(pdb.execute("SELECT COALESCE(SUM(total_amount), 0) FROM supplier_invoices").fetchone()[0])
+        out["open_sales"] = int(pdb.execute("SELECT COUNT(*) FROM customer_invoices WHERE status != 'Paid'").fetchone()[0])
+        out["open_purchases"] = int(pdb.execute("SELECT COUNT(*) FROM supplier_invoices WHERE status != 'Paid'").fetchone()[0])
+    except Exception:
+        pass
     return out
 
 
