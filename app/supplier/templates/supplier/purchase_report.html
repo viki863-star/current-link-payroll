@@ -49,7 +49,7 @@
                 <tr style="background:#f5f8fe;text-align:left">
                     <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">DATE</th>
                     <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">INVOICE NO</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">SUPPLIER</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">DETAIL</th>
                     <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">NET Purchase</th>
                     <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">VAT</th>
                     <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">GROSS Purchase</th>
@@ -61,9 +61,9 @@
                     <td style="padding:10px 14px;white-space:nowrap;">{{ inv.invoice_date }}</td>
                     <td style="padding:10px 14px;white-space:nowrap;font-weight:600;">{{ inv.invoice_no or '—' }}</td>
                     <td style="padding:10px 14px;color:#17345e;">{{ inv.supplier_name }}</td>
-                    <td style="padding:10px 14px;text-align:right;">{{ "{:,.2f}".format(inv.net_sale) }}</td>
-                    <td style="padding:10px 14px;text-align:right;color:#f7931e;">{{ "{:,.2f}".format(inv.vat_amount) }}</td>
-                    <td style="padding:10px 14px;text-align:right;font-weight:600;">{{ "{:,.2f}".format(inv.total_amount) }}</td>
+                    <td style="padding:10px 14px;text-align:right;">AED {{ "{:,.2f}".format(inv.net_sale) }}</td>
+                    <td style="padding:10px 14px;text-align:right;color:#f7931e;">AED {{ "{:,.2f}".format(inv.vat_amount) }}</td>
+                    <td style="padding:10px 14px;text-align:right;font-weight:600;">AED {{ "{:,.2f}".format(inv.total_amount) }}</td>
                 </tr>
                 {% else %}
                 <tr>
@@ -74,9 +74,9 @@
             <tfoot>
                 <tr style="background:#f5f8fe;font-weight:700">
                     <td colspan="3" style="padding:12px 14px;color:#17345e;">TOTALS</td>
-                    <td style="padding:12px 14px;text-align:right;">{{ "{:,.2f}".format(total_net) }}</td>
-                    <td style="padding:12px 14px;text-align:right;color:#f7931e;">{{ "{:,.2f}".format(total_vat) }}</td>
-                    <td style="padding:12px 14px;text-align:right;">{{ "{:,.2f}".format(total_gross) }}</td>
+                    <td style="padding:12px 14px;text-align:right;">AED {{ "{:,.2f}".format(total_net) }}</td>
+                    <td style="padding:12px 14px;text-align:right;color:#f7931e;">AED {{ "{:,.2f}".format(total_vat) }}</td>
+                    <td style="padding:12px 14px;text-align:right;">AED {{ "{:,.2f}".format(total_gross) }}</td>
                 </tr>
             </tfoot>
         </table>
