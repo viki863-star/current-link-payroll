@@ -15484,7 +15484,7 @@ def _tax_summary(db):
 
 
 def _party_balance_rows(db, invoice_kind: str, limit: int = 8):
-    return db.execute(f"SELECT i.party_code, p.party_name, COUNT(*) AS invoice_count, COALESCE(SUM(i.total_amount), 0) AS total_amount, COALESCE(SUM(i.balance_amount), 0) AS balance_amount FROM account_invoices i LEFT JOIN parties p ON p.party_code = i.party_code WHERE i.invoice_kind = ? GROUP BY i.party_code, p.party_name HAVING COALESCE(SUM(i.total_amount), 0) > 0 ORDER BY COALESCE(SUM(i.balance_amount), 0) DESC, p.party_name ASC LIMIT {int(limit)}", (invoice_kind,)).fetchall()
+    return db.execute(f"SELECT i.party_code, p.party_name, COUNT(*) AS invoice_count, COALESCE(SUM(i.total_amount), 0) AS total_amount, COALESCE(SUM(i.total_amount) - COALESCE((SELECT SUM(ap.amount) FROM account_payments ap WHERE ap.invoice_no = i.invoice_no), 0), 0) AS balance_amount FROM account_invoices i LEFT JOIN parties p ON p.party_code = i.party_code WHERE i.invoice_kind = ? GROUP BY i.party_code, p.party_name HAVING COALESCE(SUM(i.total_amount), 0) > 0 ORDER BY balance_amount DESC, p.party_name ASC LIMIT {int(limit)}", (invoice_kind,)).fetchall()
 
 
 def _party_statement(db, party_code: str, *, invoice_kind: str, hire_direction: str):
