@@ -9903,6 +9903,31 @@ textarea.form-control {
     }
 }
 
+/* Topbar responsive */
+@media (max-width: 768px) {
+    .topbar { padding: 0 12px; gap: 8px; height: 56px; }
+    .topbar-breadcrumb { font-size: 0.78rem; }
+    .topbar-breadcrumb span { font-size: 0.8rem; }
+    .topbar-center nav { gap: 4px; }
+    .topbar-center nav a { padding: 4px 8px !important; font-size: 0.72rem !important; }
+    .topbar-profile-name { display: none; }
+    .topbar-profile { padding: 3px 6px 3px 3px; }
+    .topbar-search { width: min(280px, 100%); height: 34px; }
+    .topbar-search input { font-size: 0.78rem; }
+    .topbar-right { gap: 4px; }
+    .topbar-icon-btn { width: 32px; height: 32px; }
+}
+@media (max-width: 480px) {
+    .topbar { padding: 0 8px; gap: 4px; height: 50px; }
+    .topbar-breadcrumb { font-size: 0.72rem; gap: 4px; }
+    .topbar-breadcrumb span { font-size: 0.74rem; }
+    .topbar-center nav { display: none; }
+    .topbar-search { width: min(200px, 100%); height: 32px; padding: 0 10px; }
+    .topbar-search input { font-size: 0.74rem; }
+    .topbar-profile-avatar { width: 28px; height: 28px; font-size: 0.7rem; border-radius: 6px; }
+    .topbar-left { gap: 8px; }
+}
+
 .mono.red { color: #d32f2f; }
 .mono.green { color: #2e7d32; }
 .tick-mark { color: #2e7d32; font-size: 0.85rem; margin-left: 3px; }
