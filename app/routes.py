@@ -1863,6 +1863,14 @@ def register_routes(app: Flask) -> None:
                 details=result["path"],
             )
             db.commit()
+            from .notification_service import add_notification
+            kind_label = {"daily": "Daily DB", "weekly": "Weekly ZIP", "monthly": "Monthly ZIP"}.get(requested_kind, requested_kind)
+            add_notification(
+                title=f"{kind_label} backup created",
+                type="success",
+                message=result.get("message", ""),
+                link=url_for("admin_backups"),
+            )
         else:
             flash(result["message"], "error")
             _audit_log(
@@ -1874,6 +1882,12 @@ def register_routes(app: Flask) -> None:
                 details=result["message"],
             )
             db.commit()
+            from .notification_service import add_notification
+            add_notification(
+                title=f"Backup failed: {requested_kind}",
+                type="error",
+                message=result.get("message", ""),
+            )
         return redirect(url_for("admin_backups"))
 
     @app.get("/admin/backups/download-latest")
@@ -1902,6 +1916,13 @@ def register_routes(app: Flask) -> None:
                 details=result.get("log_path") or result["message"],
             )
             db.commit()
+            from .notification_service import add_notification
+            add_notification(
+                title="PC Mirror sync completed",
+                type="success",
+                message=result.get("message", ""),
+                link=url_for("admin_backups"),
+            )
         else:
             flash(result["message"], "error")
             _audit_log(
@@ -1913,6 +1934,12 @@ def register_routes(app: Flask) -> None:
                 details=result.get("log_path") or result["message"],
             )
             db.commit()
+            from .notification_service import add_notification
+            add_notification(
+                title="PC Mirror sync failed",
+                type="error",
+                message=result.get("message", ""),
+            )
         return redirect(url_for("admin_backups"))
 
     @app.post("/admin/backups/sync-all-files")
@@ -1970,6 +1997,50 @@ def register_routes(app: Flask) -> None:
             )
             db.commit()
         return redirect(url_for("admin_backups"))
+
+    @app.route("/notifications")
+    @_login_required("admin")
+    def notification_list():
+        from .notification_service import get_unread_notifications, unread_count, add_notification
+        from .database import open_db
+        try:
+            db = open_db()
+            pending = db.execute("SELECT COUNT(*) FROM maintenance_jobs WHERE status='pending'").fetchone()[0]
+            if pending > 0:
+                existing = db.execute("SELECT COUNT(*) FROM notifications WHERE type=? AND is_read=0", ("pending_approvals",)).fetchone()[0]
+                if existing == 0:
+                    add_notification(
+                        title=f"{pending} field staff job{'s' if pending>1 else ''} pending approval",
+                        type="pending_approvals",
+                        message="Review and approve/reject pending maintenance jobs",
+                        link="/fleet/approvals",
+                    )
+            db.close()
+        except:
+            pass
+        notifs = get_unread_notifications()
+        count = unread_count()
+        return {"notifications": notifs, "unread": count}
+
+    @app.route("/notifications/unread-count")
+    @_login_required("admin")
+    def notification_unread_count():
+        from .notification_service import unread_count
+        return {"unread": unread_count()}
+
+    @app.route("/notifications/read/<int:notif_id>", methods=["POST"])
+    @_login_required("admin")
+    def notification_mark_read(notif_id):
+        from .notification_service import mark_as_read
+        mark_as_read(notif_id)
+        return {"ok": True}
+
+    @app.route("/notifications/read-all", methods=["POST"])
+    @_login_required("admin")
+    def notification_mark_all_read():
+        from .notification_service import mark_all_read
+        mark_all_read()
+        return {"ok": True}
 
     @app.route("/company-setup", methods=["GET", "POST"])
     @_login_required("admin")
