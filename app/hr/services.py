@@ -148,21 +148,21 @@ def employee_search_filter(query, status_filter, department_filter, employee_typ
 
     if query:
         conditions.append(
-            "(employee_id LIKE ? OR full_name LIKE ? OR phone_number LIKE ? OR department LIKE ? OR designation LIKE ?)"
+            "(e.employee_id LIKE ? OR e.full_name LIKE ? OR e.phone_number LIKE ? OR e.department LIKE ? OR e.designation LIKE ? OR v.plate_no LIKE ?)"
         )
         like_q = f"%{query}%"
-        params.extend([like_q, like_q, like_q, like_q, like_q])
+        params.extend([like_q, like_q, like_q, like_q, like_q, like_q])
 
     if status_filter:
-        conditions.append("status = ?")
+        conditions.append("e.status = ?")
         params.append(status_filter)
 
     if department_filter:
-        conditions.append("department = ?")
+        conditions.append("e.department = ?")
         params.append(department_filter)
 
     if employee_type_filter:
-        conditions.append("employee_type = ?")
+        conditions.append("e.employee_type = ?")
         params.append(employee_type_filter)
 
     where = ""

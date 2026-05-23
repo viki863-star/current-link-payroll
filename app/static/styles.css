@@ -8941,76 +8941,50 @@ textarea.form-control {
 .filter-bar {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 12px 16px;
+    border-radius: 8px;
+    padding: 8px 12px;
     margin-bottom: 14px;
 }
 
 .filter-bar-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.filter-bar-title {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
-
-.filter-bar-top .btn-primary {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 14px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    border-radius: 7px;
+    display: none;
 }
 
 .filter-bar-form {
     display: flex;
     gap: 6px;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .filter-bar-form .search-input {
-    flex: 1;
-    min-width: 140px;
-    padding: 6px 12px;
+    flex: 0 1 180px;
+    padding: 5px 10px;
     border: 1.5px solid var(--line);
     border-radius: 6px;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-family: inherit;
     background: var(--bg);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .filter-bar-form .search-input:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(28,86,139,0.1);
+    box-shadow: 0 0 0 2.5px rgba(28,86,139,0.1);
     background: #fff;
 }
 
 .filter-bar-form .filter-select {
-    padding: 6px 10px;
+    padding: 5px 8px;
     border: 1.5px solid var(--line);
     border-radius: 6px;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     background: var(--bg);
     font-family: inherit;
     color: var(--text);
     transition: border-color 0.15s ease;
     cursor: pointer;
-    min-width: 110px;
 }
 
 .filter-bar-form .filter-select:focus {
@@ -9019,9 +8993,26 @@ textarea.form-control {
 }
 
 .filter-bar-form .btn-sm {
-    padding: 5px 13px;
+    padding: 4px 11px;
     border-radius: 6px;
+    font-size: 0.76rem;
+    white-space: nowrap;
+}
+
+.filter-bar-form .btn-outline.btn-sm {
+    padding: 4px 11px;
+}
+
+.filter-bar-form .add-btn {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
     font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 6px;
+    white-space: nowrap;
 }
 
 .kpi-mini-row {
