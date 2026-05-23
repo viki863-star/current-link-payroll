@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block body_class %}login-page-body{% endblock %}
+{% block shell_header %}{% endblock %}
+{% block shell_footer %}{% endblock %}
 {% block content %}
 <style>
 .tl-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; background:linear-gradient(135deg,#0a1a30 0%,#0F2B52 40%,#1a3d6e 100%); position:relative; }
@@ -38,6 +40,7 @@
  .tl-field label { font-size:0.68rem; }
  .tl-field input { padding:12px 12px; font-size:16px; border-radius:10px; }
  .tl-btn { padding:14px; font-size:0.95rem; border-radius:10px; }
+ .page-content { padding:0 !important; }
 }
 @media (max-width:380px) {
  .tl-wrap { padding:8px; padding-top:24px; }
