@@ -8941,55 +8941,55 @@ textarea.form-control {
 .filter-bar {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 16px 20px;
-    margin-bottom: 16px;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
 }
 
 .filter-bar-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 .filter-bar-title {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.82rem;
+    gap: 6px;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--muted);
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.3px;
 }
 
 .filter-bar-top .btn-primary {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 18px;
-    font-size: 0.85rem;
+    gap: 5px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: 7px;
 }
 
 .filter-bar-form {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
     flex-wrap: wrap;
 }
 
 .filter-bar-form .search-input {
     flex: 1;
-    min-width: 160px;
-    padding: 8px 14px;
+    min-width: 140px;
+    padding: 6px 12px;
     border: 1.5px solid var(--line);
-    border-radius: 8px;
-    font-size: 0.82rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
     font-family: inherit;
-    background: #f8fafd;
+    background: var(--bg);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
@@ -9001,15 +9001,16 @@ textarea.form-control {
 }
 
 .filter-bar-form .filter-select {
-    padding: 8px 12px;
+    padding: 6px 10px;
     border: 1.5px solid var(--line);
-    border-radius: 8px;
-    font-size: 0.8rem;
-    background: #f8fafd;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    background: var(--bg);
     font-family: inherit;
     color: var(--text);
     transition: border-color 0.15s ease;
     cursor: pointer;
+    min-width: 110px;
 }
 
 .filter-bar-form .filter-select:focus {
@@ -9018,9 +9019,9 @@ textarea.form-control {
 }
 
 .filter-bar-form .btn-sm {
-    padding: 7px 16px;
-    border-radius: 8px;
-    font-size: 0.8rem;
+    padding: 5px 13px;
+    border-radius: 6px;
+    font-size: 0.78rem;
 }
 
 .kpi-mini-row {
