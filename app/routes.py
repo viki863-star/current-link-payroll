@@ -1181,6 +1181,9 @@ def register_routes(app: Flask) -> None:
                     attachment_data = base64.b64encode(f.read()).decode("utf-8")
                     attachment_type = f.content_type
             db.execute(
+                "INSERT INTO vehicles (plate_no, vehicle_type, status) VALUES ('N/A', 'Other', 'Inactive') ON CONFLICT (plate_no) DO NOTHING"
+            )
+            db.execute(
                 "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status) VALUES (?,?,?,?,?,?,?,?,'pending')",
                 (vehicle_id or "N/A", technician_code, float(amount), category, description, attachment_name, attachment_data, attachment_type),
             )
