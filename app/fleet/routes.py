@@ -518,6 +518,16 @@ def staff_job_new():
             (vehicle_id or "N/A", staff_id, float(amount), category, description, attachment_name, attachment_data, attachment_type),
         )
         db.commit()
+        try:
+            from app.notification_service import add_notification
+            add_notification(
+                title=f"New job submitted by {session.get('staff_name','Field Staff')}",
+                type="pending_approvals",
+                message=f"{category} — AED {amount} on {vehicle_id or 'N/A'}",
+                link="/fleet/approvals",
+            )
+        except:
+            pass
         flash("Job submitted for approval.", "success")
         return redirect(url_for("fleet.staff_dashboard"))
 
@@ -1232,6 +1242,16 @@ def fleet_job_approve(job_id):
         (datetime.now().isoformat(), job_id),
     )
     db.commit()
+    try:
+        from app.notification_service import add_notification
+        add_notification(
+            title=f"Job #{job_id} approved",
+            type="success",
+            message=job.get("category","") + " — AED " + str(job.get("amount","")),
+            link="/fleet/approvals",
+        )
+    except:
+        pass
     flash(f"Job #{job_id} approved.", "success")
     return redirect(url_for("fleet.fleet_approvals"))
 
@@ -1247,6 +1267,16 @@ def fleet_job_reject(job_id):
         (notes, job_id),
     )
     db.commit()
+    try:
+        from app.notification_service import add_notification
+        add_notification(
+            title=f"Job #{job_id} rejected",
+            type="error",
+            message=notes,
+            link="/fleet/approvals",
+        )
+    except:
+        pass
     flash(f"Job #{job_id} rejected.", "info")
     return redirect(url_for("fleet.fleet_approvals"))
 
