@@ -11,11 +11,11 @@
             <h1 style="margin:8px 0 10px;font-size:36px;line-height:1;color:#ffffff;">Customer Tax Report</h1>
         </div>
         <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <label style="font-size:.78rem;color:#fff;font-weight:600">From:
-                <input type="date" name="from" value="{{ from_filter }}" style="padding:6px 10px;border:0;border-radius:8px;font-size:.82rem;margin-left:4px">
+            <label style="font-size:.78rem;font-weight:600">From:
+                <input type="date" name="from" value="{{ from_filter }}" style="padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem;margin-left:4px">
             </label>
-            <label style="font-size:.78rem;color:#fff;font-weight:600">To:
-                <input type="date" name="to" value="{{ to_filter }}" style="padding:6px 10px;border:0;border-radius:8px;font-size:.82rem;margin-left:4px">
+            <label style="font-size:.78rem;font-weight:600">To:
+                <input type="date" name="to" value="{{ to_filter }}" style="padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem;margin-left:4px">
             </label>
             <button type="submit" style="padding:7px 16px;border:0;border-radius:8px;background:#f7931e;color:#fff;font-weight:700;cursor:pointer;">Filter</button>
             {% if from_filter or to_filter %}
