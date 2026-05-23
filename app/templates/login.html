@@ -394,6 +394,10 @@ body.cl-login-page .flash-info { background: #1d4ed8; color: #fff; }
         padding: 16px;
     }
 
+    .portal-screen::before {
+        background-position: center right 20%;
+    }
+
     .portal-screen::after {
         background: linear-gradient(180deg, rgba(11, 31, 58, 0.08) 0%, rgba(11, 31, 58, 0.1) 100%);
     }
@@ -404,17 +408,106 @@ body.cl-login-page .flash-info { background: #1d4ed8; color: #fff; }
 }
 
 @media (max-width: 560px) {
+    .portal-screen {
+        padding: 12px;
+        align-items: flex-start;
+        padding-top: 24px;
+        min-height: 100dvh;
+        height: auto;
+    }
+
     .portal-panel {
         border-radius: 12px;
-        padding: 16px;
+        padding: 16px 14px;
+        width: 100%;
+        box-shadow: 0 16px 48px rgba(11, 31, 58, 0.18);
     }
 
     .role-grid {
         flex-wrap: wrap;
+        gap: 6px;
     }
 
     .role-card {
-        min-width: calc(50% - 4px);
+        min-width: calc(50% - 3px);
+        min-height: 72px;
+        padding: 8px 6px 6px;
+    }
+
+    .role-card .role-badge {
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+    }
+    .role-card .role-badge svg {
+        width: 14px;
+        height: 14px;
+    }
+    .role-card .role-name {
+        font-size: 0.8rem;
+    }
+    .role-card .role-copy {
+        font-size: 0.62rem;
+    }
+
+    .portal-eyebrow {
+        font-size: 0.68rem;
+    }
+
+    .portal-form {
+        gap: 12px;
+    }
+
+    .field-wrap label {
+        font-size: 0.78rem;
+    }
+
+    .field-wrap input {
+        min-height: 40px;
+        font-size: 16px;
+        border-radius: 10px;
+    }
+
+    .portal-submit {
+        min-height: 44px;
+        font-size: 0.88rem;
+    }
+
+    .portal-tools {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .portal-help-link {
+        font-size: 0.8rem;
+    }
+
+    .portal-head {
+        margin-bottom: 10px;
+    }
+}
+
+@media (max-width: 380px) {
+    .portal-screen {
+        padding: 8px;
+        padding-top: 16px;
+    }
+
+    .portal-panel {
+        padding: 12px 10px;
+        border-radius: 10px;
+    }
+
+    .role-card {
+        min-height: 64px;
+        padding: 6px 4px 4px;
+    }
+    .role-card .role-name {
+        font-size: 0.72rem;
+    }
+    .role-card .role-copy {
+        display: none;
     }
 }
 </style>
