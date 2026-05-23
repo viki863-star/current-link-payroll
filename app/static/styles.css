@@ -9396,6 +9396,18 @@ textarea.form-control {
     border-color: var(--muted);
 }
 
+.btn-danger {
+    background: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
+    box-shadow: 0 2px 6px rgba(199,61,44,0.18);
+}
+.btn-danger:hover {
+    background: #b02d1e;
+    border-color: #b02d1e;
+    box-shadow: 0 3px 10px rgba(199,61,44,0.25);
+}
+
 .btn-plus {
     font-size: 1.1rem;
     font-weight: 700;

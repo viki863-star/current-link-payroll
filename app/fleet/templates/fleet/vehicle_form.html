@@ -90,10 +90,21 @@
                 </div>
             </div>
             {% endif %}
-            <div style="margin-top:16px">
+            {% if v.plate_no %}
+            <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+                <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+                <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline">Cancel</a>
+                <form method="POST" action="{{ url_for('fleet.vehicle_delete', plate_no=v.plate_no) }}" style="margin-left:auto" onsubmit="return confirm('Delete vehicle {{ v.plate_no }}? This cannot be undone.')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+            {% else %}
+            <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
                 <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
                 <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline">Cancel</a>
             </div>
+            {% endif %}
         </form>
     </div>
 </div>
