@@ -19,7 +19,6 @@
         {"label": "Fleet", "endpoint": "fleet.fleet_dashboard", "icon": "truck"},
         {"label": "Suppliers", "endpoint": "supplier.supplier_dashboard", "icon": "building"},
         {"label": "Customers", "endpoint": "customer.customer_dashboard", "icon": "handshake"},
-        {"label": "Settings", "endpoint": "customer.settings", "icon": "gear"},
     ] %}
 
     {% set accounts_children = [
@@ -37,7 +36,7 @@
     <div class="erp-sidebar-body">
         <nav class="erp-sidebar-nav">
             {% for item in nav_items %}
-            {% set is_active = (request.endpoint and (request.endpoint == item.endpoint or (item.label == 'HR & Employees' and request.endpoint.startswith('hr.')) or (item.label == 'Fleet' and request.endpoint.startswith('fleet.')) or (item.label == 'Suppliers' and request.endpoint.startswith('supplier.')) or (item.label == 'Customers' and request.endpoint.startswith('customer.') and not request.endpoint.startswith('customer.settings')) or (item.label == 'Settings' and request.endpoint.startswith('customer.settings')))) %}
+            {% set is_active = (request.endpoint and (request.endpoint == item.endpoint or (item.label == 'HR & Employees' and request.endpoint.startswith('hr.')) or (item.label == 'Fleet' and request.endpoint.startswith('fleet.')) or (item.label == 'Suppliers' and request.endpoint.startswith('supplier.')) or (item.label == 'Customers' and request.endpoint.startswith('customer.') and not request.endpoint.startswith('customer.settings')))) %}
             <a class="erp-nav-link {{ 'is-active' if is_active }}" href="{{ url_for(item.endpoint) if item.endpoint != 'dashboard' else url_for('dashboard') }}">
                 <span class="erp-nav-icon">
                     {% if item.icon == 'grid' %}
@@ -101,6 +100,15 @@
                 </a>
                 {% endfor %}
             </div>
+
+            {# ═══ SETTINGS ═══ #}
+            {% set is_settings = request.endpoint and request.endpoint.startswith('customer.settings') %}
+            <a class="erp-nav-link {{ 'is-active' if is_settings }}" href="{{ url_for('customer.settings') }}">
+                <span class="erp-nav-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </span>
+                <span class="erp-nav-copy"><strong>Settings</strong></span>
+            </a>
         </nav>
 
 
