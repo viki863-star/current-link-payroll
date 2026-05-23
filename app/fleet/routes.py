@@ -370,8 +370,15 @@ def vehicle_profile(plate_no):
             d["created_at"] = d["created_at"].strftime("%Y-%m-%d %H:%M:%S")
         maintenance_papers_list.append(d)
 
+    approved_jobs_list = []
+    for r in approved_jobs:
+        d = dict(r)
+        if isinstance(d.get("created_at"), datetime):
+            d["created_at"] = d["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+        approved_jobs_list.append(d)
+
     combined = sorted(
-        approved_jobs + maintenance_papers_list,
+        approved_jobs_list + maintenance_papers_list,
         key=lambda x: (x.get("created_at") or ""),
         reverse=True,
     )
