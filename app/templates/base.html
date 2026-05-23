@@ -389,6 +389,59 @@ if ("serviceWorker" in navigator) {
             xhr.send();
         });
     }
+
+    // ─── Sound + Polling ───
+    function playNotifSound() {
+        try {
+            var ctx = new (window.AudioContext || window.webkitAudioContext)();
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 880;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.15);
+            setTimeout(function(){
+                var osc2 = ctx.createOscillator();
+                var gain2 = ctx.createGain();
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.frequency.value = 1108;
+                osc2.type = 'sine';
+                gain2.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+                osc2.start(ctx.currentTime);
+                osc2.stop(ctx.currentTime + 0.15);
+            }, 120);
+        } catch(e) {}
+    }
+
+    var lastCount = 0;
+    function pollNotifs() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/notifications/unread-count');
+        xhr.onload = function(){
+            if (xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.unread > lastCount && lastCount > 0) {
+                        playNotifSound();
+                        if (dropdown.style.display !== 'none' && dropdown.style.display !== '') {
+                            fetchNotifs();
+                        }
+                    }
+                    lastCount = data.unread;
+                    if (data.unread > 0) { badge.style.display = ''; badge.textContent = data.unread; } else { badge.style.display = 'none'; }
+                } catch(e) {}
+            }
+        };
+        xhr.send();
+    }
+    pollNotifs();
+    setInterval(pollNotifs, 30000);
 })();
 </script>
 </body>
