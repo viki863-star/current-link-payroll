@@ -1282,3 +1282,42 @@ def download_db_backup():
         flash("No backup file available.", "error")
         return redirect(url_for("customer.settings"))
     return send_file(files[0], as_attachment=True)
+
+@customer_bp.route("/tax-report")
+def customer_tax_report():
+    _ensure_tables()
+    db = _get_db()
+    from_filter = request.args.get("from", "")
+    to_filter = request.args.get("to", "")
+    where = ""
+    params = []
+    if from_filter:
+        where += " AND i.invoice_date >= ?"
+        params.append(from_filter)
+    if to_filter:
+        where += " AND i.invoice_date <= ?"
+        params.append(to_filter)
+    customers = db.execute(f"""
+        SELECT c.id, c.customer_name, c.trn, c.customer_code, c.status,
+               COUNT(i.id) AS invoice_count,
+               COALESCE(SUM(i.amount),0) AS total_taxable,
+               COALESCE(SUM(i.vat_amount),0) AS total_vat,
+               COALESCE(SUM(i.total_amount),0) AS total_invoiced
+        FROM customers c
+        LEFT JOIN customer_invoices i ON i.customer_id = c.id AND i.status != 'cancelled' {where}
+        GROUP BY c.id
+        ORDER BY c.customer_name
+    """, params).fetchall()
+    total_taxable = sum(r["total_taxable"] for r in customers)
+    total_vat = sum(r["total_vat"] for r in customers)
+    total_invoiced = sum(r["total_invoiced"] for r in customers)
+    db.close()
+    return render_template(
+        "customer/tax_report.html",
+        customers=customers,
+        total_taxable=total_taxable,
+        total_vat=total_vat,
+        total_invoiced=total_invoiced,
+        from_filter=from_filter,
+        to_filter=to_filter,
+    )

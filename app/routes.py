@@ -8781,6 +8781,7 @@ def _admin_module_links(workspace: str):
             {"label": "Owner Fund", "endpoint": "owner_fund", "primary": True},
             {"label": "Fleet Maintenance", "endpoint": "fleet_maintenance"},
             {"label": "Tax", "endpoint": "tax_center"},
+            {"label": "Customer Tax Report", "endpoint": "customer.customer_tax_report"},
         ],
         "technicians": [
             {"label": "Field Staff", "endpoint": "technicians", "primary": True},

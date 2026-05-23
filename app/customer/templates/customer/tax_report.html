@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Customer Tax Report — Current Link ERP{% endblock %}
+{% block body_class %}dashboard-body{% endblock %}
+{% block page_title %}Customer Tax Report{% endblock %}
+
+{% block content %}
+<div class="db-shell">
+    <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px;">
+        <div>
+            <div style="font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#ffffff;">Accounts</div>
+            <h1 style="margin:8px 0 10px;font-size:36px;line-height:1;color:#ffffff;">Customer Tax Report</h1>
+        </div>
+        <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <label style="font-size:.78rem;color:#fff;font-weight:600">From:
+                <input type="date" name="from" value="{{ from_filter }}" style="padding:6px 10px;border:0;border-radius:8px;font-size:.82rem;margin-left:4px">
+            </label>
+            <label style="font-size:.78rem;color:#fff;font-weight:600">To:
+                <input type="date" name="to" value="{{ to_filter }}" style="padding:6px 10px;border:0;border-radius:8px;font-size:.82rem;margin-left:4px">
+            </label>
+            <button type="submit" style="padding:7px 16px;border:0;border-radius:8px;background:#f7931e;color:#fff;font-weight:700;cursor:pointer;">Filter</button>
+            {% if from_filter or to_filter %}
+            <a href="{{ url_for('customer.customer_tax_report') }}" style="padding:7px 16px;border:0;border-radius:8px;background:#255f99;color:#fff;font-weight:700;text-decoration:none;">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px;">
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Taxable Sales</div>
+            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#17345e;">AED {{ "{:,.2f}".format(total_taxable) }}</div>
+        </div>
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Output VAT</div>
+            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#f7931e;">AED {{ "{:,.2f}".format(total_vat) }}</div>
+        </div>
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Invoiced (incl. VAT)</div>
+            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#2CB15C;">AED {{ "{:,.2f}".format(total_invoiced) }}</div>
+        </div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+            <thead>
+                <tr style="background:#f5f8fe;text-align:left">
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">Customer</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">Code</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">TRN</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:center">Invoices</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right">Taxable (AED)</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right">VAT (AED)</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right">Total (AED)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in customers %}
+                <tr style="border-top:1px solid #eef3fa">
+                    <td style="padding:10px 14px;font-weight:600;color:#17345e;">{{ c.customer_name }}</td>
+                    <td style="padding:10px 14px;color:#7b92b6;">{{ c.customer_code or '—' }}</td>
+                    <td style="padding:10px 14px;color:#7b92b6;">{{ c.trn or '—' }}</td>
+                    <td style="padding:10px 14px;text-align:center;font-weight:600;">{{ c.invoice_count }}</td>
+                    <td style="padding:10px 14px;text-align:right;">{{ "{:,.2f}".format(c.total_taxable) }}</td>
+                    <td style="padding:10px 14px;text-align:right;color:#f7931e;">{{ "{:,.2f}".format(c.total_vat) }}</td>
+                    <td style="padding:10px 14px;text-align:right;font-weight:600;">{{ "{:,.2f}".format(c.total_invoiced) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="padding:32px;text-align:center;color:#a0b5cf;">No customer data found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="background:#f5f8fe;font-weight:700">
+                    <td colspan="3" style="padding:12px 14px;color:#17345e;">Totals</td>
+                    <td style="padding:12px 14px;text-align:center;">{{ customers|length }}</td>
+                    <td style="padding:12px 14px;text-align:right;">{{ "{:,.2f}".format(total_taxable) }}</td>
+                    <td style="padding:12px 14px;text-align:right;color:#f7931e;">{{ "{:,.2f}".format(total_vat) }}</td>
+                    <td style="padding:12px 14px;text-align:right;">{{ "{:,.2f}".format(total_invoiced) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endblock %}
