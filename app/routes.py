@@ -1716,6 +1716,16 @@ def register_routes(app: Flask) -> None:
             ).fetchall()
         )
         backup_summary = backup_status_summary(app)
+        try:
+            pending_jobs_count = db.execute("SELECT COUNT(*) FROM maintenance_jobs WHERE status='pending'").fetchone()[0]
+        except:
+            pending_jobs_count = 0
+        try:
+            from .notification_service import get_unread_notifications
+            notifs = get_unread_notifications(role="admin", limit=1)
+            latest_backup_notification = notifs[0] if notifs and notifs[0]["type"] in ("success", "error") else None
+        except:
+            latest_backup_notification = None
 
         return render_template(
             "dashboard.html",
@@ -1746,6 +1756,8 @@ def register_routes(app: Flask) -> None:
             vehicle_chart=vehicle_chart,
             import_chart=import_chart,
             backup_summary=backup_summary,
+            pending_jobs_count=pending_jobs_count,
+            latest_backup_notification=latest_backup_notification,
         )
 
     @app.route("/search")

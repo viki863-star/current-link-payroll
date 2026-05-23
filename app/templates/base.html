@@ -428,7 +428,7 @@ if ("serviceWorker" in navigator) {
         } catch(e) {}
     }
 
-    var lastCount = 0;
+    var lastCount = -1;
     function pollNotifs() {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', '/notifications/unread-count');
@@ -436,7 +436,7 @@ if ("serviceWorker" in navigator) {
             if (xhr.status === 200) {
                 try {
                     var data = JSON.parse(xhr.responseText);
-                    if (data.unread > lastCount && lastCount > 0) {
+                    if (data.unread > lastCount && lastCount >= 0) {
                         playNotifSound();
                         if (dropdown.style.display !== 'none' && dropdown.style.display !== '') {
                             fetchNotifs();

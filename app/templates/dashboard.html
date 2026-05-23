@@ -171,6 +171,24 @@
         <h3>Alerts &amp; Notifications</h3>
       </div>
       <div class="panel-card-body">
+        {% if pending_jobs_count and pending_jobs_count > 0 %}
+        <a href="/fleet/approvals" style="text-decoration:none;display:block" class="alert-row" onclick="event.stopPropagation();">
+          <span class="alert-dot warning"></span>
+          <div class="alert-text">
+            <strong>{{ pending_jobs_count }} Field Staff Job{{ 's' if pending_jobs_count > 1 else '' }} Pending</strong>
+            <p>Awaiting approval &middot; Click to review</p>
+          </div>
+        </a>
+        {% endif %}
+        {% if latest_backup_notification %}
+        <div class="alert-row">
+          <span class="alert-dot success"></span>
+          <div class="alert-text">
+            <strong>{{ latest_backup_notification.title }}</strong>
+            <p>{{ latest_backup_notification.message }}</p>
+          </div>
+        </div>
+        {% endif %}
         {% if stored_this_month > 0 %}
         <div class="alert-row">
           <span class="alert-dot warning"></span>
