@@ -131,6 +131,7 @@ def employee_list():
         f"""
         SELECT DISTINCT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
                e.department, e.designation, e.join_date, e.basic_salary, e.status, e.photo_name,
+               v.plate_no,
                CASE WHEN e.status = 'Active' THEN 0 ELSE 1 END AS sort_order
         FROM employees e
         LEFT JOIN vehicle_assignments va ON va.driver_id = e.employee_id AND va.is_current = 1

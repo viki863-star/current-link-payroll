@@ -49,6 +49,7 @@
                     <th>Employee</th>
                     <th>Department</th>
                     <th>Type</th>
+                    <th>Vehicle</th>
                     <th>Join Date</th>
                     <th>Salary</th>
                     <th>Status</th>
@@ -74,6 +75,7 @@
                     </td>
                     <td><span class="badge badge-dept">{{ emp.department }}</span></td>
                     <td><span class="badge badge-type">{{ emp.employee_type }}</span></td>
+                    <td>{% if emp.plate_no %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ emp.plate_no }}</span>{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
                     <td class="mono">{{ emp.join_date }}</td>
                     <td class="mono emp-salary">AED {{ "%.0f"|format(emp.basic_salary or 0) }}</td>
                     <td>
@@ -95,7 +97,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" class="empty-state">No employees found. <a href="{{ url_for('hr.employee_new') }}">Add your first employee</a>.</td>
+                    <td colspan="8" class="empty-state">No employees found. <a href="{{ url_for('hr.employee_new') }}">Add your first employee</a>.</td>
                 </tr>
                 {% endfor %}
             </tbody>
