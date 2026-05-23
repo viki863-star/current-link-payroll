@@ -8782,6 +8782,7 @@ def _admin_module_links(workspace: str):
             {"label": "Fleet Maintenance", "endpoint": "fleet_maintenance"},
             {"label": "Tax", "endpoint": "tax_center"},
             {"label": "Customer Tax Report", "endpoint": "customer.customer_tax_report"},
+            {"label": "Supplier Purchase Report", "endpoint": "supplier.supplier_purchase_report"},
         ],
         "technicians": [
             {"label": "Field Staff", "endpoint": "technicians", "primary": True},

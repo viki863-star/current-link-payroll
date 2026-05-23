@@ -1920,3 +1920,40 @@ def supplier_doc_delete(sup_id, doc_id):
 
     flash("Document deleted.", "info")
     return redirect(url_for("supplier.supplier_doc_list", sup_id=sup_id))
+
+
+@supplier_bp.route("/purchase-report")
+def supplier_purchase_report():
+    _ensure_tables()
+    db = _get_db()
+    from_filter = request.args.get("from", "")
+    to_filter = request.args.get("to", "")
+    where = ""
+    params = []
+    if from_filter:
+        where += " AND i.invoice_date >= ?"
+        params.append(from_filter)
+    if to_filter:
+        where += " AND i.invoice_date <= ?"
+        params.append(to_filter)
+    invoices = db.execute(f"""
+        SELECT i.invoice_date, i.invoice_no, s.supplier_name,
+               i.amount AS net_sale, i.vat_amount, i.total_amount
+        FROM supplier_invoices i
+        JOIN suppliers s ON s.id = i.supplier_id
+        WHERE 1=1 {where}
+        ORDER BY i.invoice_date DESC, i.invoice_no DESC
+    """, params).fetchall()
+    total_net = sum(r["net_sale"] for r in invoices)
+    total_vat = sum(r["vat_amount"] for r in invoices)
+    total_gross = sum(r["total_amount"] for r in invoices)
+    db.close()
+    return render_template(
+        "supplier/purchase_report.html",
+        invoices=invoices,
+        total_net=total_net,
+        total_vat=total_vat,
+        total_gross=total_gross,
+        from_filter=from_filter,
+        to_filter=to_filter,
+    )
