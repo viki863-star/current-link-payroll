@@ -1232,6 +1232,17 @@ def customer_soa_pdf(cid):
             Paragraph(f"<b>{bal_display}</b>", F("_bl", fontSize=7, fontName="Helvetica-Bold", textColor=bal_color, alignment=TA_RIGHT, leading=10)),
         ])
 
+    # ── CLOSING ROW (inside main table for perfect alignment) ──
+    rws.append([
+        Paragraph("<b>Closing Balance</b>", F("_cb", fontSize=8, fontName="Helvetica-Bold", textColor=WH, leading=11)),
+        Paragraph("", F("_x", fontSize=7, leading=10)),
+        Paragraph("", F("_x", fontSize=7, leading=10)),
+        Paragraph("", F("_x", fontSize=7, leading=10)),
+        Paragraph(f"<b>{total_dr:,.2f}</b>", F("_cd", fontSize=8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=11)),
+        Paragraph(f"<b>{total_cr:,.2f}</b>", F("_cc", fontSize=8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=11)),
+        Paragraph(f"<b>{(closing if closing > 0 else 0):,.2f}</b>", F("_ccl", fontSize=8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=11)),
+    ])
+
     it = Table(rws, colWidths=colw, repeatRows=1)
     it.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
@@ -1239,25 +1250,11 @@ def customer_soa_pdf(cid):
         ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
         ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
         ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
-        ("ROWBACKGROUNDS",(0,1),(-1,-1),[WH, BG]),
+        ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
+        ("FONTNAME",(0,-1),(-1,-1),"Helvetica-Bold"),
+        ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
     ]))
     els.append(it)
-
-    # ── CLOSING ROW ──
-    cd = [[
-        Paragraph("<b>Closing Balance</b>", F("_cb", fontSize=9, fontName="Helvetica-Bold", textColor=WH, leading=12)),
-        Paragraph(f"<b>AED {total_dr:,.2f}</b>", F("_cd", fontSize=9, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=12)),
-        Paragraph(f"<b>AED {total_cr:,.2f}</b>", F("_cc", fontSize=9, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=12)),
-        Paragraph(f"<b>AED {(closing if closing > 0 else 0):,.2f}</b>", F("_ccl", fontSize=9, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=12)),
-    ]]
-    cl_t = Table(cd, colWidths=[colw[0]+colw[1]+colw[2]+colw[3], colw[4], colw[5], colw[6]])
-    cl_t.setStyle(TableStyle([
-        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("BACKGROUND",(0,0),(-1,-1),TH),
-        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
-        ("LEFTPADDING",(0,0),(-1,-1),4), ("RIGHTPADDING",(0,0),(-1,-1),4),
-    ]))
-    els.append(cl_t)
 
     # ══════════════════════════════
     # FOOTER
