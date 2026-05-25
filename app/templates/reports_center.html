@@ -16,10 +16,10 @@
 .stat-card .stat-label { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.3px; color:#7b92b6; }
 .stat-card .stat-value { font-size:1.3rem; font-weight:800; margin-top:4px; color:#17345e; }
 .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.chart-panel { background:#fff; border:1px solid #d8e4f5; border-radius:14px; padding:16px; transition:box-shadow .2s; }
+.chart-panel { background:#fff; border:1px solid #d8e4f5; border-radius:14px; padding:16px; transition:box-shadow .2s; overflow:hidden; }
 .chart-panel:hover { box-shadow:0 4px 16px rgba(0,0,0,.06); }
 .chart-panel h3 { margin:0 0 10px; font-size:0.8rem; font-weight:600; color:#17345e; }
-.chart-panel canvas { width:100% !important; }
+.chart-panel canvas { display:block; max-width:100%; max-height:160px; width:100%!important; height:140px!important; }
 @media (max-width:700px){ .charts-row { grid-template-columns:1fr; } }
 </style>
 
@@ -108,7 +108,7 @@ const es = {{ employee_data.salary_by_month|tojson }};
 const dl = {{ employee_data.dept_labels|tojson }};
 const dv = {{ employee_data.dept_values|tojson }};
 
-function ch(id, cfg){ const c = document.getElementById(id); if(c) new Chart(c, cfg); }
+function ch(id, cfg){ const c = document.getElementById(id); if(c){ cfg.options.maintainAspectRatio=false; new Chart(c, cfg); } }
 
 ch('custMain', {
     type:'bar', data:{
