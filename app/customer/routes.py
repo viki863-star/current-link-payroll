@@ -218,11 +218,30 @@ def customer_dashboard():
     total_receivable = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices").fetchone()[0]
     total_cn = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes").fetchone()[0]
     inv_count = db.execute("SELECT COUNT(*) FROM customer_invoices").fetchone()[0]
+    paid_total = db.execute("SELECT COALESCE(SUM(amount),0) FROM customer_payments").fetchone()[0]
     recent = db.execute("""SELECT i.*, c.customer_name FROM customer_invoices i
-        JOIN customers c ON i.customer_id=c.id ORDER BY i.created_at DESC LIMIT 10""").fetchall()
+        JOIN customers c ON i.customer_id=c.id ORDER BY i.created_at DESC LIMIT 8""").fetchall()
+    recent_pmts = db.execute("""SELECT p.*, c.customer_name FROM customer_payments p
+        JOIN customers c ON p.customer_id=c.id ORDER BY p.created_at DESC LIMIT 6""").fetchall()
+    monthly = db.execute("""
+        SELECT substr(invoice_date,1,7) AS mon,
+               COUNT(*) AS cnt, COALESCE(SUM(total_amount),0) AS tot
+        FROM customer_invoices GROUP BY mon ORDER BY mon DESC LIMIT 12
+    """).fetchall()
+    top_customers = db.execute("""
+        SELECT c.id, c.customer_name, COUNT(i.id) AS inv_cnt,
+               COALESCE(SUM(i.total_amount),0) AS total
+        FROM customers c LEFT JOIN customer_invoices i ON i.customer_id=c.id
+        GROUP BY c.id ORDER BY total DESC LIMIT 5
+    """).fetchall()
     db.close()
-    return render_template("customer/dashboard.html", total=total, active=active,
-        total_receivable=total_receivable, total_cn=total_cn, inv_count=inv_count, recent_invoices=recent)
+    return render_template("customer/dashboard.html",
+        total=total, active=active,
+        total_receivable=total_receivable, total_cn=total_cn,
+        inv_count=inv_count, paid_total=paid_total,
+        outstanding=total_receivable - paid_total - total_cn,
+        recent_invoices=recent, recent_payments=recent_pmts,
+        monthly_trend=monthly, top_customers=top_customers)
 
 # ─── CUSTOMER CRUD ───
 
