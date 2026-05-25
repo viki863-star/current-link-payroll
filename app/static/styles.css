@@ -8114,6 +8114,7 @@ html {
     max-width: calc(100% - var(--sidebar-w));
     overflow-x: hidden;
     width: calc(100% - var(--sidebar-w));
+    padding-top: 60px;
 }
 
 .topbar {
@@ -8941,6 +8942,9 @@ html {
     max-width: calc(100% - 60px);
     width: calc(100% - 60px);
 }
+.erp-sidebar.is-collapsed ~ .main-content .md-header {
+    left: 60px;
+}
 
 @media (max-width: 640px) {
     .kpi-grid {
@@ -8972,6 +8976,10 @@ html {
     }
     .main-content {
         margin-left: 60px;
+        padding-top: 60px;
+    }
+    .main-content .md-header {
+        left: 60px;
     }
     .page-content {
         padding: 16px;
