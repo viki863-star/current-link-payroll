@@ -820,13 +820,16 @@ def customer_payment_add(cid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    invoices = db.execute(
+    invoices_raw = db.execute(
         "SELECT i.id,i.invoice_no,i.total_amount,COALESCE(SUM(p.amount),0) AS paid FROM customer_invoices i LEFT JOIN customer_payments p ON p.invoice_id=i.id WHERE i.customer_id=? GROUP BY i.id ORDER BY i.invoice_date DESC",
         (cid,),
     ).fetchall()
-    for inv in invoices:
-        inv["balance"] = round(inv["total_amount"] - inv["paid"], 2)
-    total_balance = round(sum(inv["total_amount"] for inv in invoices) - sum(inv["paid"] for inv in invoices), 2)
+    invoices = []
+    for inv in invoices_raw:
+        d = dict(inv)
+        d["balance"] = round(d["total_amount"] - d["paid"], 2)
+        invoices.append(d)
+    total_balance = round(sum(d["total_amount"] for d in invoices) - sum(d["paid"] for d in invoices), 2)
     if request.method == "POST":
         pmt_date = request.form.get("payment_date", date.today().isoformat())
         method = request.form.get("payment_method", "Cheque")
