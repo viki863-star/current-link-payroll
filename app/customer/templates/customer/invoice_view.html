@@ -19,12 +19,14 @@
 .inv-info-line { font-size:0.82rem; padding:3px 0; color:#475569; line-height:1.5; }
 .inv-info-line .lbl { color:#94a3b8; display:inline-block; min-width:80px; }
 .inv-info-line .val { color:#0f172a; font-weight:600; }
-.inv-table { width:100%; border-collapse:collapse; margin-bottom:16px; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; }
+.inv-table { width:100%; border-collapse:collapse; margin-bottom:16px; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
 .inv-table thead { background:#1e293b; }
-.inv-table th { padding:10px 12px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px; color:#fff; font-weight:700; }
-.inv-table td { padding:9px 12px; font-size:0.82rem; border-bottom:1px solid #f1f5f9; }
+.inv-table th { padding:11px 10px; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.6px; color:#fff; font-weight:700; white-space:nowrap; }
+.inv-table td { padding:10px 10px; font-size:0.82rem; border-bottom:1px solid #f1f5f9; }
 .inv-table tbody tr:nth-child(even) { background:#f8fafc; }
+.inv-table tbody tr:hover { background:#eef2ff; }
 .inv-table tbody tr:last-child td { border-bottom:none; }
+@media print { .inv-table { box-shadow:none; } }
 @media (max-width:600px) {
     .inv-box { padding:16px; }
     .inv-header { flex-direction:column; gap:12px; }
@@ -84,14 +86,14 @@
     <table class="inv-table">
         <thead>
             <tr>
-                <th style="text-align:center;width:36px">#</th>
-                <th>Description</th>
-                <th style="text-align:center;width:60px">QTY</th>
-                <th style="text-align:right;width:90px">Unit Price</th>
-                <th style="text-align:right;width:100px">Taxable Amt</th>
-                <th style="text-align:center;width:60px">VAT %</th>
-                <th style="text-align:right;width:90px">VAT Amt</th>
-                <th style="text-align:right;width:110px">Total Incl. VAT</th>
+                <th style="text-align:center;width:32px">#</th>
+                <th style="text-align:left">Description</th>
+                <th style="text-align:center;width:55px">QTY</th>
+                <th style="text-align:right;width:80px">Unit Price</th>
+                <th style="text-align:right;width:90px">Taxable Amt</th>
+                <th style="text-align:center;width:50px">VAT %</th>
+                <th style="text-align:right;width:80px">VAT Amt</th>
+                <th style="text-align:right;width:100px">Total Incl.</th>
             </tr>
         </thead>
         <tbody>
@@ -100,14 +102,14 @@
             {% set vat_amt_item = it.vat_amount_item or (it.amount * vat_pct_item / 100) %}
             {% set total_incl = it.total_incl_vat or (it.amount + vat_amt_item) %}
             <tr>
-                <td style="text-align:center;font-weight:600">{{ loop.index }}</td>
-                <td>{{ it.description or '—' }}</td>
-                <td style="text-align:center">{{ "%.2f"|format(it.quantity) }}</td>
-                <td style="text-align:right;font-family:mono">{{ "%.3f"|format(it.rate) }}</td>
-                <td style="text-align:right;font-family:mono">{{ "%.2f"|format(it.amount) }}</td>
-                <td style="text-align:center">{{ "%.2f"|format(vat_pct_item) }}%</td>
-                <td style="text-align:right;font-family:mono;color:#c62828">{{ "%.2f"|format(vat_amt_item) }}</td>
-                <td style="text-align:right;font-weight:600;font-family:mono">{{ "%.2f"|format(total_incl) }}</td>
+                <td style="text-align:center;font-weight:600;color:#64748b">{{ loop.index }}</td>
+                <td style="font-weight:500;color:#0f172a">{{ it.description or '—' }}</td>
+                <td style="text-align:center;font-family:mono">{{ "%.2f" % it.quantity }}</td>
+                <td style="text-align:right;font-family:mono">{{ "%.3f" % it.rate }}</td>
+                <td style="text-align:right;font-family:mono">{{ "%.2f" % it.amount }}</td>
+                <td style="text-align:center;font-family:mono">{{ "%.2f" % vat_pct_item }}%</td>
+                <td style="text-align:right;font-family:mono;color:#c62828">{{ "%.2f" % vat_amt_item }}</td>
+                <td style="text-align:right;font-weight:700;font-family:mono;color:#0f172a">{{ "%.2f" % total_incl }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -116,13 +118,13 @@
     {# ─── TOTALS ─── #}
     <div style="margin-left:auto;width:320px;border:1.5px solid #e2e8f0;border-radius:10px;padding:14px 20px;margin-bottom:18px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
         <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem">
-            <span style="color:#64748b">Sub Total</span><span class="mono" style="font-weight:600;color:#0f172a">AED {{ "%.2f"|format(inv.amount) }}</span>
+            <span style="color:#64748b">Sub Total</span><span class="mono" style="font-weight:600;color:#0f172a">AED {{ "%.2f" % inv.amount }}</span>
         </div>
         <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem">
-            <span style="color:#64748b">VAT @ {{ "%.0f"|format(inv.vat_percent) }}%</span><span class="mono" style="font-weight:600;color:#dc2626">AED {{ "%.2f"|format(inv.vat_amount) }}</span>
+            <span style="color:#64748b">VAT @ {{ "%.0f" % inv.vat_percent }}%</span><span class="mono" style="font-weight:600;color:#dc2626">AED {{ "%.2f" % inv.vat_amount }}</span>
         </div>
         <div style="display:flex;justify-content:space-between;padding:8px 0 4px;border-top:2px solid #1e293b;margin-top:6px;font-size:1.05rem">
-            <span style="font-weight:700;color:#0f172a">Total Due</span><span class="mono" style="font-weight:800;font-size:1.2rem;color:var(--primary)">AED {{ "%.2f"|format(inv.total_amount) }}</span>
+            <span style="font-weight:700;color:#0f172a">Total Due</span><span class="mono" style="font-weight:800;font-size:1.2rem;color:var(--primary)">AED {{ "%.2f" % inv.total_amount }}</span>
         </div>
     </div>
 
