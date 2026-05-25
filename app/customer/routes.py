@@ -577,7 +577,7 @@ def customer_invoice_pdf(cid, iid):
     c_contact = []
     if c_ph: c_contact.append(f"Phone: {c_ph}")
     if c_em: c_contact.append(f"Email: {c_em}")
-    if c_contact: ci_lines.append(f"<font size=7 color='#64748b">{' &middot; '.join(c_contact)}</font>")
+    if c_contact: ci_lines.append('<font size=7 color="#64748b">' + ' &middot; '.join(c_contact) + '</font>')
     ci_lines.append(f"<font size=7 color='#64748b'><b>TRN: {c_trn}</b></font>")
     ci_html = f"<font size=12><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
     co_p = Paragraph(ci_html, S("CO", fontSize=12, fontName="Helvetica-Bold", textColor=TH, leading=16))
