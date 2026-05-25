@@ -65,7 +65,7 @@
                             <div class="inv-bal">AED {{ "%.0f"|format(inv.total_amount) }}</div>
                         </div>
                         <div style="text-align:right;font-size:0.82rem;color:{% if inv.balance > 0 %}#c62828{% else %}var(--green){% endif %}" class="mono">
-                            {{ "%.0f"|format(inv.balance) }}
+                            <span class="inv-bal-num">{{ "%.0f"|format(inv.balance) }}</span>
                         </div>
                         <input type="number" name="alloc_{{ inv.id }}" class="form-control alloc-amt" step="any" min="0" style="text-align:right;font-size:0.82rem" placeholder="0" oninput="syncTotal()">
                     </div>
@@ -96,11 +96,28 @@ function distributeAmount() {
     var count = checks.length;
     document.getElementById('checkedCount').textContent = count;
     if (count === 0) return;
-    var equal = total / count;
+    var totalBalance = 0;
+    var balances = [];
     checks.forEach(function(chk) {
         var row = chk.closest('.inv-alloc-row');
-        var allocInput = row.querySelector('.alloc-amt');
-        allocInput.value = equal.toFixed(2);
+        var balText = row.querySelector('.inv-bal-num').textContent.replace(/,/g,'');
+        var bal = parseFloat(balText) || 0;
+        balances.push({chk: chk, row: row, bal: bal});
+        totalBalance += bal;
+    });
+    if (totalBalance === 0) return;
+    var allocated = 0;
+    balances.forEach(function(b, idx) {
+        var allocInput = b.row.querySelector('.alloc-amt');
+        var amt;
+        if (idx === balances.length - 1) {
+            amt = total - allocated;
+        } else {
+            amt = total * (b.bal / totalBalance);
+        }
+        amt = Math.round(amt * 100) / 100;
+        allocInput.value = amt.toFixed(2);
+        allocated += amt;
     });
     syncTotal();
 }
