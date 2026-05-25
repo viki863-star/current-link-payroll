@@ -713,10 +713,10 @@ def _migrate_old_staff_entries(db):
             paper_date = (str(j["created_at"] or ""))[:10] or "2025-01-01"
             db.execute("""
                 INSERT INTO maintenance_papers
-                (paper_no, paper_date, vehicle_id, technician_code, work_summary,
+                (paper_no, paper_date, vehicle_id, vehicle_no, technician_code, work_summary,
                  total_amount, review_status, payment_status, notes, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)
-            """, (pno, paper_date, j["vehicle_id"], s["staff_id"],
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)
+            """, (pno, paper_date, j["vehicle_id"], "", s["staff_id"],
                   j["description"] or "", j["amount"], rev_status,
                   j["admin_notes"] or "", j["created_at"]))
 
