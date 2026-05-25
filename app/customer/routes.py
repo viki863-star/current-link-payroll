@@ -820,19 +820,38 @@ def customer_payment_add(cid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    invoices = db.execute("SELECT id,invoice_no,total_amount FROM customer_invoices WHERE customer_id=? ORDER BY invoice_date DESC", (cid,)).fetchall()
+    invoices = db.execute(
+        "SELECT i.id,i.invoice_no,i.total_amount,COALESCE(SUM(p.amount),0) AS paid FROM customer_invoices i LEFT JOIN customer_payments p ON p.invoice_id=i.id WHERE i.customer_id=? GROUP BY i.id ORDER BY i.invoice_date DESC",
+        (cid,),
+    ).fetchall()
+    for inv in invoices:
+        inv["balance"] = round(inv["total_amount"] - inv["paid"], 2)
+    total_balance = round(sum(inv["total_amount"] for inv in invoices) - sum(inv["paid"] for inv in invoices), 2)
     if request.method == "POST":
-        inv_id = request.form.get("invoice_id") or None
-        amt = float(request.form.get("amount", 0))
         pmt_date = request.form.get("payment_date", date.today().isoformat())
-        db.execute("INSERT INTO customer_payments (customer_id,invoice_id,payment_date,amount,payment_method,reference_no,notes) VALUES (?,?,?,?,?,?,?)",
-            (cid, inv_id, pmt_date, amt, request.form.get("payment_method", "Cash"), request.form.get("reference_no"), request.form.get("notes")))
-        db.commit()
+        method = request.form.get("payment_method", "Cheque")
+        ref = request.form.get("reference_no", "").strip()
+        notes = request.form.get("notes", "").strip()
+        inv_ids = request.form.getlist("inv_ids")
+        created = 0
+        for inv_id in inv_ids:
+            alloc_key = f"alloc_{inv_id}"
+            alloc_amt = float(request.form.get(alloc_key, 0) or 0)
+            if alloc_amt > 0:
+                db.execute(
+                    "INSERT INTO customer_payments (customer_id,invoice_id,payment_date,amount,payment_method,reference_no,notes) VALUES (?,?,?,?,?,?,?)",
+                    (cid, int(inv_id), pmt_date, alloc_amt, method, ref or None, notes or None),
+                )
+                created += 1
+        if created > 0:
+            db.commit()
+            flash(f"Payment of AED {sum(float(request.form.get(f'alloc_{i}',0) or 0) for i in inv_ids):.2f} allocated across {created} invoice(s).", "success")
+        else:
+            flash("No amount allocated to any invoice.", "error")
         db.close()
-        flash("Payment added.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="payments"))
     db.close()
-    return render_template("customer/payment_form.html", c=c, invoices=invoices, today=date.today().isoformat())
+    return render_template("customer/payment_form.html", c=c, invoices=invoices, today=date.today().isoformat(), balance=total_balance)
 
 @customer_bp.route("/<int:cid>/payment/<int:pid>/delete", methods=["POST"])
 def customer_payment_delete(cid, pid):

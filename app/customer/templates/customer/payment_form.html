@@ -3,58 +3,114 @@
 {% block page_title %}Payment — {{ c.customer_name }}{% endblock %}
 
 {% block content %}
-<div class="profile-shell" style="max-width:520px;margin:0 auto">
-    <div class="profile-card">
-        <div style="margin-bottom:16px">
-            <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='payments') }}" class="btn btn-outline btn-sm">&larr; Back</a>
-        </div>
-        <h3 style="margin:0 0 4px;font-size:1.1rem">Record Payment Received</h3>
-        <p style="color:var(--muted);font-size:0.82rem;margin:0 0 16px">
-            Customer: <strong>{{ c.customer_name }}</strong>
-            &middot; Balance: <strong style="color:#c62828">AED {{ "%.0f"|format(invoices|sum(attribute='total_amount') - 0) }}</strong>
-        </p>
+<div class="profile-shell" style="max-width:640px;margin:0 auto">
+<style>
+.inv-alloc-row { display:grid; grid-template-columns:auto 1fr 100px 120px; gap:8px; align-items:center; padding:6px 8px; border-bottom:1px solid #eef2f6; }
+.inv-alloc-row:last-child { border-bottom:none; }
+.inv-alloc-row .inv-label { font-size:0.82rem; font-weight:600; }
+.inv-alloc-row .inv-bal { font-size:0.72rem; color:var(--muted); }
+</style>
+<div class="profile-card">
+    <div style="margin-bottom:16px">
+        <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='payments') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+    </div>
+    <h3 style="margin:0 0 4px;font-size:1.1rem">Record Payment Received</h3>
+    <p style="color:var(--muted);font-size:0.82rem;margin:0 0 16px">
+        Customer: <strong>{{ c.customer_name }}</strong>
+        &middot; Balance: <strong style="color:#c62828">AED {{ "%.0f"|format(balance) }}</strong>
+    </p>
 
-        <form method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div style="display:grid;gap:14px">
+    <form method="POST" id="paymentForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="display:grid;gap:14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div class="form-row">
                     <label class="form-label">Payment Date</label>
                     <input type="date" name="payment_date" class="form-control" value="{{ today }}">
                 </div>
                 <div class="form-row">
-                    <label class="form-label">Amount (AED) *</label>
-                    <input type="number" name="amount" class="form-control" required step="0.01" min="0.01" placeholder="e.g. 10000" id="amountInput">
+                    <label class="form-label">Total Amount (AED) *</label>
+                    <input type="number" name="amount" class="form-control" required step="any" min="0.01" placeholder="e.g. 10000" id="totalAmount" oninput="distributeAmount()">
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                    <div class="form-row">
-                        <label class="form-label">Payment Method</label>
-                        <select name="payment_method" class="form-control">
-                            {% for m in ['Cash','Bank Transfer','Cheque','Card','Other'] %}
-                            <option value="{{ m }}">{{ m }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label class="form-label">Reference No.</label>
-                        <input type="text" name="reference_no" class="form-control" placeholder="Chq # / TXN ID">
-                    </div>
-                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div class="form-row">
-                    <label class="form-label">Allocate to Invoice</label>
-                    <select name="invoice_id" class="form-control">
-                        <option value="">— General (unallocated) —</option>
-                        {% for inv in invoices %}
-                        <option value="{{ inv.id }}">{{ inv.invoice_no }} &mdash; AED {{ "%.0f"|format(inv.total_amount) }}</option>
+                    <label class="form-label">Payment Method</label>
+                    <select name="payment_method" class="form-control">
+                        {% for m in ['Cash','Bank Transfer','Cheque','Card','Other'] %}
+                        <option value="{{ m }}">{{ m }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="form-row">
-                    <label class="form-label">Notes</label>
-                    <textarea name="notes" class="form-control" rows="2" placeholder="Any remarks about this payment"></textarea>
+                    <label class="form-label">Reference No.</label>
+                    <input type="text" name="reference_no" class="form-control" placeholder="Chq # / TXN ID">
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Payment</button>
-        </form>
-    </div>
+
+            <div class="form-row">
+                <label class="form-label">Allocate to Invoices</label>
+                <div style="border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fafbfc">
+                    <div style="display:grid;grid-template-columns:auto 1fr 100px 120px;gap:8px;padding:8px;background:#f0f2f5;font-size:0.7rem;font-weight:600;color:var(--muted)">
+                        <span></span>
+                        <span>Invoice</span>
+                        <span style="text-align:right">Balance</span>
+                        <span style="text-align:right">Allocate (AED)</span>
+                    </div>
+                    {% for inv in invoices %}
+                    <div class="inv-alloc-row">
+                        <input type="checkbox" name="inv_ids" value="{{ inv.id }}" class="inv-check" onchange="distributeAmount()">
+                        <div>
+                            <div class="inv-label">{{ inv.invoice_no }}</div>
+                            <div class="inv-bal">AED {{ "%.0f"|format(inv.total_amount) }}</div>
+                        </div>
+                        <div style="text-align:right;font-size:0.82rem;color:{% if inv.balance > 0 %}#c62828{% else %}var(--green){% endif %}" class="mono">
+                            {{ "%.0f"|format(inv.balance) }}
+                        </div>
+                        <input type="number" name="alloc_{{ inv.id }}" class="form-control alloc-amt" step="any" min="0" style="text-align:right;font-size:0.82rem" placeholder="0" oninput="syncTotal()">
+                    </div>
+                    {% else %}
+                    <p style="padding:16px;text-align:center;color:var(--muted);font-size:0.82rem">No invoices found.</p>
+                    {% endfor %}
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.78rem">
+                    <span><span id="checkedCount">0</span> invoices selected</span>
+                    <span>Allocated: AED <span id="allocatedTotal">0.00</span></span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" rows="2" placeholder="Any remarks about this payment"></textarea>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:16px">Save Payment</button>
+    </form>
 </div>
+</div>
+
+<script>
+function distributeAmount() {
+    var total = parseFloat(document.getElementById('totalAmount').value) || 0;
+    var checks = document.querySelectorAll('.inv-check:checked');
+    var count = checks.length;
+    document.getElementById('checkedCount').textContent = count;
+    if (count === 0) return;
+    var equal = total / count;
+    checks.forEach(function(chk) {
+        var row = chk.closest('.inv-alloc-row');
+        var allocInput = row.querySelector('.alloc-amt');
+        allocInput.value = equal.toFixed(2);
+    });
+    syncTotal();
+}
+function syncTotal() {
+    var allocs = document.querySelectorAll('.alloc-amt');
+    var sum = 0;
+    allocs.forEach(function(inp) {
+        sum += parseFloat(inp.value) || 0;
+    });
+    document.getElementById('allocatedTotal').textContent = sum.toFixed(2);
+}
+</script>
 {% endblock %}
