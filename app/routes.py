@@ -1728,6 +1728,36 @@ def register_routes(app: Flask) -> None:
         except:
             latest_backup_notification = None
 
+        # ── Customer Modules Data (SQLite payroll.db) ──
+        monthly_trend = []
+        recent_invoices = []
+        recent_payments = []
+        try:
+            import sqlite3
+            cdb_path = app.config.get("DATABASE") or "payroll.db"
+            cdb = sqlite3.connect(cdb_path)
+            cdb.row_factory = sqlite3.Row
+            monthly_trend = cdb.execute("""
+                SELECT substr(invoice_date,1,7) AS mon,
+                       COUNT(*) AS inv_count,
+                       COALESCE(SUM(total_amount),0) AS total
+                FROM customer_invoices
+                GROUP BY mon ORDER BY mon DESC LIMIT 12
+            """).fetchall()
+            recent_invoices = cdb.execute("""
+                SELECT i.invoice_date, i.invoice_no, i.total_amount, i.status, c.customer_name
+                FROM customer_invoices i JOIN customers c ON c.id=i.customer_id
+                ORDER BY i.created_at DESC LIMIT 8
+            """).fetchall()
+            recent_payments = cdb.execute("""
+                SELECT p.payment_date, p.amount, p.reference_no, c.customer_name
+                FROM customer_payments p JOIN customers c ON c.id=p.customer_id
+                ORDER BY p.created_at DESC LIMIT 8
+            """).fetchall()
+            cdb.close()
+        except:
+            pass
+
         return render_template(
             "dashboard.html",
             drivers=drivers,
@@ -1759,6 +1789,9 @@ def register_routes(app: Flask) -> None:
             backup_summary=backup_summary,
             pending_jobs_count=pending_jobs_count,
             latest_backup_notification=latest_backup_notification,
+            monthly_trend=monthly_trend,
+            recent_invoices=recent_invoices,
+            recent_payments=recent_payments,
         )
 
     @app.route("/search")
