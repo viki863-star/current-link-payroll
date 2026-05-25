@@ -1,6 +1,6 @@
 import os, base64, re, math
 from datetime import date, datetime
-from flask import render_template, request, redirect, url_for, flash, current_app, send_file, session, jsonify
+from flask import render_template, request, redirect, url_for, flash, current_app, send_file, session, jsonify, Markup
 from . import customer_bp
 
 def _get_db():
@@ -884,25 +884,43 @@ def customer_payment_add(cid):
         ref = request.form.get("reference_no", "").strip()
         notes = request.form.get("notes", "").strip()
         inv_ids = request.form.getlist("inv_ids")
-        created = 0
+        created_ids = []
+        total_alloc = 0
         for inv_id in inv_ids:
             alloc_key = f"alloc_{inv_id}"
             alloc_amt = float(request.form.get(alloc_key, 0) or 0)
             if alloc_amt > 0:
-                db.execute(
+                cur = db.execute(
                     "INSERT INTO customer_payments (customer_id,invoice_id,payment_date,amount,payment_method,reference_no,notes) VALUES (?,?,?,?,?,?,?)",
                     (cid, int(inv_id), pmt_date, alloc_amt, method, ref or None, notes or None),
                 )
-                created += 1
-        if created > 0:
+                created_ids.append(str(cur.lastrowid))
+                total_alloc += alloc_amt
+        if created_ids:
             db.commit()
-            flash(f"Payment of AED {sum(float(request.form.get(f'alloc_{i}',0) or 0) for i in inv_ids):.2f} allocated across {created} invoice(s).", "success")
+            ids_param = ",".join(created_ids)
+            flash(f"Payment of AED {total_alloc:.2f} recorded.", "success")
+            undo_url = url_for('customer.customer_payment_undo', cid=cid, ids=ids_param)
+            flash(Markup(f'<a href="{undo_url}" style="color:#fff;text-decoration:underline;font-weight:700">Undo this payment</a>'), "info")
         else:
             flash("No amount allocated to any invoice.", "error")
         db.close()
         return redirect(url_for("customer.customer_profile", cid=cid, tab="payments"))
     db.close()
     return render_template("customer/payment_form.html", c=c, invoices=invoices, today=date.today().isoformat(), balance=total_balance)
+
+@customer_bp.route("/<int:cid>/payment/undo")
+def customer_payment_undo(cid):
+    ids_str = request.args.get("ids", "")
+    if ids_str:
+        db = _get_db()
+        ids = [int(x) for x in ids_str.split(",") if x.strip().isdigit()]
+        for pid in ids:
+            db.execute("DELETE FROM customer_payments WHERE id=? AND customer_id=?", (pid, cid))
+        db.commit()
+        db.close()
+        flash(f"Payment undone — {len(ids)} record(s) deleted.", "warning")
+    return redirect(url_for("customer.customer_profile", cid=cid, tab="payments"))
 
 @customer_bp.route("/<int:cid>/payment/<int:pid>/delete", methods=["POST"])
 def customer_payment_delete(cid, pid):
