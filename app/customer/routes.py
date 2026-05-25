@@ -129,7 +129,7 @@ def _ensure_tables():
         """)
         db.commit()
     except Exception:
-        pass)
+        pass
     for col, dtype in [("lpo_no", "TEXT"), ("lpo_date", "TEXT"), ("project_no", "TEXT"),
                        ("invoice_template", "TEXT DEFAULT 'standard'"), ("discount", "REAL DEFAULT 0"),
                        ("ref_no", "TEXT")]:
