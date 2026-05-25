@@ -29,6 +29,10 @@
             <div class="profile-mini-stats">
                 <span><strong>Salary:</strong> AED {{ "%.0f"|format(employee.basic_salary or 0) }}</span>
                 <span><strong>Phone:</strong> {{ employee.phone_number or '-' }}</span>
+                {% if employee.employee_type == 'Driver' %}
+                {% set veh = employee_current_vehicle(employee.employee_id) %}
+                <span><strong>Vehicle:</strong> {% if veh %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ veh.vehicle_id }}</span>{% if veh.model %} ({{ veh.model }}){% endif %} <span style="font-size:0.7rem;color:var(--muted)">since {{ veh.assigned_from }}</span>{% else %}<span style="color:var(--muted)">—</span>{% endif %}</span>
+                {% endif %}
             </div>
         </div>
         <div class="profile-actions">
@@ -36,6 +40,24 @@
             <a href="{{ url_for('hr.employee_list') }}" class="btn btn-outline btn-sm">&#8592; Back</a>
         </div>
     </div>
+
+    {# ─── Vehicle Assignment History (Drivers only) ─── #}
+    {% if employee.employee_type == 'Driver' %}
+    {% set veh_history = employee_vehicle_history(employee.employee_id) %}
+    {% if veh_history and veh_history|length > 1 %}
+    <div style="padding:8px 16px;background:#f8fafc;border-radius:8px;margin:8px 0;border:1px solid #eef2f6;font-size:0.78rem">
+        <span style="font-weight:600;color:var(--muted)">Vehicle History:</span>
+        {% for h in veh_history %}
+        <span style="margin:0 12px 0 0;white-space:nowrap">
+            {{ h.vehicle_id }}{% if h.model %} ({{ h.model }}){% endif %}
+            {% if h.assigned_from %}<span style="color:var(--muted)">{{ h.assigned_from[:10] }}</span>{% endif %}
+            {% if h.assigned_until %}<span style="color:#c62828">→ {{ h.assigned_until[:10] }}</span>{% endif %}
+            {% if loop.last and not h.assigned_until %}<span style="color:#2e7d32;font-weight:600">Current</span>{% endif %}
+        </span>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
 
     {# ─── Tab Navigation ─── #}
     <div class="tab-bar">

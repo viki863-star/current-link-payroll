@@ -1074,6 +1074,34 @@ def employee_edit(employee_id):
 
 
 @hr_bp.app_template_global()
+def employee_current_vehicle(employee_id):
+    from ..database import open_db
+    try:
+        d = open_db()
+        row = d.execute(
+            "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id WHERE va.driver_id = ? AND va.is_current = 1 LIMIT 1",
+            (employee_id,),
+        ).fetchone()
+        d.close()
+        return dict(row) if row else None
+    except Exception:
+        return None
+
+@hr_bp.app_template_global()
+def employee_vehicle_history(employee_id):
+    from ..database import open_db
+    try:
+        d = open_db()
+        rows = d.execute(
+            "SELECT va.vehicle_id, va.assigned_from, va.assigned_until, v.plate_no, v.vehicle_type, v.model FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id WHERE va.driver_id = ? ORDER BY va.id DESC",
+            (employee_id,),
+        ).fetchall()
+        d.close()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+@hr_bp.app_template_global()
 def employee_photo_url(employee):
     if not employee:
         return None
