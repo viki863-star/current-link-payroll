@@ -88,12 +88,12 @@
             <tr>
                 <th style="text-align:center;width:32px">#</th>
                 <th style="text-align:left">Description</th>
-                <th style="text-align:center;width:55px">QTY</th>
+                <th style="text-align:right;width:90px">QTY</th>
                 <th style="text-align:right;width:80px">Unit Price</th>
-                <th style="text-align:right;width:90px">Taxable Amt</th>
+                <th style="text-align:right;width:85px">Taxable Amt</th>
                 <th style="text-align:center;width:50px">VAT %</th>
-                <th style="text-align:right;width:80px">VAT Amt</th>
-                <th style="text-align:right;width:100px">Total Incl.</th>
+                <th style="text-align:right;width:75px">VAT Amt</th>
+                <th style="text-align:right;width:90px">Total Incl.</th>
             </tr>
         </thead>
         <tbody>
@@ -104,7 +104,7 @@
             <tr>
                 <td style="text-align:center;font-weight:600;color:#64748b">{{ loop.index }}</td>
                 <td style="font-weight:500;color:#0f172a">{{ it.description or '—' }}</td>
-                <td style="text-align:center;font-family:mono">{{ "%.2f" % it.quantity }}</td>
+                <td style="text-align:right;font-family:mono">{{ "%.2f" % it.quantity }}</td>
                 <td style="text-align:right;font-family:mono">{{ "%.3f" % it.rate }}</td>
                 <td style="text-align:right;font-family:mono">{{ "%.2f" % it.amount }}</td>
                 <td style="text-align:center;font-family:mono">{{ "%.2f" % vat_pct_item }}%</td>

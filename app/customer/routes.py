@@ -651,7 +651,7 @@ def customer_invoice_pdf(cid, iid):
     # 3. ITEMS TABLE
     # ═══════════════════════════════════
     DH = colors.HexColor("#1e293b")
-    cw = [10*mm, 50*mm, 14*mm, 22*mm, 24*mm, 14*mm, 22*mm, 24*mm]
+    cw = [10*mm, 44*mm, 20*mm, 20*mm, 22*mm, 14*mm, 20*mm, 22*mm]
     hdr = [
         Paragraph("<b>#</b>", S("_h0", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
         Paragraph("<b>Description</b>", S("_h1", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
@@ -670,7 +670,7 @@ def customer_invoice_pdf(cid, iid):
         rws.append([
             C(str(idx+1), fontSize=7, fontName="Helvetica-Bold"),
             L(it["description"] or "—", fontSize=7),
-            C(f"{it['quantity'] or 0:,.2f}", fontSize=7),
+            R(f"{it['quantity'] or 0:,.2f}", fontSize=7),
             R(f"{it['rate'] or 0:,.3f}", fontSize=7),
             R(f"{it['amount'] or 0:,.2f}", fontSize=7),
             C(f"{vp_item:.2f}%", fontSize=7),
