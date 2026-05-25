@@ -703,6 +703,9 @@ def _migrate_old_staff_entries(db):
             WHERE mj.staff_id = ? AND mp.id IS NULL
         """, (s["staff_id"],)).fetchall()
         for j in old_jobs:
+            veh = db.execute("SELECT id FROM vehicle_master WHERE id = ?", (j["vehicle_id"],)).fetchone()
+            if not veh:
+                continue
             last = db.execute("SELECT paper_no FROM maintenance_papers ORDER BY id DESC LIMIT 1").fetchone()
             num = 1
             if last:
