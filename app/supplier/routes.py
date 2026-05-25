@@ -1763,7 +1763,8 @@ def supplier_kata(sup_id):
 @supplier_bp.route("/bulk-delete", methods=["POST"])
 def supplier_bulk_delete():
     _ensure_tables()
-    ids = request.form.getlist("selected_ids")
+    raw = request.form.getlist("selected_ids")
+    ids = [int(x) for x in raw if x.isdigit()]
     if not ids:
         flash("No suppliers selected.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -1775,6 +1776,7 @@ def supplier_bulk_delete():
     db.execute(f"DELETE FROM supplier_loans WHERE supplier_id IN ({placeholders})", ids)
     db.execute(f"DELETE FROM supplier_lpos WHERE supplier_id IN ({placeholders})", ids)
     db.execute(f"DELETE FROM supplier_documents WHERE supplier_id IN ({placeholders})", ids)
+    db.execute(f"DELETE FROM supplier_quotations WHERE supplier_id IN ({placeholders})", ids)
     db.execute(f"DELETE FROM suppliers WHERE id IN ({placeholders})", ids)
     db.commit()
     flash(f"{len(ids)} supplier(s) deleted.", "info")
