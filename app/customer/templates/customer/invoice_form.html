@@ -84,7 +84,7 @@
                     <div class="line-item-row">
                         <input type="text" name="item_desc[]" value="{{ it.description or '' }}" placeholder="Service description" style="width:100%">
                         <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
-                        <input type="number" name="item_rate[]" value="{{ it.rate or 0 }}" min="0" step="0.01" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.00">
+                        <input type="number" name="item_rate[]" value="{{ it.rate or 0 }}" min="0" step="any" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
                         <span class="item-amt" id="itemAmt_{{ loop.index0 }}">{{ "%.2f"|format(it.amount) }}</span>
                         <button type="button" class="btn-remove" onclick="removeItem(this)" {% if loop.first %}style="display:none"{% endif %}>&times;</button>
                     </div>
@@ -93,7 +93,7 @@
                     <div class="line-item-row">
                         <input type="text" name="item_desc[]" placeholder="Service description" style="width:100%">
                         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
-                        <input type="number" name="item_rate[]" value="0" min="0" step="0.01" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.00">
+                        <input type="number" name="item_rate[]" value="0" min="0" step="any" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
                         <span class="item-amt" id="itemAmt_0">0.00</span>
                         <button type="button" class="btn-remove" onclick="removeItem(this)" style="display:none">&times;</button>
                     </div>
@@ -134,7 +134,7 @@ function addItem() {
     row.innerHTML = `
         <input type="text" name="item_desc[]" placeholder="Service description">
         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
-        <input type="number" name="item_rate[]" value="0" min="0" step="0.01" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.00">
+        <input type="number" name="item_rate[]" value="0" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
         <span class="item-amt" id="itemAmt_${itemCount}">0.00</span>
         <button type="button" class="btn-remove" onclick="removeItem(this)">&times;</button>
     `;
