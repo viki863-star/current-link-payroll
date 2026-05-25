@@ -823,7 +823,7 @@ def customer_payment_add(cid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
     invoices_raw = db.execute(
-        "SELECT i.id,i.invoice_no,i.total_amount,COALESCE(SUM(p.amount),0) AS paid FROM customer_invoices i LEFT JOIN customer_payments p ON p.invoice_id=i.id WHERE i.customer_id=? GROUP BY i.id ORDER BY i.invoice_date DESC",
+        "SELECT i.id,i.invoice_no,i.invoice_date,i.total_amount,COALESCE(SUM(p.amount),0) AS paid FROM customer_invoices i LEFT JOIN customer_payments p ON p.invoice_id=i.id WHERE i.customer_id=? GROUP BY i.id ORDER BY i.invoice_date DESC",
         (cid,),
     ).fetchall()
     invoices = []
