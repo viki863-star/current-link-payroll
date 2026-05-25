@@ -141,6 +141,12 @@
                         {% endif %}
                     </button>
                     <a class="button button-secondary" href="{{ url_for(cards_endpoint) }}">Back to Cards</a>
+                    {% if values.original_party_code %}
+                    <form method="post" action="{{ url_for('delete_supplier', party_code=values.original_party_code) }}" onsubmit="return confirm('Delete this supplier and ALL linked data permanently? This cannot be undone.');" style="display:inline;margin-left:auto">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="button button-danger" type="submit">Delete Supplier</button>
+                    </form>
+                    {% endif %}
                 </div>
             </form>
         </article>
