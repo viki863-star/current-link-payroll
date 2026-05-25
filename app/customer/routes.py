@@ -312,7 +312,7 @@ def customer_invoice_add(cid):
 
 # ─── NOUROL INVOICE ───
 
-@customer_bp.route("/<int:cid>/invoice/<int:iid>/edit")
+@customer_bp.route("/<int:cid>/invoice/<int:iid>/edit", methods=["GET", "POST"])
 def customer_invoice_edit(cid, iid):
     _ensure_tables()
     c = _get_customer_or_404(cid)
