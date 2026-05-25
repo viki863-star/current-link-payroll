@@ -40,7 +40,7 @@
             </div>
             <div>
                 <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">VAT %</label>
-                <input type="number" name="vat_percent" value="{{ inv.vat_percent or 5 }}" step="0.01" min="0" id="vatPercent" oninput="calcTotals()" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                <input type="number" name="vat_percent" value="{{ inv.vat_percent or 5 }}" step="any" min="0" id="vatPercent" oninput="calcTotals()" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
             </div>
         </div>
 
