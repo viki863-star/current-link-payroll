@@ -1497,7 +1497,7 @@ def customer_tax_report_excel():
         WHERE 1=1 {where.replace('i.','')}
         ORDER BY i.invoice_date DESC, i.invoice_no DESC
     """, params).fetchall()
-    total_taxable = sum(r["amount"] or 0 for r in invoices)
+    total_taxable = sum(r["net_sale"] or 0 for r in invoices)
     total_vat = sum(r["vat_amount"] or 0 for r in invoices)
     total_invoiced = sum(r["total_amount"] or 0 for r in invoices)
     db.close()
@@ -1580,7 +1580,7 @@ def customer_tax_report_pdf():
         WHERE 1=1 {where.replace('i.','')}
         ORDER BY i.invoice_date DESC, i.invoice_no DESC
     """, params).fetchall()
-    total_taxable = sum(r["amount"] or 0 for r in invoices)
+    total_taxable = sum(r["net_sale"] or 0 for r in invoices)
     total_vat = sum(r["vat_amount"] or 0 for r in invoices)
     total_invoiced = sum(r["total_amount"] or 0 for r in invoices)
     db.close()
