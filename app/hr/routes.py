@@ -250,6 +250,7 @@ def employee_new():
                 "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
                 (values["vehicle_id"], values["employee_id"], date.today().isoformat()),
             )
+            db.execute("UPDATE drivers SET vehicle_no = ? WHERE driver_id = ?", (values["vehicle_id"], values["employee_id"]))
 
         _audit_log(
             db, "employee_created",
@@ -974,6 +975,10 @@ def employee_edit(employee_id):
     vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
     assigned = db.execute("SELECT vehicle_id FROM vehicle_assignments WHERE driver_id = ? AND is_current = 1 LIMIT 1", (employee_id,)).fetchone()
     assigned_vehicle = assigned["vehicle_id"] if assigned else ""
+    if not assigned_vehicle:
+        legacy = db.execute("SELECT vehicle_no FROM drivers WHERE driver_id = ? LIMIT 1", (employee_id,)).fetchone()
+        if legacy and legacy["vehicle_no"]:
+            assigned_vehicle = legacy["vehicle_no"]
 
     if request.method == "POST":
         values = employee_form_data()
@@ -1037,11 +1042,13 @@ def employee_edit(employee_id):
                         "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
                         (values["vehicle_id"], employee_id, date.today().isoformat()),
                     )
+                db.execute("UPDATE drivers SET vehicle_no = ? WHERE driver_id = ?", (values["vehicle_id"], employee_id))
             else:
                 db.execute(
                     "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
                     (date.today().isoformat(), employee_id),
                 )
+                db.execute("UPDATE drivers SET vehicle_no = NULL WHERE driver_id = ?", (employee_id,))
 
             _audit_log(db, "employee_updated", entity_type="employee", entity_id=employee_id, details=f"{values['full_name']} updated")
             db.commit()
@@ -1082,6 +1089,10 @@ def employee_current_vehicle(employee_id):
             "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id WHERE va.driver_id = ? AND va.is_current = 1 LIMIT 1",
             (employee_id,),
         ).fetchone()
+        if not row:
+            legacy = d.execute("SELECT vehicle_no FROM drivers WHERE driver_id = ? LIMIT 1", (employee_id,)).fetchone()
+            if legacy and legacy["vehicle_no"]:
+                row = d.execute("SELECT plate_no AS vehicle_id, NULL AS assigned_from, plate_no, vehicle_type, model FROM vehicles WHERE plate_no = ? LIMIT 1", (legacy["vehicle_no"],)).fetchone()
         d.close()
         return dict(row) if row else None
     except Exception:
