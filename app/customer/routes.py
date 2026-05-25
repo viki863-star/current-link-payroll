@@ -762,7 +762,7 @@ def customer_invoice_pdf(cid, iid):
         els.append(nb)
 
     # ═══════════════════════════════════
-    # 6. BANK DETAILS (matching web 2-column grid)
+    # 6. BANK DETAILS (single column label-value pairs)
     # ═══════════════════════════════════
     if company and (company["bank_name"] or company["bank_account_name"] or company["bank_account_number"] or company["iban"]):
         bk_items = []
@@ -773,23 +773,15 @@ def customer_invoice_pdf(cid, iid):
         if company["swift_code"]: bk_items.append(("Swift", company["swift_code"]))
         if bk_items:
             els.append(Spacer(1, 2*mm))
-            # Title
             els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=8, fontName="Helvetica-Bold", textColor=C5, leading=10, spaceAfter=2)))
-            # 2-column grid: split items into two columns
-            mid = (len(bk_items) + 1) // 2
-            col1 = bk_items[:mid]; col2 = bk_items[mid:]
-            max_rows = max(len(col1), len(col2))
-            col1 += [("", "")] * (max_rows - len(col1))
-            col2 += [("", "")] * (max_rows - len(col2))
-            grid_rows = []
-            for (l1, v1), (l2, v2) in zip(col1, col2):
-                r1 = f"<font color='#64748b'>{l1}:</font> <font color='#0f172a'><b>{v1}</b></font>" if l1 else ""
-                r2 = f"<font color='#64748b'>{l2}:</font> <font color='#0f172a'><b>{v2}</b></font>" if l2 else ""
-                grid_rows.append([Paragraph(r1, S("_bk", fontSize=8, leading=11.5)), Paragraph(r2, S("_bk", fontSize=8, leading=11.5))])
-            bkt = Table(grid_rows, colWidths=[W*0.50, W*0.50])
+            bk_rows = [[
+                Paragraph(f"<font color='#64748b'>{lbl}:</font>", S("_bkl", fontSize=8, textColor=C5, leading=12)),
+                Paragraph(f"<b>{val}</b>", S("_bkv", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=12)),
+            ] for lbl, val in bk_items]
+            bkt = Table(bk_rows, colWidths=[22*mm, W - 22*mm])
             bkt.setStyle(TableStyle([
                 ("VALIGN",(0,0),(-1,-1),"TOP"),
-                ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+                ("TOPPADDING",(0,0),(-1,-1),1.5), ("BOTTOMPADDING",(0,0),(-1,-1),1.5),
                 ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
             ]))
             els.append(bkt)

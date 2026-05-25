@@ -139,12 +139,12 @@
     {% if company and (company.bank_name or company.bank_account_name or company.bank_account_number or company.iban) %}
     <div style="margin-bottom:14px;padding:12px 15px;background:#fff;border-radius:10px;border:1.5px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
         <h4 style="margin:0 0 8px;font-size:0.6rem;text-transform:uppercase;color:#94a3b8;letter-spacing:0.7px;font-weight:700">Bank Details</h4>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 20px;font-size:0.76rem">
-            {% if company.bank_name %}<div><span style="color:#94a3b8">Bank:</span> <span style="color:#0f172a;font-weight:500">{{ company.bank_name }}</span></div>{% endif %}
-            {% if company.bank_account_name %}<div><span style="color:#94a3b8">Account:</span> <span style="color:#0f172a;font-weight:500">{{ company.bank_account_name }}</span></div>{% endif %}
-            {% if company.bank_account_number %}<div><span style="color:#94a3b8">A/C No.:</span> <span style="color:#0f172a;font-weight:500" class="mono">{{ company.bank_account_number }}</span></div>{% endif %}
-            {% if company.iban %}<div><span style="color:#94a3b8">IBAN:</span> <span style="color:#0f172a;font-weight:500" class="mono">{{ company.iban }}</span></div>{% endif %}
-            {% if company.swift_code %}<div><span style="color:#94a3b8">Swift:</span> <span style="color:#0f172a;font-weight:500" class="mono">{{ company.swift_code }}</span></div>{% endif %}
+        <div style="font-size:0.76rem">
+            {% if company.bank_name %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Bank:</span><span style="color:#0f172a;font-weight:500">{{ company.bank_name }}</span></div>{% endif %}
+            {% if company.bank_account_name %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Account:</span><span style="color:#0f172a;font-weight:500">{{ company.bank_account_name }}</span></div>{% endif %}
+            {% if company.bank_account_number %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">A/C No.:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.bank_account_number }}</span></div>{% endif %}
+            {% if company.iban %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">IBAN:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.iban }}</span></div>{% endif %}
+            {% if company.swift_code %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Swift:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.swift_code }}</span></div>{% endif %}
         </div>
     </div>
     {% endif %}
