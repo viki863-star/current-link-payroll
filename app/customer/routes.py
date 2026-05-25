@@ -237,6 +237,7 @@ def customer_add():
 
 @customer_bp.route("/<int:cid>/edit", methods=["GET", "POST"])
 def customer_edit(cid):
+    _ensure_tables()
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     if request.method == "POST":
@@ -254,6 +255,7 @@ def customer_edit(cid):
 
 @customer_bp.route("/<int:cid>")
 def customer_profile(cid):
+    _ensure_tables()
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
@@ -998,6 +1000,7 @@ def customer_doc_delete(cid, did):
 
 @customer_bp.route("/<int:cid>/kata")
 def customer_kata(cid):
+    _ensure_tables()
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     from_date = request.args.get("from", "")
@@ -1035,6 +1038,7 @@ def customer_kata(cid):
 
 @customer_bp.route("/<int:cid>/soa/pdf")
 def customer_soa_pdf(cid):
+    _ensure_tables()
     import tempfile
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
