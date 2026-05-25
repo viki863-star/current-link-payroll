@@ -242,7 +242,10 @@ def employee_new():
         )
 
         if values["vehicle_id"]:
-            db.execute("UPDATE vehicle_assignments SET is_current = 0 WHERE driver_id = ? AND is_current = 1", (values["employee_id"],))
+            db.execute(
+                "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
+                (date.today().isoformat(), values["employee_id"]),
+            )
             db.execute(
                 "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
                 (values["vehicle_id"], values["employee_id"], date.today().isoformat()),
@@ -979,6 +982,7 @@ def employee_edit(employee_id):
         if errors:
             for err in errors:
                 flash(err, "error")
+            assigned_vehicle = values.get("vehicle_id", "")
         else:
             salary = float(values["basic_salary"])
             ot_rate = float(values.get("ot_rate", 0) or 0)
@@ -1020,7 +1024,10 @@ def employee_edit(employee_id):
             )
 
             if values["vehicle_id"]:
-                db.execute("UPDATE vehicle_assignments SET is_current = 0 WHERE driver_id = ? AND is_current = 1", (employee_id,))
+                db.execute(
+                    "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
+                    (date.today().isoformat(), employee_id),
+                )
                 existing = db.execute(
                     "SELECT id FROM vehicle_assignments WHERE vehicle_id = ? AND driver_id = ? AND is_current = 1",
                     (values["vehicle_id"], employee_id),
@@ -1031,7 +1038,10 @@ def employee_edit(employee_id):
                         (values["vehicle_id"], employee_id, date.today().isoformat()),
                     )
             else:
-                db.execute("UPDATE vehicle_assignments SET is_current = 0 WHERE driver_id = ? AND is_current = 1", (employee_id,))
+                db.execute(
+                    "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
+                    (date.today().isoformat(), employee_id),
+                )
 
             _audit_log(db, "employee_updated", entity_type="employee", entity_id=employee_id, details=f"{values['full_name']} updated")
             db.commit()
