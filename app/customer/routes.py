@@ -1,6 +1,7 @@
 import os, base64, re, math
 from datetime import date, datetime
-from flask import render_template, request, redirect, url_for, flash, current_app, send_file, session, jsonify, Markup
+from flask import render_template, request, redirect, url_for, flash, current_app, send_file, session, jsonify
+from markupsafe import Markup
 from . import customer_bp
 
 def _get_db():
