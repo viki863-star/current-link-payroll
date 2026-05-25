@@ -1175,7 +1175,7 @@ def customer_soa_pdf(cid):
     sdata = [[
         Paragraph(f"<b>Total Invoiced</b><br/><font size=10 color='#1a3a5c'>AED {total_dr:,.2f}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         Paragraph(f"<b>Total Paid</b><br/><font size=10 color='#1a7d1a'>AED {total_cr:,.2f}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        Paragraph(f"<b>Outstanding</b><br/><font size=10 color='#c62828'>AED {closing:,.2f}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Outstanding</b><br/><font size=10 color='#c62828'>AED {closing if closing > 0 else 0:,.2f}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         Paragraph(f"<b>Transactions</b><br/><font size=10>{len(entries)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
     ]]
     st = Table(sdata, colWidths=[W/4, W/4, W/4, W/4])
@@ -1199,30 +1199,37 @@ def customer_soa_pdf(cid):
     # ══════════════════════════════
     # STATEMENT TABLE
     # ══════════════════════════════
-    colw = [50, 72, 45, W - 50 - 72 - 45 - 72 - 80, 72, 80]
+    colw = [45, 38, 65, 38, W - 45 - 38 - 65 - 38 - 65 - 75, 65, 75]
     hdr = [
-        Paragraph("<b>Date</b>", F("_h", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=11)),
-        Paragraph("<b>Invoice #</b>", F("_h", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, leading=11)),
-        Paragraph("<b>Type</b>", F("_h", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=11)),
-        Paragraph("<b>Dr (AED)</b>", F("_h", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=11)),
-        Paragraph("<b>Cr (AED)</b>", F("_h", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=11)),
-        Paragraph("<b>Balance (AED)</b>", F("_h", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=11)),
+        Paragraph("<b>Date</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph("<b>Month</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph("<b>Invoice #</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+        Paragraph("<b>Type</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph("<b>Dr (AED)</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph("<b>Cr (AED)</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph("<b>Balance (AED)</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
     ]
     rws = [hdr]
     rws.append([
         Paragraph("", F("_o", fontSize=7, leading=10)), Paragraph("", F("_o")),
-        Paragraph("Opening Balance", F("_ol", fontSize=7, textColor=C5, leading=10)),
+        Paragraph("", F("_o")), Paragraph("Opening Balance", F("_ol", fontSize=7, textColor=C5, leading=10)),
         Paragraph("", F("_o")), Paragraph("", F("_o")),
-        Paragraph("<b>0.00</b>", F("_ob", fontSize=7.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=11)),
+        Paragraph("<b>0.00</b>", F("_ob", fontSize=7, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=10)),
     ])
     for e in entries:
+        d = str(e.get("d",""))
+        month = d[:7] if d and len(d) >= 7 else ""
+        bal_val = e.get("bal",0) or 0
+        bal_display = "0.00" if bal_val <= 0 else f"{bal_val:,.2f}"
+        bal_color = "#c62828" if bal_val > 0 else "#1a7d1a"
         rws.append([
-            Paragraph(str(e.get("d","")), F("_d", fontSize=7.5, leading=11)),
-            Paragraph(str(e.get("ref","—")), F("_r", fontSize=7.5, fontName="Helvetica-Bold", textColor=C4, leading=11)),
-            Paragraph(f"<font color=\"{'#1a56db' if e['type']=='Invoice' else '#1a7d1a'}\">{e['type']}</font>", F("_t", fontSize=7.5, alignment=TA_CENTER, leading=11)),
-            Paragraph(f"<b>{e.get('dr',0):,.2f}</b>" if e.get("dr") else "—", F("_dr", fontSize=7.5, textColor="#c62828" if e.get("dr") else C5, alignment=TA_RIGHT, leading=11)),
-            Paragraph(f"<b>{e.get('cr',0):,.2f}</b>" if e.get("cr") else "—", F("_cr", fontSize=7.5, textColor="#1a7d1a" if e.get("cr") else C5, alignment=TA_RIGHT, leading=11)),
-            Paragraph(f"<b>{e['bal']:,.2f}</b>", F("_bl", fontSize=7.5, fontName="Helvetica-Bold", textColor="#c62828" if e['bal']>0 else "#1a7d1a", alignment=TA_RIGHT, leading=11)),
+            Paragraph(d, F("_d", fontSize=7, leading=10)),
+            Paragraph(f"<font color='{C5}'>{month}</font>" if month else "", F("_m", fontSize=6.5, textColor=C5, leading=10)),
+            Paragraph(str(e.get("ref","—")), F("_r", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=10)),
+            Paragraph(f"<font color=\"{'#1a56db' if e['type']=='Invoice' else '#e65100' if e['type']=='Credit Note' else '#c62828' if e['type']=='Unallocated Payment' else '#1a7d1a'}\">{e['type']}</font>", F("_t", fontSize=7, alignment=TA_CENTER, leading=10)),
+            Paragraph(f"<b>{e.get('dr',0) or 0:,.2f}</b>" if e.get("dr") else '<font color="#cccccc">—</font>', F("_dr", fontSize=7, textColor="#c62828" if e.get("dr") else C5, alignment=TA_RIGHT, leading=10)),
+            Paragraph(f"<b>{e.get('cr',0) or 0:,.2f}</b>" if e.get("cr") else '<font color="#cccccc">—</font>', F("_cr", fontSize=7, textColor="#1a7d1a" if e.get("cr") else C5, alignment=TA_RIGHT, leading=10)),
+            Paragraph(f"<b>{bal_display}</b>", F("_bl", fontSize=7, fontName="Helvetica-Bold", textColor=bal_color, alignment=TA_RIGHT, leading=10)),
         ])
 
     it = Table(rws, colWidths=colw, repeatRows=1)
@@ -1230,8 +1237,8 @@ def customer_soa_pdf(cid):
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
         ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-        ("TOPPADDING",(0,0),(-1,-1),2.5), ("BOTTOMPADDING",(0,0),(-1,-1),2.5),
-        ("LEFTPADDING",(0,0),(-1,-1),4), ("RIGHTPADDING",(0,0),(-1,-1),4),
+        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
         ("ROWBACKGROUNDS",(0,1),(-1,-1),[WH, BG]),
     ]))
     els.append(it)
@@ -1241,9 +1248,9 @@ def customer_soa_pdf(cid):
         Paragraph("<b>Closing Balance</b>", F("_cb", fontSize=9, fontName="Helvetica-Bold", textColor=WH, leading=12)),
         Paragraph(f"<b>AED {total_dr:,.2f}</b>", F("_cd", fontSize=9, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=12)),
         Paragraph(f"<b>AED {total_cr:,.2f}</b>", F("_cc", fontSize=9, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=12)),
-        Paragraph(f"<b>AED {closing:,.2f}</b>", F("_ccl", fontSize=9, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=12)),
+        Paragraph(f"<b>AED {(closing if closing > 0 else 0):,.2f}</b>", F("_ccl", fontSize=9, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=12)),
     ]]
-    cl_t = Table(cd, colWidths=[colw[0]+colw[1]+colw[2], colw[3], colw[4], colw[5]])
+    cl_t = Table(cd, colWidths=[colw[0]+colw[1]+colw[2]+colw[3], colw[4], colw[5], colw[6]])
     cl_t.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("BACKGROUND",(0,0),(-1,-1),TH),
