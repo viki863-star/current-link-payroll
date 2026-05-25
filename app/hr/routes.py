@@ -181,6 +181,8 @@ def employee_new():
     if not values["employee_id"]:
         values["employee_id"] = next_employee_id(db)
 
+    vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
+
     if request.method == "POST":
         errors = validate_employee_form(values)
         if errors:
@@ -199,6 +201,8 @@ def employee_new():
                 gender_options=GENDER_OPTIONS,
                 shift_options=SHIFT_OPTIONS,
                 contract_options=CONTRACT_TYPE_OPTIONS,
+                vehicles=vehicles,
+                assigned_vehicle=values.get("vehicle_id", ""),
             )
 
         salary = float(values["basic_salary"])
@@ -237,6 +241,13 @@ def employee_new():
             ),
         )
 
+        if values["vehicle_id"]:
+            db.execute("UPDATE vehicle_assignments SET is_current = 0 WHERE driver_id = ? AND is_current = 1", (values["employee_id"],))
+            db.execute(
+                "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
+                (values["vehicle_id"], values["employee_id"], date.today().isoformat()),
+            )
+
         _audit_log(
             db, "employee_created",
             entity_type="employee",
@@ -247,6 +258,10 @@ def employee_new():
         flash(f"Employee {values['employee_id']} - {values['full_name']} created successfully.", "success")
         return redirect(url_for("hr.employee_detail", employee_id=values["employee_id"]))
 
+    assigned_vehicle = db.execute(
+        "SELECT vehicle_id FROM vehicle_assignments WHERE driver_id = ? AND is_current = 1 LIMIT 1",
+        (values["employee_id"],),
+    ).fetchone()
     return render_template(
         "hr/employee_form.html",
         values=values,
@@ -260,6 +275,8 @@ def employee_new():
         gender_options=GENDER_OPTIONS,
         shift_options=SHIFT_OPTIONS,
         contract_options=CONTRACT_TYPE_OPTIONS,
+        vehicles=vehicles,
+        assigned_vehicle=assigned_vehicle["vehicle_id"] if assigned_vehicle else "",
     )
 
 
@@ -951,6 +968,10 @@ def employee_edit(employee_id):
         flash("Employee not found.", "error")
         return redirect(url_for("hr.employee_list"))
 
+    vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
+    assigned = db.execute("SELECT vehicle_id FROM vehicle_assignments WHERE driver_id = ? AND is_current = 1 LIMIT 1", (employee_id,)).fetchone()
+    assigned_vehicle = assigned["vehicle_id"] if assigned else ""
+
     if request.method == "POST":
         values = employee_form_data()
         values["employee_id"] = employee_id
@@ -997,6 +1018,21 @@ def employee_edit(employee_id):
                     employee_id,
                 ),
             )
+
+            if values["vehicle_id"]:
+                db.execute("UPDATE vehicle_assignments SET is_current = 0 WHERE driver_id = ? AND is_current = 1", (employee_id,))
+                existing = db.execute(
+                    "SELECT id FROM vehicle_assignments WHERE vehicle_id = ? AND driver_id = ? AND is_current = 1",
+                    (values["vehicle_id"], employee_id),
+                ).fetchone()
+                if not existing:
+                    db.execute(
+                        "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
+                        (values["vehicle_id"], employee_id, date.today().isoformat()),
+                    )
+            else:
+                db.execute("UPDATE vehicle_assignments SET is_current = 0 WHERE driver_id = ? AND is_current = 1", (employee_id,))
+
             _audit_log(db, "employee_updated", entity_type="employee", entity_id=employee_id, details=f"{values['full_name']} updated")
             db.commit()
             flash("Employee updated successfully.", "success")
@@ -1022,6 +1058,8 @@ def employee_edit(employee_id):
         gender_options=GENDER_OPTIONS,
         shift_options=SHIFT_OPTIONS,
         contract_options=CONTRACT_TYPE_OPTIONS,
+        vehicles=vehicles,
+        assigned_vehicle=assigned_vehicle,
     )
 
 

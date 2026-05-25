@@ -46,6 +46,17 @@
 
             <div class="form-section">
                 <h3>Employment Details</h3>
+                <div class="form-group" id="vehicleGroup" style="display:none">
+                    <label>Assigned Vehicle (for Drivers)</label>
+                    <select name="vehicle_id" class="form-control">
+                        <option value="">No vehicle</option>
+                        {% for v in vehicles %}
+                        <option value="{{ v.plate_no }}" {% if assigned_vehicle == v.plate_no %}selected{% endif %}>
+                            {{ v.plate_no }}{% if v.model %} — {{ v.model }}{% endif %}{% if v.vehicle_type %} ({{ v.vehicle_type }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="form-group">
                     <label>Employee Type *</label>
                     <select name="employee_type" class="form-control" required>
@@ -195,4 +206,20 @@
         </div>
     </form>
 </div>
+
+<script>
+(function() {
+    var typeSel = document.querySelector('select[name="employee_type"]');
+    var vehGroup = document.getElementById('vehicleGroup');
+    function toggleVehicle() {
+        if (typeSel && vehGroup) {
+            vehGroup.style.display = (typeSel.value === 'Driver') ? 'block' : 'none';
+        }
+    }
+    if (typeSel) {
+        typeSel.addEventListener('change', toggleVehicle);
+        toggleVehicle();
+    }
+})();
+</script>
 {% endblock %}

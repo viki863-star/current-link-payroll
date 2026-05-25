@@ -47,6 +47,7 @@ def employee_form_data():
         "address": request.form.get("address", "").strip(),
         "remarks": request.form.get("remarks", "").strip(),
         "status": request.form.get("status", "Active").strip(),
+        "vehicle_id": request.form.get("vehicle_id", "").strip(),
     }
 
 
