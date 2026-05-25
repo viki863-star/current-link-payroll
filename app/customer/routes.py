@@ -1472,3 +1472,167 @@ def customer_tax_report():
         from_filter=from_filter,
         to_filter=to_filter,
     )
+
+@customer_bp.route("/tax-report/export/excel")
+def customer_tax_report_excel():
+    _ensure_tables()
+    db = _get_db()
+    from_filter = request.args.get("from", "")
+    to_filter = request.args.get("to", "")
+    where = ""; params = []
+    if from_filter: where += " AND i.invoice_date >= ?"; params.append(from_filter)
+    if to_filter: where += " AND i.invoice_date <= ?"; params.append(to_filter)
+    invoices = db.execute(f"""
+        SELECT i.invoice_date, i.invoice_no, c.customer_name,
+               i.amount AS net_sale, i.vat_amount, i.total_amount
+        FROM customer_invoices i
+        JOIN customers c ON c.id = i.customer_id
+        WHERE 1=1 {where.replace('i.','')}
+        ORDER BY i.invoice_date DESC, i.invoice_no DESC
+    """, params).fetchall()
+    total_taxable = sum(r["amount"] or 0 for r in invoices)
+    total_vat = sum(r["vat_amount"] or 0 for r in invoices)
+    total_invoiced = sum(r["total_amount"] or 0 for r in invoices)
+    db.close()
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Tax Report"
+
+    hf = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+    hfill = PatternFill("solid", fgColor="1a3a5c")
+    center = Alignment(horizontal="center", vertical="center")
+    right = Alignment(horizontal="right", vertical="center")
+    thin = Side(style="thin", color="d8e4f5")
+    border = Border(top=thin, left=thin, right=thin, bottom=thin)
+
+    heads = ["Date", "Invoice No", "Customer", "Net Sale (AED)", "VAT (AED)", "Gross Sale (AED)"]
+    for ci, h in enumerate(heads, 1):
+        c = ws.cell(row=1, column=ci, value=h)
+        c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
+
+    period = f"{from_filter or 'All'} to {to_filter or 'All'}"
+    ws.cell(row=2, column=1, value=f"Period: {period}").font = Font(italic=True, color="6b7280", size=10)
+
+    for ri, inv in enumerate(invoices, 3):
+        vals = [inv["invoice_date"], inv["invoice_no"], inv["customer_name"],
+                inv["net_sale"] or 0, inv["vat_amount"] or 0, inv["total_amount"] or 0]
+        for ci, v in enumerate(vals, 1):
+            c = ws.cell(row=ri, column=ci, value=v)
+            c.border = border
+            if ci >= 4: c.alignment = right; c.number_format = '#,##0.00'
+            if ci == 5: c.font = Font(color="f7931e")
+
+    tr = 3 + len(invoices)
+    totals = ["", "", "TOTALS", total_taxable, total_vat, total_invoiced]
+    tf = Font(bold=True, size=11)
+    tfill = PatternFill("solid", fgColor="f5f8fe")
+    for ci, v in enumerate(totals, 1):
+        c = ws.cell(row=tr, column=ci, value=v)
+        c.font = tf; c.fill = tfill; c.border = border
+        if ci >= 4: c.alignment = right; c.number_format = '#,##0.00'
+
+    ws.column_dimensions["A"].width = 14
+    ws.column_dimensions["B"].width = 16
+    ws.column_dimensions["C"].width = 30
+    for col in ["D","E","F"]: ws.column_dimensions[col].width = 18
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fn = f"Tax_Report_{from_filter or 'start'}_to_{to_filter or 'end'}.xlsx"
+    return send_file(buf, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                     as_attachment=True, download_name=fn)
+
+@customer_bp.route("/tax-report/export/pdf")
+def customer_tax_report_pdf():
+    _ensure_tables()
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from io import BytesIO
+
+    db = _get_db()
+    from_filter = request.args.get("from", "")
+    to_filter = request.args.get("to", "")
+    where = ""; params = []
+    if from_filter: where += " AND i.invoice_date >= ?"; params.append(from_filter)
+    if to_filter: where += " AND i.invoice_date <= ?"; params.append(to_filter)
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    invoices = db.execute(f"""
+        SELECT i.invoice_date, i.invoice_no, c.customer_name,
+               i.amount AS net_sale, i.vat_amount, i.total_amount
+        FROM customer_invoices i
+        JOIN customers c ON c.id = i.customer_id
+        WHERE 1=1 {where.replace('i.','')}
+        ORDER BY i.invoice_date DESC, i.invoice_no DESC
+    """, params).fetchall()
+    total_taxable = sum(r["amount"] or 0 for r in invoices)
+    total_vat = sum(r["vat_amount"] or 0 for r in invoices)
+    total_invoiced = sum(r["total_amount"] or 0 for r in invoices)
+    db.close()
+
+    buf = BytesIO()
+    LM, RM, TM, BM = 15*mm, 15*mm, 15*mm, 15*mm
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = landscape(A4)[0] - LM - RM
+
+    tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
+    try: TH = colors.HexColor(tc)
+    except: TH = colors.HexColor("#1a3a5c")
+    WH = colors.white; C5 = colors.HexColor("#6b7280")
+    CR = colors.HexColor("#c62828")
+
+    def F(name, **kw):
+        kw.setdefault("fontSize", 7); kw.setdefault("leading", 10)
+        return ParagraphStyle(name, **kw)
+
+    els = []
+    cn = company["company_name"] if company else "Tax Report"
+    els.append(Paragraph(f"<b>{cn}</b>", F("T", fontSize=12, textColor=TH, spaceAfter=2)))
+    period = f"Period: {from_filter or 'Start'} to {to_filter or 'End'}"
+    els.append(Paragraph(period, F("P", fontSize=7, textColor=C5, spaceAfter=10)))
+    els.append(Spacer(1, 3*mm))
+
+    hdr = ["Date", "Invoice No", "Customer", "Net Sale", "VAT", "Gross Sale"]
+    data = [hdr]
+    for inv in invoices:
+        data.append([
+            inv["invoice_date"] or "—",
+            inv["invoice_no"] or "—",
+            inv["customer_name"],
+            f"{inv['net_sale'] or 0:,.2f}",
+            f"{inv['vat_amount'] or 0:,.2f}",
+            f"{inv['total_amount'] or 0:,.2f}",
+        ])
+
+    data.append(["", "", "TOTALS", f"{total_taxable:,.2f}", f"{total_vat:,.2f}", f"{total_invoiced:,.2f}"])
+
+    col_w = [W*0.12, W*0.14, W*0.30, W*0.14, W*0.14, W*0.16]
+    tbl = Table(data, colWidths=col_w, repeatRows=1)
+    tbl.setStyle(TableStyle([
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 7),
+        ("BACKGROUND", (0,0), (-1,0), TH),
+        ("TEXTCOLOR", (0,0), (-1,0), WH),
+        ("ALIGN", (0,0), (-1,-1), "LEFT"),
+        ("ALIGN", (3,0), (-1,-1), "RIGHT"),
+        ("TEXTCOLOR", (3,1), (3,-2), CR),
+        ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
+        ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f5f8fe")),
+        ("TOPPADDING", (0,0), (-1,-1), 4),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#d8e4f5")),
+    ]))
+    els.append(tbl)
+
+    doc.build(els)
+    buf.seek(0)
+    fn = f"Tax_Report_{from_filter or 'start'}_to_{to_filter or 'end'}.pdf"
+    return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=fn)
