@@ -628,22 +628,31 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════
     # 3. ITEMS TABLE
     # ═══════════════════════════════════
-    cw = [14, W - 14 - 50 - 68 - 82, 50, 68, 82]
+    cw = [10*mm, 50*mm, 14*mm, 22*mm, 24*mm, 14*mm, 22*mm, 24*mm]
     hdr = [
-        Paragraph("<b>#</b>", S("_h0", fontSize=8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=11)),
-        Paragraph("<b>Description</b>", S("_h1", fontSize=8, fontName="Helvetica-Bold", textColor=WH, leading=11)),
-        Paragraph("<b>QTY</b>", S("_h2", fontSize=8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=11)),
-        Paragraph("<b>Rate (AED)</b>", S("_h3", fontSize=8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=11)),
-        Paragraph("<b>Amount (AED)</b>", S("_h4", fontSize=8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=11)),
+        Paragraph("<b>#</b>", S("_h0", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph("<b>Description</b>", S("_h1", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+        Paragraph("<b>QTY</b>", S("_h2", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph("<b>Unit Price</b>", S("_h3", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph("<b>Taxable Amt</b>", S("_h4", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph("<b>VAT %</b>", S("_h5", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph("<b>VAT Amt</b>", S("_h6", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph("<b>Total Incl.</b>", S("_h7", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
     ]
     rws = [hdr]
     for idx, it in enumerate(items):
+        vp_item = it["vat_percent_item"] or inv["vat_percent"] or 5
+        va_item = it["vat_amount_item"] or (it["amount"] * vp_item / 100)
+        ti_item = it["total_incl_vat"] or (it["amount"] + va_item)
         rws.append([
-            C(str(idx+1), fontSize=8, fontName="Helvetica-Bold"),
-            L(it["description"] or "—", fontSize=8),
-            C(f"{it['quantity'] or 0:,.2f}", fontSize=8),
-            R(f"{it['rate'] or 0:,.2f}", fontSize=8),
-            RB(f"{it['amount'] or 0:,.2f}", fontSize=8),
+            C(str(idx+1), fontSize=7, fontName="Helvetica-Bold"),
+            L(it["description"] or "—", fontSize=7),
+            C(f"{it['quantity'] or 0:,.2f}", fontSize=7),
+            R(f"{it['rate'] or 0:,.3f}", fontSize=7),
+            R(f"{it['amount'] or 0:,.2f}", fontSize=7),
+            C(f"{vp_item:.2f}%", fontSize=7),
+            R(f"{va_item:,.2f}", fontSize=7, textColor=C6),
+            RB(f"{ti_item:,.2f}", fontSize=7),
         ])
 
     sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0

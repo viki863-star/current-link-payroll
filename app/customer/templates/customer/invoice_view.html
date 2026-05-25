@@ -81,21 +81,30 @@
     <table class="inv-table">
         <thead>
             <tr>
-                <th style="text-align:center;width:40px">#</th>
+                <th style="text-align:center;width:36px">#</th>
                 <th>Description</th>
-                <th style="text-align:center;width:70px">QTY</th>
-                <th style="text-align:right;width:100px">Rate (AED)</th>
-                <th style="text-align:right;width:110px">Amount (AED)</th>
+                <th style="text-align:center;width:60px">QTY</th>
+                <th style="text-align:right;width:90px">Unit Price</th>
+                <th style="text-align:right;width:100px">Taxable Amt</th>
+                <th style="text-align:center;width:60px">VAT %</th>
+                <th style="text-align:right;width:90px">VAT Amt</th>
+                <th style="text-align:right;width:110px">Total Incl. VAT</th>
             </tr>
         </thead>
         <tbody>
             {% for it in items %}
+            {% set vat_pct_item = it.vat_percent_item or inv.vat_percent or 5 %}
+            {% set vat_amt_item = it.vat_amount_item or (it.amount * vat_pct_item / 100) %}
+            {% set total_incl = it.total_incl_vat or (it.amount + vat_amt_item) %}
             <tr>
                 <td style="text-align:center;font-weight:600">{{ loop.index }}</td>
                 <td>{{ it.description or '—' }}</td>
                 <td style="text-align:center">{{ "%.2f"|format(it.quantity) }}</td>
-                <td style="text-align:right;font-family:mono">{{ "%.2f"|format(it.rate) }}</td>
-                <td style="text-align:right;font-weight:600;font-family:mono">{{ "%.2f"|format(it.amount) }}</td>
+                <td style="text-align:right;font-family:mono">{{ "%.3f"|format(it.rate) }}</td>
+                <td style="text-align:right;font-family:mono">{{ "%.2f"|format(it.amount) }}</td>
+                <td style="text-align:center">{{ "%.2f"|format(vat_pct_item) }}%</td>
+                <td style="text-align:right;font-family:mono;color:#c62828">{{ "%.2f"|format(vat_amt_item) }}</td>
+                <td style="text-align:right;font-weight:600;font-family:mono">{{ "%.2f"|format(total_incl) }}</td>
             </tr>
             {% endfor %}
         </tbody>
