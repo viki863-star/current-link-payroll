@@ -1007,20 +1007,17 @@ def customer_kata(cid):
     to_date = request.args.get("to", "")
     db = _get_db()
     entries = []
-    inv_q = "SELECT invoice_date as d, invoice_no as ref, 'Invoice' as type, total_amount as dr, 0 as cr FROM customer_invoices WHERE customer_id=?"
+    inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.total_amount as dr,
+                      COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0) as cr
+               FROM customer_invoices i WHERE i.customer_id=?"""
     inv_p = [cid]
-    if from_date: inv_q += " AND invoice_date>=?"; inv_p.append(from_date)
-    if to_date: inv_q += " AND invoice_date<=?"; inv_p.append(to_date)
-    inv_q += " ORDER BY invoice_date"
+    if from_date: inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
+    if to_date: inv_q += " AND i.invoice_date<=?"; inv_p.append(to_date)
+    inv_q += " ORDER BY i.invoice_date, i.id"
     for inv in db.execute(inv_q, inv_p).fetchall():
-        entries.append(dict(inv))
-    pmt_q = "SELECT p.payment_date as d, COALESCE(i.invoice_no,'') as ref, 'Payment' as type, 0 as dr, p.amount as cr FROM customer_payments p LEFT JOIN customer_invoices i ON p.invoice_id=i.id WHERE p.customer_id=?"
-    pmt_p = [cid]
-    if from_date: pmt_q += " AND p.payment_date>=?"; pmt_p.append(from_date)
-    if to_date: pmt_q += " AND p.payment_date<=?"; pmt_p.append(to_date)
-    pmt_q += " ORDER BY p.payment_date"
-    for pmt in db.execute(pmt_q, pmt_p).fetchall():
-        entries.append(dict(pmt))
+        d = dict(inv)
+        d["type"] = "Invoice"
+        entries.append(d)
     cn_q = "SELECT credit_note_date as d, credit_note_no as ref, 'Credit Note' as type, 0 as dr, total_amount as cr FROM customer_credit_notes WHERE customer_id=?"
     cn_p = [cid]
     if from_date: cn_q += " AND credit_note_date>=?"; cn_p.append(from_date)
@@ -1028,6 +1025,13 @@ def customer_kata(cid):
     cn_q += " ORDER BY credit_note_date"
     for cn in db.execute(cn_q, cn_p).fetchall():
         entries.append(dict(cn))
+    unalloc_pmt_q = "SELECT payment_date as d, reference_no as ref, 'Unallocated Payment' as type, 0 as dr, amount as cr FROM customer_payments WHERE customer_id=? AND invoice_id IS NULL"
+    unalloc_pmt_p = [cid]
+    if from_date: unalloc_pmt_q += " AND payment_date>=?"; unalloc_pmt_p.append(from_date)
+    if to_date: unalloc_pmt_q += " AND payment_date<=?"; unalloc_pmt_p.append(to_date)
+    unalloc_pmt_q += " ORDER BY payment_date"
+    for pmt in db.execute(unalloc_pmt_q, unalloc_pmt_p).fetchall():
+        entries.append(dict(pmt))
     entries.sort(key=lambda x: (x.get("d",""), x.get("type","")))
     balance = 0
     for e in entries:
@@ -1055,20 +1059,17 @@ def customer_soa_pdf(cid):
     db = _get_db()
     company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     entries = []
-    inv_q = "SELECT invoice_date as d, invoice_no as ref, 'Invoice' as type, total_amount as dr, 0 as cr FROM customer_invoices WHERE customer_id=?"
+    inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.total_amount as dr,
+                      COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0) as cr
+               FROM customer_invoices i WHERE i.customer_id=?"""
     inv_p = [cid]
-    if from_date: inv_q += " AND invoice_date>=?"; inv_p.append(from_date)
-    if to_date: inv_q += " AND invoice_date<=?"; inv_p.append(to_date)
-    inv_q += " ORDER BY invoice_date"
+    if from_date: inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
+    if to_date: inv_q += " AND i.invoice_date<=?"; inv_p.append(to_date)
+    inv_q += " ORDER BY i.invoice_date, i.id"
     for inv in db.execute(inv_q, inv_p).fetchall():
-        entries.append(dict(inv))
-    pmt_q = "SELECT p.payment_date as d, COALESCE(i.invoice_no,'') as ref, 'Payment' as type, 0 as dr, p.amount as cr FROM customer_payments p LEFT JOIN customer_invoices i ON p.invoice_id=i.id WHERE p.customer_id=?"
-    pmt_p = [cid]
-    if from_date: pmt_q += " AND p.payment_date>=?"; pmt_p.append(from_date)
-    if to_date: pmt_q += " AND p.payment_date<=?"; pmt_p.append(to_date)
-    pmt_q += " ORDER BY p.payment_date"
-    for pmt in db.execute(pmt_q, pmt_p).fetchall():
-        entries.append(dict(pmt))
+        d = dict(inv)
+        d["type"] = "Invoice"
+        entries.append(d)
     cn_q = "SELECT credit_note_date as d, credit_note_no as ref, 'Credit Note' as type, 0 as dr, total_amount as cr FROM customer_credit_notes WHERE customer_id=?"
     cn_p = [cid]
     if from_date: cn_q += " AND credit_note_date>=?"; cn_p.append(from_date)
@@ -1076,6 +1077,13 @@ def customer_soa_pdf(cid):
     cn_q += " ORDER BY credit_note_date"
     for cn in db.execute(cn_q, cn_p).fetchall():
         entries.append(dict(cn))
+    unalloc_pmt_q = "SELECT payment_date as d, reference_no as ref, 'Unallocated Payment' as type, 0 as dr, amount as cr FROM customer_payments WHERE customer_id=? AND invoice_id IS NULL"
+    unalloc_pmt_p = [cid]
+    if from_date: unalloc_pmt_q += " AND payment_date>=?"; unalloc_pmt_p.append(from_date)
+    if to_date: unalloc_pmt_q += " AND payment_date<=?"; unalloc_pmt_p.append(to_date)
+    unalloc_pmt_q += " ORDER BY payment_date"
+    for pmt in db.execute(unalloc_pmt_q, unalloc_pmt_p).fetchall():
+        entries.append(dict(pmt))
     entries.sort(key=lambda x: (x.get("d",""), x.get("type","")))
     bal = 0
     for e in entries:
