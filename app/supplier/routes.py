@@ -1770,6 +1770,7 @@ def supplier_bulk_delete():
         return redirect(url_for("supplier.supplier_list"))
     db = _get_db()
     placeholders = ",".join("?" * len(ids))
+    codes = [r["supplier_code"] for r in db.execute(f"SELECT supplier_code FROM suppliers WHERE id IN ({placeholders})", ids).fetchall()]
     db.execute(f"DELETE FROM supplier_payment_records WHERE supplier_id IN ({placeholders})", ids)
     db.execute(f"DELETE FROM supplier_expenses WHERE supplier_id IN ({placeholders})", ids)
     db.execute(f"DELETE FROM supplier_invoices WHERE supplier_id IN ({placeholders})", ids)
@@ -1778,6 +1779,14 @@ def supplier_bulk_delete():
     db.execute(f"DELETE FROM supplier_documents WHERE supplier_id IN ({placeholders})", ids)
     db.execute(f"DELETE FROM supplier_quotations WHERE supplier_id IN ({placeholders})", ids)
     db.execute(f"DELETE FROM suppliers WHERE id IN ({placeholders})", ids)
+    for code in codes:
+        db.execute("DELETE FROM supplier_quotation_submissions WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM cash_supplier_payments WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM cash_supplier_debits WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM cash_supplier_trips WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM supplier_portal_accounts WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM supplier_profile WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM parties WHERE party_code = ?", (code,))
     db.commit()
     flash(f"{len(ids)} supplier(s) deleted.", "info")
     return redirect(url_for("supplier.supplier_list"))
@@ -1790,13 +1799,22 @@ def supplier_delete(sup_id):
     if not s:
         flash("Supplier not found.", "error")
     else:
+        code = s["supplier_code"]
         db.execute("DELETE FROM supplier_payment_records WHERE supplier_id = ?", (sup_id,))
         db.execute("DELETE FROM supplier_expenses WHERE supplier_id = ?", (sup_id,))
         db.execute("DELETE FROM supplier_invoices WHERE supplier_id = ?", (sup_id,))
         db.execute("DELETE FROM supplier_loans WHERE supplier_id = ?", (sup_id,))
         db.execute("DELETE FROM supplier_lpos WHERE supplier_id = ?", (sup_id,))
         db.execute("DELETE FROM supplier_documents WHERE supplier_id = ?", (sup_id,))
+        db.execute("DELETE FROM supplier_quotations WHERE supplier_id = ?", (sup_id,))
         db.execute("DELETE FROM suppliers WHERE id = ?", (sup_id,))
+        db.execute("DELETE FROM supplier_quotation_submissions WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM cash_supplier_payments WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM cash_supplier_debits WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM cash_supplier_trips WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM supplier_portal_accounts WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM supplier_profile WHERE party_code = ?", (code,))
+        db.execute("DELETE FROM parties WHERE party_code = ?", (code,))
         db.commit()
         flash(f"Supplier {s['supplier_name']} deleted.", "info")
 
