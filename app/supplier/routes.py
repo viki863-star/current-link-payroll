@@ -1760,6 +1760,26 @@ def supplier_kata(sup_id):
 # DELETE
 # ═══════════════════════════════════════════════════════════
 
+@supplier_bp.route("/bulk-delete", methods=["POST"])
+def supplier_bulk_delete():
+    _ensure_tables()
+    ids = request.form.getlist("selected_ids")
+    if not ids:
+        flash("No suppliers selected.", "error")
+        return redirect(url_for("supplier.supplier_list"))
+    db = _get_db()
+    placeholders = ",".join("?" * len(ids))
+    db.execute(f"DELETE FROM supplier_payment_records WHERE supplier_id IN ({placeholders})", ids)
+    db.execute(f"DELETE FROM supplier_expenses WHERE supplier_id IN ({placeholders})", ids)
+    db.execute(f"DELETE FROM supplier_invoices WHERE supplier_id IN ({placeholders})", ids)
+    db.execute(f"DELETE FROM supplier_loans WHERE supplier_id IN ({placeholders})", ids)
+    db.execute(f"DELETE FROM supplier_lpos WHERE supplier_id IN ({placeholders})", ids)
+    db.execute(f"DELETE FROM supplier_documents WHERE supplier_id IN ({placeholders})", ids)
+    db.execute(f"DELETE FROM suppliers WHERE id IN ({placeholders})", ids)
+    db.commit()
+    flash(f"{len(ids)} supplier(s) deleted.", "info")
+    return redirect(url_for("supplier.supplier_list"))
+
 @supplier_bp.route("/<int:sup_id>/delete", methods=["POST"])
 def supplier_delete(sup_id):
     _ensure_tables()

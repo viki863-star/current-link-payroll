@@ -25,10 +25,20 @@
 
     <div class="profile-card" style="padding:0">
         {% if suppliers %}
+        <form method="post" action="{{ url_for('supplier.supplier_bulk_delete') }}" id="bulkForm" onsubmit="return confirm('Delete selected supplier(s) and ALL linked data? This cannot be undone.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);background:#f8fafc;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer">
+                <input type="checkbox" id="selectAll"> Select All
+            </label>
+            <span style="color:var(--muted);font-size:0.78rem" id="selectedCount">0 selected</span>
+            <button type="submit" class="btn btn-danger btn-sm" id="deleteSelected" disabled style="margin-left:auto">Delete Selected</button>
+        </div>
         <div class="table-wrap">
             <table class="smart-table">
                 <thead>
                     <tr>
+                        <th style="width:32px"><input type="checkbox" id="selectAll"></th>
                         <th>Code</th>
                         <th>Name</th>
                         <th>Type</th>
@@ -40,19 +50,21 @@
                 </thead>
                 <tbody>
                     {% for s in suppliers %}
-                    <tr class="clickable-row" onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'" style="cursor:pointer">
-                        <td class="mono">{{ s.supplier_code }}</td>
-                        <td><strong>{{ s.supplier_name }}</strong></td>
-                        <td><span class="badge badge-dept">{{ 'With Invoice' if s.supplier_type == 'with_invoice' else 'Cash' }}</span></td>
-                        <td>{{ s.phone or '-' }}</td>
-                        <td class="mono">{{ s.trn or '-' }}</td>
-                        <td><span class="badge badge-type">{{ s.category or '-' }}</span></td>
-                        <td><span class="status-badge {{ s.status|lower }}">{{ s.status }}</span></td>
+                    <tr class="clickable-row" style="cursor:pointer">
+                        <td style="width:32px" onclick="event.stopPropagation()"><input type="checkbox" name="selected_ids" value="{{ s.id }}" class="select-row"></td>
+                        <td class="mono" onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'">{{ s.supplier_code }}</td>
+                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'"><strong>{{ s.supplier_name }}</strong></td>
+                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'"><span class="badge badge-dept">{{ 'With Invoice' if s.supplier_type == 'with_invoice' else 'Cash' }}</span></td>
+                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'">{{ s.phone or '-' }}</td>
+                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'" class="mono">{{ s.trn or '-' }}</td>
+                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'"><span class="badge badge-type">{{ s.category or '-' }}</span></td>
+                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'"><span class="status-badge {{ s.status|lower }}">{{ s.status }}</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        </form>
         {% else %}
         <div style="padding:40px;text-align:center;color:var(--muted)">
             <div style="font-size:2rem;margin-bottom:8px">&#127970;</div>
@@ -62,4 +74,30 @@
         {% endif %}
     </div>
 </div>
+<script>
+(function(){
+    var selectAll = document.getElementById('selectAll');
+    var rows = document.querySelectorAll('.select-row');
+    var count = document.getElementById('selectedCount');
+    var delBtn = document.getElementById('deleteSelected');
+    function update() {
+        var n = document.querySelectorAll('.select-row:checked').length;
+        count.textContent = n + ' selected';
+        delBtn.disabled = n === 0;
+    }
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            rows.forEach(function(cb) { cb.checked = selectAll.checked; });
+            update();
+        });
+    }
+    rows.forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            if (selectAll) selectAll.checked = rows.length > 0 && document.querySelectorAll('.select-row:not(:checked)').length === 0;
+            update();
+        });
+    });
+    update();
+})();
+</script>
 {% endblock %}
