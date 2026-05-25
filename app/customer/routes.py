@@ -112,7 +112,24 @@ def _ensure_tables():
             sort_order INTEGER DEFAULT 0,
             FOREIGN KEY (invoice_id) REFERENCES customer_invoices(id) ON DELETE CASCADE
         );
+        CREATE TABLE IF NOT EXISTS service_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            description TEXT NOT NULL UNIQUE,
+            default_rate REAL DEFAULT 0,
+            category TEXT DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
     """)
+    # seed service_items from existing invoice items
+    try:
+        db.execute("""
+            INSERT OR IGNORE INTO service_items (description)
+            SELECT DISTINCT TRIM(description) FROM customer_invoice_items
+            WHERE description IS NOT NULL AND TRIM(description) != ''
+        """)
+        db.commit()
+    except Exception:
+        pass)
     for col, dtype in [("lpo_no", "TEXT"), ("lpo_date", "TEXT"), ("project_no", "TEXT"),
                        ("invoice_template", "TEXT DEFAULT 'standard'"), ("discount", "REAL DEFAULT 0"),
                        ("ref_no", "TEXT")]:
@@ -287,6 +304,7 @@ def customer_invoice_add(cid):
     db = _get_db()
     next_no = _next_invoice_no(db)
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
+    svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
     if request.method == "POST":
         inv_date = request.form.get("invoice_date", date.today().isoformat())
         inv_no = request.form.get("invoice_no", "").strip() or next_no
@@ -294,7 +312,7 @@ def customer_invoice_add(cid):
         if existing:
             flash(f"Invoice number '{inv_no}' already exists. Use a different number.", "error")
             db.close()
-            return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, today=date.today().isoformat(), next_no=next_no)
+            return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
         vat_pct = float(request.form.get("vat_percent", 5))
         lpo_no = request.form.get("lpo_no", "").strip() or None
         lpo_date = request.form.get("lpo_date", "").strip() or None
@@ -316,7 +334,7 @@ def customer_invoice_add(cid):
         if not items:
             flash("At least one line item is required.", "error")
             db.close()
-            return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, today=date.today().isoformat(), next_no=next_no)
+            return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
         c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,project_no,notes)
@@ -326,12 +344,34 @@ def customer_invoice_add(cid):
         for idx, it in enumerate(items):
             db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
                 (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+            if it["desc"]:
+                try:
+                    db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
+                except Exception:
+                    pass
         db.commit()
         db.close()
         flash(f"Invoice {inv_no} created.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
     db.close()
-    return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, today=date.today().isoformat(), next_no=next_no)
+    return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+
+@customer_bp.route("/service-items/search")
+def service_items_search():
+    _ensure_tables()
+    q = request.args.get("q", "").strip()
+    db = _get_db()
+    if q:
+        items = db.execute(
+            "SELECT id, description, default_rate FROM service_items WHERE description LIKE ? ORDER BY description LIMIT 20",
+            (f"%{q}%",)
+        ).fetchall()
+    else:
+        items = db.execute(
+            "SELECT id, description, default_rate FROM service_items ORDER BY description LIMIT 50"
+        ).fetchall()
+    db.close()
+    return jsonify([{"id": r["id"], "description": r["description"], "rate": r["default_rate"]} for r in items])
 
 # ─── NOUROL INVOICE ───
 
@@ -344,6 +384,7 @@ def customer_invoice_edit(cid, iid):
     inv = db.execute("SELECT * FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     items = db.execute("SELECT * FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
+    svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
     if not inv:
         db.close()
         flash("Invoice not found.", "error")
@@ -355,7 +396,7 @@ def customer_invoice_edit(cid, iid):
         if dup:
             flash(f"Invoice number '{inv_no}' already in use.", "error")
             db.close()
-            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, today=date.today().isoformat(), edit=True)
+            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True)
         vat_pct = float(request.form.get("vat_percent", 5))
         lpo_no = request.form.get("lpo_no", "").strip() or None
         lpo_date = request.form.get("lpo_date", "").strip() or None
@@ -377,7 +418,7 @@ def customer_invoice_edit(cid, iid):
         if not new_items:
             flash("At least one line item is required.", "error")
             db.close()
-            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, today=date.today().isoformat(), edit=True)
+            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True)
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
         db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,project_no=?,notes=? WHERE id=?""",
@@ -386,12 +427,17 @@ def customer_invoice_edit(cid, iid):
         for idx, it in enumerate(new_items):
             db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
                 (iid, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+            if it["desc"]:
+                try:
+                    db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
+                except Exception:
+                    pass
         db.commit()
         db.close()
         flash(f"Invoice {inv_no} updated.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
     db.close()
-    return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, today=date.today().isoformat(), edit=True)
+    return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>")
 def customer_invoice_view(cid, iid):
