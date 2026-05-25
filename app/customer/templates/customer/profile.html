@@ -69,6 +69,10 @@ td .mono-sm { font-size:0.75rem; }
         <div class="kpi-value" style="color:{% if balance > 0 %}#c62828{% else %}var(--green){% endif %}">{{ "%.0f"|format(balance) }}</div>
     </div>
     <div class="kpi-card">
+        <div class="kpi-label">Credit Notes</div>
+        <div class="kpi-value" style="color:#e65100">{{ "%.0f"|format(total_cn) }}</div>
+    </div>
+    <div class="kpi-card">
         <div class="kpi-label">Invoices</div>
         <div class="kpi-value" style="color:var(--primary)">{{ invoices|length }}</div>
     </div>
@@ -82,6 +86,7 @@ td .mono-sm { font-size:0.75rem; }
 <div class="tab-bar">
     <a href="?tab=overview" class="tab-btn {% if active_tab == 'overview' %}is-active{% endif %}">Overview</a>
     <a href="?tab=invoices" class="tab-btn {% if active_tab == 'invoices' %}is-active{% endif %}">Invoices</a>
+    <a href="?tab=credit_notes" class="tab-btn {% if active_tab == 'credit_notes' %}is-active{% endif %}">Credit Notes</a>
     <a href="?tab=payments" class="tab-btn {% if active_tab == 'payments' %}is-active{% endif %}">Payments</a>
     <a href="?tab=contracts" class="tab-btn {% if active_tab == 'contracts' %}is-active{% endif %}">Contracts</a>
     <a href="?tab=quotations" class="tab-btn {% if active_tab == 'quotations' %}is-active{% endif %}">Quotations</a>
@@ -171,6 +176,41 @@ td .mono-sm { font-size:0.75rem; }
         </table>
     </div>
     {% else %}<p class="empty-state">No invoices yet. <a href="{{ url_for('customer.customer_invoice_add', cid=c.id) }}">Create one</a>.</p>{% endif %}
+</div>
+
+{# ═══════ CREDIT NOTES ═══════ #}
+{% elif active_tab == 'credit_notes' %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>Credit Notes</h3>
+        <a href="{{ url_for('customer.customer_credit_note_add', cid=c.id) }}" class="btn btn-primary btn-sm">+ New Credit Note</a>
+    </div>
+    {% if credit_notes %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>CN #</th><th>Date</th><th>Reference</th><th>Reason</th><th>Amount</th><th>VAT</th><th>Total</th><th></th></tr></thead>
+            <tbody>
+                {% for cn in credit_notes %}
+                <tr>
+                    <td class="mono" style="font-weight:600">{{ cn.credit_note_no }}</td>
+                    <td class="mono">{{ cn.credit_note_date }}</td>
+                    <td class="mono">{{ cn.invoice_id or '—' }}</td>
+                    <td><span class="badge badge-type">{{ cn.reason or '—' }}</span></td>
+                    <td class="mono">{{ "%.0f"|format(cn.amount) }}</td>
+                    <td class="mono">{{ "%.0f"|format(cn.vat_amount) }}</td>
+                    <td class="mono" style="font-weight:600;color:#c62828">-AED {{ "%.0f"|format(cn.total_amount) }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('customer.customer_credit_note_delete', cid=c.id, cnid=cn.id) }}" style="display:inline" onsubmit="return confirm('Delete credit note {{ cn.credit_note_no }}?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}<p class="empty-state">No credit notes yet. <a href="{{ url_for('customer.customer_credit_note_add', cid=c.id) }}">Create one</a>.</p>{% endif %}
 </div>
 
 {# ═══════ PAYMENTS ═══════ #}

@@ -72,6 +72,7 @@
     {% set closing = total_dr - total_cr %}
     {% set inv_count = entries|selectattr('type', 'equalto', 'Invoice')|list|length %}
     {% set pmt_count = entries|selectattr('type', 'equalto', 'Payment')|list|length %}
+    {% set cn_count = entries|selectattr('type', 'equalto', 'Credit Note')|list|length %}
 
     <div class="soa-summary">
         <div>
@@ -90,7 +91,7 @@
         </div>
         <div>
             <div class="lbl">Transactions</div>
-            <div class="val" style="font-size:1rem;">{{ inv_count }} Inv / {{ pmt_count }} Pmt</div>
+            <div class="val" style="font-size:1rem;">{{ inv_count }} Inv / {{ pmt_count }} Pmt / {{ cn_count }} CN</div>
         </div>
     </div>
 </div>
@@ -127,8 +128,10 @@
                     <td class="mono">{{ e.d }}</td>
                     <td class="mono" style="font-weight:600">{{ e.ref or '—' }}</td>
                     <td>
-                        <span class="badge badge-type" style="font-size:0.65rem;
-                            {% if e.type == 'Invoice' %}background:#e8f0fe;color:#1a56db{% else %}background:#e6f7e6;color:#1a7d1a{% endif %}">
+                         <span class="badge badge-type" style="font-size:0.65rem;
+                            {% if e.type == 'Invoice' %}background:#e8f0fe;color:#1a56db
+                            {% elif e.type == 'Credit Note' %}background:#fff3e0;color:#e65100
+                            {% else %}background:#e6f7e6;color:#1a7d1a{% endif %}">
                             {{ e.type }}
                         </span>
                     </td>

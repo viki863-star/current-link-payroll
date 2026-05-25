@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Credit Note — {{ c.customer_name }}{% endblock %}
+{% block page_title %}New Credit Note{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:600px;margin:0 auto">
+<div class="profile-card">
+    <div style="margin-bottom:16px">
+        <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='credit_notes') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+    </div>
+
+    <h3 style="margin:0 0 4px;font-size:1.1rem">New Credit Note</h3>
+    <p style="color:var(--muted);font-size:0.82rem;margin:0 0 16px">
+        Customer: <strong>{{ c.customer_name }}</strong>
+        {% if c.trn %} &middot; TRN: <span class="mono">{{ c.trn }}</span>{% endif %}
+    </p>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Credit Note Date</label>
+                <input type="date" name="credit_note_date" value="{{ today }}" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+            </div>
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Credit Note No.</label>
+                <input type="text" name="credit_note_no" value="" placeholder="CN-001" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+            </div>
+        </div>
+
+        <div style="margin-bottom:14px">
+            <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Reference Invoice (optional)</label>
+            <select name="invoice_id" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                <option value="">— No reference —</option>
+                {% for inv in invoices %}
+                <option value="{{ inv.id }}">{{ inv.invoice_no }} | AED {{ "%.2f"|format(inv.total_amount) }} | {{ inv.invoice_date }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Amount (AED) *</label>
+                <input type="number" name="amount" value="" min="0" step="any" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem" required>
+            </div>
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">VAT %</label>
+                <input type="number" name="vat_percent" value="0" min="0" step="any" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+            </div>
+        </div>
+
+        <div style="margin-bottom:14px">
+            <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Reason</label>
+            <select name="reason" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                <option value="">Select reason...</option>
+                <option value="Return">Return</option>
+                <option value="Discount">Discount</option>
+                <option value="Price Adjustment">Price Adjustment</option>
+                <option value="Shortage">Shortage</option>
+                <option value="Cancellation">Cancellation</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom:14px">
+            <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Notes</label>
+            <textarea name="notes" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem" placeholder="Optional notes..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;font-size:1rem">Create Credit Note</button>
+    </form>
+</div>
+</div>
+{% endblock %}

@@ -144,6 +144,23 @@ def _ensure_tables():
         pass
     db.execute("""CREATE TABLE IF NOT EXISTS invoice_sequence (last_number INTEGER DEFAULT 0)""")
     db.execute("INSERT INTO invoice_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM invoice_sequence)")
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS customer_credit_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            credit_note_no TEXT,
+            credit_note_date TEXT NOT NULL,
+            invoice_id INTEGER,
+            amount REAL NOT NULL DEFAULT 0,
+            vat_percent REAL DEFAULT 0,
+            vat_amount REAL DEFAULT 0,
+            total_amount REAL NOT NULL DEFAULT 0,
+            reason TEXT,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (customer_id) REFERENCES customers(id)
+        )
+    """)
     db.commit()
     db.close()
 
@@ -181,12 +198,13 @@ def customer_dashboard():
     total = db.execute("SELECT COUNT(*) FROM customers").fetchone()[0]
     active = db.execute("SELECT COUNT(*) FROM customers WHERE status='active'").fetchone()[0]
     total_receivable = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices").fetchone()[0]
+    total_cn = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes").fetchone()[0]
     inv_count = db.execute("SELECT COUNT(*) FROM customer_invoices").fetchone()[0]
     recent = db.execute("""SELECT i.*, c.customer_name FROM customer_invoices i
         JOIN customers c ON i.customer_id=c.id ORDER BY i.created_at DESC LIMIT 10""").fetchall()
     db.close()
     return render_template("customer/dashboard.html", total=total, active=active,
-        total_receivable=total_receivable, inv_count=inv_count, recent_invoices=recent)
+        total_receivable=total_receivable, total_cn=total_cn, inv_count=inv_count, recent_invoices=recent)
 
 # ─── CUSTOMER CRUD ───
 
@@ -246,13 +264,16 @@ def customer_profile(cid):
     quotations = db.execute("SELECT * FROM customer_quotations WHERE customer_id=? ORDER BY quotation_date DESC", (cid,)).fetchall()
     lpos = db.execute("SELECT * FROM customer_lpos WHERE customer_id=? ORDER BY lpo_date DESC", (cid,)).fetchall()
     docs = db.execute("SELECT * FROM customer_documents WHERE customer_id=? ORDER BY created_at DESC", (cid,)).fetchall()
+    credit_notes = db.execute("SELECT * FROM customer_credit_notes WHERE customer_id=? ORDER BY credit_note_date DESC", (cid,)).fetchall()
     total_inv = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices WHERE customer_id=?", (cid,)).fetchone()[0]
     total_paid = db.execute("SELECT COALESCE(SUM(amount),0) FROM customer_payments WHERE customer_id=?", (cid,)).fetchone()[0]
-    balance = round(total_inv - total_paid, 2)
+    total_cn = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes WHERE customer_id=?", (cid,)).fetchone()[0]
+    balance = round(total_inv - total_paid - total_cn, 2)
     db.close()
     return render_template("customer/profile.html", c=c, active_tab=tab, invoices=invoices,
         payments=payments, contracts=contracts, quotations=quotations, lpos=lpos, docs=docs,
-        total_inv=total_inv, total_paid=total_paid, balance=balance)
+        credit_notes=credit_notes,
+        total_inv=total_inv, total_paid=total_paid, total_cn=total_cn, balance=balance)
 
 # ─── INVOICES ───
 
@@ -735,6 +756,63 @@ def customer_invoice_delete(cid, iid):
     flash("Invoice deleted.", "success")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
 
+# ─── CREDIT NOTES ───
+
+@customer_bp.route("/<int:cid>/credit-note/add", methods=["GET", "POST"])
+def customer_credit_note_add(cid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    invoices = db.execute("SELECT id,invoice_no,total_amount,invoice_date FROM customer_invoices WHERE customer_id=? ORDER BY invoice_date DESC", (cid,)).fetchall()
+
+    if request.method == "POST":
+        cn_date = request.form.get("credit_note_date", date.today().isoformat())
+        cn_no = request.form.get("credit_note_no", "").strip()
+        inv_id = request.form.get("invoice_id") or None
+        amount = float(request.form.get("amount", 0) or 0)
+        vat_pct = float(request.form.get("vat_percent", 0) or 0)
+        reason = request.form.get("reason", "").strip()
+        notes = request.form.get("notes", "").strip()
+
+        if not cn_no:
+            flash("Credit note number is required.", "error")
+            db.close()
+            return render_template("customer/credit_note_form.html", c=c, invoices=invoices, today=date.today().isoformat())
+        if amount <= 0:
+            flash("Amount must be greater than zero.", "error")
+            db.close()
+            return render_template("customer/credit_note_form.html", c=c, invoices=invoices, today=date.today().isoformat())
+
+        vat_amt = round(amount * vat_pct / 100, 2)
+        total = round(amount + vat_amt, 2)
+
+        db.execute(
+            "INSERT INTO customer_credit_notes (customer_id, credit_note_no, credit_note_date, invoice_id, amount, vat_percent, vat_amount, total_amount, reason, notes) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (cid, cn_no, cn_date, inv_id, amount, vat_pct, vat_amt, total, reason or None, notes or None),
+        )
+        db.commit()
+        db.close()
+        flash(f"Credit Note {cn_no} created.", "success")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="credit_notes"))
+
+    db.close()
+    return render_template("customer/credit_note_form.html", c=c, invoices=invoices, today=date.today().isoformat())
+
+@customer_bp.route("/<int:cid>/credit-note/<int:cnid>/delete", methods=["POST"])
+def customer_credit_note_delete(cid, cnid):
+    _ensure_tables()
+    db = _get_db()
+    row = db.execute("SELECT credit_note_no FROM customer_credit_notes WHERE id=? AND customer_id=?", (cnid, cid)).fetchone()
+    if row:
+        db.execute("DELETE FROM customer_credit_notes WHERE id=?", (cnid,))
+        db.commit()
+        flash(f"Credit Note {row['credit_note_no']} deleted.", "success")
+    else:
+        flash("Credit note not found.", "error")
+    db.close()
+    return redirect(url_for("customer.customer_profile", cid=cid, tab="credit_notes"))
+
 # ─── PAYMENTS ───
 
 @customer_bp.route("/<int:cid>/payment/add", methods=["GET", "POST"])
@@ -918,6 +996,13 @@ def customer_kata(cid):
     pmt_q += " ORDER BY p.payment_date"
     for pmt in db.execute(pmt_q, pmt_p).fetchall():
         entries.append(dict(pmt))
+    cn_q = "SELECT credit_note_date as d, credit_note_no as ref, 'Credit Note' as type, 0 as dr, total_amount as cr FROM customer_credit_notes WHERE customer_id=?"
+    cn_p = [cid]
+    if from_date: cn_q += " AND credit_note_date>=?"; cn_p.append(from_date)
+    if to_date: cn_q += " AND credit_note_date<=?"; cn_p.append(to_date)
+    cn_q += " ORDER BY credit_note_date"
+    for cn in db.execute(cn_q, cn_p).fetchall():
+        entries.append(dict(cn))
     entries.sort(key=lambda x: (x.get("d",""), x.get("type","")))
     balance = 0
     for e in entries:
@@ -958,6 +1043,13 @@ def customer_soa_pdf(cid):
     pmt_q += " ORDER BY p.payment_date"
     for pmt in db.execute(pmt_q, pmt_p).fetchall():
         entries.append(dict(pmt))
+    cn_q = "SELECT credit_note_date as d, credit_note_no as ref, 'Credit Note' as type, 0 as dr, total_amount as cr FROM customer_credit_notes WHERE customer_id=?"
+    cn_p = [cid]
+    if from_date: cn_q += " AND credit_note_date>=?"; cn_p.append(from_date)
+    if to_date: cn_q += " AND credit_note_date<=?"; cn_p.append(to_date)
+    cn_q += " ORDER BY credit_note_date"
+    for cn in db.execute(cn_q, cn_p).fetchall():
+        entries.append(dict(cn))
     entries.sort(key=lambda x: (x.get("d",""), x.get("type","")))
     bal = 0
     for e in entries:
