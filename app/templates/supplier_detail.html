@@ -22,6 +22,11 @@
                     <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Invoice Intake</a>
                 {% endif %}
                 <a class="button button-secondary" href="{% if supplier_mode in ('Cash', 'Loan') %}{{ url_for('supplier_statement_pdf', party_code=party.party_code, kata_month=kata_filters.month, kata_type=kata_filters.type, kata_search=kata_filters.search) }}{% else %}{{ url_for('supplier_statement_pdf', party_code=party.party_code, month=partnership_month) }}{% endif %}">{% if supplier_mode in ("Cash", "Loan") %}Kata PDF{% else %}Statement PDF{% endif %}</a>
+                <span class="button-sep"></span>
+                <form method="post" action="{{ url_for('delete_supplier', party_code=party.party_code) }}" onsubmit="return confirm('Delete this supplier and ALL linked data permanently? This cannot be undone.');" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="button button-danger" type="submit">Delete</button>
+                </form>
             </div>
             <div class="admin-mini-stats">
                 <span><strong>{{ summary.asset_count }}</strong><small>Vehicles</small></span>

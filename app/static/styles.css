@@ -1954,6 +1954,9 @@ a {
         0 12px 24px rgba(19, 56, 104, 0.08),
         inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
+.button-sep { width:1px; height:24px; background:#dce3ec; margin:0 2px; display:inline-block; vertical-align:middle; }
+.button-danger { color:#fff; background:linear-gradient(135deg,#dc2626,#b91c1c); box-shadow:0 6px 16px rgba(220,38,38,.22); }
+.button-danger:hover { filter:brightness(1.1); box-shadow:0 8px 20px rgba(220,38,38,.3); }
 
 .home-button {
     min-width: 92px;
