@@ -710,7 +710,7 @@ def _migrate_old_staff_entries(db):
             pno = f"PAPER-{num:04d}"
             status_map = {"pending": "Pending", "approved": "Approved", "rejected": "Rejected"}
             rev_status = status_map.get(j["status"], "Pending")
-            paper_date = (j["created_at"] or "")[:10] or "2025-01-01"
+            paper_date = (str(j["created_at"] or ""))[:10] or "2025-01-01"
             db.execute("""
                 INSERT INTO maintenance_papers
                 (paper_no, paper_date, vehicle_id, technician_code, work_summary,
