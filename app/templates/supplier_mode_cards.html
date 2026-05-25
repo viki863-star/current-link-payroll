@@ -92,6 +92,10 @@
                 <div class="supplier-card-actions">
                     <a class="button button-secondary" href="{{ url_for(detail_endpoint, party_code=item.party_code) }}">Open Portal</a>
                     <a class="button button-secondary" href="{% if supplier_mode == 'Normal' %}{{ url_for(register_endpoint, mode=supplier_mode, edit=item.party_code) }}{% else %}{{ url_for(register_endpoint, edit=item.party_code) }}{% endif %}">Edit</a>
+                    <form method="post" action="{{ url_for('delete_supplier', party_code=item.party_code) }}" onsubmit="return confirm('Delete {{ item.party_name }} and ALL linked data permanently? This cannot be undone.');" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="button button-secondary" type="submit" style="color:#dc2626">Delete</button>
+                    </form>
                 </div>
             </article>
         {% else %}
