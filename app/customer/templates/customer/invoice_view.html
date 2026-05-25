@@ -79,15 +79,6 @@
             {% if inv.ref_no %}<div class="inv-info-line"><span class="lbl">Ref No.:</span> <span class="val">{{ inv.ref_no }}</span></div>{% endif %}
         </div>
     </div>
-        <div class="inv-info-card">
-            <h4>Invoice Details</h4>
-            <div class="inv-row"><span class="lbl">Invoice #</span><span class="val">{{ inv.invoice_no }}</span></div>
-            <div class="inv-row"><span class="lbl">Date</span><span class="val">{{ inv.invoice_date }}</span></div>
-            {% if inv.lpo_no %}<div class="inv-row"><span class="lbl">LPO No.</span><span class="val">{{ inv.lpo_no }}</span></div>{% endif %}
-            {% if inv.lpo_date %}<div class="inv-row"><span class="lbl">LPO Date</span><span class="val">{{ inv.lpo_date }}</span></div>{% endif %}
-            {% if inv.project_no %}<div class="inv-row"><span class="lbl">Project No.</span><span class="val">{{ inv.project_no }}</span></div>{% endif %}
-        </div>
-    </div>
 
     {# ─── ITEMS TABLE ─── #}
     <table class="inv-table">
