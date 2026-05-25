@@ -609,19 +609,19 @@ def customer_invoice_pdf(cid, iid):
     def card(title, pairs):
         cw = W*0.50
         r = [[
-            Paragraph(f"<b>{title}</b>", S("_ch", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=10)),
-            Paragraph("", S("_cs", fontSize=3, leading=3)),
+            Paragraph(f"<b>{title}</b>", S("_ch", fontSize=6.5, fontName="Helvetica-Bold", textColor=C5, leading=9)),
+            Paragraph("", S("_cs", fontSize=2, leading=2)),
         ]]
         for a, b in pairs:
             r.append([
-                Paragraph(a, S("_cl", fontSize=8, textColor=C5, leading=12)),
-                Paragraph(f"<b>{b}</b>", S("_cv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=13)),
+                Paragraph(a, S("_cl", fontSize=7.5, textColor=C5, leading=11)),
+                Paragraph(f"{b}", S("_cv", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11.5)),
             ])
         t = Table(r, colWidths=[cw*0.28, cw*0.72])
         t.setStyle(TableStyle([
             ("VALIGN",(0,0),(-1,-1),"TOP"),
-            ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
-            ("LEFTPADDING",(0,0),(-1,-1),12), ("RIGHTPADDING",(0,0),(-1,-1),12),
+            ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
+            ("LEFTPADDING",(0,0),(-1,-1),10), ("RIGHTPADDING",(0,0),(-1,-1),10),
             ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
         ]))
         return t
@@ -772,9 +772,9 @@ def customer_invoice_pdf(cid, iid):
         if company["iban"]: bk_items.append(("IBAN", company["iban"]))
         if company["swift_code"]: bk_items.append(("Swift", company["swift_code"]))
         if bk_items:
-            els.append(Spacer(1, 3*mm))
+            els.append(Spacer(1, 2*mm))
             # Title
-            els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=9, fontName="Helvetica-Bold", textColor=C5, leading=12, spaceAfter=3)))
+            els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=8, fontName="Helvetica-Bold", textColor=C5, leading=10, spaceAfter=2)))
             # 2-column grid: split items into two columns
             mid = (len(bk_items) + 1) // 2
             col1 = bk_items[:mid]; col2 = bk_items[mid:]
@@ -783,9 +783,9 @@ def customer_invoice_pdf(cid, iid):
             col2 += [("", "")] * (max_rows - len(col2))
             grid_rows = []
             for (l1, v1), (l2, v2) in zip(col1, col2):
-                r1 = f"<font color='#64748b'>{l1}:</font> <b>{v1}</b>" if l1 else ""
-                r2 = f"<font color='#64748b'>{l2}:</font> <b>{v2}</b>" if l2 else ""
-                grid_rows.append([Paragraph(r1, S("_bk", fontSize=8.5, leading=13)), Paragraph(r2, S("_bk", fontSize=8.5, leading=13))])
+                r1 = f"<font color='#64748b'>{l1}:</font> <font color='#0f172a'><b>{v1}</b></font>" if l1 else ""
+                r2 = f"<font color='#64748b'>{l2}:</font> <font color='#0f172a'><b>{v2}</b></font>" if l2 else ""
+                grid_rows.append([Paragraph(r1, S("_bk", fontSize=8, leading=11.5)), Paragraph(r2, S("_bk", fontSize=8, leading=11.5))])
             bkt = Table(grid_rows, colWidths=[W*0.50, W*0.50])
             bkt.setStyle(TableStyle([
                 ("VALIGN",(0,0),(-1,-1),"TOP"),
