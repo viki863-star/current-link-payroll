@@ -15,6 +15,11 @@
 .soa-summary > div { background:var(--surface); padding:16px; text-align:center; }
 .soa-summary .lbl { font-size:0.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
 .soa-summary .val { font-size:1.2rem; font-weight:800; margin-top:4px; }
+.soa-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+.soa-table th { padding:10px 12px; background:#f0f2f5; font-size:0.68rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; }
+.soa-table td { padding:10px 12px; border-bottom:1px solid #eef2f6; }
+.soa-table tr:last-child td { border-bottom:none; }
+.soa-table .month-badge { display:inline-block; background:#e3f0ff; color:var(--primary); font-size:0.65rem; font-weight:600; padding:2px 10px; border-radius:4px; letter-spacing:0.3px; }
 </style>
 
 <div class="soa-card">
@@ -85,7 +90,7 @@
         <div>
             <div class="lbl">Outstanding</div>
             <div class="val" style="color:{% if closing > 0 %}#c62828{% else %}var(--green){% endif %}">
-                AED {{ "%.0f"|format(closing) }}
+                AED {{ "%.0f"|format(closing < 0 and 0 or closing) }}
             </div>
         </div>
         <div>
@@ -106,25 +111,27 @@
     </div>
     {% if entries %}
     <div class="table-wrap">
-        <table class="smart-table">
+        <table class="soa-table">
             <thead>
                 <tr>
                     <th>Date</th>
+                    <th>Month</th>
                     <th>Invoice #</th>
                     <th>Type</th>
-                    <th style="text-align:right">Invoice Amount (AED)</th>
-                    <th style="text-align:right">Payment Received (AED)</th>
+                    <th style="text-align:right">Dr (AED)</th>
+                    <th style="text-align:right">Cr (AED)</th>
                     <th style="text-align:right">Balance (AED)</th>
                 </tr>
             </thead>
             <tbody>
-                <tr style="background:#f8fafc;font-size:0.82rem">
-                    <td colspan="5" style="color:var(--muted)">Opening Balance</td>
-                    <td class="mono" style="text-align:right;font-weight:600">0.00</td>
+                <tr style="background:#f8fafc">
+                    <td colspan="6" style="color:var(--muted);padding:10px 12px">Opening Balance</td>
+                    <td class="mono" style="text-align:right;font-weight:600;padding:10px 12px">0.00</td>
                 </tr>
                 {% for e in entries %}
                 <tr>
                     <td class="mono">{{ e.d }}</td>
+                    <td>{% if e.d and e.d|length >= 7 %}<span class="month-badge">{{ e.d[:7] }}</span>{% endif %}</td>
                     <td class="mono" style="font-weight:600">{{ e.ref or '—' }}</td>
                     <td>
                          <span class="badge badge-type" style="font-size:0.65rem;
@@ -136,21 +143,21 @@
                         </span>
                     </td>
                     <td class="mono" style="text-align:right">
-                        {% if e.dr %}<span style="color:#c62828">{{ "%.0f"|format(e.dr) }}</span>{% else %}—{% endif %}
+                        {% if e.dr %}<span style="color:#c62828">{{ "%.0f"|format(e.dr) }}</span>{% else %}<span style="color:#ccc">—</span>{% endif %}
                     </td>
                     <td class="mono" style="text-align:right">
-                        {% if e.cr %}<span style="color:var(--green);font-weight:600">{{ "%.0f"|format(e.cr) }}</span>{% else %}—{% endif %}
+                        {% if e.cr %}<span style="color:var(--green);font-weight:600">{{ "%.0f"|format(e.cr) }}</span>{% else %}<span style="color:#ccc">—</span>{% endif %}
                     </td>
-                    <td class="mono" style="text-align:right;font-weight:700;color:{% if e.bal > 0 %}#c62828{% else %}var(--green){% endif %}">
-                        {{ "%.2f"|format(e.bal) }}
+                    <td class="mono" style="text-align:right;font-weight:700;color:{% if e.bal > 0 %}#c62828{% elif e.bal < 0 %}var(--green){% else %}var(--muted){% endif %}">
+                        {{ "0.00" if e.bal <= 0 else "%.2f"|format(e.bal) }}
                     </td>
                 </tr>
                 {% endfor %}
                 <tr style="background:var(--primary);color:#fff;font-weight:700;font-size:0.9rem">
-                    <td colspan="3">Closing Balance</td>
+                    <td colspan="4">Closing Balance</td>
                     <td class="mono" style="text-align:right;color:#fff">{{ "%.0f"|format(total_dr) }}</td>
                     <td class="mono" style="text-align:right;color:#fff">{{ "%.0f"|format(total_cr) }}</td>
-                    <td class="mono" style="text-align:right;color:#fff;font-weight:800">{{ "%.2f"|format(closing) }}</td>
+                    <td class="mono" style="text-align:right;color:#fff;font-weight:800">{{ "0.00" if closing <= 0 else "%.2f"|format(closing) }}</td>
                 </tr>
             </tbody>
         </table>
