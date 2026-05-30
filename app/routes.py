@@ -112,7 +112,7 @@ GENERAL_MAINTENANCE_VEHICLE_NO = "GENERAL"
 BRANCH_STATUS_OPTIONS = ["Active", "Inactive"]
 FINANCIAL_YEAR_STATUS_OPTIONS = ["Open", "Closed", "Archived"]
 INVOICE_LINE_SLOTS = 4
-ADMIN_WORKSPACE_ORDER = ["universal", "hr", "drivers", "suppliers-normal", "suppliers-partnership", "suppliers-managed", "suppliers-cash", "customers", "accounts", "technicians"]
+ADMIN_WORKSPACE_ORDER = ["universal", "hr", "fleet", "drivers", "suppliers-normal", "suppliers-partnership", "suppliers-managed", "suppliers-cash", "customers", "accounts", "technicians"]
 ADMIN_WORKSPACE_META = {
     "universal": {
         "label": "Universal",
@@ -125,6 +125,12 @@ ADMIN_WORKSPACE_META = {
         "eyebrow": "HR Desk",
         "title": "HR & Employee Management",
         "summary": "Employee directory, profiles, and HR operations.",
+    },
+    "fleet": {
+        "label": "Fleet",
+        "eyebrow": "Fleet Desk",
+        "title": "Fleet Management",
+        "summary": "Vehicle management, maintenance, and fleet operations.",
     },
     "drivers": {
         "label": "Drivers",
@@ -8759,6 +8765,7 @@ def _workspace_home_endpoint(workspace: str) -> str:
     return {
         "universal": "dashboard",
         "hr": "hr.employee_list",
+        "fleet": "fleet.fleet_dashboard",
         "drivers": "driver_list",
         "suppliers": "suppliers",
         "suppliers-normal": "suppliers",

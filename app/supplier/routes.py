@@ -18,6 +18,8 @@ from . import supplier_bp
 
 from ..database import open_db
 
+from ..routes import _touch_admin_workspace
+
 
 MAINTENANCE_CATEGORIES = [
     "Engine", "Transmission", "Brakes", "Tires", "Electrical",
@@ -553,6 +555,7 @@ def _migrate_old_supplier_data():
 @supplier_bp.route("/")
 def supplier_dashboard():
     try:
+        _touch_admin_workspace("suppliers-normal")
         _ensure_tables()
         db = _get_db()
 

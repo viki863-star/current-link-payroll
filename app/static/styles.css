@@ -7879,18 +7879,35 @@ html {
     position: relative;
 }
 
-.erp-brand-mark img {
-    width: 32px;
-    height: 32px;
-    object-fit: contain;
+.erp-brand-mark img,
+.erp-brand-mark video {
+    width: 42px;
+    height: 42px;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+.erp-brand-video {
+    display: block;
+    width: 42px;
+    height: 42px;
+    object-fit: cover;
+    border-radius: 10px;
 }
 
 .erp-brand-ring {
     position: absolute;
     inset: 0;
     border-radius: 12px;
-    border: 1.5px solid rgba(255,138,31,0.3);
+    border: 2px solid var(--orange);
+    box-shadow: 0 0 12px rgba(247,147,30,0.3), inset 0 0 8px rgba(247,147,30,0.1);
     pointer-events: none;
+    animation: ringPulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes ringPulse {
+    0% { opacity: 0.6; box-shadow: 0 0 6px rgba(247,147,30,0.2), inset 0 0 4px rgba(247,147,30,0.05); }
+    100% { opacity: 1; box-shadow: 0 0 18px rgba(247,147,30,0.5), inset 0 0 12px rgba(247,147,30,0.15); }
 }
 
 .erp-brand-copy {
@@ -7901,7 +7918,7 @@ html {
 
 .erp-brand-name {
     color: #fff;
-    font-size: 1rem;
+    font-size: 1.3rem;
     font-weight: 800;
     letter-spacing: -0.02em;
 }
@@ -7912,6 +7929,28 @@ html {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
+}
+
+.brand-current {
+    color: #ffffff;
+    display: inline-block;
+    animation: brandFadeIn 1s ease-out;
+}
+
+.brand-link {
+    color: var(--orange);
+    display: inline-block;
+    animation: brandGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes brandFadeIn {
+    0% { opacity: 0; transform: translateX(-8px); }
+    100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes brandGlow {
+    0% { text-shadow: 0 0 4px rgba(247,147,30,0.3); }
+    100% { text-shadow: 0 0 16px rgba(247,147,30,0.7); }
 }
 
 .erp-sidebar-accent {

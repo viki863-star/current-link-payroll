@@ -211,6 +211,8 @@ def _get_customer_or_404(cid):
 
 @customer_bp.route("/")
 def customer_dashboard():
+    from ..routes import _touch_admin_workspace
+    _touch_admin_workspace("customers")
     _ensure_tables()
     db = _get_db()
     total = db.execute("SELECT COUNT(*) FROM customers").fetchone()[0]
