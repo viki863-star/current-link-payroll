@@ -17,327 +17,289 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #FFFBE6;
-            padding: 24px;
+            background: #0F2B52;
             position: relative;
+            overflow: hidden;
         }
 
-        /* ── Brutal background shapes ── */
-        .brutal-shape {
+        /* ── Dot Grid ── */
+        .vp-grid {
             position: fixed;
+            inset: 0;
+            background-image: radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px);
+            background-size: 32px 32px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ── Gradient Orbs ── */
+        .vp-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
             pointer-events: none;
             z-index: 0;
         }
-        .brutal-shape-1 {
-            width: 320px; height: 320px;
-            background: #FF6B6B;
-            border: 4px solid #0F2B52;
-            transform: rotate(12deg);
-            top: -60px; right: -40px;
-            box-shadow: 10px 10px 0 #0F2B52;
+        .vp-orb-1 {
+            width: 600px; height: 600px;
+            background: rgba(247,147,30,0.10);
+            top: -200px; right: -100px;
         }
-        .brutal-shape-2 {
-            width: 200px; height: 200px;
-            background: #F7931E;
-            border: 4px solid #0F2B52;
-            transform: rotate(-8deg);
-            bottom: -30px; left: -30px;
-            box-shadow: 8px 8px 0 #0F2B52;
-        }
-        .brutal-shape-3 {
-            width: 120px; height: 120px;
-            background: #4ECDC4;
-            border: 4px solid #0F2B52;
-            transform: rotate(20deg);
-            bottom: 80px; right: 60px;
-            box-shadow: 6px 6px 0 #0F2B52;
+        .vp-orb-2 {
+            width: 500px; height: 500px;
+            background: rgba(255,255,255,0.04);
+            bottom: -150px; left: -150px;
         }
 
         /* ── Flash ── */
-        .brutal-flash {
-            position: fixed; top: 24px; left: 50%;
+        .vp-flash {
+            position: fixed; top: 28px; left: 50%;
             transform: translateX(-50%); z-index: 9999;
             max-width: 420px; width: 90%;
         }
-        .brutal-flash > div {
-            background: #fff; border: 3px solid #0F2B52;
-            border-left: 6px solid #ef4444;
-            padding: 13px 16px;
-            box-shadow: 5px 5px 0 #0F2B52;
+        .vp-flash > div {
+            background: rgba(255,255,255,0.97);
+            backdrop-filter: blur(12px);
+            border-left: 4px solid #ef4444;
+            padding: 13px 18px;
+            border-radius: 12px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.18);
             margin-bottom: 6px;
-            font-size: 0.84rem; font-weight: 600; color: #0F2B52;
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: #1e293b;
         }
-        .brutal-flash .success { border-left-color: #22c55e; }
+        .vp-flash .success { border-color: #22c55e; }
 
         /* ── Card ── */
-        .brutal-wrap {
+        .vp-wrap {
             position: relative;
             z-index: 2;
             width: 100%;
+            padding: 24px;
             display: flex;
             justify-content: center;
+            animation: vpFadeIn 0.5s ease both;
         }
-        .brutal-card {
+        @keyframes vpFadeIn {
+            from { opacity: 0; transform: scale(0.95) translateY(12px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .vp-card {
             width: 100%;
-            max-width: 440px;
-            background: #fff;
-            border: 4px solid #0F2B52;
-            box-shadow: 12px 12px 0 #0F2B52;
-            padding: 36px 32px 28px;
+            max-width: 420px;
+            background: rgba(255,255,255,0.97);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px 34px 32px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.20);
+            border: 1px solid rgba(255,255,255,0.15);
         }
 
-        .brutal-brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 24px;
-            background: #0F2B52;
-            padding: 10px 16px;
-            margin-left: -8px;
-            margin-right: -8px;
-            transform: rotate(-1deg);
+        .vp-brand {
+            text-align: center;
+            margin-bottom: 28px;
         }
-        .brutal-brand video {
-            width: 40px; height: 40px;
-            border: 2px solid #F7931E;
+        .vp-brand video {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            margin-bottom: 12px;
+            box-shadow: 0 8px 24px rgba(15,43,82,0.12);
         }
-        .brutal-brand-text {
+        .vp-brand-name {
             font-size: 0.65rem;
             font-weight: 700;
-            color: rgba(255,255,255,0.5);
+            color: #94a3b8;
             text-transform: uppercase;
-        }
-        .brutal-brand-text strong {
-            display: block;
-            font-size: 1.1rem;
-            font-weight: 900;
-            color: #fff;
-            text-transform: none;
-        }
-        .brutal-brand-text strong span { color: #F7931E; }
-
-        .brutal-head {
-            text-align: center;
-            margin-bottom: 24px;
-        }
-        .brutal-eyebrow {
-            display: inline-block;
-            background: #F7931E;
-            color: #fff;
-            font-size: 0.6rem;
-            font-weight: 800;
             letter-spacing: 0.08em;
-            padding: 5px 14px;
-            border: 2px solid #0F2B52;
-            box-shadow: 3px 3px 0 #0F2B52;
-            margin-bottom: 12px;
-            text-transform: uppercase;
         }
-        .brutal-head h2 {
-            font-size: 2rem;
+        .vp-brand-name strong {
+            display: block;
+            font-size: 1.2rem;
             font-weight: 900;
             color: #0F2B52;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: -0.02em;
+            letter-spacing: 0;
+            text-transform: none;
         }
-        .brutal-head p {
-            font-size: 0.85rem;
-            color: #475569;
-            font-weight: 600;
+        .vp-brand-name strong span { color: #F7931E; }
+
+        .vp-head {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .vp-head h2 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #0F2B52;
+            margin-bottom: 4px;
+        }
+        .vp-head p {
+            font-size: 0.84rem;
+            color: #64748b;
         }
 
-        .brutal-form { display: grid; gap: 18px; }
-        .brutal-form label {
-            font-size: 0.78rem;
-            font-weight: 800;
+        .vp-form { display: grid; gap: 18px; }
+        .vp-form label {
+            font-size: 0.8rem;
+            font-weight: 700;
             color: #0F2B52;
             display: block;
             margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
         }
-        .brutal-form input {
+        .vp-form input {
             width: 100%;
             padding: 13px 16px;
-            border: 3px solid #0F2B52;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
             font-size: 0.88rem;
             color: #0F2B52;
-            background: #fff;
+            background: #f8fafc;
             outline: none;
+            transition: all 0.2s;
             font-family: 'Inter', sans-serif;
-            font-weight: 600;
-            transition: box-shadow 0.15s, transform 0.15s;
         }
-        .brutal-form input:focus {
-            box-shadow: 5px 5px 0 #F7931E;
-            transform: translate(-2px, -2px);
+        .vp-form input:focus {
+            border-color: #F7931E;
+            box-shadow: 0 0 0 4px rgba(247,147,30,0.10);
+            background: #fff;
         }
-        .brutal-form input::placeholder {
-            color: #94a3b8;
-            font-weight: 500;
-        }
+        .vp-form input::placeholder { color: #94a3b8; }
 
-        .brutal-role-grid {
+        .vp-role-grid {
             display: flex;
-            gap: 6px;
+            gap: 8px;
         }
-        .brutal-role {
+        .vp-role {
             flex: 1;
             text-align: center;
-            padding: 12px 4px 10px;
-            border: 3px solid #0F2B52;
+            padding: 12px 6px 10px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.25s;
             background: #fff;
             user-select: none;
-            box-shadow: 4px 4px 0 #0F2B52;
         }
-        .brutal-role:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 6px 6px 0 #0F2B52;
+        .vp-role:hover { border-color: #F7931E; background: #fffaf2; }
+        .vp-role.is-active {
+            border-color: #F7931E;
+            background: linear-gradient(180deg, #fff6e8, #ffedd5);
+            box-shadow: 0 0 0 3px rgba(247,147,30,0.10);
         }
-        .brutal-role.is-active {
-            background: #0F2B52;
-            box-shadow: 4px 4px 0 #F7931E;
-            transform: translate(-2px, -2px);
-        }
-        .brutal-role svg {
-            width: 20px; height: 20px;
+        .vp-role svg {
+            width: 22px; height: 22px;
             color: #0F2B52;
             display: block; margin: 0 auto 5px;
         }
-        .brutal-role.is-active svg { color: #F7931E; }
-        .brutal-role strong {
+        .vp-role.is-active svg { color: #F7931E; }
+        .vp-role strong {
             display: block;
-            font-size: 0.72rem;
-            font-weight: 800;
+            font-size: 0.75rem;
+            font-weight: 700;
             color: #0F2B52;
         }
-        .brutal-role.is-active strong { color: #fff; }
-        .brutal-role span {
-            font-size: 0.58rem;
+        .vp-role span {
+            font-size: 0.6rem;
             color: #64748b;
         }
-        .brutal-role.is-active span { color: rgba(255,255,255,0.6); }
 
-        .brutal-stage { display: none; }
-        .brutal-stage.is-visible { display: grid; gap: 16px; }
-        .brutal-stage-note {
+        .vp-stage { display: none; }
+        .vp-stage.is-visible { display: grid; gap: 16px; animation: vpSlideUp 0.3s ease both; }
+        @keyframes vpSlideUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .vp-stage-note {
             font-size: 0.74rem;
-            color: #475569;
+            color: #64748b;
             line-height: 1.5;
             text-align: center;
-            font-weight: 600;
-            background: #FEF9C3;
-            padding: 8px 12px;
-            border: 2px solid #0F2B52;
         }
-        .brutal-fields { display: none; }
-        .brutal-fields.is-active { display: block; }
-        .brutal-fields.is-active input { margin-bottom: 12px; }
-        .brutal-fields.is-active input:last-child { margin-bottom: 0; }
+        .vp-fields { display: none; }
+        .vp-fields.is-active { display: block; }
+        .vp-fields.is-active input { margin-bottom: 12px; }
+        .vp-fields.is-active input:last-child { margin-bottom: 0; }
 
-        .brutal-options {
+        .vp-options {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
             flex-wrap: wrap;
         }
-        .brutal-remember {
+        .vp-remember {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
+            font-size: 0.78rem;
+            color: #475569;
+        }
+        .vp-remember input { width: 14px; height: 14px; accent-color: #F7931E; }
+        .vp-forgot {
             font-size: 0.76rem;
             font-weight: 700;
-            color: #0F2B52;
-        }
-        .brutal-remember input {
-            width: 16px; height: 16px;
-            accent-color: #F7931E;
-            border: 2px solid #0F2B52;
-        }
-        .brutal-forgot {
-            font-size: 0.76rem;
-            font-weight: 800;
-            color: #0F2B52;
+            color: #F7931E;
             text-decoration: none;
-            border-bottom: 3px solid #F7931E;
-            padding-bottom: 2px;
         }
-        .brutal-forgot:hover { color: #F7931E; }
+        .vp-forgot:hover { color: #d47c10; }
 
-        .brutal-submit {
+        .vp-submit {
             width: 100%;
-            padding: 15px;
-            border: 3px solid #0F2B52;
-            background: #F7931E;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #F7931E 0%, #e67e0d 100%);
             color: #fff;
-            font-size: 0.95rem;
-            font-weight: 900;
+            font-size: 0.92rem;
+            font-weight: 800;
             cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            transition: all 0.15s;
-            box-shadow: 6px 6px 0 #0F2B52;
+            letter-spacing: 0.01em;
+            transition: all 0.2s;
+            box-shadow: 0 8px 24px rgba(247,147,30,0.25);
         }
-        .brutal-submit:hover {
-            transform: translate(-3px, -3px);
-            box-shadow: 9px 9px 0 #0F2B52;
-        }
-        .brutal-submit:active {
-            transform: translate(0, 0);
-            box-shadow: 2px 2px 0 #0F2B52;
+        .vp-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(247,147,30,0.30);
         }
 
-        .brutal-back {
+        .vp-back {
             text-align: center;
             margin-top: 18px;
         }
-        .brutal-back a {
+        .vp-back a {
             font-size: 0.78rem;
-            color: #0F2B52;
+            color: #64748b;
             text-decoration: none;
-            font-weight: 800;
-            border-bottom: 3px solid #F7931E;
-            padding-bottom: 2px;
+            font-weight: 600;
         }
-        .brutal-back a:hover { color: #F7931E; }
+        .vp-back a:hover { color: #0F2B52; }
 
-        .brutal-footer {
+        .vp-footer {
             text-align: center;
             margin-top: 14px;
             font-size: 0.65rem;
-            font-weight: 700;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
+            color: #94a3b8;
         }
 
         @media (max-width: 500px) {
-            .brutal-card { padding: 24px 16px 20px; box-shadow: 8px 8px 0 #0F2B52; }
-            .brutal-head h2 { font-size: 1.5rem; }
-            .brutal-role { padding: 10px 2px 8px; }
-            .brutal-role strong { font-size: 0.62rem; }
-            .brutal-role span { display: none; }
-            .brutal-role svg { width: 18px; height: 18px; }
-            .brutal-brand { margin-left: -4px; margin-right: -4px; padding: 8px 12px; }
-            .brutal-brand video { width: 34px; height: 34px; }
-            .brutal-brand-text strong { font-size: 0.95rem; }
-            .brutal-shape-1 { width: 180px; height: 180px; }
-            .brutal-shape-2 { width: 120px; height: 120px; }
-            .brutal-shape-3 { display: none; }
+            .vp-card { padding: 28px 18px 24px; border-radius: 16px; }
+            .vp-brand video { width: 46px; height: 46px; }
+            .vp-head h2 { font-size: 1.15rem; }
+            .vp-role { padding: 10px 4px 8px; }
+            .vp-role strong { font-size: 0.65rem; }
+            .vp-role span { display: none; }
+            .vp-role svg { width: 18px; height: 18px; }
         }
     </style>
 </head>
 <body>
 
-<div class="brutal-shape brutal-shape-1"></div>
-<div class="brutal-shape brutal-shape-2"></div>
-<div class="brutal-shape brutal-shape-3"></div>
+<div class="vp-grid"></div>
+<div class="vp-orb vp-orb-1"></div>
+<div class="vp-orb vp-orb-2"></div>
 
-<div class="brutal-flash" id="brutalFlash">
+<div class="vp-flash" id="vpFlash">
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -347,48 +309,47 @@
     {% endwith %}
 </div>
 
-<div class="brutal-wrap">
-    <div class="brutal-card">
-        <div class="brutal-brand">
-            <video autoplay loop muted playsinline width="40" height="40">
+<div class="vp-wrap">
+    <div class="vp-card">
+        <div class="vp-brand">
+            <video autoplay loop muted playsinline width="56" height="56">
                 <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
             </video>
-            <div class="brutal-brand-text">
+            <div class="vp-brand-name">
                 <strong>Current <span>Link</span></strong>
                 PORTAL ACCESS
             </div>
         </div>
 
-        <div class="brutal-head">
-            <div class="brutal-eyebrow">ABU DHABI · UAE</div>
+        <div class="vp-head">
             <h2>Welcome Back</h2>
             <p>Select your role to sign in</p>
         </div>
 
         {% set initial_role = selected_role if request.method == "POST" else "" %}
-        <form class="brutal-form" method="POST" autocomplete="off">
+        <form class="vp-form" method="POST" autocomplete="off">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="role" id="brutalRole" value="{{ initial_role }}">
+            <input type="hidden" name="role" id="vpRole" value="{{ initial_role }}">
 
-            <div class="brutal-role-grid" role="group" aria-label="Select role">
-                <button type="button" class="brutal-role" data-role="admin">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="vp-role-grid" role="group" aria-label="Select role">
+                <button type="button" class="vp-role" data-role="admin">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 3l7 4v5c0 5-3.4 8.7-7 10-3.6-1.3-7-5-7-10V7l7-4z"/>
                         <path d="M12 8v8"/><path d="M9 11h6"/>
                     </svg>
                     <strong>Admin</strong>
                     <span>Full control</span>
                 </button>
-                <button type="button" class="brutal-role" data-role="driver">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" class="vp-role" data-role="driver">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="7.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>
                         <path d="M5 16V9l2-3h10l2 3v7"/><path d="M5 11h14"/><path d="M12 11v-2"/>
                     </svg>
                     <strong>Driver</strong>
                     <span>Transport ops</span>
                 </button>
-                <button type="button" class="brutal-role" data-role="technician">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" class="vp-role" data-role="technician">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 3v5"/><path d="M7 8h10"/>
                         <path d="M9 8V6.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6.5V8"/>
                         <path d="M6 10h12l-1.2 6.1A3 3 0 0 1 13.9 19H10.1a3 3 0 0 1-2.9-2.9L6 10z"/>
@@ -398,54 +359,54 @@
                 </button>
             </div>
 
-            <div class="brutal-stage" id="brutalStage">
-                <p class="brutal-stage-note" id="brutalNote">Choose a role above.</p>
+            <div class="vp-stage" id="vpStage">
+                <p class="vp-stage-note" id="vpNote">Choose a role above.</p>
 
-                <div class="brutal-fields" data-group="admin">
-                    <label for="brutalAdminPass">Password</label>
-                    <input type="password" id="brutalAdminPass" name="password" placeholder="Enter admin password">
+                <div class="vp-fields" data-group="admin">
+                    <label for="vpAdminPass">Password</label>
+                    <input type="password" id="vpAdminPass" name="password" placeholder="Enter admin password">
                 </div>
-                <div class="brutal-fields" data-group="driver">
-                    <label for="brutalDriverPhone">Phone Number</label>
-                    <input type="text" id="brutalDriverPhone" name="phone_number" placeholder="Enter phone number" inputmode="tel">
-                    <label for="brutalDriverPin">Password / PIN</label>
-                    <input type="password" id="brutalDriverPin" name="driver_pin" placeholder="Enter your PIN" inputmode="numeric">
+                <div class="vp-fields" data-group="driver">
+                    <label for="vpDriverPhone">Phone Number</label>
+                    <input type="text" id="vpDriverPhone" name="phone_number" placeholder="Enter phone number" inputmode="tel">
+                    <label for="vpDriverPin">Password / PIN</label>
+                    <input type="password" id="vpDriverPin" name="driver_pin" placeholder="Enter your PIN" inputmode="numeric">
                 </div>
-                <div class="brutal-fields" data-group="technician">
-                    <label for="brutalStaffUser">Username / Email</label>
-                    <input type="text" id="brutalStaffUser" name="user_id" placeholder="Enter your username or email">
-                    <label for="brutalStaffPass">Password</label>
-                    <input type="password" id="brutalStaffPass" name="password" placeholder="Enter your password">
+                <div class="vp-fields" data-group="technician">
+                    <label for="vpStaffUser">Username / Email</label>
+                    <input type="text" id="vpStaffUser" name="user_id" placeholder="Enter your username or email">
+                    <label for="vpStaffPass">Password</label>
+                    <input type="password" id="vpStaffPass" name="password" placeholder="Enter your password">
                 </div>
 
-                <div class="brutal-options">
-                    <label class="brutal-remember">
+                <div class="vp-options">
+                    <label class="vp-remember">
                         <input type="checkbox" name="remember_me" value="1">
                         <span>Remember me</span>
                     </label>
-                    <a class="brutal-forgot" id="brutalHelp" href="#">Forgot Password?</a>
+                    <a class="vp-forgot" id="vpHelp" href="#">Forgot Password?</a>
                 </div>
 
-                <button class="brutal-submit" type="submit" id="brutalSubmit" hidden>Access Portal</button>
+                <button class="vp-submit" type="submit" id="vpSubmit" hidden>Access Portal</button>
             </div>
         </form>
 
-        <div class="brutal-back">
+        <div class="vp-back">
             <a href="{{ url_for('home') }}">&larr; Back to Homepage</a>
         </div>
-        <div class="brutal-footer">Current Link Transport &amp; General Contracting LLC SPC</div>
+        <div class="vp-footer">Current Link Transport &amp; General Contracting LLC SPC</div>
     </div>
 </div>
 
 <script>
 (function(){
-    var roleInput = document.getElementById('brutalRole');
-    var stage = document.getElementById('brutalStage');
-    var note = document.getElementById('brutalNote');
-    var submit = document.getElementById('brutalSubmit');
-    var helpLink = document.getElementById('brutalHelp');
-    var opts = Array.from(document.querySelectorAll('.brutal-role'));
-    var fgroups = Array.from(document.querySelectorAll('.brutal-fields'));
+    var roleInput = document.getElementById('vpRole');
+    var stage = document.getElementById('vpStage');
+    var note = document.getElementById('vpNote');
+    var submit = document.getElementById('vpSubmit');
+    var helpLink = document.getElementById('vpHelp');
+    var opts = Array.from(document.querySelectorAll('.vp-role'));
+    var fgroups = Array.from(document.querySelectorAll('.vp-fields'));
 
     var configs = {
         admin: { note: 'Admin access uses the internal password only.', help: 'Forgot password? Contact system admin', href: '#' },
@@ -495,7 +456,7 @@
     resetFields();
     activateRole(roleInput.value || '');
 
-    var flashEl = document.getElementById('brutalFlash');
+    var flashEl = document.getElementById('vpFlash');
     if (flashEl && flashEl.children.length === 0) { flashEl.style.display = 'none'; }
 })();
 </script>
