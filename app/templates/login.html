@@ -1,847 +1,414 @@
-{% extends "base.html" %}
-{% block title %}Portal Login{% endblock %}
-{% block body_class %}cl-login-page{% endblock %}
-{% block shell_header %}{% endblock %}
-{% block shell_footer %}{% endblock %}
-
-{% block content %}
-{% set initial_role = selected_role if request.method == "POST" else "" %}
-<style>
-html,
-body.cl-login-page {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-}
-
-body.cl-login-page .brand-shell {
-    display: contents;
-}
-
-body.cl-login-page .page {
-    margin: 0;
-    padding: 0;
-    max-width: none;
-    min-height: 100vh;
-}
-
-body.cl-login-page .site-footer {
-    display: none;
-}
-
-body.cl-login-page .flash-stack {
-    position: fixed;
-    top: 18px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 40;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: min(92vw, 520px);
-}
-
-body.cl-login-page .flash {
-    border-radius: 12px;
-    padding: 12px 16px;
-    box-shadow: 0 18px 40px rgba(11, 31, 58, 0.24);
-    font-size: 0.92rem;
-    font-weight: 600;
-}
-
-body.cl-login-page .flash-error { background: #dc2626; color: #fff; }
-body.cl-login-page .flash-success { background: #059669; color: #fff; }
-body.cl-login-page .flash-warning { background: #d97706; color: #fff; }
-body.cl-login-page .flash-info { background: #1d4ed8; color: #fff; }
-
-.portal-screen {
-    position: relative;
-    min-height: 100vh;
-    height: 100vh;
-    overflow: hidden;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: clamp(18px, 3vw, 42px);
-    font-family: "Segoe UI", "Inter", sans-serif;
-}
-
-.portal-screen::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: url("{{ url_for('static', filename='portal-new.png') }}") center center / cover no-repeat;
-}
-
-.portal-screen::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, rgba(9, 23, 43, 0.04) 0%, rgba(9, 23, 43, 0.02) 48%, rgba(9, 23, 43, 0.12) 100%);
-}
-
-.portal-panel {
-    position: relative;
-    z-index: 2;
-    width: min(376px, 100%);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.98);
-    border: 1px solid rgba(229, 231, 235, 0.95);
-    box-shadow: 0 30px 80px rgba(11, 31, 58, 0.22);
-    padding: 22px 20px 18px;
-    color: #0B1F3A;
-}
-
-.portal-head {
-    margin-bottom: 14px;
-}
-
-.portal-eyebrow {
-    display: block;
-    margin: 0;
-    color: #243a5a;
-    font-size: 0.74rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
-.portal-divider {
-    height: 1px;
-    background: #e8edf4;
-    margin: 2px 0 0;
-}
-
-.portal-form {
-    display: grid;
-    gap: 14px;
-}
-
-.role-grid {
-    display: flex;
-    gap: 8px;
-}
-
-.role-card {
-    appearance: none;
-    flex: 1 1 0;
-    min-height: 86px;
-    border: 1px solid #e5e7eb;
-    background: #fff;
-    border-radius: 10px;
-    padding: 10px 8px 8px;
-    display: grid;
-    gap: 6px;
-    justify-items: center;
-    text-align: center;
-    cursor: pointer;
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.role-card:hover {
-    transform: translateY(-1px);
-    border-color: rgba(245, 158, 11, 0.5);
-    box-shadow: 0 10px 22px rgba(11, 31, 58, 0.08);
-}
-
-.role-card.is-active {
-    border-color: #F59E0B;
-    background: linear-gradient(180deg, #ffb21f 0%, #f59e0b 100%);
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14), 0 12px 26px rgba(245, 158, 11, 0.26);
-}
-
-.role-badge {
-    width: 30px;
-    height: 30px;
-    border-radius: 9px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #f8fafc;
-    color: #0B1F3A;
-    border: 1px solid #e5e7eb;
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-}
-
-.role-badge svg {
-    width: 16px;
-    height: 16px;
-}
-
-.role-card.is-active .role-badge {
-    background: rgba(255, 255, 255, 0.18);
-    border-color: rgba(255, 255, 255, 0.28);
-    color: #111827;
-}
-
-.role-name {
-    font-size: 0.92rem;
-    font-weight: 700;
-    color: #0B1F3A;
-}
-
-.role-card.is-active .role-name {
-    color: #111827;
-}
-
-.role-copy {
-    font-size: 0.7rem;
-    color: #7b8aa0;
-    line-height: 1.35;
-}
-
-.role-card.is-active .role-copy {
-    color: rgba(17, 24, 39, 0.82);
-}
-
-.portal-stage {
-    display: none;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.24s ease, transform 0.24s ease;
-}
-
-.portal-stage.is-visible {
-    display: grid;
-    gap: 14px;
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.portal-role-note {
-    margin: 0;
-    color: #243a5a;
-    font-size: 0.74rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
-.portal-group-note {
-    margin: -6px 0 0;
-    font-size: 0.72rem;
-    line-height: 1.45;
-    color: #7b8aa0;
-}
-
-.portal-group {
-    display: none;
-    gap: 14px;
-}
-
-.portal-group.is-active {
-    display: grid;
-    animation: portalFadeIn 0.24s ease both;
-}
-
-@keyframes portalFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.field-wrap {
-    display: grid;
-    gap: 7px;
-}
-
-.field-wrap label {
-    font-size: 0.84rem;
-    font-weight: 700;
-    color: #283c58;
-}
-
-.field-input {
-    position: relative;
-}
-
-.field-icon,
-.field-tail-icon {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #66788f;
-    pointer-events: none;
-}
-
-.field-icon {
-    left: 13px;
-}
-
-.field-tail-icon {
-    right: 13px;
-}
-
-.field-icon svg,
-.field-tail-icon svg {
-    width: 15px;
-    height: 15px;
-}
-
-.field-wrap input {
-    width: 100%;
-    min-height: 34px;
-    border-radius: 12px;
-    border: 1px solid #dde4ee;
-    background: #fff;
-    padding: 0 40px 0 38px;
-    font-size: 0.88rem;
-    color: #0B1F3A;
-    outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    box-sizing: border-box;
-}
-
-.field-wrap input::placeholder {
-    color: #95a4b8;
-}
-
-.field-wrap input:focus {
-    border-color: #F59E0B;
-    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.14);
-}
-
-.portal-tools {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: -2px;
-}
-
-.remember-check {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 0.8rem;
-    color: #44566f;
-}
-
-.remember-check input {
-    width: 13px;
-    height: 13px;
-    accent-color: #F59E0B;
-}
-
-.portal-help-link {
-    font-size: 0.76rem;
-    font-weight: 700;
-    color: #F59E0B;
-    text-decoration: none;
-    transition: color 0.2s ease;
-}
-
-.portal-help-link:hover {
-    color: #d98d08;
-}
-
-.portal-submit {
-    width: 100%;
-    min-height: 44px;
-    border: none;
-    border-radius: 12px;
-    background: linear-gradient(90deg, #ffb21f 0%, #f59e0b 100%);
-    color: #fff;
-    font-size: 0.92rem;
-    font-weight: 800;
-    letter-spacing: 0.01em;
-    cursor: pointer;
-    position: relative;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 14px 28px rgba(245, 158, 11, 0.24);
-}
-
-.portal-submit:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 18px 34px rgba(245, 158, 11, 0.28);
-}
-
-.portal-submit::after {
-    content: "→";
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1rem;
-}
-
-.portal-submit[hidden] {
-    display: none;
-}
-
-.portal-footnote {
-    margin-top: 0;
-    font-size: 0.72rem;
-    color: #7b8aa0;
-    text-align: center;
-    line-height: 1.45;
-}
-
-@media (max-width: 900px) {
-    .portal-screen {
-        justify-content: center;
-        padding: 16px;
-    }
-
-    .portal-screen::before {
-        background-position: center right 20%;
-    }
-
-    .portal-screen::after {
-        background: linear-gradient(180deg, rgba(11, 31, 58, 0.08) 0%, rgba(11, 31, 58, 0.1) 100%);
-    }
-
-    .portal-panel {
-        width: min(376px, 100%);
-    }
-}
-
-@media (max-width: 560px) {
-    .portal-screen {
-        padding: 12px;
-        align-items: flex-start;
-        padding-top: 24px;
-        min-height: 100dvh;
-        height: auto;
-    }
-
-    .portal-panel {
-        border-radius: 12px;
-        padding: 16px 14px;
-        width: 100%;
-        box-shadow: 0 16px 48px rgba(11, 31, 58, 0.18);
-    }
-
-    .role-grid {
-        flex-wrap: wrap;
-        gap: 6px;
-    }
-
-    .role-card {
-        min-width: calc(50% - 3px);
-        min-height: 72px;
-        padding: 8px 6px 6px;
-    }
-
-    .role-card .role-badge {
-        width: 26px;
-        height: 26px;
-        border-radius: 7px;
-    }
-    .role-card .role-badge svg {
-        width: 14px;
-        height: 14px;
-    }
-    .role-card .role-name {
-        font-size: 0.8rem;
-    }
-    .role-card .role-copy {
-        font-size: 0.62rem;
-    }
-
-    .portal-eyebrow {
-        font-size: 0.68rem;
-    }
-
-    .portal-form {
-        gap: 12px;
-    }
-
-    .field-wrap label {
-        font-size: 0.78rem;
-    }
-
-    .field-wrap input {
-        min-height: 40px;
-        font-size: 16px;
-        border-radius: 10px;
-    }
-
-    .portal-submit {
-        min-height: 44px;
-        font-size: 0.88rem;
-    }
-
-    .portal-tools {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-
-    .portal-help-link {
-        font-size: 0.8rem;
-    }
-
-    .portal-head {
-        margin-bottom: 10px;
-    }
-}
-
-@media (max-width: 380px) {
-    .portal-screen {
-        padding: 8px;
-        padding-top: 16px;
-    }
-
-    .portal-panel {
-        padding: 12px 10px;
-        border-radius: 10px;
-    }
-
-    .role-card {
-        min-height: 64px;
-        padding: 6px 4px 4px;
-    }
-    .role-card .role-name {
-        font-size: 0.72rem;
-    }
-    .role-card .role-copy {
-        display: none;
-    }
-}
-</style>
-
-<section class="portal-screen">
-    <article class="portal-panel" aria-label="Portal login">
-        <div class="portal-head">
-            <span class="portal-eyebrow">Select your access role</span>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Login — Current Link</title>
+    <meta name="theme-color" content="#0F2B52">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260531b') }}">
+    <link rel="icon" href="{{ url_for('static', filename='icon-192.svg') }}">
+    <style>
+        .cl-login-page {
+            margin: 0;
+            padding: 0;
+            background: #f0f4f9;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .cl-login-page .cl-nav { background: #0F2B52; position: relative; box-shadow: 0 2px 16px rgba(15,43,82,0.12); }
+        .cl-login-page .cl-nav-inner { max-width: 1200px; margin: 0 auto; }
+        .cl-login-main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px 60px;
+        }
+        .cl-login-card {
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(15,43,82,0.10);
+            width: 100%;
+            max-width: 460px;
+            padding: 40px 36px 36px;
+            border: 1px solid #eef2f6;
+        }
+        .cl-login-head { text-align: center; margin-bottom: 28px; }
+        .cl-login-head .cl-eyebrow {
+            display: inline-block;
+            background: #F7931E;
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 4px 14px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+        }
+        .cl-login-head h2 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #0F2B52;
+            margin: 0 0 4px;
+        }
+        .cl-login-head p {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin: 0;
+        }
+        .cl-login-form { display: grid; gap: 18px; }
+        .cl-login-form label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #0F2B52;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .cl-login-form input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #dde4ee;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            color: #0F2B52;
+            background: #f8fafc;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+        .cl-login-form input:focus {
+            border-color: #F7931E;
+            box-shadow: 0 0 0 4px rgba(247,147,30,0.12);
+            background: #fff;
+        }
+        .cl-login-form input::placeholder { color: #94a3b8; }
+        .cl-login-options {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .cl-login-remember {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 0.8rem;
+            color: #475569;
+        }
+        .cl-login-remember input { width: 14px; height: 14px; accent-color: #F7931E; }
+        .cl-login-forgot {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #F7931E;
+            text-decoration: none;
+        }
+        .cl-login-forgot:hover { color: #d47c10; }
+        .cl-login-submit {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #F7931E 0%, #e67e0d 100%);
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 8px 24px rgba(247,147,30,0.30);
+        }
+        .cl-login-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(247,147,30,0.35);
+        }
+        .cl-login-footer {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 0.78rem;
+            color: #94a3b8;
+        }
+        .cl-login-footer a {
+            color: #F7931E;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .cl-login-flash {
+            position: fixed;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            max-width: 460px;
+            width: 90%;
+        }
+        .cl-login-flash > div {
+            background: #fff;
+            border-left: 4px solid #ef4444;
+            padding: 14px 18px;
+            border-radius: 10px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            margin-bottom: 8px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .cl-login-flash .success { border-color: #22c55e; }
+        .cl-role-grid {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .cl-role-opt {
+            flex: 1;
+            text-align: center;
+            padding: 12px 6px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.25s;
+            background: #fff;
+            min-width: 0;
+        }
+        .cl-role-opt:hover { border-color: #F7931E; background: #fffaf2; }
+        .cl-role-opt.is-active {
+            border-color: #F7931E;
+            background: linear-gradient(180deg, #fff6e8 0%, #ffedd5 100%);
+            box-shadow: 0 0 0 3px rgba(247,147,30,0.12);
+        }
+        .cl-role-opt svg { width: 22px; height: 22px; color: #0F2B52; display: block; margin: 0 auto 6px; }
+        .cl-role-opt.is-active svg { color: #F7931E; }
+        .cl-role-opt strong {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #0F2B52;
+        }
+        .cl-role-opt span {
+            font-size: 0.62rem;
+            color: #64748b;
+        }
+        .cl-login-stage { display: none; }
+        .cl-login-stage.is-visible { display: grid; gap: 16px; }
+        .cl-login-role-note {
+            font-size: 0.78rem;
+            color: #64748b;
+            margin: -4px 0 0;
+            line-height: 1.5;
+            text-align: center;
+        }
+        @media (max-width: 500px) {
+            .cl-login-card { padding: 28px 20px 24px; border-radius: 16px; }
+            .cl-role-opt { padding: 10px 4px; }
+            .cl-role-opt strong { font-size: 0.7rem; }
+            .cl-role-opt span { font-size: 0.55rem; }
+        }
+        body.cl-login-page .cl-nav { position: relative !important; }
+        body.cl-login-page .cl-nav .cl-nav-links .cl-nav-link[href="#services"],
+        body.cl-login-page .cl-nav .cl-nav-links .cl-nav-link[href="#about"],
+        body.cl-login-page .cl-nav .cl-nav-links .cl-nav-link[href="#contact"] { display: none; }
+    </style>
+</head>
+<body class="cl-landing cl-login-page">
+<nav class="cl-nav" id="clNav">
+    <div class="cl-nav-inner">
+        <a class="cl-nav-brand" href="/">
+            <video class="cl-nav-video" autoplay loop muted playsinline width="38" height="38">
+                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+            </video>
+            <span class="cl-nav-name"><span>Current</span> <span class="cl-nav-orange">Link</span></span>
+        </a>
+        <div class="cl-nav-links">
+            <a href="{{ url_for('home') }}#services" class="cl-nav-link">Services</a>
+            <a href="{{ url_for('home') }}#about" class="cl-nav-link">About</a>
+            <a href="{{ url_for('home') }}#contact" class="cl-nav-link">Contact</a>
+            <a href="{{ url_for('login') }}" class="cl-nav-btn">Portal Login</a>
+        </div>
+        <button class="cl-hamburger" id="clHamburger" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+    </div>
+</nav>
+
+<div class="cl-login-flash" id="clLoginFlash">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+
+<main class="cl-login-main">
+    <div class="cl-login-card">
+        <div class="cl-login-head">
+            <span class="cl-eyebrow">Portal Access</span>
+            <h2>Welcome Back</h2>
+            <p>Select your role to sign in</p>
         </div>
 
-        <form method="post" class="portal-form" id="portalLoginForm" autocomplete="off">
+        <form class="cl-login-form" method="POST" autocomplete="off">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="role" id="portalRoleInput" value="{{ initial_role }}">
+            <input type="hidden" name="role" id="clLoginRole" value="">
 
-            <div class="role-grid" role="group" aria-label="Select role">
-                <button type="button" class="role-card" data-role="admin">
-                    <span class="role-badge">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 3l7 4v5c0 5-3.4 8.7-7 10-3.6-1.3-7-5-7-10V7l7-4z"/>
-                            <path d="M12 8v8"/>
-                            <path d="M9 11h6"/>
-                        </svg>
-                    </span>
-                    <span class="role-name">Admin</span>
-                    <span class="role-copy">Full control</span>
+            <div class="cl-role-grid" role="group" aria-label="Select role">
+                <button type="button" class="cl-role-opt" data-role="admin">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3l7 4v5c0 5-3.4 8.7-7 10-3.6-1.3-7-5-7-10V7l7-4z"/>
+                        <path d="M12 8v8"/><path d="M9 11h6"/>
+                    </svg>
+                    <strong>Admin</strong>
+                    <span>Full control</span>
                 </button>
-                <button type="button" class="role-card" data-role="driver">
-                    <span class="role-badge">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="7.5" cy="16.5" r="2.5"/>
-                            <circle cx="16.5" cy="16.5" r="2.5"/>
-                            <path d="M5 16V9l2-3h10l2 3v7"/>
-                            <path d="M5 11h14"/>
-                            <path d="M12 11v-2"/>
-                        </svg>
-                    </span>
-                    <span class="role-name">Driver</span>
-                    <span class="role-copy">Transport ops</span>
+                <button type="button" class="cl-role-opt" data-role="driver">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="7.5" cy="16.5" r="2.5"/>
+                        <circle cx="16.5" cy="16.5" r="2.5"/>
+                        <path d="M5 16V9l2-3h10l2 3v7"/><path d="M5 11h14"/><path d="M12 11v-2"/>
+                    </svg>
+                    <strong>Driver</strong>
+                    <span>Transport ops</span>
                 </button>
-                <button type="button" class="role-card" data-role="supplier">
-                    <span class="role-badge">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/>
-                            <path d="M4 7.5L12 12l8-4.5"/>
-                            <path d="M12 12v9"/>
-                        </svg>
-                    </span>
-                    <span class="role-name">Supplier</span>
-                    <span class="role-copy">Supply chain</span>
+                <button type="button" class="cl-role-opt" data-role="supplier">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/>
+                        <path d="M4 7.5L12 12l8-4.5"/><path d="M12 12v9"/>
+                    </svg>
+                    <strong>Supplier</strong>
+                    <span>Supply chain</span>
                 </button>
-                <button type="button" class="role-card" data-role="technician">
-                    <span class="role-badge">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 3v5"/>
-                            <path d="M7 8h10"/>
-                            <path d="M9 8V6.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6.5V8"/>
-                            <path d="M6 10h12l-1.2 6.1A3 3 0 0 1 13.9 19H10.1a3 3 0 0 1-2.9-2.9L6 10z"/>
-                        </svg>
-                    </span>
-                    <span class="role-name">Staff</span>
-                    <span class="role-copy">Field ops</span>
+                <button type="button" class="cl-role-opt" data-role="technician">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3v5"/><path d="M7 8h10"/>
+                        <path d="M9 8V6.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6.5V8"/>
+                        <path d="M6 10h12l-1.2 6.1A3 3 0 0 1 13.9 19H10.1a3 3 0 0 1-2.9-2.9L6 10z"/>
+                    </svg>
+                    <strong>Staff</strong>
+                    <span>Field ops</span>
                 </button>
             </div>
 
-            <div class="portal-divider"></div>
+            <div class="cl-login-stage" id="clLoginStage">
+                <p class="cl-login-role-note" id="clLoginNote">Choose a role above.</p>
 
-            <div class="portal-stage" id="portalStage">
-                <div class="portal-role-note">Enter your credentials</div>
-                <p id="portalRoleNote" class="portal-group-note"></p>
-
-                <div class="portal-group" data-group="admin">
-                    <div class="field-wrap">
-                        <label for="adminPassword">Password</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="5" y="11" width="14" height="10" rx="2"/>
-                                    <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
-                                </svg>
-                            </span>
-                            <input type="password" id="adminPassword" name="password" placeholder="Enter your password" autocomplete="current-password">
-                            <span class="field-tail-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/>
-                                    <circle cx="12" cy="12" r="2.5"/>
-                                </svg>
-                            </span>
-                        </div>
-                    </div>
+                <div class="cl-login-fields" data-group="admin">
+                    <label for="clAdminPass">Password</label>
+                    <input type="password" id="clAdminPass" name="password" placeholder="Enter admin password">
                 </div>
 
-                <div class="portal-group" data-group="driver">
-                    <div class="field-wrap">
-                        <label for="driverPhone">Phone Number</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1A19.5 19.5 0 0 1 5.2 12.8 19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.4 2.6a2 2 0 0 1-.6 1.7L7.2 9.7a16 16 0 0 0 7.1 7.1l1.7-1.7a2 2 0 0 1 1.7-.6l2.6.4A2 2 0 0 1 22 16.9z"/>
-                                </svg>
-                            </span>
-                            <input type="text" id="driverPhone" name="phone_number" placeholder="Enter your phone number" inputmode="tel">
-                        </div>
-                    </div>
-                    <div class="field-wrap">
-                        <label for="driverPin">Password / PIN</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="5" y="11" width="14" height="10" rx="2"/>
-                                    <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
-                                </svg>
-                            </span>
-                            <input type="password" id="driverPin" name="driver_pin" placeholder="Enter your password" inputmode="numeric">
-                            <span class="field-tail-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/>
-                                    <circle cx="12" cy="12" r="2.5"/>
-                                </svg>
-                            </span>
-                        </div>
-                    </div>
+                <div class="cl-login-fields" data-group="driver">
+                    <label for="clDriverPhone">Phone Number</label>
+                    <input type="text" id="clDriverPhone" name="phone_number" placeholder="Enter phone number" inputmode="tel">
+                    <label for="clDriverPin">Password / PIN</label>
+                    <input type="password" id="clDriverPin" name="driver_pin" placeholder="Enter your PIN" inputmode="numeric">
                 </div>
 
-                <div class="portal-group" data-group="supplier">
-                    <div class="field-wrap">
-                        <label for="supplierUser">Username / Email</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M20 21a8 8 0 0 0-16 0"/>
-                                    <circle cx="12" cy="8" r="4"/>
-                                </svg>
-                            </span>
-                            <input type="text" id="supplierUser" name="user_id" placeholder="Enter your username or email">
-                        </div>
-                    </div>
-                    <div class="field-wrap">
-                        <label for="supplierPassword">Password</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="5" y="11" width="14" height="10" rx="2"/>
-                                    <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
-                                </svg>
-                            </span>
-                            <input type="password" id="supplierPassword" name="password" placeholder="Enter your password" autocomplete="current-password">
-                            <span class="field-tail-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/>
-                                    <circle cx="12" cy="12" r="2.5"/>
-                                </svg>
-                            </span>
-                        </div>
-                    </div>
+                <div class="cl-login-fields" data-group="supplier">
+                    <label for="clSupplierUser">Username / Email</label>
+                    <input type="text" id="clSupplierUser" name="user_id" placeholder="Enter your username or email">
+                    <label for="clSupplierPass">Password</label>
+                    <input type="password" id="clSupplierPass" name="password" placeholder="Enter your password">
                 </div>
 
-                <div class="portal-group" data-group="technician">
-                    <div class="field-wrap">
-                        <label for="staffUser">Username / Email</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M20 21a8 8 0 0 0-16 0"/>
-                                    <circle cx="12" cy="8" r="4"/>
-                                </svg>
-                            </span>
-                            <input type="text" id="staffUser" name="user_id" placeholder="Enter your username or email">
-                        </div>
-                    </div>
-                    <div class="field-wrap">
-                        <label for="staffPassword">Password</label>
-                        <div class="field-input">
-                            <span class="field-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="5" y="11" width="14" height="10" rx="2"/>
-                                    <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
-                                </svg>
-                            </span>
-                            <input type="password" id="staffPassword" name="password" placeholder="Enter your password" autocomplete="current-password">
-                            <span class="field-tail-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/>
-                                    <circle cx="12" cy="12" r="2.5"/>
-                                </svg>
-                            </span>
-                        </div>
-                    </div>
+                <div class="cl-login-fields" data-group="technician">
+                    <label for="clStaffUser">Username / Email</label>
+                    <input type="text" id="clStaffUser" name="user_id" placeholder="Enter your username or email">
+                    <label for="clStaffPass">Password</label>
+                    <input type="password" id="clStaffPass" name="password" placeholder="Enter your password">
                 </div>
 
-                <div class="portal-tools">
-                    <label class="remember-check">
+                <div class="cl-login-options">
+                    <label class="cl-login-remember">
                         <input type="checkbox" name="remember_me" value="1">
                         <span>Remember me</span>
                     </label>
-                    <a class="portal-help-link" id="portalHelpLink" href="#">Forgot Password?</a>
+                    <a class="cl-login-forgot" id="clLoginHelp" href="#">Forgot Password?</a>
                 </div>
 
-                <button class="portal-submit" type="submit" id="portalSubmit">Access Portal</button>
-                <p class="portal-footnote" id="portalFootnote">Choose a role first to continue.</p>
+                <button class="cl-login-submit" type="submit" id="clLoginSubmit" hidden>Access Portal</button>
             </div>
         </form>
-    </article>
-</section>
+
+        <div class="cl-login-footer">
+            <a href="{{ url_for('home') }}">&larr; Back to Home</a>
+        </div>
+    </div>
+</main>
 
 <script>
-(function () {
-    var form = document.getElementById("portalLoginForm");
-    var roleInput = document.getElementById("portalRoleInput");
-    var stage = document.getElementById("portalStage");
-    var note = document.getElementById("portalRoleNote");
-    var helpLink = document.getElementById("portalHelpLink");
-    var footnote = document.getElementById("portalFootnote");
-    var submit = document.getElementById("portalSubmit");
-    var cards = Array.from(document.querySelectorAll(".role-card"));
-    var groups = Array.from(document.querySelectorAll(".portal-group"));
+(function(){
+    var form = document.querySelector('.cl-login-form');
+    var roleInput = document.getElementById('clLoginRole');
+    var stage = document.getElementById('clLoginStage');
+    var note = document.getElementById('clLoginNote');
+    var submit = document.getElementById('clLoginSubmit');
+    var helpLink = document.getElementById('clLoginHelp');
+    var opts = Array.from(document.querySelectorAll('.cl-role-opt'));
+    var fgroups = Array.from(document.querySelectorAll('.cl-login-fields'));
+    var ham = document.getElementById('clHamburger');
+    var links = document.querySelector('.cl-nav-links');
 
-    if (!form || !roleInput || !stage || !note || !helpLink || !footnote || !submit) {
-        return;
+    if (ham && links) {
+        ham.addEventListener('click', function(){ links.classList.toggle('is-open'); });
     }
 
     var configs = {
-        admin: {
-            action: "{{ url_for('login') }}",
-            roleValue: "admin",
-            note: "Admin access uses the internal password only. No extra username is required here.",
-            helpText: "Forgot password? Contact system admin",
-            helpHref: "#"
-        },
-        driver: {
-            action: "{{ url_for('login') }}",
-            roleValue: "driver",
-            note: "Driver access is verified with phone number and PIN from the driver master profile.",
-            helpText: "Forgot password? Ask admin to reset PIN",
-            helpHref: "#"
-        },
-        supplier: {
-            action: "{{ url_for('supplier_login') }}",
-            roleValue: "supplier",
-            note: "Supplier access uses the approved portal user ID and password.",
-            helpText: "Forgot password?",
-            helpHref: "{{ url_for('supplier_forgot_password') }}"
-        },
-        technician: {
-            action: "{{ url_for('technician_login') }}",
-            roleValue: "technician",
-            note: "Field staff access uses the active staff code and password.",
-            helpText: "Forgot password? Contact admin",
-            helpHref: "#"
-        }
+        admin: { note: 'Admin access uses the internal password only.', help: 'Forgot password? Contact system admin', href: '#' },
+        driver: { note: 'Driver access verified with phone number and PIN.', help: 'Forgot password? Ask admin to reset PIN', href: '#' },
+        supplier: { note: 'Supplier access uses approved portal credentials.', help: 'Forgot password?', href: '{{ url_for("supplier_forgot_password") }}' },
+        technician: { note: 'Field staff access uses active staff credentials.', help: 'Forgot password? Contact admin', href: '#' }
     };
 
     function resetFields() {
-        var allInputs = form.querySelectorAll(".portal-group input");
-        allInputs.forEach(function (input) {
-            input.required = false;
-            input.disabled = true;
+        fgroups.forEach(function(g){
+            var inputs = g.querySelectorAll('input');
+            inputs.forEach(function(i){ i.required = false; i.disabled = true; });
         });
     }
 
     function activateRole(role) {
-        var config = configs[role];
-        if (!config) {
-            roleInput.value = "";
-            stage.classList.remove("is-visible");
-            cards.forEach(function (card) { card.classList.remove("is-active"); });
-            groups.forEach(function (group) { group.classList.remove("is-active"); });
-            note.textContent = "";
+        var cfg = configs[role];
+        if (!cfg) {
+            roleInput.value = '';
+            stage.classList.remove('is-visible');
+            opts.forEach(function(o){ o.classList.remove('is-active'); });
+            note.textContent = 'Choose a role above.';
             submit.hidden = true;
-            footnote.textContent = "Choose a role first to continue.";
             return;
         }
-
-        roleInput.value = config.roleValue;
-        form.action = config.action;
-        stage.classList.add("is-visible");
-        note.textContent = config.note;
-        helpLink.textContent = config.helpText;
-        helpLink.href = config.helpHref;
+        roleInput.value = role;
+        stage.classList.add('is-visible');
+        note.textContent = cfg.note;
+        helpLink.textContent = cfg.help;
+        helpLink.href = cfg.href;
         submit.hidden = false;
-        footnote.textContent = role === "supplier"
-            ? "Only approved supplier accounts can sign in or reset password."
-            : role === "technician"
-                ? "Only active field staff accounts can sign in."
-                : role === "driver"
-                    ? "Driver access is available only when phone number and PIN are already set."
-                    : "Admin access uses the internal secure password.";
-
-        cards.forEach(function (card) {
-            card.classList.toggle("is-active", card.dataset.role === role);
-        });
-
+        opts.forEach(function(o){ o.classList.toggle('is-active', o.dataset.role === role); });
         resetFields();
-        groups.forEach(function (group) {
-            var isActive = group.dataset.group === role;
-            group.classList.toggle("is-active", isActive);
-            if (isActive) {
-                group.querySelectorAll("input").forEach(function (input) {
-                    input.disabled = false;
-                    input.required = true;
-                });
+        fgroups.forEach(function(g){
+            var active = g.dataset.group === role;
+            g.classList.toggle('is-active', active);
+            if (active) {
+                g.querySelectorAll('input').forEach(function(i){ i.required = true; i.disabled = false; });
+                var first = g.querySelector('input');
+                if (first) setTimeout(function(){ first.focus(); }, 100);
             }
         });
-
-        if (role === "admin") {
-            var adminPassword = document.getElementById("adminPassword");
-            if (adminPassword) {
-                adminPassword.focus();
-            }
-        } else if (role === "driver") {
-            var driverPhone = document.getElementById("driverPhone");
-            if (driverPhone) {
-                driverPhone.focus();
-            }
-        } else if (role === "supplier") {
-            var supplierUser = document.getElementById("supplierUser");
-            if (supplierUser) {
-                supplierUser.focus();
-            }
-        } else if (role === "technician") {
-            var staffUser = document.getElementById("staffUser");
-            if (staffUser) {
-                staffUser.focus();
-            }
-        }
     }
 
-    cards.forEach(function (card) {
-        card.addEventListener("click", function () {
-            activateRole(card.dataset.role || "");
-        });
+    opts.forEach(function(o){
+        o.addEventListener('click', function(){ activateRole(o.dataset.role || ''); });
     });
 
     resetFields();
-    activateRole(roleInput.value || "{{ initial_role }}");
+
+    var flashEl = document.getElementById('clLoginFlash');
+    if (flashEl && flashEl.children.length === 0) { flashEl.style.display = 'none'; }
 })();
 </script>
-{% endblock %}
+</body>
+</html>
