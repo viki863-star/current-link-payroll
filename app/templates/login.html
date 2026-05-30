@@ -11,252 +11,251 @@
     <link rel="icon" href="{{ url_for('static', filename='icon-192.svg') }}">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: #f0f4f9; }
-
-        .cl-split {
-            display: flex;
+        body {
+            font-family: 'Inter', sans-serif;
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0F2B52;
+            position: relative;
+            overflow: hidden;
         }
 
-        /* ── LEFT BRAND PANEL ── */
-        .cl-split-brand {
-            flex: 1;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding: 60px;
-            overflow: hidden;
-            background: #0F2B52;
-        }
-        .cl-split-brand-bg {
+        /* ── Background ── */
+        body::before {
+            content: '';
             position: absolute;
             inset: 0;
             background: url('{{ url_for('static', filename='HERO SECTION.png') }}') center center / cover no-repeat;
-            opacity: 0.30;
+            opacity: 0.25;
         }
-        .cl-split-brand-overlay {
+        .glass-bg-circle {
             position: absolute;
-            inset: 0;
-            background: linear-gradient(160deg, rgba(15,43,82,0.92) 0%, rgba(15,43,82,0.70) 60%, rgba(15,43,82,0.60) 100%);
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
         }
-        .cl-split-brand-inner {
+        .glass-bg-circle-1 {
+            width: 500px; height: 500px;
+            background: rgba(247,147,30,0.15);
+            top: -150px; right: -100px;
+        }
+        .glass-bg-circle-2 {
+            width: 400px; height: 400px;
+            background: rgba(255,255,255,0.06);
+            bottom: -100px; left: -100px;
+        }
+
+        /* ── Flash Messages ── */
+        .glass-flash {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            max-width: 420px;
+            width: 90%;
+        }
+        .glass-flash > div {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-left: 4px solid #ef4444;
+            padding: 13px 16px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            margin-bottom: 6px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .glass-flash .success { border-color: #22c55e; }
+
+        /* ── Glass Card ── */
+        .glass-wrap {
             position: relative;
             z-index: 2;
-            max-width: 520px;
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
         }
-        .cl-split-logo {
+        .glass-card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 24px;
+            padding: 40px 32px 32px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.25);
+        }
+
+        /* ── Brand ── */
+        .glass-brand {
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-bottom: 32px;
+            margin-bottom: 28px;
+            justify-content: center;
         }
-        .cl-split-logo video {
-            width: 48px;
-            height: 48px;
+        .glass-brand video {
+            width: 44px;
+            height: 44px;
             border-radius: 12px;
         }
-        .cl-split-logo-text {
-            font-size: 0.8rem;
+        .glass-brand-text {
+            font-size: 0.7rem;
             font-weight: 700;
             letter-spacing: 0.04em;
-            color: rgba(255,255,255,0.6);
+            color: rgba(255,255,255,0.5);
             text-transform: uppercase;
         }
-        .cl-split-logo-text strong {
+        .glass-brand-text strong {
             display: block;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: 900;
             color: #fff;
             letter-spacing: 0;
             text-transform: none;
         }
-        .cl-split-logo-text strong span { color: #F7931E; }
+        .glass-brand-text strong span { color: #F7931E; }
 
-        .cl-split-badge {
+        .glass-head {
+            text-align: center;
+            margin-bottom: 26px;
+        }
+        .glass-eyebrow {
             display: inline-block;
-            background: rgba(247,147,30,0.15);
+            background: rgba(247,147,30,0.20);
             border: 1px solid rgba(247,147,30,0.25);
             color: #F7931E;
-            font-size: 0.7rem;
-            font-weight: 800;
-            letter-spacing: 0.08em;
-            padding: 5px 14px;
-            border-radius: 20px;
-            margin-bottom: 16px;
-        }
-        .cl-split-brand-inner h1 {
-            font-size: 2.4rem;
-            font-weight: 900;
-            color: #fff;
-            line-height: 1.15;
-            margin-bottom: 12px;
-        }
-        .cl-split-brand-inner h1 span { color: #F7931E; }
-        .cl-split-brand-inner p {
-            font-size: 0.92rem;
-            color: rgba(255,255,255,0.65);
-            line-height: 1.7;
-            margin-bottom: 30px;
-        }
-        .cl-split-features {
-            display: grid;
-            gap: 12px;
-        }
-        .cl-split-feat {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 0.85rem;
-            color: rgba(255,255,255,0.8);
-        }
-        .cl-split-feat svg {
-            width: 18px;
-            height: 18px;
-            color: #F7931E;
-            flex-shrink: 0;
-        }
-
-        /* ── RIGHT LOGIN PANEL ── */
-        .cl-split-login {
-            width: 480px;
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding: 48px;
-            background: #fff;
-        }
-        .cl-split-login-inner {
-            width: 100%;
-            max-width: 380px;
-            margin: 0 auto;
-        }
-        .cl-split-login-head {
-            margin-bottom: 28px;
-        }
-        .cl-split-login-head .cl-eyebrow {
-            display: inline-block;
-            background: #F7931E;
-            color: #fff;
             font-size: 0.6rem;
             font-weight: 800;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            padding: 4px 12px;
+            padding: 4px 14px;
             border-radius: 20px;
             margin-bottom: 10px;
         }
-        .cl-split-login-head h2 {
+        .glass-head h2 {
             font-size: 1.5rem;
             font-weight: 800;
-            color: #0F2B52;
+            color: #fff;
             margin-bottom: 4px;
         }
-        .cl-split-login-head p {
+        .glass-head p {
             font-size: 0.84rem;
-            color: #64748b;
+            color: rgba(255,255,255,0.55);
         }
-        .cl-split-form { display: grid; gap: 18px; }
-        .cl-split-form label {
-            font-size: 0.8rem; font-weight: 700; color: #0F2B52;
-            display: block; margin-bottom: 5px;
+
+        /* ── Form ── */
+        .glass-form { display: grid; gap: 18px; }
+        .glass-form label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.8);
+            display: block;
+            margin-bottom: 5px;
         }
-        .cl-split-form input {
+        .glass-form input {
             width: 100%;
             padding: 12px 16px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid rgba(255,255,255,0.12);
             border-radius: 12px;
             font-size: 0.88rem;
-            color: #0F2B52;
-            background: #f8fafc;
+            color: #fff;
+            background: rgba(255,255,255,0.06);
             outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
             font-family: 'Inter', sans-serif;
         }
-        .cl-split-form input:focus {
-            border-color: #F7931E;
-            box-shadow: 0 0 0 4px rgba(247,147,30,0.10);
-            background: #fff;
+        .glass-form input:focus {
+            border-color: rgba(247,147,30,0.5);
+            background: rgba(255,255,255,0.10);
+            box-shadow: 0 0 0 4px rgba(247,147,30,0.08);
         }
-        .cl-split-form input::placeholder { color: #94a3b8; }
+        .glass-form input::placeholder { color: rgba(255,255,255,0.30); }
 
-        .cl-split-role-grid {
+        .glass-role-grid {
             display: flex;
             gap: 8px;
-            margin-bottom: 4px;
         }
-        .cl-split-role {
+        .glass-role {
             flex: 1;
             text-align: center;
-            padding: 12px 6px 10px;
-            border: 2px solid #e2e8f0;
+            padding: 11px 4px 9px;
+            border: 1px solid rgba(255,255,255,0.10);
             border-radius: 12px;
             cursor: pointer;
             transition: all 0.25s;
-            background: #fff;
+            background: rgba(255,255,255,0.04);
             user-select: none;
         }
-        .cl-split-role:hover { border-color: #F7931E; background: #fffaf2; }
-        .cl-split-role.is-active {
-            border-color: #F7931E;
-            background: linear-gradient(180deg, #fff6e8, #ffedd5);
-            box-shadow: 0 0 0 3px rgba(247,147,30,0.12);
+        .glass-role:hover {
+            border-color: rgba(247,147,30,0.3);
+            background: rgba(247,147,30,0.06);
         }
-        .cl-split-role svg {
-            width: 22px; height: 22px;
-            color: #0F2B52;
+        .glass-role.is-active {
+            border-color: #F7931E;
+            background: rgba(247,147,30,0.12);
+            box-shadow: 0 0 0 3px rgba(247,147,30,0.10);
+        }
+        .glass-role svg {
+            width: 20px; height: 20px;
+            color: rgba(255,255,255,0.6);
             display: block; margin: 0 auto 5px;
         }
-        .cl-split-role.is-active svg { color: #F7931E; }
-        .cl-split-role strong {
+        .glass-role.is-active svg { color: #F7931E; }
+        .glass-role strong {
             display: block;
-            font-size: 0.75rem;
+            font-size: 0.72rem;
             font-weight: 700;
-            color: #0F2B52;
+            color: rgba(255,255,255,0.85);
         }
-        .cl-split-role span {
-            font-size: 0.6rem;
-            color: #64748b;
+        .glass-role span {
+            font-size: 0.58rem;
+            color: rgba(255,255,255,0.4);
         }
 
-        .cl-split-stage { display: none; }
-        .cl-split-stage.is-visible { display: grid; gap: 16px; }
-        .cl-split-stage-note {
-            font-size: 0.76rem;
-            color: #64748b;
+        .glass-stage { display: none; }
+        .glass-stage.is-visible { display: grid; gap: 16px; }
+        .glass-stage-note {
+            font-size: 0.74rem;
+            color: rgba(255,255,255,0.5);
             line-height: 1.5;
             text-align: center;
         }
-        .cl-split-fields { display: none; }
-        .cl-split-fields.is-active { display: block; }
-        .cl-split-fields.is-active input { margin-bottom: 12px; }
-        .cl-split-fields.is-active input:last-child { margin-bottom: 0; }
+        .glass-fields { display: none; }
+        .glass-fields.is-active { display: block; }
+        .glass-fields.is-active input { margin-bottom: 12px; }
+        .glass-fields.is-active input:last-child { margin-bottom: 0; }
 
-        .cl-split-options {
+        .glass-options {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
             flex-wrap: wrap;
         }
-        .cl-split-remember {
+        .glass-remember {
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            font-size: 0.78rem;
-            color: #475569;
-        }
-        .cl-split-remember input { width: 14px; height: 14px; accent-color: #F7931E; }
-        .cl-split-forgot {
             font-size: 0.76rem;
+            color: rgba(255,255,255,0.55);
+        }
+        .glass-remember input { width: 14px; height: 14px; accent-color: #F7931E; }
+        .glass-forgot {
+            font-size: 0.74rem;
             font-weight: 700;
             color: #F7931E;
             text-decoration: none;
         }
-        .cl-split-forgot:hover { color: #d47c10; }
+        .glass-forgot:hover { color: #f5a83a; }
 
-        .cl-split-submit {
+        .glass-submit {
             width: 100%;
             padding: 14px;
             border: none;
@@ -268,79 +267,50 @@
             cursor: pointer;
             letter-spacing: 0.01em;
             transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 8px 24px rgba(247,147,30,0.28);
+            box-shadow: 0 8px 24px rgba(247,147,30,0.25);
         }
-        .cl-split-submit:hover {
+        .glass-submit:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 32px rgba(247,147,30,0.34);
+            box-shadow: 0 12px 32px rgba(247,147,30,0.30);
         }
 
-        .cl-split-back {
+        .glass-back {
             text-align: center;
             margin-top: 18px;
         }
-        .cl-split-back a {
-            font-size: 0.78rem;
-            color: #64748b;
+        .glass-back a {
+            font-size: 0.76rem;
+            color: rgba(255,255,255,0.4);
             text-decoration: none;
             font-weight: 600;
         }
-        .cl-split-back a:hover { color: #0F2B52; }
+        .glass-back a:hover { color: rgba(255,255,255,0.7); }
 
-        .cl-split-flash {
-            position: fixed;
-            top: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            max-width: 420px;
-            width: 90%;
+        .glass-footer-text {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 0.68rem;
+            color: rgba(255,255,255,0.25);
         }
-        .cl-split-flash > div {
-            background: #fff;
-            border-left: 4px solid #ef4444;
-            padding: 13px 16px;
-            border-radius: 10px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-            margin-bottom: 6px;
-            font-size: 0.84rem;
-            font-weight: 600;
-            color: #1e293b;
-        }
-        .cl-split-flash .success { border-color: #22c55e; }
 
-        /* ── RESPONSIVE ── */
-        @media (max-width: 900px) {
-            .cl-split { flex-direction: column; }
-            .cl-split-brand {
-                padding: 40px 32px;
-                min-height: 50vh;
-            }
-            .cl-split-brand-inner { max-width: 100%; }
-            .cl-split-brand-inner h1 { font-size: 1.8rem; }
-            .cl-split-login {
-                width: 100%;
-                padding: 36px 24px;
-            }
-        }
         @media (max-width: 500px) {
-            .cl-split-brand { padding: 28px 20px; min-height: 40vh; }
-            .cl-split-brand-inner h1 { font-size: 1.4rem; }
-            .cl-split-logo video { width: 38px; height: 38px; }
-            .cl-split-logo-text strong { font-size: 1.1rem; }
-            .cl-split-login { padding: 24px 16px; }
-            .cl-split-login-head h2 { font-size: 1.2rem; }
-            .cl-split-role { padding: 10px 4px 8px; }
-            .cl-split-role strong { font-size: 0.65rem; }
-            .cl-split-role span { display: none; }
-            .cl-split-role svg { width: 18px; height: 18px; }
+            .glass-card { padding: 28px 18px 24px; border-radius: 20px; }
+            .glass-head h2 { font-size: 1.2rem; }
+            .glass-role { padding: 9px 2px 7px; }
+            .glass-role strong { font-size: 0.62rem; }
+            .glass-role span { display: none; }
+            .glass-role svg { width: 18px; height: 18px; }
+            .glass-brand video { width: 36px; height: 36px; }
+            .glass-brand-text strong { font-size: 1rem; }
         }
     </style>
 </head>
 <body>
-{% set initial_role = selected_role if request.method == "POST" else "" %}
 
-<div class="cl-split-flash" id="clSplitFlash">
+<div class="glass-bg-circle glass-bg-circle-1"></div>
+<div class="glass-bg-circle glass-bg-circle-2"></div>
+
+<div class="glass-flash" id="glassFlash">
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -350,135 +320,105 @@
     {% endwith %}
 </div>
 
-<div class="cl-split">
-    <!-- LEFT: BRAND + HERO -->
-    <div class="cl-split-brand">
-        <div class="cl-split-brand-bg"></div>
-        <div class="cl-split-brand-overlay"></div>
-        <div class="cl-split-brand-inner">
-            <div class="cl-split-logo">
-                <video autoplay loop muted playsinline width="48" height="48">
-                    <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
-                </video>
-                <div class="cl-split-logo-text">
-                    <strong>Current <span>Link</span></strong>
-                    TRANSPORT &amp; GENERAL CONTRACTING LLC SPC
-                </div>
-            </div>
-
-            <div class="cl-split-badge">ABU DHABI · UAE</div>
-            <h1>Heavy Equipment &amp;<br><span>Transport Solutions</span></h1>
-            <p>
-                Water supply &middot; Removal &middot; Excavator &middot; Crane &middot; Man Lift &middot;
-                Trailer &middot; Forklift &middot; Bobcat &middot; Grader — monthly rentals with experienced operators.
-            </p>
-
-            <div class="cl-split-features">
-                <div class="cl-split-feat">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    ICV &amp; ISO Certified
-                </div>
-                <div class="cl-split-feat">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                    10+ Years Experience
-                </div>
-                <div class="cl-split-feat">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                    50+ Heavy Equipment Fleet
-                </div>
+<div class="glass-wrap">
+    <div class="glass-card">
+        <div class="glass-brand">
+            <video autoplay loop muted playsinline width="44" height="44">
+                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+            </video>
+            <div class="glass-brand-text">
+                <strong>Current <span>Link</span></strong>
+                PORTAL ACCESS
             </div>
         </div>
-    </div>
 
-    <!-- RIGHT: LOGIN FORM -->
-    <div class="cl-split-login">
-        <div class="cl-split-login-inner">
-            <div class="cl-split-login-head">
-                <span class="cl-eyebrow">Portal Access</span>
-                <h2>Welcome Back</h2>
-                <p>Select your role to sign in</p>
-            </div>
-
-            <form class="cl-split-form" method="POST" autocomplete="off">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="role" id="clSplitRole" value="{{ initial_role }}">
-
-                <div class="cl-split-role-grid" role="group" aria-label="Select role">
-                    <button type="button" class="cl-split-role" data-role="admin">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 3l7 4v5c0 5-3.4 8.7-7 10-3.6-1.3-7-5-7-10V7l7-4z"/>
-                            <path d="M12 8v8"/><path d="M9 11h6"/>
-                        </svg>
-                        <strong>Admin</strong>
-                        <span>Full control</span>
-                    </button>
-                    <button type="button" class="cl-split-role" data-role="driver">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="7.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>
-                            <path d="M5 16V9l2-3h10l2 3v7"/><path d="M5 11h14"/><path d="M12 11v-2"/>
-                        </svg>
-                        <strong>Driver</strong>
-                        <span>Transport ops</span>
-                    </button>
-                    <button type="button" class="cl-split-role" data-role="technician">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 3v5"/><path d="M7 8h10"/>
-                            <path d="M9 8V6.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6.5V8"/>
-                            <path d="M6 10h12l-1.2 6.1A3 3 0 0 1 13.9 19H10.1a3 3 0 0 1-2.9-2.9L6 10z"/>
-                        </svg>
-                        <strong>Staff</strong>
-                        <span>Field ops</span>
-                    </button>
-                </div>
-
-                <div class="cl-split-stage" id="clSplitStage">
-                    <p class="cl-split-stage-note" id="clSplitNote">Choose a role above.</p>
-
-                    <div class="cl-split-fields" data-group="admin">
-                        <label for="clAdminPass">Password</label>
-                        <input type="password" id="clAdminPass" name="password" placeholder="Enter admin password">
-                    </div>
-                    <div class="cl-split-fields" data-group="driver">
-                        <label for="clDriverPhone">Phone Number</label>
-                        <input type="text" id="clDriverPhone" name="phone_number" placeholder="Enter phone number" inputmode="tel">
-                        <label for="clDriverPin">Password / PIN</label>
-                        <input type="password" id="clDriverPin" name="driver_pin" placeholder="Enter your PIN" inputmode="numeric">
-                    </div>
-                    <div class="cl-split-fields" data-group="technician">
-                        <label for="clStaffUser">Username / Email</label>
-                        <input type="text" id="clStaffUser" name="user_id" placeholder="Enter your username or email">
-                        <label for="clStaffPass">Password</label>
-                        <input type="password" id="clStaffPass" name="password" placeholder="Enter your password">
-                    </div>
-
-                    <div class="cl-split-options">
-                        <label class="cl-split-remember">
-                            <input type="checkbox" name="remember_me" value="1">
-                            <span>Remember me</span>
-                        </label>
-                        <a class="cl-split-forgot" id="clSplitHelp" href="#">Forgot Password?</a>
-                    </div>
-
-                    <button class="cl-split-submit" type="submit" id="clSplitSubmit" hidden>Access Portal</button>
-                </div>
-            </form>
-
-            <div class="cl-split-back">
-                <a href="{{ url_for('home') }}">&larr; Back to Homepage</a>
-            </div>
+        <div class="glass-head">
+            <div class="glass-eyebrow">ABU DHABI · UAE</div>
+            <h2>Welcome Back</h2>
+            <p>Select your role to sign in</p>
         </div>
+
+        {% set initial_role = selected_role if request.method == "POST" else "" %}
+        <form class="glass-form" method="POST" autocomplete="off">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="role" id="glassRole" value="{{ initial_role }}">
+
+            <div class="glass-role-grid" role="group" aria-label="Select role">
+                <button type="button" class="glass-role" data-role="admin">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3l7 4v5c0 5-3.4 8.7-7 10-3.6-1.3-7-5-7-10V7l7-4z"/>
+                        <path d="M12 8v8"/><path d="M9 11h6"/>
+                    </svg>
+                    <strong>Admin</strong>
+                    <span>Full control</span>
+                </button>
+                <button type="button" class="glass-role" data-role="driver">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="7.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>
+                        <path d="M5 16V9l2-3h10l2 3v7"/><path d="M5 11h14"/><path d="M12 11v-2"/>
+                    </svg>
+                    <strong>Driver</strong>
+                    <span>Transport ops</span>
+                </button>
+                <button type="button" class="glass-role" data-role="technician">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3v5"/><path d="M7 8h10"/>
+                        <path d="M9 8V6.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6.5V8"/>
+                        <path d="M6 10h12l-1.2 6.1A3 3 0 0 1 13.9 19H10.1a3 3 0 0 1-2.9-2.9L6 10z"/>
+                    </svg>
+                    <strong>Staff</strong>
+                    <span>Field ops</span>
+                </button>
+            </div>
+
+            <div class="glass-stage" id="glassStage">
+                <p class="glass-stage-note" id="glassNote">Choose a role above.</p>
+
+                <div class="glass-fields" data-group="admin">
+                    <label for="glassAdminPass">Password</label>
+                    <input type="password" id="glassAdminPass" name="password" placeholder="Enter admin password">
+                </div>
+                <div class="glass-fields" data-group="driver">
+                    <label for="glassDriverPhone">Phone Number</label>
+                    <input type="text" id="glassDriverPhone" name="phone_number" placeholder="Enter phone number" inputmode="tel">
+                    <label for="glassDriverPin">Password / PIN</label>
+                    <input type="password" id="glassDriverPin" name="driver_pin" placeholder="Enter your PIN" inputmode="numeric">
+                </div>
+                <div class="glass-fields" data-group="technician">
+                    <label for="glassStaffUser">Username / Email</label>
+                    <input type="text" id="glassStaffUser" name="user_id" placeholder="Enter your username or email">
+                    <label for="glassStaffPass">Password</label>
+                    <input type="password" id="glassStaffPass" name="password" placeholder="Enter your password">
+                </div>
+
+                <div class="glass-options">
+                    <label class="glass-remember">
+                        <input type="checkbox" name="remember_me" value="1">
+                        <span>Remember me</span>
+                    </label>
+                    <a class="glass-forgot" id="glassHelp" href="#">Forgot Password?</a>
+                </div>
+
+                <button class="glass-submit" type="submit" id="glassSubmit" hidden>Access Portal</button>
+            </div>
+        </form>
+
+        <div class="glass-back">
+            <a href="{{ url_for('home') }}">&larr; Back to Homepage</a>
+        </div>
+        <div class="glass-footer-text">Current Link Transport &amp; General Contracting LLC SPC</div>
     </div>
 </div>
 
 <script>
 (function(){
-    var roleInput = document.getElementById('clSplitRole');
-    var stage = document.getElementById('clSplitStage');
-    var note = document.getElementById('clSplitNote');
-    var submit = document.getElementById('clSplitSubmit');
-    var helpLink = document.getElementById('clSplitHelp');
-    var opts = Array.from(document.querySelectorAll('.cl-split-role'));
-    var fgroups = Array.from(document.querySelectorAll('.cl-split-fields'));
+    var roleInput = document.getElementById('glassRole');
+    var stage = document.getElementById('glassStage');
+    var note = document.getElementById('glassNote');
+    var submit = document.getElementById('glassSubmit');
+    var helpLink = document.getElementById('glassHelp');
+    var opts = Array.from(document.querySelectorAll('.glass-role'));
+    var fgroups = Array.from(document.querySelectorAll('.glass-fields'));
 
     var configs = {
         admin: { note: 'Admin access uses the internal password only.', help: 'Forgot password? Contact system admin', href: '#' },
@@ -528,7 +468,7 @@
     resetFields();
     activateRole(roleInput.value || '');
 
-    var flashEl = document.getElementById('clSplitFlash');
+    var flashEl = document.getElementById('glassFlash');
     if (flashEl && flashEl.children.length === 0) { flashEl.style.display = 'none'; }
 })();
 </script>
