@@ -1,96 +1,146 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Services — Current Link | Heavy Equipment & Transport Abu Dhabi</title>
+    <meta name="theme-color" content="#0F2B52">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260531a') }}">
+    <link rel="icon" href="{{ url_for('static', filename='icon-192.svg') }}">
+</head>
+<body class="cl-landing">
 
-{% block content %}
-<section class="landing-stage">
-    <article class="card services-page-hero">
-        <div class="services-page-hero-media"></div>
-        <div class="services-page-hero-overlay"></div>
-        <div class="services-page-hero-copy">
-            <div class="public-page-topline">
-                <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
-            </div>
-            <p class="eyebrow">Current Link Services</p>
-            <h2>Heavy transport and contracting services.</h2>
-            <div class="actions-row landing-hero-actions">
-                <a class="button quote-button" href="#quote">Get a Quote</a>
-                <a class="button button-secondary" href="{{ url_for('login') }}">Login Portal</a>
-            </div>
-        </div>
-    </article>
-</section>
-
-<section class="detail-layout company-showcase-grid premium-company-grid">
-    <article class="card services-story-card">
-        <p class="eyebrow">Our Services</p>
-        <h3>Built for demanding transport and project operations.</h3>
-        <div class="services-grid">
-            <article class="service-tile">
-                <span class="service-icon">CS</span>
-                <strong>Crane Services</strong>
-                <p>Safe lifting support and coordinated site execution for industrial and project work.</p>
-            </article>
-            <article class="service-tile">
-                <span class="service-icon">TS</span>
-                <strong>Tanker Supply</strong>
-                <p>Supply of all kinds of water through dependable tanker operations and route coordination.</p>
-            </article>
-            <article class="service-tile">
-                <span class="service-icon">WR</span>
-                <strong>Water Removal</strong>
-                <p>Fast response for removal, disposal and water movement at sites that need daily operational support.</p>
-            </article>
-            <article class="service-tile">
-                <span class="service-icon">HT</span>
-                <strong>Heavy Equipment Transport</strong>
-                <p>Trailer and transport support for specialized machinery, project cargo and site equipment movement.</p>
-            </article>
-        </div>
-    </article>
-
-    <article class="card leadership-card">
-        <p class="eyebrow">Leadership</p>
-        <h3>Operational leadership with clear accountability.</h3>
-        <div class="leadership-grid">
-            <article class="leader-profile">
-                <div class="leader-frame">
-                    <img src="{{ url_for('static', filename='owner-portrait.jpeg') }}" alt="Nasrullah">
-                </div>
-                <strong>Nasrullah</strong>
-                <small>Owner</small>
-                <small>Strategic company oversight, owner fund control and commercial direction.</small>
-            </article>
-            <article class="leader-profile">
-                <div class="leader-frame manager-frame">
-                    <img src="{{ url_for('static', filename='manager-portrait.jpeg') }}" alt="Eng. Shakir">
-                </div>
-                <strong>Eng. Shakir</strong>
-                <small>Operations Manager</small>
-                <small>Field execution, fleet readiness and heavy transport operational planning.</small>
-            </article>
-        </div>
-    </article>
-</section>
-
-<section class="card quote-panel-card" id="quote">
-    <div class="portal-section-top">
-        <div>
-            <p class="eyebrow">Get a Quote</p>
-            <h2>Ready for project support?</h2>
+<nav class="cl-nav scrolled" id="clNav">
+    <div class="cl-nav-inner">
+        <a class="cl-nav-brand" href="{{ url_for('home') }}">
+            <video class="cl-nav-video" autoplay loop muted playsinline width="38" height="38">
+                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+            </video>
+            <span class="cl-nav-name"><span>Current</span> <span class="cl-nav-orange">Link</span></span>
+        </a>
+        <div class="cl-nav-links">
+            <a href="{{ url_for('home') }}" class="cl-nav-link">Home</a>
+            <a href="{{ url_for('home') }}#services" class="cl-nav-link">Services</a>
+            <a href="{{ url_for('home') }}#about" class="cl-nav-link">About</a>
+            <a href="{{ url_for('home') }}#contact" class="cl-nav-link">Contact</a>
+            <a href="{{ url_for('login') }}" class="cl-nav-btn">Portal Login</a>
         </div>
     </div>
-    <div class="landing-signature-row">
-        <article class="landing-signature-chip">
-            <strong>Owner Desk</strong>
-            <small>Nasrullah</small>
-        </article>
-        <article class="landing-signature-chip">
-            <strong>Operations Desk</strong>
-            <small>Eng. Shakir</small>
-        </article>
-        <article class="landing-signature-chip">
-            <strong>Portal Access</strong>
-            <small><a class="table-link" href="{{ url_for('login') }}">Open login portal</a></small>
-        </article>
+</nav>
+
+<main>
+    <section class="cl-section" style="padding-top:120px;">
+        <div class="cl-section-header">
+            <span class="cl-eyebrow">What We Offer</span>
+            <h1 class="cl-section-title">Our Services &amp; Equipment</h1>
+            <p class="cl-section-sub">Heavy equipment rental with experienced operators — monthly, weekly or daily basis for leading companies across the UAE.</p>
+        </div>
+        <div class="cl-grid">
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='EXCAVATOR CARD.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Excavator</h3>
+                    <p>Heavy-duty excavation for construction, demolition, and site preparation. Available with experienced operators.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='CRANE CARD.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Crane</h3>
+                    <p>Mobile crane services for heavy lifting, installation, and industrial project support across Abu Dhabi.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='MAN LIFT.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Man Lift</h3>
+                    <p>Boom lifts and aerial work platforms for high-reach maintenance, construction, and warehouse operations.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='TRAILER CARD.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Trailer with Driver</h3>
+                    <p>Low-bed and flatbed trailers with experienced driver on monthly rental — serving NMDC and major contractors.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='FORKLIFT CARD.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Forklift</h3>
+                    <p>Warehouse and construction forklifts for material handling, loading, and logistics operations.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='BOBCAT  SKID STEER.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Bobcat / Skid Steer</h3>
+                    <p>Compact loaders for grading, digging, backfilling, and site clean-up in confined spaces.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='GRADER.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Grader</h3>
+                    <p>Precision grading for road construction, land leveling, and large-scale infrastructure projects.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='WATER TANKER.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Water Tanker</h3>
+                    <p>Water supply and removal services for construction, industrial facilities, and remote site operations.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cl-section cl-section-alt">
+        <div class="cl-section-header">
+            <span class="cl-eyebrow">Why Us</span>
+            <h2 class="cl-section-title">Why Companies Choose Current Link</h2>
+        </div>
+        <div class="cl-about-features" style="justify-content:center;max-width:900px;margin:0 auto;">
+            <span>✅ Licensed SPC Company</span>
+            <span>✅ 10+ Years Experience</span>
+            <span>✅ Trained Operators</span>
+            <span>✅ 24/7 Availability</span>
+            <span>✅ Monthly Rentals</span>
+            <span>✅ Abu Dhabi Based</span>
+            <span>✅ Well-Maintained Fleet</span>
+            <span>✅ Competitive Rates</span>
+        </div>
+        <div style="text-align:center;margin-top:40px;">
+            <a href="{{ url_for('home') }}#contact" class="cl-btn cl-btn-orange">📞 Request a Quote</a>
+        </div>
+    </section>
+</main>
+
+<footer class="cl-footer">
+    <div class="cl-footer-inner">
+        <div class="cl-footer-brand">
+            <video class="cl-footer-video" autoplay loop muted playsinline width="40" height="40">
+                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+            </video>
+            <div>
+                <div class="cl-footer-name"><span>Current</span> <span class="cl-nav-orange">Link</span></div>
+                <div class="cl-footer-tag">Transport &amp; General Contracting LLC SPC</div>
+            </div>
+        </div>
+        <div class="cl-footer-links">
+            <a href="{{ url_for('home') }}">Home</a>
+            <a href="{{ url_for('home') }}#services">Services</a>
+            <a href="{{ url_for('home') }}#about">About</a>
+            <a href="{{ url_for('home') }}#contact">Contact</a>
+        </div>
     </div>
-</section>
-{% endblock %}
+    <div class="cl-footer-bar">
+        &copy; 2026 Current Link Transport &amp; General Contracting LLC SPC — All rights reserved.
+    </div>
+</footer>
+
+</body>
+</html>

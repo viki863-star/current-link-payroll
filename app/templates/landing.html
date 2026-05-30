@@ -3,279 +3,336 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Current Link — Heavy Transport & General Contracting</title>
-    <meta name="theme-color" content="#1a2d55">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest', v='20260415a') }}">
-    <link rel="icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
+    <title>Current Link — Heavy Equipment & Transport Solutions | Abu Dhabi</title>
+    <meta name="theme-color" content="#0F2B52">
+    <meta name="description" content="Current Link Transport & General Contracting LLC SPC — Abu Dhabi based heavy equipment hire, water supply, removal, excavator, crane, trailer, forklift, bobcat and grader rentals for leading companies.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260419k') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260531a') }}">
+    <link rel="icon" href="{{ url_for('static', filename='icon-192.svg') }}">
 </head>
-<body class="landing-page-body">
+<body class="cl-landing">
 
-<div class="brand-shell">
-
-    {% block shell_header %}
-
-    {# ══ BRAND HEADER ═══════════════════════════════════════════════════ #}
-    <div class="bh">
-        {# Animated background particles #}
-        <div class="bh-bg">
-            <div class="bh-circle bh-circle-1"></div>
-            <div class="bh-circle bh-circle-2"></div>
-            <div class="bh-circle bh-circle-3"></div>
+<nav class="cl-nav" id="clNav">
+    <div class="cl-nav-inner">
+        <a class="cl-nav-brand" href="/">
+            <video class="cl-nav-video" autoplay loop muted playsinline width="38" height="38">
+                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+            </video>
+            <span class="cl-nav-name"><span>Current</span> <span class="cl-nav-orange">Link</span></span>
+        </a>
+        <div class="cl-nav-links">
+            <a href="#services" class="cl-nav-link">Services</a>
+            <a href="#about" class="cl-nav-link">About</a>
+            <a href="#contact" class="cl-nav-link">Contact</a>
+            <a href="{{ url_for('login') }}" class="cl-nav-btn">Portal Login</a>
         </div>
-
-        <div class="bh-inner">
-            {# Left — Logo + Brand #}
-            <a class="bh-brand" href="/">
-                <div class="bh-logo-wrap">
-                    <img class="bh-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
-                    <div class="bh-logo-ring"></div>
-                </div>
-                <div class="bh-brand-text">
-                    <div class="bh-brand-name">
-                        <span class="bh-name-current">CURRENT</span>
-                        <span class="bh-name-link">LINK</span>
-                    </div>
-                    <div class="bh-brand-tagline">TRANSPORT AND GENERAL CONTRACTING LLC SPC</div>
-                </div>
-            </a>
-
-            {# Center spacer #}
-            <div class="bh-spacer"></div>
-
-            {# Right — Premium brand graphic #}
-            <div class="bh-graphic" aria-hidden="true">
-                <svg class="bh-swoosh" viewBox="0 0 420 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="0" y="0" width="420" height="90" fill="#1a2d55"/>
-                    <polygon points="0,0 220,0 160,90 0,90" fill="#F7931E" opacity="0.92"/>
-                    <polygon points="0,0 140,0 90,90 0,90" fill="#ffaa45" opacity="0.55"/>
-                    <polygon points="160,0 420,0 420,90 260,90" fill="#1a2d55" opacity="0.98"/>
-                    <polygon points="140,0 180,0 130,90 90,90" fill="#2F5D9F" opacity="0.70"/>
-                    <line x1="155" y1="0" x2="105" y2="90" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
-                    <polyline points="290,28 318,45 290,62" fill="none" stroke="#F7931E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.80"/>
-                    <polyline points="310,28 338,45 310,62" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
-        </div>
-
-        {# Divider line #}
-        <div class="bh-divider"></div>
-
-        {# ── Navigation bar ── #}
-        <nav class="bh-nav" id="bhNav">
-            <div class="bh-nav-inner">
-                <div class="bh-nav-links">
-                    <a class="bh-link" href="/">Home</a>
-                    <a class="bh-link bh-active" href="{{ url_for('login') }}">Portal Login</a>
-                </div>
-            </div>
-        </nav>
+        <button class="cl-hamburger" id="clHamburger" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
     </div>
+</nav>
 
-    {% endblock %}
-
-    <main class="page">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <section class="flash-stack">
-                    {% for category, message in messages %}
-                        <div class="flash flash-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </section>
-            {% endif %}
-        {% endwith %}
-
-        {# ── HERO ─────────────────────────────────────────────────────────── #}
-        <section class="lp-hero">
-            <div class="lp-hero-bg" style="background-image: url('{{ url_for('static', filename='landing-hero-v2.png') }}');"></div>
-            <div class="lp-hero-overlay"></div>
-            <div class="lp-hero-inner">
-                <div class="lp-hero-content">
-                    <span class="lp-eyebrow">🏗 UAE's Trusted Transport Partner</span>
-                    <h1 class="lp-hero-title">
-                        Heavy Transport<br>
-                        &amp; Contracting<br>
-                        <span class="lp-hero-accent">Excellence</span>
-                    </h1>
-                    <p class="lp-hero-sub">
-                        Professional fleet management, crane services, tanker logistics
-                        &amp; general contracting across the UAE — licensed, certified, operational 24/7.
-                    </p>
-                    <div class="lp-hero-actions">
-                        <a class="lp-btn-orange" href="{{ url_for('login') }}">Portal Login</a>
-                        <a class="lp-btn-outline-white" href="{{ url_for('services') }}">Our Services</a>
+<main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div style="position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9999;max-width:600px;width:90%;">
+                {% for category, message in messages %}
+                    <div style="background:#fff;border-left:4px solid {% if category == 'success' %}#22c55e{% else %}#ef4444{% endif %};padding:14px 18px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.12);margin-bottom:8px;font-size:0.9rem;font-weight:500;color:#1e293b;">
+                        {{ message }}
                     </div>
-                </div>
+                {% endfor %}
             </div>
-        </section>
-
-        {# ── STATS STRIP ─────────────────────────────────────────────────── #}
-        <section class="lp-stats">
-            <div class="lp-stats-inner">
-                <div class="lp-stat-item">
-                    <span class="lp-stat-num">UAE</span>
-                    <span class="lp-stat-lbl">Nationwide Coverage</span>
-                </div>
-                <div class="lp-stat-div"></div>
-                <div class="lp-stat-item">
-                    <span class="lp-stat-num">24/7</span>
-                    <span class="lp-stat-lbl">Operations</span>
-                </div>
-                <div class="lp-stat-div"></div>
-                <div class="lp-stat-item">
-                    <span class="lp-stat-num">SPC</span>
-                    <span class="lp-stat-lbl">Licensed &amp; Registered</span>
-                </div>
-                <div class="lp-stat-div"></div>
-                <div class="lp-stat-item">
-                    <span class="lp-stat-num">100%</span>
-                    <span class="lp-stat-lbl">Compliance</span>
-                </div>
+        {% endif %}
+    {% endwith %}
+    <section class="cl-hero">
+        <div class="cl-hero-bg" style="background-image: url('{{ url_for('static', filename='HERO SECTION.png') }}');"></div>
+        <div class="cl-hero-overlay"></div>
+        <div class="cl-hero-inner">
+            <span class="cl-hero-badge">ABU DHABI · UAE</span>
+            <h1 class="cl-hero-title">
+                Heavy Equipment &amp;<br>
+                <span class="cl-hero-accent">Transport Solutions</span>
+            </h1>
+            <p class="cl-hero-sub">
+                Water supply &middot; Removal &middot; Excavator &middot; Crane &middot; Man Lift &middot; Trailer &middot; Forklift &middot; Bobcat &middot; Grader —<br>
+                Monthly rentals with experienced operators for leading companies across the UAE.
+            </p>
+            <div class="cl-hero-actions">
+                <a href="#contact" class="cl-btn cl-btn-orange">📞 Request a Quote</a>
+                <a href="#services" class="cl-btn cl-btn-outline">View Equipment</a>
             </div>
-        </section>
-
-        {# ── SERVICES ─────────────────────────────────────────────────────── #}
-        <section class="lp-section lp-services-section">
-            <div class="lp-section-inner">
-                <div class="lp-section-header">
-                    <span class="lp-section-eyebrow">What We Do</span>
-                    <h2 class="lp-section-title">Our Core Services</h2>
-                    <p class="lp-section-sub">End-to-end heavy transport &amp; contracting solutions delivered with precision across the UAE.</p>
-                </div>
-                <div class="lp-services-grid">
-                    <div class="lp-service-card">
-                        <div class="lp-service-icon lp-icon-orange">🚛</div>
-                        <h3 class="lp-service-title">Heavy Transport</h3>
-                        <p class="lp-service-desc">Oversize load transport, flatbed haulage, and specialized freight movement across all Emirates.</p>
-                    </div>
-                    <div class="lp-service-card">
-                        <div class="lp-service-icon lp-icon-navy">🏗</div>
-                        <h3 class="lp-service-title">Crane Services</h3>
-                        <p class="lp-service-desc">Mobile and crawler cranes for heavy lifting, installation, and industrial project support.</p>
-                    </div>
-                    <div class="lp-service-card">
-                        <div class="lp-service-icon lp-icon-orange">⛽</div>
-                        <h3 class="lp-service-title">Tanker Logistics</h3>
-                        <p class="lp-service-desc">Bulk liquid, fuel, and chemical tanker transport with full safety compliance standards.</p>
-                    </div>
-                    <div class="lp-service-card">
-                        <div class="lp-service-icon lp-icon-navy">📦</div>
-                        <h3 class="lp-service-title">General Contracting</h3>
-                        <p class="lp-service-desc">Project-based contracting, site logistics, and manpower supply for industrial sectors.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        {# ── HIGHLIGHTS ─────────────────────────────────────────────────── #}
-        <section class="lp-section lp-highlights-section">
-            <div class="lp-section-inner">
-                <div class="lp-section-header">
-                    <span class="lp-section-eyebrow">Why Choose Us</span>
-                    <h2 class="lp-section-title">Company Highlights</h2>
-                </div>
-                <div class="lp-highlights-grid">
-                    <div class="lp-highlight">
-                        <div class="lp-hl-icon">🌍</div>
-                        <div class="lp-hl-text">
-                            <strong>UAE Nationwide</strong>
-                            <span>Operations spanning all Emirates with a well-connected logistics network.</span>
-                        </div>
-                    </div>
-                    <div class="lp-highlight">
-                        <div class="lp-hl-icon">⏱</div>
-                        <div class="lp-hl-text">
-                            <strong>24/7 Operations</strong>
-                            <span>Round-the-clock fleet availability for urgent and scheduled assignments.</span>
-                        </div>
-                    </div>
-                    <div class="lp-highlight">
-                        <div class="lp-hl-icon">📋</div>
-                        <div class="lp-hl-text">
-                            <strong>Licensed &amp; Certified</strong>
-                            <span>Fully registered LLC SPC with all UAE regulatory certifications in place.</span>
-                        </div>
-                    </div>
-                    <div class="lp-highlight">
-                        <div class="lp-hl-icon">💪</div>
-                        <div class="lp-hl-text">
-                            <strong>Fleet Strength</strong>
-                            <span>Diverse, well-maintained fleet of heavy vehicles, cranes, and tankers.</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        {# ── PORTAL ACCESS ─────────────────────────────────────────────── #}
-        <section class="lp-section lp-portal-section">
-            <div class="lp-section-inner">
-                <div class="lp-section-header">
-                    <span class="lp-section-eyebrow">System Access</span>
-                    <h2 class="lp-section-title">Portal Login</h2>
-                    <p class="lp-section-sub">Log in to your dedicated workspace for ERP, fleet management, field staff, and reporting.</p>
-                </div>
-                <div class="lp-portal-grid">
-                    <div class="lp-portal-card lp-portal-internal" style="max-width:480px;margin:0 auto">
-                        <div class="lp-portal-icon">⚙️</div>
-                        <h3 class="lp-portal-title">ERP Dashboard</h3>
-                        <p class="lp-portal-desc">Admin, driver, field staff &amp; fleet access to the full ERP system, payroll, maintenance, and reporting.</p>
-                        <div class="lp-portal-actions">
-                            <a class="lp-btn-navy" href="{{ url_for('login') }}">Portal Login</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    {% block shell_footer %}
-    <footer class="lp-footer">
-        <div class="lp-footer-inner">
-            <div class="lp-footer-brand">
-                <img class="lp-footer-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
-                <div>
-                    <div class="lp-footer-name">
-                        <span>CURRENT</span><span class="lp-footer-link">LINK</span>
-                    </div>
-                    <div class="lp-footer-tagline">Transport &amp; General Contracting LLC SPC</div>
-                </div>
-            </div>
-            <div class="lp-footer-contacts">
-                <a href="tel:+971501224963">📞 050-1224963</a>
-                <a href="tel:+971501082900">📞 050-1082900</a>
-                <a href="mailto:info@currentlinkgc.com">✉ info@currentlinkgc.com</a>
-                <a href="https://www.currentlinkgc.com" target="_blank" rel="noreferrer">🌐 currentlinkgc.com</a>
-            </div>
-            <div class="lp-footer-address">📍 Mussafah M17, Abu Dhabi, UAE</div>
         </div>
-        <div class="lp-footer-copy">
-            © 2026 Current Link Transport &amp; General Contracting LLC SPC. All rights reserved.
+        <div class="cl-hero-scroll">
+            <span>Scroll</span>
+            <svg width="16" height="24" viewBox="0 0 16 24" fill="none"><path d="M8 0v16M2 10l6 6 6-6" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round"/></svg>
         </div>
-    </footer>
-    {% endblock %}
+    </section>
 
-</div>
+    <section class="cl-stats">
+        <div class="cl-stats-inner">
+            <div class="cl-stat">
+                <span class="cl-stat-num">10+</span>
+                <span class="cl-stat-lbl">Years Experience</span>
+            </div>
+            <div class="cl-stat-dot"></div>
+            <div class="cl-stat">
+                <span class="cl-stat-num">50+</span>
+                <span class="cl-stat-lbl">Equipment Fleet</span>
+            </div>
+            <div class="cl-stat-dot"></div>
+            <div class="cl-stat">
+                <span class="cl-stat-num">24/7</span>
+                <span class="cl-stat-lbl">Operations</span>
+            </div>
+            <div class="cl-stat-dot"></div>
+            <div class="cl-stat">
+                <span class="cl-stat-num">SPC</span>
+                <span class="cl-stat-lbl">Licensed</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="cl-section" id="services">
+        <div class="cl-section-header">
+            <span class="cl-eyebrow">Our Fleet</span>
+            <h2 class="cl-section-title">Equipment &amp; Services</h2>
+            <p class="cl-section-sub">Premium heavy equipment available for monthly rental with trained operators.</p>
+        </div>
+        <div class="cl-grid">
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='EXCAVATOR CARD.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Excavator</h3>
+                    <p>Heavy-duty excavation for construction, demolition, and site preparation.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='CRANE CARD.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Crane</h3>
+                    <p>Mobile crane services for lifting, installation, and industrial project support.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='MAN LIFT.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Man Lift</h3>
+                    <p>Boom lifts and aerial platforms for high-reach maintenance and construction.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='TRAILER CARD.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Trailer</h3>
+                    <p>Low-bed and flatbed trailers with driver for monthly rental — ideal for NMDC and major contractors.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='FORKLIFT CARD.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Forklift</h3>
+                    <p>Warehouse and construction forklifts for material handling and loading operations.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='BOBCAT  SKID STEER.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Bobcat / Skid Steer</h3>
+                    <p>Compact loaders for grading, digging, and site clean-up in tight spaces.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='GRADER.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Grader</h3>
+                    <p>Precision grading for road construction, land leveling, and infrastructure projects.</p>
+                </div>
+            </div>
+            <div class="cl-card">
+                <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='WATER TANKER.png') }}');"></div>
+                <div class="cl-card-body">
+                    <h3>Water Tanker</h3>
+                    <p>Water supply and removal services for construction sites, industrial facilities, and remote locations.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cl-section cl-section-alt" id="about">
+        <div class="cl-section-header">
+            <span class="cl-eyebrow">Who We Are</span>
+            <h2 class="cl-section-title">About Current Link</h2>
+        </div>
+        <div class="cl-about">
+            <div class="cl-about-img" style="background-image: url('{{ url_for('static', filename='HERO SECTION.png') }}');"></div>
+            <div class="cl-about-text">
+                <p><strong>Current Link Transport &amp; General Contracting LLC SPC</strong> is based in <strong>Mussafah M17, Abu Dhabi</strong> — serving the UAE with comprehensive heavy equipment and transport solutions since 2015.</p>
+                <p>We specialize in <strong>water supply, water removal, and heavy equipment hire</strong> including excavators, cranes, man lifts, trailers, forklifts, bobcats, and graders. Our equipment is provided with <strong>experienced, trained operators</strong> on monthly rental basis to leading companies including <strong>NMDC</strong> and other major contractors across the region.</p>
+                <div class="cl-about-features">
+                    <span>✅ Licensed SPC</span>
+                    <span>✅ Trained Operators</span>
+                    <span>✅ 24/7 Support</span>
+                    <span>✅ Monthly Rentals</span>
+                    <span>✅ Abu Dhabi Based</span>
+                    <span>✅ Well-Maintained Fleet</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cl-clients">
+        <div class="cl-section-header">
+            <span class="cl-eyebrow">Trusted By</span>
+            <h2 class="cl-section-title">Leading Companies We Serve</h2>
+        </div>
+        <div class="cl-clients-grid">
+            <div class="cl-client-logo" title="NMDC Group">NMDC</div>
+            <div class="cl-client-logo" title="Cleanco Facilities Management">CLEANCO</div>
+            <div class="cl-client-logo" title="Gulf Contractors Co. LLC">GCC</div>
+            <div class="cl-client-logo" title="Al Jaber Group">AL JABER</div>
+            <div class="cl-client-logo" title="Norul Al Khimah">NORUL AL KHIMAH</div>
+            <div class="cl-client-logo" title="Tadweer Group">TADWEER</div>
+            <div class="cl-client-logo" title="Western Bainoona Group">WBG</div>
+        </div>
+    </section>
+
+    <section class="cl-section" style="padding-top:0;text-align:center;">
+        <div class="cl-section-header">
+            <span class="cl-eyebrow">Certifications</span>
+            <h2 class="cl-section-title">Certified &amp; Compliant</h2>
+        </div>
+        <div class="cl-certs">
+            <div class="cl-cert">
+                <div class="cl-cert-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#F7931E" stroke-width="1.5" width="32" height="32"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                </div>
+                <strong>ICV Certified</strong>
+                <span>In-Country Value Program</span>
+            </div>
+            <div class="cl-cert">
+                <div class="cl-cert-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#F7931E" stroke-width="1.5" width="32" height="32"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                </div>
+                <strong>ISO 9001:2015</strong>
+                <span>Quality Management</span>
+            </div>
+            <div class="cl-cert">
+                <div class="cl-cert-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#F7931E" stroke-width="1.5" width="32" height="32"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <strong>ISO 45001:2018</strong>
+                <span>Health &amp; Safety</span>
+            </div>
+            <div class="cl-cert">
+                <div class="cl-cert-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#F7931E" stroke-width="1.5" width="32" height="32"><path d="M2 12h20M12 2v20"/><path d="M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07"/></svg>
+                </div>
+                <strong>ISO 14001:2015</strong>
+                <span>Environmental Management</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="cl-section cl-section-alt" id="contact">
+        <div class="cl-section-header">
+            <span class="cl-eyebrow">Get In Touch</span>
+            <h2 class="cl-section-title">Request a Quote</h2>
+            <p class="cl-section-sub">Tell us your requirements — we will get back to you within 1 hour.</p>
+        </div>
+        <div class="cl-contact">
+            <form class="cl-form" method="POST" action="{{ url_for('contact_submit') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="cl-form-row">
+                    <input type="text" name="name" placeholder="Your Name" required>
+                    <input type="tel" name="phone" placeholder="Phone Number" required>
+                </div>
+                <div class="cl-form-row">
+                    <input type="email" name="email" placeholder="Email Address">
+                    <input type="text" name="company" placeholder="Company Name">
+                </div>
+                <select name="equipment" required>
+                    <option value="">Select Equipment Needed</option>
+                    <option value="Excavator">Excavator</option>
+                    <option value="Crane">Crane</option>
+                    <option value="Man Lift">Man Lift</option>
+                    <option value="Trailer">Trailer (with driver)</option>
+                    <option value="Forklift">Forklift</option>
+                    <option value="Bobcat">Bobcat / Skid Steer</option>
+                    <option value="Grader">Grader</option>
+                    <option value="Water Tanker">Water Tanker</option>
+                    <option value="Multiple">Multiple / Not Sure</option>
+                </select>
+                <textarea name="message" rows="4" placeholder="Tell us about your project requirements..." required></textarea>
+                <button type="submit" class="cl-btn cl-btn-orange cl-btn-block">Send Request</button>
+            </form>
+            <div class="cl-contact-info">
+                <div class="cl-contact-item">
+                    <strong>📍 Location</strong>
+                    <span>Mussafah M17, Abu Dhabi, UAE</span>
+                </div>
+                <div class="cl-contact-item">
+                    <strong>📞 Phone</strong>
+                    <a href="tel:+971501224963">050-1224963</a>
+                    <a href="tel:+971501082900">050-1082900</a>
+                </div>
+                <div class="cl-contact-item">
+                    <strong>✉ Email</strong>
+                    <a href="mailto:info@currentlinkgc.com">info@currentlinkgc.com</a>
+                </div>
+                <div class="cl-contact-item">
+                    <strong>🌐 Web</strong>
+                    <a href="https://www.currentlinkgc.com" target="_blank">currentlinkgc.com</a>
+                </div>
+                <div class="cl-contact-item">
+                    <strong>🕐 Working Hours</strong>
+                    <span>Sat–Thu: 7:00 AM – 7:00 PM</span>
+                    <span>24/7 Emergency Support Available</span>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer class="cl-footer">
+    <div class="cl-footer-inner">
+        <div class="cl-footer-brand">
+            <video class="cl-footer-video" autoplay loop muted playsinline width="40" height="40">
+                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+            </video>
+            <div>
+                <div class="cl-footer-name"><span>Current</span> <span class="cl-nav-orange">Link</span></div>
+                <div class="cl-footer-tag">Transport &amp; General Contracting LLC SPC</div>
+            </div>
+        </div>
+        <div class="cl-footer-links">
+            <a href="#services">Services</a>
+            <a href="#about">About</a>
+            <a href="#contact">Contact</a>
+            <a href="{{ url_for('login') }}">Portal Login</a>
+        </div>
+    </div>
+    <div class="cl-footer-bar">
+        &copy; 2026 Current Link Transport &amp; General Contracting LLC SPC — All rights reserved.
+    </div>
+</footer>
 
 <script>
 (function(){
-    const nav = document.getElementById('bhNav');
-    if (!nav) return;
+    var nav = document.getElementById('clNav');
+    var ham = document.getElementById('clHamburger');
+    var links = document.querySelector('.cl-nav-links');
     window.addEventListener('scroll', function(){
-        nav.classList.toggle('bh-nav-stuck', window.scrollY > 5);
-    }, { passive: true });
+        nav.classList.toggle('scrolled', window.scrollY > 40);
+    }, {passive:true});
+    if (ham && links) {
+        ham.addEventListener('click', function(){
+            links.classList.toggle('is-open');
+        });
+    }
 })();
-if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-        navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js', v='20260416d') }}");
-    });
-}
 </script>
+
 </body>
 </html>

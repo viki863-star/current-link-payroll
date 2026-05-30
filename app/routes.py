@@ -1622,6 +1622,36 @@ def register_routes(app: Flask) -> None:
     def services():
         return render_template("services.html")
 
+    @app.route("/contact", methods=["POST"])
+    def contact_submit():
+        name = request.form.get("name", "").strip()
+        phone = request.form.get("phone", "").strip()
+        email = request.form.get("email", "").strip()
+        company = request.form.get("company", "").strip()
+        equipment = request.form.get("equipment", "").strip()
+        message = request.form.get("message", "").strip()
+
+        if not name or not phone or not message:
+            flash("Name, phone and message are required.", "error")
+            return redirect(url_for("home") + "#contact")
+
+        db = open_db()
+        db.execute(
+            """CREATE TABLE IF NOT EXISTS contact_inquiries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT,
+                company TEXT, equipment TEXT, message TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )"""
+        )
+        db.execute(
+            "INSERT INTO contact_inquiries (name, phone, email, company, equipment, message) VALUES (?, ?, ?, ?, ?, ?)",
+            (name, phone, email or None, company or None, equipment or None, message),
+        )
+        db.commit()
+        flash("Thank you! We have received your inquiry and will contact you shortly.", "success")
+        return redirect(url_for("home") + "#contact")
+
     @app.get("/workspace/<workspace_key>")
     @_login_required("admin")
     def switch_workspace(workspace_key: str):
