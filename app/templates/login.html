@@ -230,6 +230,7 @@
     </style>
 </head>
 <body class="cl-landing cl-login-page">
+{% set initial_role = selected_role if request.method == "POST" else "" %}
 
 <nav class="cl-nav" id="clNav">
     <div class="cl-nav-inner">
@@ -281,7 +282,7 @@
 
             <form class="cl-login-form" method="POST" autocomplete="off">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="role" id="clLoginRole" value="">
+                <input type="hidden" name="role" id="clLoginRole" value="{{ initial_role }}">
 
                 <div class="cl-role-grid" role="group" aria-label="Select role">
                     <button type="button" class="cl-role-opt" data-role="admin">
@@ -433,6 +434,7 @@
     });
 
     resetFields();
+    activateRole(roleInput.value || '');
 
     var flashEl = document.getElementById('clLoginFlash');
     if (flashEl && flashEl.children.length === 0) { flashEl.style.display = 'none'; }
