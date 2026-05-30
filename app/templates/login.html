@@ -165,6 +165,7 @@
             background: #fff;
         }
         .vp-form input::placeholder { color: #94a3b8; }
+        .vp-form input:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .vp-role-grid {
             display: flex;
@@ -180,6 +181,7 @@
             transition: all 0.25s;
             background: #fff;
             user-select: none;
+            font-family: 'Inter', sans-serif;
         }
         .vp-role:hover { border-color: #F7931E; background: #fffaf2; }
         .vp-role.is-active {
@@ -204,8 +206,11 @@
             color: #64748b;
         }
 
-        .vp-stage { display: none; }
-        .vp-stage.is-visible { display: grid; gap: 16px; animation: vpSlideUp 0.3s ease both; }
+        .vp-stage { display: block; }
+        .vp-stage-inner { display: none; }
+        .vp-stage-inner.is-visible { display: grid; gap: 16px; animation: vpSlideUp 0.3s ease both; }
+        .vp-submit-wrap { margin-top: 16px; }
+        .vp-submit-wrap.hide { display: none; }
         @keyframes vpSlideUp {
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
@@ -359,35 +364,39 @@
                 </button>
             </div>
 
-            <div class="vp-stage" id="vpStage">
-                <p class="vp-stage-note" id="vpNote">Choose a role above.</p>
+            <div class="vp-stage">
+                <div class="vp-stage-inner" id="vpStageInner">
+                    <p class="vp-stage-note" id="vpNote">Choose a role above.</p>
 
-                <div class="vp-fields" data-group="admin">
-                    <label for="vpAdminPass">Password</label>
-                    <input type="password" id="vpAdminPass" name="password" placeholder="Enter admin password">
-                </div>
-                <div class="vp-fields" data-group="driver">
-                    <label for="vpDriverPhone">Phone Number</label>
-                    <input type="text" id="vpDriverPhone" name="phone_number" placeholder="Enter phone number" inputmode="tel">
-                    <label for="vpDriverPin">Password / PIN</label>
-                    <input type="password" id="vpDriverPin" name="driver_pin" placeholder="Enter your PIN" inputmode="numeric">
-                </div>
-                <div class="vp-fields" data-group="technician">
-                    <label for="vpStaffUser">Username / Email</label>
-                    <input type="text" id="vpStaffUser" name="user_id" placeholder="Enter your username or email">
-                    <label for="vpStaffPass">Password</label>
-                    <input type="password" id="vpStaffPass" name="password" placeholder="Enter your password">
+                    <div class="vp-fields" data-group="admin">
+                        <label for="vpAdminPass">Password</label>
+                        <input type="password" id="vpAdminPass" name="password" placeholder="Enter admin password">
+                    </div>
+                    <div class="vp-fields" data-group="driver">
+                        <label for="vpDriverPhone">Phone Number</label>
+                        <input type="text" id="vpDriverPhone" name="phone_number" placeholder="Enter phone number" inputmode="tel">
+                        <label for="vpDriverPin">Password / PIN</label>
+                        <input type="password" id="vpDriverPin" name="driver_pin" placeholder="Enter your PIN" inputmode="numeric">
+                    </div>
+                    <div class="vp-fields" data-group="technician">
+                        <label for="vpStaffUser">Username / Email</label>
+                        <input type="text" id="vpStaffUser" name="user_id" placeholder="Enter your username or email">
+                        <label for="vpStaffPass">Password</label>
+                        <input type="password" id="vpStaffPass" name="password" placeholder="Enter your password">
+                    </div>
+
+                    <div class="vp-options">
+                        <label class="vp-remember">
+                            <input type="checkbox" name="remember_me" value="1">
+                            <span>Remember me</span>
+                        </label>
+                        <a class="vp-forgot" id="vpHelp" href="#">Forgot Password?</a>
+                    </div>
                 </div>
 
-                <div class="vp-options">
-                    <label class="vp-remember">
-                        <input type="checkbox" name="remember_me" value="1">
-                        <span>Remember me</span>
-                    </label>
-                    <a class="vp-forgot" id="vpHelp" href="#">Forgot Password?</a>
+                <div class="vp-submit-wrap hide" id="vpSubmitWrap">
+                    <button class="vp-submit" type="submit" id="vpSubmit">Access Portal</button>
                 </div>
-
-                <button class="vp-submit" type="submit" id="vpSubmit" hidden>Access Portal</button>
             </div>
         </form>
 
@@ -401,7 +410,8 @@
 <script>
 (function(){
     var roleInput = document.getElementById('vpRole');
-    var stage = document.getElementById('vpStage');
+    var stageInner = document.getElementById('vpStageInner');
+    var submitWrap = document.getElementById('vpSubmitWrap');
     var note = document.getElementById('vpNote');
     var submit = document.getElementById('vpSubmit');
     var helpLink = document.getElementById('vpHelp');
@@ -416,7 +426,10 @@
 
     function resetFields() {
         fgroups.forEach(function(g){
-            g.querySelectorAll('input').forEach(function(i){ i.required = false; i.disabled = true; });
+            g.querySelectorAll('input').forEach(function(i){
+                i.required = false;
+                i.disabled = true;
+            });
         });
     }
 
@@ -424,25 +437,28 @@
         var cfg = configs[role];
         if (!cfg) {
             roleInput.value = '';
-            stage.classList.remove('is-visible');
+            stageInner.classList.remove('is-visible');
+            submitWrap.classList.add('hide');
             opts.forEach(function(o){ o.classList.remove('is-active'); });
             note.textContent = 'Choose a role above.';
-            submit.hidden = true;
             return;
         }
         roleInput.value = role;
-        stage.classList.add('is-visible');
+        stageInner.classList.add('is-visible');
+        submitWrap.classList.remove('hide');
         note.textContent = cfg.note;
         helpLink.textContent = cfg.help;
         helpLink.href = cfg.href;
-        submit.hidden = false;
         opts.forEach(function(o){ o.classList.toggle('is-active', o.dataset.role === role); });
         resetFields();
         fgroups.forEach(function(g){
             var active = g.dataset.group === role;
             g.classList.toggle('is-active', active);
             if (active) {
-                g.querySelectorAll('input').forEach(function(i){ i.required = true; i.disabled = false; });
+                g.querySelectorAll('input').forEach(function(i){
+                    i.required = true;
+                    i.disabled = false;
+                });
                 var first = g.querySelector('input');
                 if (first) setTimeout(function(){ first.focus(); }, 100);
             }
@@ -454,7 +470,7 @@
     });
 
     resetFields();
-    activateRole(roleInput.value || '');
+    if (roleInput.value) { activateRole(roleInput.value); }
 
     var flashEl = document.getElementById('vpFlash');
     if (flashEl && flashEl.children.length === 0) { flashEl.style.display = 'none'; }
