@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Supplier Dashboard{% endblock %}
+{% block page_title %}Supplier Management{% endblock %}
+
+{% block content %}
+<style>
+.sd-container { max-width:1100px; margin:0 auto; }
+.sd-hero { background:linear-gradient(145deg,#0F2B52,#1a3d6e); border-radius:20px; padding:24px 28px; margin-bottom:22px; position:relative; overflow:hidden; }
+.sd-hero::before { content:''; position:absolute; top:0; left:0; right:0; height:55%; background:linear-gradient(180deg,rgba(255,255,255,0.08) 0%,transparent 100%); pointer-events:none; border-radius:20px 20px 0 0; }
+.sd-hero h1 { margin:0; font-size:1.3rem; font-weight:700; color:#fff; position:relative; }
+.sd-hero p { margin:2px 0 0; font-size:0.82rem; color:rgba(255,255,255,0.65); position:relative; }
+.sd-stats { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; position:relative; }
+.sd-stat { display:flex; align-items:center; gap:6px; padding:5px 13px; border-radius:10px; background:rgba(255,255,255,0.1); font-size:0.73rem; color:rgba(255,255,255,0.85); }
+.sd-stat strong { color:#fff; font-size:0.82rem; }
+
+.sd-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; margin-bottom:24px; }
+.sd-kpi { border-radius:18px; padding:18px 14px; position:relative; overflow:hidden; border:none; transition:transform 0.2s,box-shadow 0.2s; }
+.sd-kpi:active { transform:scale(0.96); }
+.sd-kpi-shine { position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg,rgba(255,255,255,0.18) 0%,rgba(255,255,255,0) 100%); pointer-events:none; border-radius:18px 18px 0 0; }
+.sd-kpi-icon { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; margin-bottom:8px; position:relative; z-index:1; }
+.sd-kpi-label { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px; position:relative; z-index:1; }
+.sd-kpi-label.light { color:rgba(255,255,255,0.8); }
+.sd-kpi-val { font-size:1.3rem; font-weight:800; position:relative; z-index:1; }
+.sd-kpi-val.light { color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.2); }
+
+.sd-nav { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:24px; }
+.sd-nav-card { display:flex; flex-direction:column; align-items:center; gap:6px; padding:16px 12px 14px; background:var(--surface); border:1px solid var(--line); border-radius:14px; text-decoration:none; color:var(--text); font-size:0.75rem; font-weight:600; transition:all 0.15s; text-align:center; }
+.sd-nav-card:hover { border-color:var(--primary); color:var(--primary); box-shadow:0 4px 15px rgba(15,43,82,0.1); transform:translateY(-2px); }
+.sd-nav-card svg { width:20px; height:20px; }
+
+.sd-card { background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.04); }
+.sd-card-head { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border-bottom:1px solid var(--line); }
+.sd-card-head h2 { margin:0; font-size:0.9rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+.sd-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+.sd-table th { text-align:left; padding:8px 12px; font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; color:var(--muted); background:rgba(0,0,0,0.02); border-bottom:1px solid var(--line); }
+.sd-table td { padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
+.sd-table tr:last-child td { border-bottom:none; }
+
+@media(max-width:768px){
+  .sd-nav { grid-template-columns:repeat(2,1fr); }
+}
+</style>
+
+<div class="sd-container">
+  <div class="sd-hero">
+    <h1>Supplier Management</h1>
+    <p>Manage suppliers, track invoices, and monitor outstanding payments</p>
+    <div class="sd-stats">
+      <span class="sd-stat">Total <strong>{{ total }}</strong></span>
+      <span class="sd-stat">Active <strong>{{ active }}</strong></span>
+      <span class="sd-stat">With Invoice <strong>{{ with_invoice_count }}</strong></span>
+      <span class="sd-stat">Cash <strong>{{ without_invoice_count }}</strong></span>
+    </div>
+  </div>
+
+  <div class="sd-kpi-grid">
+    <div class="sd-kpi" style="background:linear-gradient(145deg,#1a3d6e,#0F2B52);box-shadow:0 8px 25px rgba(15,43,82,0.35)">
+      <div class="sd-kpi-shine"></div>
+      <div class="sd-kpi-icon" style="background:rgba(255,255,255,0.12)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg></div>
+      <div class="sd-kpi-label light">Total Suppliers</div>
+      <div class="sd-kpi-val light">{{ total }}</div>
+    </div>
+    <div class="sd-kpi" style="background:linear-gradient(145deg,#22c55e,#16a34a);box-shadow:0 8px 25px rgba(34,197,94,0.3)">
+      <div class="sd-kpi-shine"></div>
+      <div class="sd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M5 3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2"/><path d="M8 2v4"/><path d="M12 2v4"/><path d="M2 9h16"/></svg></div>
+      <div class="sd-kpi-label light">Active</div>
+      <div class="sd-kpi-val light">{{ active }}</div>
+    </div>
+    <div class="sd-kpi" style="background:linear-gradient(145deg,#3b82f6,#2563eb);box-shadow:0 8px 25px rgba(59,130,246,0.3)">
+      <div class="sd-kpi-shine"></div>
+      <div class="sd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><line x1="1" y1="7" x2="19" y2="7"/></svg></div>
+      <div class="sd-kpi-label light">With Invoice</div>
+      <div class="sd-kpi-val light">{{ with_invoice_count }}</div>
+    </div>
+    <div class="sd-kpi" style="background:linear-gradient(145deg,#f59e0b,#d97706);box-shadow:0 8px 25px rgba(245,158,11,0.3)">
+      <div class="sd-kpi-shine"></div>
+      <div class="sd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div>
+      <div class="sd-kpi-label light">Cash Suppliers</div>
+      <div class="sd-kpi-val light">{{ without_invoice_count }}</div>
+    </div>
+    <div class="sd-kpi" style="background:linear-gradient(145deg,#e65100,#d84315);box-shadow:0 8px 25px rgba(230,81,0,0.3)">
+      <div class="sd-kpi-shine"></div>
+      <div class="sd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <div class="sd-kpi-label light">Outstanding (AED)</div>
+      <div class="sd-kpi-val light" style="font-size:1.1rem">{{ "%.0f"|format(total_outstanding) }}</div>
+    </div>
+  </div>
+
+  <div class="sd-nav">
+    <a class="sd-nav-card" href="{{ url_for('supplier.supplier_add') }}">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+      Add Supplier
+    </a>
+    <a class="sd-nav-card" href="{{ url_for('supplier.supplier_list') }}">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg>
+      View All Suppliers
+    </a>
+  </div>
+
+  <div class="sd-card">
+    <div class="sd-card-head"><h2><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><line x1="1" y1="7" x2="19" y2="7"/></svg> Recent Invoices</h2></div>
+    {% if recent_invoices %}
+    <div style="overflow-x:auto">
+      <table class="sd-table">
+        <thead><tr><th>Date</th><th>Supplier</th><th>Invoice #</th><th>Amount</th><th>VAT</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for inv in recent_invoices %}
+          <tr>
+            <td class="mono">{{ inv.invoice_date }}</td>
+            <td><a href="{{ url_for('supplier.supplier_profile', sup_id=inv.supplier_id) }}" style="font-weight:600;color:var(--primary);text-decoration:none">{{ inv.supplier_name }}</a></td>
+            <td class="mono">{{ inv.invoice_no }}</td>
+            <td class="mono">{{ "%.0f"|format(inv.amount) }}</td>
+            <td class="mono">{{ "%.0f"|format(inv.vat_amount) }}</td>
+            <td class="mono" style="font-weight:600">{{ "%.0f"|format(inv.total_amount) }}</td>
+            <td><span class="status-badge {% if inv.status == 'paid' %}active{% elif inv.status == 'approved' %}approved{% else %}pending{% endif %}">{{ inv.status }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div style="padding:30px;text-align:center;color:var(--muted)">No invoices yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

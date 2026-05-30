@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card action-panel compact-action-panel portal-panel">
+    <div class="panel-titlebar">
+        <span>{{ config["COMPANY_NAME"] }}</span>
+        <span>Driver Portal</span>
+    </div>
+
+    <div class="action-grid panel-main-grid">
+        <div class="photo-panel smart-photo-panel">
+            {% if photo_url %}
+                <img class="driver-photo tall-photo" src="{{ photo_url }}" alt="{{ driver.full_name }}">
+            {% else %}
+                <div class="photo-placeholder tall-photo">NO PHOTO</div>
+            {% endif %}
+            <div class="salary-flag stored">{{ selected_month_label }} | Self Service</div>
+        </div>
+
+        <div class="driver-summary smart-summary-box">
+            <h2>{{ driver.full_name }}</h2>
+            <div class="summary-tags smart-tags">
+                <span>ID {{ driver.driver_id }}</span>
+                <span>{{ driver.phone_number or "-" }}</span>
+            </div>
+            <dl class="panel-facts smart-facts">
+                <div><dt>Vehicle No</dt><dd>{{ driver.vehicle_no }}</dd></div>
+                <div><dt>Shift</dt><dd>{{ driver.shift }}</dd></div>
+                <div><dt>Vehicle Type</dt><dd>{{ driver.vehicle_type }}</dd></div>
+                <div><dt>This Month Hours</dt><dd>{{ "%.2f"|format(month_hours) }}</dd></div>
+                <div><dt>Entered Days</dt><dd>{{ timesheet_summary.entered_days }}</dd></div>
+                <div><dt>Missing Days</dt><dd>{{ timesheet_summary.missing_days }}</dd></div>
+                <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(outstanding_advance) }}</dd></div>
+                <div><dt>Status</dt><dd>{{ driver.status }}</dd></div>
+            </dl>
+        </div>
+    </div>
+</section>
+
+<section class="mobile-shortcuts">
+    <a class="button button-secondary" href="#timesheet-entry">Timesheet</a>
+    <a class="button button-secondary" href="#timesheet-calendar">Month View</a>
+    <a class="button button-secondary" href="#salary-slips">Statements</a>
+    <a class="button button-secondary" href="#driver-transactions">Monthly Statement</a>
+</section>
+
+<section class="detail-layout owner-fund-layout" id="timesheet-entry">
+    <article class="card form-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">1</p>
+                <h2>Timesheet Entry</h2>
+            </div>
+        </div>
+        <form method="post" class="entry-form two-column-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="selected_month" value="{{ selected_month }}">
+            <label>
+                <span>Date</span>
+                <input type="date" name="entry_date" value="{{ values.entry_date }}" required>
+            </label>
+            <label>
+                <span>Hours</span>
+                <input type="number" name="work_hours" step="0.01" min="0" value="{{ values.work_hours }}" required>
+            </label>
+            <label class="full-span">
+                <span>Remarks</span>
+                <textarea name="remarks" rows="4">{{ values.remarks }}</textarea>
+            </label>
+            <div class="form-actions">
+                <button class="button" type="submit">Save Timesheet</button>
+            </div>
+        </form>
+    </article>
+
+    <article class="card info-card" id="timesheet-calendar">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">2</p>
+                <h2>Monthly Overview</h2>
+            </div>
+        </div>
+        <form method="get" class="filter-grid compact-filter-grid">
+            <label>
+                <span>Month</span>
+                <input type="month" name="month" value="{{ selected_month }}">
+            </label>
+            <div class="form-actions left-actions full-span">
+                <button class="button" type="submit">Open Month</button>
+                <a class="button button-secondary" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank">Download Monthly Statement</a>
+                <a class="button button-secondary" href="{{ url_for('driver_timesheet_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank">Download Timesheet PDF</a>
+            </div>
+        </form>
+        <div class="timesheet-calendar-grid">
+            {% for item in month_calendar %}
+                <article class="timesheet-day-card {% if item.entered %}entered{% else %}missing{% endif %}">
+                    <span class="timesheet-day-number">{{ item.day }}</span>
+                    <strong>{{ "Entered" if item.entered else "Missing" }}</strong>
+                    <small>{{ "%.2f"|format(item.work_hours) }} hrs</small>
+                    <small>{{ item.remarks or ("No entry" if not item.entered else "-") }}</small>
+                </article>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+
+<section class="detail-layout owner-fund-layout">
+    <article class="card info-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">3</p>
+                <h2>Recent Hours</h2>
+            </div>
+        </div>
+        {% if recent_timesheets %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Hours</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in recent_timesheets %}
+                            <tr>
+                                <td>{{ item.entry_date }}</td>
+                                <td>{{ "%.2f"|format(item.work_hours) }}</td>
+                                <td>{{ item.remarks or "-" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted-text">Abhi timesheet entry nahi bani.</p>
+        {% endif %}
+    </article>
+
+    <article class="card info-card" id="salary-slips">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">4</p>
+                <h2>Monthly Statements</h2>
+            </div>
+        </div>
+        {% if salary_slips %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Deduction</th>
+                            <th>Actual Paid</th>
+                            <th>Company Balance</th>
+                            <th>PDF</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in salary_slips %}
+                            <tr>
+                                <td>{{ item.salary_month }}</td>
+                                <td>AED {{ "%.2f"|format(item.total_deductions) }}</td>
+                                <td>AED {{ "%.2f"|format(item.actual_paid_amount or item.net_payable) }}</td>
+                                <td>AED {{ "%.2f"|format(item.company_balance_due or 0) }}</td>
+                                <td><a class="table-link" href="{{ url_for('generated_file', filename=item.pdf_path) }}" target="_blank">Open</a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted-text">Abhi salary slip available nahi.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="detail-layout owner-fund-layout" id="driver-transactions">
+    <article class="card info-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">5</p>
+                <h2>Monthly Statement</h2>
+            </div>
+        </div>
+        <div class="portal-paper-summary statement-three-col">
+            <article class="portal-paper-card">
+                <div class="portal-paper-header">
+                    <span>Salary Summary | {{ kata_summary.month_label }}</span>
+                    <span>Driver ID {{ driver.driver_id }}</span>
+                </div>
+                <div class="portal-paper-lines">
+                    <div class="portal-paper-line"><span>Previous Balance</span><strong>AED {{ "%.2f"|format(kata_summary.previous_balance) }}</strong></div>
+                    <div class="portal-paper-line plus"><span>Salary</span><strong>AED {{ "%.2f"|format(kata_summary.salary_total or kata_summary.salary_amount) }}</strong></div>
+                    <div class="portal-paper-line plus"><span>Extra / OT</span><strong>AED {{ "%.2f"|format(kata_summary.extra_total or 0) }}</strong></div>
+                    <div class="portal-paper-line total"><span>Total Salary</span><strong>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</strong></div>
+                </div>
+            </article>
+
+            <article class="portal-paper-card remaining-card">
+                <div class="portal-paper-header">
+                    <span>Remaining Salary</span>
+                    <span>{{ kata_summary.month_label }}</span>
+                </div>
+                <div class="remaining-salary-box">
+                    <div class="remaining-salary-label">Remaining Salary</div>
+                    <div class="remaining-salary-value">AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</div>
+                </div>
+                <div class="remaining-salary-equation">
+                    <div><span>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</span><small>Total Salary</small></div>
+                    <strong>-</strong>
+                    <div><span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span><small>Not Yet Deducted</small></div>
+                    <strong>=</strong>
+                    <div><span>AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</span><small>Remaining Salary</small></div>
+                </div>
+            </article>
+
+            <article class="portal-paper-card">
+                <div class="portal-paper-header">
+                    <span>Received Not Yet Deducted</span>
+                    <span>Total AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span>
+                </div>
+                <div class="paper-mini-list">
+                    {% if kata_detail_entries %}
+                        {% for item in kata_detail_entries[:6] %}
+                            <div class="paper-mini-row statement-detail-row">
+                                <div class="statement-detail-meta">
+                                    <span class="statement-detail-date">{{ item.date }}</span>
+                                    <small>{{ item.given_by or item.paid_by or "-" }}</small>
+                                </div>
+                                <span>{{ item.details or item.reason or "-" }}</span>
+                                <strong>AED {{ "%.2f"|format(item.amount) }}</strong>
+                            </div>
+                        {% endfor %}
+                        <div class="paper-mini-row statement-total-mini-row">
+                            <span>Total Received</span>
+                            <span></span>
+                            <strong>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</strong>
+                        </div>
+                    {% else %}
+                        <p class="muted-text">No unrecovered cash entries for this month.</p>
+                    {% endif %}
+                </div>
+            </article>
+        </div>
+        {% if kata_detail_entries %}
+            <div class="table-wrap">
+                <table class="kata-month-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Given By</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in kata_detail_entries %}
+                            <tr>
+                                <td>{{ item.date }}</td>
+                                <td class="kata-amount-cell">AED {{ "%.2f"|format(item.amount) }}</td>
+                                <td class="kata-who-cell">{{ item.given_by or item.paid_by or "-" }}</td>
+                                <td class="kata-purpose-cell">{{ item.details or item.reason or "-" }}</td>
+                            </tr>
+                        {% endfor %}
+                        <tr class="statement-total-row">
+                            <td><strong>Total</strong></td>
+                            <td class="kata-amount-cell"><strong>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</strong></td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted-text">No unrecovered cash entries for this month.</p>
+        {% endif %}
+    </article>
+</section>
+
+<style>
+.kata-month-table {
+    font-size: 0.94rem;
+}
+.kata-month-table th,
+.kata-month-table td {
+    padding: 12px 10px;
+    vertical-align: top;
+}
+.kata-amount-cell,
+.kata-balance-cell,
+.kata-who-cell,
+.kata-purpose-cell {
+    font-weight: 700;
+}
+.kata-purpose-cell {
+    min-width: 220px;
+}
+
+.portal-paper-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.78fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.portal-paper-card {
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(21, 51, 93, 0.10);
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,249,253,0.98)),
+        repeating-linear-gradient(
+            180deg,
+            transparent 0,
+            transparent 31px,
+            rgba(38, 86, 142, 0.06) 31px,
+            rgba(38, 86, 142, 0.06) 32px
+        );
+}
+
+.portal-paper-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(21, 51, 93, 0.18);
+    color: var(--primary);
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.portal-paper-lines {
+    display: grid;
+    gap: 10px;
+}
+
+.paper-mini-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.paper-mini-row {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: start;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed rgba(21, 51, 93, 0.14);
+    font-size: 0.92rem;
+}
+
+.paper-mini-row span {
+    color: var(--primary-dark);
+}
+
+.paper-mini-row strong {
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+.remaining-card {
+    display: grid;
+    align-content: start;
+}
+
+.remaining-salary-box {
+    padding: 18px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #1d5c99, #173f66);
+    color: #fff;
+    text-align: center;
+    box-shadow: 0 14px 28px rgba(23, 63, 102, 0.22);
+}
+
+.remaining-salary-label {
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.88;
+}
+
+.remaining-salary-value {
+    margin-top: 10px;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.remaining-salary-formula {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    opacity: 0.92;
+}
+
+.remaining-salary-equation {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed rgba(21, 51, 93, 0.14);
+}
+
+.remaining-salary-equation div {
+    display: grid;
+    gap: 4px;
+    text-align: center;
+}
+
+.remaining-salary-equation span {
+    color: var(--primary-dark);
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.remaining-salary-equation small {
+    color: var(--muted-text);
+    font-size: 0.8rem;
+    line-height: 1.25;
+}
+
+.remaining-salary-equation strong {
+    color: var(--primary);
+    font-size: 1.15rem;
+}
+
+.portal-paper-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.portal-paper-line span {
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+
+.portal-paper-line strong {
+    color: var(--primary-dark);
+    font-size: 1.02rem;
+}
+
+.portal-paper-line.plus strong { color: #1d5c99; }
+.portal-paper-line.minus strong { color: #b96d0f; }
+
+.portal-paper-line.total,
+.portal-paper-line.balance {
+    padding-top: 10px;
+    border-top: 1px solid rgba(21, 51, 93, 0.12);
+}
+
+.portal-paper-line.balance strong {
+    color: #0f5f46;
+    font-size: 1.12rem;
+}
+
+.statement-detail-row {
+    grid-template-columns: 118px minmax(0, 1fr) auto;
+}
+
+.statement-detail-meta {
+    display: grid;
+    gap: 3px;
+}
+
+.statement-detail-date {
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+
+.statement-detail-meta small {
+    color: var(--muted-text);
+    font-size: 0.78rem;
+    line-height: 1.3;
+}
+
+.statement-total-mini-row {
+    padding-top: 10px;
+    border-top: 1px solid rgba(21, 51, 93, 0.14);
+    border-bottom: 0;
+}
+
+.statement-total-mini-row span,
+.statement-total-mini-row strong {
+    font-weight: 800;
+}
+
+.statement-total-row td {
+    border-top: 1px solid rgba(21, 51, 93, 0.14);
+    background: rgba(238, 244, 251, 0.55);
+}
+@media (max-width: 720px) {
+    .portal-paper-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .remaining-salary-equation,
+    .statement-detail-row {
+        grid-template-columns: 1fr;
+    }
+
+    .kata-month-table {
+        font-size: 0.88rem;
+    }
+    .kata-month-table th,
+    .kata-month-table td {
+        padding: 10px 8px;
+    }
+}
+</style>
+{% endblock %}

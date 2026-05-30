@@ -1,0 +1,1092 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell maintenance-workspace-shell field-staff-portal-shell">
+    <style>
+        /* Vehicle Card Picker */
+        .veh-pick-wrap { display:flex; flex-direction:column; gap:8px; }
+        .veh-pick-wrap > span { font-size:0.82rem; font-weight:600; color:var(--text); }
+        .veh-search-box input { width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; font-size:0.85rem; background:#fff; box-sizing:border-box; outline:none; }
+        .veh-search-box input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(28,86,139,0.1); }
+        .veh-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; max-height:220px; overflow-y:auto; }
+        .veh-card { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:8px 10px; border:2px solid var(--line); border-radius:10px; cursor:pointer; transition:all 0.12s; position:relative; font-size:0.78rem; }
+        .veh-card:hover { border-color:var(--primary); background:#f0f4ff; }
+        .veh-card.selected { border-color:var(--primary); background:#e8f0fe; }
+        .veh-card.selected .veh-tick { opacity:1; }
+        .veh-badge { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:0.65rem; font-weight:700; color:#fff; flex-shrink:0; }
+        .veh-badge-1 { background:#1c568b; }
+        .veh-badge-2 { background:#e65100; }
+        .veh-badge-3 { background:#7b1fa2; }
+        .veh-badge-4 { background:#2e7d32; }
+        .veh-badge-5 { background:#546e7a; }
+        .veh-label { font-weight:700; font-size:0.82rem; }
+        .veh-sub { width:100%; font-size:0.68rem; color:var(--muted); }
+        .veh-tick { position:absolute; top:4px; right:4px; color:var(--primary); font-weight:700; font-size:0.75rem; opacity:0; transition:opacity 0.12s; }
+        .veh-selected { margin-top:2px; padding:6px 10px; background:#e8f5e9; border-radius:8px; font-size:0.78rem; text-align:center; }
+
+        /* New Field Staff Welcome Card Styles */
+        .field-staff-portal-shell .field-staff-welcome-card {
+            background: linear-gradient(135deg, #1c568b 0%, #2a6ba8 100%);
+            color: white;
+            border-radius: 24px;
+            padding: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 12px 32px rgba(28, 86, 139, 0.25);
+        }
+        
+        .field-staff-welcome-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+        
+        .field-staff-welcome-badge {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .welcome-badge-text {
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0.9;
+            letter-spacing: 0.5px;
+        }
+        
+        .welcome-badge-code {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 6px 14px;
+            border-radius: 12px;
+            display: inline-block;
+            backdrop-filter: blur(10px);
+        }
+        
+        .field-staff-status-section {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+        
+        .field-staff-desk-label {
+            font-size: 12px;
+            opacity: 0.8;
+            font-weight: 600;
+        }
+        
+        .status-chip-premium {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 20px;
+        }
+        
+        .field-staff-profile-section {
+            margin-bottom: 28px;
+        }
+        
+        .field-staff-specialization {
+            font-size: 32px;
+            font-weight: 800;
+            margin: 0 0 12px 0;
+            line-height: 1.2;
+        }
+        
+        .field-staff-code-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            opacity: 0.95;
+        }
+        
+        .field-staff-code-display svg {
+            opacity: 0.8;
+        }
+        
+        .field-staff-name {
+            opacity: 0.8;
+            font-weight: 500;
+        }
+        
+        .field-staff-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        
+        .field-staff-stat-card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            border-radius: 18px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: transform 0.2s, background 0.2s;
+        }
+        
+        .field-staff-stat-card:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.18);
+        }
+        
+        .stat-card-icon {
+            font-size: 28px;
+            opacity: 0.9;
+        }
+        
+        .stat-card-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .stat-card-label {
+            font-size: 13px;
+            opacity: 0.8;
+            font-weight: 600;
+        }
+        
+        .stat-card-value {
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .field-staff-welcome-header {
+                flex-direction: column;
+                gap: 16px;
+            }
+            
+            .field-staff-status-section {
+                align-items: flex-start;
+            }
+            
+            .field-staff-specialization {
+                font-size: 26px;
+            }
+            
+            .field-staff-stats-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .field-staff-stat-card {
+                padding: 16px;
+            }
+        }
+        
+        /* Old styles kept for compatibility */
+        .field-staff-portal-shell .field-staff-simple-hero {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .field-staff-portal-shell .field-staff-simple-hero h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+        .field-staff-portal-shell .field-staff-simple-hero p {
+            margin: 0;
+            color: #38557b;
+        }
+        .field-staff-portal-shell .field-staff-summary-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .field-staff-portal-shell .field-staff-summary-pill {
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: #f4f8fd;
+            border: 1px solid rgba(28, 86, 139, 0.12);
+            color: #204f85;
+            font-weight: 700;
+        }
+        .field-staff-portal-shell .field-staff-form-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .field-staff-portal-shell .field-staff-form-toolbar h2,
+        .field-staff-portal-shell .field-staff-form-toolbar p {
+            margin: 0;
+        }
+        .field-staff-portal-shell .field-staff-form-toolbar p {
+            color: #597497;
+        }
+        .field-staff-portal-shell .field-staff-money-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+        .field-staff-portal-shell .field-staff-money-card {
+            border: 1px solid rgba(28, 86, 139, 0.12);
+            border-radius: 22px;
+            padding: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+        .field-staff-portal-shell .field-staff-money-card h2,
+        .field-staff-portal-shell .field-staff-money-card p {
+            margin: 0;
+        }
+        .field-staff-portal-shell .field-staff-money-card p {
+            color: #5c7592;
+            margin-top: 6px;
+        }
+        .field-staff-portal-shell .field-staff-money-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            margin-top: 18px;
+        }
+        .field-staff-portal-shell .field-staff-money-stat {
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: #f4f8fd;
+            border: 1px solid rgba(28, 86, 139, 0.1);
+        }
+        .field-staff-portal-shell .field-staff-money-stat strong,
+        .field-staff-portal-shell .field-staff-money-stat span {
+            display: block;
+        }
+        .field-staff-portal-shell .field-staff-money-stat strong {
+            font-size: 1.35rem;
+            color: #184f85;
+        }
+        .field-staff-portal-shell .field-staff-money-stat span {
+            margin-top: 6px;
+            color: #637d9b;
+            font-weight: 600;
+        }
+        .field-staff-portal-shell .field-staff-received-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .field-staff-portal-shell .field-staff-received-row {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 10px 14px;
+            align-items: start;
+            padding: 12px 0;
+            border-top: 1px dashed rgba(28, 86, 139, 0.12);
+        }
+        .field-staff-portal-shell .field-staff-received-row:first-child {
+            border-top: 0;
+            padding-top: 0;
+        }
+        .field-staff-portal-shell .field-staff-received-row strong,
+        .field-staff-portal-shell .field-staff-received-row span,
+        .field-staff-portal-shell .field-staff-received-row small {
+            display: block;
+        }
+        .field-staff-portal-shell .field-staff-received-row strong {
+            color: #194f84;
+        }
+        .field-staff-portal-shell .field-staff-received-row small {
+            color: #5d7694;
+            margin-top: 4px;
+            line-height: 1.35;
+        }
+        .field-staff-portal-shell .field-staff-balance-banner {
+            margin-top: 16px;
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #1e5f99 0%, #184b7c 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+        .field-staff-portal-shell .field-staff-balance-banner strong,
+        .field-staff-portal-shell .field-staff-balance-banner span {
+            display: block;
+        }
+        .field-staff-portal-shell .field-staff-balance-banner strong {
+            font-size: 1.8rem;
+        }
+        .field-staff-portal-shell .field-staff-add-row {
+            min-width: 150px;
+        }
+        .field-staff-portal-shell .field-staff-rows {
+            display: grid;
+            gap: 14px;
+        }
+        .field-staff-portal-shell .field-staff-row-card {
+            border: 1px solid rgba(28, 86, 139, 0.14);
+            border-radius: 20px;
+            padding: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f9fbfe 100%);
+        }
+        .field-staff-portal-shell .field-staff-row-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .field-staff-portal-shell .field-staff-row-top h3,
+        .field-staff-portal-shell .field-staff-row-top p {
+            margin: 0;
+        }
+        .field-staff-portal-shell .field-staff-row-top p {
+            color: #5b7394;
+            margin-top: 4px;
+        }
+        .field-staff-portal-shell .field-staff-remove-row {
+            border: 1px solid rgba(185, 54, 54, 0.2);
+            color: #b93636;
+            background: #fff;
+            border-radius: 999px;
+            padding: 9px 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .field-staff-portal-shell .field-staff-remove-row[hidden] {
+            display: none !important;
+        }
+        .field-staff-portal-shell .field-staff-inline-errors {
+            margin: 0 0 14px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: #fff3f2;
+            border: 1px solid rgba(185, 54, 54, 0.18);
+            color: #a33434;
+        }
+        .field-staff-portal-shell .field-staff-inline-errors strong {
+            display: block;
+            margin-bottom: 6px;
+        }
+        .field-staff-portal-shell .field-staff-inline-errors ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+        .field-staff-portal-shell .field-staff-inline-errors li + li {
+            margin-top: 4px;
+        }
+        .field-staff-portal-shell .field-staff-tax-band {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            padding: 14px;
+            border-radius: 16px;
+            background: #f5f9ff;
+            border: 1px dashed rgba(28, 86, 139, 0.16);
+        }
+        .field-staff-portal-shell .field-staff-tax-title {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #57708f;
+            font-weight: 700;
+        }
+        .field-staff-portal-shell .field-staff-empty-note {
+            margin: 0;
+            color: #6a829f;
+            font-size: 0.94rem;
+        }
+        .field-staff-portal-shell .field-staff-portal-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 18px;
+        }
+        .field-staff-portal-shell .field-staff-portal-actions .form-actions {
+            margin: 0;
+            width: auto;
+        }
+        .field-staff-portal-shell .field-staff-entry-card small {
+            display: block;
+            color: #5f7592;
+            margin-top: 4px;
+        }
+        .field-staff-portal-shell .field-staff-entry-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .field-staff-portal-shell .field-staff-entry-actions form {
+            margin: 0;
+        }
+        .field-staff-portal-shell .field-staff-mini-button {
+            border: 1px solid rgba(28, 86, 139, 0.14);
+            background: #fff;
+            color: #1d5388;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .field-staff-portal-shell .field-staff-mini-button.danger {
+            color: #b93636;
+            border-color: rgba(185, 54, 54, 0.2);
+        }
+        @media (max-width: 720px) {
+            .field-staff-portal-shell .field-staff-money-grid,
+            .field-staff-portal-shell .field-staff-row-top,
+            .field-staff-portal-shell .field-staff-form-toolbar,
+            .field-staff-portal-shell .field-staff-portal-actions {
+                grid-template-columns: 1fr;
+            }
+            .field-staff-portal-shell .field-staff-add-row,
+            .field-staff-portal-shell .field-staff-remove-row {
+                width: 100%;
+            }
+            .field-staff-portal-shell .field-staff-row-top,
+            .field-staff-portal-shell .field-staff-form-toolbar,
+            .field-staff-portal-shell .field-staff-portal-actions,
+            .field-staff-portal-shell .field-staff-balance-banner {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+
+    <article class="card field-staff-welcome-card">
+        <div class="field-staff-welcome-header">
+            <div class="field-staff-welcome-badge">
+                <span class="welcome-badge-text">Welcome Field Staff</span>
+                <span class="welcome-badge-code">{{ technician.technician_code }}</span>
+            </div>
+            <div class="field-staff-status-section">
+                <span class="field-staff-desk-label">Field Staff Desk</span>
+                <span class="status-chip status-chip-premium {{ (technician.status or 'Active')|lower }}">{{ technician.status or "Active" }}</span>
+            </div>
+        </div>
+        
+        <div class="field-staff-profile-section">
+            <h1 class="field-staff-specialization">{{ technician.specialization or "Body work" }}</h1>
+            <div class="field-staff-code-display">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <line x1="20" y1="8" x2="20" y2="14"></line>
+                    <line x1="23" y1="11" x2="17" y2="11"></line>
+                </svg>
+                <strong>{{ technician.technician_code }}</strong>
+                {% if party and party.party_name %}
+                <span class="field-staff-name">| {{ party.party_name }}</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="field-staff-stats-grid">
+            <div class="field-staff-stat-card stat-card-balance">
+                <div class="stat-card-icon">≡ƒÆ░</div>
+                <div class="stat-card-content">
+                    <span class="stat-card-label">Available Balance</span>
+                    <strong class="stat-card-value">AED {{ "%.0f"|format(balance_available) }}</strong>
+                </div>
+            </div>
+            
+            <div class="field-staff-stat-card stat-card-papers">
+                <div class="stat-card-icon">≡ƒôä</div>
+                <div class="stat-card-content">
+                    <span class="stat-card-label">Total Papers</span>
+                    <strong class="stat-card-value">{{ total_jobs }}</strong>
+                </div>
+            </div>
+            
+            <div class="field-staff-stat-card stat-card-review">
+                <div class="stat-card-icon">ΓÅ│</div>
+                <div class="stat-card-content">
+                    <span class="stat-card-label">In Review</span>
+                    <strong class="stat-card-value">AED {{ "%.0f"|format(pending_review) }}</strong>
+                </div>
+            </div>
+        </div>
+    </article>
+
+    <section class="field-staff-money-grid">
+        <article class="field-staff-money-card">
+            <span class="admin-desk-label">Money Summary</span>
+            <h2>Your Money Overview</h2>
+            <p>See how much you received, how much you submitted, and what balance is still open.</p>
+
+            <div class="field-staff-money-stats">
+                <div class="field-staff-money-stat">
+                    <strong>AED {{ "%.2f"|format(total_received) }}</strong>
+                    <span>Total Received</span>
+                </div>
+                <div class="field-staff-money-stat">
+                    <strong>AED {{ "%.2f"|format(total_spent) }}</strong>
+                    <span>Total Submitted</span>
+                </div>
+                <div class="field-staff-money-stat">
+                    <strong>AED {{ "%.2f"|format(total_approved) }}</strong>
+                    <span>Approved Spend</span>
+                </div>
+                <div class="field-staff-money-stat">
+                    <strong>AED {{ "%.2f"|format(pending_review) }}</strong>
+                    <span>Pending Review</span>
+                </div>
+            </div>
+
+            <div class="field-staff-balance-banner">
+                <div>
+                    <span>Available Balance</span>
+                    <strong>AED {{ "%.2f"|format(balance_available) }}</strong>
+                </div>
+                <div>
+                    <span>Paid To Vendors</span>
+                    <strong>AED {{ "%.2f"|format(total_paid) }}</strong>
+                </div>
+            </div>
+        </article>
+
+        <article class="field-staff-money-card">
+            <span class="admin-desk-label">Received Details</span>
+            <h2>Money You Received</h2>
+            <p>Each owner fund or field-staff amount is listed here with date and reason.</p>
+
+            {% if recent_advances %}
+            <div class="field-staff-received-list">
+                {% for advance in recent_advances %}
+                <div class="field-staff-received-row">
+                    <div>
+                        <strong>{{ advance.entry_date }}</strong>
+                        <small>{{ advance.funding_source or "Owner Fund" }}</small>
+                    </div>
+                    <div>
+                        <strong>{{ advance.reference or "Field Staff Amount" }}</strong>
+                        <small>{{ advance.notes or "No note added" }}</small>
+                    </div>
+                    <div>
+                        <strong>AED {{ "%.2f"|format(advance.amount or 0) }}</strong>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state" style="margin-top:16px;">
+                <p>No received entries yet.</p>
+            </div>
+            {% endif %}
+        </article>
+    </section>
+
+    <section class="desk-content-grid compact-content-grid field-staff-mobile-grid">
+        <article class="card desk-panel-card field-staff-submit-card full-span" id="field-staff-submit">
+            <form method="post" class="form-grid field-staff-mobile-form" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="{{ 'update_job' if editing_paper_no else 'submit_jobs' }}">
+                <input type="hidden" name="original_paper_no" value="{{ editing_paper_no }}">
+                <input type="hidden" name="row_indexes" id="field-staff-row-indexes" value="{{ form_rows | map(attribute='row_no') | join(',') }}">
+
+                <div class="field-staff-form-toolbar full-span">
+                    <div>
+                        <span class="admin-desk-label">Easy Entry</span>
+                        <h2>{{ 'Edit Job ' ~ editing_paper_no if editing_paper_no else 'Submit Jobs' }}</h2>
+                        <p>
+                            {% if editing_paper_no %}
+                            Update this pending job, then save the correction.
+                            {% else %}
+                            Add one row, then add another. Submit all filled rows together.
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% if not editing_paper_no %}
+                    <button type="button" class="button button-outline field-staff-add-row" id="field-staff-add-row">Add Row</button>
+                    {% else %}
+                    <a href="{{ url_for('technician_portal') }}" class="button button-outline field-staff-add-row">Cancel Edit</a>
+                    {% endif %}
+                </div>
+
+                <div class="full-span field-staff-rows" id="field-staff-rows">
+                    {% for row in form_rows %}
+                    <article class="field-staff-row-card" data-row-no="{{ row.row_no }}">
+                        <div class="field-staff-row-top">
+                            <div>
+                                <span class="admin-desk-label">Job Row {{ row.row_no }}</span>
+                                <h3>Paper Entry</h3>
+                                <p>Each filled row saves as one separate job for review and approval.</p>
+                            </div>
+                            <button type="button" class="field-staff-remove-row" {% if loop.first and form_rows|length == 1 %}hidden{% endif %}>Remove Row</button>
+                        </div>
+
+                        {% if row_errors_by_no.get(row.row_no) %}
+                        <div class="field-staff-inline-errors">
+                            <strong>Row {{ row.row_no }} needs attention</strong>
+                            <ul>
+                                {% for error in row_errors_by_no[row.row_no] %}
+                                <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <div class="desk-form-grid">
+                            <label>
+                                <span>Date</span>
+                                <input type="date" name="entry_date_{{ row.row_no }}" value="{{ row.entry_date }}">
+                            </label>
+                            <div class="veh-pick-wrap">
+                                <span>Vehicle</span>
+                                <div class="veh-search-box">
+                                    <input type="text" class="veh-search-input" data-row="{{ row.row_no }}" placeholder="Search vehicle..." oninput="vehFilter(this)">
+                                </div>
+                                <div class="veh-grid" data-row="{{ row.row_no }}">
+                                    <div class="veh-card ge-card" data-value="" onclick="vehSelect(this, {{ row.row_no }})" data-search="general entry no vehicle">
+                                        <span class="veh-badge" style="background:#757575">GE</span>
+                                        <span class="veh-label">General Expense</span>
+                                        <span class="veh-tick">&#10003;</span>
+                                    </div>
+                                    {% for vehicle in vehicle_options %}
+                                    <div class="veh-card {% if row.vehicle_id == vehicle.vehicle_id %}selected{% endif %}" data-value="{{ vehicle.vehicle_id }}" onclick="vehSelect(this, {{ row.row_no }})" data-search="{{ vehicle.vehicle_no }} {{ vehicle.vehicle_name or 'Vehicle' }} {{ vehicle.ownership_mode }}">
+                                        <span class="veh-badge veh-badge-{{ loop.index % 5 + 1 }}">{{ (vehicle.vehicle_no or 'V')[:2]|upper }}</span>
+                                        <span class="veh-label">{{ vehicle.vehicle_no }}</span>
+                                        <span class="veh-sub">{{ vehicle.vehicle_name or 'Vehicle' }} / {{ vehicle.ownership_mode }}</span>
+                                        <span class="veh-tick">&#10003;</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <input type="hidden" name="vehicle_id_{{ row.row_no }}" value="{{ row.vehicle_id or '' }}">
+                                <div class="veh-selected" id="veh-selected-{{ row.row_no }}" {% if not row.vehicle_id %}style="display:none"{% endif %}>
+                                    Selected: <strong>{% if row.vehicle_id %}{{ row.vehicle_id }}{% else %}General Expense{% endif %}</strong>
+                                </div>
+                            </div>
+                            <label class="full-span">
+                                <span>Shop / Vendor / Place</span>
+                                <input type="text" name="workshop_name_{{ row.row_no }}" value="{{ row.workshop_name }}" placeholder="Workshop, fuel station, restaurant or site">
+                            </label>
+                            <label>
+                                <span>Bill No</span>
+                                <input type="text" name="bill_no_{{ row.row_no }}" value="{{ row.bill_no }}" placeholder="Vendor bill no">
+                            </label>
+                            <label>
+                                <span>Work Type</span>
+                                <select name="work_type_{{ row.row_no }}">
+                                    <option value="">Select Work Type</option>
+                                    <option value="Repair" {% if row.work_type == 'Repair' %}selected{% endif %}>Repair</option>
+                                    <option value="Maintenance" {% if row.work_type == 'Maintenance' %}selected{% endif %}>Maintenance</option>
+                                    <option value="Service" {% if row.work_type == 'Service' %}selected{% endif %}>Service</option>
+                                    <option value="Parts Replacement" {% if row.work_type == 'Parts Replacement' %}selected{% endif %}>Parts Replacement</option>
+                                    <option value="Fuel" {% if row.work_type == 'Fuel' %}selected{% endif %}>Fuel</option>
+                                    <option value="Food" {% if row.work_type == 'Food' %}selected{% endif %}>Food</option>
+                                    <option value="Site Expense" {% if row.work_type == 'Site Expense' %}selected{% endif %}>Site Expense</option>
+                                    <option value="Cash Payment" {% if row.work_type == 'Cash Payment' %}selected{% endif %}>Cash Payment</option>
+                                    <option value="Other" {% if row.work_type == 'Other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </label>
+                            <label class="full-span">
+                                <span>Details</span>
+                                <textarea name="details_{{ row.row_no }}" rows="2" placeholder="What was done and where">{{ row.details }}</textarea>
+                            </label>
+                            <label>
+                                <span>Amount</span>
+                                <input type="number" step="0.01" name="amount_{{ row.row_no }}" value="{{ row.amount }}" placeholder="0.00" data-calc="amount">
+                            </label>
+                            <div class="full-span field-staff-tax-band">
+                                <label>
+                                    <span class="field-staff-tax-title">Tax Mode</span>
+                                    <select name="tax_mode_{{ row.row_no }}">
+                                        <option value="Inclusive" {% if row.tax_mode == 'Inclusive' %}selected{% endif %}>Inclusive</option>
+                                        <option value="Exclusive" {% if row.tax_mode == 'Exclusive' %}selected{% endif %}>Exclusive</option>
+                                        <option value="Zero" {% if row.tax_mode == 'Zero' %}selected{% endif %}>Zero Tax</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span class="field-staff-tax-title">Tax Amount</span>
+                                    <input type="number" step="0.01" name="tax_amount_{{ row.row_no }}" value="{{ row.tax_amount }}" placeholder="0.00" data-calc="tax">
+                                </label>
+                                <label>
+                                    <span class="field-staff-tax-title">Total Amount</span>
+                                    <input type="number" step="0.01" name="total_amount_{{ row.row_no }}" value="{{ row.total_amount }}" placeholder="0.00" data-calc="total">
+                                </label>
+                            </div>
+                            <label class="full-span">
+                                <span>Attachment</span>
+                                <input type="file" name="attachment_{{ row.row_no }}" accept="image/*,.pdf">
+                            </label>
+                            <label class="full-span">
+                                <span>Remarks</span>
+                                <textarea name="remarks_{{ row.row_no }}" rows="2" placeholder="Optional remarks">{{ row.remarks }}</textarea>
+                            </label>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+
+                <div class="field-staff-portal-actions full-span">
+                    <p class="field-staff-empty-note">General Entry works without a vehicle number. Add only the rows you need.</p>
+                    <div class="form-actions">
+                        <button type="submit" class="button">{{ 'Update Job' if editing_paper_no else 'Submit All' }}</button>
+                        <a href="{{ url_for('technician_portal') }}" class="button button-outline">Clear Page</a>
+                    </div>
+                </div>
+            </form>
+        </article>
+    </section>
+
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card" id="field-staff-recent">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Recent Entries</span>
+                    <h2>Latest Submissions</h2>
+                </div>
+            </div>
+
+            {% if recent_jobs %}
+            <div class="field-staff-mobile-cards">
+                {% for job in recent_jobs %}
+                <article class="field-staff-entry-card">
+                    <div class="field-staff-entry-top">
+                        <div>
+                            <strong>{{ job.paper_no }}</strong>
+                            <span>{{ job.entry_date }}</span>
+                        </div>
+                        <span class="status-chip {{ (job.review_status or 'Pending')|lower|replace(' ', '-') }}">{{ job.review_status }}</span>
+                    </div>
+                    <div class="field-staff-entry-grid">
+                        <span><strong>Vehicle</strong><small>{{ job.vehicle_label or 'General Entry' }}</small></span>
+                        <span><strong>Workshop</strong><small>{{ job.workshop_name or '-' }}</small></span>
+                        <span><strong>Total</strong><small>AED {{ "%.2f"|format(job.total_amount or 0) }}</small></span>
+                        <span><strong>Payment</strong><small>{{ job.payment_status }}</small></span>
+                    </div>
+                    {% if job.bill_image %}
+                    <div class="field-staff-entry-actions">
+                        <a class="mini-link-pill" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">Open Bill</a>
+                        {% if (job.review_status or 'Pending') == 'Pending' and (job.payment_status or 'Pending') == 'Pending' %}
+                        <form method="post">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="load_job">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button type="submit" class="field-staff-mini-button">Edit</button>
+                        </form>
+                        <form method="post" onsubmit="return confirm('Delete {{ job.paper_no }}?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="delete_job">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button type="submit" class="field-staff-mini-button danger">Delete</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% elif (job.review_status or 'Pending') == 'Pending' and (job.payment_status or 'Pending') == 'Pending' %}
+                    <div class="field-staff-entry-actions">
+                        <form method="post">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="load_job">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button type="submit" class="field-staff-mini-button">Edit</button>
+                        </form>
+                        <form method="post" onsubmit="return confirm('Delete {{ job.paper_no }}?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="delete_job">
+                            <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                            <button type="submit" class="field-staff-mini-button danger">Delete</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+
+            <div class="table-wrap field-staff-desktop-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Entry No</th>
+                            <th>Date</th>
+                            <th>Vehicle</th>
+                            <th>Workshop</th>
+                            <th>Total</th>
+                            <th>Bill</th>
+                            <th>Status</th>
+                            <th>Payment</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in recent_jobs %}
+                        <tr>
+                            <td><strong>{{ job.paper_no }}</strong></td>
+                            <td>{{ job.entry_date }}</td>
+                            <td>{{ job.vehicle_label or 'General Entry' }}</td>
+                            <td>{{ job.workshop_name or '-' }}</td>
+                            <td>AED {{ "%.2f"|format(job.total_amount or 0) }}</td>
+                            <td>
+                                {% if job.bill_image %}
+                                <a class="mini-action-link" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">Open</a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>{{ job.review_status }}</td>
+                            <td>{{ job.payment_status }}</td>
+                            <td>
+                                <div class="field-staff-entry-actions" style="margin-top:0;">
+                                    {% if job.bill_image %}
+                                    <a class="mini-action-link" href="{{ url_for('generated_file', filename=job.bill_image) }}" target="_blank">Open</a>
+                                    {% endif %}
+                                    {% if (job.review_status or 'Pending') == 'Pending' and (job.payment_status or 'Pending') == 'Pending' %}
+                                    <form method="post">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="load_job">
+                                        <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                                        <button type="submit" class="field-staff-mini-button">Edit</button>
+                                    </form>
+                                    <form method="post" onsubmit="return confirm('Delete {{ job.paper_no }}?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="delete_job">
+                                        <input type="hidden" name="paper_no" value="{{ job.paper_no }}">
+                                        <button type="submit" class="field-staff-mini-button danger">Delete</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No jobs submitted yet.</p>
+            </div>
+            {% endif %}
+        </article>
+    </section>
+
+    <template id="field-staff-row-template">
+        <article class="field-staff-row-card" data-row-no="__ROW__">
+            <div class="field-staff-row-top">
+                <div>
+                    <span class="admin-desk-label">Job Row __ROW__</span>
+                    <h3>Paper Entry</h3>
+                    <p>Each filled row saves as one separate job for review and approval.</p>
+                </div>
+                <button type="button" class="field-staff-remove-row">Remove Row</button>
+            </div>
+
+            <div class="desk-form-grid">
+                <label>
+                    <span>Date</span>
+                    <input type="date" name="entry_date___ROW__" value="">
+                </label>
+                <div class="veh-pick-wrap">
+                    <span>Vehicle</span>
+                    <div class="veh-search-box">
+                        <input type="text" class="veh-search-input" data-row="__ROW__" placeholder="Search vehicle..." oninput="vehFilter(this)">
+                    </div>
+                    <div class="veh-grid" data-row="__ROW__">
+                        <div class="veh-card ge-card selected" data-value="" onclick="vehSelect(this, '__ROW__')" data-search="general entry no vehicle">
+                            <span class="veh-badge" style="background:#757575">GE</span>
+                            <span class="veh-label">General Expense</span>
+                            <span class="veh-tick">&#10003;</span>
+                        </div>
+                        {% for vehicle in vehicle_options %}
+                        <div class="veh-card" data-value="{{ vehicle.vehicle_id }}" onclick="vehSelect(this, '__ROW__')" data-search="{{ vehicle.vehicle_no }} {{ vehicle.vehicle_name or 'Vehicle' }} {{ vehicle.ownership_mode }}">
+                            <span class="veh-badge veh-badge-{{ loop.index % 5 + 1 }}">{{ (vehicle.vehicle_no or 'V')[:2]|upper }}</span>
+                            <span class="veh-label">{{ vehicle.vehicle_no }}</span>
+                            <span class="veh-sub">{{ vehicle.vehicle_name or 'Vehicle' }} / {{ vehicle.ownership_mode }}</span>
+                            <span class="veh-tick">&#10003;</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="vehicle_id___ROW__" value="">
+                    <div class="veh-selected" id="veh-selected-__ROW__" style="display:none">
+                        Selected: <strong>General Expense</strong>
+                    </div>
+                </div>
+                <label class="full-span">
+                    <span>Shop / Vendor / Place</span>
+                    <input type="text" name="workshop_name___ROW__" value="" placeholder="Workshop, fuel station, restaurant or site">
+                </label>
+                <label>
+                    <span>Bill No</span>
+                    <input type="text" name="bill_no___ROW__" value="" placeholder="Vendor bill no">
+                </label>
+                <label>
+                    <span>Work Type</span>
+                    <select name="work_type___ROW__">
+                        <option value="">Select Work Type</option>
+                        <option value="Repair">Repair</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Service">Service</option>
+                        <option value="Parts Replacement">Parts Replacement</option>
+                        <option value="Fuel">Fuel</option>
+                        <option value="Food">Food</option>
+                        <option value="Site Expense">Site Expense</option>
+                        <option value="Cash Payment">Cash Payment</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </label>
+                <label class="full-span">
+                    <span>Details</span>
+                    <textarea name="details___ROW__" rows="2" placeholder="What was done and where"></textarea>
+                </label>
+                <label>
+                    <span>Amount</span>
+                    <input type="number" step="0.01" name="amount___ROW__" value="" placeholder="0.00" data-calc="amount">
+                </label>
+                <div class="full-span field-staff-tax-band">
+                    <label>
+                        <span class="field-staff-tax-title">Tax Mode</span>
+                        <select name="tax_mode___ROW__">
+                            <option value="Inclusive" selected>Inclusive</option>
+                            <option value="Exclusive">Exclusive</option>
+                            <option value="Zero">Zero Tax</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span class="field-staff-tax-title">Tax Amount</span>
+                        <input type="number" step="0.01" name="tax_amount___ROW__" value="" placeholder="0.00" data-calc="tax">
+                    </label>
+                    <label>
+                        <span class="field-staff-tax-title">Total Amount</span>
+                        <input type="number" step="0.01" name="total_amount___ROW__" value="" placeholder="0.00" data-calc="total">
+                    </label>
+                </div>
+                <label class="full-span">
+                    <span>Attachment</span>
+                    <input type="file" name="attachment___ROW__" accept="image/*,.pdf">
+                </label>
+                <label class="full-span">
+                    <span>Remarks</span>
+                    <textarea name="remarks___ROW__" rows="2" placeholder="Optional remarks"></textarea>
+                </label>
+            </div>
+        </article>
+    </template>
+</section>
+
+<script>
+function vehFilter(input) {
+    var q = (input.value || '').toLowerCase().trim();
+    var grid = input.closest('.veh-pick-wrap').querySelector('.veh-grid');
+    if (!grid) return;
+    grid.querySelectorAll('.veh-card').forEach(function(c) {
+        c.style.display = (!q || (c.dataset.search || '').toLowerCase().includes(q)) ? '' : 'none';
+    });
+}
+
+function vehSelect(card, rowNo) {
+    var wrap = card.closest('.veh-pick-wrap');
+    if (!wrap) return;
+    wrap.querySelectorAll('.veh-card').forEach(function(c) { c.classList.remove('selected'); });
+    card.classList.add('selected');
+    var val = card.dataset.value || '';
+    wrap.querySelector('input[type=hidden]').value = val;
+    var disp = document.getElementById('veh-selected-' + rowNo);
+    if (disp) {
+        disp.innerHTML = 'Selected: <strong>' + (val || 'General Expense') + '</strong>';
+        disp.style.display = 'block';
+    }
+}
+
+(function () {
+    const rowsContainer = document.getElementById("field-staff-rows");
+    const rowIndexesInput = document.getElementById("field-staff-row-indexes");
+    const addRowButton = document.getElementById("field-staff-add-row");
+    const template = document.getElementById("field-staff-row-template");
+    if (!rowsContainer || !rowIndexesInput || !template) {
+        return;
+    }
+
+    function rowCards() {
+        return Array.from(rowsContainer.querySelectorAll(".field-staff-row-card"));
+    }
+
+    function syncRowIndexes() {
+        const cards = rowCards();
+        rowIndexesInput.value = cards.map((card) => card.dataset.rowNo).join(",");
+        cards.forEach((card, index) => {
+            const removeButton = card.querySelector(".field-staff-remove-row");
+            if (removeButton) {
+                removeButton.hidden = cards.length === 1;
+            }
+            const label = card.querySelector(".admin-desk-label");
+            if (label) {
+                label.textContent = "Job Row " + (index + 1);
+            }
+        });
+    }
+
+    function nextRowNo() {
+        return rowCards().reduce((maxRow, card) => {
+            const current = parseInt(card.dataset.rowNo || "0", 10);
+            return Number.isFinite(current) ? Math.max(maxRow, current) : maxRow;
+        }, 0) + 1;
+    }
+
+    function updateTotalForRow(card) {
+        const amountInput = card.querySelector('input[data-calc="amount"]');
+        const taxInput = card.querySelector('input[data-calc="tax"]');
+        const totalInput = card.querySelector('input[data-calc="total"]');
+        if (!amountInput || !taxInput || !totalInput) {
+            return;
+        }
+        const amount = parseFloat(amountInput.value || "0") || 0;
+        const tax = parseFloat(taxInput.value || "0") || 0;
+        if (!amountInput.value && !taxInput.value && !totalInput.value) {
+            return;
+        }
+        totalInput.value = (amount + tax).toFixed(2);
+    }
+
+    function attachRowEvents(card) {
+        const removeButton = card.querySelector(".field-staff-remove-row");
+        if (removeButton) {
+            removeButton.addEventListener("click", function () {
+                card.remove();
+                syncRowIndexes();
+            });
+        }
+        const amountInput = card.querySelector('input[data-calc="amount"]');
+        const taxInput = card.querySelector('input[data-calc="tax"]');
+        if (amountInput) {
+            amountInput.addEventListener("input", function () {
+                updateTotalForRow(card);
+            });
+        }
+        if (taxInput) {
+            taxInput.addEventListener("input", function () {
+                updateTotalForRow(card);
+            });
+        }
+    }
+
+    if (addRowButton && addRowButton.tagName === "BUTTON") {
+        addRowButton.addEventListener("click", function () {
+            const rowNo = nextRowNo();
+            const html = template.innerHTML.replace(/__ROW__/g, String(rowNo));
+            rowsContainer.insertAdjacentHTML("beforeend", html);
+            const newCard = rowsContainer.lastElementChild;
+            if (newCard) {
+                newCard.dataset.rowNo = String(rowNo);
+                attachRowEvents(newCard);
+                syncRowIndexes();
+                const firstInput = newCard.querySelector("input, select, textarea");
+                if (firstInput) {
+                    firstInput.focus();
+                }
+            }
+        });
+    }
+
+    rowCards().forEach(attachRowEvents);
+    syncRowIndexes();
+})();
+</script>
+{% endblock %}

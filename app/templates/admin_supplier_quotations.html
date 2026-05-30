@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{# ── Page-scoped styles ────────────────────────────────────────── #}
+<style>
+/* Reject expand panel */
+.reject-expand {
+    position: relative;
+    display: inline-block;
+}
+.reject-expand > summary {
+    list-style: none;
+    cursor: pointer;
+}
+.reject-expand > summary::-webkit-details-marker { display: none; }
+.reject-drop {
+    position: absolute;
+    z-index: 30;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 300px;
+    padding: 16px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid rgba(185, 28, 28, 0.20);
+    box-shadow: 0 20px 44px rgba(19, 56, 104, 0.22);
+}
+.reject-drop-title {
+    font-size: 0.80rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #991b1b;
+    margin-bottom: 10px;
+}
+.reject-drop textarea {
+    width: 100%;
+    min-height: 80px;
+    border-radius: 10px;
+    border: 1px solid rgba(185, 28, 28, 0.22);
+    padding: 10px 12px;
+    font-size: 0.88rem;
+    resize: vertical;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.reject-drop textarea:focus {
+    outline: none;
+    border-color: rgba(185, 28, 28, 0.50);
+    box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.08);
+}
+.reject-drop-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+/* Filter tabs */
+.quotation-filter-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.q-filter-tab {
+    min-height: 32px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(21, 51, 93, 0.14);
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--primary-dark, #173f66);
+    font-size: 0.80rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+.q-filter-tab.active {
+    background: linear-gradient(135deg, #1c568b, #2b6eae);
+    color: #fff;
+    border-color: transparent;
+}
+.q-filter-tab:hover:not(.active) {
+    background: rgba(28, 86, 139, 0.08);
+}
+/* Badge count in filter tabs */
+.q-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: rgba(21, 51, 93, 0.10);
+    font-size: 0.72rem;
+    font-weight: 800;
+    margin-left: 5px;
+}
+.q-filter-tab.active .q-tab-count {
+    background: rgba(255, 255, 255, 0.22);
+}
+</style>
+
+{# ── Count badges for filter tabs using Jinja2 namespace ── #}
+{% set ns = namespace(total=0, pending=0, approved=0, rejected=0) %}
+{% for q in quotations %}
+    {% set ns.total = ns.total + 1 %}
+    {% if q.review_status == 'Pending'  %}{% set ns.pending  = ns.pending  + 1 %}{% endif %}
+    {% if q.review_status == 'Approved' %}{% set ns.approved = ns.approved + 1 %}{% endif %}
+    {% if q.review_status == 'Rejected' %}{% set ns.rejected = ns.rejected + 1 %}{% endif %}
+{% endfor %}
+
+<section class="admin-desk-shell">
+
+    {# ── Toolbar ── #}
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button button-secondary" href="{{ url_for('suppliers') }}">Supplier Desk</a>
+                <a class="button button-secondary" href="{{ url_for('supplier_registrations') }}">Registrations</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ ns.total }}</strong><small>Total</small></span>
+                <span><strong>{{ ns.pending }}</strong><small>Pending</small></span>
+                <span><strong>{{ ns.approved }}</strong><small>Approved</small></span>
+                <span><strong>{{ ns.rejected }}</strong><small>Rejected</small></span>
+            </div>
+        </div>
+    </article>
+
+    {# ── Main Panel ── #}
+    <article class="card desk-panel-card">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">Supplier Desk</span>
+                <h2>Quotation Review</h2>
+                <p class="workspace-lead">Review, approve or reject supplier quotation submissions before issuing an LPO.</p>
+            </div>
+            {# ── Filter Tabs ── #}
+            <div class="admin-toolbar-actions">
+                <div class="quotation-filter-tabs">
+                    <button class="q-filter-tab active" onclick="filterQuotations('all', this)">
+                        All <span class="q-tab-count">{{ ns.total }}</span>
+                    </button>
+                    <button class="q-filter-tab" onclick="filterQuotations('Pending', this)">
+                        Pending <span class="q-tab-count">{{ ns.pending }}</span>
+                    </button>
+                    <button class="q-filter-tab" onclick="filterQuotations('Approved', this)">
+                        Approved <span class="q-tab-count">{{ ns.approved }}</span>
+                    </button>
+                    <button class="q-filter-tab" onclick="filterQuotations('Rejected', this)">
+                        Rejected <span class="q-tab-count">{{ ns.rejected }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Quotation No</th>
+                        <th>Supplier</th>
+                        <th>Date</th>
+                        <th>Job Title</th>
+                        <th>Rate Basis</th>
+                        <th>Amount</th>
+                        <th>Attach.</th>
+                        <th>Status</th>
+                        <th>Reviewed By</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in quotations %}
+                        <tr data-status="{{ q.review_status }}">
+                            <td>{{ q.quotation_no }}</td>
+                            <td>
+                                {{ q.party_name or q.party_code }}
+                                <div class="muted-text">{{ q.party_code }}</div>
+                            </td>
+                            <td>{{ q.quotation_date }}</td>
+                            <td>{{ q.job_title }}</td>
+                            <td>{{ q.rate_basis or "—" }}</td>
+                            <td>AED {{ "%.2f"|format(q.amount) }}</td>
+                            <td>
+                                {% if q.attachment_path %}
+                                    <a href="{{ url_for('generated_file', filename=q.attachment_path) }}" target="_blank" class="mini-link-pill">📎 View</a>
+                                {% else %}
+                                    <span class="muted-text">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="mini-link-pill supplier-status-pill
+                                    {% if q.review_status == 'Approved' %}status-approved
+                                    {% elif q.review_status == 'Rejected' %}status-rejected
+                                    {% else %}status-pending{% endif %}">
+                                    {{ q.review_status }}
+                                </span>
+                                {% if q.review_note %}
+                                    <div class="muted-text">{{ q.review_note }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if q.reviewed_by %}
+                                    {{ q.reviewed_by }}
+                                    <div class="muted-text">{{ q.reviewed_at or "" }}</div>
+                                {% else %}
+                                    <span class="muted-text">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if q.review_status == 'Pending' %}
+                                    <div class="table-actions" style="position:relative;min-width:160px;display:flex;gap:6px;flex-direction:column;">
+
+                                        {# ── Approve (direct POST) ── #}
+                                        <form method="post">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="action" value="approve">
+                                            <input type="hidden" name="quotation_id" value="{{ q.id }}">
+                                            <button class="mini-action-button" type="submit"
+                                                    style="width:100%;background:rgba(22,163,74,0.10);color:#14532d;border-color:rgba(22,163,74,0.22);">
+                                                ✓ Approve
+                                            </button>
+                                        </form>
+
+                                        {# ── Reject (expandable dropdown) ── #}
+                                        <details class="reject-expand">
+                                            <summary class="mini-action-button"
+                                                     style="width:100%;text-align:center;background:rgba(185,28,28,0.08);color:#991b1b;border-color:rgba(185,28,28,0.22);">
+                                                ✕ Reject
+                                            </summary>
+                                            <div class="reject-drop">
+                                                <p class="reject-drop-title">Reject Quotation</p>
+                                                <form method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <input type="hidden" name="action" value="reject">
+                                                    <input type="hidden" name="quotation_id" value="{{ q.id }}">
+                                                    <textarea name="review_note"
+                                                              placeholder="Enter rejection reason (optional)…"></textarea>
+                                                    <div class="reject-drop-actions">
+                                                        <button class="button danger-button" type="submit">Confirm Reject</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </details>
+
+                                    </div>
+                                {% elif q.review_status == 'Approved' %}
+                                    {# ── Phase 6B: Issue LPO / show issued LPO ── #}
+                                    {% if q.lpo_no %}
+                                        <div style="display:flex;flex-direction:column;gap:4px;">
+                                            <span class="mini-link-pill status-approved">LPO {{ q.lpo_no }}</span>
+                                            {% if q.lpo_status %}
+                                                <span class="muted-text" style="font-size:0.78rem;">{{ q.lpo_status }}</span>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <a href="{{ url_for('admin_issue_lpo', quotation_no=q.quotation_no) }}"
+                                           class="button success-button"
+                                           style="font-size:0.82rem;padding:6px 14px;">
+                                            📄 Issue LPO
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="muted-text">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="10">No quotation submissions found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+</section>
+
+<script>
+function filterQuotations(status, btn) {
+    document.querySelectorAll('tbody tr[data-status]').forEach(function(row) {
+        row.style.display = (status === 'all' || row.dataset.status === status) ? '' : 'none';
+    });
+    document.querySelectorAll('.q-filter-tab').forEach(function(t) {
+        t.classList.remove('active');
+    });
+    btn.classList.add('active');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ config["COMPANY_NAME"] }}{% endblock %} — ERP Portal</title>
+    <meta name="theme-color" content="#0F2B52">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest', v='20260415a') }}">
+    <link rel="icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260521a') }}">
+    {% set tc = company.theme_color if company and company.theme_color else '#37474f' %}
+    <style>:root{--primary:{{ tc }};--primary-light:{{ tc }}22;--primary-dark:{{ tc }};}</style>
+    <style>
+    /* ─── Header ─── */
+    .md-header { position:fixed; top:0; left:var(--sidebar-w); right:0; z-index:999; background:rgba(255,255,255,0.92); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-bottom:1px solid #eef2f6; box-shadow:0 1px 4px rgba(0,0,0,.04); }
+    .md-header-inner { display:flex; align-items:center; height:60px; padding:0 24px; gap:16px; }
+    .md-header-left { display:flex; align-items:center; gap:12px; min-width:0; flex-shrink:0; }
+    .md-hamburger { background:none; border:none; width:34px; height:34px; border-radius:8px; display:grid; place-items:center; cursor:pointer; color:#64748b; transition:all .12s; flex-shrink:0; }
+    .md-hamburger:hover { background:#f1f5f9; color:{{ tc }}; }
+    .md-brand { font-size:1.05rem; font-weight:800; color:{{ tc }}; letter-spacing:-0.25px; white-space:nowrap; }
+    .md-brand-accent { color:#f7931e; }
+    .md-divider { width:1px; height:22px; background:#e2e8f0; flex-shrink:0; }
+    .md-breadcrumb { font-size:0.82rem; font-weight:500; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .md-center { flex:1; display:flex; justify-content:center; min-width:0; }
+    .md-search { position:relative; width:100%; max-width:440px; }
+    .md-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; color:#94a3b8; pointer-events:none; }
+    .md-search input { width:100%; height:36px; border-radius:8px; border:1.5px solid #e2e8f0; background:#f8fafc; padding:0 36px 0 36px; font-size:0.8rem; color:#0f172a; outline:none; transition:all .2s; }
+    .md-search input:focus { border-color:{{ tc }}; background:#fff; box-shadow:0 0 0 3px {{ tc }}18; }
+    .md-search input::placeholder { color:#94a3b8; }
+    .md-search kbd { position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:0.55rem; color:#94a3b8; background:#eef2f6; padding:2px 6px; border-radius:4px; font-family:inherit; pointer-events:none; }
+    .md-header-right { display:flex; align-items:center; gap:4px; flex-shrink:0; }
+    .md-icon-btn { position:relative; background:none; border:none; width:34px; height:34px; border-radius:8px; display:grid; place-items:center; cursor:pointer; color:#64748b; transition:all .12s; }
+    .md-icon-btn:hover { background:#f1f5f9; color:{{ tc }}; }
+    .md-icon-btn svg { width:18px; height:18px; }
+    .md-notif-badge { position:absolute; top:6px; right:6px; min-width:15px; height:15px; border-radius:7.5px; background:#ef4444; color:#fff; font-size:0.5rem; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 3px; border:2px solid #fff; }
+    .md-profile { display:flex; align-items:center; gap:8px; padding:4px 10px 4px 4px; border-radius:8px; cursor:pointer; transition:all .12s; position:relative; }
+    .md-profile:hover { background:#f1f5f9; }
+    .md-avatar { width:28px; height:28px; border-radius:50%; color:#fff; font-size:0.7rem; font-weight:700; display:grid; place-items:center; flex-shrink:0; }
+    .md-profile-name { font-size:0.8rem; font-weight:500; color:#0f172a; white-space:nowrap; }
+    .md-chevron { width:10px; height:10px; color:#94a3b8; transition:transform .15s; }
+    .md-chevron.is-open { transform:rotate(180deg); }
+    .md-profile-menu { position:absolute; top:calc(100% + 6px); right:0; width:220px; background:#fff; border-radius:12px; border:1px solid #eef2f6; box-shadow:0 8px 30px rgba(0,0,0,.1); z-index:1000; display:none; overflow:hidden; }
+    .md-profile-menu.is-open { display:block; }
+    @media(max-width:768px){ .md-search { max-width:260px; } }
+    @media(max-width:600px){ .md-center { display:none; } .md-brand { font-size:0.9rem; } .md-profile-name { display:none; } .md-header-inner { padding:0 12px; } }
+
+    .notif-dropdown{position:absolute;top:100%;right:60px;width:340px;max-height:400px;background:#fff;border:1px solid #d8e4f5;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.12);z-index:1000;display:flex;flex-direction:column;overflow:hidden}
+    .notif-dropdown-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #eef3fa}
+    .notif-dropdown-list{overflow-y:auto;flex:1}
+    .notif-item{padding:12px 16px;border-bottom:1px solid #f0f4fa;cursor:pointer;transition:background .12s}
+    .notif-item:hover{background:#f5f8fe}
+    .notif-item.is-unread{background:#eef4ff}
+    .notif-item:last-child{border-bottom:none}
+    .notif-item-title{font-size:.82rem;font-weight:700;color:#17345e;display:flex;align-items:center;gap:6px}
+    .notif-item-title .notif-dot{width:8px;height:8px;border-radius:50%;background:#f7931e;flex-shrink:0}
+    .notif-item-message{font-size:.72rem;color:#7b92b6;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .notif-item-time{font-size:.65rem;color:#a0b5cf;margin-top:4px}
+    .notif-empty{padding:32px 16px;text-align:center;color:#a0b5cf;font-size:.82rem}
+    .notif-type-success .notif-dot{background:#2CB15C}
+    .notif-type-error .notif-dot{background:#e74c3c}
+    .notif-type-info .notif-dot{background:#255f99}
+    .notif-type-pending_approvals .notif-dot{background:#f7931e}
+    @media(max-width:480px){.notif-dropdown{right:10px;width:calc(100vw - 20px)}}
+    </style>
+</head>
+<body class="{% block body_class %}{% endblock %} {% if is_admin and current_admin_workspace %}workspace-{{ current_admin_workspace }}{% endif %}">
+
+<div class="app-layout">
+    {% if is_admin %}
+        {% include "sidebar_main.html" %}
+    {% endif %}
+
+    <div class="main-content">
+        {% block shell_header %}
+        <header class="md-header">
+            <div class="md-header-inner">
+                <div class="md-header-left">
+                    {% if is_admin %}
+                    <button class="md-hamburger" id="sidebarToggle" aria-label="Toggle sidebar">
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                            <path d="M3 5h14" stroke-linecap="round"/><path d="M3 10h14" stroke-linecap="round"/><path d="M3 15h14" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    {% endif %}
+                    <div class="md-brand">Current <span class="md-brand-accent">LINK</span></div>
+                    <div class="md-divider"></div>
+                    <div class="md-breadcrumb">
+                        {% if current_workspace_meta %}
+                            {{ current_workspace_meta.title }}
+                        {% else %}
+                            {% block page_title %}Dashboard{% endblock %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% if not is_admin %}
+                <div class="md-center">
+                    <nav style="display:flex;gap:6px;align-items:center">
+                        {% if current_role %}
+                            {% if is_driver %}
+                                <a href="{{ url_for('home') }}" style="padding:6px 12px;border-radius:6px;font-size:0.78rem;font-weight:500;color:#64748b;text-decoration:none">Home</a>
+                                <a href="{{ url_for('driver_portal') }}" style="padding:6px 12px;border-radius:6px;font-size:0.78rem;font-weight:500;color:#64748b;text-decoration:none">My Portal</a>
+                            {% elif is_supplier %}
+                                <a href="{{ url_for('supplier_portal') }}" style="padding:6px 12px;border-radius:6px;font-size:0.78rem;font-weight:500;color:#64748b;text-decoration:none">Dashboard</a>
+                                <a href="{{ url_for('supplier_quotations') }}" style="padding:6px 12px;border-radius:6px;font-size:0.78rem;font-weight:500;color:#64748b;text-decoration:none">Quotations</a>
+                            {% elif current_role == 'technician' %}
+                                <a href="{{ url_for('home') }}" style="padding:6px 12px;border-radius:6px;font-size:0.78rem;font-weight:500;color:#64748b;text-decoration:none">Home</a>
+                                <a href="{{ url_for('technician_portal') }}" style="padding:6px 12px;border-radius:6px;font-size:0.78rem;font-weight:500;color:#64748b;text-decoration:none">Field Staff Portal</a>
+                            {% endif %}
+                        {% else %}
+                            <a href="{{ url_for('login') }}" style="padding:6px 12px;border-radius:6px;font-size:0.78rem;font-weight:500;color:#64748b;text-decoration:none">Portal Login</a>
+                        {% endif %}
+                    </nav>
+                </div>
+                {% else %}
+                <div class="md-center">
+                    <div class="md-search">
+                        <svg class="md-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/>
+                        </svg>
+                        <input type="text" placeholder="Search drivers, suppliers, invoices..." id="globalSearch" autocomplete="off">
+                        <kbd>Ctrl+K</kbd>
+                        <div class="search-dropdown" id="searchDropdown"></div>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="md-header-right">
+                    {% if current_role %}
+                    <button class="md-icon-btn" id="notifBell" aria-label="Notifications">
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M10 2a6 6 0 0 0-6 6c0 4-2 5-2 5h16s-2-1-2-5a6 6 0 0 0-6-6z"/><path d="M8 17a2 2 0 0 0 4 0"/>
+                        </svg>
+                        <span class="md-notif-badge" id="notifBadge" style="display:none"></span>
+                    </button>
+                    <div class="notif-dropdown" id="notifDropdown" style="display:none">
+                        <div class="notif-dropdown-header">
+                            <strong>Notifications</strong>
+                            <button type="button" id="notifMarkAllRead" style="background:none;border:none;color:#255f99;cursor:pointer;font-size:0.72rem;font-weight:600">Mark all read</button>
+                        </div>
+                        <div class="notif-dropdown-list" id="notifList"></div>
+                    </div>
+                    <div class="md-profile" id="profileDropdown">
+                        <div class="md-avatar" style="background:{{ tc }}">{{ (current_user_name or 'A')[0]|upper }}</div>
+                        <span class="md-profile-name">{{ current_user_name or "Admin" }}</span>
+                        <svg class="md-chevron" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M5.293 7.293a1 1 0 0 1 1.414 0L10 10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 0-1.414z"/>
+                        </svg>
+                        <div class="md-profile-menu" id="profileMenu">
+                            <div style="padding:12px 14px;border-bottom:1px solid #eef2f6">
+                                <strong style="font-size:0.82rem;color:#0f172a">{{ current_user_name or "Admin" }}</strong>
+                                <div style="font-size:0.7rem;color:#64748b;margin-top:1px">{{ current_role|capitalize }}</div>
+                            </div>
+                            <a href="{{ url_for('dashboard') }}" class="profile-dropdown-item">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="2" y="2" width="7" height="7" rx="1"/><rect x="11" y="2" width="7" height="7" rx="1"/><rect x="2" y="11" width="7" height="7" rx="1"/><rect x="11" y="11" width="7" height="7" rx="1"/></svg>
+                                Dashboard
+                            </a>
+                            <div style="height:1px;background:#eef2f6;margin:2px 0"></div>
+                            <div style="padding:6px 14px 4px;font-size:0.68rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Switch Portal</div>
+                            <a href="{{ url_for('driver_portal') }}" target="_blank" class="profile-dropdown-item">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="7.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/><path d="M5 16V9l2-3h10l2 3v7"/><path d="M5 11h14"/><path d="M12 11v-2"/></svg>
+                                Driver Portal
+                            </a>
+                            <a href="{{ url_for('technician_simple') }}" target="_blank" class="profile-dropdown-item">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M12 3v5"/><path d="M7 8h10"/><path d="M9 8V6.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6.5V8"/><path d="M6 10h12l-1.2 6.1A3 3 0 0 1 13.9 19H10.1a3 3 0 0 1-2.9-2.9L6 10z"/></svg>
+                                Field Staff Portal
+                            </a>
+                            <div style="height:1px;background:#eef2f6;margin:2px 0"></div>
+                            <a href="{{ url_for('logout') }}" class="profile-dropdown-item" style="color:#ef4444!important">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M3 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h5a1 1 0 1 0 0-2H4V5h4a1 1 0 1 0 0-2H3z"/><path d="M13.293 14.707a1 1 0 0 0 1.414 0l4-4a1 1 0 0 0 0-1.414l-4-4a1 1 0 1 0-1.414 1.414L15.586 9H7a1 1 0 1 0 0 2h8.586l-2.293 2.293a1 1 0 0 0 0 1.414z"/></svg>
+                                Logout
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </header>
+        {% endblock %}
+
+        <div class="page-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <section class="flash-stack">
+                        {% for category, message in messages %}
+                            <div class="flash flash-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </section>
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </div>
+
+        {% block shell_footer %}
+        <footer class="site-footer" style="margin-top:auto">
+            <div class="site-footer-bar">
+                <div class="site-footer-inner">
+                    <span class="site-footer-name">
+                        <strong>{{ config["COMPANY_NAME"] }}</strong>
+                        &mdash; {{ config.get("COMPANY_SUBTITLE", "Transport & General Contracting") }}
+                    </span>
+                    <span class="site-footer-copy">Internal ERP &copy; {{ config["COMPANY_NAME"] }} 2026</span>
+                </div>
+            </div>
+        </footer>
+        {% endblock %}
+    </div>
+</div>
+
+<script>
+(function() {
+    var btn = document.getElementById('sidebarToggle');
+    var sidebar = document.getElementById('erpSidebar');
+    if (btn && sidebar) {
+        var key = 'erp_sidebar_collapsed';
+        if (localStorage.getItem(key) === 'true') sidebar.classList.add('is-collapsed');
+        btn.addEventListener('click', function() {
+            sidebar.classList.toggle('is-collapsed');
+            localStorage.setItem(key, sidebar.classList.contains('is-collapsed'));
+        });
+    }
+})();
+(function(){
+    var profile = document.getElementById('profileDropdown');
+    var menu = document.getElementById('profileMenu');
+    if (profile && menu) {
+        profile.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (menu.style.display === 'none' || !menu.style.display || menu.style.display === '') {
+                menu.style.display = 'block';
+                menu.classList.add('is-open');
+            } else {
+                menu.style.display = 'none';
+                menu.classList.remove('is-open');
+            }
+        });
+        document.addEventListener('click', function() {
+            menu.style.display = 'none';
+            menu.classList.remove('is-open');
+        });
+        menu.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+})();
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js', v='20260416d') }}");
+    });
+}
+
+(function(){
+    var input = document.getElementById('globalSearch');
+    var dropdown = document.getElementById('searchDropdown');
+    if (!input || !dropdown) return;
+    var timer, activeIdx = -1;
+
+    function fetchResults(q, cb) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/search?q=' + encodeURIComponent(q) + '&json=1');
+        xhr.onload = function(){
+            if (xhr.status === 200) {
+                try { cb(JSON.parse(xhr.responseText).results); } catch(e) { cb([]); }
+            } else { cb([]); }
+        };
+        xhr.onerror = function(){ cb([]); };
+        xhr.send();
+    }
+
+    function renderDropdown(results) {
+        dropdown.innerHTML = '';
+        activeIdx = -1;
+        if (!results || results.length === 0) { dropdown.classList.remove('is-open'); return; }
+        var list = document.createElement('div');
+        list.className = 'search-dropdown-list';
+        results.forEach(function(r, i){
+            var item = document.createElement('a');
+            item.className = 'search-dropdown-item';
+            item.href = (function(){
+                if (r.type === 'employee') return '/hr/employees/' + encodeURIComponent(r.id);
+                if (r.type === 'driver') return '/drivers/' + encodeURIComponent(r.id);
+                if (r.type === 'customer' || r.type === 'supplier') return '/parties/' + encodeURIComponent(r.id);
+                if (r.type === 'invoice') return '/customer/invoice/' + encodeURIComponent(r.id);
+                return '#';
+            })();
+            var badge = document.createElement('span');
+            badge.className = 'search-dropdown-badge';
+            badge.textContent = r.type;
+            var nameSpan = document.createElement('span');
+            nameSpan.className = 'search-dropdown-name';
+            nameSpan.textContent = r.name;
+            var labelSpan = document.createElement('span');
+            labelSpan.className = 'search-dropdown-label';
+            labelSpan.textContent = r.label || r.id;
+            item.appendChild(badge);
+            item.appendChild(nameSpan);
+            item.appendChild(labelSpan);
+            item.addEventListener('click', function(){ dropdown.classList.remove('is-open'); });
+            list.appendChild(item);
+        });
+        dropdown.appendChild(list);
+        dropdown.classList.add('is-open');
+    }
+
+    input.addEventListener('input', function(){
+        var val = input.value.trim();
+        if (val.length < 1) { dropdown.classList.remove('is-open'); return; }
+        clearTimeout(timer);
+        timer = setTimeout(function(){
+            fetchResults(val, renderDropdown);
+        }, 250);
+    });
+
+    input.addEventListener('keydown', function(e){
+        var items = dropdown.querySelectorAll('.search-dropdown-item');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIdx = Math.min(activeIdx + 1, items.length - 1);
+            items.forEach(function(el, i){ el.classList.toggle('is-active', i === activeIdx); });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIdx = Math.max(activeIdx - 1, -1);
+            items.forEach(function(el, i){ el.classList.toggle('is-active', i === activeIdx); });
+        } else if (e.key === 'Enter') {
+            if (activeIdx >= 0 && items[activeIdx]) {
+                window.location.href = items[activeIdx].href;
+                return;
+            }
+            var val = input.value.trim();
+            if (val) window.location.href = '/search?q=' + encodeURIComponent(val);
+        } else if (e.key === 'Escape') {
+            dropdown.classList.remove('is-open');
+            input.blur();
+        }
+    });
+
+    input.addEventListener('blur', function(){
+        setTimeout(function(){ dropdown.classList.remove('is-open'); }, 200);
+    });
+    input.addEventListener('focus', function(){
+        var val = input.value.trim();
+        if (val.length >= 1) fetchResults(val, renderDropdown);
+    });
+})();
+
+(function(){
+    var bell = document.getElementById('notifBell');
+    var dropdown = document.getElementById('notifDropdown');
+    var list = document.getElementById('notifList');
+    var badge = document.getElementById('notifBadge');
+    if (!bell || !dropdown || !list) return;
+
+    function fetchNotifs() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/notifications');
+        xhr.onload = function(){
+            if (xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    renderNotifs(data.notifications, data.unread);
+                } catch(e) {}
+            }
+        };
+        xhr.send();
+    }
+
+    function renderNotifs(notifs, unread) {
+        list.innerHTML = '';
+        if (unread > 0) { badge.style.display = ''; badge.textContent = unread; } else { badge.style.display = 'none'; }
+        if (!notifs || notifs.length === 0) {
+            list.innerHTML = '<div class="notif-empty">No notifications yet</div>';
+            return;
+        }
+        notifs.forEach(function(n){
+            var item = document.createElement('div');
+            item.className = 'notif-item' + (n.is_read === 0 ? ' is-unread' : '') + ' notif-type-' + (n.type || 'info');
+            item.dataset.id = n.id;
+            item.innerHTML =
+                '<div class="notif-item-title"><span class="notif-dot"></span>' + escHtml(n.title) + '</div>' +
+                (n.message ? '<div class="notif-item-message">' + escHtml(n.message) + '</div>' : '') +
+                '<div class="notif-item-time">' + (n.created_at || '') + '</div>';
+            if (n.link) { item.style.cursor = 'pointer'; item.addEventListener('click', function(){ window.location.href = n.link; }); }
+            if (n.is_read === 0) {
+                item.addEventListener('click', function(ev){
+                    if (n.link) { window.location.href = n.link; return; }
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/notifications/read/' + n.id);
+                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                    xhr.setRequestHeader('X-CSRFToken', csrfToken());
+                    xhr.send();
+                });
+            }
+            list.appendChild(item);
+        });
+    }
+
+    function escHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function csrfToken() { var m = document.querySelector('meta[name=csrf-token]'); return m ? m.getAttribute('content') : ''; }
+
+    bell.addEventListener('click', function(e){
+        e.stopPropagation();
+        if (dropdown.style.display === 'none' || !dropdown.style.display || dropdown.style.display === '') {
+            dropdown.style.display = 'flex';
+            fetchNotifs();
+        } else {
+            dropdown.style.display = 'none';
+        }
+    });
+    document.addEventListener('click', function(){ dropdown.style.display = 'none'; });
+    dropdown.addEventListener('click', function(e){ e.stopPropagation(); });
+
+    var markAllBtn = document.getElementById('notifMarkAllRead');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', function(){
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/notifications/read-all');
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.setRequestHeader('X-CSRFToken', csrfToken());
+            xhr.onload = function(){ if (xhr.status === 200) fetchNotifs(); };
+            xhr.send();
+        });
+    }
+
+    // ─── Sound + Polling ───
+    function playNotifSound() {
+        try {
+            var ctx = new (window.AudioContext || window.webkitAudioContext)();
+            var now = ctx.currentTime;
+            // Chord: C5 + E5 + G5 (major triad) played softly
+            [523.25, 659.25, 783.99].forEach(function(freq, i){
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.connect(ctx.destination);
+                osc.connect(gain);
+                var t = now + i * 0.06;
+                gain.gain.setValueAtTime(0.001, t);
+                gain.gain.linearRampToValueAtTime(0.18, t + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+                osc.start(t);
+                osc.stop(t + 0.2);
+            });
+            // Second chord after short pause (E5 + G5 + C6)
+            [659.25, 783.99, 1046.5].forEach(function(freq, i){
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.connect(ctx.destination);
+                osc.connect(gain);
+                var t = now + 0.22 + i * 0.06;
+                gain.gain.setValueAtTime(0.001, t);
+                gain.gain.linearRampToValueAtTime(0.22, t + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+                osc.start(t);
+                osc.stop(t + 0.35);
+            });
+        } catch(e) {}
+    }
+
+    var lastCount = -1;
+    function pollNotifs() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/notifications/unread-count');
+        xhr.onload = function(){
+            if (xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.unread > lastCount && lastCount >= 0) {
+                        playNotifSound();
+                        if (dropdown.style.display !== 'none' && dropdown.style.display !== '') {
+                            fetchNotifs();
+                        }
+                    }
+                    lastCount = data.unread;
+                    if (data.unread > 0) { badge.style.display = ''; badge.textContent = data.unread; } else { badge.style.display = 'none'; }
+                } catch(e) {}
+            }
+        };
+        xhr.send();
+    }
+    pollNotifs();
+    setInterval(pollNotifs, 30000);
+})();
+</script>
+</body>
+</html>

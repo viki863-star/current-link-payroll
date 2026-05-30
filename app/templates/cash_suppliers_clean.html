@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+{% block title %}Cash Supplier Desk — Current Link ERP{% endblock %}
+
+{% block content %}
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <span class="button button-primary" style="background-color: #2f6ca4; border-color: #2f6ca4; cursor: default;">Cash Desk</span>
+                <a class="button button-secondary" href="{{ url_for('cash_supplier_cards') }}">Supplier Cards</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ summary.supplier_count }}</strong><small>Cash/Loan Suppliers</small></span>
+                <span><strong>{{ summary.asset_count }}</strong><small>Fleet</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.advance_total) }}</strong><small>Advance Given</small></span>
+            </div>
+        </div>
+    </article>
+
+    <div class="desk-content-split">
+        <section class="desk-main-panel">
+            <article class="card desk-panel-card" id="supplier-register">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Cash/Loan Supplier</span>
+                        <h2>{% if values.original_party_code %}Edit Cash/Loan Supplier{% else %}Register Cash/Loan Supplier{% endif %}</h2>
+                    </div>
+                    <div class="mini-link-stack inline-link-stack">
+                        <a class="mini-link-pill" href="{{ url_for('cash_supplier_cards') }}">Open Supplier Cards</a>
+                    </div>
+                </div>
+                <form method="post" class="desk-form-grid cash-supplier-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="original_party_code" value="{{ values.original_party_code }}">
+                    <input type="hidden" name="supplier_mode" value="Cash">
+
+                    <div class="form-section">
+                        <h3 class="form-section-title">Basic Information</h3>
+                        <div class="form-grid-2">
+                            <label>
+                                <span>Supplier Code</span>
+                                <input type="text" name="party_code" value="{{ values.party_code }}" placeholder="Auto-generate if blank" {% if values.original_party_code %}readonly{% endif %}>
+                            </label>
+                            <label>
+                                <span>Supplier Name *</span>
+                                <input type="text" name="party_name" value="{{ values.party_name }}" required>
+                            </label>
+                            <label>
+                                <span>Contact Person</span>
+                                <input type="text" name="contact_person" value="{{ values.contact_person }}">
+                            </label>
+                            <label>
+                                <span>Phone Number *</span>
+                                <input type="text" name="phone_number" value="{{ values.phone_number }}" required>
+                            </label>
+                            <label>
+                                <span>Kind</span>
+                                <select name="party_kind">
+                                    <option value="Individual" {% if values.party_kind == 'Individual' %}selected{% endif %}>Individual</option>
+                                    <option value="Company" {% if values.party_kind == 'Company' %}selected{% endif %}>Company</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Status</span>
+                                <select name="status">
+                                    <option value="Active" {% if values.status == 'Active' %}selected{% endif %}>Active</option>
+                                    <option value="Inactive" {% if values.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3 class="form-section-title">Additional Details</h3>
+                        <div class="form-grid-2">
+                            <label>
+                                <span>Email (Optional)</span>
+                                <input type="email" name="email" value="{{ values.email }}">
+                            </label>
+                            <label>
+                                <span>TRN / VAT (Optional)</span>
+                                <input type="text" name="trn_no" value="{{ values.trn_no }}">
+                            </label>
+                        </div>
+                        <label class="full-span">
+                            <span>Address</span>
+                            <textarea name="address" rows="2">{{ values.address }}</textarea>
+                        </label>
+                        <label class="full-span">
+                            <span>Notes</span>
+                            <textarea name="notes" rows="2">{{ values.notes }}</textarea>
+                        </label>
+                    </div>
+
+                    <div class="form-actions left-actions full-span">
+                        <button class="button" type="submit">
+                            {% if values.original_party_code %}Update Cash/Loan Supplier{% else %}Save Cash/Loan Supplier{% endif %}
+                        </button>
+                        {% if values.original_party_code %}
+                            <a class="button button-secondary" href="{{ url_for('cash_suppliers') }}">Cancel</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </article>
+
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Cash Workflow</span>
+                        <h2>How Cash/Loan Suppliers Work</h2>
+                    </div>
+                </div>
+                <div class="workflow-steps">
+                    <div class="workflow-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Register Cash/Loan Supplier</h3>
+                            <p>Create the supplier record first, then open the supplier profile to start trips, debit entries, and payments.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Add Earnings and Debit Entries</h3>
+                            <p>Use the supplier profile to record hourly, trip, monthly, or fixed earnings plus loans, advances, and other deductions.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Track Payments in Running Kata</h3>
+                            <p>Every cash payment updates the running balance so current due and advance positions remain visible.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Use Supplier Cards for Fast Review</h3>
+                            <p>The separate card screen gives you a quick driver-style view for open balance, settled suppliers, and statement access.</p>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <aside class="desk-side-panel">
+            <article class="card desk-panel-card desk-side-feature">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Directory</span>
+                        <h2>Supplier Cards Screen</h2>
+                    </div>
+                </div>
+                <p class="desk-side-copy">
+                    Cash and loan suppliers now open in a dedicated full card wall, styled like the dashboard and driver screens for faster review.
+                </p>
+                <div class="desk-feature-metrics">
+                    <div class="desk-feature-stat">
+                        <strong>{{ summary.supplier_count }}</strong>
+                        <span>Active Suppliers</span>
+                    </div>
+                    <div class="desk-feature-stat">
+                        <strong>{{ summary.trip_count }}</strong>
+                        <span>Total Trip Entries</span>
+                    </div>
+                    <div class="desk-feature-stat">
+                        <strong>{{ summary.payment_count }}</strong>
+                        <span>Payment Entries</span>
+                    </div>
+                    <div class="desk-feature-stat">
+                        <strong>{{ summary.settled_count }}</strong>
+                        <span>Settled Suppliers</span>
+                    </div>
+                </div>
+                <form method="get" action="{{ url_for('cash_supplier_cards') }}" class="desk-side-search">
+                    <label>
+                        <span>Search Supplier Cards</span>
+                        <input type="search" name="q" value="{{ query }}" placeholder="Name, code, phone">
+                    </label>
+                    <button class="button" type="submit">Open Search</button>
+                </form>
+                <div class="desk-side-actions">
+                    <a class="button" href="{{ url_for('cash_supplier_cards') }}">Open Supplier Cards</a>
+                    <a class="button button-secondary" href="{{ url_for('supplier_desk_home') }}">Supplier Desk Home</a>
+                </div>
+            </article>
+
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Snapshot</span>
+                        <h2>Cash Desk Totals</h2>
+                    </div>
+                </div>
+                <div class="cash-side-balance-grid">
+                    <div class="cash-side-balance-card due">
+                        <span>Balance Due</span>
+                        <strong>AED {{ "%.2f"|format(summary.outstanding_total) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card advance">
+                        <span>Advance Given</span>
+                        <strong>AED {{ "%.2f"|format(summary.advance_total) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card neutral">
+                        <span>Total Work Done</span>
+                        <strong>AED {{ "%.2f"|format(summary.total_earned) }}</strong>
+                    </div>
+                    <div class="cash-side-balance-card neutral">
+                        <span>Total Paid</span>
+                        <strong>AED {{ "%.2f"|format(summary.total_paid) }}</strong>
+                    </div>
+                </div>
+            </article>
+        </aside>
+    </div>
+</section>
+
+<style>
+.desk-content-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.form-section {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+}
+
+.form-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.workflow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.workflow-step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.step-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.step-content h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.step-content p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.desk-side-feature {
+    background:
+        radial-gradient(circle at top right, rgba(47, 108, 164, 0.16), transparent 40%),
+        var(--surface-base);
+}
+
+.desk-side-copy {
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin-bottom: 18px;
+}
+
+.desk-feature-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.desk-feature-stat {
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-subtle);
+    display: grid;
+    gap: 4px;
+}
+
+.desk-feature-stat strong {
+    font-size: 1.15rem;
+    color: var(--accent-primary);
+}
+
+.desk-feature-stat span {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.desk-side-search {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.desk-side-actions {
+    display: grid;
+    gap: 10px;
+}
+
+.cash-side-balance-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.cash-side-balance-card {
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid var(--border-subtle);
+    display: grid;
+    gap: 5px;
+}
+
+.cash-side-balance-card span {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+}
+
+.cash-side-balance-card strong {
+    font-size: 1.08rem;
+    color: var(--text-primary);
+}
+
+.cash-side-balance-card.due {
+    background: rgba(47, 108, 164, 0.08);
+    border-color: rgba(47, 108, 164, 0.18);
+}
+
+.cash-side-balance-card.advance {
+    background: rgba(229, 136, 42, 0.10);
+    border-color: rgba(229, 136, 42, 0.20);
+}
+
+.cash-side-balance-card.neutral {
+    background: var(--surface-subtle);
+}
+
+@media (max-width: 1100px) {
+    .desk-content-split {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .form-grid-2,
+    .desk-feature-metrics {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

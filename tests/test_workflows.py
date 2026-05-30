@@ -1,0 +1,4547 @@
+import json
+import os
+import re
+import shutil
+import zipfile
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+from uuid import uuid4
+
+from pypdf import PdfReader
+from werkzeug.security import generate_password_hash
+
+from app import create_app
+from app import routes as routes_module
+from app.backup_service import backup_status_summary, create_backup_now, sync_pc_mirror_copy
+from app.database import open_db
+from app.pdf_service import generate_kata_pdf, generate_owner_fund_pdf
+
+
+def admin_session(client):
+    with client.session_transaction() as session:
+        session["role"] = "admin"
+        session["display_name"] = "Admin"
+
+
+def driver_session(client, driver_id="DRV-T1"):
+    with client.session_transaction() as session:
+        session["role"] = "driver"
+        session["driver_id"] = driver_id
+        session["display_name"] = "Driver"
+
+
+def create_driver_record(app, **overrides):
+    payload = {
+        "driver_id": "DRV-T1",
+        "full_name": "Test Driver",
+        "phone_number": "0556701482",
+        "pin_hash": generate_password_hash("1234"),
+        "vehicle_no": "5224",
+        "shift": "Day",
+        "vehicle_type": "Water Tanker",
+        "basic_salary": 3300.0,
+        "ot_rate": 10.0,
+        "duty_start": "2026-01-13",
+        "photo_name": "",
+        "photo_data": "",
+        "photo_content_type": "",
+        "status": "Active",
+        "remarks": "",
+    }
+    payload.update(overrides)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO drivers (
+                driver_id, full_name, phone_number, pin_hash, vehicle_no, shift, vehicle_type,
+                basic_salary, ot_rate, duty_start, photo_name, photo_data, photo_content_type, status, remarks
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                payload["driver_id"],
+                payload["full_name"],
+                payload["phone_number"],
+                payload["pin_hash"],
+                payload["vehicle_no"],
+                payload["shift"],
+                payload["vehicle_type"],
+                payload["basic_salary"],
+                payload["ot_rate"],
+                payload["duty_start"],
+                payload["photo_name"],
+                payload["photo_data"],
+                payload["photo_content_type"],
+                payload["status"],
+                payload["remarks"],
+            ),
+        )
+        db.commit()
+
+    return payload
+
+
+def create_supplier_record(
+    client,
+    *,
+    party_code,
+    party_name,
+    party_kind="Company",
+    portal_enabled=False,
+    portal_login_email="",
+):
+    return client.post(
+        "/suppliers/admin/register?mode=Normal",
+        data={
+            "original_party_code": "",
+            "party_code": party_code,
+            "party_name": party_name,
+            "party_kind": party_kind,
+            "party_roles": ["Supplier"],
+            "contact_person": party_name,
+            "phone_number": "0500000001",
+            "email": portal_login_email or f"{party_code.lower()}@example.com",
+            "portal_login_email": portal_login_email,
+            "portal_enabled": "1" if portal_enabled else "",
+            "trn_no": f"TRN-{party_code}",
+            "trade_license_no": f"LIC-{party_code}",
+            "address": "Mussafah",
+            "notes": "supplier",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+
+
+def create_customer_record(client, *, party_code, party_name, party_kind="Company"):
+    return client.post(
+        "/customers",
+        data={
+            "original_party_code": "",
+            "party_code": party_code,
+            "party_name": party_name,
+            "party_kind": party_kind,
+            "contact_person": party_name,
+            "phone_number": "0500000002",
+            "email": f"{party_code.lower()}@example.com",
+            "trn_no": f"TRN-{party_code}",
+            "trade_license_no": f"LIC-{party_code}",
+            "address": "Abu Dhabi",
+            "notes": "customer",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+
+def load_json(path: Path):
+    return json.loads(path.read_text(encoding="utf-8"))
+def set_supplier_password(client, *, user_id, email, password="secret12"):
+    return client.post(
+        "/supplier-forgot-password",
+        data={
+            "user_id": user_id,
+            "email": email,
+            "password": password,
+            "confirm_password": password,
+        },
+        follow_redirects=True,
+    )
+
+
+def create_supplier_lpo(app, *, lpo_no, party_code, amount=1050.0, description="Portal LPO", status="Approved"):
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO lpos (
+                lpo_no, party_code, quotation_no, agreement_no, issue_date, valid_until,
+                amount, tax_percent, description, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (lpo_no, party_code, None, None, "2026-04-01", "2026-04-30", amount, 5.0, description, status),
+        )
+        db.commit()
+
+
+def test_driver_login_requires_phone_and_pin(app, client):
+    create_driver_record(app)
+
+    response = client.post(
+        "/login",
+        data={"role": "driver", "phone_number": "0556701482", "driver_pin": "1234"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert "/portal/driver" in response.headers["Location"]
+    client.get("/logout", follow_redirects=False)
+
+    failed = client.post(
+        "/login",
+        data={"role": "driver", "phone_number": "0556701482", "driver_pin": "9999"},
+        follow_redirects=True,
+    )
+    assert b"Driver PIN is not correct." in failed.data
+
+
+def test_admin_login_supports_hash_and_rate_limit(app, client):
+    app.config["ADMIN_PASSWORD"] = ""
+    app.config["ADMIN_PASSWORD_HASH"] = generate_password_hash("admin-pass")
+    app.config["LOGIN_MAX_ATTEMPTS"] = 2
+    app.config["LOGIN_LOCK_MINUTES"] = 1
+
+    first = client.post(
+        "/login",
+        data={"role": "admin", "password": "wrong-pass"},
+        follow_redirects=True,
+    )
+    assert b"Admin password is not correct." in first.data
+
+    second = client.post(
+        "/login",
+        data={"role": "admin", "password": "wrong-pass"},
+        follow_redirects=True,
+    )
+    assert b"Too many login attempts." in second.data
+
+    blocked = client.post(
+        "/login",
+        data={"role": "admin", "password": "admin-pass"},
+        follow_redirects=True,
+    )
+    assert b"Too many login attempts." in blocked.data
+
+
+def test_salary_store_updates_existing_month(app, client):
+    create_driver_record(app)
+    admin_session(client)
+
+    first = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-01",
+            "salary_month": "2026-04",
+            "ot_hours": "5",
+            "personal_vehicle": "0",
+            "remarks": "first",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary stored successfully." in first.data
+
+    second = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-02",
+            "salary_month": "2026-04",
+            "ot_hours": "7",
+            "personal_vehicle": "100",
+            "remarks": "updated",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    assert b"Existing salary record was updated." in second.data
+
+    with app.app_context():
+        db = open_db()
+        rows = db.execute("SELECT salary_month, ot_month, ot_hours, personal_vehicle, net_salary FROM salary_store WHERE driver_id = ?", ("DRV-T1",)).fetchall()
+        assert len(rows) == 1
+        assert rows[0]["salary_month"] == "2026-04"
+        assert float(rows[0]["ot_hours"]) == 7.0
+        assert float(rows[0]["personal_vehicle"]) == 100.0
+        assert float(rows[0]["net_salary"]) == 3470.0
+        assert rows[0]["ot_month"] == "2026-03"
+
+
+def test_salary_store_supports_prorata_from_duty_start(app, client):
+    create_driver_record(app, basic_salary=3000.0, duty_start="2026-04-09")
+    admin_session(client)
+
+    response = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "salary_mode": "prorata",
+            "prorata_start_date": "2026-04-09",
+            "prorata_end_date": "2026-04-29",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "Joined mid month",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+
+    assert b"Salary stored successfully." in response.data
+    assert b"Prorata mode is active." in response.data
+
+    with app.app_context():
+        db = open_db()
+        row = db.execute(
+            """
+            SELECT salary_mode, prorata_start_date, salary_days, daily_rate,
+                   monthly_basic_salary, basic_salary, net_salary
+            FROM salary_store
+            WHERE driver_id = ? AND salary_month = ?
+            """,
+            ("DRV-T1", "2026-04"),
+        ).fetchone()
+        assert row is not None
+        assert row["salary_mode"] == "prorata"
+        assert row["prorata_start_date"] == "2026-04-09"
+        assert float(row["salary_days"]) == 21.0
+        assert float(row["daily_rate"]) == 100.0
+        assert float(row["monthly_basic_salary"]) == 3000.0
+        assert float(row["basic_salary"]) == 2100.0
+        assert float(row["net_salary"]) == 2100.0
+
+
+def test_salary_store_prorata_uses_selected_duty_range(app, client):
+    create_driver_record(app, basic_salary=3000.0, duty_start="2026-04-01")
+    admin_session(client)
+
+    response = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "salary_mode": "prorata",
+            "prorata_start_date": "2026-04-09",
+            "prorata_end_date": "2026-04-29",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "9 to 29 duty",
+            "action": "calculate",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"21.00" in response.data
+    assert b"2026-04-09 to 2026-04-29" in response.data
+
+
+def test_transaction_rejects_invalid_amount(app, client):
+    create_driver_record(app)
+    admin_session(client)
+
+    response = client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-12",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Office",
+            "amount": "abc",
+            "details": "bad amount",
+        },
+        follow_redirects=True,
+    )
+
+    assert b"Amount must be a valid number." in response.data
+
+    with app.app_context():
+        db = open_db()
+        count = db.execute("SELECT COUNT(*) FROM driver_transactions WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0]
+        assert count == 0
+
+
+def test_partial_advance_deduction_carries_remaining_balance(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    first_txn = client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-12",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Office",
+            "amount": "500",
+            "details": "seed advance",
+        },
+        follow_redirects=True,
+    )
+    assert b"Transaction saved" in first_txn.data
+
+    april_salary = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary stored successfully." in april_salary.data
+
+    april_slip = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Owner Fund",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary slip PDF generated" in april_slip.data
+
+    may_salary = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-05-31",
+            "salary_month": "2026-05",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "May salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary stored successfully." in may_salary.data
+
+    may_slip = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "2",
+            "deduction_amount": "200",
+            "payment_source": "Owner Fund",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary slip PDF generated" in may_slip.data
+
+    with app.app_context():
+        db = open_db()
+        slips = db.execute(
+            """
+            SELECT salary_month, total_deductions, remaining_advance, net_payable,
+                   salary_after_deduction, actual_paid_amount, company_balance_due
+            FROM salary_slips
+            WHERE driver_id = ?
+            ORDER BY salary_month ASC
+            """,
+            ("DRV-T1",),
+        ).fetchall()
+        assert len(slips) == 2
+        assert slips[0]["salary_month"] == "2026-04"
+        assert float(slips[0]["total_deductions"]) == 100.0
+        assert float(slips[0]["remaining_advance"]) == 400.0
+        assert float(slips[0]["salary_after_deduction"]) == 2900.0
+        assert float(slips[0]["actual_paid_amount"]) == 2900.0
+        assert float(slips[0]["company_balance_due"]) == 0.0
+        assert float(slips[0]["net_payable"]) == 2900.0
+        assert slips[1]["salary_month"] == "2026-05"
+        assert float(slips[1]["total_deductions"]) == 200.0
+        assert float(slips[1]["remaining_advance"]) == 200.0
+        assert float(slips[1]["salary_after_deduction"]) == 2800.0
+        assert float(slips[1]["actual_paid_amount"]) == 2800.0
+        assert float(slips[1]["company_balance_due"]) == 0.0
+        assert float(slips[1]["net_payable"]) == 2800.0
+
+    kata_response = client.get("/drivers/DRV-T1/kata-pdf", follow_redirects=False)
+    assert kata_response.status_code == 302
+    assert "/generated/" in kata_response.headers["Location"]
+
+
+def test_existing_paid_salary_slip_can_be_updated(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-12",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Office",
+            "amount": "500",
+            "details": "advance",
+        },
+        follow_redirects=True,
+    )
+
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+
+    first_slip = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Owner Fund",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+    assert b"monthly statement refreshed" in first_slip.data
+
+    updated_slip = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "200",
+            "payment_source": "Office",
+            "paid_by": "Admin",
+        },
+        follow_redirects=True,
+    )
+    assert b"monthly statement refreshed" in updated_slip.data
+
+    with app.app_context():
+        db = open_db()
+        slips = db.execute(
+            """
+            SELECT salary_month, total_deductions, remaining_advance, net_payable,
+                   salary_after_deduction, actual_paid_amount, company_balance_due,
+                   payment_source, paid_by
+            FROM salary_slips
+            WHERE driver_id = ?
+            ORDER BY id ASC
+            """,
+            ("DRV-T1",),
+        ).fetchall()
+        assert len(slips) == 1
+        assert slips[0]["salary_month"] == "2026-04"
+        assert float(slips[0]["total_deductions"]) == 200.0
+        assert float(slips[0]["remaining_advance"]) == 300.0
+        assert float(slips[0]["salary_after_deduction"]) == 2800.0
+        assert float(slips[0]["actual_paid_amount"]) == 2800.0
+        assert float(slips[0]["company_balance_due"]) == 0.0
+        assert float(slips[0]["net_payable"]) == 2800.0
+        assert slips[0]["payment_source"] == "Office"
+        assert slips[0]["paid_by"] == "Admin"
+
+def test_salary_slip_supports_custom_actual_paid_and_company_balance(app, client):
+    create_driver_record(app, basic_salary=5000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-10",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Office",
+            "amount": "1424",
+            "details": "Advance before salary",
+        },
+        follow_redirects=True,
+    )
+
+    stored = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "300",
+            "personal_vehicle_note": "Recovery trip",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary stored successfully." in stored.data
+    assert b"5300.00" in stored.data
+    assert b"Recovery trip" in stored.data
+
+    slip = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "1424",
+            "actual_paid_amount": "3500",
+            "payment_source": "Owner Fund",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+
+    assert b"monthly statement refreshed" in slip.data
+    assert b"Salary After Deduction" in slip.data
+    assert b"AED 3876.00" in slip.data
+    assert b"Actual Paid" in slip.data
+    assert b"AED 3500.00" in slip.data
+    assert b"Company Balance" in slip.data
+    assert b"AED 376.00" in slip.data
+    assert b"Personal / Vehicle Note" in slip.data
+    assert b"Recovery trip" in slip.data
+
+    with app.app_context():
+        db = open_db()
+        slip_row = db.execute(
+            """
+            SELECT total_deductions, remaining_advance, salary_after_deduction,
+                   actual_paid_amount, company_balance_due, net_payable
+            FROM salary_slips
+            WHERE driver_id = ? AND salary_month = ?
+            """,
+            ("DRV-T1", "2026-04"),
+        ).fetchone()
+        assert slip_row is not None
+        assert float(slip_row["total_deductions"]) == 1424.0
+        assert float(slip_row["remaining_advance"]) == 0.0
+        assert float(slip_row["salary_after_deduction"]) == 3876.0
+        assert float(slip_row["actual_paid_amount"]) == 3500.0
+        assert float(slip_row["company_balance_due"]) == 376.0
+        assert float(slip_row["net_payable"]) == 3500.0
+
+    action_page = client.get("/drivers/DRV-T1?kata_month=2026-04")
+    assert action_page.status_code == 200
+    assert b"Salary" in action_page.data
+    assert b"Remaining Salary" in action_page.data
+    assert b"Previous Balance" in action_page.data
+    assert b"Total Salary" in action_page.data
+    assert b"Received Not Yet Deducted" in action_page.data
+    assert b"No unrecovered cash entries for this month." in action_page.data
+    assert b"AED 5300.00" in action_page.data
+
+
+def test_salary_slip_rejects_actual_paid_over_salary_after_deduction(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "actual_paid_amount": "5000",
+            "payment_source": "Office",
+            "paid_by": "Admin",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b'name="actual_paid_amount"' in response.data
+    assert b'value="5000"' in response.data
+
+    with app.app_context():
+        db = open_db()
+        count = db.execute("SELECT COUNT(*) FROM salary_slips WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0]
+        assert count == 0
+
+
+def test_driver_transactions_page_shows_full_history_and_salary_paid_rows(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-02-10",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Office",
+            "amount": "200",
+            "details": "Old visa",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-11",
+            "txn_type": "Petty Cash",
+            "source": "Office",
+            "given_by": "Nasrullah",
+            "amount": "300",
+            "details": "Fuel for April",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Bank",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.get("/drivers/DRV-T1/transactions", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b"Show All Transactions" in response.data
+    assert b"All Transactions" in response.data
+    assert b"Old visa" in response.data
+    assert b"Fuel for April" in response.data
+    assert b"Salary Paid" in response.data
+    assert b"April salary" in response.data
+    assert b"Bank" in response.data
+    assert b"Edit Slip" in response.data
+    assert b"Delete Slip" in response.data
+
+
+def test_salary_paid_entry_can_be_deleted_from_transaction_history(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "April salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Office",
+            "paid_by": "Admin",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.post("/drivers/DRV-T1/salary-slip/1/delete", data={}, follow_redirects=True)
+
+    assert response.status_code == 200
+
+    with app.app_context():
+        db = open_db()
+        count = db.execute("SELECT COUNT(*) FROM salary_slips WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0]
+        assert count == 0
+
+
+def test_kata_pdf_accepts_postgres_datetime_generated_at(app):
+    driver = create_driver_record(app)
+    output_dir = Path.cwd() / "generated" / "test-runs" / f"kata-pdf-{uuid4().hex}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        output_path = generate_kata_pdf(
+            driver,
+            [
+                {
+                    "entry_date": "2026-04-30",
+                    "salary_month": "2026-04",
+                    "net_salary": 3000.0,
+                }
+            ],
+            [
+                {
+                    "entry_date": "2026-04-12",
+                    "txn_type": "Advance",
+                    "source": "Owner Fund",
+                    "given_by": "Office",
+                    "amount": 500.0,
+                }
+            ],
+            [
+                {
+                    "generated_at": datetime(2026, 4, 30, 10, 30, 0),
+                    "salary_month": "2026-04",
+                    "total_deductions": 100.0,
+                    "net_payable": 2900.0,
+                    "payment_source": "Owner Fund",
+                    "paid_by": "Waqar",
+                }
+            ],
+            str(output_dir),
+            str(Path(app.root_path).parent / "app" / "static"),
+        )
+
+        assert Path(output_path).exists()
+    finally:
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+
+def test_monthly_kata_pdf_uses_paper_style_summary_labels(app):
+    driver = create_driver_record(app)
+    output_dir = Path.cwd() / "generated" / "test-runs" / f"monthly-paper-kata-{uuid4().hex}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        output_path = generate_kata_pdf(
+            driver,
+            [
+                {
+                    "entry_date": "2026-03-31",
+                    "salary_month": "2026-03",
+                    "basic_salary": 4500.0,
+                    "ot_amount": 0.0,
+                    "personal_vehicle": 800.0,
+                    "net_salary": 5300.0,
+                    "remarks": "March salary",
+                    "personal_vehicle_note": "Recovery trip",
+                },
+                {
+                    "entry_date": "2026-04-30",
+                    "salary_month": "2026-04",
+                    "basic_salary": 4500.0,
+                    "ot_amount": 300.0,
+                    "personal_vehicle": 500.0,
+                    "net_salary": 5300.0,
+                    "remarks": "April salary",
+                    "personal_vehicle_note": "Recovery trip",
+                }
+            ],
+            [
+                {
+                    "entry_date": "2026-03-10",
+                    "txn_type": "Advance",
+                    "source": "Owner Fund",
+                    "given_by": "Office",
+                    "amount": 1424.0,
+                    "details": "March advance",
+                },
+                {
+                    "entry_date": "2026-04-10",
+                    "txn_type": "Advance",
+                    "source": "Owner Fund",
+                    "given_by": "Office",
+                    "amount": 1424.0,
+                    "details": "Advance before salary",
+                }
+            ],
+            [
+                {
+                    "generated_at": "2026-03-31 10:30:00",
+                    "salary_month": "2026-03",
+                    "total_deductions": 1424.0,
+                    "salary_after_deduction": 3876.0,
+                    "actual_paid_amount": 3500.0,
+                    "company_balance_due": 376.0,
+                    "net_payable": 3500.0,
+                    "payment_source": "Owner Fund",
+                    "paid_by": "Waqar",
+                },
+                {
+                    "generated_at": "2026-04-30 10:30:00",
+                    "salary_month": "2026-04",
+                    "total_deductions": 1424.0,
+                    "salary_after_deduction": 3876.0,
+                    "actual_paid_amount": 3500.0,
+                    "company_balance_due": 376.0,
+                    "net_payable": 3500.0,
+                    "payment_source": "Owner Fund",
+                    "paid_by": "Waqar",
+                }
+            ],
+            [],
+            str(output_dir),
+            str(Path(app.root_path).parent / "app" / "static"),
+            month_value="2026-04",
+        )
+
+        extracted_text = "\n".join(page.extract_text() or "" for page in PdfReader(output_path).pages)
+        assert "MONTHLY STATEMENT" in extracted_text
+        assert "Previous Balance" in extracted_text
+        assert "Total Salary" in extracted_text
+        assert "REMAINING SALARY" in extracted_text
+    finally:
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+
+def test_full_kata_pdf_keeps_all_history_rows_across_pages(app):
+    driver = create_driver_record(app)
+    output_dir = Path.cwd() / "generated" / "test-runs" / f"full-kata-{uuid4().hex}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    transactions = []
+    for index in range(1, 27):
+        transactions.append(
+            {
+                "entry_date": f"2026-04-{((index - 1) % 28) + 1:02d}",
+                "txn_type": "Petty Cash",
+                "source": "Owner Direct",
+                "given_by": f"Owner {index}",
+                "amount": 100.0 + index,
+                "details": f"History row {index}",
+            }
+        )
+
+    try:
+        output_path = generate_kata_pdf(
+            driver,
+            [],
+            transactions,
+            [],
+            str(output_dir),
+            str(Path(app.root_path).parent / "app" / "static"),
+            month_value=None,
+        )
+
+        reader = PdfReader(output_path)
+        extracted_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        assert len(reader.pages) >= 2
+        assert "History row 1" in extracted_text
+        assert "History row 26" in extracted_text
+        assert "Start to End" in extracted_text
+    finally:
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+
+def test_driver_portal_shows_only_selected_month_kata_entries(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-02-10",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Owner",
+            "amount": "200",
+            "details": "Old visa",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-03-11",
+            "txn_type": "Petty Cash",
+            "source": "Office",
+            "given_by": "Office",
+            "amount": "300",
+            "details": "Fuel for March",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-03-31",
+            "salary_month": "2026-03",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "March salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Office",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+
+    driver_session(client)
+    response = client.get("/portal/driver?month=2026-03")
+
+    assert response.status_code == 200
+    assert b"Monthly Statement" in response.data
+    assert b"Previous Balance" in response.data
+    assert b"Total Salary" in response.data
+    assert b"Given By" in response.data
+    assert b"Details" in response.data
+    assert b"Fuel for March" in response.data
+    assert b"Office" in response.data
+    assert b"Old visa" not in response.data
+    assert b"2026-02-10" not in response.data
+    assert b"Received Not Yet Deducted" in response.data
+    assert b"AED 200.00" in response.data
+    assert b"Remaining Salary" in response.data
+    assert b"AED 2800.00" in response.data
+    assert b"This side shows how the month" not in response.data
+    assert b"Only current cash rows" not in response.data
+
+
+def test_driver_monthly_kata_pdf_route_uses_selected_month_filename(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-03-11",
+            "txn_type": "Petty Cash",
+            "source": "Owner Direct",
+            "given_by": "Owner",
+            "amount": "300",
+            "details": "Visa expense",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.get("/drivers/DRV-T1/kata-pdf?month=2026-03", follow_redirects=False)
+
+    assert response.status_code == 302
+    assert "kata-2026-03" in response.headers["Location"]
+
+
+def test_driver_action_page_keeps_selected_kata_month(app, client):
+    create_driver_record(app, basic_salary=3000.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-02-10",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Owner",
+            "amount": "200",
+            "details": "Old visa",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-03-11",
+            "txn_type": "Petty Cash",
+            "source": "Office",
+            "given_by": "Office",
+            "amount": "300",
+            "details": "Fuel for March",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-03-31",
+            "salary_month": "2026-03",
+            "ot_hours": "0",
+            "personal_vehicle": "0",
+            "remarks": "March salary",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "100",
+            "payment_source": "Office",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.get("/drivers/DRV-T1?kata_month=2026-03")
+
+    assert response.status_code == 200
+    assert b'input type="month" name="kata_month" value="2026-03"' in response.data
+    assert b"Statement Month" in response.data
+    assert b"Driver Statement Desk" in response.data
+    assert b"Deductions" in response.data
+    assert b"Salary" in response.data
+    assert b"Given By" in response.data
+    assert b"Details" in response.data
+    assert b"Previous Balance" in response.data
+    assert b"Total Salary" in response.data
+    assert b"Fuel for March" in response.data
+    assert b"Old visa" not in response.data
+    assert b"2026-03" in response.data
+    assert b"/drivers/DRV-T1/kata-pdf?month=2026-03" in response.data
+    assert b"Received Not Yet Deducted" in response.data
+    assert b"AED 200.00" in response.data
+    assert b"Remaining Salary" in response.data
+    assert b"AED 2800.00" in response.data
+    assert b"This side shows how the month" not in response.data
+
+
+def test_driver_statement_carries_previous_month_balance_into_next_month(app, client):
+    create_driver_record(app, basic_salary=4500.0)
+    admin_session(client)
+
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-03-10",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Office",
+            "amount": "1424",
+            "details": "March advance",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-03-31",
+            "salary_month": "2026-03",
+            "ot_hours": "0",
+            "personal_vehicle": "800",
+            "remarks": "March salary",
+            "personal_vehicle_note": "Recovery trip",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "1",
+            "deduction_amount": "1424",
+            "actual_paid_amount": "3500",
+            "payment_source": "Owner Direct",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-05",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Owner",
+            "amount": "69",
+            "details": "Eid kharcha",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "ot_hours": "0",
+            "personal_vehicle": "630",
+            "remarks": "April salary",
+            "personal_vehicle_note": "Petrol",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": "2",
+            "deduction_amount": "69",
+            "actual_paid_amount": "3500",
+            "payment_source": "Owner Direct",
+            "paid_by": "Waqar",
+        },
+        follow_redirects=True,
+    )
+
+    response = client.get("/drivers/DRV-T1?kata_month=2026-04")
+
+    assert response.status_code == 200
+    assert b"Closed Previous Hisaab" not in response.data
+    assert b"March advance" not in response.data
+    assert b"March salary" not in response.data
+    assert b"Previous Balance" in response.data
+    assert b"AED 376.00" in response.data
+    assert b"Eid kharcha" not in response.data
+    assert b"Salary Summary | Apr 2026" in response.data
+    assert b"Received Not Yet Deducted" in response.data
+    assert b"Remaining Salary" in response.data
+    assert b"AED 5506.00" in response.data
+def test_owner_fund_pdf_supports_filtered_multi_page_output(app):
+    rows = []
+    running_balance = 0.0
+    for index in range(1, 43):
+        incoming = 50000.0 if index == 1 else (2500.0 if index % 9 == 0 else 0.0)
+        outgoing = 3100.0 if index % 3 == 0 else 650.0
+        running_balance += incoming - outgoing
+        rows.append(
+            {
+                "entry_date": f"2026-04-{((index - 1) % 28) + 1:02d}",
+                "movement": "Incoming" if incoming else "Outgoing",
+                "reference": f"Owner Flow / REF-{index:03d}",
+                "party": "Waqar" if index % 2 else "Driver Desk",
+                "details": f"Owner fund movement row {index} with 50000 tracking details",
+                "incoming": incoming,
+                "outgoing": outgoing,
+                "balance": running_balance,
+            }
+        )
+
+    output_dir = Path.cwd() / "generated" / "test-runs" / f"owner-fund-pdf-{uuid4().hex}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        output_path = generate_owner_fund_pdf(
+            rows,
+            {
+                "incoming": sum(float(row["incoming"]) for row in rows),
+                "outgoing": sum(float(row["outgoing"]) for row in rows),
+                "balance": sum(float(row["incoming"]) for row in rows) - sum(float(row["outgoing"]) for row in rows),
+                "closing_balance": running_balance,
+                "overall_balance": running_balance,
+                "overall_incoming": sum(float(row["incoming"]) for row in rows),
+                "overall_outgoing": sum(float(row["outgoing"]) for row in rows),
+            },
+            str(output_dir),
+            str(Path(app.root_path).parent / "app" / "static"),
+            filters={"month": "2026-04", "movement": "Outgoing", "search": "50000"},
+        )
+
+        pdf_file = Path(output_path)
+        assert pdf_file.exists()
+        raw_bytes = pdf_file.read_bytes()
+        assert len(re.findall(rb"/Type /Page\b", raw_bytes)) >= 2
+    finally:
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+
+def test_delete_driver_removes_related_records(app, client):
+    create_driver_record(app)
+    admin_session(client)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            "INSERT INTO driver_transactions (driver_id, entry_date, txn_type, source, given_by, amount, details) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("DRV-T1", "2026-04-12", "Advance", "Owner Fund", "Office", 500.0, "seed"),
+        )
+        db.execute(
+            "INSERT INTO salary_store (driver_id, entry_date, salary_month, basic_salary, ot_hours, ot_rate, ot_amount, personal_vehicle, net_salary, remarks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            ("DRV-T1", "2026-04-12", "2026-04", 3300.0, 0.0, 10.0, 0.0, 0.0, 3300.0, ""),
+        )
+        db.execute(
+            "INSERT INTO driver_timesheets (driver_id, entry_date, work_hours, remarks) VALUES (?, ?, ?, ?)",
+            ("DRV-T1", "2026-04-12", 8.0, ""),
+        )
+        db.commit()
+
+    response = client.post("/drivers/DRV-T1/delete", data={}, follow_redirects=True)
+    assert b"deleted successfully" in response.data
+
+    with app.app_context():
+        db = open_db()
+        assert db.execute("SELECT COUNT(*) FROM drivers WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM driver_transactions WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM driver_timesheets WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
+
+
+def test_technician_portal_saves_multiple_rows_with_separate_attachments(app, client, monkeypatch):
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TEC-BULK", "PTY-TEC", "tec.bulk", "hash", "0501234567", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-TEC", "Technician Party", "Supplier"),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-STD-1", "55927", "Truck", "Standard Vehicle", "Active", "Single Shift", "Standard", "Own Fleet Vehicle", 100, 0),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-PART-1", "77881", "Truck", "Partner Vehicle", "Active", "Single Shift", "Partnership", "Supplier Vehicle", 50, 50),
+        )
+        db.commit()
+
+    vehicle_export_root = Path(app.config["GENERATED_DIR"]).parent / "field-staff-vehicle-export-test"
+    shutil.rmtree(vehicle_export_root, ignore_errors=True)
+    monkeypatch.setenv("FIELD_STAFF_VEHICLE_EXPORT_ROOT", str(vehicle_export_root))
+
+    with client.session_transaction() as session:
+        session["role"] = "technician"
+        session["technician_code"] = "TEC-BULK"
+        session["technician_party_code"] = "PTY-TEC"
+        session["display_name"] = "Field Staff"
+
+    response = client.post(
+        "/portal/technician",
+        data={
+            "action": "submit_jobs",
+            "row_indexes": "1,2",
+            "entry_date_1": "2026-05-01",
+            "vehicle_id_1": "VEH-STD-1",
+            "workshop_name_1": "Diesel Pump",
+            "bill_no_1": "BILL-101",
+            "work_type_1": "Fuel",
+            "details_1": "Diesel refill",
+            "amount_1": "500",
+            "tax_mode_1": "Inclusive",
+            "tax_amount_1": "0",
+            "total_amount_1": "500",
+            "remarks_1": "first row",
+            "attachment_1": (BytesIO(b"row-one"), "row-one.jpg"),
+            "entry_date_2": "2026-05-02",
+            "vehicle_id_2": "VEH-PART-1",
+            "workshop_name_2": "Tyre Shop",
+            "bill_no_2": "BILL-102",
+            "work_type_2": "Maintenance",
+            "details_2": "Tyre repair",
+            "amount_2": "300",
+            "tax_mode_2": "Inclusive",
+            "tax_amount_2": "0",
+            "total_amount_2": "300",
+            "remarks_2": "second row",
+            "attachment_2": (BytesIO(b"row-two"), "row-two.pdf"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"2 field staff entries submitted successfully" in response.data
+
+    with app.app_context():
+        db = open_db()
+        papers = db.execute(
+            """
+            SELECT paper_no, supplier_bill_no, work_summary, total_amount, attachment_path
+            FROM maintenance_papers
+            WHERE technician_code = ?
+            ORDER BY paper_no ASC
+            """,
+            ("TEC-BULK",),
+        ).fetchall()
+
+        assert len(papers) == 2
+        assert papers[0]["supplier_bill_no"] == "BILL-101"
+        assert papers[0]["work_summary"] == "Diesel refill"
+        assert float(papers[0]["total_amount"]) == 500.0
+        assert papers[0]["attachment_path"].startswith("maintenance/mt-")
+        assert (Path(app.config["GENERATED_DIR"]) / papers[0]["attachment_path"]).exists()
+
+        assert papers[1]["supplier_bill_no"] == "BILL-102"
+        assert papers[1]["work_summary"] == "Tyre repair"
+        assert float(papers[1]["total_amount"]) == 300.0
+        assert papers[1]["attachment_path"].startswith("maintenance/mt-")
+        assert (Path(app.config["GENERATED_DIR"]) / papers[1]["attachment_path"]).exists()
+        assert db.execute("SELECT COUNT(*) FROM salary_store WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 0
+
+    standard_root = vehicle_export_root / "Standard"
+    partnership_root = vehicle_export_root / "Partnership"
+    assert standard_root.exists()
+    assert partnership_root.exists()
+    standard_snapshot = list(standard_root.glob("**/2026-05-01/**/paper.json"))
+    partnership_snapshot = list(partnership_root.glob("**/2026-05-02/**/paper.json"))
+    assert len(standard_snapshot) == 1
+    assert len(partnership_snapshot) == 1
+    standard_attachment = list(standard_root.glob("**/2026-05-01/**/attachments/*"))
+    partnership_attachment = list(partnership_root.glob("**/2026-05-02/**/attachments/*"))
+    assert len(standard_attachment) == 1
+    assert len(partnership_attachment) == 1
+    assert list(standard_root.glob("**/vehicle-report.json"))
+    assert list(partnership_root.glob("**/vehicle-report.json"))
+
+    recent = client.get("/portal/technician", follow_redirects=True)
+    assert recent.status_code == 200
+    latest_pos = recent.data.find(papers[1]["paper_no"].encode())
+    older_pos = recent.data.find(papers[0]["paper_no"].encode())
+    assert latest_pos != -1
+    assert older_pos != -1
+    assert latest_pos < older_pos
+
+
+def test_technician_portal_keeps_invalid_row_visible_and_saves_valid_rows(app, client):
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TEC-ROWS", "PTY-ROWS", "tec.rows", "hash", "0507777000", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-ROWS", "Rows Party", "Supplier"),
+        )
+        db.commit()
+
+    with client.session_transaction() as session:
+        session["role"] = "technician"
+        session["technician_code"] = "TEC-ROWS"
+        session["technician_party_code"] = "PTY-ROWS"
+        session["display_name"] = "Field Staff"
+
+    response = client.post(
+        "/portal/technician",
+        data={
+            "action": "submit_jobs",
+            "row_indexes": "1,2,3",
+            "entry_date_1": "2026-05-04",
+            "vehicle_id_1": "",
+            "workshop_name_1": "General Shop",
+            "bill_no_1": "GEN-01",
+            "work_type_1": "Site Expense",
+            "details_1": "General expense",
+            "amount_1": "120",
+            "tax_mode_1": "Inclusive",
+            "tax_amount_1": "0",
+            "total_amount_1": "120",
+            "remarks_1": "general row",
+            "entry_date_2": "2026-05-05",
+            "vehicle_id_2": "GENERAL",
+            "workshop_name_2": "Broken Shop",
+            "bill_no_2": "",
+            "work_type_2": "Fuel",
+            "details_2": "Missing bill number",
+            "amount_2": "55",
+            "tax_mode_2": "Inclusive",
+            "tax_amount_2": "5",
+            "total_amount_2": "60",
+            "remarks_2": "should stay visible",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert b"1 field staff entry submitted successfully" in response.data
+    assert b"Row 2: bill number is required." in response.data
+    assert b"value=\"Broken Shop\"" in response.data
+    assert b"General Entry / No Vehicle" in response.data
+
+    with app.app_context():
+        db = open_db()
+        papers = db.execute(
+            """
+            SELECT paper_no, vehicle_no, supplier_bill_no, total_amount
+            FROM maintenance_papers
+            WHERE technician_code = ?
+            ORDER BY paper_no ASC
+            """,
+            ("TEC-ROWS",),
+        ).fetchall()
+
+        assert len(papers) == 1
+        assert papers[0]["vehicle_no"] == "GENERAL"
+        assert papers[0]["supplier_bill_no"] == "GEN-01"
+        assert float(papers[0]["total_amount"]) == 120.0
+
+
+def test_technician_portal_can_edit_and_delete_pending_job(app, client):
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TEC-EDIT", "PTY-EDIT", "tec.edit", "hash", "0509999000", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-EDIT", "Edit Party", "Supplier"),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-EDIT-1", "90891", "Truck", "Test Vehicle", "Active", "Single Shift", "Standard", "Own Fleet Vehicle", 100, 0),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_papers (
+                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                attachment_path, notes, technician_code, review_status, payment_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', CURRENT_TIMESTAMP)
+            """,
+            (
+                "MT-EDIT-1",
+                "2026-05-06",
+                "VEH-EDIT-1",
+                "90891",
+                "PTY-EDIT",
+                "BILL-OLD",
+                "Repair",
+                "Old summary",
+                200.0,
+                "Inclusive",
+                0.0,
+                200.0,
+                None,
+                "old note",
+                "TEC-EDIT",
+            ),
+        )
+        db.commit()
+
+    with client.session_transaction() as session:
+        session["role"] = "technician"
+        session["technician_code"] = "TEC-EDIT"
+        session["technician_party_code"] = "PTY-EDIT"
+        session["display_name"] = "Field Staff"
+
+    load_response = client.post(
+        "/portal/technician",
+        data={"action": "load_job", "paper_no": "MT-EDIT-1"},
+        follow_redirects=True,
+    )
+    assert load_response.status_code == 200
+    assert b"Editing job MT-EDIT-1." in load_response.data
+    assert b"value=\"MT-EDIT-1\"" in load_response.data
+
+    update_response = client.post(
+        "/portal/technician",
+        data={
+            "action": "update_job",
+            "original_paper_no": "MT-EDIT-1",
+            "row_indexes": "1",
+            "entry_date_1": "2026-05-07",
+            "vehicle_id_1": "",
+            "workshop_name_1": "Updated Shop",
+            "bill_no_1": "BILL-NEW",
+            "work_type_1": "Other",
+            "details_1": "Updated summary",
+            "amount_1": "500",
+            "tax_mode_1": "Inclusive",
+            "tax_amount_1": "0",
+            "total_amount_1": "500",
+            "remarks_1": "updated note",
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert update_response.status_code == 200
+    assert b"Job MT-EDIT-1 updated successfully." in update_response.data
+
+    with app.app_context():
+        db = open_db()
+        updated = db.execute(
+            """
+            SELECT paper_date, vehicle_id, vehicle_no, supplier_bill_no, work_summary, total_amount, notes
+            FROM maintenance_papers
+            WHERE paper_no = ?
+            """,
+            ("MT-EDIT-1",),
+        ).fetchone()
+        assert updated["paper_date"] == "2026-05-07"
+        assert updated["vehicle_id"] == "GENERAL-ENTRY"
+        assert updated["vehicle_no"] == "GENERAL"
+        assert updated["supplier_bill_no"] == "BILL-NEW"
+        assert updated["work_summary"] == "Updated summary"
+        assert float(updated["total_amount"]) == 500.0
+        assert updated["notes"] == "updated note"
+
+    delete_response = client.post(
+        "/portal/technician",
+        data={"action": "delete_job", "paper_no": "MT-EDIT-1"},
+        follow_redirects=True,
+    )
+    assert delete_response.status_code == 200
+    assert b"Job MT-EDIT-1 deleted." in delete_response.data
+
+    with app.app_context():
+        db = open_db()
+        assert db.execute("SELECT COUNT(*) FROM maintenance_papers WHERE paper_no = ?", ("MT-EDIT-1",)).fetchone()[0] == 0
+
+
+def test_admin_technician_jobs_support_approve_all_and_pay_all(app, client):
+    admin_session(client)
+    local_vehicle_root = Path(app.config["GENERATED_DIR"]).parent / "field-staff-vehicle-admin-test"
+    shutil.rmtree(local_vehicle_root, ignore_errors=True)
+    os.environ["FIELD_STAFF_VEHICLE_EXPORT_ROOT"] = str(local_vehicle_root)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-002", "PTY-TECH-002", "tech.bulk.admin", "hash", "0501111000", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-TECH-002", "Muhammad Bilal", "Supplier"),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-0005", "55927", "Truck", "Test Vehicle", "Active", "Single Shift", "Standard", "Own Fleet Vehicle", 100, 0),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_papers (
+                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                attachment_path, notes, technician_code, review_status, payment_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "MT-0098",
+                "2026-05-30",
+                "VEH-0005",
+                "55927",
+                "PTY-TECH-002",
+                "BILL-98",
+                "Repair",
+                "Recent job",
+                420.0,
+                "Inclusive",
+                0.0,
+                420.0,
+                None,
+                "",
+                "TECH-002",
+                "Pending",
+                "Pending",
+                "2026-05-30 08:00:00",
+            ),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_papers (
+                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                attachment_path, notes, technician_code, review_status, payment_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "MT-0099",
+                "2026-05-30",
+                "VEH-0005",
+                "55927",
+                "PTY-TECH-002",
+                "BILL-99",
+                "Repair",
+                "Second job",
+                380.0,
+                "Inclusive",
+                0.0,
+                380.0,
+                None,
+                "",
+                "TECH-002",
+                "Pending",
+                "Pending",
+                "2026-05-30 09:00:00",
+            ),
+        )
+        db.commit()
+
+    page = client.get("/admin/technician-jobs", follow_redirects=True)
+    assert page.status_code == 200
+    assert b"Approve All" in page.data
+    assert b"Pay All" in page.data
+
+    approved = client.post("/admin/technician-jobs", data={"action": "approve_all"}, follow_redirects=True)
+    assert approved.status_code == 200
+    assert b"approved successfully" in approved.data
+
+    with app.app_context():
+        db = open_db()
+        statuses = db.execute(
+            "SELECT paper_no, review_status FROM maintenance_papers WHERE technician_code = ? ORDER BY paper_no ASC",
+            ("TECH-002",),
+        ).fetchall()
+        assert [row["review_status"] for row in statuses] == ["Approved", "Approved"]
+
+    paid = client.post("/admin/technician-jobs", data={"action": "pay_all"}, follow_redirects=True)
+    assert paid.status_code == 200
+    assert b"marked paid successfully" in paid.data
+
+    with app.app_context():
+        db = open_db()
+        payment_rows = db.execute(
+            "SELECT paper_no, payment_status, paid_amount FROM maintenance_papers WHERE technician_code = ? ORDER BY paper_no ASC",
+            ("TECH-002",),
+        ).fetchall()
+        assert [row["payment_status"] for row in payment_rows] == ["Paid", "Paid"]
+        assert float(payment_rows[0]["paid_amount"]) == 420.0
+        assert float(payment_rows[1]["paid_amount"]) == 380.0
+
+
+def test_admin_technician_jobs_vehicle_filter_generates_full_report(app, client):
+    admin_session(client)
+    local_vehicle_root = Path(app.config["GENERATED_DIR"]).parent / "field-staff-vehicle-local-actions"
+    shutil.rmtree(local_vehicle_root, ignore_errors=True)
+    os.environ["FIELD_STAFF_VEHICLE_EXPORT_ROOT"] = str(local_vehicle_root)
+    attachment_dir = Path(app.config["GENERATED_DIR"]) / "maintenance" / "mt-local-vehicle"
+    attachment_dir.mkdir(parents=True, exist_ok=True)
+    attachment_file = attachment_dir / "receipt.pdf"
+    attachment_file.write_bytes(b"vehicle-receipt")
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-003", "PTY-TECH-003", "tech.local.admin", "hash", "0501111001", "Archive Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-0006", "77112", "Truck", "Archive Vehicle", "Active", "Single Shift", "Partnership", "Partner Vehicle", 50, 50),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_papers (
+                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                attachment_path, notes, technician_code, review_status, payment_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "MT-LOCAL-1",
+                "2026-05-31",
+                "VEH-0006",
+                "77112",
+                "",
+                "BILL-L1",
+                "Repair",
+                "Local archive job",
+                510.0,
+                "Inclusive",
+                0.0,
+                510.0,
+                "maintenance/mt-local-vehicle/receipt.pdf",
+                "archive test",
+                "TECH-003",
+                "Pending",
+                "Pending",
+                "2026-05-31 08:30:00",
+            ),
+        )
+        for number in range(2, 56):
+            db.execute(
+                """
+                INSERT INTO maintenance_papers (
+                    paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                    work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                    attachment_path, notes, technician_code, review_status, payment_status, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    f"MT-LOCAL-{number:02d}",
+                    "2026-05-31",
+                    "VEH-0006",
+                    "77112",
+                    "",
+                    f"BILL-L{number}",
+                    "Repair",
+                    f"Local archive job {number}",
+                    100.0 + number,
+                    "Inclusive",
+                    0.0,
+                    100.0 + number,
+                    None,
+                    "archive test",
+                    "TECH-003",
+                    "Pending",
+                    "Pending",
+                    f"2026-05-31 {8 + ((number - 1) // 60):02d}:{(number - 1) % 60:02d}:00",
+                ),
+            )
+        db.commit()
+
+    page = client.get("/admin/technician-jobs", follow_redirects=True)
+    assert page.status_code == 200
+    assert b"Generate Report" not in page.data
+    assert b"Save to Local" not in page.data
+    assert b"Open Report" not in page.data
+
+    filtered = client.get("/admin/technician-jobs?vehicle_id=VEH-0006", follow_redirects=True)
+    assert filtered.status_code == 200
+    assert b"Generate Report" in filtered.data
+    assert b"Showing all entries for vehicle 77112" in filtered.data
+    assert b"MT-LOCAL-1" in filtered.data
+    assert b"MT-LOCAL-55" in filtered.data
+
+    report = client.post(
+        "/admin/technician-jobs",
+        data={"action": "generate_report", "vehicle_id": "VEH-0006"},
+        follow_redirects=False,
+    )
+    assert report.status_code == 200
+    assert report.mimetype == "application/pdf"
+    reader = PdfReader(BytesIO(report.data))
+    extracted_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    assert "Partnership Vehicle Expense Report" in extracted_text
+    assert "77112" in extracted_text
+    assert "MT-LOCAL-1" in extracted_text
+    assert "MT-LOCAL-55" in extracted_text
+    assert "Repair" in extracted_text
+
+    vehicle_report = local_vehicle_root / "Partnership"
+    report_files = list(vehicle_report.glob("**/vehicle-report.json"))
+    assert report_files
+    report_data = json.loads(report_files[0].read_text(encoding="utf-8"))
+    assert report_data["jobs"][0]["paper_no"] == "MT-LOCAL-55"
+    pdf_reports = list(vehicle_report.glob("**/*_vehicle_report.pdf"))
+    assert pdf_reports
+    copied_attachments = list(vehicle_report.glob("**/attachments/receipt.pdf"))
+    assert copied_attachments
+
+
+def test_admin_technician_jobs_filters_amount_notes_vehicle_and_staff(app, client):
+    admin_session(client)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-FLT-1", "PTY-TECH-FLT-1", "tech.filter.one", "hash", "0502222001", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-FLT-2", "PTY-TECH-FLT-2", "tech.filter.two", "hash", "0502222002", "Field Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-TECH-FLT-1", "Muhammad Bilal", "Supplier"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, 'Company', ?, '', '', '', '', '', '', '', 'Active')
+            """,
+            ("PTY-TECH-FLT-2", "Amjad", "Supplier"),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-FLT-1", "39442", "Truck", "Filter Vehicle 1", "Active", "Single Shift", "Standard", "Own Fleet Vehicle", 100, 0),
+        )
+        db.execute(
+            """
+            INSERT INTO vehicle_master (
+                vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode,
+                source_type, company_share_percent, partner_share_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("VEH-FLT-2", "18521", "Truck", "Filter Vehicle 2", "Active", "Single Shift", "Partnership", "Partner Vehicle", 50, 50),
+        )
+        jobs = [
+            (
+                "MT-FLT-1",
+                "2026-05-31",
+                "VEH-FLT-1",
+                "39442",
+                "BILL-F1",
+                "Repair",
+                "Brake service",
+                500.0,
+                500.0,
+                "front axle",
+                "TECH-FLT-1",
+                "Pending",
+                "Pending",
+                "2026-05-31 08:00:00",
+            ),
+            (
+                "MT-FLT-2",
+                "2026-05-31",
+                "VEH-FLT-1",
+                "39442",
+                "BILL-F2",
+                "Repair",
+                "Oil change",
+                725.0,
+                725.0,
+                "engine oil",
+                "TECH-FLT-1",
+                "Pending",
+                "Pending",
+                "2026-05-31 09:00:00",
+            ),
+            (
+                "MT-FLT-3",
+                "2026-05-31",
+                "VEH-FLT-2",
+                "18521",
+                "BILL-F3",
+                "Tyres",
+                "Brake cleanup",
+                500.0,
+                500.0,
+                "rear axle",
+                "TECH-FLT-2",
+                "Pending",
+                "Pending",
+                "2026-05-31 10:00:00",
+            ),
+        ]
+        for paper_no, paper_date, vehicle_id, vehicle_no, bill_no, work_type, work_summary, subtotal, total_amount, notes, technician_code, review_status, payment_status, created_at in jobs:
+            db.execute(
+                """
+                INSERT INTO maintenance_papers (
+                    paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                    work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                    attachment_path, notes, technician_code, review_status, payment_status, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    paper_no,
+                    paper_date,
+                    vehicle_id,
+                    vehicle_no,
+                    "",
+                    bill_no,
+                    work_type,
+                    work_summary,
+                    subtotal,
+                    "Inclusive",
+                    0.0,
+                    total_amount,
+                    None,
+                    notes,
+                    technician_code,
+                    review_status,
+                    payment_status,
+                    created_at,
+                ),
+            )
+        db.commit()
+
+    amount_page = client.get("/admin/technician-jobs?amount=500", follow_redirects=True)
+    assert amount_page.status_code == 200
+    assert b"MT-FLT-1" in amount_page.data
+    assert b"MT-FLT-3" in amount_page.data
+    assert b"MT-FLT-2" not in amount_page.data
+
+    filtered_page = client.get(
+        "/admin/technician-jobs?vehicle_id=VEH-FLT-1&technician_code=TECH-FLT-1&amount=500&notes=Brake",
+        follow_redirects=True,
+    )
+    assert filtered_page.status_code == 200
+    assert b"MT-FLT-1" in filtered_page.data
+    assert b"MT-FLT-2" not in filtered_page.data
+    assert b"MT-FLT-3" not in filtered_page.data
+    assert b'value="500"' in filtered_page.data
+    assert b'value="Brake"' in filtered_page.data
+
+
+def test_windows_style_vehicle_export_root_falls_back_on_posix(app, monkeypatch):
+    monkeypatch.setenv("FIELD_STAFF_VEHICLE_EXPORT_ROOT", r"D:\CurrentLinkData\Generated\FieldStaffVehicles")
+
+    export_root = routes_module._field_staff_vehicle_archive_root(app, platform_name="posix")
+
+    assert export_root == (Path(app.config["LOCAL_DATA_ROOT"]) / "Generated" / "FieldStaffVehicles").resolve()
+
+
+def test_windows_style_supplier_export_root_maps_to_posix_drive_mount(app):
+    mounted_drive_root = Path(app.config["GENERATED_DIR"]).parent / "supplier-drive-mount-test"
+    shutil.rmtree(mounted_drive_root, ignore_errors=True)
+    (mounted_drive_root / "d").mkdir(parents=True, exist_ok=True)
+
+    export_root = routes_module._configured_local_export_root(
+        app,
+        r"D:\CurrentLinkData\Generated\Suppliers",
+        ("Suppliers",),
+        platform_name="posix",
+        mount_roots=(mounted_drive_root,),
+    )
+
+    assert export_root == (mounted_drive_root / "d" / "CurrentLinkData" / "Generated" / "Suppliers").resolve()
+
+
+def test_technicians_page_renders_compact_management_workspace(app, client):
+    admin_session(client)
+
+    page = client.get("/technicians", follow_redirects=True)
+    assert page.status_code == 200
+    assert b"Field Staff Management" in page.data
+    assert b"Field Staff Entries" in page.data
+    assert b"Issue Staff Payment" in page.data
+    assert b"Field Staff Wallet Overview" in page.data
+    assert b"Received vs Spent" in page.data
+    assert b"Top Staff Comparison" in page.data
+    assert b"Total Given" in page.data
+    assert b"Total Spent" in page.data
+    assert b"Live Balance" in page.data
+    assert b"<span>Owner Fund</span>" not in page.data
+    assert b">Owner Fund</a>" not in page.data
+
+
+def test_technicians_page_filters_money_board_and_cards(app, client):
+    admin_session(client)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-201", "PTY-TECH-201", "ali.user", "hash", "0502000001", "Ali Manager", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TECH-202", "PTY-TECH-202", "bilal.user", "hash", "0502000002", "Bilal Runner", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_staff_advances (
+                advance_no, staff_code, entry_date, funding_source,
+                amount, settled_amount, balance_amount, reference, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("ADV-0201", "TECH-201", "2026-05-02", "Owner Fund", 1500.0, 0.0, 1500.0, "Ali fund", "Ali advance"),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_staff_advances (
+                advance_no, staff_code, entry_date, funding_source,
+                amount, settled_amount, balance_amount, reference, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("ADV-0202", "TECH-202", "2026-05-03", "Owner Fund", 900.0, 0.0, 900.0, "Bilal fund", "Bilal advance"),
+        )
+        db.execute(
+            """
+            INSERT INTO maintenance_papers (
+                paper_no, paper_date, vehicle_id, vehicle_no, workshop_party_code, supplier_bill_no,
+                work_type, work_summary, subtotal, tax_mode, tax_amount, total_amount,
+                attachment_path, notes, technician_code, review_status, payment_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "MT-FLT-201",
+                "2026-05-04",
+                "VEH-0201",
+                "33112",
+                "",
+                "BILL-201",
+                "Repair",
+                "Ali repair",
+                620.0,
+                "Inclusive",
+                0.0,
+                620.0,
+                "",
+                "Ali expense",
+                "TECH-201",
+                "Approved",
+                "Pending",
+                "2026-05-04 09:00:00",
+            ),
+        )
+        db.commit()
+
+    filtered = client.get("/technicians?search=Ali", follow_redirects=True)
+    assert filtered.status_code == 200
+    assert b"Ali Manager" in filtered.data
+    assert b"Bilal Runner</strong>" not in filtered.data
+    assert b"Bilal Runner (TECH-202)" not in filtered.data
+    assert b"Received vs Spent" in filtered.data
+    assert b"Top Staff Comparison" in filtered.data
+    assert b"Vehicle Spend" in filtered.data
+    assert b"Overdrawn" not in filtered.data
+
+
+def test_owner_fund_can_edit_and_delete(app, client):
+    admin_session(client)
+
+    created = client.post(
+        "/owner-fund",
+        data={
+            "entry_id": "",
+            "owner_name": "Nasrullah",
+            "entry_date": "2026-04-12",
+            "amount": "50000",
+            "received_by": "Waqar",
+            "payment_method": "Cash",
+            "details": "seed entry",
+        },
+        follow_redirects=True,
+    )
+    assert b"Owner fund entry saved." in created.data
+
+    with app.app_context():
+        db = open_db()
+        entry = db.execute("SELECT id, amount, details FROM owner_fund_entries ORDER BY id DESC LIMIT 1").fetchone()
+        entry_id = entry["id"]
+        assert float(entry["amount"]) == 50000.0
+
+    updated = client.post(
+        "/owner-fund",
+        data={
+            "entry_id": str(entry_id),
+            "owner_name": "Nasrullah",
+            "entry_date": "2026-04-12",
+            "amount": "45000",
+            "received_by": "Waqar",
+            "payment_method": "Bank",
+            "details": "updated entry",
+        },
+        follow_redirects=True,
+    )
+    assert b"Owner fund entry updated." in updated.data
+
+    with app.app_context():
+        db = open_db()
+        entry = db.execute("SELECT amount, payment_method, details FROM owner_fund_entries WHERE id = ?", (entry_id,)).fetchone()
+        assert float(entry["amount"]) == 45000.0
+        assert entry["payment_method"] == "Bank"
+        assert entry["details"] == "updated entry"
+
+    deleted = client.post(f"/owner-fund/{entry_id}/delete", data={}, follow_redirects=True)
+    assert b"Owner fund entry deleted." in deleted.data
+
+    with app.app_context():
+        db = open_db()
+        assert db.execute("SELECT COUNT(*) FROM owner_fund_entries WHERE id = ?", (entry_id,)).fetchone()[0] == 0
+
+
+def test_owner_fund_filters_scope_statement_and_pdf_link(app, client):
+    admin_session(client)
+    create_driver_record(app)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, details)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            ("Nasrullah", "2026-04-12", 50000.0, "Waqar", "Cash", "capital"),
+        )
+        db.execute(
+            """
+            INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, details)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            ("Nasrullah", "2026-05-03", 9000.0, "Waqar", "Cash", "future capital"),
+        )
+        db.execute(
+            """
+            INSERT INTO driver_transactions (driver_id, entry_date, txn_type, source, given_by, amount, details)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("DRV-T1", "2026-04-14", "Advance", "Owner Fund", "Office", 1200.0, "50000 allocation"),
+        )
+        db.execute(
+            """
+            INSERT INTO salary_slips (driver_id, salary_store_id, salary_month, generated_at, total_deductions, net_payable, remaining_advance, payment_source, paid_by, pdf_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("DRV-T1", 0, "2026-04", "2026-04-15 10:30:00", 0.0, 3000.0, 0.0, "Owner Fund", "Waqar", ""),
+        )
+        db.commit()
+
+    response = client.get("/owner-fund?month=2026-04&movement=Outgoing&search=50000")
+
+    assert response.status_code == 200
+    assert b"View Used" in response.data
+    assert b"Driver Txn / Test Driver" in response.data
+    assert b"month=2026-04&amp;movement=Outgoing&amp;search=50000" in response.data
+
+    driver_name_response = client.get("/owner-fund?month=2026-04&movement=Outgoing&search=Test")
+    assert driver_name_response.status_code == 200
+    assert b"Driver Txn / Test Driver" in driver_name_response.data
+    assert b"Salary Slip / Test Driver" in driver_name_response.data
+
+
+def test_party_master_create_auto_code_and_keep_driver_data_safe(app, client):
+    create_driver_record(app)
+    admin_session(client)
+
+    response = client.post(
+        "/parties/new",
+        data={
+            "party_code": "",
+            "party_name": "Al Jaber Transport",
+            "party_kind": "Company",
+            "party_roles": ["Supplier", "Customer"],
+            "contact_person": "Waqar",
+            "phone_number": "0501224963",
+            "email": "ops@aljaber.example",
+            "trn_no": "TRN-4455",
+            "trade_license_no": "LIC-2201",
+            "address": "Mussafah",
+            "notes": "First party",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+
+    assert b"Party saved successfully." in response.data
+    assert b"Al Jaber Transport" in response.data
+
+    with app.app_context():
+        db = open_db()
+        party = db.execute(
+            "SELECT party_code, party_roles FROM parties WHERE party_name = ?",
+            ("Al Jaber Transport",),
+        ).fetchone()
+        assert party is not None
+        assert party["party_code"].startswith("PTY-")
+        assert "Supplier" in party["party_roles"]
+        assert "Customer" in party["party_roles"]
+        assert db.execute("SELECT COUNT(*) FROM drivers WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 1
+
+
+def test_party_status_can_be_updated(app, client):
+    admin_session(client)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, trade_license_no, address, notes, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "PTY-0001",
+                "Norul",
+                "Individual",
+                "Borrower, Partner",
+                "Norul",
+                "0501082900",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "Active",
+            ),
+        )
+        db.commit()
+
+    response = client.post(
+        "/parties/PTY-0001/status",
+        data={"status": "Inactive"},
+        follow_redirects=True,
+    )
+
+    assert b"marked as Inactive" in response.data
+
+    with app.app_context():
+        db = open_db()
+        status = db.execute("SELECT status FROM parties WHERE party_code = ?", ("PTY-0001",)).fetchone()["status"]
+        assert status == "Inactive"
+
+
+def test_company_setup_supports_profile_branch_currency_and_financial_year(app, client):
+    admin_session(client)
+
+    profile = client.post(
+        "/company-setup",
+        data={
+            "action": "save_company_profile",
+            "company_name": "Current Link GC",
+            "legal_name": "Current Link Transport and General Contracting LLC SPC",
+            "trade_license_no": "CN-12345",
+            "trade_license_expiry": "2027-04-14",
+            "trn_no": "100123456700003",
+            "vat_status": "Registered",
+            "address": "Mussafah M17, Abu Dhabi",
+            "phone_number": "0552885561",
+            "email": "info@currentlinkgc.com",
+            "bank_name": "ADCB",
+            "bank_account_name": "Current Link",
+            "bank_account_number": "1234567890",
+            "iban": "AE070331234567890",
+            "swift_code": "ADCBAEAAXXX",
+            "invoice_terms": "30 Days",
+            "base_currency": "AED",
+            "financial_year_label": "FY 2026",
+            "financial_year_start": "2026-01-01",
+            "financial_year_end": "2026-12-31",
+        },
+        follow_redirects=True,
+    )
+    assert profile.status_code == 200
+
+    branch = client.post(
+        "/company-setup",
+        data={
+            "action": "save_branch",
+            "original_branch_code": "",
+            "branch_code": "BR-0001",
+            "branch_name": "Mussafah Yard",
+            "address": "M17 Abu Dhabi",
+            "contact_person": "Waqar",
+            "phone_number": "0501224963",
+            "email": "yard@currentlinkgc.com",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert branch.status_code == 200
+
+    currency_base = client.post(
+        "/company-setup",
+        data={
+            "action": "save_currency",
+            "original_currency_code": "",
+            "currency_code": "AED",
+            "currency_name": "UAE Dirham",
+            "symbol": "AED",
+            "exchange_rate": "1",
+            "is_base": "1",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert currency_base.status_code == 200
+
+    currency_second = client.post(
+        "/company-setup",
+        data={
+            "action": "save_currency",
+            "original_currency_code": "",
+            "currency_code": "USD",
+            "currency_name": "US Dollar",
+            "symbol": "$",
+            "exchange_rate": "3.6725",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert currency_second.status_code == 200
+
+    financial_year = client.post(
+        "/company-setup",
+        data={
+            "action": "save_financial_year",
+            "original_year_code": "",
+            "year_code": "FY-2026",
+            "year_label": "FY 2026",
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-31",
+            "is_current": "1",
+            "status": "Open",
+        },
+        follow_redirects=True,
+    )
+    assert financial_year.status_code == 200
+
+    branch_update = client.post(
+        "/company-setup",
+        data={
+            "action": "save_branch",
+            "original_branch_code": "BR-0001",
+            "branch_code": "BR-0001",
+            "branch_name": "Mussafah Main Yard",
+            "address": "M17 Abu Dhabi",
+            "contact_person": "Waqar Hussain",
+            "phone_number": "0501224963",
+            "email": "mainyard@currentlinkgc.com",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert branch_update.status_code == 200
+
+    settings_page = client.get("/company-setup", follow_redirects=True)
+    assert settings_page.status_code == 200
+    assert b"Company Setup" in settings_page.data
+    assert b"Mussafah Main Yard" in settings_page.data
+    assert b"FY 2026" in settings_page.data
+
+    with app.app_context():
+        db = open_db()
+        profile_row = db.execute(
+            "SELECT company_name, trn_no, base_currency, financial_year_label FROM company_profile ORDER BY id ASC LIMIT 1"
+        ).fetchone()
+        branch_row = db.execute(
+            "SELECT branch_name, contact_person FROM branches WHERE branch_code = ?",
+            ("BR-0001",),
+        ).fetchone()
+        aed_row = db.execute(
+            "SELECT currency_name, is_base FROM company_currencies WHERE currency_code = ?",
+            ("AED",),
+        ).fetchone()
+        usd_row = db.execute(
+            "SELECT exchange_rate, is_base FROM company_currencies WHERE currency_code = ?",
+            ("USD",),
+        ).fetchone()
+        year_row = db.execute(
+            "SELECT year_label, is_current, status FROM financial_years WHERE year_code = ?",
+            ("FY-2026",),
+        ).fetchone()
+        assert profile_row["company_name"] == "Current Link GC"
+        assert profile_row["trn_no"] == "100123456700003"
+        assert profile_row["base_currency"] == "AED"
+        assert profile_row["financial_year_label"] == "FY 2026"
+        assert branch_row["branch_name"] == "Mussafah Main Yard"
+        assert branch_row["contact_person"] == "Waqar Hussain"
+        assert aed_row["currency_name"] == "UAE Dirham"
+        assert int(aed_row["is_base"]) == 1
+        assert float(usd_row["exchange_rate"]) == 3.6725
+        assert int(usd_row["is_base"]) == 0
+        assert year_row["year_label"] == "FY 2026"
+        assert int(year_row["is_current"]) == 1
+        assert year_row["status"] == "Open"
+
+
+def test_supplier_workspace_flow_tracks_balance_and_keeps_driver_data_safe(app, client):
+    create_driver_record(app)
+    admin_session(client)
+
+    supplier_response = client.post(
+        "/suppliers/admin/register?mode=Normal",
+        data={
+            "original_party_code": "",
+            "party_code": "",
+            "party_name": "Hussain Trailer Supply",
+            "party_kind": "Company",
+            "party_roles": ["Partner"],
+            "contact_person": "Hussain",
+            "phone_number": "0501224963",
+            "email": "hussain@example.com",
+            "trn_no": "TRN-HUS",
+            "trade_license_no": "LIC-HUS",
+            "address": "Mussafah",
+            "notes": "Supplier master",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier registered successfully." in supplier_response.data
+
+    with app.app_context():
+        db = open_db()
+        supplier = db.execute("SELECT party_code FROM parties WHERE party_name = ?", ("Hussain Trailer Supply",)).fetchone()
+        party_code = supplier["party_code"]
+
+    asset_response = client.post(
+        f"/suppliers/{party_code}",
+        data={
+            "action": "save_asset",
+            "original_asset_code": "",
+            "asset_code": "",
+            "asset_name": "Trailer Fleet 01",
+            "asset_type": "Trailer",
+            "vehicle_no": "TRL-1001",
+            "rate_basis": "Hours",
+            "default_rate": "80",
+            "capacity": "40ft",
+            "status": "Active",
+            "notes": "Main fleet unit",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier vehicle saved successfully." in asset_response.data
+
+    with app.app_context():
+        db = open_db()
+        asset_code = db.execute(
+            "SELECT asset_code FROM supplier_assets WHERE party_code = ? ORDER BY id DESC LIMIT 1",
+            (party_code,),
+        ).fetchone()["asset_code"]
+
+    first_timesheet = client.post(
+        f"/suppliers/{party_code}",
+        data={
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "",
+            "asset_code": asset_code,
+            "period_month": "2026-04",
+            "entry_date": "2026-04-29",
+            "billing_basis": "Hours",
+            "billable_qty": "120",
+            "timesheet_hours": "120",
+            "rate": "80",
+            "status": "Open",
+            "notes": "April hours batch 1",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier timesheet saved successfully." in first_timesheet.data
+
+    second_timesheet = client.post(
+        f"/suppliers/{party_code}",
+        data={
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "",
+            "asset_code": asset_code,
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "billing_basis": "Hours",
+            "billable_qty": "40",
+            "timesheet_hours": "40",
+            "rate": "80",
+            "status": "Open",
+            "notes": "April hours batch 2",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier timesheet saved successfully." in second_timesheet.data
+
+    voucher_response = client.post(
+        f"/suppliers/{party_code}",
+        data={
+            "action": "save_voucher",
+            "original_voucher_no": "",
+            "voucher_no": "SPV-HUS-001",
+            "period_month": "2026-04",
+            "issue_date": "2026-04-30",
+            "tax_percent": "5",
+            "status": "Open",
+            "notes": "April supplier voucher",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier voucher created from open timesheets." in voucher_response.data
+
+    payment_response = client.post(
+        f"/suppliers/{party_code}",
+        data={
+            "action": "save_payment",
+            "original_payment_no": "",
+            "payment_no": "SPP-HUS-001",
+            "voucher_no": "SPV-HUS-001",
+            "entry_date": "2026-05-02",
+            "amount": "8000",
+            "payment_method": "Bank",
+            "reference": "BANK-001",
+            "notes": "Part payment",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier payment saved successfully." in payment_response.data
+
+    pdf_response = client.get("/supplier-payments/SPP-HUS-001/voucher", follow_redirects=False)
+    assert pdf_response.status_code == 302
+    assert "/generated/" in pdf_response.headers["Location"]
+
+    with app.app_context():
+        db = open_db()
+        voucher = db.execute(
+            """
+            SELECT subtotal, total_amount, paid_amount, balance_amount, status
+            FROM supplier_vouchers
+            WHERE voucher_no = ?
+            """,
+            ("SPV-HUS-001",),
+        ).fetchone()
+        linked_rows = db.execute(
+            "SELECT COUNT(*) FROM supplier_timesheets WHERE voucher_no = ?",
+            ("SPV-HUS-001",),
+        ).fetchone()[0]
+        assert voucher is not None
+        assert float(voucher["subtotal"]) == 12800.0
+        assert float(voucher["total_amount"]) == 13440.0
+        assert float(voucher["paid_amount"]) == 8000.0
+        assert float(voucher["balance_amount"]) == 5440.0
+        assert voucher["status"] == "Partially Paid"
+        assert linked_rows == 2
+        assert db.execute("SELECT COUNT(*) FROM drivers WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 1
+
+
+def test_supplier_workspace_flow_keeps_driver_core_safe(app, client):
+    create_driver_record(app)
+    admin_session(client)
+
+    supplier_create = client.post(
+        "/suppliers/admin/register?mode=Normal",
+        data={
+            "party_code": "PTY-SUP-01",
+            "party_name": "Hussain Logistics",
+            "party_kind": "Individual",
+            "party_roles": ["Supplier", "Vehicle Holder"],
+            "contact_person": "Hussain",
+            "phone_number": "0501224963",
+            "email": "hussain@example.com",
+            "trn_no": "TRN-HUS",
+            "trade_license_no": "LIC-HUS",
+            "address": "Mussafah, Abu Dhabi",
+            "notes": "Provides 50 trailers every month",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+    assert supplier_create.status_code == 200
+
+    with app.app_context():
+        db = open_db()
+        supplier_row = db.execute(
+            "SELECT party_code, party_name, party_roles FROM parties WHERE party_code = ?",
+            ("PTY-SUP-01",),
+        ).fetchone()
+        assert supplier_row is not None
+        assert supplier_row["party_name"] == "Hussain Logistics"
+        assert "Supplier" in supplier_row["party_roles"]
+
+    supplier_page = client.get("/suppliers", follow_redirects=True)
+    assert supplier_page.status_code == 200
+    assert b"Hussain Logistics" in supplier_page.data
+
+    asset_one = client.post(
+        "/suppliers/PTY-SUP-01",
+        data={
+            "action": "save_asset",
+            "original_asset_code": "",
+            "asset_code": "AST-HUS-01",
+            "asset_name": "Trailer 01",
+            "asset_type": "Trailer",
+            "vehicle_no": "TR-001",
+            "rate_basis": "Hours",
+            "default_rate": "120",
+            "capacity": "40 FT",
+            "status": "Active",
+            "notes": "Primary fleet unit",
+        },
+        follow_redirects=True,
+    )
+    assert asset_one.status_code == 200
+
+    asset_two = client.post(
+        "/suppliers/PTY-SUP-01",
+        data={
+            "action": "save_asset",
+            "original_asset_code": "",
+            "asset_code": "AST-HUS-02",
+            "asset_name": "Trailer 02",
+            "asset_type": "Trailer",
+            "vehicle_no": "TR-002",
+            "rate_basis": "Hours",
+            "default_rate": "115",
+            "capacity": "40 FT",
+            "status": "Active",
+            "notes": "Secondary fleet unit",
+        },
+        follow_redirects=True,
+    )
+    assert asset_two.status_code == 200
+
+    timesheet_one = client.post(
+        "/suppliers/PTY-SUP-01",
+        data={
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "TSH-HUS-01",
+            "asset_code": "AST-HUS-01",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-29",
+            "billing_basis": "Hours",
+            "billable_qty": "120",
+            "timesheet_hours": "120",
+            "rate": "120",
+            "status": "Open",
+            "notes": "April month-end hours",
+        },
+        follow_redirects=True,
+    )
+    assert timesheet_one.status_code == 200
+
+    timesheet_two = client.post(
+        "/suppliers/PTY-SUP-01",
+        data={
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "TSH-HUS-02",
+            "asset_code": "AST-HUS-02",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "billing_basis": "Hours",
+            "billable_qty": "100",
+            "timesheet_hours": "100",
+            "rate": "115",
+            "status": "Open",
+            "notes": "Second trailer April hours",
+        },
+        follow_redirects=True,
+    )
+    assert timesheet_two.status_code == 200
+
+    voucher = client.post(
+        "/suppliers/PTY-SUP-01",
+        data={
+            "action": "save_voucher",
+            "original_voucher_no": "",
+            "voucher_no": "SPV-HUS-01",
+            "period_month": "2026-04",
+            "issue_date": "2026-04-30",
+            "tax_percent": "5",
+            "status": "Open",
+            "notes": "April supplier payable voucher",
+        },
+        follow_redirects=True,
+    )
+    assert voucher.status_code == 200
+
+    payment = client.post(
+        "/suppliers/PTY-SUP-01",
+        data={
+            "action": "save_payment",
+            "original_payment_no": "",
+            "payment_no": "SPP-HUS-01",
+            "voucher_no": "SPV-HUS-01",
+            "entry_date": "2026-05-02",
+            "amount": "10000",
+            "payment_method": "Bank",
+            "reference": "PV-100",
+            "notes": "Part payment to Hussain",
+        },
+        follow_redirects=True,
+    )
+    assert payment.status_code == 200
+
+    supplier_detail = client.get("/suppliers/PTY-SUP-01?screen=billing", follow_redirects=True)
+    assert supplier_detail.status_code == 200
+    assert b"Hussain Logistics" in supplier_detail.data
+    assert b"SPV-HUS-01" in supplier_detail.data
+    assert b"Outstanding" in supplier_detail.data
+
+    payment_voucher = client.get("/supplier-payments/SPP-HUS-01/voucher", follow_redirects=False)
+    assert payment_voucher.status_code == 302
+    assert "/generated/" in payment_voucher.headers["Location"]
+
+    with app.app_context():
+        db = open_db()
+        assert db.execute("SELECT COUNT(*) FROM drivers WHERE driver_id = ?", ("DRV-T1",)).fetchone()[0] == 1
+        voucher_row = db.execute(
+            """
+            SELECT subtotal, tax_amount, total_amount, paid_amount, balance_amount, status
+            FROM supplier_vouchers
+            WHERE voucher_no = ?
+            """,
+            ("SPV-HUS-01",),
+        ).fetchone()
+        assert voucher_row is not None
+        assert float(voucher_row["subtotal"]) == 25900.0
+        assert float(voucher_row["tax_amount"]) == 1295.0
+        assert float(voucher_row["total_amount"]) == 27195.0
+        assert float(voucher_row["paid_amount"]) == 10000.0
+        assert float(voucher_row["balance_amount"]) == 17195.0
+        assert voucher_row["status"] == "Partially Paid"
+        linked = db.execute(
+            "SELECT COUNT(*) FROM supplier_timesheets WHERE voucher_no = ?",
+            ("SPV-HUS-01",),
+        ).fetchone()[0]
+        assert linked == 2
+
+
+def test_supplier_workspace_records_support_edit_delete_and_balance_resync(app, client):
+    admin_session(client)
+
+    client.post(
+        "/suppliers/admin/register?mode=Normal",
+        data={
+            "party_code": "PTY-SUP-02",
+            "party_name": "Edit Supplier",
+            "party_kind": "Company",
+            "party_roles": ["Supplier"],
+            "contact_person": "Ops",
+            "phone_number": "0500000001",
+            "email": "edit.supplier@example.com",
+            "trn_no": "",
+            "trade_license_no": "",
+            "address": "Abu Dhabi",
+            "notes": "",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+
+    client.post(
+        "/suppliers/PTY-SUP-02",
+        data={
+            "action": "save_asset",
+            "original_asset_code": "",
+            "asset_code": "AST-EDIT-01",
+            "asset_name": "Trailer Alpha",
+            "asset_type": "Trailer",
+            "vehicle_no": "EA-100",
+            "rate_basis": "Days",
+            "default_rate": "450",
+            "capacity": "Flatbed",
+            "status": "Active",
+            "notes": "Original asset",
+        },
+        follow_redirects=True,
+    )
+
+    asset_update = client.post(
+        "/suppliers/PTY-SUP-02",
+        data={
+            "action": "save_asset",
+            "original_asset_code": "AST-EDIT-01",
+            "asset_code": "AST-EDIT-01",
+            "asset_name": "Trailer Alpha Updated",
+            "asset_type": "Trailer",
+            "vehicle_no": "EA-101",
+            "rate_basis": "Days",
+            "default_rate": "500",
+            "capacity": "Flatbed",
+            "status": "Active",
+            "notes": "Updated asset",
+        },
+        follow_redirects=True,
+    )
+    assert asset_update.status_code == 200
+
+    with app.app_context():
+        db = open_db()
+        asset_row = db.execute(
+            "SELECT asset_name, vehicle_no, default_rate FROM supplier_assets WHERE asset_code = ?",
+            ("AST-EDIT-01",),
+        ).fetchone()
+        assert asset_row is not None
+        assert asset_row["asset_name"] == "Trailer Alpha Updated"
+        assert asset_row["vehicle_no"] == "EA-101"
+        assert float(asset_row["default_rate"]) == 500.0
+
+    client.post(
+        "/suppliers/PTY-SUP-02",
+        data={
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "TSH-EDIT-01",
+            "asset_code": "AST-EDIT-01",
+            "period_month": "2026-05",
+            "entry_date": "2026-05-30",
+            "billing_basis": "Days",
+            "billable_qty": "10",
+            "timesheet_hours": "0",
+            "rate": "500",
+            "status": "Open",
+            "notes": "Original timesheet",
+        },
+        follow_redirects=True,
+    )
+
+    timesheet_update = client.post(
+        "/suppliers/PTY-SUP-02",
+        data={
+            "action": "save_timesheet",
+            "original_timesheet_no": "TSH-EDIT-01",
+            "timesheet_no": "TSH-EDIT-01",
+            "asset_code": "AST-EDIT-01",
+            "period_month": "2026-05",
+            "entry_date": "2026-05-31",
+            "billing_basis": "Days",
+            "billable_qty": "12",
+            "timesheet_hours": "0",
+            "rate": "500",
+            "status": "Open",
+            "notes": "Updated timesheet",
+        },
+        follow_redirects=True,
+    )
+    assert timesheet_update.status_code == 200
+
+    with app.app_context():
+        db = open_db()
+        timesheet_row = db.execute(
+            "SELECT billable_qty, subtotal, notes FROM supplier_timesheets WHERE timesheet_no = ?",
+            ("TSH-EDIT-01",),
+        ).fetchone()
+        assert timesheet_row is not None
+        assert float(timesheet_row["billable_qty"]) == 12.0
+        assert float(timesheet_row["subtotal"]) == 6000.0
+        assert timesheet_row["notes"] == "Updated timesheet"
+
+    client.post(
+        "/suppliers/PTY-SUP-02",
+        data={
+            "action": "save_voucher",
+            "original_voucher_no": "",
+            "voucher_no": "SPV-EDIT-01",
+            "period_month": "2026-05",
+            "issue_date": "2026-05-31",
+            "tax_percent": "5",
+            "status": "Open",
+            "notes": "Original voucher",
+        },
+        follow_redirects=True,
+    )
+
+    voucher_update = client.post(
+        "/suppliers/PTY-SUP-02",
+        data={
+            "action": "save_voucher",
+            "original_voucher_no": "SPV-EDIT-01",
+            "voucher_no": "SPV-EDIT-01",
+            "period_month": "2026-05",
+            "issue_date": "2026-05-31",
+            "tax_percent": "10",
+            "status": "Open",
+            "notes": "Updated voucher tax",
+        },
+        follow_redirects=True,
+    )
+    assert voucher_update.status_code == 200
+
+    with app.app_context():
+        db = open_db()
+        voucher_row = db.execute(
+            "SELECT tax_percent, total_amount, balance_amount FROM supplier_vouchers WHERE voucher_no = ?",
+            ("SPV-EDIT-01",),
+        ).fetchone()
+        assert voucher_row is not None
+        assert float(voucher_row["tax_percent"]) == 10.0
+        assert float(voucher_row["total_amount"]) == 6600.0
+        assert float(voucher_row["balance_amount"]) == 6600.0
+
+    client.post(
+        "/suppliers/PTY-SUP-02",
+        data={
+            "action": "save_payment",
+            "original_payment_no": "",
+            "payment_no": "SPP-EDIT-01",
+            "voucher_no": "SPV-EDIT-01",
+            "entry_date": "2026-06-01",
+            "amount": "2000",
+            "payment_method": "Cash",
+            "reference": "PV-1",
+            "notes": "Original payment",
+        },
+        follow_redirects=True,
+    )
+
+    payment_update = client.post(
+        "/suppliers/PTY-SUP-02",
+        data={
+            "action": "save_payment",
+            "original_payment_no": "SPP-EDIT-01",
+            "payment_no": "SPP-EDIT-01",
+            "voucher_no": "SPV-EDIT-01",
+            "entry_date": "2026-06-02",
+            "amount": "2500",
+            "payment_method": "Bank",
+            "reference": "PV-2",
+            "notes": "Updated payment",
+        },
+        follow_redirects=True,
+    )
+    assert payment_update.status_code == 200
+
+    with app.app_context():
+        db = open_db()
+        payment_row = db.execute(
+            "SELECT amount, payment_method, reference FROM supplier_payments WHERE payment_no = ?",
+            ("SPP-EDIT-01",),
+        ).fetchone()
+        voucher_row = db.execute(
+            "SELECT paid_amount, balance_amount, status FROM supplier_vouchers WHERE voucher_no = ?",
+            ("SPV-EDIT-01",),
+        ).fetchone()
+        assert payment_row is not None
+        assert float(payment_row["amount"]) == 2500.0
+        assert payment_row["payment_method"] == "Bank"
+        assert payment_row["reference"] == "PV-2"
+        assert float(voucher_row["paid_amount"]) == 2500.0
+        assert float(voucher_row["balance_amount"]) == 4100.0
+        assert voucher_row["status"] == "Partially Paid"
+
+    payment_voucher = client.get("/supplier-payments/SPP-EDIT-01/voucher", follow_redirects=False)
+    assert payment_voucher.status_code == 302
+    assert "/generated/" in payment_voucher.headers["Location"]
+
+    blocked_delete = client.post("/supplier-vouchers/SPV-EDIT-01/delete", data={}, follow_redirects=True)
+    assert blocked_delete.status_code == 200
+
+    with app.app_context():
+        db = open_db()
+        assert db.execute(
+            "SELECT COUNT(*) FROM supplier_vouchers WHERE voucher_no = ?",
+            ("SPV-EDIT-01",),
+        ).fetchone()[0] == 1
+
+    deleted_payment = client.post("/supplier-payments/SPP-EDIT-01/delete", data={}, follow_redirects=True)
+    assert deleted_payment.status_code == 200
+
+    deleted_voucher = client.post("/supplier-vouchers/SPV-EDIT-01/delete", data={}, follow_redirects=True)
+    assert deleted_voucher.status_code == 200
+
+    deleted_timesheet = client.post("/supplier-timesheets/TSH-EDIT-01/delete", data={}, follow_redirects=True)
+    assert deleted_timesheet.status_code == 200
+
+    deleted_asset = client.post("/supplier-assets/AST-EDIT-01/delete", data={}, follow_redirects=True)
+    assert deleted_asset.status_code == 200
+
+    with app.app_context():
+        db = open_db()
+        asset_row = db.execute(
+            "SELECT COUNT(*) FROM supplier_assets WHERE asset_code = ?",
+            ("AST-EDIT-01",),
+        ).fetchone()[0]
+        timesheet_row = db.execute(
+            "SELECT COUNT(*) FROM supplier_timesheets WHERE timesheet_no = ?",
+            ("TSH-EDIT-01",),
+        ).fetchone()[0]
+        voucher_row = db.execute(
+            "SELECT COUNT(*) FROM supplier_vouchers WHERE voucher_no = ?",
+            ("SPV-EDIT-01",),
+        ).fetchone()[0]
+        payment_row = db.execute(
+            "SELECT COUNT(*) FROM supplier_payments WHERE payment_no = ?",
+            ("SPP-EDIT-01",),
+        ).fetchone()[0]
+        assert asset_row == 0
+        assert timesheet_row == 0
+        assert voucher_row == 0
+        assert payment_row == 0
+
+
+def test_individual_supplier_cannot_activate_portal(app, client):
+    admin_session(client)
+    response = create_supplier_record(
+        client,
+        party_code="PTY-IND-01",
+        party_name="Individual Supplier",
+        party_kind="Individual",
+        portal_enabled=True,
+        portal_login_email="individual@example.com",
+    )
+    assert b"Supplier registered successfully." in response.data
+
+    client.get("/logout", follow_redirects=False)
+    password_setup = set_supplier_password(
+        client,
+        user_id="pty-ind-01",
+        email="individual@example.com",
+    )
+    assert b"Supplier portal account was not found." in password_setup.data
+
+
+def test_company_supplier_portal_can_activate_login_submit_and_convert(app, client):
+    admin_session(client)
+    response = create_supplier_record(
+        client,
+        party_code="PTY-COMP-01",
+        party_name="Portal Supplier LLC",
+        party_kind="Company",
+        portal_enabled=True,
+        portal_login_email="portal@example.com",
+    )
+    assert b"Supplier registered successfully." in response.data
+
+    client.get("/logout", follow_redirects=False)
+    password_setup = set_supplier_password(
+        client,
+        user_id="pty-comp-01",
+        email="portal@example.com",
+    )
+    assert b"Password updated. You can sign in now." in password_setup.data
+
+    login = client.post(
+        "/supplier-login",
+        data={"user_id": "pty-comp-01", "password": "secret12"},
+        follow_redirects=False,
+    )
+    assert login.status_code == 302
+    assert "/portal/supplier" in login.headers["Location"]
+
+    create_supplier_lpo(app, lpo_no="LPO-PORT-01", party_code="PTY-COMP-01")
+
+    submit = client.post(
+        "/portal/supplier",
+        data={
+            "action": "submit_invoice",
+            "submission_no": "SIN-PORT-01",
+            "lpo_no": "LPO-PORT-01",
+            "external_invoice_no": "INV-PORT-01",
+            "invoice_date": "2026-04-15",
+            "period_month": "2026-04",
+            "subtotal": "1000",
+            "vat_amount": "50",
+            "total_amount": "1050",
+            "notes": "portal invoice",
+            "invoice_attachment": (BytesIO(b"invoice"), "invoice.pdf"),
+            "timesheet_attachment": (BytesIO(b"timesheet"), "timesheet.pdf"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert b"Invoice submitted successfully." in submit.data
+
+    client.get("/logout", follow_redirects=False)
+    admin_session(client)
+
+    approve = client.post(
+        "/suppliers/PTY-COMP-01",
+        data={
+            "action": "approve_submission",
+            "submission_no": "SIN-PORT-01",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier invoice approved" in approve.data
+
+    convert = client.post(
+        "/suppliers/PTY-COMP-01",
+        data={
+            "action": "convert_submission",
+            "submission_no": "SIN-PORT-01",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier invoice converted into payable voucher." in convert.data
+
+    with app.app_context():
+        db = open_db()
+        submission = db.execute(
+            """
+            SELECT review_status, linked_voucher_no, invoice_attachment_path, timesheet_attachment_path
+            FROM supplier_invoice_submissions
+            WHERE submission_no = ?
+            """,
+            ("SIN-PORT-01",),
+        ).fetchone()
+        voucher = db.execute(
+            """
+            SELECT source_type, source_reference, total_amount, balance_amount, paid_amount
+            FROM supplier_vouchers
+            WHERE voucher_no = ?
+            """,
+            (submission["linked_voucher_no"],),
+        ).fetchone()
+        assert submission["review_status"] == "Converted"
+        assert submission["linked_voucher_no"]
+        assert submission["invoice_attachment_path"].startswith("suppliers/PTY-COMP-01/")
+        assert submission["timesheet_attachment_path"].startswith("suppliers/PTY-COMP-01/")
+        assert voucher["source_type"] == "Submission"
+        assert voucher["source_reference"] == "SIN-PORT-01"
+        assert float(voucher["total_amount"]) == 1050.0
+        assert float(voucher["balance_amount"]) == 1050.0
+        assert float(voucher["paid_amount"]) == 0.0
+
+
+def test_admin_by_hand_supplier_submission_defaults_to_approved_ready(app, client):
+    admin_session(client)
+    response = create_supplier_record(
+        client,
+        party_code="PTY-HAND-01",
+        party_name="Manual Supplier LLC",
+        party_kind="Company",
+    )
+    assert b"Supplier registered successfully." in response.data
+
+    saved = client.post(
+        "/suppliers/PTY-HAND-01",
+        data={
+            "action": "save_submission",
+            "submission_no": "SIN-HAND-01",
+            "external_invoice_no": "INV-HAND-01",
+            "invoice_date": "2026-04-16",
+            "period_month": "2026-04",
+            "subtotal": "2000",
+            "vat_amount": "100",
+            "total_amount": "2100",
+            "notes": "manual paper checked",
+        },
+        follow_redirects=True,
+    )
+    assert b"By-hand supplier invoice saved" in saved.data
+
+    statement_page = client.get("/suppliers/PTY-HAND-01?screen=statement", follow_redirects=True)
+    assert b"INV-HAND-01" in statement_page.data
+    assert b"Outstanding" in statement_page.data
+    assert b"Approved" in statement_page.data
+
+    with app.app_context():
+        db = open_db()
+        submission = db.execute(
+            """
+            SELECT review_status, review_note, linked_voucher_no, total_amount
+            FROM supplier_invoice_submissions
+            WHERE submission_no = ?
+            """,
+            ("SIN-HAND-01",),
+        ).fetchone()
+        assert submission["review_status"] == "Approved"
+        assert submission["review_note"] == "Ready for Voucher"
+        assert submission["linked_voucher_no"] is None
+        assert float(submission["total_amount"]) == 2100.0
+
+
+def test_supplier_portal_statement_hides_rejected_rows_but_allows_resubmit(app, client):
+    admin_session(client)
+    create_supplier_record(
+        client,
+        party_code="PTY-REJ-01",
+        party_name="Rejected Portal Supplier",
+        party_kind="Company",
+        portal_enabled=True,
+        portal_login_email="reject@example.com",
+    )
+    client.get("/logout", follow_redirects=False)
+    client.post(
+        "/supplier-forgot-password",
+        data={
+            "user_id": "pty-rej-01",
+            "email": "reject@example.com",
+            "password": "secret12",
+            "confirm_password": "secret12",
+        },
+        follow_redirects=True,
+    )
+    client.post("/supplier-login", data={"user_id": "pty-rej-01", "password": "secret12"}, follow_redirects=True)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO supplier_invoice_submissions (
+                submission_no, party_code, source_channel, external_invoice_no, period_month,
+                invoice_date, subtotal, vat_amount, total_amount, review_status, review_note,
+                created_by_role, created_by_name
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "SIN-REJ-01",
+                "PTY-REJ-01",
+                "Portal",
+                "INV-REJ-01",
+                "2026-04",
+                "2026-04-01",
+                1000.0,
+                50.0,
+                1050.0,
+                "Rejected",
+                "Wrong invoice",
+                "supplier",
+                "Rejected Portal Supplier",
+            ),
+        )
+        db.commit()
+
+    portal_page = client.get("/portal/supplier", follow_redirects=True)
+    assert b"INV-REJ-01" in portal_page.data
+    assert b"Resubmit" in portal_page.data
+    assert b"Rejected" in portal_page.data
+    assert b"Wrong invoice" in portal_page.data
+    assert b"Statement of account" in portal_page.data
+    statement_slice = portal_page.data.split(b"Statement of account", 1)[1]
+    assert b"INV-REJ-01" not in statement_slice
+
+    resubmit = client.get("/portal/supplier?resubmit_submission=SIN-REJ-01", follow_redirects=True)
+    assert b"You can resubmit this invoice with corrected files or amounts." in resubmit.data
+    assert b"INV-REJ-01" in resubmit.data
+
+
+def test_supplier_partnership_and_double_shift_flow_tracks_monthly_split(app, client):
+    create_driver_record(app, driver_id="DRV-PART-1", full_name="Core Driver Safe")
+    admin_session(client)
+
+    client.post(
+        "/suppliers/partnership",
+        data={
+            "party_code": "PTY-PART-01",
+            "party_name": "Hussain Partner Fleet",
+            "party_kind": "Company",
+            "party_roles": ["Supplier", "Partner"],
+            "supplier_mode": "Partnership",
+            "partner_name": "Hussain",
+            "default_company_share_percent": "50",
+            "default_partner_share_percent": "50",
+            "contact_person": "Hussain",
+            "phone_number": "0502003004",
+            "email": "hussain.partner@example.com",
+            "trn_no": "TRN-PART-1",
+            "trade_license_no": "LIC-PART-1",
+            "address": "Mussafah",
+            "notes": "50/50 tanker partnership",
+            "status": "Active",
+        },
+        follow_redirects=True,
+    )
+
+    asset_response = client.post(
+        "/suppliers/PTY-PART-01",
+        data={
+            "action": "save_asset",
+            "original_asset_code": "",
+            "asset_code": "AST-PART-01",
+            "asset_name": "Tanker 50-50",
+            "asset_type": "Tanker",
+            "vehicle_no": "TNK-501",
+            "rate_basis": "Hours",
+            "default_rate": "150",
+            "double_shift_mode": "Double Shift",
+            "partnership_mode": "Partnership",
+            "partner_name": "Hussain",
+            "company_share_percent": "50",
+            "partner_share_percent": "50",
+            "day_shift_paid_by": "Company",
+            "night_shift_paid_by": "Partner",
+            "capacity": "5000 Gallon",
+            "status": "Active",
+            "notes": "Shared tanker with double shift",
+        },
+        follow_redirects=True,
+    )
+    assert asset_response.status_code == 200
+
+    client.post(
+        "/suppliers/PTY-PART-01",
+        data={
+            "action": "save_timesheet",
+            "original_timesheet_no": "",
+            "timesheet_no": "TSH-PART-01",
+            "asset_code": "AST-PART-01",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "billing_basis": "Hours",
+            "billable_qty": "100",
+            "timesheet_hours": "100",
+            "rate": "150",
+            "status": "Open",
+            "notes": "April partnership work",
+        },
+        follow_redirects=True,
+    )
+
+    client.post(
+        "/suppliers/PTY-PART-01",
+        data={
+            "action": "save_partnership_entry",
+            "original_entry_no": "",
+            "entry_no": "PEN-0001",
+            "asset_code": "AST-PART-01",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "entry_kind": "Vehicle Expense",
+            "expense_head": "Fuel",
+            "shift_label": "General",
+            "driver_name": "",
+            "paid_by": "Partner",
+            "amount": "2000",
+            "notes": "Fuel paid by partner",
+        },
+        follow_redirects=True,
+    )
+
+    client.post(
+        "/suppliers/PTY-PART-01",
+        data={
+            "action": "save_partnership_entry",
+            "original_entry_no": "",
+            "entry_no": "PEN-0002",
+            "asset_code": "AST-PART-01",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "entry_kind": "Driver Salary",
+            "expense_head": "Day shift salary",
+            "shift_label": "Day",
+            "driver_name": "Company Driver",
+            "paid_by": "Company",
+            "amount": "2500",
+            "notes": "Day shift paid by company",
+        },
+        follow_redirects=True,
+    )
+
+    client.post(
+        "/suppliers/PTY-PART-01",
+        data={
+            "action": "save_partnership_entry",
+            "original_entry_no": "",
+            "entry_no": "PEN-0003",
+            "asset_code": "AST-PART-01",
+            "period_month": "2026-04",
+            "entry_date": "2026-04-30",
+            "entry_kind": "Driver Salary",
+            "expense_head": "Night shift salary",
+            "shift_label": "Night",
+            "driver_name": "Partner Driver",
+            "paid_by": "Partner",
+            "amount": "2400",
+            "notes": "Night shift paid by partner",
+        },
+        follow_redirects=True,
+    )
+
+    detail = client.get("/suppliers/PTY-PART-01?screen=partnership&partnership_month=2026-04", follow_redirects=True)
+    assert detail.status_code == 200
+    assert b"Double Shift" in detail.data
+    assert b"Vehicle Profit Result" in detail.data
+    assert b"Hussain" in detail.data
+    assert b"Company Should Receive" in detail.data
+    assert b"Partner Should Receive" in detail.data
+
+    with app.app_context():
+        db = open_db()
+        asset_row = db.execute(
+            """
+            SELECT double_shift_mode, partnership_mode, partner_name,
+                   company_share_percent, partner_share_percent,
+                   day_shift_paid_by, night_shift_paid_by
+            FROM supplier_assets
+            WHERE asset_code = ?
+            """,
+            ("AST-PART-01",),
+        ).fetchone()
+        entry_count = db.execute(
+            "SELECT COUNT(*) FROM supplier_partnership_entries WHERE asset_code = ?",
+            ("AST-PART-01",),
+        ).fetchone()[0]
+
+        assert asset_row is not None
+        assert asset_row["double_shift_mode"] == "Double Shift"
+        assert asset_row["partnership_mode"] == "Partnership"
+        assert asset_row["partner_name"] == "Hussain"
+        assert float(asset_row["company_share_percent"]) == 50.0
+        assert float(asset_row["partner_share_percent"]) == 50.0
+        assert asset_row["day_shift_paid_by"] == "Company"
+        assert asset_row["night_shift_paid_by"] == "Partner"
+        assert entry_count == 3
+        assert db.execute("SELECT COUNT(*) FROM drivers WHERE driver_id = ?", ("DRV-PART-1",)).fetchone()[0] == 1
+
+
+def test_invoice_center_generates_tax_invoice_pdf_with_line_items(app, client):
+    admin_session(client)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO company_profile (
+                company_name, legal_name, trade_license_no, trn_no, vat_status, address,
+                phone_number, email, invoice_terms, base_currency
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "Current Link",
+                "Current Link Transport and General Contracting LLC SPC",
+                "CN-12345",
+                "100123456700003",
+                "Registered",
+                "Mussafah M17, Abu Dhabi",
+                "0501224963",
+                "info@currentlinkgc.com",
+                "30 Days",
+                "AED",
+            ),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person, phone_number,
+                email, trn_no, address, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "PTY-CUST-01",
+                "Al Noor Projects",
+                "Company",
+                "Customer",
+                "Naeem",
+                "0501002003",
+                "accounts@alnoor.example.com",
+                "100987654300003",
+                "Dubai Industrial City",
+                "Active",
+            ),
+        )
+        db.commit()
+
+    response = client.post(
+        "/invoices",
+        data={
+            "action": "save_invoice",
+            "original_invoice_no": "",
+            "invoice_no": "INV-CUST-01",
+            "invoice_kind": "Sales",
+            "document_type": "Tax Invoice",
+            "party_code": "PTY-CUST-01",
+            "agreement_no": "",
+            "lpo_no": "",
+            "hire_no": "",
+            "issue_date": "2026-05-01",
+            "due_date": "2026-05-31",
+            "subtotal": "",
+            "tax_percent": "5",
+            "notes": "April transport and trailer support",
+            "line_description_1": "Trailer monthly deployment",
+            "line_unit_1": "Month",
+            "line_quantity_1": "1",
+            "line_rate_1": "12000",
+            "line_subtotal_1": "",
+            "line_description_2": "Extra standby trips",
+            "line_unit_2": "Trips",
+            "line_quantity_2": "4",
+            "line_rate_2": "250",
+            "line_subtotal_2": "",
+            "line_description_3": "",
+            "line_unit_3": "",
+            "line_quantity_3": "",
+            "line_rate_3": "",
+            "line_subtotal_3": "",
+            "line_description_4": "",
+            "line_unit_4": "",
+            "line_quantity_4": "",
+            "line_rate_4": "",
+            "line_subtotal_4": "",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"Invoice created successfully." in response.data
+
+    pdf_response = client.get("/invoices/INV-CUST-01/pdf", follow_redirects=False)
+    assert pdf_response.status_code == 302
+    assert "/generated/" in pdf_response.headers["Location"]
+
+    with app.app_context():
+        db = open_db()
+        invoice_row = db.execute(
+            """
+            SELECT document_type, subtotal, tax_amount, total_amount, pdf_path
+            FROM account_invoices
+            WHERE invoice_no = ?
+            """,
+            ("INV-CUST-01",),
+        ).fetchone()
+        line_count = db.execute(
+            "SELECT COUNT(*) FROM account_invoice_lines WHERE invoice_no = ?",
+            ("INV-CUST-01",),
+        ).fetchone()[0]
+
+        assert invoice_row is not None
+        assert invoice_row["document_type"] == "Tax Invoice"
+        assert float(invoice_row["subtotal"]) == 13000.0
+        assert float(invoice_row["tax_amount"]) == 650.0
+        assert float(invoice_row["total_amount"]) == 13650.0
+        assert line_count == 2
+        assert invoice_row["pdf_path"].startswith("invoices/")
+        pdf_path = Path(app.config["GENERATED_DIR"]) / invoice_row["pdf_path"]
+        assert pdf_path.exists()
+
+    extracted_text = "\n".join(page.extract_text() or "" for page in PdfReader(str(pdf_path)).pages)
+    assert "Tax Invoice" in extracted_text
+    assert "SELLER" in extracted_text
+    assert "BILL TO" in extracted_text
+    assert "SUBTOTAL" in extracted_text
+    assert "VAT" in extracted_text
+    assert "TOTAL AMOUNT" in extracted_text
+    assert "INVOICE NO" not in extracted_text
+    assert "ISSUE DATE" not in extracted_text
+    assert "DUE DATE" not in extracted_text
+    assert "STATUS" not in extracted_text
+    assert "KIND" not in extracted_text
+    assert "AGREEMENT" not in extracted_text
+    assert "LPO" not in extracted_text
+    assert "HIRE" not in extracted_text
+    assert "PAID" not in extracted_text
+    assert "BALANCE" not in extracted_text
+
+
+def test_driver_archive_creates_month_snapshots_and_ledger(app, client):
+    create_driver_record(app, full_name="Archive Driver")
+    admin_session(client)
+
+    store_response = client.post(
+        "/drivers/DRV-T1/salary-store",
+        data={
+            "entry_date": "2026-04-30",
+            "salary_month": "2026-04",
+            "salary_mode": "full",
+            "ot_hours": "6",
+            "personal_vehicle": "200",
+            "personal_vehicle_note": "Fuel and overtime support",
+            "remarks": "April archive test",
+            "action": "save",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary stored successfully." in store_response.data
+
+    transaction_response = client.post(
+        "/drivers/DRV-T1/transactions",
+        data={
+            "entry_date": "2026-04-18",
+            "salary_month": "2026-04",
+            "txn_type": "Advance",
+            "source": "Owner Fund",
+            "given_by": "Owner",
+            "amount": "650",
+            "details": "Fuel advance",
+        },
+        follow_redirects=True,
+    )
+    assert b"Transaction saved" in transaction_response.data
+
+    with app.app_context():
+        db = open_db()
+        salary_row = db.execute(
+            "SELECT id FROM salary_store WHERE driver_id = ? AND salary_month = ?",
+            ("DRV-T1", "2026-04"),
+        ).fetchone()
+        assert salary_row is not None
+
+    slip_response = client.post(
+        "/drivers/DRV-T1/salary-slip",
+        data={
+            "salary_store_id": str(salary_row["id"]),
+            "payment_id": "",
+            "deduction_amount": "250",
+            "payment_date": "2026-04-30",
+            "actual_paid_amount": "3000",
+            "payment_source": "Owner Fund",
+            "paid_by": "Nasrullah",
+            "payment_notes": "April settlement",
+        },
+        follow_redirects=True,
+    )
+    assert b"Salary slip PDF generated." in slip_response.data
+
+    driver_root = Path(app.config["GENERATED_DIR"]) / "drivers"
+    archive_dir = next(driver_root.glob("*__drv-t1"))
+    ledger = load_json(archive_dir / "meta" / "driver-ledger.json")
+    event_types = {item["event_type"] for item in ledger}
+    assert "salary_store_saved" in event_types
+    assert "driver_transaction_saved" in event_types
+    assert "salary_statement_saved" in event_types
+
+    month_dir = archive_dir / "months" / "2026-04"
+    assert (month_dir / "salary-store.json").exists()
+    assert (month_dir / "statement-summary.json").exists()
+
+    month_snapshot = load_json(month_dir / "statement-summary.json")
+    assert month_snapshot["salary_month"] == "2026-04"
+    assert float(month_snapshot["summary"]["received_not_deducted_total"]) >= 0
+
+
+def test_customer_invoice_and_payment_archive_files_are_written(app, client):
+    admin_session(client)
+    create_customer_record(client, party_code="PTY-CUST-99", party_name="Archive Customer")
+
+    invoice_response = client.post(
+        "/invoices",
+        data={
+            "action": "save_invoice",
+            "original_invoice_no": "",
+            "invoice_no": "INV-ARCH-01",
+            "invoice_kind": "Sales",
+            "document_type": "Tax Invoice",
+            "party_code": "PTY-CUST-99",
+            "agreement_no": "",
+            "lpo_no": "",
+            "hire_no": "",
+            "issue_date": "2026-05-01",
+            "due_date": "2026-05-31",
+            "subtotal": "",
+            "tax_percent": "5",
+            "notes": "Archive invoice test",
+            "line_description_1": "Monthly hire",
+            "line_unit_1": "Month",
+            "line_quantity_1": "1",
+            "line_rate_1": "5000",
+            "line_subtotal_1": "",
+            "line_description_2": "",
+            "line_unit_2": "",
+            "line_quantity_2": "",
+            "line_rate_2": "",
+            "line_subtotal_2": "",
+            "line_description_3": "",
+            "line_unit_3": "",
+            "line_quantity_3": "",
+            "line_rate_3": "",
+            "line_subtotal_3": "",
+            "line_description_4": "",
+            "line_unit_4": "",
+            "line_quantity_4": "",
+            "line_rate_4": "",
+            "line_subtotal_4": "",
+        },
+        follow_redirects=True,
+    )
+    assert b"Invoice created successfully." in invoice_response.data
+
+    pdf_response = client.get("/invoices/INV-ARCH-01/pdf", follow_redirects=False)
+    assert pdf_response.status_code == 302
+
+    payment_response = client.post(
+        "/invoices",
+        data={
+            "action": "save_payment",
+            "original_voucher_no": "",
+            "voucher_no": "PAY-ARCH-01",
+            "invoice_no": "INV-ARCH-01",
+            "entry_date": "2026-05-05",
+            "amount": "2500",
+            "payment_method": "Bank",
+            "reference": "TRF-1",
+            "notes": "Part payment",
+        },
+        follow_redirects=True,
+    )
+    assert b"Payment saved and invoice balance updated." in payment_response.data
+
+    customer_root = Path(app.config["GENERATED_DIR"]) / "customers"
+    archive_dir = next(customer_root.glob("pty-cust-99*"))
+    assert (archive_dir / "invoices" / "inv-arch-01.json").exists()
+    assert (archive_dir / "payments" / "pay-arch-01.json").exists()
+    assert any(item.suffix == ".pdf" for item in (archive_dir / "invoices").iterdir())
+
+    ledger = load_json(archive_dir / "meta" / "customer-ledger.json")
+    event_types = {item["event_type"] for item in ledger}
+    assert "invoice_saved" in event_types
+    assert "invoice_pdf_generated" in event_types
+    assert "payment_saved" in event_types
+
+
+def test_field_staff_archive_writes_paper_and_payment_ledgers(app, client):
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO technicians
+            (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("TEC-ARCH", "PTY-ARCH", "tec.arch", "hash", "0501000000", "Archive Staff", "Active"),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, address, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("PTY-ARCH", "Archive Workshop", "Company", "Supplier", "Workshop", "0501000001", "arch@example.com", "", "Mussafah", "Active"),
+        )
+        db.commit()
+
+    with client.session_transaction() as session:
+        session["role"] = "technician"
+        session["technician_code"] = "TEC-ARCH"
+        session["technician_party_code"] = "PTY-ARCH"
+        session["display_name"] = "Field Staff"
+
+    submit_response = client.post(
+        "/portal/technician",
+        data={
+            "action": "submit_jobs",
+            "row_indexes": "1",
+            "entry_date_1": "2026-05-06",
+            "vehicle_id_1": "",
+            "workshop_name_1": "Archive Workshop",
+            "bill_no_1": "BILL-ARCH-1",
+            "work_type_1": "Other",
+            "details_1": "General work archive",
+            "amount_1": "500",
+            "tax_mode_1": "Inclusive",
+            "tax_amount_1": "0",
+            "total_amount_1": "500",
+            "remarks_1": "General entry archive",
+        },
+        follow_redirects=True,
+    )
+    assert b"submitted successfully" in submit_response.data
+
+    admin_session(client)
+    payment_response = client.post(
+        "/technicians",
+        data={
+            "action": "issue_payment",
+            "payment_technician_code": "TEC-ARCH",
+            "payment_entry_date": "2026-05-06",
+            "payment_funding_source": "Owner Fund",
+            "payment_amount": "900",
+            "payment_reference": "ADV-ARCH",
+            "payment_notes": "Archive support",
+        },
+        follow_redirects=True,
+    )
+    assert b"issued to" in payment_response.data
+
+    archive_root = Path(app.config["GENERATED_DIR"]) / "field_staff"
+    archive_dir = next(archive_root.glob("tec-arch*"))
+    ledger = load_json(archive_dir / "meta" / "field-staff-ledger.json")
+    event_types = {item["event_type"] for item in ledger}
+    assert "field_staff_job_saved" in event_types
+    assert "field_staff_payment_saved" in event_types
+
+    paper_dirs = list((archive_dir / "papers").iterdir())
+    assert paper_dirs
+    assert (paper_dirs[0] / "paper.json").exists()
+    assert any(item.suffix == ".json" for item in (archive_dir / "payments").iterdir())
+
+
+def test_fleet_maintenance_tracks_advance_workshop_credit_and_partnership_split(app, client):
+    admin_session(client)
+
+    with app.app_context():
+        db = open_db()
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, address, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "PTY-WS-01",
+                "Zaraki Auto Shop",
+                "Company",
+                "Supplier",
+                "Workshop",
+                "0501000001",
+                "shop@example.com",
+                "",
+                "Mussafah",
+                "Active",
+            ),
+        )
+        db.execute(
+            """
+            INSERT INTO parties (
+                party_code, party_name, party_kind, party_roles, contact_person,
+                phone_number, email, trn_no, address, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "PTY-PART-02",
+                "Hussain Partnership",
+                "Company",
+                "Partner",
+                "Hussain",
+                "0502000002",
+                "partner@example.com",
+                "",
+                "Abu Dhabi",
+                "Active",
+            ),
+        )
+        db.commit()
+
+    vehicle_standard = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_vehicle",
+            "original_vehicle_id": "",
+            "vehicle_id": "VEH-0001",
+            "vehicle_no": "TNK-101",
+            "vehicle_type": "Water Tanker",
+            "make_model": "Hino 5000",
+            "status": "Active",
+            "shift_mode": "Single Shift",
+            "ownership_mode": "Standard",
+            "partner_party_code": "",
+            "partner_name": "",
+            "company_share_percent": "100",
+            "partner_share_percent": "0",
+            "notes": "Own tanker",
+        },
+        follow_redirects=True,
+    )
+    assert b"Vehicle saved successfully." in vehicle_standard.data
+
+    vehicle_partnership = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_vehicle",
+            "original_vehicle_id": "",
+            "vehicle_id": "VEH-0002",
+            "vehicle_no": "TRL-202",
+            "vehicle_type": "Trailer",
+            "make_model": "Partnership Trailer",
+            "status": "Active",
+            "shift_mode": "Double Shift",
+            "ownership_mode": "Partnership",
+            "partner_party_code": "PTY-PART-02",
+            "partner_name": "",
+            "company_share_percent": "50",
+            "partner_share_percent": "50",
+            "notes": "50/50 unit",
+        },
+        follow_redirects=True,
+    )
+    assert b"Vehicle saved successfully." in vehicle_partnership.data
+
+    technician = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_staff",
+            "original_staff_code": "",
+            "staff_code": "TEC-0001",
+            "staff_name": "Amjad",
+            "phone_number": "0505556667",
+            "status": "Active",
+            "notes": "Lead technician",
+        },
+        follow_redirects=True,
+    )
+    assert b"Technician saved successfully." in technician.data
+
+    advance = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_advance",
+            "original_advance_no": "",
+            "advance_no": "ADV-0001",
+            "staff_code": "TEC-0001",
+            "entry_date": "2026-04-01",
+            "funding_source": "Owner Fund",
+            "amount": "3000",
+            "reference": "Owner issue",
+            "notes": "April advance",
+        },
+        follow_redirects=True,
+    )
+    assert b"Field staff payment saved successfully." in advance.data
+
+    paper_one = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_paper",
+            "paper_no": "MTP-0001",
+            "paper_date": "2026-04-15",
+            "vehicle_id": "VEH-0001",
+            "workshop_party_code": "",
+            "staff_code": "TEC-0001",
+            "advance_no": "ADV-0001",
+            "tax_mode": "Without Tax",
+            "supplier_bill_no": "BILL-001",
+            "work_summary": "Oil seal and labour",
+            "funding_source": "Technician Advance",
+            "paid_by": "Company",
+            "tax_amount": "0",
+            "notes": "Settled from Amjad advance",
+            "line_description_1": "Oil seal replacement",
+            "line_quantity_1": "1",
+            "line_rate_1": "500",
+            "line_amount_1": "",
+            "line_description_2": "",
+            "line_quantity_2": "",
+            "line_rate_2": "",
+            "line_amount_2": "",
+            "line_description_3": "",
+            "line_quantity_3": "",
+            "line_rate_3": "",
+            "line_amount_3": "",
+            "line_description_4": "",
+            "line_quantity_4": "",
+            "line_rate_4": "",
+            "line_amount_4": "",
+            "attachment": (BytesIO(b"paper-one"), "paper-one.pdf"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert b"Maintenance paper saved successfully." in paper_one.data
+
+    paper_two = client.post(
+        "/fleet-maintenance",
+        data={
+            "action": "save_paper",
+            "paper_no": "MTP-0002",
+            "paper_date": "2026-04-20",
+            "vehicle_id": "VEH-0002",
+            "workshop_party_code": "PTY-WS-01",
+            "staff_code": "",
+            "advance_no": "",
+            "tax_mode": "Tax Invoice",
+            "supplier_bill_no": "VAT-2002",
+            "work_summary": "Brake and welding paper",
+            "funding_source": "Workshop Credit",
+            "paid_by": "Partner",
+            "tax_amount": "50",
+            "notes": "Workshop monthly bill",
+            "line_description_1": "Brake overhaul and welding",
+            "line_quantity_1": "1",
+            "line_rate_1": "1000",
+            "line_amount_1": "",
+            "line_description_2": "",
+            "line_quantity_2": "",
+            "line_rate_2": "",
+            "line_amount_2": "",
+            "line_description_3": "",
+            "line_quantity_3": "",
+            "line_rate_3": "",
+            "line_amount_3": "",
+            "line_description_4": "",
+            "line_quantity_4": "",
+            "line_rate_4": "",
+            "line_amount_4": "",
+            "attachment": (BytesIO(b"paper-two"), "paper-two.jpg"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+    assert b"Maintenance paper saved successfully." in paper_two.data
+
+    filtered = client.get("/fleet-maintenance?month=2026-04&search=Brake", follow_redirects=True)
+    assert filtered.status_code == 200
+    assert b"Vehicle Master" in filtered.data
+    assert b"Brake and welding paper" in filtered.data
+    assert b"Zaraki Auto Shop" in filtered.data
+
+    with app.app_context():
+        db = open_db()
+        assert db.execute("SELECT COUNT(*) FROM vehicle_master").fetchone()[0] == 2
+        assert db.execute("SELECT COUNT(*) FROM maintenance_staff").fetchone()[0] == 1
+        assert db.execute("SELECT COUNT(*) FROM maintenance_paper_lines WHERE paper_no = ?", ("MTP-0001",)).fetchone()[0] == 1
+        assert db.execute("SELECT COUNT(*) FROM maintenance_paper_lines WHERE paper_no = ?", ("MTP-0002",)).fetchone()[0] == 1
+
+        advance_row = db.execute(
+            """
+            SELECT amount, settled_amount, balance_amount
+            FROM maintenance_staff_advances
+            WHERE advance_no = ?
+            """,
+            ("ADV-0001",),
+        ).fetchone()
+        first_paper = db.execute(
+            """
+            SELECT total_amount, company_share_amount, partner_share_amount, company_paid_amount, partner_paid_amount, attachment_path
+            FROM maintenance_papers
+            WHERE paper_no = ?
+            """,
+            ("MTP-0001",),
+        ).fetchone()
+        second_paper = db.execute(
+            """
+            SELECT total_amount, tax_amount, company_share_amount, partner_share_amount, company_paid_amount, partner_paid_amount
+            FROM maintenance_papers
+            WHERE paper_no = ?
+            """,
+            ("MTP-0002",),
+        ).fetchone()
+        technician_settlement = db.execute(
+            """
+            SELECT settlement_type, amount, status
+            FROM maintenance_settlements
+            WHERE paper_no = ?
+            """,
+            ("MTP-0001",),
+        ).fetchone()
+        workshop_settlement = db.execute(
+            """
+            SELECT settlement_type, party_code, amount, status
+            FROM maintenance_settlements
+            WHERE paper_no = ?
+            """,
+            ("MTP-0002",),
+        ).fetchone()
+
+        assert advance_row is not None
+        assert float(advance_row["amount"]) == 3000.0
+        assert float(advance_row["settled_amount"]) == 500.0
+        assert float(advance_row["balance_amount"]) == 2500.0
+
+        assert first_paper is not None
+        assert float(first_paper["total_amount"]) == 500.0
+        assert float(first_paper["company_share_amount"]) == 500.0
+        assert float(first_paper["partner_share_amount"]) == 0.0
+        assert float(first_paper["company_paid_amount"]) == 500.0
+        assert float(first_paper["partner_paid_amount"]) == 0.0
+        assert first_paper["attachment_path"].startswith("maintenance/mtp-0001/")
+        assert (Path(app.config["GENERATED_DIR"]) / first_paper["attachment_path"]).exists()
+
+        assert second_paper is not None
+        assert float(second_paper["total_amount"]) == 1050.0
+        assert float(second_paper["tax_amount"]) == 50.0
+        assert float(second_paper["company_share_amount"]) == 525.0
+        assert float(second_paper["partner_share_amount"]) == 525.0
+        assert float(second_paper["company_paid_amount"]) == 0.0
+        assert float(second_paper["partner_paid_amount"]) == 0.0
+
+        assert technician_settlement is not None
+        assert technician_settlement["settlement_type"] == "Technician Advance"
+        assert float(technician_settlement["amount"]) == 500.0
+        assert technician_settlement["status"] == "Settled"
+
+        assert workshop_settlement is not None
+        assert workshop_settlement["settlement_type"] == "Workshop Credit"
+        assert workshop_settlement["party_code"] == "PTY-WS-01"
+        assert float(workshop_settlement["amount"]) == 1050.0
+        assert workshop_settlement["status"] == "Open"
+
+
+def test_supplier_edit_flow_accepts_portal_toggle_without_500(app, client):
+    admin_session(client)
+    created = create_supplier_record(
+        client,
+        party_code="PTY-EDIT-PORTAL",
+        party_name="Edit Portal Supplier",
+        party_kind="Company",
+        portal_enabled=False,
+    )
+    assert b"Supplier registered successfully." in created.data
+
+    updated = client.post(
+        "/suppliers/admin/register?mode=Normal",
+        data={
+            "original_party_code": "PTY-EDIT-PORTAL",
+            "party_code": "PTY-EDIT-PORTAL",
+            "party_name": "Edit Portal Supplier",
+            "party_kind": "Company",
+            "party_roles": ["Supplier"],
+            "contact_person": "Ops",
+            "phone_number": "0500000001",
+            "email": "edit.portal@example.com",
+            "portal_login_email": "edit.portal@example.com",
+            "portal_enabled": "1",
+            "trn_no": "TRN-PTY-EDIT-PORTAL",
+            "trade_license_no": "LIC-PTY-EDIT-PORTAL",
+            "address": "Mussafah",
+            "notes": "updated",
+            "status": "Active",
+            "supplier_mode": "Normal",
+        },
+        follow_redirects=True,
+    )
+    assert b"Supplier updated successfully." in updated.data
+
+    with app.app_context():
+        db = open_db()
+        account = db.execute(
+            "SELECT login_email, portal_enabled FROM supplier_portal_accounts WHERE party_code = ?",
+            ("PTY-EDIT-PORTAL",),
+        ).fetchone()
+        assert account is not None
+        assert account["login_email"] == "edit.portal@example.com"
+        assert int(account["portal_enabled"]) == 1
+
+
+def test_customer_desk_can_add_and_archive_customer(app, client):
+    admin_session(client)
+    created = create_customer_record(client, party_code="PTY-CUST-01", party_name="Delta Customer")
+    assert b"Customer saved successfully." in created.data
+
+    archive = client.post("/customers/PTY-CUST-01/archive", data={}, follow_redirects=True)
+    assert archive.status_code == 200
+    assert b"marked as Inactive" in archive.data
+
+
+def test_create_app_builds_current_link_data_tree(monkeypatch):
+    data_root = Path.cwd() / "generated" / "test-runs" / f"current-link-data-root-{uuid4().hex}"
+    data_root.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("CURRENT_LINK_DATA_ROOT", str(data_root))
+    monkeypatch.setenv("DATABASE_FILE", str(data_root / "Database" / "payroll.db"))
+    monkeypatch.setenv("GENERATED_DIR", str(data_root / "Generated"))
+    monkeypatch.setenv("GENERATED_BACKUP_DIR", str(data_root / "Backups"))
+    monkeypatch.setenv("DRIVER_FILES_DIR", str(data_root / "Generated" / "Drivers"))
+
+    app = create_app(
+        {
+            "TESTING": True,
+            "SECRET_KEY": "test-secret-key",
+            "ADMIN_PASSWORD": "admin-pass",
+            "OWNER_PASSWORD": "owner-pass",
+        }
+    )
+
+    assert Path(app.config["DATABASE"]).parent.exists()
+    assert (data_root / "Generated" / "Drivers").exists()
+    assert (data_root / "Generated" / "Suppliers" / "Online").exists()
+    assert (data_root / "Generated" / "Customers" / "Invoices").exists()
+    assert (data_root / "Generated" / "Accounts" / "Owner_Fund").exists()
+    assert (data_root / "Generated" / "Field_Staff" / "General_Expenses").exists()
+    assert (data_root / "Backups" / "Daily").exists()
+    assert (data_root / "Backups" / "Weekly").exists()
+    assert (data_root / "Backups" / "Monthly").exists()
+    shutil.rmtree(data_root, ignore_errors=True)
+
+
+def test_backup_service_creates_db_and_zip_backups(app):
+    backup_root = Path(app.config["GENERATED_DIR"]).parent / "backups"
+    app.config["GENERATED_BACKUP_DIR"] = str(backup_root)
+    app.config["BACKUP_ROOT_DIR"] = str(backup_root)
+    app.config["BACKUP_DAILY_DIR"] = str(backup_root / "Daily")
+    app.config["BACKUP_WEEKLY_DIR"] = str(backup_root / "Weekly")
+    app.config["BACKUP_MONTHLY_DIR"] = str(backup_root / "Monthly")
+    for folder in (backup_root / "Daily", backup_root / "Weekly", backup_root / "Monthly"):
+        folder.mkdir(parents=True, exist_ok=True)
+
+    sample_file = Path(app.config["GENERATED_DIR"]) / "drivers" / "sample.txt"
+    sample_file.parent.mkdir(parents=True, exist_ok=True)
+    sample_file.write_text("driver file", encoding="utf-8")
+
+    with app.app_context():
+        daily = create_backup_now("daily", app)
+        weekly = create_backup_now("weekly", app)
+        monthly = create_backup_now("monthly", app)
+        summary = backup_status_summary(app)
+
+    assert daily["ok"] is True
+    assert weekly["ok"] is True
+    assert monthly["ok"] is True
+    assert Path(daily["path"]).exists()
+    assert Path(weekly["path"]).exists()
+    assert Path(monthly["path"]).exists()
+    assert summary["latest_daily"] is not None
+    assert summary["latest_weekly"] is not None
+    assert summary["latest_monthly"] is not None
+
+    with zipfile.ZipFile(weekly["path"]) as archive:
+        names = archive.namelist()
+    assert any(name.startswith("database/") for name in names)
+    assert any(name.endswith("sample.txt") for name in names)
+
+
+def test_backup_service_syncs_full_pc_copy(app):
+    backup_root = Path(app.config["GENERATED_DIR"]).parent / "backups-pc-sync"
+    mirror_root = Path(app.config["GENERATED_DIR"]).parent / "pc-mirror-root"
+    log_root = Path(app.config["GENERATED_DIR"]).parent / "pc-mirror-logs"
+    app.config["GENERATED_BACKUP_DIR"] = str(backup_root)
+    app.config["BACKUP_ROOT_DIR"] = str(backup_root)
+    app.config["BACKUP_DAILY_DIR"] = str(backup_root / "Daily")
+    app.config["BACKUP_WEEKLY_DIR"] = str(backup_root / "Weekly")
+    app.config["BACKUP_MONTHLY_DIR"] = str(backup_root / "Monthly")
+    app.config["PC_MIRROR_ROOT"] = str(mirror_root)
+    app.config["PC_MIRROR_LOG_DIR"] = str(log_root)
+    for folder in (backup_root / "Daily", backup_root / "Weekly", backup_root / "Monthly", mirror_root, log_root):
+        folder.mkdir(parents=True, exist_ok=True)
+
+    sample_file = Path(app.config["GENERATED_DIR"]) / "suppliers" / "sync-check.txt"
+    sample_file.parent.mkdir(parents=True, exist_ok=True)
+    sample_file.write_text("supplier export", encoding="utf-8")
+
+    with app.app_context():
+        result = sync_pc_mirror_copy(app)
+        summary = backup_status_summary(app)
+
+    assert result["ok"] is True
+    assert (mirror_root / "Generated" / "suppliers" / "sync-check.txt").exists()
+    assert (mirror_root / "Backups" / "Daily").exists()
+    assert (mirror_root / "Database" / "payroll_snapshot_latest.db").exists()
+    assert Path(result["log_path"]).exists()
+    assert summary["pc_mirror_enabled"] is True
+    assert summary["pc_mirror_available"] is True
+    assert str(summary["latest_pc_sync"]).endswith(".log")
+
+
+def test_admin_backup_routes_create_and_download_latest(app, client):
+    admin_session(client)
+    backup_root = Path(app.config["GENERATED_DIR"]).parent / "backups-admin"
+    mirror_root = Path(app.config["GENERATED_DIR"]).parent / "pc-mirror-admin"
+    log_root = Path(app.config["GENERATED_DIR"]).parent / "pc-mirror-admin-logs"
+    app.config["GENERATED_BACKUP_DIR"] = str(backup_root)
+    app.config["BACKUP_ROOT_DIR"] = str(backup_root)
+    app.config["BACKUP_DAILY_DIR"] = str(backup_root / "Daily")
+    app.config["BACKUP_WEEKLY_DIR"] = str(backup_root / "Weekly")
+    app.config["BACKUP_MONTHLY_DIR"] = str(backup_root / "Monthly")
+    app.config["PC_MIRROR_ROOT"] = str(mirror_root)
+    app.config["PC_MIRROR_LOG_DIR"] = str(log_root)
+    for folder in (backup_root / "Daily", backup_root / "Weekly", backup_root / "Monthly", mirror_root, log_root):
+        folder.mkdir(parents=True, exist_ok=True)
+
+    page = client.get("/admin/backups")
+    assert page.status_code == 200
+    assert b"Backup Center" in page.data
+    assert b"PC Mirror Target" in page.data
+    assert b"Sync Full PC Copy" in page.data
+
+    daily = client.post("/admin/backups/create", data={"kind": "daily"}, follow_redirects=True)
+    assert daily.status_code == 200
+    assert b"Daily database backup created" in daily.data
+
+    weekly = client.post("/admin/backups/create", data={"kind": "weekly"}, follow_redirects=True)
+    assert weekly.status_code == 200
+    assert b"Weekly full backup created" in weekly.data
+
+    pc_sync = client.post("/admin/backups/sync-pc-mirror", data={}, follow_redirects=True)
+    assert pc_sync.status_code == 200
+    assert b"Full PC copy synced" in pc_sync.data
+    assert (mirror_root / "Database" / "payroll_snapshot_latest.db").exists()
+
+    download = client.get("/admin/backups/download-latest")
+    assert download.status_code == 200
+    assert "attachment;" in download.headers.get("Content-Disposition", "")
+
+
+def test_cash_supplier_portal_redesign_and_manual_routes(app, client, monkeypatch):
+    admin_session(client)
+
+    created = client.post(
+        "/suppliers/cash",
+        data={
+            "original_party_code": "",
+            "party_code": "PTY-CASH-01",
+            "party_name": "Sayed Muhammad",
+            "party_kind": "Individual",
+            "party_roles": ["Supplier"],
+            "contact_person": "Aqal Muhammad",
+            "phone_number": "0552885561",
+            "email": "",
+            "trn_no": "",
+            "trade_license_no": "",
+            "address": "Musafah M17",
+            "notes": "cash supplier",
+            "status": "Active",
+            "supplier_mode": "Cash",
+        },
+        follow_redirects=True,
+    )
+    assert created.status_code == 200
+
+    client.post(
+        "/suppliers/PTY-CASH-01",
+        data={
+            "action": "save_trip",
+            "trip_no": "TRP-CASH-01",
+            "entry_date": "2026-04-30",
+            "period_month": "2026-04",
+            "earning_basis": "Trips",
+            "trip_count": "3",
+            "rate": "1700",
+            "vehicle_no": "17699",
+            "notes": "April trip earning",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/suppliers/PTY-CASH-01",
+        data={
+            "action": "save_debit",
+            "debit_no": "DEB-CASH-01",
+            "entry_date": "2026-05-01",
+            "debit_type": "Loan",
+            "amount": "8532",
+            "description": "Loan",
+            "notes": "Loan deduction",
+        },
+        follow_redirects=True,
+    )
+    client.post(
+        "/suppliers/PTY-CASH-01",
+        data={
+            "action": "save_cash_payment",
+            "payment_no": "CPY-CASH-01",
+            "entry_date": "2026-05-02",
+            "amount": "300",
+            "payment_method": "Cash",
+            "reference": "PV-1",
+            "notes": "Cash settlement",
+        },
+        follow_redirects=True,
+    )
+
+    portal = client.get("/suppliers/PTY-CASH-01?screen=portal", follow_redirects=True)
+    assert portal.status_code == 200
+    assert b"Cash Supplier Portal" in portal.data
+    assert b"Current Position" in portal.data
+    assert b"Recent Trip Earnings" in portal.data
+    assert b"Recent Deductions" in portal.data
+    assert b"Recent Payments" in portal.data
+    assert b"Add Trip" in portal.data
+    assert b"Add Debit" in portal.data
+    assert b"Add Payment" in portal.data
+    assert b"Open Guide" in portal.data
+    assert b"Save to Local" in portal.data
+    assert b"Assigned cash units" not in portal.data
+    assert b"rows pending" not in portal.data
+
+    local_export_root = Path(app.config["GENERATED_DIR"]).parent / "local-export-test"
+    shutil.rmtree(local_export_root, ignore_errors=True)
+    monkeypatch.setenv("CASH_SUPPLIER_LOCAL_EXPORT_ROOT", str(local_export_root))
+    saved_local = client.post("/suppliers/PTY-CASH-01/save-local", data={}, follow_redirects=True)
+    assert saved_local.status_code == 200
+    assert b"saved on server primary storage" in saved_local.data
+    assert b"Nightly PC sync" in saved_local.data
+
+    cash_root = local_export_root / "Cash"
+    supplier_folders = [item for item in cash_root.iterdir() if item.is_dir()]
+    assert len(supplier_folders) == 1
+    supplier_folder = supplier_folders[0]
+    assert (supplier_folder / "supplier-profile.json").exists()
+    assert (supplier_folder / "earnings.json").exists()
+    assert (supplier_folder / "debits.json").exists()
+    assert (supplier_folder / "payments.json").exists()
+    assert (supplier_folder / "soa-summary.json").exists()
+    assert (supplier_folder / "soa-rows.json").exists()
+    assert (supplier_folder / "statements" / "soa-latest.pdf").exists()
+    voucher_dir = supplier_folder / "payment_vouchers"
+    assert (voucher_dir / "CPY-CASH-01_payment-voucher.pdf").exists()
+
+    saved_local_again = client.post("/suppliers/PTY-CASH-01/save-local", data={}, follow_redirects=True)
+    assert saved_local_again.status_code == 200
+    assert len(list(voucher_dir.glob("*.pdf"))) == 1
+
+    trip_focus = client.get("/suppliers/PTY-CASH-01?screen=kata&focus=trip", follow_redirects=True)
+    assert trip_focus.status_code == 200
+    assert b"Add Earning" in trip_focus.data
+    assert b"Cash Payment" not in trip_focus.data
+    assert b"Running Statement" not in trip_focus.data
+
+    debit_focus = client.get("/suppliers/PTY-CASH-01?screen=kata&focus=debit", follow_redirects=True)
+    assert debit_focus.status_code == 200
+    assert b"Add Debit" in debit_focus.data
+    assert b"Add Earning" not in debit_focus.data
+    assert b"Cash Payment" not in debit_focus.data
+
+    payment_focus = client.get("/suppliers/PTY-CASH-01?screen=kata&focus=payment", follow_redirects=True)
+    assert payment_focus.status_code == 200
+    assert b"Cash Payment" in payment_focus.data
+    assert b"Add Earning" not in payment_focus.data
+    assert b"Running Statement" not in payment_focus.data
+
+    statement_focus = client.get("/suppliers/PTY-CASH-01?screen=kata&focus=statement", follow_redirects=True)
+    assert statement_focus.status_code == 200
+    assert b"Running Statement" in statement_focus.data
+    assert b"Add Earning" not in statement_focus.data
+    assert b"Cash Payment" not in statement_focus.data
+
+    guide = client.get("/supplier-desk/cash-guide")
+    assert guide.status_code == 200
+    assert b"Cash Supplier Desk Guide" in guide.data
+    assert b"Backups Kaise Kaam Karte Hain" in guide.data
+
+    guide_pdf = client.get("/supplier-desk/cash-guide/pdf", follow_redirects=False)
+    assert guide_pdf.status_code == 302
+    assert "/generated/" in guide_pdf.headers["Location"]
+
+
+def test_supplier_portal_and_partnership_statement_pdfs_download(app, client):
+    admin_session(client)
+    create_supplier_record(
+        client,
+        party_code="PTY-COMP-02",
+        party_name="PDF Supplier LLC",
+        party_kind="Company",
+        portal_enabled=True,
+        portal_login_email="pdf.portal@example.com",
+    )
+    client.get("/logout", follow_redirects=False)
+    client.post(
+        "/supplier-forgot-password",
+        data={
+            "user_id": "pty-comp-02",
+            "email": "pdf.portal@example.com",
+            "password": "secret12",
+            "confirm_password": "secret12",
+        },
+        follow_redirects=True,
+    )
+    client.post("/supplier-login", data={"user_id": "pty-comp-02", "password": "secret12"}, follow_redirects=True)
+    portal_pdf = client.get("/portal/supplier/statement-pdf", follow_redirects=False)
+    assert portal_pdf.status_code == 302
+    assert "/generated/" in portal_pdf.headers["Location"]
+
+    client.get("/logout", follow_redirects=False)
+    admin_session(client)
+    client.post(
+        "/suppliers/partnership",
+        data={
+            "party_code": "PTY-PDF-PART",
+            "party_name": "Partnership PDF Supplier",
+            "party_kind": "Company",
+            "party_roles": ["Supplier", "Partner"],
+            "contact_person": "Ops",
+            "phone_number": "0500000003",
+            "email": "partnership@example.com",
+            "trn_no": "",
+            "trade_license_no": "",
+            "address": "Mussafah",
+            "notes": "partnership",
+            "status": "Active",
+            "supplier_mode": "Partnership",
+            "partner_name": "Partner",
+            "default_company_share_percent": "50",
+            "default_partner_share_percent": "50",
+        },
+        follow_redirects=True,
+    )
+    partnership_pdf = client.get("/suppliers/PTY-PDF-PART/statement-pdf?month=2026-04", follow_redirects=False)
+    assert partnership_pdf.status_code == 302
+    assert "/generated/" in partnership_pdf.headers["Location"]

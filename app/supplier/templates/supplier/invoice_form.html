@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if inv else 'Add' }} Invoice{% endblock %}
+{% block page_title %}Invoice{% endblock %}
+
+{% block content %}
+<div class="form-shell" style="max-width:600px">
+    <div class="profile-card">
+        <div style="margin-bottom:16px">
+            <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='invoices') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        </div>
+        <h3>{{ 'Edit' if inv else 'Add' }} Invoice</h3>
+        <p style="color:var(--muted);font-size:0.85rem">Supplier: <strong>{{ s.supplier_name }}</strong></p>
+
+        <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Invoice Number *</label>
+                    <input type="text" name="invoice_no" value="{{ inv.invoice_no or '' }}" class="form-control" required placeholder="e.g. INV-2024-001">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Invoice Date *</label>
+                    <input type="date" name="invoice_date" value="{{ inv.invoice_date or '' }}" class="form-control" required>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Due Date</label>
+                    <input type="date" name="due_date" value="{{ inv.due_date or '' }}" class="form-control">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Amount (excl. VAT) *</label>
+                    <input type="number" name="amount" value="{{ inv.amount or '' }}" class="form-control" step="0.01" min="0" required id="invAmount" oninput="calcVAT()">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">VAT %</label>
+                    <input type="number" name="vat_percentage" value="{{ inv.vat_percentage or 5 }}" class="form-control" step="0.01" min="0" id="invVatPct" oninput="calcVAT()">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">VAT Amount</label>
+                    <input type="text" id="invVatAmt" class="form-control" style="background:#f5f7fa" readonly>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Total Amount</label>
+                    <input type="text" id="invTotal" class="form-control" style="background:#f5f7fa;font-weight:700" readonly>
+                </div>
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Linked LPO</label>
+                    <select name="lpo_id" class="form-control">
+                        <option value="none">— No LPO —</option>
+                        {% for lpo in lpos %}
+                        <option value="{{ lpo.id }}" {% if inv.lpo_id == lpo.id %}selected{% endif %}>{{ lpo.lpo_no }} — AED {{ "%.0f"|format(lpo.amount) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2">{{ inv.description or '' }}</textarea>
+                </div>
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Attach Invoice (PDF/Image)</label>
+                    {% if inv and inv.attachment_name %}
+                    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:4px">Current: {{ inv.attachment_name }}</div>
+                    {% endif %}
+                    <input type="file" name="attachment" accept="image/*,.pdf" class="form-control">
+                </div>
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2">{{ inv.notes or '' }}</textarea>
+                </div>
+                {% if inv %}
+                <div class="form-row">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-control">
+                        <option value="pending" {% if inv.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="approved" {% if inv.status == 'approved' %}selected{% endif %}>Approved</option>
+                        <option value="paid" {% if inv.status == 'paid' %}selected{% endif %}>Paid</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Payment Date</label>
+                    <input type="date" name="payment_date" value="{{ inv.payment_date or '' }}" class="form-control">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Payment Method</label>
+                    <select name="payment_method" class="form-control">
+                        <option value="">—</option>
+                        <option value="Cash" {% if inv.payment_method == 'Cash' %}selected{% endif %}>Cash</option>
+                        <option value="Bank Transfer" {% if inv.payment_method == 'Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
+                        <option value="Cheque" {% if inv.payment_method == 'Cheque' %}selected{% endif %}>Cheque</option>
+                        <option value="Card" {% if inv.payment_method == 'Card' %}selected{% endif %}>Card</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Payment Ref.</label>
+                    <input type="text" name="payment_ref" value="{{ inv.payment_ref or '' }}" class="form-control">
+                </div>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:12px">{{ 'Update' if inv else 'Add' }} Invoice</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function calcVAT() {
+    var amt = parseFloat(document.getElementById('invAmount').value) || 0;
+    var pct = parseFloat(document.getElementById('invVatPct').value) || 0;
+    var vat = amt * pct / 100;
+    document.getElementById('invVatAmt').value = vat.toFixed(2);
+    document.getElementById('invTotal').value = (amt + vat).toFixed(2);
+}
+calcVAT();
+</script>
+{% endblock %}

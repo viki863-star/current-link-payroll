@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}New Job — Staff Portal{% endblock %}
+{% block body_class %}staff-body{% endblock %}
+{% block page_title %}New Job{% endblock %}
+
+{% block content %}
+<style>
+* { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust:100%; text-size-adjust:100%; box-sizing:border-box; }
+.app-layout .erp-sidebar { display: none !important; }
+.app-layout .main-content { margin-left: 0 !important; width: 100% !important; max-width:100% !important; padding:0 !important; }
+body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+</style>
+<div class="staff-container">
+    <div class="staff-header">
+        <h1 class="staff-title">New Maintenance Job</h1>
+        <a href="{{ url_for('technician_my_jobs') }}" style="font-size:0.85rem;color:var(--primary);text-decoration:none;padding:6px 12px;border:1px solid var(--line);border-radius:8px">My Jobs</a>
+    </div>
+
+    <div class="balance-strip">
+        <div class="balance-item">
+            <div class="balance-label">Received</div>
+            <div class="balance-value green">AED {{ "%.0f"|format(total_received or 0) }}</div>
+        </div>
+        <div class="balance-item">
+            <div class="balance-label">Spent</div>
+            <div class="balance-value red">AED {{ "%.0f"|format(total_spent or 0) }}</div>
+        </div>
+        <div class="balance-item">
+            <div class="balance-label">Balance</div>
+            <div class="balance-value blue">AED {{ "%.0f"|format(balance or 0) }}</div>
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="staff-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {# ── Step 1: Select Vehicle ── #}
+        <div class="staff-card staff-section">
+            <div class="staff-section-label">Step 1</div>
+            <h2 class="staff-section-title">Select Vehicle</h2>
+            <div class="staff-search-box">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/></svg>
+                <input type="text" id="vehicleSearch" class="staff-search-input" placeholder="Search vehicle by plate or type..." oninput="filterVehicles(this.value)">
+            </div>
+            <div class="vehicle-grid" id="vehicleGrid">
+                <div class="vehicle-option general-expense" data-search="general expense no vehicle" onclick="selectVehicle('', this)" style="border:2px dashed var(--line);background:#f9fafb">
+                    <div class="vehicle-option-badge" style="background:#757575;font-size:0.7rem">GE</div>
+                    <div class="vehicle-option-text">
+                        <div class="vehicle-option-plate">General Expense</div>
+                        <div class="vehicle-option-type">Not vehicle-related</div>
+                    </div>
+                    <div class="vehicle-option-check">&#10003;</div>
+                </div>
+                {% for v in vehicles %}
+                <div class="vehicle-option" data-search="{{ v.plate_no }} {{ v.vehicle_type }}" onclick="selectVehicle('{{ v.plate_no }}', this)">
+                    <div class="vehicle-option-badge type-{{ v.vehicle_type|lower|replace(' ','') }}">{{ v.vehicle_type[:2]|upper }}</div>
+                    <div class="vehicle-option-text">
+                        <div class="vehicle-option-plate">{{ v.plate_no }}</div>
+                        <div class="vehicle-option-type">{{ v.vehicle_type }}</div>
+                    </div>
+                    <div class="vehicle-option-check">&#10003;</div>
+                </div>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="vehicle_id" id="vehicle_id" value="">
+            <div id="selectedVehicleDisplay" class="staff-selected-vehicle" style="display:none"></div>
+        </div>
+
+        {# ── Step 2: Job Details ── #}
+        <div class="staff-card staff-section">
+            <div class="staff-section-label">Step 2</div>
+            <h2 class="staff-section-title">Job Details</h2>
+            <div class="staff-field-group">
+                <label class="staff-label">Amount Spent (AED)</label>
+                <input type="number" name="amount" value="{{ v.amount or '' }}" class="staff-input" step="0.01" min="0" required placeholder="e.g. 500">
+            </div>
+            <div class="staff-field-group">
+                <label class="staff-label">Category</label>
+                <select name="category" class="staff-input">
+                    <option value="">Select category (optional)</option>
+                    {% for c in categories %}
+                    <option value="{{ c }}" {% if (v.category or '') == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="staff-field-group">
+                <label class="staff-label">Description</label>
+                <textarea name="description" class="staff-input staff-textarea" rows="3" placeholder="What work was done?">{{ v.description or '' }}</textarea>
+            </div>
+            <div class="staff-field-group">
+                <label class="staff-label">Attach Photo / Paper</label>
+                <div class="staff-file-area">
+                    <input type="file" name="attachment" accept="image/*,.pdf" id="fileInput">
+                    <label for="fileInput" class="staff-file-label">
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M10 3v14"/><path d="M3 10h14"/></svg>
+                        Tap to add photo
+                    </label>
+                    <span id="fileName" class="staff-file-name"></span>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="staff-submit-btn">Submit Job</button>
+    </form>
+</div>
+
+<script>
+function filterVehicles(query) {
+    var q = query.toLowerCase().trim();
+    document.querySelectorAll('.vehicle-option').forEach(function(el) {
+        var search = el.getAttribute('data-search').toLowerCase();
+        el.style.display = (!q || search.includes(q)) ? '' : 'none';
+    });
+}
+
+function selectVehicle(plate, el) {
+    document.querySelectorAll('.vehicle-option').forEach(function(c) { c.classList.remove('selected'); });
+    el.classList.add('selected');
+    document.getElementById('vehicle_id').value = plate;
+    var display = document.getElementById('selectedVehicleDisplay');
+    display.innerHTML = plate ? 'Selected: <strong>' + plate + '</strong>' : 'Selected: <strong>General Expense</strong>';
+    display.style.display = 'block';
+}
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    if (e.target.files.length > 0) {
+        document.getElementById('fileName').textContent = e.target.files[0].name;
+    }
+});
+</script>
+
+<style>
+.staff-container { max-width: 100%; margin: 0; padding: 16px; padding-bottom: 32px; }
+.staff-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap:8px; }
+.staff-title { margin: 0; font-size: 1.1rem; font-weight: 700; white-space:nowrap; }
+.staff-section { margin-bottom: 16px; }
+.staff-section-label { font-size: 0.7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+.staff-section-title { margin: 0 0 12px; font-size: 1rem; font-weight: 600; }
+.staff-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+.staff-search-box { display: flex; align-items: center; gap: 8px; background: #f5f7fa; border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+.staff-search-box svg { flex-shrink: 0; color: var(--muted); }
+.staff-search-input { border: none; background: none; flex: 1; font-size: 1rem; font-family: inherit; outline: none; }
+.vehicle-grid { display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+.vehicle-option { display: flex; align-items: center; gap: 12px; padding: 14px 12px; border: 2px solid var(--line); border-radius: 14px; cursor: pointer; transition: all 0.12s; position: relative; background:#fff; touch-action:manipulation; }
+.vehicle-option:hover { border-color: var(--primary); background: #f0f4ff; }
+.vehicle-option:active { transform:scale(0.98); }
+.vehicle-option.selected { border-color: var(--primary); background: #e8f0fe; }
+.vehicle-option.selected .vehicle-option-check { opacity: 1; }
+.vehicle-option-badge { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.type-tanker { background: #1c568b; }
+.type-trailer { background: #e65100; }
+.type-boxtruck { background: #7b1fa2; }
+.type-flatbed { background: #2e7d32; }
+.type-other { background: #546e7a; }
+.vehicle-option-text { flex: 1; min-width: 0; }
+.vehicle-option-plate { font-weight: 700; font-size: 0.95rem; }
+.vehicle-option-type { font-size: 0.75rem; color: var(--muted); margin-top:2px; }
+.vehicle-option-check { position: absolute; top: 8px; right: 8px; color: var(--primary); font-weight: 700; font-size: 0.9rem; opacity: 0; transition: opacity 0.12s; }
+.staff-selected-vehicle { margin-top: 8px; padding: 12px; background: #e8f5e9; border-radius: 10px; font-size: 0.9rem; text-align: center; }
+.staff-field-group { margin-bottom: 16px; }
+.staff-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+.staff-input { width: 100%; padding: 14px; border: 1.5px solid var(--line); border-radius: 12px; font-size: 1rem; font-family: inherit; background: #fff; box-sizing: border-box; }
+.staff-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28,86,139,0.1); }
+.staff-textarea { resize: vertical; min-height: 100px; }
+.staff-file-area { position: relative; }
+.staff-file-area input[type=file] { position: absolute; opacity: 0; width: 0.1px; height: 0.1px; }
+.staff-file-label { display: flex; align-items: center; gap: 10px; padding: 18px; border: 2px dashed var(--line); border-radius: 12px; cursor: pointer; font-size: 0.9rem; color: var(--muted); justify-content: center; transition: all 0.15s; }
+.staff-file-label:hover { border-color: var(--primary); color: var(--primary); background: #f0f4ff; }
+.staff-file-name { display: block; margin-top: 6px; font-size: 0.8rem; color: var(--green); text-align: center; }
+.staff-submit-btn { width: 100%; padding: 16px; background: var(--primary); color: #fff; border: none; border-radius: 14px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: opacity 0.15s; margin-top: 8px; }
+.staff-submit-btn:active { opacity: 0.75; }
+.balance-strip { display:flex; gap:8px; margin-bottom:16px; }
+.balance-item { flex:1; background:#fff; border-radius:14px; padding:12px 8px; text-align:center; border:1px solid #e8ecf2; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+.balance-label { font-size:0.6rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
+.balance-value { font-size:1.05rem; font-weight:800; }
+.balance-value.green { color:#1a7a4e; }
+.balance-value.red { color:#c0392b; }
+.balance-value.blue { color:#1c568b; }
+@media (max-width: 480px) {
+ .staff-container { padding:12px; }
+ .balance-strip { gap:6px; }
+ .balance-item { padding:10px 4px; }
+ .balance-value { font-size:0.95rem; }
+}
+</style>
+{% endblock %}

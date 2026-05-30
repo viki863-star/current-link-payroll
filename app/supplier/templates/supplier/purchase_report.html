@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Supplier Purchase Report — Current Link ERP{% endblock %}
+{% block body_class %}dashboard-body{% endblock %}
+{% block page_title %}Supplier Purchase Report{% endblock %}
+
+{% block content %}
+<div class="db-shell">
+    <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px;">
+        <div>
+            <div style="font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#7b92b6;">Accounts</div>
+            <h1 style="margin:8px 0 10px;font-size:36px;line-height:1;color:#17345e;">Supplier Purchase Report</h1>
+        </div>
+        <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <label style="font-size:.78rem;font-weight:600">From:
+                <input type="date" name="from" value="{{ from_filter }}" style="padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem;margin-left:4px">
+            </label>
+            <label style="font-size:.78rem;font-weight:600">To:
+                <input type="date" name="to" value="{{ to_filter }}" style="padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem;margin-left:4px">
+            </label>
+            <button type="submit" style="padding:7px 16px;border:0;border-radius:8px;background:#f7931e;color:#fff;font-weight:700;cursor:pointer;">Filter</button>
+            {% if from_filter or to_filter %}
+            <a href="{{ url_for('supplier.supplier_purchase_report') }}" style="padding:7px 16px;border:0;border-radius:8px;background:#255f99;color:#fff;font-weight:700;text-decoration:none;">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px;">
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total NET Purchases</div>
+            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#17345e;">AED {{ "{:,.2f}".format(total_net) }}</div>
+        </div>
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Input VAT</div>
+            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#f7931e;">AED {{ "{:,.2f}".format(total_vat) }}</div>
+        </div>
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total GROSS Purchases</div>
+            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#2CB15C;">AED {{ "{:,.2f}".format(total_gross) }}</div>
+        </div>
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Invoices</div>
+            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#17345e;">{{ invoices|length }}</div>
+        </div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:700px;">
+            <thead>
+                <tr style="background:#f5f8fe;text-align:left">
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">DATE</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">INVOICE NO</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">DETAIL</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">NET Purchase</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">VAT</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">GROSS Purchase</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr style="border-top:1px solid #eef3fa">
+                    <td style="padding:10px 14px;white-space:nowrap;">{{ inv.invoice_date }}</td>
+                    <td style="padding:10px 14px;white-space:nowrap;font-weight:600;">{{ inv.invoice_no or '—' }}</td>
+                    <td style="padding:10px 14px;color:#17345e;">{{ inv.supplier_name }}</td>
+                    <td style="padding:10px 14px;text-align:right;">AED {{ "{:,.2f}".format(inv.net_sale) }}</td>
+                    <td style="padding:10px 14px;text-align:right;color:#f7931e;">AED {{ "{:,.2f}".format(inv.vat_amount) }}</td>
+                    <td style="padding:10px 14px;text-align:right;font-weight:600;">AED {{ "{:,.2f}".format(inv.total_amount) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="padding:32px;text-align:center;color:#a0b5cf;">No supplier invoices found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="background:#f5f8fe;font-weight:700">
+                    <td colspan="3" style="padding:12px 14px;color:#17345e;">TOTALS</td>
+                    <td style="padding:12px 14px;text-align:right;">AED {{ "{:,.2f}".format(total_net) }}</td>
+                    <td style="padding:12px 14px;text-align:right;color:#f7931e;">AED {{ "{:,.2f}".format(total_vat) }}</td>
+                    <td style="padding:12px 14px;text-align:right;">AED {{ "{:,.2f}".format(total_gross) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endblock %}

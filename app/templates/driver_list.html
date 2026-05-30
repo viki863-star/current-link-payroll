@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button" href="{{ url_for('create_driver') }}">Add Driver</a>
+                <a class="button button-secondary" href="{{ url_for('driver_payroll_board') }}">Payroll Board</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ driver_count }}</strong><small>Total</small></span>
+                <span><strong>{{ active_count }}</strong><small>Active</small></span>
+                <span><strong>{{ inactive_count }}</strong><small>Inactive</small></span>
+            </div>
+        </div>
+        <form method="get" class="admin-filter-grid">
+            <label>
+                <span>Search</span>
+                <input type="search" name="q" value="{{ query }}" placeholder="Driver, ID, phone, vehicle">
+            </label>
+            <label>
+                <span>Status</span>
+                <select name="status">
+                    <option value="">All</option>
+                    <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </label>
+            <label>
+                <span>Shift</span>
+                <select name="shift">
+                    <option value="">All</option>
+                    {% for item in shifts %}
+                        <option value="{{ item }}" {% if shift_filter == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Vehicle</span>
+                <select name="vehicle_type">
+                    <option value="">All</option>
+                    {% for item in vehicle_types %}
+                        <option value="{{ item }}" {% if vehicle_filter == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <div class="admin-filter-actions">
+                <button class="button" type="submit">Search</button>
+                {% if query or status_filter or shift_filter or vehicle_filter %}
+                    <a class="button button-secondary" href="{{ url_for('driver_list') }}">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </article>
+
+    <section class="db-grid driver-card-wall">
+        {% for driver in drivers %}
+            {% set vehicle_type_value = (driver.vehicle_type or "")|lower %}
+            {% if "trailer" in vehicle_type_value %}
+                {% set veh_icon = "🚛" %}
+            {% elif "crane" in vehicle_type_value %}
+                {% set veh_icon = "🏗️" %}
+            {% elif "pickup" in vehicle_type_value %}
+                {% set veh_icon = "🚐" %}
+            {% elif "bus" in vehicle_type_value %}
+                {% set veh_icon = "🚌" %}
+            {% elif "tanker" in vehicle_type_value or "water" in vehicle_type_value %}
+                {% set veh_icon = "🚚" %}
+            {% else %}
+                {% set veh_icon = "🚛" %}
+            {% endif %}
+
+            <a class="wc wc-driver" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">
+                <div class="wc-shimmer"></div>
+                <div class="wc-bg-icon">{{ veh_icon }}</div>
+
+                <div class="wc-top">
+                    <div class="wc-icon-badge wc-badge-driver">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                             stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                            <circle cx="12" cy="8" r="4"/>
+                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                        </svg>
+                    </div>
+                    <div class="wc-meta">
+                        <span class="wc-tag">{{ driver.shift or "Driver" }}</span>
+                        <span class="wc-category status-chip {{ driver.status|lower }}">{{ driver.status }}</span>
+                    </div>
+                </div>
+
+                <div class="wc-body">
+                    <h2 class="wc-title">{{ driver.full_name }}</h2>
+                    <p class="wc-desc">
+                        {{ driver.vehicle_type or "No vehicle type" }}
+                        {% if driver.vehicle_no %} · {{ driver.vehicle_no }}{% endif %}
+                        {% if driver.phone_number %} · {{ driver.phone_number }}{% endif %}
+                    </p>
+                </div>
+
+                <div class="wc-footer">
+                    <div class="wc-quick-stats">
+                        <span class="wc-stat wc-stat-driver">{{ driver.driver_id }}</span>
+                        {% if driver.basic_salary %}
+                            <span class="wc-stat wc-stat-driver">AED {{ "%.0f"|format(driver.basic_salary) }}</span>
+                        {% endif %}
+                        <span class="wc-stat wc-stat-driver">{{ driver.shift or "—" }}</span>
+                    </div>
+                    <div class="wc-cta">
+                        <span class="wc-cta-text">Open</span>
+                        <span class="wc-cta-arrow">
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                                <path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+            </a>
+
+        {% else %}
+            <article class="card directory-empty">
+                <h2>No Driver Found</h2>
+                <p>Change search or add a driver.</p>
+            </article>
+        {% endfor %}
+    </section>
+
+</section>
+{% endblock %}

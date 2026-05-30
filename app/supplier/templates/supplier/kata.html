@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ s.supplier_name }} — Kata{% endblock %}
+{% block page_title %}Kata — Running Statement{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    <div style="margin-bottom:16px">
+        <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" class="btn btn-outline btn-sm">&larr; Back to Profile</a>
+    </div>
+
+    <div class="profile-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div>
+                <h3 style="margin:0;font-size:1.1rem">{{ s.supplier_name }}</h3>
+                <p style="margin:4px 0 0;color:var(--muted);font-size:0.82rem">{{ s.supplier_code }} &middot; {{ s.supplier_type }}</p>
+            </div>
+            <div style="text-align:right">
+                <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Closing Balance</div>
+                <div style="font-size:1.3rem;font-weight:700;color:{% if closing > 0 %}#e65100{% else %}var(--green){% endif %}">
+                    {{ "%.0f"|format(closing) }}
+                </div>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;padding:12px;background:#f8f9fb;border-radius:8px">
+            <div>
+                <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Total Credit (We Owe)</div>
+                <div style="font-size:1rem;font-weight:700;color:#e65100">{{ "%.0f"|format(total_credit) }}</div>
+            </div>
+            <div>
+                <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Total Debit (We Paid)</div>
+                <div style="font-size:1rem;font-weight:700;color:var(--green)">{{ "%.0f"|format(total_debit) }}</div>
+            </div>
+            <div>
+                <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Net</div>
+                <div style="font-size:1rem;font-weight:700;color:{% if closing > 0 %}#e65100{% else %}var(--green){% endif %}">{{ "%.0f"|format(closing) }}</div>
+            </div>
+        </div>
+
+        {% if ledger %}
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th style="text-align:right">Debit</th>
+                        <th style="text-align:right">Credit</th>
+                        <th style="text-align:right">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in ledger %}
+                    <tr style="{% if 'Separate' in row.description %}opacity:0.6{% endif %}">
+                        <td class="mono">{{ row.date }}</td>
+                        <td style="font-size:0.82rem">{{ row.description }}</td>
+                        <td class="mono" style="text-align:right;color:var(--green)">
+                            {% if row.debit > 0 %}{{ "%.0f"|format(row.debit) }}{% endif %}
+                        </td>
+                        <td class="mono" style="text-align:right;color:#e65100">
+                            {% if row.credit > 0 %}{{ "%.0f"|format(row.credit) }}{% endif %}
+                        </td>
+                        <td class="mono" style="text-align:right;font-weight:600;color:{% if row.balance > 0 %}#e65100{% else %}var(--green){% endif %}">
+                            {% if 'Separate' in row.description %}-{% else %}{{ "%.0f"|format(row.balance) }}{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">No transactions yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

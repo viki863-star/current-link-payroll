@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Current Link — ERP Portal</title>
+    <meta name="theme-color" content="#1a2d55">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/static/manifest.webmanifest?v=20260415a">
+    <link rel="icon" href="/static/icon-192.svg?v=20260415a">
+    <link rel="apple-touch-icon" href="/static/icon-192.svg?v=20260415a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css?v=20260419k">
+</head>
+<body class=" workspace-suppliers-normal">
+<div class="brand-shell">
+
+    
+
+    
+    <div class="bh">
+        
+        <div class="bh-bg">
+            <div class="bh-circle bh-circle-1"></div>
+            <div class="bh-circle bh-circle-2"></div>
+            <div class="bh-circle bh-circle-3"></div>
+        </div>
+
+        <div class="bh-inner">
+            
+            <a class="bh-brand" href="/dashboard">
+                <div class="bh-logo-wrap">
+                    <img class="bh-logo" src="/static/logo.png" alt="Current Link">
+                    <div class="bh-logo-ring"></div>
+                </div>
+                <div class="bh-brand-text">
+                    <div class="bh-brand-name">
+                        <span class="bh-name-current">CURRENT</span>
+                        <span class="bh-name-link">LINK</span>
+                    </div>
+                    <div class="bh-brand-tagline">TRANSPORT AND GENERAL CONTRACTING LLC SPC</div>
+                </div>
+            </a>
+
+            
+            <div class="bh-spacer"></div>
+
+            
+            <div class="bh-graphic" aria-hidden="true">
+                <svg class="bh-swoosh" viewBox="0 0 420 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Navy base fill -->
+                    <rect x="0" y="0" width="420" height="90" fill="#1a2d55"/>
+                    <!-- Orange accent band -->
+                    <polygon points="0,0 220,0 160,90 0,90" fill="#F7931E" opacity="0.92"/>
+                    <!-- Lighter orange highlight -->
+                    <polygon points="0,0 140,0 90,90 0,90" fill="#ffaa45" opacity="0.55"/>
+                    <!-- Mid navy overlap for depth -->
+                    <polygon points="160,0 420,0 420,90 260,90" fill="#1a2d55" opacity="0.98"/>
+                    <!-- Blue accent stripe -->
+                    <polygon points="140,0 180,0 130,90 90,90" fill="#2F5D9F" opacity="0.70"/>
+                    <!-- Thin white separator line -->
+                    <line x1="155" y1="0" x2="105" y2="90" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+                    <!-- Chevron accent -->
+                    <polyline points="290,28 318,45 290,62" fill="none" stroke="#F7931E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.80"/>
+                    <polyline points="310,28 338,45 310,62" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+        </div>
+
+        
+        <div class="bh-divider"></div>
+
+        
+        <nav class="bh-nav" id="bhNav">
+            <div class="bh-nav-inner">
+                
+                
+                    <span class="bh-nav-workspace">
+                        <span class="bh-nav-ws-dot"></span>
+                        Supplier Desk
+                    </span>
+                    <span class="bh-nav-sep"></span>
+                
+
+                
+                <div class="bh-nav-links">
+                    
+                        
+                            <a class="bh-link "
+                               href="/dashboard">Dashboard</a>
+                            
+                                <a class="bh-link "
+                                   href="/suppliers">Supplier Desk</a>
+                            
+                            
+                        
+                    
+                </div>
+
+                <div class="bh-nav-right">
+                    
+                        <div class="bh-user">
+                            <div class="bh-avatar">
+                                A
+                            </div>
+                            <div class="bh-user-meta">
+                                <span class="bh-user-name">Test Admin</span>
+                                <span class="bh-user-role">Suppliers</span>
+                            </div>
+                        </div>
+                        <a class="bh-logout" href="/logout">
+                            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                                <path d="M3 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h5a1 1 0 1 0 0-2H4V5h4a1 1 0 1 0 0-2H3z"/>
+                                <path d="M13.293 14.707a1 1 0 0 0 1.414 0l4-4a1 1 0 0 0 0-1.414l-4-4a1 1 0 1 0-1.414 1.414L15.586 9H7a1 1 0 1 0 0 2h8.586l-2.293 2.293a1 1 0 0 0 0 1.414z"/>
+                            </svg>
+                            Logout
+                        </a>
+                    
+                </div>
+            </div>
+        </nav>
+    </div>
+
+    
+
+    <main class="page">
+        
+            
+        
+        
+<section class="admin-desk-shell supplier-detail-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="/dashboard">Dashboard</a>
+                <a class="button button-secondary" href="/suppliers">Supplier Desk</a>
+                
+                    
+                
+                <a class="button button-secondary" href="/suppliers/PTY-0001/statement-pdf?month=2026-05">Statement PDF</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>0</strong><small>Vehicles</small></span>
+                <span><strong>0</strong><small>Double Shift</small></span>
+                <span><strong>AED 0</strong><small>Open Work</small></span>
+                <span><strong>AED 0</strong><small>Due</small></span>
+            </div>
+        </div>
+        <div class="mini-link-stack inline-link-stack">
+            
+                <a class="mini-link-pill active" href="/suppliers/PTY-0001?screen=portal&amp;partnership_month=2026-05">Portal</a>
+            
+                <a class="mini-link-pill " href="/suppliers/PTY-0001?screen=statement&amp;partnership_month=2026-05">SOA</a>
+            
+        </div>
+    </article>
+
+    <article class="card desk-panel-card supplier-overview-card">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">Supplier</span>
+                <h2>Sliver</h2>
+                <p class="workspace-lead">PTY-0001 | Shaneeh | 0565215825</p>
+            </div>
+            <div class="mini-link-stack inline-link-stack">
+                <span class="mini-link-pill">Company</span>
+                <span class="mini-link-pill">Active</span>
+                
+            </div>
+        </div>
+        <div class="supplier-overview-grid">
+            <div class="directory-line"><strong>Work Open</strong><small>0 Rows / AED 0.00</small></div>
+            <div class="directory-line"><strong>Paid</strong><small>AED 0.00</small></div>
+            <div class="directory-line"><strong>Outstanding</strong><small>AED 0.00</small></div>
+            <div class="directory-line"><strong>Address</strong><small>Mussafah M16</small></div>
+        </div>
+    </article>
+
+    
+        <section class="compact-content-grid supplier-portal-top">
+            <article class="card desk-panel-card supplier-portal-intro">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Supplier Portal</span>
+                        <h2>Online Supplier Portal</h2>
+                        <p class="workspace-lead">Open a clean supplier landing view for quotations, LPOs, invoices, vouchers and company details.</p>
+                    </div>
+                </div>
+                <div class="supplier-overview-grid supplier-portal-summary-grid">
+                    <div class="directory-line"><strong>Outstanding</strong><small>AED 0.00</small></div>
+                    <div class="directory-line"><strong>Paid</strong><small>AED 0.00</small></div>
+                    <div class="directory-line"><strong>Open Vouchers</strong><small>0</small></div>
+                    <div class="directory-line"><strong>Fleet</strong><small>0 units</small></div>
+                </div>
+            </article>
+
+            <article class="card desk-panel-card supplier-company-card" id="company-details">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Company Details</span>
+                        <h2>Sliver</h2>
+                    </div>
+                </div>
+                <div class="supplier-company-grid">
+                    
+                        <div class="directory-line">
+                            <strong>Supplier Code</strong>
+                            <small>PTY-0001</small>
+                        </div>
+                    
+                        <div class="directory-line">
+                            <strong>Type</strong>
+                            <small>Normal / Company</small>
+                        </div>
+                    
+                        <div class="directory-line">
+                            <strong>Status</strong>
+                            <small>Active</small>
+                        </div>
+                    
+                        <div class="directory-line">
+                            <strong>Contact</strong>
+                            <small>Shaneeh</small>
+                        </div>
+                    
+                        <div class="directory-line">
+                            <strong>Phone</strong>
+                            <small>0565215825</small>
+                        </div>
+                    
+                        <div class="directory-line">
+                            <strong>Email</strong>
+                            <small>waqarhussain3082@gmail.com</small>
+                        </div>
+                    
+                        <div class="directory-line">
+                            <strong>Address</strong>
+                            <small>Mussafah M16</small>
+                        </div>
+                    
+                        <div class="directory-line">
+                            <strong>Portal Access</strong>
+                            <small>Enabled</small>
+                        </div>
+                    
+                </div>
+            </article>
+        </section>
+
+        <section class="supplier-portal-modules">
+            
+                <a class="portal-module-card tone-info" href="/suppliers/PTY-0001?screen=portal#recent-quotations">
+                    <span class="portal-module-kicker">Commercial</span>
+                    <h3>Quotations</h3>
+                    <strong>2</strong>
+                    <p>Supplier quotations on record</p>
+                </a>
+            
+                <a class="portal-module-card tone-normal" href="/suppliers/PTY-0001?screen=portal#recent-lpos">
+                    <span class="portal-module-kicker">Purchase Orders</span>
+                    <h3>LPOs</h3>
+                    <strong>2</strong>
+                    <p>Linked LPO documents</p>
+                </a>
+            
+                <a class="portal-module-card tone-normal" href="/suppliers/PTY-0001?screen=portal#recent-invoices">
+                    <span class="portal-module-kicker">Invoices</span>
+                    <h3>Invoice Submissions</h3>
+                    <strong>0</strong>
+                    <p>Submitted supplier invoices</p>
+                </a>
+            
+                <a class="portal-module-card tone-success" href="/suppliers/PTY-0001?screen=portal#recent-vouchers">
+                    <span class="portal-module-kicker">Settlement</span>
+                    <h3>Payment Vouchers</h3>
+                    <strong>0</strong>
+                    <p>0 open vouchers</p>
+                </a>
+            
+                <a class="portal-module-card tone-warning" href="/suppliers/PTY-0001?screen=statement">
+                    <span class="portal-module-kicker">SOA</span>
+                    <h3>Statement of Account</h3>
+                    <strong>AED 0.00</strong>
+                    <p>Paid AED 0.00</p>
+                </a>
+            
+                <a class="portal-module-card tone-neutral" href="/suppliers/PTY-0001?screen=portal#company-details">
+                    <span class="portal-module-kicker">Master</span>
+                    <h3>Company Details</h3>
+                    <strong>Company</strong>
+                    <p>Shaneeh</p>
+                </a>
+            
+        </section>
+
+        <section class="compact-content-grid portal-recent-grid">
+            
+                <article class="card desk-panel-card portal-recent-card" id="recent-quotations">
+                    <div class="desk-panel-head">
+                        <div>
+                            <span class="admin-desk-label">Quotations</span>
+                            <h2>Recent Quotations</h2>
+                        </div>
+                    </div>
+                    <div class="portal-recent-list">
+                        
+                            <div class="portal-recent-row">
+                                <div>
+                                    <strong>QUE22</strong>
+                                    <small>2026-04-19</small>
+                                </div>
+                                <div class="portal-recent-meta">
+                                    <span>AED 300.00</span>
+                                    <span class="mini-link-pill">Approved</span>
+                                </div>
+                            </div>
+                        
+                            <div class="portal-recent-row">
+                                <div>
+                                    <strong>DSFS</strong>
+                                    <small>2026-04-09</small>
+                                </div>
+                                <div class="portal-recent-meta">
+                                    <span>AED 10.00</span>
+                                    <span class="mini-link-pill">Approved</span>
+                                </div>
+                            </div>
+                        
+                    </div>
+                </article>
+            
+                <article class="card desk-panel-card portal-recent-card" id="recent-lpos">
+                    <div class="desk-panel-head">
+                        <div>
+                            <span class="admin-desk-label">LPOs</span>
+                            <h2>Recent Purchase Orders</h2>
+                        </div>
+                    </div>
+                    <div class="portal-recent-list">
+                        
+                            <div class="portal-recent-row">
+                                <div>
+                                    <strong>LPO-0002</strong>
+                                    <small>2026-04-18</small>
+                                </div>
+                                <div class="portal-recent-meta">
+                                    <span>AED 10.00</span>
+                                    <span class="mini-link-pill">Issued</span>
+                                </div>
+                            </div>
+                        
+                            <div class="portal-recent-row">
+                                <div>
+                                    <strong>LPO-0001</strong>
+                                    <small>2026-04-18</small>
+                                </div>
+                                <div class="portal-recent-meta">
+                                    <span>AED 300.00</span>
+                                    <span class="mini-link-pill">Issued</span>
+                                </div>
+                            </div>
+                        
+                    </div>
+                </article>
+            
+                <article class="card desk-panel-card portal-recent-card" id="recent-invoices">
+                    <div class="desk-panel-head">
+                        <div>
+                            <span class="admin-desk-label">Invoices</span>
+                            <h2>Invoice Submissions</h2>
+                        </div>
+                    </div>
+                    <div class="portal-recent-list">
+                        
+                            <p class="muted-text">No invoice activity has been recorded yet.</p>
+                        
+                    </div>
+                </article>
+            
+                <article class="card desk-panel-card portal-recent-card" id="recent-vouchers">
+                    <div class="desk-panel-head">
+                        <div>
+                            <span class="admin-desk-label">Vouchers</span>
+                            <h2>Recent Payment Vouchers</h2>
+                        </div>
+                    </div>
+                    <div class="portal-recent-list">
+                        
+                            <p class="muted-text">No payment vouchers have been generated yet.</p>
+                        
+                    </div>
+                </article>
+            
+        </section>
+
+    
+</section>
+
+<script>
+function openInquiryModal() {
+    const modal = document.getElementById('inquiryModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Set default due date to 7 days from now
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 7);
+        document.querySelector('input[name="due_date"]').value = dueDate.toISOString().split('T')[0];
+        // Set response deadline to 3 days from now
+        const responseDate = new Date();
+        responseDate.setDate(responseDate.getDate() + 3);
+        document.querySelector('input[name="response_deadline"]').value = responseDate.toISOString().split('T')[0];
+    }
+}
+
+function closeInquiryModal() {
+    const modal = document.getElementById('inquiryModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('inquiryModal');
+    if (modal && event.target === modal) {
+        closeInquiryModal();
+    }
+});
+
+// Old sendInquiry function (kept for compatibility)
+function sendInquiry() {
+    alert('This feature has been upgraded. Please use the new inquiry form.');
+    openInquiryModal();
+}
+</script>
+
+<style>
+.supplier-portal-top {
+    margin-top: 22px;
+}
+
+.supplier-portal-summary-grid,
+.supplier-company-grid {
+    margin-top: 18px;
+}
+
+.supplier-portal-modules {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin: 22px 0;
+}
+
+.portal-module-card {
+    display: grid;
+    gap: 8px;
+    padding: 20px;
+    border-radius: 20px;
+    text-decoration: none;
+    color: #ffffff;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.portal-module-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 22px 44px rgba(15, 23, 42, 0.18);
+}
+
+.portal-module-card h3 {
+    margin: 0;
+    color: #ffffff;
+}
+
+.portal-module-card strong {
+    font-size: 1.22rem;
+}
+
+.portal-module-card p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.82);
+    line-height: 1.45;
+}
+
+.portal-module-kicker {
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.tone-normal,
+.tone-info {
+    background: linear-gradient(180deg, rgba(7, 106, 164, 0.98) 0%, rgba(11, 84, 138, 0.98) 100%);
+}
+
+.tone-managed {
+    background: linear-gradient(180deg, rgba(44, 86, 147, 0.98) 0%, rgba(31, 67, 121, 0.98) 100%);
+}
+
+.tone-partnership {
+    background: linear-gradient(180deg, rgba(171, 95, 23, 0.98) 0%, rgba(139, 73, 13, 0.98) 100%);
+}
+
+.tone-success {
+    background: linear-gradient(180deg, rgba(14, 116, 72, 0.98) 0%, rgba(15, 91, 61, 0.98) 100%);
+}
+
+.tone-warning {
+    background: linear-gradient(180deg, rgba(176, 102, 22, 0.98) 0%, rgba(145, 78, 13, 0.98) 100%);
+}
+
+.tone-neutral {
+    background: linear-gradient(180deg, rgba(71, 85, 105, 0.98) 0%, rgba(51, 65, 85, 0.98) 100%);
+}
+
+.tone-cash {
+    background: linear-gradient(180deg, rgba(7, 131, 94, 0.98) 0%, rgba(5, 108, 77, 0.98) 100%);
+}
+
+.tone-due {
+    background: linear-gradient(180deg, rgba(29, 78, 216, 0.98) 0%, rgba(30, 64, 175, 0.98) 100%);
+}
+
+.tone-advance {
+    background: linear-gradient(180deg, rgba(180, 83, 9, 0.98) 0%, rgba(146, 64, 14, 0.98) 100%);
+}
+
+.tone-settled {
+    background: linear-gradient(180deg, rgba(71, 85, 105, 0.98) 0%, rgba(51, 65, 85, 0.98) 100%);
+}
+
+.portal-recent-grid {
+    align-items: start;
+}
+
+.portal-recent-list {
+    display: grid;
+    gap: 12px;
+}
+
+.portal-recent-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.04);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.portal-recent-row strong,
+.portal-recent-row small {
+    display: block;
+}
+
+.portal-recent-row small {
+    margin-top: 4px;
+    color: var(--text-secondary);
+}
+
+.portal-recent-meta {
+    display: grid;
+    gap: 8px;
+    justify-items: end;
+    text-align: right;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 720px) {
+    .portal-recent-row {
+        flex-direction: column;
+    }
+
+    .portal-recent-meta {
+        justify-items: start;
+        text-align: left;
+    }
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+}
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+.modal-header {
+    padding: 16px 20px;
+    background: #0f2d52;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+}
+.modal-body {
+    padding: 20px;
+}
+.modal-footer {
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.full-span {
+    grid-column: 1 / -1;
+}
+.half-span {
+    grid-column: span 1;
+}
+</style>
+
+
+    </main>
+
+    
+        <footer class="site-footer">
+            <div class="site-footer-bar">
+                <div class="site-footer-inner">
+                    <span class="site-footer-name">
+                        <strong>Current Link</strong>
+                        &mdash; Transport and General Contracting LLC SPC
+                    </span>
+                    <span class="site-footer-copy">Internal ERP &copy; Current Link 2026</span>
+                </div>
+            </div>
+        </footer>
+    
+
+</div>
+<script>
+(function(){
+    const nav = document.getElementById('bhNav');
+    if (!nav) return;
+    window.addEventListener('scroll', function(){
+        nav.classList.toggle('bh-nav-stuck', window.scrollY > 5);
+    }, { passive: true });
+})();
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/static/service-worker.js?v=20260416d");
+    });
+}
+</script>
+</body>
+</html>

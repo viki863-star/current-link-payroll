@@ -1,0 +1,9 @@
+[Unit]
+Description=Current Link ERP PC mirror sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/current-link/app
+ExecStart=/usr/bin/python /opt/current-link/app/scripts/run_pc_mirror_sync.py

@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{# ── Page-scoped styles ────────────────────────────────────────── #}
+<style>
+/* Quotation status summary banner */
+.quotation-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.quotation-stat-cell {
+    display: grid;
+    gap: 4px;
+    padding: 13px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+}
+.quotation-stat-cell strong {
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--primary-dark, #173f66);
+}
+.quotation-stat-cell small {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted, #6b7280);
+}
+.quotation-stat-cell.stat-approved strong { color: #15803d; }
+.quotation-stat-cell.stat-rejected strong { color: #b91c1c; }
+.quotation-stat-cell.stat-pending  strong { color: #b45309; }
+
+/* Rejection guidance row */
+.rejection-guide-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 6px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: rgba(185, 28, 28, 0.06);
+    border: 1px solid rgba(185, 28, 28, 0.14);
+    font-size: 0.82rem;
+    color: #7f1d1d;
+    line-height: 1.4;
+}
+.rejection-guide-row a {
+    color: #7f1d1d;
+    font-weight: 800;
+    text-decoration: underline;
+}
+</style>
+
+<section class="admin-desk-shell supplier-portal-shell">
+
+    {# ══════════════════════════════════════════════════════════
+       Compute quotation counts in Jinja (no DB change needed)
+    ══════════════════════════════════════════════════════════ #}
+    {% set ns = namespace(total=0, approved=0, pending=0, rejected=0) %}
+    {% for q in quotations %}
+        {% set ns.total = ns.total + 1 %}
+        {% if q.review_status == 'Approved' %}{% set ns.approved = ns.approved + 1 %}{% endif %}
+        {% if q.review_status == 'Pending'  %}{% set ns.pending  = ns.pending  + 1 %}{% endif %}
+        {% if q.review_status == 'Rejected' %}{% set ns.rejected = ns.rejected + 1 %}{% endif %}
+    {% endfor %}
+
+    {# ══════════════════════════════════════════════════════════
+       STATUS SUMMARY BANNER
+       Only shown when there is at least one quotation on record.
+    ══════════════════════════════════════════════════════════ #}
+    {% if ns.total > 0 %}
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Quotation Status</span>
+                    <h2>Your Submission Summary</h2>
+                </div>
+            </div>
+
+            <div class="quotation-status-grid">
+                <div class="quotation-stat-cell">
+                    <strong>{{ ns.total }}</strong>
+                    <small>Total</small>
+                </div>
+                <div class="quotation-stat-cell stat-pending">
+                    <strong>{{ ns.pending }}</strong>
+                    <small>Pending</small>
+                </div>
+                <div class="quotation-stat-cell stat-approved">
+                    <strong>{{ ns.approved }}</strong>
+                    <small>Approved</small>
+                </div>
+                <div class="quotation-stat-cell stat-rejected">
+                    <strong>{{ ns.rejected }}</strong>
+                    <small>Rejected</small>
+                </div>
+            </div>
+
+            {# ── Contextual guidance based on current state ── #}
+            {% if ns.approved > 0 and ns.pending == 0 and ns.rejected == 0 %}
+                <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;background:rgba(22,163,74,0.07);border:1px solid rgba(22,163,74,0.16);font-weight:700;color:#14532d;font-size:0.90rem;">
+                    <span>✓</span>
+                    <span>Your quotation{{ " has" if ns.approved == 1 else "s have" }} been approved. Admin will now issue an LPO. Return to your <a href="{{ url_for('supplier_portal') }}" style="color:inherit;text-decoration:underline;">Portal Dashboard</a> to track your LPO status.</span>
+                </div>
+            {% elif ns.approved > 0 and ns.pending > 0 %}
+                <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;background:rgba(202,138,4,0.07);border:1px solid rgba(202,138,4,0.16);font-weight:700;color:#78350f;font-size:0.90rem;">
+                    <span>⏳</span>
+                    <span>{{ ns.approved }} approved, {{ ns.pending }} still pending review. Admin will process pending quotations shortly.</span>
+                </div>
+            {% elif ns.rejected > 0 and ns.approved == 0 %}
+                <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;background:rgba(185,28,28,0.07);border:1px solid rgba(185,28,28,0.16);font-weight:700;color:#7f1d1d;font-size:0.90rem;">
+                    <span>✕</span>
+                    <span>{{ ns.rejected }} quotation{{ "s were" if ns.rejected != 1 else " was" }} rejected. Review the rejection reason(s) in the history table below, then submit a corrected quotation using the form.</span>
+                </div>
+            {% elif ns.pending > 0 %}
+                <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;background:rgba(28,86,139,0.06);border:1px solid rgba(28,86,139,0.14);font-weight:700;color:#1c3f6e;font-size:0.90rem;">
+                    <span>⏳</span>
+                    <span>{{ ns.pending }} quotation{{ "s are" if ns.pending != 1 else " is" }} awaiting admin review. You will see your LPO here once approved.</span>
+                </div>
+            {% endif %}
+        </article>
+    {% endif %}
+
+
+    {# ══════════════════════════════════════════════════════════
+       TWO-COLUMN SECTION: Form + History
+    ══════════════════════════════════════════════════════════ #}
+    <section class="compact-content-grid">
+
+        {# ── Quotation Submission Form ── #}
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Submit Quotation</span>
+                    <h2>New quotation request</h2>
+                    <p class="workspace-lead">Submit your price quotation for review. Admin will approve or reject before an LPO is issued.</p>
+                </div>
+            </div>
+            <form method="post" enctype="multipart/form-data" class="desk-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <label>
+                    <span>Quotation No <small>(your reference)</small></span>
+                    <input type="text" name="quotation_no" placeholder="e.g. QUO-2024-001" required>
+                </label>
+
+                <label>
+                    <span>Quotation Date</span>
+                    <input type="date" name="quotation_date" required>
+                </label>
+
+                <label class="full-span">
+                    <span>Job Title / Scope of Work</span>
+                    <input type="text" name="job_title" placeholder="Describe the service or supply" required>
+                </label>
+
+                <label>
+                    <span>Rate Basis</span>
+                    <select name="rate_basis">
+                        <option value="">— Select —</option>
+                        <option value="Hours">Per Hour</option>
+                        <option value="Days">Per Day</option>
+                        <option value="Trips">Per Trip</option>
+                        <option value="Monthly">Monthly</option>
+                        <option value="Fixed">Fixed Lump Sum</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Quoted Amount (AED)</span>
+                    <input type="number" step="0.01" min="0" name="amount" placeholder="0.00" required>
+                </label>
+
+                <label class="full-span">
+                    <span>Notes</span>
+                    <textarea name="notes" rows="3" placeholder="Any terms, conditions or additional details…"></textarea>
+                </label>
+
+                <label class="full-span">
+                    <span>Quotation Attachment <small>(PDF, JPG or PNG — optional)</small></span>
+                    <input type="file" name="quotation_attachment" accept=".pdf,.jpg,.jpeg,.png" style="padding:6px;">
+                </label>
+
+                <div class="form-actions left-actions full-span">
+                    <button class="button success-button" type="submit">Submit Quotation</button>
+                </div>
+            </form>
+        </article>
+
+        {# ── Quotation History ── #}
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">My Quotations</span>
+                    <h2>Submission history</h2>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Quotation No</th>
+                            <th>Date</th>
+                            <th>Job Title</th>
+                            <th>Rate Basis</th>
+                            <th>Amount</th>
+                            <th>Attachment</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for q in quotations %}
+                            <tr>
+                                <td>{{ q.quotation_no }}</td>
+                                <td>{{ q.quotation_date }}</td>
+                                <td>{{ q.job_title }}</td>
+                                <td>{{ q.rate_basis or "—" }}</td>
+                                <td>AED {{ "%.2f"|format(q.amount) }}</td>
+                                <td>
+                                    {% if q.attachment_path %}
+                                        <a href="{{ url_for('generated_file', filename=q.attachment_path) }}" target="_blank" class="mini-link-pill">📎 View</a>
+                                    {% else %}
+                                        <span class="muted-text">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="mini-link-pill supplier-status-pill
+                                        {% if q.review_status == 'Approved' %}status-approved
+                                        {% elif q.review_status == 'Rejected' %}status-rejected
+                                        {% else %}status-pending{% endif %}">
+                                        {{ q.review_status }}
+                                    </span>
+
+                                    {# ── Rejection note + guidance ── #}
+                                    {% if q.review_status == 'Rejected' %}
+                                        {% if q.review_note %}
+                                            <div class="muted-text" style="margin-top:4px;">{{ q.review_note }}</div>
+                                        {% endif %}
+                                        <div class="rejection-guide-row">
+                                            <span style="flex-shrink:0;">↻</span>
+                                            <span>Submit a new corrected quotation using the form. Reference <strong>{{ q.quotation_no }}</strong> in your notes if needed.</span>
+                                        </div>
+                                    {% elif q.review_status == 'Approved' %}
+                                        <div class="muted-text" style="margin-top:4px;">LPO will be issued by admin.</div>
+                                    {% elif q.review_status == 'Pending' %}
+                                        <div class="muted-text" style="margin-top:4px;">Awaiting admin review.</div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="7">No quotations submitted yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+    </section>
+
+</section>
+{% endblock %}

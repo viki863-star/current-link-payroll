@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Search: {{ query }} — Current Link ERP{% endblock %}
+{% block body_class %}list-body{% endblock %}
+{% block page_title %}Search Results{% endblock %}
+
+{% block content %}
+<div class="list-shell">
+    <p style="margin-bottom:18px;color:var(--muted);font-size:0.88rem;">
+        Results for <strong style="color:var(--ink)">"{{ query }}"</strong>
+        &mdash; {{ results|length }} found
+    </p>
+
+    {% if results %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>ID</th>
+                    <th>Name / Title</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results %}
+                <tr>
+                    <td>
+                        <span class="badge badge-{{ r.type }}" style="
+                            background:{% if r.type=='employee' %}#dbeafe{% elif r.type=='driver' %}#fef3c7{% elif r.type=='customer' %}#d1fae5{% elif r.type=='supplier' %}#e0e7ff{% else %}#f3e8ff{% endif %};
+                            color:{% if r.type=='employee' %}#1e40af{% elif r.type=='driver' %}#92400e{% elif r.type=='customer' %}#065f46{% elif r.type=='supplier' %}#3730a3{% else %}#6b21a8{% endif %};
+                            padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600;text-transform:capitalize;
+                        ">{{ r.type }}</span>
+                    </td>
+                    <td class="mono">{{ r.label or r.id }}</td>
+                    <td>{{ r.name }}</td>
+                    <td class="action-cell" style="text-align:right">
+                        {% if r.type == 'employee' %}
+                            <a href="{{ url_for('hr.employee_detail', employee_id=r.id) }}" class="btn btn-sm btn-primary">View</a>
+                        {% elif r.type == 'driver' %}
+                            <a href="{{ url_for('driver_action', driver_id=r.id) }}" class="btn btn-sm btn-primary">View</a>
+                        {% elif r.type == 'customer' or r.type == 'supplier' %}
+                            <a href="{{ url_for('party_detail', party_code=r.id) }}" class="btn btn-sm btn-primary">View</a>
+                        {% elif r.type == 'invoice' %}
+                            <a href="{{ url_for('customer.invoice_view', invoice_no=r.id) }}" class="btn btn-sm btn-primary">View</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">No results found for <strong>"{{ query }}"</strong>.</div>
+    {% endif %}
+</div>
+{% endblock %}

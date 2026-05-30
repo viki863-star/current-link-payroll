@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}My Jobs — Staff Portal{% endblock %}
+{% block body_class %}staff-body{% endblock %}
+{% block page_title %}My Jobs{% endblock %}
+
+{% block content %}
+<style>
+* { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust:100%; text-size-adjust:100%; box-sizing:border-box; }
+.app-layout .erp-sidebar { display: none !important; }
+.app-layout .main-content { margin-left: 0 !important; width: 100% !important; max-width:100% !important; padding:0 !important; }
+body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+</style>
+<div class="staff-container">
+    <div class="staff-header">
+        <h1 class="staff-title">My Job History</h1>
+        <a href="{{ url_for('technician_simple') }}" class="staff-back-btn">&#8592; New Job</a>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+        <a href="{{ url_for('technician_simple') }}" class="staff-action-btn" style="flex:1;text-align:center;padding:12px;font-size:0.9rem">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+            New Job
+        </a>
+    </div>
+
+    {% set has_jobs = jobs or papers %}
+    {% if has_jobs %}
+    <div class="staff-card" style="padding:0">
+        {% for j in jobs %}
+        <div class="staff-job-item">
+            <div class="staff-job-item-top">
+                <span class="staff-job-item-plate">{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted);font-weight:400">General Expense</span>{% else %}{{ j.vehicle_id }}{% endif %}</span>
+                <span class="staff-job-status staff-status-{{ j.status }}">{{ j.status }}</span>
+            </div>
+            <div class="staff-job-item-body">
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Amount</span>
+                    <span class="staff-job-item-value">AED {{ "%.0f"|format(j.amount) }}</span>
+                </div>
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Category</span>
+                    <span><span class="job-cat-badge">{{ j.category }}</span></span>
+                </div>
+                {% if j.description %}
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Details</span>
+                    <span style="font-size:0.8rem;color:var(--text)">{{ j.description }}</span>
+                </div>
+                {% endif %}
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Date</span>
+                    <span class="mono" style="font-size:0.78rem;color:var(--muted)">{{ j.created_at.strftime("%Y-%m-%d") }}</span>
+                </div>
+                {% if j.status == 'rejected' and j.admin_notes %}
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Reason</span>
+                    <span style="font-size:0.78rem;color:var(--danger)">{{ j.admin_notes }}</span>
+                </div>
+                {% endif %}
+                {% if j.attachment_name %}
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Attachment</span>
+                    <a href="{{ url_for('fleet.staff_attachment', job_id=j.id) }}" style="font-size:0.78rem;color:var(--primary);text-decoration:underline" target="_blank">View</a>
+                </div>
+                {% endif %}
+            </div>
+            {% if j.status == 'pending' %}
+            <div style="display:flex;gap:8px;margin-top:10px">
+                <a href="{{ url_for('fleet.staff_job_edit', job_id=j.id) }}" class="staff-job-action" style="background:#e3f0ff;color:var(--primary)">Edit</a>
+                <form method="POST" action="{{ url_for('fleet.staff_job_delete', job_id=j.id) }}" style="margin:0;flex:1" onsubmit="return confirm('Delete this job?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="staff-job-action" style="background:#ffebee;color:#c62828;width:100%;border:none;cursor:pointer;font-family:inherit;font-size:0.8rem;font-weight:600;border-radius:8px;padding:8px 12px">Delete</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% for p in papers %}
+        <div class="staff-job-item">
+            <div class="staff-job-item-top">
+                <span class="staff-job-item-plate">{{ p.vehicle_id or 'N/A' }}</span>
+                <span class="staff-job-status staff-status-{{ p.status|lower }}">{{ p.status }}</span>
+            </div>
+            <div class="staff-job-item-body">
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Amount</span>
+                    <span class="staff-job-item-value">AED {{ "%.0f"|format(p.amount) }}</span>
+                </div>
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Category</span>
+                    <span><span class="job-cat-badge">{{ p.category }}</span></span>
+                </div>
+                {% if p.description %}
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Details</span>
+                    <span style="font-size:0.8rem;color:var(--text)">{{ p.description }}</span>
+                </div>
+                {% endif %}
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Date</span>
+                    <span class="mono" style="font-size:0.78rem;color:var(--muted)">{{ (p.created_at or '')|string|truncate(10, True, '') }}</span>
+                </div>
+                {% if p.admin_notes %}
+                <div class="staff-job-item-row">
+                    <span class="staff-job-item-label">Reason</span>
+                    <span style="font-size:0.78rem;color:var(--danger)">{{ p.admin_notes }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="staff-card" style="text-align:center;padding:40px 20px">
+        <p style="color:var(--muted);margin:0">No jobs submitted yet.</p>
+        <a href="{{ url_for('technician_simple') }}" class="staff-action-btn" style="margin-top:16px;display:inline-flex">Submit Your First Job</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.staff-container { max-width: 100%; margin: 0; padding: 16px; padding-bottom:32px; }
+.staff-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap:8px; }
+.staff-title { margin: 0; font-size: 1.1rem; font-weight: 700; }
+.staff-back-btn { font-size: 0.85rem; color: var(--primary); text-decoration: none; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; display:inline-flex;align-items:center;gap:4px; }
+.staff-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+.staff-action-btn { display: inline-flex; align-items: center; justify-content:center; gap: 6px; background: var(--primary); color: #fff; border-radius: 12px; text-decoration: none; font-size: 0.95rem; font-weight: 600; padding:14px; transition: opacity 0.15s; touch-action:manipulation; }
+.staff-action-btn:active { opacity:0.75; }
+.staff-job-item { border-bottom: 1px solid var(--line); padding: 16px; }
+.staff-job-item:last-child { border-bottom: none; }
+.staff-job-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.staff-job-item-plate { font-weight: 700; font-size: 1rem; }
+.staff-job-status { font-size: 0.7rem; padding: 3px 12px; border-radius: 20px; font-weight: 600; text-transform: uppercase; }
+.staff-status-pending { background: #fff3e0; color: #e65100; }
+.staff-status-approved { background: #e8f5e9; color: #2e7d32; }
+.staff-status-rejected { background: #ffebee; color: #c62828; }
+.staff-job-item-body { margin-left: 0; }
+.staff-job-item-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 0.85rem; }
+.staff-job-item-label { color: var(--muted); font-size: 0.8rem; }
+.staff-job-item-value { font-weight: 600; color: #e65100; }
+.job-cat-badge { background: #e3f0ff; color: #1c568b; padding: 3px 12px; border-radius: 20px; font-size: 0.74rem; font-weight: 600; }
+.staff-job-action { display: block; text-align:center; padding: 10px 12px; border-radius: 10px; font-size: 0.82rem; font-weight: 600; text-decoration: none; }
+@media (max-width:480px) {
+ .staff-container { padding:12px; }
+}
+</style>
+{% endblock %}

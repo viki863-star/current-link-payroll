@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <article class="card dashboard-hero-card">
+        <div>
+            <p class="eyebrow">{{ page_eyebrow }}</p>
+            <h2>{{ party.party_name }}</h2>
+            <p class="lead">{{ party.party_code }} | {{ party.contact_person or 'No contact person' }} | {{ party.phone_number or 'No phone' }}</p>
+        </div>
+    </article>
+</section>
+
+<section class="stats premium-stats">
+    <article class="card stat-card premium-stat-card blue-stat"><span>Hire Register</span><strong>AED {{ "%.2f"|format(summary.total_hires) }}</strong><small>Operational value referenced.</small></article>
+    <article class="card stat-card premium-stat-card navy-stat"><span>Invoices</span><strong>AED {{ "%.2f"|format(summary.total_invoiced) }}</strong><small>Total invoices posted.</small></article>
+    <article class="card stat-card premium-stat-card green-stat"><span>Payments</span><strong>AED {{ "%.2f"|format(summary.total_paid) }}</strong><small>Total receipts / payments posted.</small></article>
+    <article class="card stat-card premium-stat-card orange-stat"><span>Outstanding</span><strong>AED {{ "%.2f"|format(summary.outstanding) }}</strong><small>Current running balance.</small></article>
+</section>
+
+<section class="card table-card">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Ledger</p>
+            <h2>{{ page_title }}</h2>
+        </div>
+        <div class="form-actions left-actions">
+            <a class="button button-secondary" href="{{ url_for(back_endpoint) }}">Back</a>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Date</th><th>Reference</th><th>Type</th><th>Details</th><th>Operational</th><th>Invoice</th><th>Payment</th><th>Running Balance</th></tr></thead>
+            <tbody>
+                {% for item in rows %}
+                    <tr>
+                        <td>{{ item.entry_date }}</td>
+                        <td>{{ item.reference }}</td>
+                        <td>{{ item.entry_type }}</td>
+                        <td>{{ item.details }}</td>
+                        <td>{% if item.note_amount %}AED {{ "%.2f"|format(item.note_amount) }}{% else %}-{% endif %}</td>
+                        <td>{% if item.invoice_amount %}AED {{ "%.2f"|format(item.invoice_amount) }}{% else %}-{% endif %}</td>
+                        <td>{% if item.payment_amount %}AED {{ "%.2f"|format(item.payment_amount) }}{% else %}-{% endif %}</td>
+                        <td>AED {{ "%.2f"|format(item.running_balance) }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="8">No statement rows yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

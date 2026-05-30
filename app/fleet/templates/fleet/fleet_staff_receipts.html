@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Cash Receipts — {{ s.full_name }}{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block page_title %}Cash Receipts — {{ s.full_name }}{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:800px">
+    <div class="profile-header" style="margin-bottom:24px">
+        <div class="profile-info">
+            <h1 style="margin:0">{{ s.full_name }}</h1>
+            <p class="profile-id mono">{{ s.staff_id }} &middot; Total Received: <strong>AED {{ "%.0f"|format(total) }}</strong></p>
+        </div>
+        <div class="profile-actions">
+            <a href="{{ url_for('fleet.fleet_staff_list') }}" class="btn btn-outline btn-sm">&#8592; Back</a>
+        </div>
+    </div>
+
+    <div class="panel-row">
+        <div class="panel-half">
+            <div class="profile-card">
+                <h3>Add Cash Receipt</h3>
+                <form method="POST" class="smart-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-row">
+                        <div class="form-group" style="flex:1">
+                            <label>Given By *</label>
+                            <select name="given_by" class="form-control" required>
+                                <option value="">— Select —</option>
+                                <option value="Owner">Owner</option>
+                                <option value="Waqar">Waqar</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:1">
+                            <label>Amount (AED) *</label>
+                            <input type="number" name="amount" class="form-control" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex:1">
+                            <label>Date</label>
+                            <input type="date" name="receipt_date" value="{{ date.today().isoformat() }}" class="form-control">
+                        </div>
+                        <div class="form-group" style="flex:1">
+                            <label>Notes</label>
+                            <input type="text" name="notes" class="form-control" placeholder="optional">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="margin-top:8px">Add Receipt</button>
+                </form>
+            </div>
+        </div>
+        <div class="panel-half">
+            <div class="profile-card">
+                <h3>Receipt History</h3>
+                {% if receipts %}
+                <table class="smart-table">
+                    <thead><tr><th>Date</th><th>Given By</th><th>Amount</th><th>Notes</th></tr></thead>
+                    <tbody>
+                        {% for r in receipts %}
+                        <tr>
+                            <td class="mono">{{ r.receipt_date }}</td>
+                            <td><strong>{{ r.given_by }}</strong></td>
+                            <td class="mono" style="font-weight:600;color:var(--green)">+AED {{ "%.0f"|format(r.amount) }}</td>
+                            <td style="font-size:0.75rem;color:var(--muted)">{{ r.notes or '' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="empty-state">No receipts yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

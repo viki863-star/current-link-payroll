@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell">
+
+  {# ── Toolbar ──────────────────────────────────────────────────────── #}
+  <article class="card admin-desk-toolbar">
+    <div class="admin-toolbar-row">
+      <div class="admin-toolbar-actions">
+        <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a class="button button-secondary" href="{{ url_for('driver_list') }}">← Driver Desk</a>
+        <span class="admin-desk-label" style="align-self:center;margin-left:4px;">Payroll Board {{ selected_year }}</span>
+      </div>
+      <div class="admin-mini-stats">
+        <span><strong>{{ summary.total_drivers }}</strong><small>Drivers</small></span>
+        <span><strong style="color:var(--green-dark);">{{ summary.paid_this_month }}</strong><small>Paid</small></span>
+        <span><strong style="color:var(--orange);">{{ summary.partial_this_month + summary.stored_this_month }}</strong><small>Partial/Stored</small></span>
+        <span><strong style="color:var(--danger);">{{ summary.unpaid_this_month }}</strong><small>Unpaid</small></span>
+      </div>
+    </div>
+
+    {# Filters #}
+    <form method="get" class="admin-filter-grid" style="gap:10px;flex-wrap:wrap;align-items:flex-end;">
+      <label>
+        <span>Search</span>
+        <input type="search" name="q" value="{{ search_q }}" placeholder="Driver name or ID" style="min-width:180px;">
+      </label>
+      <label>
+        <span>Year</span>
+        <select name="year">
+          {% for y in available_years %}
+            <option value="{{ y }}" {% if selected_year == y|string %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        <span>Month</span>
+        <select name="month">
+          <option value="">All Months</option>
+          {% set mnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
+          {% for i in range(1,13) %}
+            <option value="{{ '%02d'|format(i) }}"
+              {% if selected_month == '%02d'|format(i) %}selected{% endif %}>
+              {{ mnames[i-1] }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        <span>Pay Status</span>
+        <select name="pay_status">
+          <option value="all" {% if status_filter == 'all' or not status_filter %}selected{% endif %}>All</option>
+          <option value="paid"    {% if status_filter == 'paid'    %}selected{% endif %}>Paid</option>
+          <option value="partial" {% if status_filter == 'partial' %}selected{% endif %}>Partial</option>
+          <option value="unpaid"  {% if status_filter == 'unpaid'  %}selected{% endif %}>Unpaid / Not Stored</option>
+        </select>
+      </label>
+      <div class="admin-filter-actions">
+        <button class="button" type="submit">Filter</button>
+        <a class="button button-secondary" href="{{ url_for('driver_payroll_board') }}">Reset</a>
+      </div>
+    </form>
+  </article>
+
+  {# ── Summary Cards ─────────────────────────────────────────────────── #}
+  <section class="compact-content-grid" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;">
+    <article class="card payroll-summary-card">
+      <small class="payroll-card-label">Total Drivers</small>
+      <div class="payroll-card-value" style="color:var(--primary);">{{ summary.total_drivers }}</div>
+    </article>
+    <article class="card payroll-summary-card payroll-summary-paid">
+      <small class="payroll-card-label">Paid — {{ summary.ref_month_label }}</small>
+      <div class="payroll-card-value" style="color:var(--green-dark);">{{ summary.paid_this_month }}</div>
+      <small class="payroll-card-sub">AED {{ "%.0f"|format(summary.total_paid_this_month) }} paid</small>
+    </article>
+    <article class="card payroll-summary-card payroll-summary-partial">
+      <small class="payroll-card-label">Partial / Stored</small>
+      <div class="payroll-card-value" style="color:var(--orange);">{{ summary.partial_this_month + summary.stored_this_month }}</div>
+    </article>
+    <article class="card payroll-summary-card payroll-summary-unpaid">
+      <small class="payroll-card-label">Unpaid (no record)</small>
+      <div class="payroll-card-value" style="color:var(--danger);">{{ summary.unpaid_this_month }}</div>
+      <small class="payroll-card-sub">AED {{ "%.0f"|format(summary.total_outstanding) }} outstanding</small>
+    </article>
+  </section>
+
+  {# ── Legend ────────────────────────────────────────────────────────── #}
+  <div class="payroll-legend">
+    <span><span class="payroll-chip paid">✓</span> Paid</span>
+    <span><span class="payroll-chip partial">½</span> Partial</span>
+    <span><span class="payroll-chip stored">▣</span> Stored (not paid)</span>
+    <span><span class="payroll-chip unpaid">✗</span> Unpaid</span>
+    <span><span class="payroll-chip future">—</span> Future</span>
+  </div>
+
+  {# ── Matrix Table ──────────────────────────────────────────────────── #}
+  <article class="card" style="padding:0;overflow:hidden;">
+    <div class="payroll-matrix-wrap">
+      <table class="payroll-matrix-table">
+        <thead>
+          <tr>
+            <th class="payroll-sticky payroll-th-id">ID</th>
+            <th class="payroll-sticky payroll-th-name">Driver</th>
+            <th class="payroll-th-salary">Salary</th>
+            {% for label in month_labels %}
+              <th class="payroll-th-month">{{ label }}</th>
+            {% endfor %}
+            <th class="payroll-th-paid">✓ Paid</th>
+            <th class="payroll-th-out">Outstanding</th>
+            <th class="payroll-th-action">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in matrix %}
+          <tr class="payroll-row {% if row.status|lower != 'active' %}payroll-row-inactive{% endif %}">
+            <td class="payroll-sticky payroll-td-id">
+              <span class="payroll-driver-id">{{ row.driver_id }}</span>
+            </td>
+            <td class="payroll-sticky payroll-td-name">
+              <a class="payroll-driver-name" href="{{ url_for('driver_action', driver_id=row.driver_id) }}">
+                {{ row.name }}
+              </a>
+              {% if row.status|lower != 'active' %}
+                <span class="status-chip inactive" style="font-size:0.65rem;padding:1px 5px;">{{ row.status }}</span>
+              {% endif %}
+            </td>
+            <td class="payroll-td-salary">AED {{ "%.0f"|format(row.basic_salary) }}</td>
+            {% for month in row.months %}
+              <td class="payroll-td-month" title="{{ month.key }}: {{ month.status|capitalize }}">
+                <span class="payroll-chip {{ month.status }}">
+                  {% if month.status == "paid" %}✓
+                  {% elif month.status == "partial" %}½
+                  {% elif month.status == "stored" %}▣
+                  {% elif month.status == "unpaid" %}✗
+                  {% else %}—{% endif %}
+                </span>
+              </td>
+            {% endfor %}
+            <td class="payroll-td-paid">
+              <strong style="color:var(--green-dark);">{{ row.paid_count }}</strong>
+              {% if row.partial_count %}<small style="color:var(--orange);"> +{{ row.partial_count }}p</small>{% endif %}
+            </td>
+            <td class="payroll-td-out">
+              {% if row.outstanding > 0 %}
+                <span style="color:var(--danger);font-weight:700;">{{ "%.0f"|format(row.outstanding) }}</span>
+              {% else %}
+                <span style="color:var(--green-dark);">—</span>
+              {% endif %}
+            </td>
+            <td class="payroll-td-action">
+              <a class="button button-secondary" style="min-height:30px;padding:4px 12px;font-size:0.75rem;"
+                 href="{{ url_for('driver_salary_store', driver_id=row.driver_id) }}">Salary</a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="17" style="text-align:center;padding:32px;color:var(--muted);">
+              No drivers match the current filters.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+</section>
+
+<style>
+/* ── Payroll Board — light theme, matches app colors ────────── */
+
+/* Summary cards */
+.payroll-summary-card {
+  padding: 18px 16px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.payroll-summary-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, #173f66, #f09a2a);
+  border-radius: 24px 24px 0 0;
+}
+.payroll-summary-paid::before   { background: linear-gradient(90deg, #1f8b47, #2cb15c); }
+.payroll-summary-partial::before{ background: linear-gradient(90deg, #c67c1a, #e6871f); }
+.payroll-summary-unpaid::before { background: linear-gradient(90deg, #8b1c1c, #c73d2c); }
+
+.payroll-card-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+.payroll-card-value {
+  font-size: 2.2rem;
+  font-weight: 900;
+  line-height: 1.1;
+  font-family: Georgia, serif;
+}
+.payroll-card-sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* Legend */
+.payroll-legend {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+.payroll-legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Matrix wrapper */
+.payroll-matrix-wrap {
+  overflow-x: auto;
+  width: 100%;
+}
+.payroll-matrix-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 1100px;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+/* Header row */
+.payroll-matrix-table thead th {
+  background: linear-gradient(145deg, #eef3fb, #e4ecf8);
+  color: var(--primary);
+  font-weight: 800;
+  font-size: 0.70rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 9px 6px;
+  white-space: nowrap;
+  border-bottom: 2px solid rgba(21, 51, 93, 0.12);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.payroll-th-id    { width: 72px;  text-align: left; }
+.payroll-th-name  { width: 170px; text-align: left; }
+.payroll-th-salary{ width: 72px;  text-align: right; }
+.payroll-th-month { width: 38px;  text-align: center; }
+.payroll-th-paid  { width: 56px;  text-align: center; }
+.payroll-th-out   { width: 76px;  text-align: right; }
+.payroll-th-action{ width: 64px;  text-align: center; }
+
+/* Body rows */
+.payroll-matrix-table tbody tr {
+  border-bottom: 1px solid rgba(21, 51, 93, 0.07);
+  transition: background 0.12s;
+}
+.payroll-matrix-table tbody tr:hover {
+  background: rgba(28, 86, 139, 0.04);
+}
+.payroll-row-inactive { opacity: 0.55; }
+
+/* Cell styles */
+.payroll-td-id {
+  padding: 7px 6px;
+  font-size: 0.70rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.payroll-td-name {
+  padding: 7px 6px;
+  white-space: nowrap;
+}
+.payroll-td-salary {
+  padding: 7px 6px;
+  text-align: right;
+  color: var(--muted);
+  white-space: nowrap;
+  font-size: 0.78rem;
+}
+.payroll-td-month {
+  padding: 5px 2px;
+  text-align: center;
+  white-space: nowrap;
+}
+.payroll-td-paid {
+  padding: 7px 6px;
+  text-align: center;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+.payroll-td-out {
+  padding: 7px 6px;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+.payroll-td-action {
+  padding: 5px 4px;
+  text-align: center;
+}
+
+/* Sticky first two columns */
+.payroll-sticky {
+  position: sticky;
+  z-index: 1;
+  background: var(--surface);
+}
+.payroll-th-id.payroll-sticky,
+.payroll-td-id.payroll-sticky {
+  left: 0;
+  min-width: 72px;
+  max-width: 72px;
+  box-shadow: 2px 0 6px rgba(21,51,93,0.08);
+}
+.payroll-th-name.payroll-sticky,
+.payroll-td-name.payroll-sticky {
+  left: 72px;
+  min-width: 170px;
+  max-width: 200px;
+  box-shadow: 2px 0 5px rgba(21,51,93,0.05);
+}
+.payroll-matrix-table thead .payroll-sticky {
+  z-index: 3;
+  background: linear-gradient(145deg, #eef3fb, #e4ecf8);
+}
+
+/* Driver name link */
+.payroll-driver-name {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 700;
+}
+.payroll-driver-name:hover {
+  color: var(--orange);
+  text-decoration: underline;
+}
+.payroll-driver-id {
+  font-family: monospace;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+/* Month status chips */
+.payroll-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: default;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.payroll-chip:hover {
+  transform: scale(1.2);
+  box-shadow: 0 3px 8px rgba(19,56,104,0.14);
+}
+.payroll-chip.paid {
+  background: rgba(31, 139, 71, 0.12);
+  color: var(--green-dark);
+  border: 1px solid rgba(31, 139, 71, 0.25);
+}
+.payroll-chip.partial {
+  background: rgba(230, 135, 31, 0.12);
+  color: #b06614;
+  border: 1px solid rgba(230, 135, 31, 0.28);
+}
+.payroll-chip.stored {
+  background: rgba(28, 86, 139, 0.10);
+  color: var(--primary);
+  border: 1px solid rgba(28, 86, 139, 0.20);
+}
+.payroll-chip.unpaid {
+  background: rgba(199, 61, 44, 0.10);
+  color: var(--danger);
+  border: 1px solid rgba(199, 61, 44, 0.22);
+}
+.payroll-chip.future {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid rgba(21, 51, 93, 0.14);
+  font-size: 0.58rem;
+}
+</style>
+{% endblock %}

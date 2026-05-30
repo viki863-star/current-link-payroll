@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Staff Dashboard{% endblock %}
+{% block body_class %}staff-body{% endblock %}
+{% block page_title %}Staff Portal{% endblock %}
+
+{% block content %}
+<style>
+.app-layout .erp-sidebar { display: none !important; }
+.app-layout .main-content { margin-left: 0 !important; width: 100% !important; }
+</style>
+<div class="staff-container">
+    <div class="staff-header">
+        <div>
+            <h1 class="staff-title">Welcome, {{ session.staff_name }}</h1>
+            <p style="margin:2px 0 0;color:var(--muted);font-size:0.82rem">Field Staff Dashboard</p>
+        </div>
+        <a href="{{ url_for('fleet.staff_logout') }}" style="font-size:0.78rem;color:var(--muted);text-decoration:none">Logout</a>
+    </div>
+
+    <div class="staff-stats-grid">
+        <div class="staff-stat-card received">
+            <div class="staff-stat-label">Received</div>
+            <div class="staff-stat-value">AED {{ "%.0f"|format(total_received) }}</div>
+        </div>
+        <div class="staff-stat-card spent">
+            <div class="staff-stat-label">Spent</div>
+            <div class="staff-stat-value">AED {{ "%.0f"|format(total_spent) }}</div>
+        </div>
+        <div class="staff-stat-card {% if balance < 0 %}negative{% else %}positive{% endif %}">
+            <div class="staff-stat-label">Balance</div>
+            <div class="staff-stat-value">AED {{ "%.0f"|format(balance) }}</div>
+        </div>
+        <div class="staff-stat-card jobs">
+            <div class="staff-stat-label">Approved</div>
+            <div class="staff-stat-value">{{ approved_count }}/{{ jobs|length }}</div>
+        </div>
+    </div>
+
+    <div style="text-align:center;margin-bottom:16px">
+        <a href="{{ url_for('fleet.staff_job_new') }}" class="staff-action-btn">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+            New Job Entry
+        </a>
+    </div>
+
+    <div class="staff-card" style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <h3 style="margin:0;font-size:0.9rem;font-weight:600">Cash Received</h3>
+        </div>
+        {% if cash_receipts %}
+        <div class="staff-timeline">
+            {% for r in cash_receipts[:5] %}
+            <div class="staff-timeline-item">
+                <div class="staff-timeline-dot green"></div>
+                <div class="staff-timeline-content">
+                    <span class="staff-timeline-title">{{ r.given_by }}</span>
+                    <span class="staff-timeline-sub">{{ r.receipt_date }}{% if r.notes %} &middot; {{ r.notes }}{% endif %}</span>
+                </div>
+                <span class="staff-timeline-amount green">+AED {{ "%.0f"|format(r.amount) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="text-align:center;color:var(--muted);font-size:0.85rem;padding:16px 0">No cash received yet.</p>
+        {% endif %}
+    </div>
+
+    <div class="staff-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <h3 style="margin:0;font-size:0.9rem;font-weight:600">Recent Jobs</h3>
+            {% if jobs %}<a href="{{ url_for('fleet.staff_jobs') }}" style="font-size:0.78rem;color:var(--primary);text-decoration:none">View all</a>{% endif %}
+        </div>
+        {% if jobs %}
+        {% for j in jobs[:5] %}
+        <div class="staff-job-row">
+            <div class="staff-job-row-left">
+                <span class="staff-job-plate">{{ j.vehicle_id }}</span>
+                <span class="staff-job-status staff-status-{{ j.status }}">{{ j.status }}</span>
+            </div>
+            <span class="staff-job-amount">AED {{ "%.0f"|format(j.amount) }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p style="text-align:center;color:var(--muted);font-size:0.85rem;padding:16px 0">No jobs submitted yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.staff-container { max-width: 600px; margin: 0 auto; padding: 12px; }
+.staff-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.staff-title { margin: 0; font-size: 1.15rem; font-weight: 700; }
+.staff-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.staff-stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; text-align: center; }
+.staff-stat-label { font-size: 0.7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
+.staff-stat-value { font-size: 1.25rem; font-weight: 700; margin-top: 4px; }
+.staff-stat-card.received .staff-stat-value { color: var(--green); }
+.staff-stat-card.spent .staff-stat-value { color: #e65100; }
+.staff-stat-card.positive .staff-stat-value { color: var(--green); }
+.staff-stat-card.negative .staff-stat-value { color: var(--danger); }
+.staff-stat-card.jobs .staff-stat-value { color: #7b1fa2; }
+.staff-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+.staff-action-btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 36px; background: var(--primary); color: #fff; border-radius: 12px; text-decoration: none; font-size: 1rem; font-weight: 700; transition: opacity 0.15s; }
+.staff-action-btn:hover { opacity: 0.85; }
+.staff-timeline { }
+.staff-timeline-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.staff-timeline-item:last-child { border-bottom: none; }
+.staff-timeline-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+.staff-timeline-dot.green { background: var(--green); }
+.staff-timeline-dot.orange { background: var(--orange); }
+.staff-timeline-content { flex: 1; }
+.staff-timeline-title { display: block; font-size: 0.85rem; font-weight: 600; }
+.staff-timeline-sub { font-size: 0.72rem; color: var(--muted); }
+.staff-timeline-amount { font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+.staff-timeline-amount.green { color: var(--green); }
+.staff-job-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.staff-job-row:last-child { border-bottom: none; }
+.staff-job-row-left { display: flex; align-items: center; gap: 8px; }
+.staff-job-plate { font-weight: 700; font-size: 0.85rem; }
+.staff-job-amount { font-weight: 700; font-size: 0.85rem; color: #e65100; }
+.staff-job-status { font-size: 0.68rem; padding: 2px 10px; border-radius: 20px; font-weight: 600; text-transform: uppercase; }
+.staff-status-pending { background: #fff3e0; color: #e65100; }
+.staff-status-approved { background: #e8f5e9; color: #2e7d32; }
+.staff-status-rejected { background: #ffebee; color: #c62828; }
+</style>
+{% endblock %}

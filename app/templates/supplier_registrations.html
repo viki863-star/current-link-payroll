@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{# ── Page-scoped styles (shared with admin_supplier_quotations pattern) ── #}
+<style>
+.reject-expand {
+    position: relative;
+    display: inline-block;
+}
+.reject-expand > summary {
+    list-style: none;
+    cursor: pointer;
+}
+.reject-expand > summary::-webkit-details-marker { display: none; }
+.reject-drop {
+    position: absolute;
+    z-index: 30;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 300px;
+    padding: 16px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid rgba(185, 28, 28, 0.20);
+    box-shadow: 0 20px 44px rgba(19, 56, 104, 0.22);
+}
+.reject-drop-title {
+    font-size: 0.80rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #991b1b;
+    margin-bottom: 10px;
+}
+.reject-drop textarea {
+    width: 100%;
+    min-height: 80px;
+    border-radius: 10px;
+    border: 1px solid rgba(185, 28, 28, 0.22);
+    padding: 10px 12px;
+    font-size: 0.88rem;
+    resize: vertical;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.reject-drop textarea:focus {
+    outline: none;
+    border-color: rgba(185, 28, 28, 0.50);
+    box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.08);
+}
+.reject-drop-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+</style>
+
+{# ── Count badges using Jinja namespace ── #}
+{% set ns = namespace(total=0, pending=0, approved=0, rejected=0) %}
+{% for item in rows %}
+    {% set ns.total = ns.total + 1 %}
+    {% if item.approval_status == 'Pending Approval' %}{% set ns.pending  = ns.pending  + 1 %}{% endif %}
+    {% if item.approval_status == 'Approved'         %}{% set ns.approved = ns.approved + 1 %}{% endif %}
+    {% if item.approval_status == 'Rejected'         %}{% set ns.rejected = ns.rejected + 1 %}{% endif %}
+{% endfor %}
+
+<section class="admin-desk-shell">
+
+    {# ── Toolbar ── #}
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button button-secondary" href="{{ url_for('suppliers') }}">Supplier Desk</a>
+                <a class="button button-secondary" href="{{ url_for('admin_supplier_quotations') }}">Quotation Review</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ ns.total }}</strong><small>Total</small></span>
+                <span><strong>{{ ns.pending }}</strong><small>Pending</small></span>
+                <span><strong>{{ ns.approved }}</strong><small>Approved</small></span>
+                <span><strong>{{ ns.rejected }}</strong><small>Rejected</small></span>
+            </div>
+        </div>
+    </article>
+
+    {# ── Main Panel ── #}
+    <article class="card desk-panel-card">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">Supplier Desk</span>
+                <h2>Supplier Registrations</h2>
+                <p class="workspace-lead">Review pending supplier company applications. Approve to create a portal account, or reject with a reason.</p>
+            </div>
+            {% if ns.pending > 0 %}
+                <div class="admin-toolbar-actions">
+                    <span class="mini-link-pill supplier-status-pill status-pending">
+                        {{ ns.pending }} Pending
+                    </span>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Request No</th>
+                        <th>Company</th>
+                        <th>Contact</th>
+                        <th>User ID</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Review</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in rows %}
+                        <tr>
+                            <td>{{ item.request_no }}</td>
+                            <td>{{ item.company_name }}</td>
+                            <td>
+                                {{ item.contact_person or "—" }}
+                                <div class="muted-text">{{ item.phone_number or "" }}</div>
+                            </td>
+                            <td>{{ item.user_id }}</td>
+                            <td>{{ item.email }}</td>
+                            <td>
+                                <span class="mini-link-pill
+                                    {% if item.approval_status == 'Approved' %}status-approved
+                                    {% elif item.approval_status == 'Rejected' %}status-rejected
+                                    {% else %}status-pending{% endif %}">
+                                    {{ item.approval_status }}
+                                </span>
+                                {% if item.rejection_note %}
+                                    <div class="muted-text">{{ item.rejection_note }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.approval_status == 'Pending Approval' %}
+                                    <div class="table-actions" style="position:relative;min-width:160px;display:flex;gap:6px;flex-direction:column;">
+
+                                        {# ── Approve (direct POST) ── #}
+                                        <form method="post">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="action" value="approve_registration">
+                                            <input type="hidden" name="request_no" value="{{ item.request_no }}">
+                                            <button class="mini-action-button" type="submit"
+                                                    style="width:100%;background:rgba(22,163,74,0.10);color:#14532d;border-color:rgba(22,163,74,0.22);">
+                                                ✓ Approve
+                                            </button>
+                                        </form>
+
+                                        {# ── Reject (expandable dropdown) ── #}
+                                        <details class="reject-expand">
+                                            <summary class="mini-action-button"
+                                                     style="width:100%;text-align:center;background:rgba(185,28,28,0.08);color:#991b1b;border-color:rgba(185,28,28,0.22);">
+                                                ✕ Reject
+                                            </summary>
+                                            <div class="reject-drop">
+                                                <p class="reject-drop-title">Reject Registration</p>
+                                                <form method="post">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <input type="hidden" name="action" value="reject_registration">
+                                                    <input type="hidden" name="request_no" value="{{ item.request_no }}">
+                                                    <textarea name="review_note"
+                                                              placeholder="Enter rejection reason (optional)…"></textarea>
+                                                    <div class="reject-drop-actions">
+                                                        <button class="button danger-button" type="submit">Confirm Reject</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </details>
+
+                                    </div>
+                                {% else %}
+                                    <small class="muted-text">
+                                        {{ item.reviewed_by or "—" }}
+                                        <div>{{ item.reviewed_at or "" }}</div>
+                                    </small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="7">No supplier registrations found.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+</section>
+{% endblock %}

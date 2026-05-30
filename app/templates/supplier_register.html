@@ -1,0 +1,101 @@
+﻿{% extends "base.html" %}
+
+{% block body_class %}login-page-body{% endblock %}
+
+{% block content %}
+<section class="login-page-shell">
+    <article class="card login-page-brand-card">
+        <div class="login-page-brand-css">
+            <img class="lpb-logo" src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
+            <div class="lpb-text">
+                <div class="lpb-name"><span>CURRENT</span><span class="lpb-link">LINK</span></div>
+                <div class="lpb-tagline">TRANSPORT AND GENERAL CONTRACTING LLC SPC</div>
+            </div>
+        </div>
+        <div class="login-page-copy">
+            <div class="public-page-topline">
+                <a class="button button-secondary home-button" href="{{ url_for('home') }}">Home</a>
+            </div>
+            <p class="eyebrow">Supplier Access</p>
+            <h2>Supplier company registration</h2>
+            <p class="muted-text">Create your supplier company profile and portal login. Admin approval is required before you can sign in.</p>
+        </div>
+    </article>
+
+    <article class="card login-stage-card">
+        <div class="login-stage-head">
+            <p class="eyebrow">Step 1</p>
+            <h3>Register your supplier company</h3>
+        </div>
+
+        <form method="post" class="stage-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="request_no" value="{{ values.request_no }}">
+
+            <div class="form-grid two-column-grid">
+                <label>
+                    <span>Company Name</span>
+                    <input type="text" name="company_name" value="{{ values.company_name }}" placeholder="Enter company name" required>
+                </label>
+
+                <label>
+                    <span>Contact Person</span>
+                    <input type="text" name="contact_person" value="{{ values.contact_person }}" placeholder="Enter contact person name">
+                </label>
+
+                <label>
+                    <span>Phone Number</span>
+                    <input type="text" name="phone_number" value="{{ values.phone_number }}" placeholder="Enter phone number">
+                </label>
+
+                <label>
+                    <span>Email Address</span>
+                    <input type="email" name="email" value="{{ values.email }}" placeholder="Enter email address" required>
+                </label>
+
+                <label>
+                    <span>TRN No</span>
+                    <input type="text" name="trn_no" value="{{ values.trn_no }}" placeholder="Enter TRN number">
+                </label>
+
+                <label>
+                    <span>Trade License No</span>
+                    <input type="text" name="trade_license_no" value="{{ values.trade_license_no }}" placeholder="Enter trade license number">
+                </label>
+
+                <label class="full-span">
+                    <span>Company Address</span>
+                    <textarea name="address" rows="3" placeholder="Enter company address">{{ values.address }}</textarea>
+                </label>
+
+                <label>
+                    <span>User ID</span>
+                    <input type="text" name="user_id" value="{{ values.user_id }}" placeholder="Create your user ID" required>
+                </label>
+
+                <label>
+                    <span>Password</span>
+                    <input type="password" name="password" placeholder="Create password" required>
+                </label>
+
+                <label>
+                    <span>Confirm Password</span>
+                    <input type="password" name="confirm_password" placeholder="Confirm password" required>
+                </label>
+
+                <label class="full-span">
+                    <span>Notes</span>
+                    <textarea name="notes" rows="3" placeholder="Optional notes">{{ values.notes }}</textarea>
+                </label>
+            </div>
+
+            <div class="login-stage-footer">
+                <div class="login-tip">
+                    After registration, your supplier company will remain in pending approval until reviewed by admin.
+                </div>
+                <button class="button login-submit-button" type="submit">Submit Registration</button>
+            </div>
+        </form>
+    </article>
+</section>
+{% endblock %}

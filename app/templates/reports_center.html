@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Accounts Dashboard{% endblock %}
+{% block page_title %}Accounts & Finance{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<div class="profile-shell">
+<style>
+.section { margin-bottom:32px; }
+.section-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.section-header h2 { font-size:1.1rem; font-weight:700; color:#17345e; margin:0; }
+.section-header .badge { font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; padding:3px 10px; border-radius:20px; background:#eef3fa; color:#7b92b6; }
+.stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:14px; }
+.stat-card { background:#fff; border:1px solid #d8e4f5; border-radius:14px; padding:14px 16px; transition:box-shadow .2s; }
+.stat-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.06); }
+.stat-card .stat-label { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.3px; color:#7b92b6; }
+.stat-card .stat-value { font-size:1.3rem; font-weight:800; margin-top:4px; color:#17345e; }
+.charts-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.chart-panel { background:#fff; border:1px solid #d8e4f5; border-radius:14px; padding:16px; transition:box-shadow .2s; overflow:hidden; }
+.chart-panel:hover { box-shadow:0 4px 16px rgba(0,0,0,.06); }
+.chart-panel h3 { margin:0 0 10px; font-size:0.8rem; font-weight:600; color:#17345e; }
+.chart-panel canvas { display:block; max-width:100%; max-height:160px; width:100%!important; height:140px!important; }
+@media (max-width:700px){ .charts-row { grid-template-columns:1fr; } }
+</style>
+
+<div class="stats-row" style="margin-bottom:20px">
+    <div class="stat-card" style="text-align:center;border-left:3px solid #255f99">
+        <div class="stat-label">Receivable</div>
+        <div class="stat-value" style="color:#255f99">AED {{ "%.0f"|format(payroll_summ.receivable_total) }}</div>
+    </div>
+    <div class="stat-card" style="text-align:center;border-left:3px solid #e65100">
+        <div class="stat-label">Payable</div>
+        <div class="stat-value" style="color:#e65100">AED {{ "%.0f"|format(payroll_summ.payable_total) }}</div>
+    </div>
+    <div class="stat-card" style="text-align:center;border-left:3px solid #c62828">
+        <div class="stat-label">Loans O/S</div>
+        <div class="stat-value" style="color:#c62828">AED {{ "%.0f"|format(loan_summary.outstanding) }}</div>
+    </div>
+    <div class="stat-card" style="text-align:center;border-left:3px solid #7b1fa2">
+        <div class="stat-label">Annual Fees Due</div>
+        <div class="stat-value" style="color:#7b1fa2">{{ annual_fee_summary.due_count }}</div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <span style="width:4px;height:18px;background:#255f99;border-radius:2px;display:inline-block"></span>
+        <h2>Customer Report</h2>
+        <span class="badge">Sales &amp; VAT</span>
+    </div>
+    <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Receivable</div><div class="stat-value">AED {{ "%.0f"|format(payroll_summ.receivable_total) }}</div></div>
+        <div class="stat-card"><div class="stat-label">Open Invoices</div><div class="stat-value">{{ payroll_summ.open_sales }}</div></div>
+        <div class="stat-card"><div class="stat-label">Customers</div><div class="stat-value">{{ payroll_summ.customer_count }}</div></div>
+        <div class="stat-card"><div class="stat-label">Total Invoices</div><div class="stat-value">{{ payroll_summ.cust_inv_count }}</div></div>
+    </div>
+    <div class="charts-row">
+        <div class="chart-panel"><h3>Monthly NET Sales + VAT</h3><canvas id="custMain" height="160"></canvas></div>
+        <div class="chart-panel"><h3>Sales vs VAT Trend</h3><canvas id="custTrend" height="160"></canvas></div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <span style="width:4px;height:18px;background:#f7931e;border-radius:2px;display:inline-block"></span>
+        <h2>Supplier Report</h2>
+        <span class="badge">Purchases &amp; VAT</span>
+    </div>
+    <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Payable</div><div class="stat-value">AED {{ "%.0f"|format(payroll_summ.payable_total) }}</div></div>
+        <div class="stat-card"><div class="stat-label">Open Invoices</div><div class="stat-value">{{ payroll_summ.open_purchases }}</div></div>
+        <div class="stat-card"><div class="stat-label">Suppliers</div><div class="stat-value">{{ payroll_summ.supplier_count }}</div></div>
+        <div class="stat-card"><div class="stat-label">Total Invoices</div><div class="stat-value">{{ payroll_summ.supp_inv_count }}</div></div>
+    </div>
+    <div class="charts-row">
+        <div class="chart-panel"><h3>Monthly NET Purchases + VAT</h3><canvas id="suppMain" height="160"></canvas></div>
+        <div class="chart-panel"><h3>Purchases vs VAT Trend</h3><canvas id="suppTrend" height="160"></canvas></div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <span style="width:4px;height:18px;background:#7b1fa2;border-radius:2px;display:inline-block"></span>
+        <h2>Employee Report</h2>
+        <span class="badge">Payroll &amp; HR</span>
+    </div>
+    <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Total Employees</div><div class="stat-value">{{ employee_data.total }} <span style="font-size:0.7rem;font-weight:600;color:#2CB15C;">({{ employee_data.active }} Active)</span></div></div>
+        <div class="stat-card"><div class="stat-label">Monthly Salary</div><div class="stat-value">AED {{ "%.0f"|format(employee_data.total_salary) }}</div></div>
+        <div class="stat-card"><div class="stat-label">Advances O/S</div><div class="stat-value" style="color:#c62828">AED {{ "%.0f"|format(employee_data.advances) }}</div></div>
+        <div class="stat-card"><div class="stat-label">Stored This Month</div><div class="stat-value">{{ employee_data.stored }}</div></div>
+    </div>
+    <div class="charts-row">
+        <div class="chart-panel"><h3>Monthly Salary Trend</h3><canvas id="empMain" height="160"></canvas></div>
+        <div class="chart-panel"><h3>Department Breakdown</h3><canvas id="empDept" height="160"></canvas></div>
+    </div>
+</div>
+
+</div>
+
+<script>
+const m = {{ payroll_chart.months|tojson }};
+const s = {{ payroll_chart.sales|tojson }};
+const sv = {{ payroll_chart.output_vat|tojson }};
+const p = {{ payroll_chart.purchases|tojson }};
+const pv = {{ payroll_chart.input_vat|tojson }};
+const es = {{ employee_data.salary_by_month|tojson }};
+const dl = {{ employee_data.dept_labels|tojson }};
+const dv = {{ employee_data.dept_values|tojson }};
+
+function ch(id, cfg){ const c = document.getElementById(id); if(c){ cfg.options.maintainAspectRatio=false; new Chart(c, cfg); } }
+
+ch('custMain', {
+    type:'bar', data:{
+        labels:m,
+        datasets:[
+            { label:'NET Sales', data:s, backgroundColor:'#255f99', borderRadius:4, order:2 },
+            { label:'Output VAT', data:sv, backgroundColor:'#c62828', borderRadius:4, order:2 }
+        ]
+    },
+    options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:10, font:{size:10} } } },
+        scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'AED '+v.toLocaleString() } } }
+    }
+});
+
+ch('custTrend', {
+    type:'line', data:{
+        labels:m,
+        datasets:[
+            { label:'NET Sales', data:s, borderColor:'#255f99', backgroundColor:function(ctx){
+                const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
+                g.addColorStop(0,'rgba(37,95,153,0.3)'); g.addColorStop(1,'rgba(37,95,153,0)'); return g;
+            }, fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#255f99', borderWidth:2 },
+            { label:'Output VAT', data:sv, borderColor:'#c62828', backgroundColor:function(ctx){
+                const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
+                g.addColorStop(0,'rgba(198,40,40,0.25)'); g.addColorStop(1,'rgba(198,40,40,0)'); return g;
+            }, fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#c62828', borderWidth:2 }
+        ]
+    },
+    options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:10, font:{size:10} } } },
+        scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'AED '+v.toLocaleString() } } }
+    }
+});
+
+ch('suppMain', {
+    type:'bar', data:{
+        labels:m,
+        datasets:[
+            { label:'NET Purchases', data:p, backgroundColor:'#f7931e', borderRadius:4, order:2 },
+            { label:'Input VAT', data:pv, backgroundColor:'#2CB15C', borderRadius:4, order:2 }
+        ]
+    },
+    options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:10, font:{size:10} } } },
+        scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'AED '+v.toLocaleString() } } }
+    }
+});
+
+ch('suppTrend', {
+    type:'line', data:{
+        labels:m,
+        datasets:[
+            { label:'NET Purchases', data:p, borderColor:'#f7931e', backgroundColor:function(ctx){
+                const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
+                g.addColorStop(0,'rgba(247,147,30,0.3)'); g.addColorStop(1,'rgba(247,147,30,0)'); return g;
+            }, fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#f7931e', borderWidth:2 },
+            { label:'Input VAT', data:pv, borderColor:'#2CB15C', backgroundColor:function(ctx){
+                const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
+                g.addColorStop(0,'rgba(44,177,92,0.25)'); g.addColorStop(1,'rgba(44,177,92,0)'); return g;
+            }, fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#2CB15C', borderWidth:2 }
+        ]
+    },
+    options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:10, font:{size:10} } } },
+        scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'AED '+v.toLocaleString() } } }
+    }
+});
+
+ch('empMain', {
+    type:'line', data:{
+        labels:m,
+        datasets:[{
+            label:'Salary Cost', data:es, borderColor:'#7b1fa2',
+            backgroundColor:function(ctx){
+                const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
+                g.addColorStop(0,'rgba(123,31,162,0.3)'); g.addColorStop(1,'rgba(123,31,162,0)'); return g;
+            }, fill:true, tension:0.4, pointRadius:4, pointBackgroundColor:'#7b1fa2', borderWidth:2
+        }]
+    },
+    options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'AED '+v.toLocaleString() } } }
+    }
+});
+
+ch('empDept', {
+    type:'doughnut', data:{
+        labels:dl,
+        datasets:[{ data:dv, backgroundColor:['#255f99','#f7931e','#7b1fa2','#c62828','#2CB15C','#e65100','#0288d1','#17345e'] }]
+    },
+    options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } },
+        cutout:'60%'
+    }
+});
+</script>
+{% endblock %}

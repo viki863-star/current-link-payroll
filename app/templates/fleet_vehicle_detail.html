@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell maintenance-workspace-shell">
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('fleet_maintenance') }}">Back To Fleet Maintenance</a>
+                <a class="button button-secondary" href="{{ url_for('fleet_maintenance', edit_vehicle=vehicle.vehicle_id) }}">Edit Vehicle</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ lifetime_summary.paper_count }}</strong><small>Total Papers</small></span>
+                <span><strong>AED {{ "%.0f"|format(lifetime_summary.total_amount) }}</strong><small>Total Spend</small></span>
+                <span><strong>AED {{ "%.0f"|format(month_summary.total_amount) }}</strong><small>Current Scope</small></span>
+                <span><strong>{{ vehicle.status }}</strong><small>Status</small></span>
+            </div>
+        </div>
+        <div class="section-heading-block">
+            <span class="admin-desk-label">Vehicle Maintenance History</span>
+            <h1>{{ vehicle.vehicle_no }}</h1>
+            <p>{{ vehicle.vehicle_type }} | {{ vehicle.make_model or 'No model added' }} | {{ vehicle.shift_mode }} | {{ vehicle.ownership_mode }}</p>
+        </div>
+        <form method="get" class="admin-filter-grid maintenance-filter-grid">
+            <label>
+                <span>Month</span>
+                <input type="month" name="month" value="{{ filters.month }}">
+            </label>
+            <label>
+                <span>Funding</span>
+                <input type="text" name="funding_source" value="{{ filters.funding_source }}" placeholder="Owner Fund / Cash / Workshop Credit">
+            </label>
+            <label>
+                <span>Search</span>
+                <input type="text" name="search" value="{{ filters.search }}" placeholder="Paper, summary, workshop">
+            </label>
+            <div class="admin-filter-actions">
+                <button class="button" type="submit">Apply</button>
+                <a class="button button-secondary" href="{{ url_for('fleet_vehicle_detail', vehicle_id=vehicle.vehicle_id) }}">Clear</a>
+            </div>
+        </form>
+    </article>
+
+    <section class="accounts-link-grid maintenance-summary-grid">
+        <article class="card accounts-link-card"><strong>AED {{ "%.2f"|format(month_summary.subtotal) }}</strong><span>Scope Subtotal</span></article>
+        <article class="card accounts-link-card"><strong>AED {{ "%.2f"|format(month_summary.tax_amount) }}</strong><span>Scope VAT</span></article>
+        <article class="card accounts-link-card"><strong>AED {{ "%.2f"|format(month_summary.company_paid_amount) }}</strong><span>Company Paid</span></article>
+        <article class="card accounts-link-card"><strong>AED {{ "%.2f"|format(month_summary.partner_paid_amount) }}</strong><span>Partner Paid</span></article>
+    </section>
+
+    <section class="desk-content-grid compact-content-grid">
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Profile</span>
+                    <h2>Vehicle Summary</h2>
+                </div>
+            </div>
+            <div class="mini-ledger-list">
+                <div class="mini-ledger-row"><strong>Vehicle ID</strong><span>{{ vehicle.vehicle_id }}</span></div>
+                <div class="mini-ledger-row"><strong>Vehicle No</strong><span>{{ vehicle.vehicle_no }}</span></div>
+                <div class="mini-ledger-row"><strong>Type</strong><span>{{ vehicle.vehicle_type }}</span></div>
+                <div class="mini-ledger-row"><strong>Model</strong><span>{{ vehicle.make_model or '-' }}</span></div>
+                <div class="mini-ledger-row"><strong>Ownership</strong><span>{{ vehicle.ownership_mode }}</span></div>
+                <div class="mini-ledger-row"><strong>Partner</strong><span>{{ vehicle.partner_name or '-' }}</span></div>
+                <div class="mini-ledger-row"><strong>Notes</strong><span>{{ vehicle.notes or '-' }}</span></div>
+            </div>
+        </article>
+
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head">
+                <div>
+                    <span class="admin-desk-label">Trend</span>
+                    <h2>Monthly Spend Snapshot</h2>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Month</th><th>Papers</th><th>Total</th></tr></thead>
+                    <tbody>
+                        {% for item in monthly_rows %}
+                            <tr>
+                                <td>{{ item.period_month }}</td>
+                                <td>{{ item.paper_count }}</td>
+                                <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="3">No maintenance trend available yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+
+    <article class="card desk-panel-card">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">History</span>
+                <h2>Maintenance Papers</h2>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Paper</th><th>Workshop</th><th>Funding</th><th>Subtotal</th><th>VAT</th><th>Total</th><th>Attachment</th></tr></thead>
+                <tbody>
+                    {% for item in history_rows %}
+                        <tr>
+                            <td><strong>{{ item.paper_no }}</strong><br><small>{{ item.paper_date }}</small></td>
+                            <td>{{ item.workshop_name }}<br><small>{{ item.work_summary }}</small></td>
+                            <td>{{ item.funding_source }}<br><small>{{ item.paid_by }}</small></td>
+                            <td>AED {{ "%.2f"|format(item.subtotal) }}</td>
+                            <td>AED {{ "%.2f"|format(item.tax_amount) }}</td>
+                            <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                            <td>{% if item.attachment_path %}<a class="mini-link-pill" href="{{ url_for('generated_file', filename=item.attachment_path) }}">Open File</a>{% else %}<span class="muted-text">No file</span>{% endif %}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7">No maintenance papers found for this vehicle.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Add Contract{% endblock %}
+{% block page_title %}Customer Contract{% endblock %}
+
+{% block content %}
+<div class="form-shell" style="max-width:550px">
+    <div class="profile-card">
+        <div style="margin-bottom:14px">
+            <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='contracts') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        </div>
+        <h3>New Contract / Agreement</h3>
+        <p style="color:var(--muted);font-size:0.85rem">Customer: <strong>{{ c.customer_name }}</strong></p>
+
+        <form method="POST" style="margin-top:16px">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;gap:12px">
+                <div class="form-row">
+                    <label class="form-label">Contract Date</label>
+                    <input type="date" name="contract_date" class="form-control" value="{{ contract.contract_date or today }}">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Contract No.</label>
+                    <input type="text" name="contract_no" class="form-control" value="{{ contract.contract_no or '' }}" placeholder="e.g. CONT-001">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Contract Type</label>
+                    <select name="contract_type" class="form-control">
+                        {% for t in ['rental','transport','service','maintenance','other'] %}
+                        <option value="{{ t }}" {% if (contract.contract_type or 'rental') == t %}selected{% endif %}>{{ t|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="form-row">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" name="start_date" class="form-control" value="{{ contract.start_date or '' }}">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">End Date</label>
+                        <input type="date" name="end_date" class="form-control" value="{{ contract.end_date or '' }}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Contract Amount (AED)</label>
+                    <input type="number" name="amount" class="form-control" value="{{ contract.amount or '' }}" step="0.01" min="0" placeholder="e.g. 50000">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-control">
+                        <option value="active">Active</option>
+                        <option value="draft">Draft</option>
+                        <option value="closed">Closed</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2">{{ contract.notes or '' }}</textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:12px">Save Contract</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

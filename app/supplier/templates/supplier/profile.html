@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+{% block title %}{{ s.supplier_name }} — Supplier{% endblock %}
+{% block page_title %}Supplier Profile{% endblock %}
+
+{% block content %}
+{% set LPO_TYPE_LABELS = {'trip':'Trip','hour':'Hour','monthly':'Monthly','fixed':'Fixed','other':'Other'} %}
+<div class="profile-shell">
+
+<style>
+.profile-shell { --accent: {% if s.supplier_type == 'with_invoice' %}var(--primary){% else %}#e65100{% endif %}; }
+.profile-header { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 24px; display:flex; align-items:center; gap:18px; position:relative; overflow:hidden; margin-bottom:16px; }
+.profile-header::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:var(--accent); }
+.profile-avatar { flex-shrink:0; }
+.profile-avatar .avatar { width:64px; height:64px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; font-weight:700; color:#fff; background:var(--accent); }
+.profile-meta { flex:1; min-width:0; }
+.profile-meta h1 { font-size:1.35rem; font-weight:700; margin:0 0 4px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.profile-meta .badge-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.8rem; color:var(--muted); }
+.profile-meta .badge-row .dot { color:var(--muted); }
+.profile-meta .contact-row { font-size:0.82rem; color:var(--muted); margin-top:4px; }
+.profile-actions { flex-shrink:0; display:flex; gap:6px; }
+.kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:16px; }
+.kpi-card { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 12px; text-align:center; transition:box-shadow 0.2s; }
+.kpi-card:hover { box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.kpi-card .kpi-label { font-size:0.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
+.kpi-card .kpi-value { font-size:1.15rem; font-weight:700; }
+.kpi-card .kpi-sub { font-size:0.55rem; color:var(--muted); margin-top:2px; }
+.tab-bar { display:flex; gap:3px; margin-bottom:16px; background:#f0f2f5; border-radius:12px; padding:4px; overflow-x:auto; }
+.tab-btn { flex-shrink:0; padding:8px 14px; font-size:0.8rem; font-weight:600; color:#666; text-decoration:none; border-radius:8px; transition:all 0.15s; white-space:nowrap; }
+.tab-btn:hover { color:var(--primary); background:rgba(28,86,139,0.06); }
+.tab-btn.is-active { background:#fff; color:var(--primary) !important; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+.section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.section-header h3 { margin:0; font-size:0.95rem; font-weight:600; }
+</style>
+
+{# ─── Header ─── #}
+<div class="profile-header">
+    <div class="profile-avatar">
+        <div class="avatar">{{ s.supplier_name[:2]|upper }}</div>
+    </div>
+    <div class="profile-meta">
+        <h1>{{ s.supplier_name }}
+            <span class="badge badge-dept" style="font-size:0.7rem">{{ 'With Invoice' if s.supplier_type == 'with_invoice' else 'Cash' }}</span>
+            <span class="status-badge {{ s.status|lower }}">{{ s.status }}</span>
+        </h1>
+        <div class="badge-row">
+            <span class="badge badge-type">{{ s.category or 'Uncategorized' }}</span>
+            <span class="dot">&middot;</span>
+            <span class="mono">{{ s.supplier_code }}</span>
+            {% if s.trn %}<span class="dot">&middot;</span><span>TRN: <span class="mono">{{ s.trn }}</span></span>{% endif %}
+            <span class="dot">&middot;</span><span>{{ s.payment_terms }}</span>
+        </div>
+        <div class="contact-row">
+            {% if s.phone %}{{ s.phone }}{% endif %}{% if s.email %} &middot; {{ s.email }}{% endif %}
+        </div>
+    </div>
+    <div class="profile-actions">
+        <a href="{{ url_for('supplier.supplier_edit', sup_id=s.id) }}" class="btn btn-primary btn-sm">&#9998; Edit</a>
+        <a href="{{ url_for('supplier.supplier_list') }}" class="btn btn-outline btn-sm">&#8592; Back</a>
+    </div>
+</div>
+
+{# ─── KPI Row ─── #}
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-label">Invoices Total</div>
+        <div class="kpi-value" style="color:var(--primary)">{{ "%.0f"|format(inv_total) }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Paid</div>
+        <div class="kpi-value" style="color:var(--green)">{{ "%.0f"|format(paid_total) }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Qarz Net</div>
+        <div class="kpi-value" style="color:#e65100">{{ "%.0f"|format(loan_given - loan_recovered) }}</div>
+        {% if loan_given_sep > 0 %}
+        <div class="kpi-sub">Sep: {{ "%.0f"|format(loan_given_sep - loan_recovered_sep) }}</div>
+        {% endif %}
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Net Balance</div>
+        <div class="kpi-value" style="color:{% if net_balance > 0 %}#e65100{% else %}var(--green){% endif %}">{{ "%.0f"|format(net_balance) }}</div>
+    </div>
+</div>
+
+{# ─── Tabs ─── #}
+<div class="tab-bar">
+    <a href="?tab=overview" class="tab-btn {% if active_tab == 'overview' %}is-active{% endif %}">Overview</a>
+    <a href="?tab=invoices" class="tab-btn {% if active_tab == 'invoices' %}is-active{% endif %}">Invoices</a>
+    <a href="?tab=expenses" class="tab-btn {% if active_tab == 'expenses' %}is-active{% endif %}">Expenses</a>
+    <a href="?tab=payments" class="tab-btn {% if active_tab == 'payments' %}is-active{% endif %}">Payments</a>
+    <a href="?tab=loans" class="tab-btn {% if active_tab == 'loans' %}is-active{% endif %}">Qarz</a>
+    <a href="?tab=quotations" class="tab-btn {% if active_tab == 'quotations' %}is-active{% endif %}">Quotations</a>
+    <a href="?tab=lpos" class="tab-btn {% if active_tab == 'lpos' %}is-active{% endif %}">LPOs</a>
+    <a href="?tab=documents" class="tab-btn {% if active_tab == 'documents' %}is-active{% endif %}">Documents</a>
+    <a href="{{ url_for('supplier.supplier_kata', sup_id=s.id) }}" class="tab-btn">Kata</a>
+</div>
+
+{# ═══════ OVERVIEW ═══════ #}
+{% if active_tab == 'overview' %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <div class="profile-card" style="margin:0">
+        <h3 style="margin:0 0 12px;font-size:0.95rem">Contact Information</h3>
+        <table class="info-table" style="width:100%">
+            <tr><td style="width:35%">Supplier Code</td><td class="mono">{{ s.supplier_code }}</td></tr>
+            <tr><td>Contact Person</td><td>{{ s.contact_person or '—' }}</td></tr>
+            <tr><td>Phone</td><td>{{ s.phone or '—' }}</td></tr>
+            <tr><td>Email</td><td>{{ s.email or '—' }}</td></tr>
+            <tr><td>Address</td><td style="white-space:normal">{{ s.address or '—' }}</td></tr>
+        </table>
+    </div>
+    <div class="profile-card" style="margin:0">
+        <h3 style="margin:0 0 12px;font-size:0.95rem">Financial Details</h3>
+        <table class="info-table" style="width:100%">
+            <tr><td style="width:35%">TRN</td><td class="mono">{{ s.trn or '—' }}</td></tr>
+            <tr><td>Payment Terms</td><td>{{ s.payment_terms }}</td></tr>
+            <tr><td>Category</td><td>{{ s.category or '—' }}</td></tr>
+            <tr><td>Bank Name</td><td>{{ s.bank_name or '—' }}</td></tr>
+            <tr><td>Bank Account</td><td class="mono">{{ s.bank_account or '—' }}</td></tr>
+            <tr><td>IBAN</td><td class="mono">{{ s.iban or '—' }}</td></tr>
+        </table>
+    </div>
+</div>
+{% if s.notes %}
+<div class="profile-card" style="margin-top:0">
+    <h3 style="margin:0 0 8px;font-size:0.95rem">Notes</h3>
+    <p style="color:var(--text);font-size:0.85rem;margin:0;white-space:pre-wrap">{{ s.notes }}</p>
+</div>
+{% endif %}
+
+{# ═══════ INVOICES ═══════ #}
+{% elif active_tab == 'invoices' %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>Invoices</h3>
+        <a href="{{ url_for('supplier.supplier_invoice_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add Invoice</a>
+    </div>
+    {% if invoices %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Invoice #</th><th>Date</th><th>Due</th><th>Amount</th><th>VAT</th><th>Total</th><th>LPO</th><th>Status</th><th>Attachment</th><th></th></tr></thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr>
+                    <td class="mono" style="font-weight:600">{{ inv.invoice_no }}</td>
+                    <td class="mono">{{ inv.invoice_date }}</td>
+                    <td class="mono">{{ inv.due_date or '—' }}</td>
+                    <td class="mono">{{ "%.0f"|format(inv.amount) }}</td>
+                    <td class="mono">{{ "%.0f"|format(inv.vat_amount) }}</td>
+                    <td class="mono" style="font-weight:600;color:var(--primary)">{{ "%.0f"|format(inv.total_amount) }}</td>
+                    <td class="mono" style="font-size:0.75rem">{{ inv.lpo_id or '—' }}</td>
+                    <td><span class="status-badge {% if inv.status == 'paid' %}active{% elif inv.status == 'approved' %}approved{% else %}pending{% endif %}">{{ inv.status }}</span></td>
+                    <td>{% if inv.attachment_data %}<a href="{{ url_for('supplier.supplier_invoice_attachment', inv_id=inv.id) }}" class="btn btn-xs btn-outline" target="_blank">View</a>{% else %}—{% endif %}</td>
+                    <td><a href="{{ url_for('supplier.supplier_invoice_edit', sup_id=s.id, inv_id=inv.id) }}" class="btn btn-xs btn-outline">&#9998;</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No invoices yet.</p>
+    {% endif %}
+</div>
+
+{# ═══════ EXPENSES ═══════ #}
+{% elif active_tab == 'expenses' %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>Expenses / Earnings</h3>
+        <a href="{{ url_for('supplier.supplier_expense_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add</a>
+    </div>
+    {% if expenses %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Rate</th><th>Amount</th><th>Category</th><th>Description</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for e in expenses %}
+                <tr>
+                    <td class="mono">{{ e.expense_date }}</td>
+                    <td><span class="badge badge-type">{{ {'fixed':'Fixed','trip':'Trip','hour':'Hours'}.get(e.earning_type, 'Fixed') }}</span></td>
+                    <td class="mono">{{ e.quantity or '-' }}</td>
+                    <td class="mono">{{ e.rate or '-' }}</td>
+                    <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(e.amount) }}</td>
+                    <td><span class="badge badge-type">{{ e.category }}</span></td>
+                    <td style="max-width:150px;white-space:normal;font-size:0.78rem">{{ e.description or '-' }}</td>
+                    <td><span class="status-badge {{ 'active' if e.status == 'approved' else 'pending' }}">{{ e.status }}</span></td>
+                    <td>
+                        {% if e.status == 'pending' %}
+                        <form method="POST" action="{{ url_for('supplier.supplier_expense_approve', sup_id=s.id, exp_id=e.id) }}" style="display:inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-xs btn-primary">Approve</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No expenses yet.</p>
+    {% endif %}
+</div>
+
+{# ═══════ LOANS / QARZ ═══════ #}
+{% elif active_tab == 'loans' %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>Qarz (Loans)</h3>
+        <a href="{{ url_for('supplier.supplier_loan_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add Qarz Entry</a>
+    </div>
+    {% if loans %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Applied</th><th>Method</th><th>Reference</th><th>Notes</th></tr></thead>
+            <tbody>
+                {% for ln in loans %}
+                <tr>
+                    <td class="mono">{{ ln.entry_date }}</td>
+                    <td><span class="badge" style="background:{% if ln.loan_type == 'given' %}#e6510033;color:#e65100{% else %}#22c55e33;color:#22c55e{% endif %};border:1px solid{% if ln.loan_type == 'given' %}#e6510055{% else %}#22c55e55{% endif %}">{{ 'Given' if ln.loan_type == 'given' else 'Recovered' }}</span></td>
+                    <td class="mono" style="font-weight:600;color:{% if ln.loan_type == 'given' %}#e65100{% else %}var(--green){% endif %}">AED {{ "%.0f"|format(ln.amount) }}</td>
+                    <td>{% if ln.deduct_from_balance %}<span style="color:var(--green)">Yes</span>{% else %}<span style="color:var(--muted)">No</span>{% endif %}</td>
+                    <td>{{ ln.payment_method }}</td>
+                    <td class="mono">{{ ln.reference_no or '—' }}</td>
+                    <td style="font-size:0.78rem">{{ ln.notes or '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No loan entries yet.</p>
+    {% endif %}
+</div>
+
+{# ═══════ LPOs ═══════ #}
+{% elif active_tab == 'lpos' %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>LPOs (Local Purchase Orders)</h3>
+        <a href="{{ url_for('supplier.supplier_lpo_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add LPO</a>
+    </div>
+    {% if lpos %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>LPO #</th><th>Date</th><th>Basis</th><th>Amount</th><th>Quotation</th><th>Status</th><th>Invoices</th><th></th></tr></thead>
+            <tbody>
+                {% for lpo in lpos %}
+                <tr>
+                    <td class="mono" style="font-weight:600">{{ lpo.lpo_no }}</td>
+                    <td class="mono">{{ lpo.lpo_date }}</td>
+                    <td><span class="badge badge-type">{{ LPO_TYPE_LABELS.get(lpo.lpo_type, lpo.lpo_type) }}</span></td>
+                    <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(lpo.amount) }}</td>
+                    <td class="mono" style="font-size:0.75rem">{{ lpo.quotation_no or '—' }}</td>
+                    <td><span class="status-badge {% if lpo.status == 'closed' %}active{% else %}pending{% endif %}">{{ lpo.status }}</span></td>
+                    <td class="mono">{{ lpo.inv_count }}</td>
+                    <td style="display:flex;gap:4px">
+                        <a href="{{ url_for('supplier.supplier_lpo_pdf', sup_id=s.id, lpo_id=lpo.id) }}" class="btn btn-xs btn-primary" target="_blank">PDF</a>
+                        {% if lpo.status == 'open' %}
+                        <form method="POST" action="{{ url_for('supplier.supplier_lpo_close', sup_id=s.id, lpo_id=lpo.id) }}" style="display:inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-xs btn-outline">Close</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No LPOs yet.</p>
+    {% endif %}
+</div>
+
+{# ═══════ QUOTATIONS ═══════ #}
+{% elif active_tab == 'quotations' %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>Quotations</h3>
+        <a href="{{ url_for('supplier.supplier_quotation_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add Quotation</a>
+    </div>
+    {% if quotations %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Quotation #</th><th>Date</th><th>Amount</th><th>Description</th><th>File</th><th></th></tr></thead>
+            <tbody>
+                {% for q in quotations %}
+                <tr>
+                    <td class="mono" style="font-weight:600">{{ q.quotation_no }}</td>
+                    <td class="mono">{{ q.quotation_date }}</td>
+                    <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(q.amount) }}</td>
+                    <td style="font-size:0.78rem;max-width:140px;white-space:normal">{{ q.description or '—' }}</td>
+                    <td>{% if q.file_data %}<a href="{{ url_for('supplier.supplier_quotation_download', sup_id=s.id, q_id=q.id) }}" class="btn btn-xs btn-outline">Download</a>{% else %}—{% endif %}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('supplier.supplier_quotation_delete', sup_id=s.id, q_id=q.id) }}" style="display:inline" onsubmit="return confirm('Delete this quotation?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-xs btn-outline" style="color:#e65100">&#10005;</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No quotations uploaded yet.</p>
+    {% endif %}
+</div>
+
+{# ═══════ DOCUMENTS ═══════ #}
+{% elif active_tab == 'documents' %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>Documents</h3>
+        <a href="{{ url_for('supplier.supplier_doc_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Upload</a>
+    </div>
+    {% if docs %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Type</th><th>Name</th><th>Reference</th><th>Expiry</th><th>File</th><th></th></tr></thead>
+            <tbody>
+                {% for d in docs %}
+                <tr>
+                    <td><span class="badge badge-type">{{ d.doc_type }}</span></td>
+                    <td style="font-weight:600">{{ d.doc_name }}</td>
+                    <td class="mono">{{ d.doc_ref or '—' }}</td>
+                    <td class="mono" style="{% if d.expiry_date and d.expiry_date < today %}color:#e65100;font-weight:600{% endif %}">{{ d.expiry_date or '—' }}</td>
+                    <td>{% if d.file_data %}<a href="{{ url_for('supplier.supplier_doc_download', sup_id=s.id, doc_id=d.id) }}" class="btn btn-xs btn-outline">Download</a>{% else %}—{% endif %}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('supplier.supplier_doc_delete', sup_id=s.id, doc_id=d.id) }}" style="display:inline" onsubmit="return confirm('Delete this document?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-xs btn-outline" style="color:#e65100">&#10005;</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No documents uploaded yet.</p>
+    {% endif %}
+</div>
+
+{# ═══════ PAYMENTS ═══════ #}
+{% elif active_tab == 'payments' %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>Payments</h3>
+        <a href="{{ url_for('supplier.supplier_payment_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add Payment</a>
+    </div>
+    {% if payments %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Reference</th><th>Notes</th></tr></thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td class="mono">{{ p.payment_date }}</td>
+                    <td class="mono" style="font-weight:600;color:var(--green)">AED {{ "%.0f"|format(p.amount) }}</td>
+                    <td><span class="badge badge-dept">{{ p.payment_method }}</span></td>
+                    <td class="mono">{{ p.reference_no or '—' }}</td>
+                    <td style="font-size:0.78rem">{{ p.notes or '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No payments yet.</p>
+    {% endif %}
+</div>
+{% endif %}
+</div>
+{% endblock %}

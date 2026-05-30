@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card action-panel form-panel slip-panel">
+    <div class="panel-titlebar">
+        <span>{{ config["COMPANY_NAME"] }}</span>
+        <span>Salary Slip</span>
+    </div>
+
+    <div class="action-grid tight-grid">
+        <div class="photo-panel small-photo-panel">
+            {% if photo_url %}
+                <img class="driver-photo" src="{{ photo_url }}" alt="{{ driver.full_name }}">
+            {% else %}
+                <div class="photo-placeholder">NO PHOTO</div>
+            {% endif %}
+        </div>
+
+        <div class="driver-summary compact-summary slip-summary-box">
+            <h2>{{ driver.full_name }}</h2>
+            <div class="summary-tags smart-tags">
+                <span>ID {{ driver.driver_id }}</span>
+                <span>{{ driver.shift }}</span>
+            </div>
+            <dl class="panel-facts salary-master-grid">
+                <div><dt>Vehicle No</dt><dd>{{ driver.vehicle_no }}</dd></div>
+                <div><dt>Basic Salary</dt><dd>AED {{ "%.2f"|format(driver.basic_salary) }}</dd></div>
+                <div><dt>OT Rate</dt><dd>{{ "%.2f"|format(driver.ot_rate) }}</dd></div>
+                <div><dt>OT Month</dt><dd>{{ preview.ot_month if preview else (selected_salary.ot_month if selected_salary else '-') }}</dd></div>
+                <div><dt>Total Advance</dt><dd>AED {{ "%.2f"|format(advance_summary.total_advance) }}</dd></div>
+                <div><dt>Total Deducted</dt><dd>AED {{ "%.2f"|format(advance_summary.total_deducted) }}</dd></div>
+                <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(preview.remaining_advance if preview else advance_summary.remaining_advance) }}</dd></div>
+            </dl>
+            <div class="panel-note">Advance ko poora deduct karna zaroori nahi. Aap jitna chahein utna deduct kar sakte hain.</div>
+        </div>
+    </div>
+
+    <section class="inner-section">
+        <div class="section-title">Monthly Statement</div>
+        {% if existing_slip %}
+            <div class="info-box warning-box">This month already has a statement. Deduction total yahan update hogi, aur payment rows neeche alag se add hoti rahengi.</div>
+        {% endif %}
+        <form method="post" class="entry-form two-column-form premium-slip-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="payment_id" value="{{ values.payment_id }}">
+            <label>
+                <span>Salary Month</span>
+                <select name="salary_store_id" required>
+                    <option value="">Select stored salary</option>
+                    {% for item in salary_rows %}
+                        <option value="{{ item.id }}" {% if selected_salary_id == item.id|string %}selected{% endif %}>
+                            {{ item.salary_month }} | AED {{ "%.2f"|format(item.net_salary) }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Deduct This Slip</span>
+                <input type="number" name="deduction_amount" step="0.01" min="0" value="{{ values.deduction_amount }}" required>
+            </label>
+            <label>
+                <span>Payment Date</span>
+                <input type="date" name="payment_date" value="{{ values.payment_date }}" required>
+            </label>
+            <label>
+                <span>Actual Paid</span>
+                <input type="number" name="actual_paid_amount" step="0.01" min="0" value="{{ values.actual_paid_amount }}" placeholder="0 if only statement update karni hai">
+            </label>
+            <label>
+                <span>Payment Source</span>
+                <select name="payment_source">
+                    {% for item in payment_sources %}
+                        <option value="{{ item }}" {% if values.payment_source == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Paid By</span>
+                <input type="text" name="paid_by" value="{{ values.paid_by }}" placeholder="Nasrull / Waqar / Office">
+            </label>
+            <label class="full-span">
+                <span>Payment Notes</span>
+                <input type="text" name="payment_notes" value="{{ values.payment_notes }}" placeholder="Bank transfer / cash part 1 / owner direct">
+            </label>
+            <div class="full-span split-preview-row">
+                <div class="info-box success-box">
+                    Pehle deduction total save hota hai. Phir jitni dafa payment deni ho, utni payment rows add ho sakti hain.
+                </div>
+                <div class="info-box">
+                    Same month mein multiple payments allowed hain. PDF monthly total paid aur balance ke sath refresh hoti rahegi.
+                </div>
+            </div>
+            <div class="form-actions triple-actions">
+                <a class="button danger-button" href="{{ url_for('driver_action', driver_id=driver.driver_id) }}">Close</a>
+                {% if existing_slip %}
+                    <a class="button navy" href="{{ url_for('generated_file', filename=existing_slip.pdf_path) }}" target="_blank">Open Current PDF</a>
+                    <button class="button success-button" type="submit">{{ 'Update Payment + Statement' if values.payment_id else 'Save Statement / Add Payment' }}</button>
+                {% else %}
+                    <button class="button success-button" type="submit">Create Statement</button>
+                {% endif %}
+            </div>
+        </form>
+    </section>
+</section>
+
+<section class="detail-layout compact-detail-layout two-panel-layout">
+    <article class="card info-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">Preview</p>
+                <h2>Salary Calculation</h2>
+            </div>
+        </div>
+        {% if selected_salary and preview %}
+            <dl class="detail-grid mini-detail-grid slip-preview-grid">
+                <div><dt>Stored Salary</dt><dd>AED {{ "%.2f"|format(preview.gross) }}</dd></div>
+                <div><dt>OT Month</dt><dd>{{ preview.ot_month }}</dd></div>
+                <div><dt>Available Advance</dt><dd>AED {{ "%.2f"|format(preview.available_advance) }}</dd></div>
+                <div><dt>Advance Deduction</dt><dd>AED {{ "%.2f"|format(preview.deduction_amount) }}</dd></div>
+                <div><dt>Remaining Advance</dt><dd>AED {{ "%.2f"|format(preview.remaining_advance) }}</dd></div>
+                <div><dt>Salary After Deduction</dt><dd>AED {{ "%.2f"|format(preview.salary_after_deduction) }}</dd></div>
+                <div><dt>Total Paid</dt><dd>AED {{ "%.2f"|format(preview.actual_paid_amount) }}</dd></div>
+                <div><dt>Company Balance</dt><dd>AED {{ "%.2f"|format(preview.company_balance_due) }}</dd></div>
+                <div><dt>Payments Count</dt><dd>{{ payment_totals.payment_count }}</dd></div>
+                {% if selected_salary.personal_vehicle_note %}
+                    <div><dt>Personal / Vehicle Note</dt><dd>{{ selected_salary.personal_vehicle_note }}</dd></div>
+                {% endif %}
+            </dl>
+        {% else %}
+            <p class="muted-text">Pehle salary store select karein.</p>
+        {% endif %}
+    </article>
+
+    <article class="card info-card">
+        <div class="section-heading slim-heading">
+            <div>
+                <p class="eyebrow">History</p>
+                <h2>Monthly Statements</h2>
+            </div>
+        </div>
+        {% if slips %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Deduction</th>
+                            <th>After Deduct</th>
+                            <th>Total Paid</th>
+                            <th>Company Balance</th>
+                            <th>Payments</th>
+                            <th>PDF</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in slips %}
+                            <tr>
+                                <td>{{ item.salary_month }}</td>
+                                <td>AED {{ "%.2f"|format(item.total_deductions) }}</td>
+                                <td>AED {{ "%.2f"|format(item.salary_after_deduction or item.net_payable) }}</td>
+                                <td>AED {{ "%.2f"|format(item.total_paid) }}</td>
+                                <td>AED {{ "%.2f"|format(item.company_balance_due or 0) }}</td>
+                                <td>{{ item.payment_count }}</td>
+                                <td><a class="table-link" href="{{ url_for('generated_file', filename=item.pdf_path) }}" target="_blank">Open</a></td>
+                                <td><a class="mini-action-link" href="{{ url_for('driver_salary_slip', driver_id=driver.driver_id, salary_store_id=item.salary_store_id) }}">Edit</a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted-text">Abhi tak slip generate nahi hui.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="card table-card">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Payments</p>
+            <h2>Salary Payment History</h2>
+        </div>
+    </div>
+    {% if payment_rows %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Month</th>
+                        <th>Amount</th>
+                        <th>Source</th>
+                        <th>Paid By</th>
+                        <th>Notes</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in payment_rows %}
+                        <tr>
+                            <td>{{ item.payment_date }}</td>
+                            <td>{{ item.salary_month }}</td>
+                            <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                            <td>{{ item.payment_source or "-" }}</td>
+                            <td>{{ item.paid_by or "-" }}</td>
+                            <td>{{ item.notes or "-" }}</td>
+                            <td>
+                                {% if not item.is_legacy %}
+                                    <div class="table-actions">
+                                        <a class="mini-action-link" href="{{ url_for('driver_salary_slip', driver_id=driver.driver_id, salary_store_id=item.salary_store_id, payment_id=item.id) }}">Edit</a>
+                                        <form method="post" action="{{ url_for('delete_salary_slip', driver_id=driver.driver_id, slip_id=item.id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button class="mini-action-button" type="submit">Delete</button>
+                                        </form>
+                                    </div>
+                                {% else %}
+                                    <span class="muted-text">Legacy</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="muted-text">Abhi payment row add nahi hui.</p>
+    {% endif %}
+</section>
+{% endblock %}

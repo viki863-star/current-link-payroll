@@ -1,0 +1,2084 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-desk-shell supplier-detail-shell">
+    {% if not (supplier_mode in ("Cash", "Loan") and active_screen in ("portal", "kata")) %}
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="button button-secondary" href="{{ url_for(desk_endpoint) }}">{% if supplier_mode == "Partnership" %}Partnership Desk{% elif supplier_mode == "Managed" %}Managed Desk{% elif supplier_mode == "Cash" %}Cash Desk{% else %}Supplier Desk{% endif %}</a>
+                {% if supplier_mode == "Partnership" %}
+                    <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='partnership', partnership_month=partnership_month) }}">Partnership</a>
+                {% elif supplier_mode == "Managed" %}
+                    <a class="button" href="{{ url_for('admin_managed_quotation', party_code=party.party_code) }}">+ Quotation</a>
+                    <a class="button" href="{{ url_for('admin_managed_invoice', party_code=party.party_code) }}">+ Invoice</a>
+                {% elif supplier_mode in ("Cash", "Loan") %}
+                    <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata') }}">Kata / Statement</a>
+                    <a class="button button-secondary" href="{{ url_for('cash_supplier_guide') }}">Desk Guide</a>
+                {% elif supplier_mode == "Normal" %}
+                    {# No button for Normal mode #}
+                {% else %}
+                    <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Invoice Intake</a>
+                {% endif %}
+                <a class="button button-secondary" href="{% if supplier_mode in ('Cash', 'Loan') %}{{ url_for('supplier_statement_pdf', party_code=party.party_code, kata_month=kata_filters.month, kata_type=kata_filters.type, kata_search=kata_filters.search) }}{% else %}{{ url_for('supplier_statement_pdf', party_code=party.party_code, month=partnership_month) }}{% endif %}">{% if supplier_mode in ("Cash", "Loan") %}Kata PDF{% else %}Statement PDF{% endif %}</a>
+                <span class="button-sep"></span>
+                <form method="post" action="{{ url_for('delete_supplier', party_code=party.party_code) }}" onsubmit="return confirm('Delete this supplier and ALL linked data permanently? This cannot be undone.');" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="button button-danger" type="submit">Delete</button>
+                </form>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ summary.asset_count }}</strong><small>Vehicles</small></span>
+                <span><strong>{{ summary.double_shift_count }}</strong><small>Double Shift</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.unbilled_amount) }}</strong><small>Open Work</small></span>
+                <span><strong>AED {{ "%.0f"|format(summary.outstanding_total) }}</strong><small>Due</small></span>
+            </div>
+        </div>
+        <div class="mini-link-stack inline-link-stack">
+            {% for item in screen_options %}
+                <a class="mini-link-pill {% if active_screen == item.key %}active{% endif %}" href="{{ url_for('supplier_detail', party_code=party.party_code, screen=item.key, partnership_month=partnership_month) }}">{{ item.label }}</a>
+            {% endfor %}
+        </div>
+    </article>
+    {% endif %}
+
+    {% if not (supplier_mode in ("Cash", "Loan") and active_screen in ("portal", "kata")) %}
+    <article class="card desk-panel-card supplier-overview-card">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">{% if supplier_mode == "Partnership" %}Partnership Supplier{% elif supplier_mode == "Managed" %}Managed Supplier{% elif supplier_mode == "Cash" %}Cash Supplier{% elif supplier_mode == "Loan" %}Loan Supplier{% else %}Supplier{% endif %}</span>
+                <h2>{{ party.party_name }}</h2>
+                <p class="workspace-lead">{{ party.party_code }}{% if party.contact_person %} | {{ party.contact_person }}{% endif %}{% if party.phone_number %} | {{ party.phone_number }}{% endif %}</p>
+            </div>
+            <div class="mini-link-stack inline-link-stack">
+                <span class="mini-link-pill">{{ party.party_kind }}</span>
+                <span class="mini-link-pill">{{ party.status }}</span>
+                {% if supplier_mode == "Partnership" %}
+                    <span class="mini-link-pill">Partner Split</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="supplier-overview-grid">
+            <div class="directory-line"><strong>Work Open</strong><small>{{ summary.unbilled_count }} Rows / AED {{ "%.2f"|format(summary.unbilled_amount) }}</small></div>
+            <div class="directory-line"><strong>Paid</strong><small>AED {{ "%.2f"|format(summary.paid_total) }}</small></div>
+            <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(summary.outstanding_total) }}</small></div>
+            <div class="directory-line"><strong>Address</strong><small>{{ party.address or 'No address' }}</small></div>
+        </div>
+    </article>
+    {% endif %}
+
+    {% if supplier_mode in ("Cash", "Loan") and active_screen == "kata" %}
+        <article class="card desk-panel-card" style="padding:16px 18px;margin-bottom:16px;">
+            <div class="desk-panel-head" style="margin-bottom:10px;">
+                <div>
+                    <span class="admin-desk-label">Cash Supplier Desk</span>
+                    <h2 style="margin-bottom:4px;">{{ party.party_name }}</h2>
+                    <p class="workspace-lead">{{ party.party_code }}{% if party.contact_person %} | {{ party.contact_person }}{% endif %}{% if party.phone_number %} | {{ party.phone_number }}{% endif %}</p>
+                </div>
+                <div class="mini-link-stack inline-link-stack">
+                    <span class="mini-link-pill">{{ party.party_kind }}</span>
+                    <span class="mini-link-pill">{{ party.status }}</span>
+                </div>
+            </div>
+            <div class="supplier-overview-grid" style="margin-top:0;">
+                <div class="directory-line"><strong>Current Position</strong><small>AED {{ "%.2f"|format(kata_summary.balance) }}</small></div>
+                <div class="directory-line"><strong>Trip Earnings</strong><small>AED {{ "%.2f"|format(kata_summary.total_earned) }}</small></div>
+                <div class="directory-line"><strong>Debits</strong><small>AED {{ "%.2f"|format(kata_summary.total_debits) }}</small></div>
+                <div class="directory-line"><strong>Paid</strong><small>AED {{ "%.2f"|format(kata_summary.total_paid) }}</small></div>
+            </div>
+            <div class="mini-link-stack inline-link-stack" style="margin-top:12px;">
+                <a class="mini-link-pill" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='portal') }}">Portal</a>
+                <a class="mini-link-pill {% if kata_focus == 'statement' %}active{% endif %}" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata', focus='statement') }}">Kata / Statement</a>
+                <a class="mini-link-pill {% if kata_focus == 'trip' %}active{% endif %}" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata', focus='trip') }}">Add Trip</a>
+                <a class="mini-link-pill {% if kata_focus == 'debit' %}active{% endif %}" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata', focus='debit') }}">Add Debit</a>
+                <a class="mini-link-pill {% if kata_focus == 'payment' %}active{% endif %}" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata', focus='payment') }}">Add Payment</a>
+            </div>
+        </article>
+    {% endif %}
+
+    {% if active_screen == "portal" %}
+        {% if supplier_mode in ("Cash", "Loan") %}
+            <section class="erp-supplier-workspace">
+                <aside class="erp-supplier-sidebar">
+                    <article class="card erp-sidebar-brand">
+                        <div class="erp-sidebar-brand-top">
+                            <img src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
+                            <div>
+                                <span class="admin-desk-label">Current Link ERP</span>
+                                <h2>Supplier Portal</h2>
+                            </div>
+                        </div>
+                        <p>Transport supplier kata, trips, debits, payments, statements, aur backups ko ek hi workspace se manage karein.</p>
+                    </article>
+
+                    <nav class="card erp-sidebar-nav">
+                        {% for item in portal_snapshot.sidebar_items %}
+                            <a class="erp-sidebar-link {% if item.active %}active{% endif %}" href="{{ item.href }}">{{ item.label }}</a>
+                        {% endfor %}
+                    </nav>
+
+                    <article class="card erp-sidebar-guide">
+                        <span class="admin-desk-label">Quick Help</span>
+                        <h3>Need SOP?</h3>
+                        <p>Cash workflow, statement PDF, aur backup routine ka guide ready hai.</p>
+                        <div class="erp-sidebar-guide-actions">
+                            <a class="button button-secondary" href="{{ portal_snapshot.guide_href }}">Open Guide</a>
+                            <a class="button" href="{{ portal_snapshot.guide_pdf_href }}">PDF Guide</a>
+                        </div>
+                    </article>
+                </aside>
+
+                <div class="erp-supplier-main">
+                    <article class="card erp-supplier-topbar">
+                        <div>
+                            <span class="admin-desk-label">{{ portal_snapshot.intro_label }}</span>
+                            <h1>{{ portal_snapshot.intro_title }}</h1>
+                            <p>{{ portal_snapshot.intro_copy }}</p>
+                        </div>
+                        <div class="erp-user-chip">
+                            <span class="erp-user-avatar">{{ (current_user_name or session.get('display_name', 'Office'))[:1] }}</span>
+                            <div>
+                                <strong>{{ current_user_name or session.get('display_name', 'Office Admin') }}</strong>
+                                <small>Office Staff</small>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card erp-supplier-summary-card" id="company-details">
+                        <div class="erp-summary-copy">
+                            <span class="admin-desk-label">Supplier Summary</span>
+                            <h2>{{ portal_snapshot.profile.supplier_name }}</h2>
+                            <p>Premium ERP dashboard for supplier kata, trip earnings, debits, payments, vehicles, PDF statements, aur backup actions.</p>
+                            <form method="post" action="{{ url_for('save_cash_supplier_portal_local', party_code=party.party_code) }}" style="margin:10px 0 0;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="button button-secondary" type="submit">Save to Local</button>
+                            </form>
+                            <p style="margin:8px 0 0; font-size:13px; color:#6680a0;">Server primary copy banti hai; nightly PC sync mein include hoti hai jab mirror configured ho.</p>
+                            <div class="cash-portal-badges">
+                                {% for badge in portal_snapshot.hero_badges %}
+                                    <span class="mini-link-pill">{{ badge }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="erp-summary-balance tone-{{ portal_snapshot.balance_tone }}">
+                            <span>Current Position</span>
+                            <strong>{{ portal_snapshot.balance_amount }}</strong>
+                            <small>{{ portal_snapshot.balance_label }}</small>
+                        </div>
+                        <div class="erp-summary-grid">
+                            <div class="erp-summary-item"><strong>Supplier Code</strong><small>{{ portal_snapshot.profile.supplier_code }}</small></div>
+                            <div class="erp-summary-item"><strong>Type</strong><small>{{ portal_snapshot.profile.type }}</small></div>
+                            <div class="erp-summary-item"><strong>Status</strong><small>{{ portal_snapshot.profile.status }}</small></div>
+                            <div class="erp-summary-item"><strong>Phone</strong><small>{{ portal_snapshot.profile.phone }}</small></div>
+                            <div class="erp-summary-item"><strong>Email</strong><small>{{ portal_snapshot.profile.email }}</small></div>
+                            <div class="erp-summary-item full"><strong>Address</strong><small>{{ portal_snapshot.profile.address }}</small></div>
+                        </div>
+                    </article>
+
+                    <section class="erp-dashboard-grid">
+                        <div class="erp-dashboard-primary">
+                            <section class="cash-quick-actions erp-action-grid">
+                                {% for action in portal_snapshot.quick_actions %}
+                                    <a class="cash-quick-action tone-{{ action.tone }}" href="{{ action.href }}">
+                                        <strong>{{ action.label }}</strong>
+                                        <span>{{ action.caption }}</span>
+                                    </a>
+                                {% endfor %}
+                            </section>
+
+                            <section class="supplier-portal-modules cash-portal-modules">
+                                {% for module in portal_snapshot.modules %}
+                                    <a class="portal-module-card tone-{{ module.tone }}" href="{{ module.href }}">
+                                        <span class="portal-module-kicker">{{ module.eyebrow }}</span>
+                                        <h3>{{ module.title }}</h3>
+                                        <strong>{{ module.value }}</strong>
+                                        <p>{{ module.caption }}</p>
+                                    </a>
+                                {% endfor %}
+                            </section>
+                        </div>
+
+                        <aside class="erp-dashboard-secondary">
+                            <section class="erp-chart-grid compact">
+                                {% for chart in portal_snapshot.trend_charts %}
+                                    <article class="card erp-chart-card tone-{{ chart.tone }}">
+                                        <div class="desk-panel-head">
+                                            <div>
+                                                <span class="admin-desk-label">{{ chart.subtitle }}</span>
+                                                <h2>{{ chart.title }}</h2>
+                                            </div>
+                                            {% if chart.data.is_sample %}
+                                                <span class="mini-link-pill">Sample Trend</span>
+                                            {% endif %}
+                                        </div>
+                                        <svg viewBox="0 0 232 92" class="erp-sparkline" preserveAspectRatio="none" aria-hidden="true">
+                                            <polyline points="{{ chart.data.path }}" />
+                                        </svg>
+                                        <div class="erp-chart-labels">
+                                            {% for label in chart.data.labels %}
+                                                <span>{{ label }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </article>
+                                {% endfor %}
+                            </section>
+                        </aside>
+                    </section>
+                </div>
+            </section>
+        {% else %}
+            <section class="compact-content-grid supplier-portal-top">
+                <article class="card desk-panel-card supplier-portal-intro">
+                    <div class="desk-panel-head">
+                        <div>
+                            <span class="admin-desk-label">{{ portal_snapshot.intro_label }}</span>
+                            <h2>{{ portal_snapshot.intro_title }}</h2>
+                            <p class="workspace-lead">{{ portal_snapshot.intro_copy }}</p>
+                        </div>
+                    </div>
+                    <div class="supplier-overview-grid supplier-portal-summary-grid">
+                        <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(summary.outstanding_total) }}</small></div>
+                        <div class="directory-line"><strong>Paid</strong><small>AED {{ "%.2f"|format(summary.paid_total) }}</small></div>
+                        <div class="directory-line"><strong>Open Vouchers</strong><small>{{ summary.open_voucher_count }}</small></div>
+                        <div class="directory-line"><strong>Fleet</strong><small>{{ summary.asset_count }} units</small></div>
+                    </div>
+                </article>
+
+                <article class="card desk-panel-card supplier-company-card" id="company-details">
+                    <div class="desk-panel-head">
+                        <div>
+                            <span class="admin-desk-label">Company Details</span>
+                            <h2>{{ party.party_name }}</h2>
+                        </div>
+                    </div>
+                    <div class="supplier-company-grid">
+                        {% for item in portal_snapshot.company_details %}
+                            <div class="directory-line">
+                                <strong>{{ item.label }}</strong>
+                                <small>{{ item.value }}</small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </article>
+            </section>
+
+            <section class="supplier-portal-modules">
+                {% for module in portal_snapshot.modules %}
+                    <a class="portal-module-card tone-{{ module.tone }}" href="{{ module.href }}">
+                        <span class="portal-module-kicker">{{ module.eyebrow }}</span>
+                        <h3>{{ module.title }}</h3>
+                        <strong>{{ module.value }}</strong>
+                        <p>{{ module.caption }}</p>
+                    </a>
+                {% endfor %}
+            </section>
+        {% endif %}
+
+        {% if supplier_mode in ("Cash", "Loan") %}
+            <article class="card desk-panel-card erp-activity-card">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Recent Activity</span>
+                        <h2>Trips, Payments, aur Debits</h2>
+                    </div>
+                </div>
+                <div class="erp-activity-tabs" role="tablist" aria-label="Recent supplier activity">
+                    {% for group in portal_snapshot.recent_groups %}
+                        <button
+                            type="button"
+                            class="erp-activity-tab {% if loop.first %}active{% endif %}"
+                            data-activity-tab="{{ group.anchor }}"
+                            role="tab"
+                            aria-selected="{% if loop.first %}true{% else %}false{% endif %}"
+                        >
+                            {{ group.title }}
+                        </button>
+                    {% endfor %}
+                </div>
+                <div class="erp-activity-panels">
+                    {% for group in portal_snapshot.recent_groups %}
+                        <section class="erp-activity-panel {% if loop.first %}active{% endif %}" data-activity-panel="{{ group.anchor }}">
+                            <div class="portal-recent-list">
+                                {% for row in group.rows %}
+                                    <div class="erp-activity-row">
+                                        <div class="erp-activity-main">
+                                            <strong>{{ row.headline }}</strong>
+                                            <small>{{ row.subline }}</small>
+                                        </div>
+                                        <div class="erp-activity-extra">
+                                            <span>{{ row.meta }}</span>
+                                            <span class="mini-link-pill status-{{ row.status_tone or 'info' }}">{{ row.status }}</span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="erp-empty-state">
+                                        <div class="erp-empty-icon">+</div>
+                                        <div>
+                                            <strong>{{ group.title }}</strong>
+                                            <p>{{ group.empty_copy }}</p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </section>
+                    {% endfor %}
+                </div>
+            </article>
+        {% else %}
+            <section class="compact-content-grid portal-recent-grid">
+                {% for group in portal_snapshot.recent_groups %}
+                    <article class="card desk-panel-card portal-recent-card" id="{{ group.anchor }}">
+                        <div class="desk-panel-head">
+                            <div>
+                                <span class="admin-desk-label">{{ group.eyebrow }}</span>
+                                <h2>{{ group.title }}</h2>
+                            </div>
+                        </div>
+                        <div class="portal-recent-list">
+                            {% for row in group.rows %}
+                                <div class="portal-recent-row">
+                                    <div>
+                                        <strong>{{ row.headline }}</strong>
+                                        <small>{{ row.subline }}</small>
+                                    </div>
+                                    <div class="portal-recent-meta">
+                                        <span>{{ row.meta }}</span>
+                                        <span class="mini-link-pill">{{ row.status }}</span>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <p class="muted-text">{{ group.empty_copy }}</p>
+                            {% endfor %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </section>
+        {% endif %}
+
+    {% elif active_screen == "vehicles" %}
+        <section class="compact-content-grid">
+            <article class="card desk-panel-card" id="asset-form">
+                <div class="desk-panel-head">
+                    <div>
+                        <span class="admin-desk-label">Fleet</span>
+                        <h2>{% if asset_values.original_asset_code %}Edit Vehicle{% else %}Add Vehicle{% endif %}</h2>
+                    </div>
+                </div>
+                <form method="post" class="desk-form-grid">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_asset">
+                    <input type="hidden" name="original_asset_code" value="{{ asset_values.original_asset_code }}">
+                    <label><span>Asset Code</span><input type="text" name="asset_code" value="{{ asset_values.asset_code }}" {% if asset_values.original_asset_code %}readonly{% endif %}></label>
+                    <label><span>Asset Name</span><input type="text" name="asset_name" value="{{ asset_values.asset_name }}" placeholder="Trailer 01 / Tanker 12" required></label>
+                    <label><span>Asset Type</span><input type="text" name="asset_type" value="{{ asset_values.asset_type }}" placeholder="Trailer / Tanker / Crane"></label>
+                    <label><span>Vehicle No</span><input type="text" name="vehicle_no" value="{{ asset_values.vehicle_no }}" placeholder="Plate or fleet number"></label>
+                    <label><span>Rate Basis</span><select name="rate_basis">{% for item in rate_basis_options %}<option value="{{ item }}" {% if asset_values.rate_basis == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                    <label><span>Default Rate</span><input type="number" step="0.01" name="default_rate" value="{{ asset_values.default_rate }}" placeholder="Default rate"></label>
+                    <label><span>Shift Mode</span><select name="double_shift_mode">{% for item in shift_mode_options %}<option value="{{ item }}" {% if asset_values.double_shift_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                    <label><span>Status</span><select name="status"><option value="Active" {% if asset_values.status == 'Active' %}selected{% endif %}>Active</option><option value="Inactive" {% if asset_values.status == 'Inactive' %}selected{% endif %}>Inactive</option></select></label>
+
+                    {% if supplier_mode == "Partnership" %}
+                        <label><span>Partner Name</span><input type="text" name="partner_name" value="{{ asset_values.partner_name }}" placeholder="Partner name"></label>
+                        <label><span>Company Share %</span><input type="number" step="0.01" name="company_share_percent" value="{{ asset_values.company_share_percent }}"></label>
+                        <label><span>Partner Share %</span><input type="number" step="0.01" name="partner_share_percent" value="{{ asset_values.partner_share_percent }}"></label>
+                        <label><span>Day Shift Salary By</span><select name="day_shift_paid_by">{% for item in partnership_paid_by_options %}<option value="{{ item }}" {% if asset_values.day_shift_paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                        <label><span>Night Shift Salary By</span><select name="night_shift_paid_by">{% for item in partnership_paid_by_options %}<option value="{{ item }}" {% if asset_values.night_shift_paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                        <input type="hidden" name="partnership_mode" value="Partnership">
+                    {% else %}
+                        <input type="hidden" name="partnership_mode" value="Standard">
+                        <input type="hidden" name="partner_name" value="">
+                        <input type="hidden" name="company_share_percent" value="100">
+                        <input type="hidden" name="partner_share_percent" value="0">
+                        <input type="hidden" name="day_shift_paid_by" value="Company">
+                        <input type="hidden" name="night_shift_paid_by" value="Company">
+                    {% endif %}
+
+                    <label><span>Capacity / Notes</span><input type="text" name="capacity" value="{{ asset_values.capacity }}" placeholder="Capacity or fleet note"></label>
+                    <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ asset_values.notes }}</textarea></label>
+                    <div class="form-actions left-actions full-span">
+                        <button class="button" type="submit">{% if asset_values.original_asset_code %}Update Vehicle{% else %}Save Vehicle{% endif %}</button>
+                        {% if asset_values.original_asset_code %}
+                            <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='vehicles', partnership_month=partnership_month) }}">Cancel</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </article>
+
+            <article class="card desk-panel-card" id="cash-trip-form">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Register</span><h2>Vehicles</h2></div></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Vehicle</th><th>Shift</th><th>Rate</th>{% if supplier_mode == "Partnership" %}<th>Partnership</th>{% endif %}<th>Actions</th></tr></thead>
+                        <tbody>
+                            {% for item in assets %}
+                                <tr>
+                                    <td><strong>{{ item.asset_name }}</strong><div class="muted-text">{{ item.asset_code }}{% if item.vehicle_no %} / {{ item.vehicle_no }}{% endif %}</div><div class="muted-text">{{ item.asset_type or '-' }}</div></td>
+                                    <td>{{ item.double_shift_mode }}</td>
+                                    <td>{{ item.rate_basis }}<div class="muted-text">AED {{ "%.2f"|format(item.default_rate) }}</div></td>
+                                    {% if supplier_mode == "Partnership" %}
+                                        <td>{% if item.partnership_mode == 'Partnership' %}{{ item.partner_name or 'Partner' }}<div class="muted-text">{{ "%.0f"|format(item.company_share_percent) }} / {{ "%.0f"|format(item.partner_share_percent) }}</div>{% else %}-{% endif %}</td>
+                                    {% endif %}
+                                    <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='vehicles', edit_asset=item.asset_code, partnership_month=partnership_month) }}">Edit</a><form method="post" action="{{ url_for('delete_supplier_asset', asset_code=item.asset_code) }}" onsubmit="return confirm('Delete this supplier asset?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="{% if supplier_mode == 'Partnership' %}5{% else %}4{% endif %}">No supplier vehicles yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+    {% elif active_screen == "timesheets" %}
+        <section class="compact-content-grid">
+            <article class="card desk-panel-card" id="cash-debit-form">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Timesheets</span><h2>{% if timesheet_values.original_timesheet_no %}Edit Timesheet{% else %}Add Timesheet{% endif %}</h2></div></div>
+                <form method="post" class="desk-form-grid">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_timesheet">
+                    <input type="hidden" name="original_timesheet_no" value="{{ timesheet_values.original_timesheet_no }}">
+                    <label><span>Timesheet No</span><input type="text" name="timesheet_no" value="{{ timesheet_values.timesheet_no }}" {% if timesheet_values.original_timesheet_no %}readonly{% endif %}></label>
+                    <label><span>Vehicle</span><select name="asset_code" required><option value="">Select vehicle</option>{% for item in assets %}<option value="{{ item.asset_code }}" {% if timesheet_values.asset_code == item.asset_code %}selected{% endif %}>{{ item.asset_name }}{% if item.vehicle_no %} / {{ item.vehicle_no }}{% endif %}</option>{% endfor %}</select></label>
+                    <label><span>Period Month</span><input type="month" name="period_month" value="{{ timesheet_values.period_month }}" required></label>
+                    <label><span>Entry Date</span><input type="date" name="entry_date" value="{{ timesheet_values.entry_date }}" required></label>
+                    <label><span>Billing Basis</span><select name="billing_basis">{% for item in rate_basis_options %}<option value="{{ item }}" {% if timesheet_values.billing_basis == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                    <label><span>Billable Qty</span><input type="number" step="0.01" name="billable_qty" value="{{ timesheet_values.billable_qty }}" required></label>
+                    <label><span>Timesheet Hours</span><input type="number" step="0.01" name="timesheet_hours" value="{{ timesheet_values.timesheet_hours }}" placeholder="Optional"></label>
+                    <label><span>Rate</span><input type="number" step="0.01" name="rate" value="{{ timesheet_values.rate }}" placeholder="Blank uses default"></label>
+                    <label><span>Status</span><select name="status"><option value="Open" {% if timesheet_values.status == 'Open' %}selected{% endif %}>Open</option><option value="Hold" {% if timesheet_values.status == 'Hold' %}selected{% endif %}>Hold</option></select></label>
+                    <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ timesheet_values.notes }}</textarea></label>
+                    <div class="form-actions left-actions full-span">
+                        <button class="button" type="submit">{% if timesheet_values.original_timesheet_no %}Update Timesheet{% else %}Save Timesheet{% endif %}</button>
+                        {% if timesheet_values.original_timesheet_no %}
+                            <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='timesheets', partnership_month=partnership_month) }}">Cancel</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </article>
+
+            <article class="card desk-panel-card" id="cash-payment-form">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Rows</span><h2>Month-End Timesheets</h2></div></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>No</th><th>Vehicle</th><th>Month</th><th>Qty</th><th>Subtotal</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {% for item in timesheets %}
+                                <tr>
+                                    <td>{{ item.timesheet_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
+                                    <td>{{ item.asset_name }}<div class="muted-text">{{ item.vehicle_no or '-' }}</div></td>
+                                    <td>{{ item.period_month }}</td>
+                                    <td>{{ "%.2f"|format(item.billable_qty) }}<div class="muted-text">{{ item.billing_basis }}</div></td>
+                                    <td>AED {{ "%.2f"|format(item.subtotal) }}</td>
+                                    <td><div class="table-actions">{% if not item.voucher_no %}<a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='timesheets', edit_timesheet=item.timesheet_no, partnership_month=partnership_month) }}">Edit</a>{% endif %}<form method="post" action="{{ url_for('delete_supplier_timesheet', timesheet_no=item.timesheet_no) }}" onsubmit="return confirm('Delete this timesheet row?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="6">No supplier timesheet rows yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+        {% elif active_screen == "billing" %}
+        {% if supplier_mode in ("Normal", "Managed") %}
+            <section class="compact-content-grid">
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Invoice Entry</span><h2>By Hand Invoice Entry</h2></div></div>
+                    <form method="post" enctype="multipart/form-data" class="desk-form-grid">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="save_submission">
+                        <input type="hidden" name="submission_no" value="{{ submission_values.submission_no }}">
+                        <label><span>Submission No</span><input type="text" value="{{ submission_values.submission_no }}" readonly></label>
+                        <label><span>Invoice No</span><input type="text" name="external_invoice_no" value="{{ submission_values.external_invoice_no }}" required></label>
+                        <label><span>Invoice Date</span><input type="date" name="invoice_date" value="{{ submission_values.invoice_date }}" required></label>
+                        <label><span>Period Month</span><input type="month" name="period_month" value="{{ submission_values.period_month }}" required></label>
+                        <label><span>Subtotal</span><input type="number" step="0.01" name="subtotal" value="{{ submission_values.subtotal }}" required></label>
+                        <label><span>VAT Amount</span><input type="number" step="0.01" name="vat_amount" value="{{ submission_values.vat_amount or '0.00' }}" required></label>
+                        <label><span>Total Amount</span><input type="number" step="0.01" name="total_amount" value="{{ submission_values.total_amount }}" required></label>
+                        <label><span>Invoice Attachment</span><input type="file" name="invoice_attachment" accept=".pdf,.png,.jpg,.jpeg,.webp"></label>
+                        <label><span>Timesheet Attachment</span><input type="file" name="timesheet_attachment" accept=".pdf,.png,.jpg,.jpeg,.webp"></label>
+                        <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ submission_values.notes }}</textarea></label>
+                        <div class="form-actions left-actions full-span">
+                            <button class="button success-button" type="submit">Save By Hand</button>
+                            {% if portal_account and portal_account.portal_enabled %}
+                                <span class="muted-text">Portal invited: {{ portal_account.login_email }}</span>
+                            {% endif %}
+                        </div>
+                    </form>
+                </article>
+
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Portal Queue</span><h2>Pending Supplier Submissions</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>LPO</th><th>Invoice</th><th>Date</th><th>Total</th><th>Files</th><th>Action</th></tr></thead>
+                            <tbody>
+                                {% set pending = namespace(found=false) %}
+                                {% for item in submissions %}
+                                    {% if item.display_status == "Pending" %}
+                                        {% set pending.found = true %}
+                                        <tr>
+                                            <td>{{ item.lpo_no or "—" }}</td>
+                                            <td>{{ item.external_invoice_no }}<div class="muted-text">{{ item.submission_no }} / {{ item.source_channel }}</div></td>
+                                            <td>{{ item.invoice_date }}</td>
+                                            <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                            <td>
+                                                {% if item.invoice_attachment_path %}<a class="mini-action-link" href="{{ url_for('generated_file', filename=item.invoice_attachment_path) }}">Invoice</a>{% endif %}
+                                                {% if item.timesheet_attachment_path %}<a class="mini-action-link" href="{{ url_for('generated_file', filename=item.timesheet_attachment_path) }}">Timesheet</a>{% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="table-actions">
+                                                    <form method="post">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <input type="hidden" name="action" value="approve_submission">
+                                                        <input type="hidden" name="submission_no" value="{{ item.submission_no }}">
+                                                        <button class="mini-action-button" type="submit">Approve</button>
+                                                    </form>
+                                                    <form method="post">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <input type="hidden" name="action" value="reject_submission">
+                                                        <input type="hidden" name="submission_no" value="{{ item.submission_no }}">
+                                                        <button class="mini-action-button" type="submit">Reject</button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if not pending.found %}
+                                    <tr><td colspan="6">No pending portal submissions.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+
+            <section class="compact-content-grid">
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Ready</span><h2>Approved / Ready For Voucher</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>LPO</th><th>Invoice</th><th>Date</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
+                            <tbody>
+                                {% set ready = namespace(found=false) %}
+                                {% for item in submissions %}
+                                    {% if item.display_status in ["Approved", "Converted", "Partially Paid", "Paid"] %}
+                                        {% set ready.found = true %}
+                                        <tr>
+                                            <td>{{ item.lpo_no or "—" }}</td>
+                                            <td>{{ item.external_invoice_no }}<div class="muted-text">{{ item.submission_no }} / {{ item.source_channel }}</div></td>
+                                            <td>{{ item.invoice_date }}</td>
+                                            <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                            <td>{{ item.display_status }}</td>
+                                            <td>
+                                                <div class="table-actions">
+                                                    {% if item.display_status == "Approved" %}
+                                                        <form method="post">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                            <input type="hidden" name="action" value="convert_submission">
+                                                            <input type="hidden" name="submission_no" value="{{ item.submission_no }}">
+                                                            <button class="mini-action-button" type="submit">Convert</button>
+                                                        </form>
+                                                    {% elif item.linked_voucher_no %}
+                                                        <a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_voucher=item.linked_voucher_no, partnership_month=partnership_month) }}">Voucher</a>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if not ready.found %}
+                                    <tr><td colspan="6">No approved supplier invoices yet.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payment</span><h2>{% if payment_values.original_payment_no %}Edit Payment{% else %}Make Payment{% endif %}</h2></div></div>
+                    <form method="post" class="desk-form-grid">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="save_payment">
+                        <input type="hidden" name="original_payment_no" value="{{ payment_values.original_payment_no }}">
+                        <label><span>Payment No</span><input type="text" name="payment_no" value="{{ payment_values.payment_no }}" {% if payment_values.original_payment_no %}readonly{% endif %}></label>
+                        <label><span>Voucher</span><select name="voucher_no" required><option value="">Select supplier voucher</option>{% for item in vouchers %}<option value="{{ item.voucher_no }}" {% if payment_values.voucher_no == item.voucher_no %}selected{% endif %}>{{ item.voucher_no }} / {{ item.period_month }} / AED {{ "%.2f"|format(item.balance_amount) }}</option>{% endfor %}</select></label>
+                        <label><span>Payment Date</span><input type="date" name="entry_date" value="{{ payment_values.entry_date }}" required></label>
+                        <label><span>Method</span><select name="payment_method">{% for item in payment_method_options %}<option value="{{ item }}" {% if payment_values.payment_method == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                        <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ payment_values.amount }}" required></label>
+                        <label><span>Reference</span><input type="text" name="reference" value="{{ payment_values.reference }}"></label>
+                        <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ payment_values.notes }}</textarea></label>
+                        <div class="form-actions left-actions full-span">
+                            <button class="button success-button" type="submit">{% if payment_values.original_payment_no %}Update Payment{% else %}Save Payment{% endif %}</button>
+                            {% if payment_values.original_payment_no %}
+                                <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Cancel</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </article>
+            </section>
+
+            <section class="compact-content-grid">
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payables</span><h2>Supplier Vouchers</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Voucher</th><th>Source</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                {% for item in vouchers %}
+                                    <tr>
+                                        <td>{{ item.voucher_no }}<div class="muted-text">{{ item.issue_date }}</div></td>
+                                        <td>{{ item.source_type or 'Timesheet' }}<div class="muted-text">{{ item.source_reference or item.period_month }}</div></td>
+                                        <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                        <td>AED {{ "%.2f"|format(item.paid_amount) }}</td>
+                                        <td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
+                                        <td>{{ item.status }}</td>
+                                        <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_voucher=item.voucher_no, partnership_month=partnership_month) }}">Edit</a><form method="post" action="{{ url_for('delete_supplier_voucher', voucher_no=item.voucher_no) }}" onsubmit="return confirm('Delete this voucher?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                    </tr>
+                                {% else %}
+                                    <tr><td colspan="7">No supplier vouchers created yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payments</span><h2>Payment Register</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Payment</th><th>Voucher</th><th>Amount</th><th>Method</th><th>Reference</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                {% for item in payments %}
+                                    <tr>
+                                        <td>{{ item.payment_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
+                                        <td>{{ item.voucher_no }}<div class="muted-text">{{ item.period_month or '-' }}</div></td>
+                                        <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                                        <td>{{ item.payment_method }}</td>
+                                        <td>{{ item.reference or '-' }}</td>
+                                        <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_payment=item.payment_no, partnership_month=partnership_month) }}">Edit</a><a class="mini-action-link" href="{{ url_for('supplier_payment_voucher', payment_no=item.payment_no) }}">Voucher PDF</a><form method="post" action="{{ url_for('delete_supplier_payment', payment_no=item.payment_no) }}" onsubmit="return confirm('Delete this supplier payment?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                    </tr>
+                                {% else %}
+                                    <tr><td colspan="6">No supplier payments posted yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+        {% else %}
+            <section class="compact-content-grid">
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Voucher</span><h2>{% if voucher_values.original_voucher_no %}Edit Voucher{% else %}Billing Voucher{% endif %}</h2></div></div>
+                    <form method="post" class="desk-form-grid">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="save_voucher">
+                        <input type="hidden" name="original_voucher_no" value="{{ voucher_values.original_voucher_no }}">
+                        <label><span>Voucher No</span><input type="text" name="voucher_no" value="{{ voucher_values.voucher_no }}" {% if voucher_values.original_voucher_no %}readonly{% endif %}></label>
+                        <label><span>Period Month</span><input type="month" name="period_month" value="{{ voucher_values.period_month }}" required></label>
+                        <label><span>Voucher Date</span><input type="date" name="issue_date" value="{{ voucher_values.issue_date }}" required></label>
+                        <label><span>Tax %</span><input type="number" step="0.01" name="tax_percent" value="{{ voucher_values.tax_percent }}"></label>
+                        <label><span>Status</span><select name="status">{% for item in voucher_status_options %}<option value="{{ item }}" {% if voucher_values.status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                        <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ voucher_values.notes }}</textarea></label>
+                        <div class="form-actions left-actions full-span">
+                            <button class="button success-button" type="submit">{% if voucher_values.original_voucher_no %}Update Voucher{% else %}Create Voucher{% endif %}</button>
+                            {% if voucher_values.original_voucher_no %}
+                                <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Cancel</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </article>
+
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payment</span><h2>{% if payment_values.original_payment_no %}Edit Payment{% else %}Make Payment{% endif %}</h2></div></div>
+                    <form method="post" class="desk-form-grid">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="save_payment">
+                        <input type="hidden" name="original_payment_no" value="{{ payment_values.original_payment_no }}">
+                        <label><span>Payment No</span><input type="text" name="payment_no" value="{{ payment_values.payment_no }}" {% if payment_values.original_payment_no %}readonly{% endif %}></label>
+                        <label><span>Voucher</span><select name="voucher_no" required><option value="">Select supplier voucher</option>{% for item in vouchers %}<option value="{{ item.voucher_no }}" {% if payment_values.voucher_no == item.voucher_no %}selected{% endif %}>{{ item.voucher_no }} / {{ item.period_month }} / AED {{ "%.2f"|format(item.balance_amount) }}</option>{% endfor %}</select></label>
+                        <label><span>Payment Date</span><input type="date" name="entry_date" value="{{ payment_values.entry_date }}" required></label>
+                        <label><span>Method</span><select name="payment_method">{% for item in payment_method_options %}<option value="{{ item }}" {% if payment_values.payment_method == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                        <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ payment_values.amount }}" required></label>
+                        <label><span>Reference</span><input type="text" name="reference" value="{{ payment_values.reference }}"></label>
+                        <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ payment_values.notes }}</textarea></label>
+                        <div class="form-actions left-actions full-span">
+                            <button class="button success-button" type="submit">{% if payment_values.original_payment_no %}Update Payment{% else %}Save Payment{% endif %}</button>
+                            {% if payment_values.original_payment_no %}
+                                <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', partnership_month=partnership_month) }}">Cancel</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </article>
+            </section>
+            <section class="compact-content-grid">
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payables</span><h2>Supplier Vouchers</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Voucher</th><th>Month</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                {% for item in vouchers %}
+                                    <tr>
+                                        <td>{{ item.voucher_no }}<div class="muted-text">{{ item.issue_date }}</div></td>
+                                        <td>{{ item.period_month }}</td>
+                                        <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                        <td>AED {{ "%.2f"|format(item.paid_amount) }}</td>
+                                        <td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
+                                        <td>{{ item.status }}</td>
+                                        <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_voucher=item.voucher_no, partnership_month=partnership_month) }}">Edit</a><form method="post" action="{{ url_for('delete_supplier_voucher', voucher_no=item.voucher_no) }}" onsubmit="return confirm('Delete this voucher? Linked timesheets will reopen.');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                    </tr>
+                                {% else %}
+                                    <tr><td colspan="7">No supplier vouchers created yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="card desk-panel-card">
+                    <div class="desk-panel-head"><div><span class="admin-desk-label">Payments</span><h2>Payment Register</h2></div></div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Payment</th><th>Voucher</th><th>Amount</th><th>Method</th><th>Reference</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                {% for item in payments %}
+                                    <tr>
+                                        <td>{{ item.payment_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
+                                        <td>{{ item.voucher_no }}<div class="muted-text">{{ item.period_month or '-' }}</div></td>
+                                        <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                                        <td>{{ item.payment_method }}</td>
+                                        <td>{{ item.reference or '-' }}</td>
+                                        <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing', edit_payment=item.payment_no, partnership_month=partnership_month) }}">Edit</a><a class="mini-action-link" href="{{ url_for('supplier_payment_voucher', payment_no=item.payment_no) }}">Voucher PDF</a><form method="post" action="{{ url_for('delete_supplier_payment', payment_no=item.payment_no) }}" onsubmit="return confirm('Delete this supplier payment?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                    </tr>
+                                {% else %}
+                                    <tr><td colspan="6">No supplier payments posted yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+        {% endif %}
+    {% elif supplier_mode in ("Cash", "Loan") and active_screen == "kata" %}
+        {% set kata_view = kata_focus or "statement" %}
+        {# ── Summary cards ── #}
+        <section class="compact-content-grid" style="display:none;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px;">
+            <article class="card" style="padding:18px;background:linear-gradient(135deg,#0f2d52 0%,#1c568b 100%);color:#fff;">
+                <small style="opacity:.8;">Kata Overview</small>
+                <div style="font-size:1.4rem;font-weight:800;margin-top:6px;">{{ party.party_name }}</div>
+                <div style="opacity:.82;margin-top:4px;">{{ party.party_code }}{% if party.phone_number %} | {{ party.phone_number }}{% endif %}</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                    <span class="mini-link-pill" style="background:rgba(255,255,255,.12);color:#fff;border:none;">Trips / Hours / Monthly</span>
+                    <span class="mini-link-pill" style="background:rgba(255,255,255,.12);color:#fff;border:none;">Running Balance</span>
+                    <a class="mini-link-pill" style="background:#fff;color:#15335d;border:none;text-decoration:none;" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, kata_month=kata_filters.month, kata_type=kata_filters.type, kata_search=kata_filters.search) }}">Download PDF</a>
+                </div>
+            </article>
+            <article class="card" style="padding:16px;text-align:center;">
+                <small style="color:var(--color-muted);">Earned</small>
+                <div style="font-size:1.35rem;font-weight:800;color:var(--color-success,#16a34a);">AED {{ "%.2f"|format(kata_summary.total_earned) }}</div>
+            </article>
+            <article class="card" style="padding:16px;text-align:center;">
+                <small style="color:var(--color-muted);">Debits / Loan</small>
+                <div style="font-size:1.35rem;font-weight:800;color:var(--color-danger,#dc2626);">AED {{ "%.2f"|format(kata_summary.total_debits) }}</div>
+            </article>
+            <article class="card" style="padding:16px;text-align:center;">
+                <small style="color:var(--color-muted);">Paid</small>
+                <div style="font-size:1.35rem;font-weight:800;color:var(--color-info,#2563eb);">AED {{ "%.2f"|format(kata_summary.total_paid) }}</div>
+            </article>
+            <article class="card" style="padding:16px;text-align:center;">
+                <small style="color:var(--color-muted);">Balance</small>
+                <div style="font-size:1.35rem;font-weight:800;">
+                    <span style="{% if kata_summary.balance >= 0 %}color:#16a34a;{% else %}color:#dc2626;{% endif %}">AED {{ "%.2f"|format(kata_summary.balance) }}</span>
+                </div>
+            </article>
+        </section>
+
+        {# ── Entry forms ── #}
+        {% if kata_view != "statement" %}
+        <section class="compact-content-grid" style="grid-template-columns:1fr;gap:14px;margin-bottom:18px;">
+            {# Trip earning #}
+            {% if kata_view == "trip" %}
+            <article class="card desk-panel-card" id="cash-trip-form">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Earning</span><h2>Add Earning</h2></div></div>
+                <form method="post" class="desk-form-grid" style="gap:8px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_trip">
+                    <label><span>Earning No</span><input type="text" name="trip_no" value="{{ cash_trip_no }}" style="font-weight:800;font-size:0.82rem;"></label>
+                    <label><span>Date</span><input type="date" name="entry_date" id="trip_date" required></label>
+                    <label><span>Period Month</span><input type="month" name="period_month" id="period_month"></label>
+                    <label><span>Basis</span><select name="earning_basis" id="earning_basis" onchange="updateEarningLabels();calcTrip();">{% for item in cash_earning_basis_options %}<option value="{{ item }}">{{ item }}</option>{% endfor %}</select></label>
+                    <label><span id="earning_qty_label">Trips</span><input type="number" step="0.5" min="0" name="trip_count" value="1" required id="t_cnt" oninput="calcTrip()"></label>
+                    <label><span id="earning_rate_label">Rate Per Trip</span><input type="number" step="0.01" min="0" name="rate" placeholder="0.00" required id="t_rate" oninput="calcTrip()"></label>
+                    <label><span>Total</span><input type="number" step="0.01" name="total_display" id="t_total" readonly style="font-weight:800;"></label>
+                    <label><span>Vehicle</span><input type="text" name="vehicle_no" placeholder="optional"></label>
+                    <label><span>Notes / Detail</span><input type="text" name="notes" placeholder="e.g. April monthly payment or 180 duty hours"></label>
+                    <div class="form-actions"><button class="button success-button" type="submit">Save Earning</button></div>
+                </form>
+            </article>
+            {% endif %}
+
+            {# Debit / loan / advance #}
+            {% if kata_view == "debit" %}
+            <article class="card desk-panel-card" id="cash-debit-form">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Debit</span><h2>Add Debit</h2></div></div>
+                <form method="post" class="desk-form-grid" style="gap:8px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_debit">
+                    <label><span>Debit No</span><input type="text" name="debit_no" value="{{ cash_debit_no }}" style="font-weight:800;font-size:0.82rem;"></label>
+                    <label><span>Date</span><input type="date" name="entry_date" id="debit_date" required></label>
+                    <label><span>Type</span>
+                        <select name="debit_type">
+                            <option value="Advance">Advance</option>
+                            <option value="Loan">Loan / Qarza</option>
+                            <option value="Visa">Visa Expense</option>
+                            <option value="Transfer">Transfer</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </label>
+                    <label><span>Amount (AED)</span><input type="number" step="0.01" min="0.01" name="amount" placeholder="0.00" required></label>
+                    <label><span>Description</span><input type="text" name="description" placeholder="details"></label>
+                    <label><span>Notes</span><input type="text" name="notes" placeholder="optional"></label>
+                    <div class="form-actions"><button class="button" type="submit" style="background:var(--color-danger,#dc2626);color:#fff;">Save Debit</button></div>
+                </form>
+            </article>
+            {% endif %}
+
+            {# Payment #}
+            {% if kata_view == "payment" %}
+            <article class="card desk-panel-card" id="cash-payment-form">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Payment</span><h2>Cash Payment</h2></div></div>
+                <form method="post" class="desk-form-grid" style="gap:8px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_cash_payment">
+                    <label><span>Payment No</span><input type="text" name="payment_no" value="{{ cash_payment_no }}" style="font-weight:800;font-size:0.82rem;"></label>
+                    <label><span>Date</span><input type="date" name="entry_date" id="pay_date" required></label>
+                    <label><span>Amount (AED)</span><input type="number" step="0.01" min="0.01" name="amount" placeholder="0.00" required></label>
+                    <label><span>Method</span>
+                        <select name="payment_method">
+                            <option value="Cash">Cash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Cheque">Cheque</option>
+                        </select>
+                    </label>
+                    <label><span>Reference</span><input type="text" name="reference" placeholder="optional"></label>
+                    <label><span>Notes</span><input type="text" name="notes" placeholder="optional"></label>
+                    <div class="form-actions"><button class="button success-button" type="submit">Save Payment</button></div>
+                </form>
+            </article>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        {# ── Running statement / kata ── #}
+        {% if kata_view == "statement" %}
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Kata</span><h2>Running Statement</h2></div><div class="admin-toolbar-actions"><a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, kata_month=kata_filters.month, kata_type=kata_filters.type, kata_search=kata_filters.search) }}">Download PDF</a></div></div>
+            <form method="get" class="desk-form-grid" style="gap:10px;margin-bottom:14px;">
+                <input type="hidden" name="screen" value="kata">
+                <input type="hidden" name="focus" value="statement">
+                <label><span>Month</span><input type="month" name="kata_month" value="{{ kata_filters.month }}"></label>
+                <label><span>Type</span><select name="kata_type">{% for option_value, option_label in cash_kata_type_options %}<option value="{{ option_value }}" {% if kata_filters.type == option_value %}selected{% endif %}>{{ option_label }}</option>{% endfor %}</select></label>
+                <label style="grid-column:span 2;"><span>Search</span><input type="text" name="kata_search" value="{{ kata_filters.search }}" placeholder="Ref, month, vehicle, notes"></label>
+                <div class="form-actions" style="align-self:end;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="button button-secondary" type="submit">Apply Filter</button>
+                    <a class="button" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='kata', focus='statement') }}">Reset</a>
+                </div>
+            </form>
+            <div class="muted-text" style="margin:0 0 12px 2px;">Payments stay on their own rows so partial payments across different months remain clear instead of merging into one earning line.</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Month</th>
+                            <th>Ref</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th style="text-align:right;">Earned</th>
+                            <th style="text-align:right;">Debit</th>
+                            <th style="text-align:right;">Paid</th>
+                            <th style="text-align:right;">Balance</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in kata_rows %}
+                        <tr>
+                            <td>{{ row.entry_date }}</td>
+                            <td>{{ row.period_month_display or '-' }}</td>
+                            <td><strong>{{ row.reference }}</strong></td>
+                            <td><span class="status-chip {% if row.entry_type == 'Earning' %}approved{% elif row.entry_type == 'Payment' %}pending{% else %}rejected{% endif %}">{{ row.entry_type }}{% if row.earning_basis %} / {{ row.earning_basis }}{% endif %}</span></td>
+                            <td>{{ row.description }}</td>
+                            <td style="text-align:right;color:var(--color-success,#16a34a);">
+                                {% if row.earned %}{{ "%.2f"|format(row.earned) }}{% endif %}
+                            </td>
+                            <td style="text-align:right;color:var(--color-danger,#dc2626);">
+                                {% if row.debit %}{{ "%.2f"|format(row.debit) }}{% endif %}
+                            </td>
+                            <td style="text-align:right;color:var(--color-info,#2563eb);">
+                                {% if row.paid %}{{ "%.2f"|format(row.paid) }}{% endif %}
+                            </td>
+                            <td style="text-align:right;font-weight:700;">
+                                <span style="{% if row.running_balance >= 0 %}color:#16a34a;{% else %}color:#dc2626;{% endif %}">{{ "%.2f"|format(row.running_balance) }}</span>
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    {% if row.entry_type == 'Earning' %}
+                                        <form method="post" action="{{ url_for('edit_cash_trip', trip_no=row.reference) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-xs btn-outline" title="Edit Trip">✏️</button>
+                                        </form>
+                                        <form method="post" action="{{ url_for('delete_cash_trip', trip_no=row.reference) }}" onsubmit="return confirm('Delete this earning?');" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-xs btn-outline btn-danger" title="Delete">🗑️</button>
+                                        </form>
+                                    {% elif row.entry_type == 'Debit' or row.entry_type in ['Advance', 'Loan', 'Visa', 'Transfer', 'Other'] %}
+                                        <form method="post" action="{{ url_for('edit_cash_debit', debit_no=row.reference) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-xs btn-outline" title="Edit Debit">✏️</button>
+                                        </form>
+                                        <form method="post" action="{{ url_for('delete_cash_debit', debit_no=row.reference) }}" onsubmit="return confirm('Delete this debit?');" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-xs btn-outline btn-danger" title="Delete">🗑️</button>
+                                        </form>
+                                    {% elif row.entry_type == 'Payment' %}
+                                        <form method="post" action="{{ url_for('edit_cash_payment', payment_no=row.reference) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-xs btn-outline" title="Edit Payment">✏️</button>
+                                        </form>
+                                        <a class="btn btn-xs btn-outline" href="{{ url_for('cash_supplier_payment_voucher', payment_no=row.reference) }}" title="Voucher PDF">PDF</a>
+                                        <form method="post" action="{{ url_for('delete_cash_payment', payment_no=row.reference) }}" onsubmit="return confirm('Delete this payment?');" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-xs btn-outline btn-danger" title="Delete">🗑️</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not kata_rows %}
+                        <tr><td colspan="10">No entries yet. Add an earning, debit, or payment from the tabs above.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+        {% endif %}
+
+        <script>
+        (function(){
+            var today = new Date().toISOString().slice(0,10);
+            var currentMonth = today.slice(0,7);
+            ['trip_date','debit_date','pay_date'].forEach(function(id){
+                var el = document.getElementById(id);
+                if(el && !el.value) el.value = today;
+            });
+            var periodMonth = document.getElementById('period_month');
+            if(periodMonth && !periodMonth.value) periodMonth.value = currentMonth;
+        })();
+        function calcTrip(){
+            var countInput = document.getElementById('t_cnt');
+            var rateInput = document.getElementById('t_rate');
+            var totalInput = document.getElementById('t_total');
+            if(!countInput || !rateInput || !totalInput) return;
+            var cnt = parseFloat(countInput.value)||0;
+            var rate = parseFloat(rateInput.value)||0;
+            totalInput.value = (cnt*rate).toFixed(2);
+        }
+        function updateEarningLabels(){
+            var basis = document.getElementById('earning_basis');
+            var qty = document.getElementById('earning_qty_label');
+            var rate = document.getElementById('earning_rate_label');
+            if(!basis || !qty || !rate) return;
+            var selected = basis.value;
+            qty.textContent = selected === 'Trips' ? 'Trips' : (selected === 'Hours' ? 'Hours' : (selected === 'Monthly' ? 'Months' : 'Units'));
+            rate.textContent = selected === 'Hours' ? 'Rate Per Hour' : (selected === 'Monthly' ? 'Rate Per Month' : (selected === 'Trips' ? 'Rate Per Trip' : 'Amount Per Unit'));
+        }
+        updateEarningLabels();
+        calcTrip();
+        </script>
+
+    {% elif active_screen == "statement" %}
+        <article class="card desk-panel-card">
+            <div class="desk-panel-head"><div><span class="admin-desk-label">Statement</span><h2>Statement of Account</h2></div></div>
+            {% if supplier_mode in ("Normal", "Managed") %}
+                <div class="supplier-overview-grid supplier-statement-grid">
+                    <div class="directory-line"><strong>All Submitted</strong><small>AED {{ "%.2f"|format(statement_summary.all_submitted) }}</small></div>
+                    <div class="directory-line"><strong>Approved</strong><small>AED {{ "%.2f"|format(statement_summary.approved_total) }}</small></div>
+                    <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(statement_summary.approved_outstanding) }}</small></div>
+                    <div class="directory-line"><strong>Pending</strong><small>AED {{ "%.2f"|format(statement_summary.pending_submitted) }}</small></div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Invoice Date</th><th>Invoice No</th><th>Total Amount</th><th>Paid Amount</th><th>Balance Amount</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for item in statement_rows %}
+                                <tr>
+                                    <td>{{ item.invoice_date }}</td>
+                                    <td>{{ item.external_invoice_no }}<div class="muted-text">{{ item.submission_no }}</div></td>
+                                    <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
+                                    <td>AED {{ "%.2f"|format(item.paid_amount_display) }}</td>
+                                    <td>AED {{ "%.2f"|format(item.balance_amount_display) }}</td>
+                                    <td><span class="mini-link-pill supplier-status-pill status-{{ item.status_bucket }}">{{ item.display_status }}</span></td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="6">No statement rows yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="supplier-overview-grid">
+                    <div class="directory-line"><strong>Work Logged</strong><small>AED {{ "%.2f"|format(statement_summary.work_logged) }}</small></div>
+                    <div class="directory-line"><strong>Voucher Total</strong><small>AED {{ "%.2f"|format(statement_summary.total_vouchers) }}</small></div>
+                    <div class="directory-line"><strong>Total Paid</strong><small>AED {{ "%.2f"|format(statement_summary.total_paid) }}</small></div>
+                    <div class="directory-line"><strong>Outstanding</strong><small>AED {{ "%.2f"|format(statement_summary.outstanding) }}</small></div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Date</th><th>Reference</th><th>Type</th><th>Details</th><th>Work</th><th>Voucher</th><th>Payment</th><th>Running Balance</th></tr></thead>
+                        <tbody>
+                            {% for item in statement_rows %}
+                                <tr>
+                                    <td>{{ item.entry_date }}</td>
+                                    <td>{{ item.reference }}</td>
+                                    <td>{{ item.entry_type }}</td>
+                                    <td>{{ item.details }}</td>
+                                    <td>{% if item.work_amount %}AED {{ "%.2f"|format(item.work_amount) }}{% else %}-{% endif %}</td>
+                                    <td>{% if item.voucher_amount %}AED {{ "%.2f"|format(item.voucher_amount) }}{% else %}-{% endif %}</td>
+                                    <td>{% if item.payment_amount %}AED {{ "%.2f"|format(item.payment_amount) }}{% else %}-{% endif %}</td>
+                                    <td>AED {{ "%.2f"|format(item.running_balance) }}</td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="8">No ledger rows yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </article>
+    {% elif supplier_mode == "Partnership" and active_screen == "partnership" %}
+        <section class="compact-content-grid">
+            <article class="card desk-panel-card" id="partnership-form">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Partnership</span><h2>{% if partnership_values.original_entry_no %}Edit Expense or Salary{% else %}Expenses & Salary Split{% endif %}</h2></div></div>
+                <form method="post" class="desk-form-grid">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_partnership_entry">
+                    <input type="hidden" name="original_entry_no" value="{{ partnership_values.original_entry_no }}">
+                    <label><span>Entry No</span><input type="text" name="entry_no" value="{{ partnership_values.entry_no }}" {% if partnership_values.original_entry_no %}readonly{% endif %}></label>
+                    <label><span>Vehicle</span><select name="asset_code" required><option value="">Select partnership vehicle</option>{% for item in assets %}<option value="{{ item.asset_code }}" {% if partnership_values.asset_code == item.asset_code %}selected{% endif %}>{{ item.asset_name }}{% if item.vehicle_no %} / {{ item.vehicle_no }}{% endif %}</option>{% endfor %}</select></label>
+                    <label><span>Month</span><input type="month" name="period_month" value="{{ partnership_values.period_month }}" required></label>
+                    <label><span>Date</span><input type="date" name="entry_date" value="{{ partnership_values.entry_date }}" required></label>
+                    <label><span>Type</span><select name="entry_kind">{% for item in partnership_entry_kind_options %}<option value="{{ item }}" {% if partnership_values.entry_kind == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                    <label><span>Paid By</span><select name="paid_by">{% for item in partnership_paid_by_options %}<option value="{{ item }}" {% if partnership_values.paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                    <label><span>Shift</span><select name="shift_label">{% for item in partnership_shift_options %}<option value="{{ item }}" {% if partnership_values.shift_label == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+                    <label><span>Driver Name</span><input type="text" name="driver_name" value="{{ partnership_values.driver_name }}" placeholder="If salary is for one driver"></label>
+                    <label><span>Expense Head</span><input type="text" name="expense_head" value="{{ partnership_values.expense_head }}" placeholder="Salary / Maintenance / Other"></label>
+                    <label><span>Amount</span><input type="number" step="0.01" name="amount" value="{{ partnership_values.amount }}" required></label>
+                    <label class="full-span"><span>Notes</span><textarea name="notes" rows="3">{{ partnership_values.notes }}</textarea></label>
+                    <div class="form-actions left-actions full-span">
+                        <button class="button success-button" type="submit">{% if partnership_values.original_entry_no %}Update Entry{% else %}Save Entry{% endif %}</button>
+                        {% if partnership_values.original_entry_no %}
+                            <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='partnership', partnership_month=partnership_month) }}">Cancel</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </article>
+
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head">
+                    <div><span class="admin-desk-label">Result</span><h2>Monthly Profit View</h2></div>
+                    <div class="admin-toolbar-actions">
+                        <a class="button button-secondary" href="{{ url_for('supplier_statement_pdf', party_code=party.party_code, month=partnership_month) }}">Download Month Statement</a>
+                    </div>
+                </div>
+                <form method="get" class="admin-filter-grid desk-single-filter supplier-month-filter">
+                    <input type="hidden" name="screen" value="partnership">
+                    <label><span>Period Month</span><input type="month" name="partnership_month" value="{{ partnership_month }}"></label>
+                    <div class="admin-filter-actions"><button class="button button-secondary" type="submit">View Month</button></div>
+                </form>
+                <div class="supplier-overview-grid partnership-summary-grid">
+                    <div class="directory-line"><strong>Work Value</strong><small>AED {{ "%.2f"|format(partnership_summary.work_total) }}</small></div>
+                    <div class="directory-line"><strong>Salary Cost</strong><small>AED {{ "%.2f"|format(partnership_summary.total_salary_cost) }}</small></div>
+                    <div class="directory-line"><strong>Maintenance Cost</strong><small>AED {{ "%.2f"|format(partnership_summary.total_maintenance_cost) }}</small></div>
+                    <div class="directory-line"><strong>Net Profit</strong><small>AED {{ "%.2f"|format(partnership_summary.net_profit) }}</small></div>
+                    <div class="directory-line"><strong>Company Paid</strong><small>AED {{ "%.2f"|format(partnership_summary.company_paid) }}</small></div>
+                    <div class="directory-line"><strong>Partner Paid</strong><small>AED {{ "%.2f"|format(partnership_summary.partner_paid) }}</small></div>
+                    <div class="directory-line"><strong>Company Should Receive</strong><small>AED {{ "%.2f"|format(partnership_summary.company_should_receive) }}</small></div>
+                    <div class="directory-line"><strong>Partner Should Receive</strong><small>AED {{ "%.2f"|format(partnership_summary.partner_should_receive) }}</small></div>
+                </div>
+            </article>
+        </section>
+        <section class="compact-content-grid">
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Settlement</span><h2>Vehicle Profit Result</h2></div></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Vehicle</th><th>Mode</th><th>Work</th><th>Salary</th><th>Maintenance</th><th>Net Profit</th><th>Company</th><th>Partner</th></tr></thead>
+                        <tbody>
+                            {% for item in partnership_assets %}
+                                <tr>
+                                    <td><strong>{{ item.asset_name }}</strong><div class="muted-text">{{ item.vehicle_no or '-' }}</div><div class="muted-text">{{ item.partner_name or 'Partner' }} / {{ "%.0f"|format(item.company_share_percent) }}-{{ "%.0f"|format(item.partner_share_percent) }}</div></td>
+                                    <td>{{ item.double_shift_mode }}</td>
+                                    <td>AED {{ "%.2f"|format(item.work_total) }}</td>
+                                    <td>Company AED {{ "%.2f"|format(item.company_salary) }}<div class="muted-text">Partner AED {{ "%.2f"|format(item.partner_salary) }}</div></td>
+                                    <td>Company AED {{ "%.2f"|format(item.company_maintenance) }}<div class="muted-text">Partner AED {{ "%.2f"|format(item.partner_maintenance) }}</div></td>
+                                    <td>AED {{ "%.2f"|format(item.net_profit) }}</td>
+                                    <td>Share AED {{ "%.2f"|format(item.company_share_amount) }}<div class="muted-text">Paid AED {{ "%.2f"|format(item.company_paid) }}</div><div class="muted-text">Should receive AED {{ "%.2f"|format(item.company_should_receive) }}</div></td>
+                                    <td>Share AED {{ "%.2f"|format(item.partner_share_amount) }}<div class="muted-text">Paid AED {{ "%.2f"|format(item.partner_paid) }}</div><div class="muted-text">Should receive AED {{ "%.2f"|format(item.partner_should_receive) }}</div></td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="8">No partnership vehicle rows for this month.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="card desk-panel-card">
+                <div class="desk-panel-head"><div><span class="admin-desk-label">Entries</span><h2>Expense & Salary Register</h2></div></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>No</th><th>Month</th><th>Vehicle</th><th>Type</th><th>Paid By</th><th>Amount</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {% for item in partnership_entries %}
+                                <tr>
+                                    <td>{{ item.entry_no }}<div class="muted-text">{{ item.entry_date }}</div></td>
+                                    <td>{{ item.period_month }}</td>
+                                    <td>{{ item.asset_name }}<div class="muted-text">{{ item.shift_label }}{% if item.driver_name %} / {{ item.driver_name }}{% endif %}</div></td>
+                                    <td>{{ item.entry_kind }}<div class="muted-text">{{ item.expense_head or '-' }}</div></td>
+                                    <td>{{ item.paid_by }}</td>
+                                    <td>AED {{ "%.2f"|format(item.amount) }}</td>
+                                    <td><div class="table-actions"><a class="mini-action-link" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='partnership', edit_entry=item.entry_no, partnership_month=partnership_month) }}">Edit</a><form method="post" action="{{ url_for('delete_supplier_partnership_entry', entry_no=item.entry_no) }}" onsubmit="return confirm('Delete this partnership entry?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="mini-action-button" type="submit">Delete</button></form></div></td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="7">No partnership entries yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+    {% endif %}
+</section>
+
+<script>
+function openInquiryModal() {
+    const modal = document.getElementById('inquiryModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Set default due date to 7 days from now
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 7);
+        document.querySelector('input[name="due_date"]').value = dueDate.toISOString().split('T')[0];
+        // Set response deadline to 3 days from now
+        const responseDate = new Date();
+        responseDate.setDate(responseDate.getDate() + 3);
+        document.querySelector('input[name="response_deadline"]').value = responseDate.toISOString().split('T')[0];
+    }
+}
+
+function closeInquiryModal() {
+    const modal = document.getElementById('inquiryModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('inquiryModal');
+    if (modal && event.target === modal) {
+        closeInquiryModal();
+    }
+});
+
+// Old sendInquiry function (kept for compatibility)
+function sendInquiry() {
+    alert('This feature has been upgraded. Please use the new inquiry form.');
+    openInquiryModal();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const tabs = document.querySelectorAll('[data-activity-tab]');
+    const panels = document.querySelectorAll('[data-activity-panel]');
+    if (!tabs.length || !panels.length) return;
+
+    tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            const target = tab.getAttribute('data-activity-tab');
+            tabs.forEach(function (item) {
+                const active = item === tab;
+                item.classList.toggle('active', active);
+                item.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            panels.forEach(function (panel) {
+                panel.classList.toggle('active', panel.getAttribute('data-activity-panel') === target);
+            });
+        });
+    });
+});
+</script>
+
+<style>
+.supplier-portal-top {
+    margin-top: 22px;
+}
+
+.erp-supplier-workspace {
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+    min-width: 0;
+}
+
+.erp-supplier-sidebar,
+.erp-supplier-main {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+    min-width: 0;
+}
+
+.erp-sidebar-brand,
+.erp-sidebar-nav,
+.erp-sidebar-guide,
+.erp-supplier-topbar,
+.erp-supplier-summary-card,
+.erp-activity-card,
+.erp-chart-card,
+.erp-kpi-card {
+    border-radius: 22px;
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+}
+
+.erp-sidebar-brand,
+.erp-sidebar-guide {
+    padding: 18px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.98), rgba(244,248,255,0.98));
+}
+
+.erp-sidebar-brand-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.erp-sidebar-brand-top img {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+}
+
+.erp-sidebar-brand h2,
+.erp-sidebar-guide h3 {
+    margin: 4px 0 6px;
+    font-size: 1.4rem;
+}
+
+.erp-sidebar-brand p,
+.erp-sidebar-guide p {
+    margin: 10px 0 0;
+    color: var(--muted);
+    line-height: 1.55;
+    font-size: 0.94rem;
+}
+
+.erp-sidebar-nav {
+    display: grid;
+    gap: 6px;
+    padding: 10px;
+    background: linear-gradient(180deg, rgba(18, 34, 64, 0.98), rgba(25, 45, 85, 0.96));
+}
+
+.erp-sidebar-link {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 14px;
+    color: rgba(255,255,255,0.78);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    min-width: 0;
+}
+
+.erp-sidebar-link:hover,
+.erp-sidebar-link.active {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    transform: translateX(2px);
+}
+
+.erp-sidebar-guide-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.erp-supplier-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 18px 20px;
+    background:
+        radial-gradient(circle at top right, rgba(230, 135, 31, 0.18), transparent 24%),
+        linear-gradient(135deg, #122240 0%, #17345e 50%, #1d5f8f 100%);
+    color: #fff;
+}
+
+.erp-supplier-topbar h1 {
+    margin: 6px 0 8px;
+    color: #fff;
+    font-size: clamp(1.5rem, 2.4vw, 2.15rem);
+    line-height: 1.08;
+}
+
+.erp-supplier-topbar p {
+    margin: 0;
+    color: rgba(255,255,255,0.82);
+    max-width: 760px;
+    line-height: 1.5;
+    font-size: 0.96rem;
+}
+
+.erp-supplier-topbar > div:first-child {
+    min-width: 0;
+}
+
+.erp-user-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.16);
+}
+
+.erp-user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f7931e, #ffb14e);
+    color: #fff;
+    font-weight: 900;
+}
+
+.erp-user-chip strong,
+.erp-user-chip small {
+    display: block;
+}
+
+.erp-user-chip small {
+    color: rgba(255,255,255,0.72);
+}
+
+.erp-supplier-summary-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) 220px;
+    gap: 14px;
+    padding: 18px 20px;
+    background:
+        radial-gradient(circle at top right, rgba(247, 147, 30, 0.12), transparent 28%),
+        linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,248,253,0.98));
+}
+
+.erp-summary-copy h2 {
+    margin: 6px 0 6px;
+    font-size: 1.65rem;
+}
+
+.erp-summary-copy p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
+.erp-summary-balance {
+    padding: 14px 16px;
+    border-radius: 18px;
+    color: #fff;
+    box-shadow: var(--shadow);
+    align-self: start;
+}
+
+.erp-summary-balance span,
+.erp-summary-balance small {
+    display: block;
+}
+
+.erp-summary-balance span {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.72);
+    font-weight: 800;
+}
+
+.erp-summary-balance strong {
+    display: block;
+    margin-top: 10px;
+    font-size: 1.28rem;
+}
+
+.erp-summary-balance small {
+    margin-top: 6px;
+    color: rgba(255,255,255,0.82);
+    font-size: 0.88rem;
+}
+
+.erp-summary-grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+}
+
+.erp-summary-item {
+    display: grid;
+    gap: 5px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(18, 34, 64, 0.04);
+    border: 1px solid rgba(21, 51, 93, 0.08);
+}
+
+.erp-summary-item.full {
+    grid-column: 1 / -1;
+}
+
+.erp-summary-item strong {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7a8faa;
+}
+
+.erp-summary-item small {
+    color: var(--ink);
+    font-size: 0.88rem;
+    line-height: 1.4;
+}
+
+.erp-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+}
+
+.erp-dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.28fr) minmax(300px, 0.72fr);
+    gap: 14px;
+    align-items: start;
+}
+
+.erp-dashboard-primary,
+.erp-dashboard-secondary {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+}
+
+.erp-kpi-card {
+    padding: 14px 14px 16px;
+    color: #fff;
+}
+
+.erp-kpi-card small {
+    display: block;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.74);
+}
+
+.erp-kpi-card strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 1.12rem;
+}
+
+.erp-action-grid {
+    margin-top: 0;
+}
+
+.cash-quick-actions {
+    gap: 10px;
+}
+
+.cash-quick-action {
+    gap: 5px;
+    padding: 14px 16px 13px;
+    border-radius: 18px;
+    min-height: 78px;
+}
+
+.cash-quick-action strong {
+    font-size: 0.95rem;
+}
+
+.cash-quick-action span {
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+
+.erp-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+.erp-chart-grid.compact {
+    grid-template-columns: 1fr;
+}
+
+.erp-chart-card {
+    padding: 16px 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(243,247,252,0.98));
+}
+
+.erp-chart-card h2 {
+    margin: 4px 0 0;
+    font-size: 1.28rem;
+}
+
+.erp-sparkline {
+    width: 100%;
+    height: 56px;
+    margin-top: 4px;
+}
+
+.erp-chart-card.tone-info .erp-sparkline polyline {
+    fill: none;
+    stroke: #1c568b;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.erp-chart-card.tone-success .erp-sparkline polyline {
+    fill: none;
+    stroke: #1f8b47;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.erp-chart-labels {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 2px;
+    color: #7a8faa;
+    font-size: 0.72rem;
+    text-align: center;
+}
+
+.erp-activity-card {
+    margin-top: 16px;
+    padding: 16px 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.99), rgba(245,248,253,0.98));
+    overflow: hidden;
+}
+
+.erp-activity-tabs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.erp-activity-tab {
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 16px;
+    background: rgba(21, 51, 93, 0.06);
+    color: #526983;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.erp-activity-tab.active,
+.erp-activity-tab:hover {
+    background: linear-gradient(135deg, #143c70, #1c568b);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.erp-activity-panels {
+    margin-top: 12px;
+}
+
+.erp-activity-panel {
+    display: none;
+}
+
+.erp-activity-panel.active {
+    display: block;
+}
+
+.erp-activity-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.erp-activity-main strong,
+.erp-activity-main small {
+    display: block;
+}
+
+.erp-activity-main small {
+    margin-top: 5px;
+    color: var(--muted);
+}
+
+.erp-activity-extra {
+    display: grid;
+    gap: 8px;
+    justify-items: end;
+    text-align: right;
+    color: #475a73;
+    min-width: 0;
+}
+
+.erp-empty-state {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(21, 51, 93, 0.04);
+    border: 1px dashed rgba(21, 51, 93, 0.14);
+}
+
+.erp-empty-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f7931e, #ffb14e);
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 900;
+}
+
+.erp-empty-state strong,
+.erp-empty-state p {
+    margin: 0;
+}
+
+.erp-empty-state p {
+    margin-top: 4px;
+    color: var(--muted);
+}
+
+.cash-portal-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.9fr);
+    gap: 18px;
+    margin-top: 22px;
+}
+
+.cash-portal-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 28px;
+    border-radius: 28px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 20px;
+    color: #fff;
+    background:
+        radial-gradient(circle at top right, rgba(251, 191, 36, 0.22), transparent 24%),
+        radial-gradient(circle at left center, rgba(45, 212, 191, 0.18), transparent 30%),
+        linear-gradient(135deg, #17345e 0%, #0e5a76 52%, #0c6d6f 100%);
+}
+
+.cash-portal-hero h2,
+.cash-portal-hero .workspace-lead {
+    color: #fff;
+}
+
+.cash-portal-hero .workspace-lead {
+    max-width: 620px;
+    color: rgba(255, 255, 255, 0.84);
+}
+
+.cash-portal-hero-glow {
+    position: absolute;
+    inset: auto -70px -70px auto;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    filter: blur(8px);
+}
+
+.cash-portal-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.cash-portal-balance-card {
+    position: relative;
+    z-index: 1;
+    align-self: center;
+    padding: 18px 18px 16px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.cash-portal-balance-card span,
+.cash-portal-balance-card small {
+    display: block;
+}
+
+.cash-portal-balance-card span {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.72);
+    font-weight: 800;
+}
+
+.cash-portal-balance-card strong {
+    display: block;
+    margin-top: 10px;
+    font-size: 1.55rem;
+    line-height: 1.1;
+}
+
+.cash-portal-balance-card small {
+    margin-top: 8px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.cash-portal-side-card {
+    padding: 22px;
+}
+
+.cash-company-grid {
+    margin-top: 10px;
+}
+
+.cash-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 0;
+}
+
+.cash-quick-action {
+    display: grid;
+    gap: 5px;
+    padding: 14px 16px 13px;
+    border-radius: 18px;
+    text-decoration: none;
+    color: #fff;
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cash-quick-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 38px rgba(15, 23, 42, 0.18);
+}
+
+.cash-quick-action strong {
+    font-size: 0.95rem;
+}
+
+.cash-quick-action span {
+    color: rgba(255, 255, 255, 0.82);
+    line-height: 1.35;
+    font-size: 0.82rem;
+}
+
+.cash-portal-modules {
+    margin-top: 0;
+}
+
+.supplier-portal-summary-grid,
+.supplier-company-grid {
+    margin-top: 18px;
+}
+
+.supplier-portal-modules {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 0;
+}
+
+.portal-module-card {
+    display: grid;
+    gap: 6px;
+    padding: 16px;
+    border-radius: 18px;
+    text-decoration: none;
+    color: #ffffff;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.portal-module-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 22px 44px rgba(15, 23, 42, 0.18);
+}
+
+.portal-module-card h3 {
+    margin: 0;
+    color: #ffffff;
+}
+
+.portal-module-card strong {
+    font-size: 1.05rem;
+}
+
+.portal-module-card p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.82);
+    line-height: 1.32;
+    font-size: 0.84rem;
+}
+
+.portal-module-kicker {
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.tone-normal,
+.tone-info {
+    background: linear-gradient(180deg, rgba(7, 106, 164, 0.98) 0%, rgba(11, 84, 138, 0.98) 100%);
+}
+
+.tone-managed {
+    background: linear-gradient(180deg, rgba(44, 86, 147, 0.98) 0%, rgba(31, 67, 121, 0.98) 100%);
+}
+
+.tone-partnership {
+    background: linear-gradient(180deg, rgba(171, 95, 23, 0.98) 0%, rgba(139, 73, 13, 0.98) 100%);
+}
+
+.tone-success {
+    background: linear-gradient(180deg, rgba(14, 116, 72, 0.98) 0%, rgba(15, 91, 61, 0.98) 100%);
+}
+
+.tone-warning {
+    background: linear-gradient(180deg, rgba(176, 102, 22, 0.98) 0%, rgba(145, 78, 13, 0.98) 100%);
+}
+
+.tone-neutral {
+    background: linear-gradient(180deg, rgba(71, 85, 105, 0.98) 0%, rgba(51, 65, 85, 0.98) 100%);
+}
+
+.tone-cash {
+    background: linear-gradient(180deg, rgba(7, 131, 94, 0.98) 0%, rgba(5, 108, 77, 0.98) 100%);
+}
+
+.tone-due {
+    background: linear-gradient(180deg, rgba(29, 78, 216, 0.98) 0%, rgba(30, 64, 175, 0.98) 100%);
+}
+
+.tone-advance {
+    background: linear-gradient(180deg, rgba(180, 83, 9, 0.98) 0%, rgba(146, 64, 14, 0.98) 100%);
+}
+
+.tone-settled {
+    background: linear-gradient(180deg, rgba(71, 85, 105, 0.98) 0%, rgba(51, 65, 85, 0.98) 100%);
+}
+
+.portal-recent-grid {
+    align-items: start;
+}
+
+.portal-recent-list {
+    display: grid;
+    gap: 12px;
+}
+
+.portal-recent-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.04);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.portal-recent-row strong,
+.portal-recent-row small {
+    display: block;
+}
+
+.portal-recent-row small {
+    margin-top: 4px;
+    color: var(--text-secondary);
+}
+
+.portal-recent-meta {
+    display: grid;
+    gap: 8px;
+    justify-items: end;
+    text-align: right;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 1180px) {
+    .erp-supplier-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .erp-supplier-summary-card {
+        grid-template-columns: 1fr;
+    }
+
+    .erp-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (min-width: 1280px) {
+    .supplier-detail-shell {
+        max-width: 1680px;
+        margin-inline: auto;
+    }
+}
+
+@media (max-width: 720px) {
+    .erp-supplier-topbar,
+    .erp-supplier-summary-card,
+    .erp-activity-row {
+        grid-template-columns: 1fr;
+        flex-direction: column;
+    }
+
+    .cash-portal-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .erp-activity-extra {
+        justify-items: start;
+        text-align: left;
+    }
+
+    .portal-recent-row {
+        flex-direction: column;
+    }
+
+    .portal-recent-meta {
+        justify-items: start;
+        text-align: left;
+    }
+}
+
+@media (max-width: 960px) {
+    .cash-portal-hero-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .erp-kpi-grid,
+    .erp-summary-grid,
+    .erp-chart-labels {
+        grid-template-columns: 1fr;
+    }
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+}
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+.modal-header {
+    padding: 16px 20px;
+    background: #0f2d52;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+}
+.modal-body {
+    padding: 20px;
+}
+.modal-footer {
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.full-span {
+    grid-column: 1 / -1;
+}
+.half-span {
+    grid-column: span 1;
+}
+</style>
+
+{% endblock %}

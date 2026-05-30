@@ -1,0 +1,283 @@
+﻿{% extends "base.html" %}
+{% block title %}Supplier Desk â€” Current Link ERP{% endblock %}
+{% block body_class %}supplier-desk-home{% endblock %}
+
+{% block content %}
+<div class="db-shell">
+
+    {# â”€â”€ Dashboard Header â”€â”€ #}
+    <section class="supplier-hero">
+        <div class="supplier-hero-glow supplier-hero-glow-a"></div>
+        <div class="supplier-hero-glow supplier-hero-glow-b"></div>
+        <div class="supplier-hero-glow supplier-hero-glow-c"></div>
+        <div class="supplier-hero-shimmer"></div>
+        <div class="supplier-hero-grid">
+            <div class="supplier-hero-main">
+                <div class="supplier-hero-title-row">
+                    <div class="supplier-hero-icon">
+                        <div class="supplier-hero-icon-inner">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="28" height="28">
+                                <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                                <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                            </svg>
+                        </div>
+                        <div class="supplier-hero-icon-glow"></div>
+                    </div>
+                    <div class="supplier-hero-copy">
+                        <span class="supplier-hero-label">
+                            <span class="supplier-hero-label-text">Supplier Command Center</span>
+                            <span class="supplier-hero-label-dot"></span>
+                        </span>
+                        <h1 class="supplier-hero-title">Supplier Desk</h1>
+                        <p class="supplier-hero-subtitle">Manage online, cash, managed, and partnership suppliers from one live workspace with cleaner cards, statements, and workflow control.</p>
+                    </div>
+                </div>
+
+                <div class="supplier-hero-ribbon">
+                    <span class="supplier-ribbon-pill" data-shimmer>
+                        <span class="supplier-ribbon-pill-text">Online Workflow</span>
+                        <span class="supplier-ribbon-pill-glow"></span>
+                    </span>
+                    <span class="supplier-ribbon-pill" data-shimmer>
+                        <span class="supplier-ribbon-pill-text">Cash Control</span>
+                        <span class="supplier-ribbon-pill-glow"></span>
+                    </span>
+                    <span class="supplier-ribbon-pill" data-shimmer>
+                        <span class="supplier-ribbon-pill-text">Managed Billing</span>
+                        <span class="supplier-ribbon-pill-glow"></span>
+                    </span>
+                    <span class="supplier-ribbon-pill" data-shimmer>
+                        <span class="supplier-ribbon-pill-text">Partnership Splits</span>
+                        <span class="supplier-ribbon-pill-glow"></span>
+                    </span>
+                </div>
+            </div>
+
+            <aside class="supplier-hero-side">
+                <div class="supplier-hero-pill success">
+                    <span class="supplier-hero-pill-dot"></span>
+                    <span>4 Supplier Types Active</span>
+                    <span class="supplier-hero-pill-pulse"></span>
+                </div>
+                <div class="supplier-hero-pill live">
+                    <span class="supplier-hero-pill-dot"></span>
+                    <span>ERP Live</span>
+                    <span class="supplier-hero-pill-pulse"></span>
+                </div>
+                <div class="supplier-hero-metrics">
+                    <div class="supplier-hero-metric">
+                        <div class="supplier-hero-metric-value">
+                            <strong>{{ stats.total_suppliers }}</strong>
+                            <span class="supplier-hero-metric-trend"></span>
+                        </div>
+                        <span>Total Suppliers</span>
+                        <div class="supplier-hero-metric-bar"></div>
+                    </div>
+                    <div class="supplier-hero-metric">
+                        <div class="supplier-hero-metric-value">
+                            <strong>AED {{ "%.0f"|format(stats.total_outstanding) }}</strong>
+                            <span class="supplier-hero-metric-trend"></span>
+                        </div>
+                        <span>Total Outstanding</span>
+                        <div class="supplier-hero-metric-bar"></div>
+                    </div>
+                    <div class="supplier-hero-metric">
+                        <div class="supplier-hero-metric-value">
+                            <strong>{{ stats.online_quotations + stats.managed_quotations }}</strong>
+                            <span class="supplier-hero-metric-trend"></span>
+                        </div>
+                        <span>Quotation Flow</span>
+                        <div class="supplier-hero-metric-bar"></div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </section>
+    {# â”€â”€ Search Bar â”€â”€ #}
+    <div class="card admin-desk-toolbar" style="margin-bottom: 24px;">
+        <form method="get" class="admin-filter-grid desk-single-filter">
+            <label>
+                <span>Search All Suppliers</span>
+                <input type="search" name="q" value="{{ query }}" placeholder="Supplier name, code, phone, contact">
+            </label>
+            <div class="admin-filter-actions">
+                <button class="button" type="submit">Search</button>
+                {% if query %}
+                    <a class="button button-secondary" href="{{ url_for('supplier_desk_home') }}">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    {# â”€â”€ Supplier Type Cards Grid â”€â”€ #}
+    <div class="db-grid">
+
+        {# â”€â”€ Online Suppliers â”€â”€ #}
+        <a class="wc wc-supplier" href="{{ url_for('suppliers') }}">
+            <div class="wc-shimmer"></div>
+            <div class="wc-bg-icon">ðŸ¢</div>
+            <div class="wc-top">
+                <div class="wc-icon-badge wc-badge-supplier">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                        <rect x="2" y="7" width="20" height="14" rx="2"/>
+                        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+                        <line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
+                    </svg>
+                </div>
+                <div class="wc-meta">
+                    <span class="wc-tag">Supplier Type</span>
+                    <span class="wc-category">Online</span>
+                </div>
+            </div>
+            <div class="wc-body">
+                <h2 class="wc-title">Online Suppliers</h2>
+                <p class="wc-desc">Portalâ€‘based suppliers with full workflow: registration, approval, quotations, LPOs, invoices, payments, statements.</p>
+            </div>
+            <div class="wc-footer">
+                <div class="wc-quick-stats">
+                    <span class="wc-stat wc-stat-supplier">{{ stats.online_count }} Suppliers</span>
+                    <span class="wc-stat wc-stat-supplier">{{ stats.online_registrations }} Reg</span>
+                    <span class="wc-stat wc-stat-supplier">{{ stats.online_quotations }} Quot</span>
+                    <span class="wc-stat wc-stat-supplier">{{ stats.online_lpos }} LPOs</span>
+                </div>
+                <div class="wc-cta">
+                    <span class="wc-cta-text">Open</span>
+                    <span class="wc-cta-arrow">
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
+                    </span>
+                </div>
+            </div>
+        </a>
+
+        {# â”€â”€ Cash Suppliers â”€â”€ #}
+        <a class="wc wc-cash" href="{{ url_for('cash_suppliers') }}">
+            <div class="wc-shimmer"></div>
+            <div class="wc-bg-icon">ðŸ’µ</div>
+            <div class="wc-top">
+                <div class="wc-icon-badge wc-badge-cash">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                        <rect x="2" y="6" width="20" height="12" rx="2"/>
+                        <circle cx="12" cy="12" r="2"/>
+                        <path d="M6 12h.01M18 12h.01"/>
+                    </svg>
+                </div>
+                <div class="wc-meta">
+                    <span class="wc-tag">Supplier Type</span>
+                    <span class="wc-category">Cash</span>
+                </div>
+            </div>
+            <div class="wc-body">
+                <h2 class="wc-title">Cash Suppliers</h2>
+                <p class="wc-desc">Cashâ€‘givenâ€‘directly suppliers & loan/qarza holders: opening balance, trips/earnings, advances, deductions, payments, remaining balance.</p>
+            </div>
+            <div class="wc-footer">
+                <div class="wc-quick-stats">
+                    <span class="wc-stat wc-stat-cash">{{ stats.cash_count }} Suppliers</span>
+                    <span class="wc-stat wc-stat-cash">{{ stats.cash_trips }} Trips</span>
+                    <span class="wc-stat wc-stat-cash">{{ stats.cash_advances }} Advances</span>
+                    <span class="wc-stat wc-stat-cash">AED {{ "%.0f"|format(stats.cash_balance) }}</span>
+                </div>
+                <div class="wc-cta">
+                    <span class="wc-cta-text">Open</span>
+                    <span class="wc-cta-arrow">
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
+                    </span>
+                </div>
+            </div>
+        </a>
+
+        {# â”€â”€ Managed Suppliers â”€â”€ #}
+        <a class="wc wc-managed" href="{{ url_for('managed_suppliers') }}">
+            <div class="wc-shimmer"></div>
+            <div class="wc-bg-icon">ðŸ“‹</div>
+            <div class="wc-top">
+                <div class="wc-icon-badge wc-badge-managed">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
+                    </svg>
+                </div>
+                <div class="wc-meta">
+                    <span class="wc-tag">Supplier Type</span>
+                    <span class="wc-category">Managed</span>
+                </div>
+            </div>
+            <div class="wc-body">
+                <h2 class="wc-title">Managed Suppliers</h2>
+                <p class="wc-desc">Adminâ€‘managed suppliers with quotations, LPOs, invoices, timesheets, payments, and statements.</p>
+            </div>
+            <div class="wc-footer">
+                <div class="wc-quick-stats">
+                    <span class="wc-stat wc-stat-managed">{{ stats.managed_count }} Suppliers</span>
+                    <span class="wc-stat wc-stat-managed">{{ stats.managed_quotations }} Quot</span>
+                    <span class="wc-stat wc-stat-managed">{{ stats.managed_lpos }} LPOs</span>
+                    <span class="wc-stat wc-stat-managed">{{ stats.managed_invoices }} Inv</span>
+                </div>
+                <div class="wc-cta">
+                    <span class="wc-cta-text">Open</span>
+                    <span class="wc-cta-arrow">
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
+                    </span>
+                </div>
+            </div>
+        </a>
+
+        {# â”€â”€ Partnership Suppliers â”€â”€ #}
+        <a class="wc wc-partner" href="{{ url_for('partnership_suppliers') }}">
+            <div class="wc-shimmer"></div>
+            <div class="wc-bg-icon">ðŸ¤</div>
+            <div class="wc-top">
+                <div class="wc-icon-badge wc-badge-partner">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                </div>
+                <div class="wc-meta">
+                    <span class="wc-tag">Supplier Type</span>
+                    <span class="wc-category">Partnership</span>
+                </div>
+            </div>
+            <div class="wc-body">
+                <h2 class="wc-title">Partnership Suppliers</h2>
+                <p class="wc-desc">Sharedâ€‘vehicle partnerships with split accounting, statements, vouchers, and payment tracking.</p>
+            </div>
+            <div class="wc-footer">
+                <div class="wc-quick-stats">
+                    <span class="wc-stat wc-stat-partner">{{ stats.partnership_count }} Suppliers</span>
+                    <span class="wc-stat wc-stat-partner">{{ stats.partnership_splits }} Splits</span>
+                    <span class="wc-stat wc-stat-partner">{{ stats.partnership_vouchers }} Vouchers</span>
+                    <span class="wc-stat wc-stat-partner">{{ stats.partnership_statements }} Stmts</span>
+                </div>
+                <div class="wc-cta">
+                    <span class="wc-cta-text">Open</span>
+                    <span class="wc-cta-arrow">
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8.293 3.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L10.586 9H3a1 1 0 1 1 0-2h7.586L8.293 4.707a1 1 0 0 1 0-1.414z"/></svg>
+                    </span>
+                </div>
+            </div>
+        </a>
+
+    </div>
+
+    {# â”€â”€ Quick Stats Bar â”€â”€ #}
+    <div class="card admin-desk-toolbar" style="margin-top: 24px;">
+        <div class="admin-toolbar-row">
+            <div class="admin-mini-stats">
+                <span><strong>{{ stats.total_suppliers }}</strong><small>Total Suppliers</small></span>
+                <span><strong>{{ stats.online_count }}</strong><small>Online</small></span>
+                <span><strong>{{ stats.cash_count }}</strong><small>Cash</small></span>
+                <span><strong>{{ stats.managed_count }}</strong><small>Managed</small></span>
+                <span><strong>{{ stats.partnership_count }}</strong><small>Partnership</small></span>
+                <span><strong>AED {{ "%.0f"|format(stats.total_outstanding) }}</strong><small>Total Outstanding</small></span>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

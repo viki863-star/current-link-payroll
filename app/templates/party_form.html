@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card form-card party-form-card">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Party Master</p>
+            <h2>{{ page_title }}</h2>
+        </div>
+    </div>
+
+    <form method="post" class="grid-form party-master-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>
+            <span>Party Code</span>
+            <input type="text" name="party_code" value="{{ values.get('party_code', '') }}" {% if edit_mode %}readonly{% endif %} placeholder="Auto if left blank">
+        </label>
+        <label>
+            <span>Party Name</span>
+            <input type="text" name="party_name" value="{{ values.get('party_name', '') }}" required>
+        </label>
+        <label>
+            <span>Kind</span>
+            <select name="party_kind">
+                {% for item in kind_options %}
+                    <option value="{{ item }}" {% if values.get('party_kind', 'Company') == item %}selected{% endif %}>{{ item }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span>Contact Person</span>
+            <input type="text" name="contact_person" value="{{ values.get('contact_person', '') }}">
+        </label>
+        <label>
+            <span>Phone Number</span>
+            <input type="text" name="phone_number" value="{{ values.get('phone_number', '') }}">
+        </label>
+        <label>
+            <span>Email</span>
+            <input type="email" name="email" value="{{ values.get('email', '') }}">
+        </label>
+        <label>
+            <span>TRN / VAT No</span>
+            <input type="text" name="trn_no" value="{{ values.get('trn_no', '') }}">
+        </label>
+        <label>
+            <span>Trade License No</span>
+            <input type="text" name="trade_license_no" value="{{ values.get('trade_license_no', '') }}">
+        </label>
+        <label class="full-span">
+            <span>Roles</span>
+            <div class="check-grid">
+                {% for item in role_options %}
+                    <label class="check-tile">
+                        <input type="checkbox" name="party_roles" value="{{ item }}" {% if item in values.get('party_roles', []) %}checked{% endif %}>
+                        <span>{{ item }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+        </label>
+        <label class="full-span">
+            <span>Address</span>
+            <textarea name="address" rows="3">{{ values.get('address', '') }}</textarea>
+        </label>
+        <label class="full-span">
+            <span>Notes</span>
+            <textarea name="notes" rows="4">{{ values.get('notes', '') }}</textarea>
+        </label>
+        <label>
+            <span>Status</span>
+            <select name="status">
+                <option value="Active" {% if values.get('status', 'Active') == 'Active' %}selected{% endif %}>Active</option>
+                <option value="Inactive" {% if values.get('status') == 'Inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </label>
+        <div class="form-actions full-span">
+            <a class="button button-secondary" href="{{ url_for('party_list') }}">Cancel</a>
+            <button class="button" type="submit">{{ submit_label }}</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

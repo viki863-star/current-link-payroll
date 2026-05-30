@@ -1,0 +1,22 @@
+Supplier Desk Schema Notes
+==================================================
+
+Supplier Mode Options: Normal, Partnership, Managed, Cash, Loan
+Supplier Tables:
+  - supplier_quotation_submissions
+  - supplier_profile
+  - supplier_portal_accounts
+  - supplier_assets
+  - supplier_timesheets
+  - supplier_vouchers
+  - supplier_payments
+  - supplier_invoice_submissions
+  - supplier_registration_requests
+  - supplier_partnership_entries
+  - cash_supplier_trips
+  - cash_supplier_debits
+  - cash_supplier_payments
+  - parties
+  - agreements
+  - lpos
+  - hire_records

@@ -1,0 +1,89 @@
+DEPLOYMENT INSTRUCTIONS FOR CURRENT-LINK PAYROLL
+
+Server: 207.180.245.64
+Username: root
+Password: CurrentLink2026Safe95
+Project Path: /opt/current-link/app
+
+STEPS TO DEPLOY:
+
+1. SSH into server:
+   ssh root@207.180.245.64
+   Password: CurrentLink2026Safe95
+
+2. Create backup (DO NOT SKIP):
+   cd /opt/current-link
+   cp -r app app_backup_$(date +%F_%H%M)
+   echo "Backup created: app_backup_$(date +%F_%H%M)"
+
+3. Deploy latest code:
+   cd app
+   git fetch origin main
+   git reset --hard origin/main
+
+4. IMPORTANT: DO NOT RUN:
+   git clean -fd  (This would delete database, backups, venv)
+
+5. Restart service:
+   systemctl restart current-link
+
+6. Verify service status:
+   systemctl status current-link --no-pager -l
+
+7. Test application:
+   curl -I http://127.0.0.1:5000/login
+
+HYBRID PC MIRROR SETUP:
+
+1. Share Windows folder:
+   D:\CurrentLinkData
+   Share name example: CurrentLinkData
+
+2. On Linux server install CIFS tools:
+   apt-get update
+   apt-get install -y cifs-utils
+
+3. Create mount path:
+   mkdir -p /mnt/pc_d/CurrentLinkData
+
+4. Create SMB credentials file:
+   cat >/root/.current-link-pc-share <<EOF
+   username=YOUR_WINDOWS_SHARE_USER
+   password=YOUR_WINDOWS_SHARE_PASSWORD
+   domain=WORKGROUP
+   EOF
+   chmod 600 /root/.current-link-pc-share
+
+5. Test mount:
+   mount -t cifs //YOUR-PC/CurrentLinkData /mnt/pc_d/CurrentLinkData -o credentials=/root/.current-link-pc-share,uid=0,gid=0,file_mode=0664,dir_mode=0775,iocharset=utf8
+
+6. Persist mount in /etc/fstab:
+   //YOUR-PC/CurrentLinkData /mnt/pc_d/CurrentLinkData cifs credentials=/root/.current-link-pc-share,uid=0,gid=0,file_mode=0664,dir_mode=0775,iocharset=utf8,nofail 0 0
+
+7. Add .env values:
+   PC_MIRROR_ROOT=/mnt/pc_d/CurrentLinkData
+   PC_MIRROR_LOG_DIR=/opt/current-link/app/local_data/Backups/PC_Mirror_Logs
+
+8. Install nightly timer:
+   cp scripts/systemd/current-link-pc-mirror-sync.service /etc/systemd/system/
+   cp scripts/systemd/current-link-pc-mirror-sync.timer /etc/systemd/system/
+   systemctl daemon-reload
+   systemctl enable --now current-link-pc-mirror-sync.timer
+
+9. Manual sync test:
+   python scripts/run_pc_mirror_sync.py
+
+EXPECTED OUTPUT:
+- HTTP 200 OK or 302 redirect
+- Service should be active (running)
+
+CONFIRMATIONS NEEDED:
+- Database files exist in /opt/current-link/app/backups/
+- Virtual environment exists: /opt/current-link/app/venv/
+- No data was deleted during deployment
+
+GitHub Status:
+- Latest commit pushed: 424dc00 "Update login UI and role animations"
+- Push successful: 6024244..424dc00 main -> main
+
+Backup folder name will be: app_backup_2026-04-27_HHMM (based on current time)

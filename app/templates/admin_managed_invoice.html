@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<section class="admin-desk-shell">
+
+    {# ── Toolbar ── #}
+    <article class="card admin-desk-toolbar">
+        <div class="admin-toolbar-row">
+            <div class="admin-toolbar-actions">
+                <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing') }}">&larr; Supplier Detail</a>
+                <a class="button button-secondary" href="{{ url_for('managed_suppliers') }}">Managed Desk</a>
+                <a class="button button-secondary" href="{{ url_for('admin_managed_quotation', party_code=party.party_code) }}">+ Quotation</a>
+            </div>
+            <div class="admin-mini-stats">
+                <span><strong>{{ party.party_name }}</strong><small>Supplier</small></span>
+                <span><strong>{{ party.party_code }}</strong><small>Code</small></span>
+                <span><strong>{{ available_lpos|length }}</strong><small>LPOs</small></span>
+            </div>
+        </div>
+    </article>
+
+    <article class="card desk-panel-card">
+        <div class="desk-panel-head">
+            <div>
+                <span class="admin-desk-label">Managed Supplier &mdash; Invoice Entry</span>
+                <h2>Enter Invoice</h2>
+                <p class="workspace-lead">
+                    Enter an invoice on behalf of <strong>{{ party.party_name }}</strong>.
+                    {% if available_lpos %}
+                        Select an LPO to link this invoice against.
+                    {% else %}
+                        <span style="color:var(--color-warn,#b45309);">&starf; No LPOs available. Create a quotation and issue an LPO first, or submit without LPO linkage.</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="desk-form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="submission_no" value="{{ submission_values.submission_no }}">
+
+            {# LPO selection (optional for managed) #}
+            <label class="full-span">
+                <span>Purchase Order (LPO) <small>optional</small></span>
+                <select name="lpo_no">
+                    <option value="">&mdash; No LPO &mdash;</option>
+                    {% for lpo in available_lpos %}
+                    <option value="{{ lpo.lpo_no }}"
+                        {% if submission_values.lpo_no == lpo.lpo_no %}selected{% endif %}>
+                        {{ lpo.lpo_no }} &mdash; AED {{ "%.2f"|format(lpo.amount) }}
+                        ({{ lpo.issue_date }}) [{{ lpo.status }}]
+                    </option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label>
+                <span>Submission No</span>
+                <input type="text" value="{{ submission_values.submission_no }}" readonly style="font-weight:800;">
+            </label>
+
+            <label>
+                <span>Invoice No <small>(supplier's reference)</small></span>
+                <input type="text" name="external_invoice_no" value="{{ submission_values.external_invoice_no }}" required
+                       placeholder="e.g. INV-2024-001">
+            </label>
+
+            <label>
+                <span>Invoice Date</span>
+                <input type="date" name="invoice_date" id="inv_date" value="{{ submission_values.invoice_date }}" required>
+            </label>
+
+            <label>
+                <span>Period Month</span>
+                <input type="month" name="period_month" value="{{ submission_values.period_month }}" required>
+            </label>
+
+            <label>
+                <span>Subtotal (AED)</span>
+                <input type="number" step="0.01" name="subtotal" value="{{ submission_values.subtotal }}" required
+                       id="inv_sub" oninput="calcInvTotal()">
+            </label>
+
+            <label>
+                <span>VAT Amount (AED)</span>
+                <input type="number" step="0.01" name="vat_amount" value="{{ submission_values.vat_amount or '0.00' }}" required
+                       id="inv_vat" oninput="calcInvTotal()">
+            </label>
+
+            <label>
+                <span>Total Amount (AED)</span>
+                <input type="number" step="0.01" name="total_amount" value="{{ submission_values.total_amount }}" required
+                       id="inv_total" style="font-weight:800;">
+            </label>
+
+            <label></label>{# spacer #}
+
+            <label>
+                <span>Invoice Attachment <small>(PDF, PNG, JPG)</small></span>
+                <input type="file" name="invoice_attachment" accept=".pdf,.png,.jpg,.jpeg,.webp" style="padding:6px;">
+            </label>
+
+            <label>
+                <span>Timesheet / Support Attachment <small>(optional)</small></span>
+                <input type="file" name="timesheet_attachment" accept=".pdf,.png,.jpg,.jpeg,.webp" style="padding:6px;">
+            </label>
+
+            <label class="full-span">
+                <span>Notes</span>
+                <textarea name="notes" rows="3" placeholder="Any notes or reference information&hellip;">{{ submission_values.notes }}</textarea>
+            </label>
+
+            <div class="form-actions full-span" style="display:flex;gap:10px;align-items:center;">
+                <button class="button success-button" type="submit">Submit Invoice</button>
+                <a class="button button-secondary" href="{{ url_for('supplier_detail', party_code=party.party_code, screen='billing') }}">Cancel</a>
+                <span class="muted-text" style="font-size:0.82rem;">
+                    Invoice will be auto-approved and available in the supplier's statement.
+                </span>
+            </div>
+        </form>
+    </article>
+
+</section>
+
+<script>
+document.getElementById('inv_date').value = document.getElementById('inv_date').value || new Date().toISOString().slice(0, 10);
+
+function calcInvTotal() {
+    var sub = parseFloat(document.getElementById('inv_sub').value) || 0;
+    var vat = parseFloat(document.getElementById('inv_vat').value) || 0;
+    document.getElementById('inv_total').value = (sub + vat).toFixed(2);
+}
+</script>
+
+{% endblock %}

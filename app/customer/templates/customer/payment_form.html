@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Record Payment{% endblock %}
+{% block page_title %}Payment — {{ c.customer_name }}{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:720px;margin:0 auto">
+<style>
+.pay-header { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin-bottom:16px; }
+.pay-header h3 { margin:0 0 4px; font-size:1.15rem; }
+.pay-header p { margin:0; font-size:0.82rem; color:var(--muted); }
+.pay-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:16px; }
+.pay-card h4 { margin:0 0 4px; font-size:0.82rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
+.pay-inv-header { display:grid; grid-template-columns:auto 1fr 90px 100px 120px; gap:8px; padding:8px 10px; background:#f0f2f5; border-radius:8px 8px 0 0; font-size:0.68rem; font-weight:600; color:var(--muted); }
+.pay-inv-row { display:grid; grid-template-columns:auto 1fr 90px 100px 120px; gap:8px; align-items:center; padding:8px 10px; border-bottom:1px solid #eef2f6; transition:background 0.1s; }
+.pay-inv-row:hover { background:#f8fafc; }
+.pay-inv-row:last-child { border-bottom:none; border-radius:0 0 8px 8px; }
+.pay-inv-row .inv-no { font-size:0.85rem; font-weight:600; }
+.pay-inv-row .inv-date { font-size:0.7rem; color:var(--muted); }
+.pay-inv-row .inv-month { font-size:0.65rem; font-weight:600; color:var(--primary); background:#e3f0ff; padding:2px 8px; border-radius:4px; display:inline-block; }
+.pay-summary { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#f8fafc; border-radius:8px; margin-top:8px; font-size:0.82rem; }
+.pay-summary .stat { text-align:center; }
+.pay-summary .stat .num { font-size:1.1rem; font-weight:700; }
+</style>
+
+<div class="pay-header">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+            <h3>Record Payment Received</h3>
+            <p><strong>{{ c.customer_name }}</strong> &middot; Balance: <strong style="color:#c62828">AED {{ "%.0f"|format(balance) }}</strong></p>
+        </div>
+        <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='payments') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+    </div>
+</div>
+
+<form method="POST" id="paymentForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="pay-card">
+        <h4>Payment Details</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:3px">Payment Date</label>
+                <input type="date" name="payment_date" class="form-control" value="{{ today }}">
+            </div>
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:3px">Total Amount (AED) *</label>
+                <input type="number" name="amount" class="form-control" required step="any" min="0.01" placeholder="e.g. 10000" id="totalAmount" oninput="distributeAmount()">
+            </div>
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:3px">Payment Method</label>
+                <select name="payment_method" class="form-control">
+                    {% for m in ['Cash','Bank Transfer','Cheque','Card','Other'] %}
+                    <option value="{{ m }}">{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:3px">Reference No.</label>
+                <input type="text" name="reference_no" class="form-control" placeholder="Chq # / TXN ID">
+            </div>
+        </div>
+    </div>
+
+    <div class="pay-card">
+        <h4>Allocate to Invoices</h4>
+        <div style="border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fafbfc;margin-top:10px">
+            <div class="pay-inv-header">
+                <span></span>
+                <span>Invoice</span>
+                <span style="text-align:center">Month</span>
+                <span style="text-align:right">Balance (AED)</span>
+                <span style="text-align:right">Allocate (AED)</span>
+            </div>
+            {% set current_month = namespace(v='') %}
+            {% for inv in invoices %}
+            {% set inv_month = inv.invoice_date[:7] if inv.invoice_date else '' %}
+            <div class="pay-inv-row" style="{% if inv_month != current_month.v and inv_month %}border-top:2px solid #e0e7ef;margin-top:-1px{% endif %}">
+                <input type="checkbox" name="inv_ids" value="{{ inv.id }}" class="inv-check" onchange="distributeAmount()" style="width:16px;height:16px;cursor:pointer">
+                <div>
+                    <div class="inv-no">{{ inv.invoice_no }}</div>
+                    <div class="inv-date">{{ inv.invoice_date }}</div>
+                </div>
+                <div style="text-align:center">
+                    {% if inv_month %}
+                    <span class="inv-month">{{ inv_month }}</span>
+                    {% endif %}
+                </div>
+                <div style="text-align:right;font-size:0.85rem;font-weight:600;color:{% if inv.balance > 0 %}#c62828{% else %}var(--green){% endif %}" class="mono">
+                    <span class="inv-bal-num">{{ "%.0f"|format(inv.balance) }}</span>
+                </div>
+                <input type="number" name="alloc_{{ inv.id }}" class="form-control alloc-amt" step="any" min="0" style="text-align:right;font-size:0.82rem;padding:6px" placeholder="0" oninput="syncTotal()">
+            </div>
+            {% set current_month.v = inv_month %}
+            {% else %}
+            <p style="padding:24px;text-align:center;color:var(--muted);font-size:0.85rem">No invoices found for this customer.</p>
+            {% endfor %}
+        </div>
+        <div class="pay-summary">
+            <div class="stat">
+                <div style="font-size:0.7rem;color:var(--muted)">Selected</div>
+                <div class="num" id="checkedCount" style="color:var(--primary)">0</div>
+            </div>
+            <div class="stat">
+                <div style="font-size:0.7rem;color:var(--muted)">Total Balance</div>
+                <div class="num" style="color:#c62828">{{ "%.0f"|format(invoices|sum(attribute='balance')) }}</div>
+            </div>
+            <div class="stat">
+                <div style="font-size:0.7rem;color:var(--muted)">Allocated</div>
+                <div class="num" id="allocatedTotal" style="color:var(--green)">0.00</div>
+            </div>
+            <div class="stat">
+                <div style="font-size:0.7rem;color:var(--muted)">Unallocated</div>
+                <div class="num" id="unallocatedTotal" style="color:#e65100">0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="pay-card">
+        <h4>Notes</h4>
+        <textarea name="notes" class="form-control" rows="2" placeholder="Any remarks about this payment..." style="margin-top:8px"></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="width:100%;padding:14px;font-size:1rem;border-radius:12px">Save Payment</button>
+</form>
+</div>
+
+<script>
+function distributeAmount() {
+    var total = parseFloat(document.getElementById('totalAmount').value) || 0;
+    var checks = document.querySelectorAll('.inv-check:checked');
+    var count = checks.length;
+    document.getElementById('checkedCount').textContent = count;
+    if (count === 0) {
+        syncTotal();
+        return;
+    }
+    var totalBalance = 0;
+    var balances = [];
+    checks.forEach(function(chk) {
+        var row = chk.closest('.pay-inv-row');
+        var balText = row.querySelector('.inv-bal-num').textContent.replace(/,/g,'');
+        var bal = parseFloat(balText) || 0;
+        balances.push({chk: chk, row: row, bal: bal});
+        totalBalance += bal;
+    });
+    if (totalBalance === 0) return;
+    var allocated = 0;
+    balances.forEach(function(b, idx) {
+        var allocInput = b.row.querySelector('.alloc-amt');
+        var amt;
+        if (idx === balances.length - 1) {
+            amt = Math.round((total - allocated) * 100) / 100;
+        } else {
+            amt = Math.round(total * (b.bal / totalBalance) * 100) / 100;
+        }
+        allocInput.value = amt.toFixed(2);
+        allocated += amt;
+    });
+    syncTotal();
+}
+function syncTotal() {
+    var allocs = document.querySelectorAll('.alloc-amt');
+    var total = parseFloat(document.getElementById('totalAmount').value) || 0;
+    var sum = 0;
+    allocs.forEach(function(inp) {
+        sum += parseFloat(inp.value) || 0;
+    });
+    document.getElementById('allocatedTotal').textContent = sum.toFixed(2);
+    document.getElementById('unallocatedTotal').textContent = (total - sum).toFixed(2);
+}
+</script>
+{% endblock %}

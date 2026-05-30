@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Add Quotation{% endblock %}
+{% block page_title %}Quotation{% endblock %}
+
+{% block content %}
+<div class="form-shell" style="max-width:760px">
+    <div class="profile-card">
+        <div style="margin-bottom:14px">
+            <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='quotations') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        </div>
+        <h3 style="margin:0 0 2px">Add Quotation</h3>
+        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 16px">Supplier: <strong>{{ s.supplier_name }}</strong></p>
+
+        <form method="POST" enctype="multipart/form-data" id="quotationForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;background:#f8f9fa;padding:14px;border-radius:10px;border:1px solid #eee">
+                <div class="form-row" style="margin:0">
+                    <label class="form-label">Quotation No. *</label>
+                    <input type="text" name="quotation_no" value="{{ quotation.quotation_no or '' }}" class="form-control" required placeholder="e.g. QTN-2024-001">
+                </div>
+                <div class="form-row" style="margin:0">
+                    <label class="form-label">Quotation Date *</label>
+                    <input type="date" name="quotation_date" value="{{ quotation.quotation_date or '' }}" class="form-control" required>
+                </div>
+            </div>
+
+            {# ─── Line Items ─── #}
+            <h4 style="margin:0 0 6px;font-size:0.9rem;font-weight:600">Line Items</h4>
+            <p style="font-size:0.75rem;color:var(--muted);margin:0 0 10px">Each row = one service/item. For double shift, add two rows (day + night).</p>
+            <div class="table-wrap" style="margin-bottom:10px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
+                <table class="smart-table" id="itemsTable" style="margin:0">
+                    <thead>
+                        <tr>
+                            <th style="width:28px;padding:6px 4px;font-size:0.7rem">#</th>
+                            <th style="padding:6px 8px;font-size:0.7rem">Description *</th>
+                            <th style="width:55px;padding:6px 4px;font-size:0.7rem">QTY</th>
+                            <th style="width:80px;padding:6px 4px;font-size:0.7rem">Basis</th>
+                            <th style="width:80px;padding:6px 4px;font-size:0.7rem">Rate (AED)</th>
+                            <th style="width:80px;padding:6px 4px;font-size:0.7rem">Amount</th>
+                            <th style="width:28px;padding:6px 4px;font-size:0.7rem"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody"></tbody>
+                </table>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="addRow()" style="margin-bottom:16px">+ Add Item</button>
+
+            <div style="text-align:right;font-size:1.05rem;font-weight:700;padding:10px 14px;background:#eef3f8;border-radius:8px;margin-bottom:16px;border:1px solid #dde4ec">
+                Total: AED <span id="totalAmount">0.00</span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;background:#f8f9fa;padding:14px;border-radius:10px;border:1px solid #eee">
+                <div class="form-row" style="margin:0;grid-column:1/-1">
+                    <label class="form-label">Description / Scope of Work</label>
+                    <textarea name="description" class="form-control" rows="2" placeholder="Overall scope notes...">{{ quotation.description or '' }}</textarea>
+                </div>
+                <div class="form-row" style="margin:0;grid-column:1/-1">
+                    <label class="form-label">Upload Quotation File (PDF/Image)</label>
+                    <input type="file" name="file" accept="image/*,.pdf" class="form-control">
+                </div>
+                <div class="form-row" style="margin:0;grid-column:1/-1">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2">{{ quotation.notes or '' }}</textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="padding:10px 28px">Add Quotation</button>
+        </form>
+    </div>
+</div>
+
+<style>
+.item-row td { padding:5px 4px !important; vertical-align:middle; }
+.item-row input, .item-row select { font-size:0.78rem !important; padding:5px 7px !important; height:32px !important; box-sizing:border-box; }
+.item-row input[readonly] { background:#f5f6f7; cursor:default; font-weight:600; }
+</style>
+
+<script>
+function calcRow(el) {
+    var row = el.closest('tr');
+    var qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+    var rate = parseFloat(row.querySelector('.item-rate').value) || 0;
+    row.querySelector('.item-amount').value = (qty * rate).toFixed(2);
+    calcTotal();
+}
+
+function calcTotal() {
+    var total = 0;
+    document.querySelectorAll('.item-amount').forEach(function(el) {
+        total += parseFloat(el.value) || 0;
+    });
+    document.getElementById('totalAmount').textContent = total.toFixed(2);
+}
+
+function addRow(data) {
+    var tbody = document.getElementById('itemsBody');
+    var row = document.createElement('tr');
+    row.className = 'item-row';
+    var desc = data ? (data.description || '') : '';
+    var qty = data ? (data.qty || '1') : '1';
+    var basis = data ? (data.basis_type || 'trip') : 'trip';
+    var rate = data ? (data.day_rate || data.rate || 0) : 0;
+
+    row.innerHTML = `
+        <td class="row-num" style="text-align:center;font-weight:600;font-size:0.78rem;color:#888">${tbody.children.length+1}</td>
+        <td><input type="text" name="item_desc[]" class="form-control" value="${desc}" required placeholder="Service/item description"></td>
+        <td><input type="number" name="item_qty[]" class="form-control item-qty" value="${qty}" min="0" step="any" oninput="calcRow(this)" style="text-align:center"></td>
+        <td><select name="item_basis[]" class="form-control item-basis"><option value="trip" ${basis==='trip'?'selected':''}>Trip</option><option value="hour" ${basis==='hour'?'selected':''}>Hour</option><option value="monthly" ${basis==='monthly'?'selected':''}>Monthly</option><option value="fixed" ${basis==='fixed'?'selected':''}>Fixed</option><option value="other" ${basis==='other'?'selected':''}>Other</option></select></td>
+        <td><input type="number" name="item_rate[]" class="form-control item-rate" value="${rate}" min="0" step="any" oninput="calcRow(this)" style="text-align:right"></td>
+        <td><input type="text" class="form-control item-amount" readonly style="text-align:right" value="0.00"></td>
+        <td style="text-align:center"><button type="button" class="btn btn-xs btn-outline" style="color:#e65100;padding:2px 5px;font-size:0.7rem" onclick="removeRow(this)">✕</button></td>
+    `;
+    tbody.appendChild(row);
+    calcRow(row.querySelector('.item-rate'));
+}
+
+function removeRow(btn) {
+    if (document.querySelectorAll('#itemsBody .item-row').length <= 1) return;
+    btn.closest('tr').remove();
+    renumber();
+    calcTotal();
+}
+
+function renumber() {
+    document.querySelectorAll('#itemsBody .row-num').forEach(function(el, i) { el.textContent = i + 1; });
+}
+
+addRow();
+</script>
+{% endblock %}

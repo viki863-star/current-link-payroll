@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}{{ s.full_name }} — Staff Profile{% endblock %}
+{% block body_class %}profile-body{% endblock %}
+{% block page_title %}Staff Profile{% endblock %}
+
+{% block content %}
+<style>
+.sp-container { max-width:900px; margin:0 auto; }
+.sp-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+.sp-name { margin:0; font-size:1.3rem; font-weight:700; }
+.sp-id { font-size:0.8rem; color:var(--muted); font-family:monospace; }
+.sp-summary { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+.sp-card { flex:1; min-width:110px; border-radius:18px; padding:18px 12px; text-align:center; position:relative; overflow:hidden; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); transition:transform 0.2s, box-shadow 0.2s; }
+.sp-card:active { transform:scale(0.96); }
+.sp-card-orange { background:linear-gradient(145deg, #ff8a1f, #e67600); box-shadow:0 8px 25px rgba(230,118,0,0.35), inset 0 1px 0 rgba(255,255,255,0.3); border:none; }
+.sp-card-red { background:linear-gradient(145deg, #dc3545, #b91c2e); box-shadow:0 8px 25px rgba(220,53,69,0.35), inset 0 1px 0 rgba(255,255,255,0.25); border:none; }
+.sp-card-blue { background:linear-gradient(145deg, #1c568b, #0f3a6b); box-shadow:0 8px 25px rgba(28,86,139,0.35), inset 0 1px 0 rgba(255,255,255,0.2); border:none; }
+.sp-card-default { background:var(--surface); border:1px solid var(--line); box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+.sp-card-shine { position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%); pointer-events:none; border-radius:18px 18px 0 0; }
+.sp-card-label { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; position:relative; z-index:1; }
+.sp-card-label.light { color:rgba(255,255,255,0.85); }
+.sp-card-label.dark { color:var(--muted); }
+.sp-card-value { font-size:1.2rem; font-weight:800; position:relative; z-index:1; }
+.sp-card-value.light { color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.sp-card-value.dark { color:var(--text); }
+.sp-section { margin-bottom:20px; }
+.sp-section-title { font-size:0.95rem; font-weight:700; margin:0 0 12px; display:flex; align-items:center; gap:8px; }
+.sp-section-title .badge { font-size:0.7rem; }
+</style>
+
+<div class="sp-container">
+    <div class="sp-header">
+        <div>
+            <h1 class="sp-name">{{ s.full_name }}</h1>
+            <span class="sp-id">{{ s.staff_id }} · {{ s.phone or '—' }} · {{ s.username }}</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="{{ url_for('fleet.fleet_staff_edit', staff_id=s.staff_id) }}" class="btn btn-sm btn-outline">Edit</a>
+            <a href="{{ url_for('fleet.fleet_staff_receipts', staff_id=s.staff_id) }}" class="btn btn-sm btn-primary">Add Cash</a>
+            <a href="{{ url_for('fleet.fleet_staff_list') }}" class="btn btn-sm btn-outline">&larr; Back</a>
+        </div>
+    </div>
+
+    <div class="sp-summary">
+        <div class="sp-card sp-card-orange" onclick="toggleDetail('advancesSection')" style="cursor:pointer">
+            <div class="sp-card-shine"></div>
+            <div class="sp-card-label light">Advances</div>
+            <div class="sp-card-value light">AED {{ "%.0f"|format(total_advances) }}</div>
+        </div>
+        <div class="sp-card sp-card-red">
+            <div class="sp-card-shine"></div>
+            <div class="sp-card-label light">Spent</div>
+            <div class="sp-card-value light">AED {{ "%.0f"|format(total_spent) }}</div>
+        </div>
+        <div class="sp-card sp-card-blue">
+            <div class="sp-card-shine"></div>
+            <div class="sp-card-label light">{% if balance >= 0 %}Remaining{% else %}Due{% endif %}</div>
+            <div class="sp-card-value light">AED {{ "%.0f"|format(balance * -1 if balance < 0 else balance) }}</div>
+        </div>
+    </div>
+
+    {% if advances %}
+    <div id="advancesSection" class="profile-card sp-section" style="display:none">
+        <h3 class="sp-section-title">Advances Given <span class="badge badge-dept">{{ advances|length }}</span></h3>
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>Date</th><th>Amount</th><th>Reference</th><th>Source</th><th>Notes</th></tr></thead>
+                <tbody>
+                    {% for a in advances %}
+                    <tr>
+                        <td class="mono">{{ a.entry_date }}</td>
+                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(a.amount) }}</td>
+                        <td>{{ a.reference or '-' }}</td>
+                        <td>{{ a.funding_source }}</td>
+                        <td>{{ a.notes or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if jobs %}
+    <div class="profile-card sp-section">
+        <h3 class="sp-section-title">Portal Jobs <span class="badge badge-dept">{{ jobs|length }}</span></h3>
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>Date</th><th>Vehicle</th><th>Amount</th><th>Category</th><th>Description</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for j in jobs %}
+                    <tr class="clickable-row" onclick="window.location='/fleet/vehicles/{{ j.vehicle_id }}?tab=jobs&highlight={{ j.id }}'">
+                        <td class="mono">{{ j.created_at.strftime("%Y-%m-%d") }}</td>
+                        <td>{{ j.vehicle_id }}</td>
+                        <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(j.amount) }}</td>
+                        <td><span class="badge badge-type">{{ j.category }}</span></td>
+                        <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
+                        <td><span class="status-badge {{ j.status }}">{{ j.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if papers %}
+    <div class="profile-card sp-section">
+        <h3 class="sp-section-title">Maintenance Papers <span class="badge badge-dept">{{ papers|length }}</span></h3>
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>Date</th><th>Vehicle</th><th>Amount</th><th>Description</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    {% for p in papers %}
+                    <tr class="clickable-row" onclick="window.location='/fleet/vehicles/{{ p.vehicle_id }}?tab=jobs&highlight={{ p.id }}'">
+                        <td class="mono">{{ (p.created_at or '')|string|truncate(10, True, '') }}</td>
+                        <td>{{ p.vehicle_id or '-' }}</td>
+                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(p.amount|float) }}</td>
+                        <td style="max-width:200px;white-space:normal">{{ p.description or '-' }}</td>
+                        <td><span class="status-badge {{ p.status|lower }}">{{ p.status }}</span></td>
+                        <td><span style="font-size:0.72rem;color:var(--muted)">&#9654; View in Vehicle</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if receipts %}
+    <div class="profile-card sp-section">
+        <h3 class="sp-section-title">Cash Receipts <span class="badge badge-dept">{{ receipts|length }}</span></h3>
+        <div class="table-wrap">
+            <table class="smart-table" id="receiptsTable">
+                <thead><tr><th>Date</th><th>Given By</th><th>Amount</th><th>Notes</th><th></th></tr></thead>
+                <tbody>
+                    {% for r in receipts %}
+                    <tr class="clickable-row" onclick="toggleDetail('receipt-detail-{{ r.id }}')">
+                        <td class="mono">{{ r.receipt_date }}</td>
+                        <td>{{ r.given_by }}</td>
+                        <td class="mono" style="font-weight:600;color:#1a7a4e">AED {{ "%.0f"|format(r.amount) }}</td>
+                        <td>{{ r.notes or '-' }}</td>
+                        <td>
+                            <form method="post" action="{{ url_for('fleet.fleet_staff_receipt_delete', staff_id=s.staff_id, receipt_id=r.id) }}" style="display:inline" onsubmit="return confirm('Delete this receipt?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-xs btn-outline" style="color:#ef4444;border-color:#ef4444">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr id="receipt-detail-{{ r.id }}" style="display:none">
+                        <td colspan="5" style="padding:12px 16px;background:#f8fafd">
+                            <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:0.85rem">
+                                <div><strong>Amount:</strong> AED {{ "%.0f"|format(r.amount) }}</div>
+                                <div><strong>Given By:</strong> {{ r.given_by }}</div>
+                                <div><strong>Date:</strong> {{ r.receipt_date }}</div>
+                                <div><strong>Notes:</strong> {{ r.notes or '—' }}</div>
+                                <div><strong>Created:</strong> {{ r.created_at.strftime("%Y-%m-%d") if r.created_at else '—' }}</div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+<script>
+function toggleDetail(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var tag = el.tagName.toLowerCase();
+    if (tag === 'tr') {
+        el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+    } else {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+}
+</script>
+
+    {% if not jobs and not papers and not receipts and not advances %}
+    <div class="profile-card" style="text-align:center;padding:40px">
+        <p style="color:var(--muted);margin:0">No activity for this staff member yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

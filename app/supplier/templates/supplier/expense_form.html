@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Add Expense{% endblock %}
+{% block page_title %}Add Expense{% endblock %}
+
+{% block content %}
+<div class="form-shell" style="max-width:550px">
+    <div class="profile-card">
+        <div style="margin-bottom:16px">
+            <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='expenses') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        </div>
+        <h3>Add Expense / Earning</h3>
+        <p style="color:var(--muted);font-size:0.85rem">Supplier: <strong>{{ s.supplier_name }}</strong></p>
+
+        <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-row">
+                <label class="form-label">Date</label>
+                <input type="date" name="expense_date" value="{{ date.today().isoformat() }}" class="form-control">
+            </div>
+
+            <div class="form-row">
+                <label class="form-label">Type *</label>
+                <select name="earning_type" class="form-control" id="earningType" onchange="toggleEarningType()" required>
+                    <option value="fixed" {% if exp.earning_type == 'fixed' or not exp.earning_type %}selected{% endif %}>Fixed Amount</option>
+                    <option value="trip" {% if exp.earning_type == 'trip' %}selected{% endif %}>Trips</option>
+                    <option value="hour" {% if exp.earning_type == 'hour' %}selected{% endif %}>Hours</option>
+                </select>
+            </div>
+
+            <div id="fixedFields">
+                <div class="form-row">
+                    <label class="form-label">Amount *</label>
+                    <input type="number" name="amount" value="{{ exp.amount or '' }}" class="form-control" step="0.01" min="0" id="fixedAmount">
+                </div>
+            </div>
+
+            <div id="qtyFields" style="display:none">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="form-row">
+                        <label class="form-label" id="qtyLabel">Trip Count</label>
+                        <input type="number" name="quantity" value="{{ exp.quantity or '' }}" class="form-control" step="0.01" min="0" id="qtyInput" oninput="calcTotal()">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label" id="rateLabel">Rate per Trip</label>
+                        <input type="number" name="rate" value="{{ exp.rate or '' }}" class="form-control" step="0.01" min="0" id="rateInput" oninput="calcTotal()">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Total Amount</label>
+                    <input type="text" id="totalDisplay" class="form-control" style="background:#f5f7fa;font-weight:700;font-size:1.1rem" readonly>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label class="form-label">Category *</label>
+                <select name="category" class="form-control" required>
+                    <option value="">Select category</option>
+                    {% for c in ['Food','Fuel','Stationery','Cleaning','Safety','Transport','Tools','Other'] %}
+                    <option value="{{ c }}" {% if exp.category == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="2">{{ exp.description or '' }}</textarea>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Fund Source</label>
+                <select name="fund_source" class="form-control">
+                    <option value="cash_bank">Cash / Bank</option>
+                    <option value="owner_fund">Owner Fund</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Receipt / Photo</label>
+                <input type="file" name="receipt" accept="image/*,.pdf" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:8px">Add Expense</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleEarningType() {
+    var t = document.getElementById('earningType').value;
+    document.getElementById('fixedFields').style.display = (t === 'fixed') ? '' : 'none';
+    document.getElementById('qtyFields').style.display = (t === 'fixed') ? 'none' : '';
+    document.getElementById('fixedAmount').required = (t === 'fixed');
+    document.getElementById('qtyInput').required = (t !== 'fixed');
+    document.getElementById('rateInput').required = (t !== 'fixed');
+    var qtyLabel = document.getElementById('qtyLabel');
+    var rateLabel = document.getElementById('rateLabel');
+    if (t === 'trip') {
+        qtyLabel.textContent = 'Trip Count';
+        rateLabel.textContent = 'Rate per Trip';
+    } else if (t === 'hour') {
+        qtyLabel.textContent = 'Hours';
+        rateLabel.textContent = 'Rate per Hour';
+    }
+    calcTotal();
+}
+function calcTotal() {
+    var qty = parseFloat(document.getElementById('qtyInput').value) || 0;
+    var rate = parseFloat(document.getElementById('rateInput').value) || 0;
+    document.getElementById('totalDisplay').value = (qty * rate).toFixed(2);
+}
+toggleEarningType();
+</script>
+{% endblock %}

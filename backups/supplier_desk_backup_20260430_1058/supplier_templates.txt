@@ -1,0 +1,22 @@
+Supplier-related templates:
+==================================================
+app/templates\admin_supplier_quotations.html
+app/templates\cash_suppliers_clean.html
+app/templates\cash_supplier_cards.html
+app/templates\suppliers.html
+app/templates\suppliers_online_cards.html
+app/templates\supplier_activate.html
+app/templates\supplier_cards.html
+app/templates\supplier_desk_form.html
+app/templates\supplier_desk_home.html
+app/templates\supplier_detail.html
+app/templates\supplier_forgot_password.html
+app/templates\supplier_login.html
+app/templates\supplier_mode_cards.html
+app/templates\supplier_mode_register.html
+app/templates\supplier_online_register.html
+app/templates\supplier_portal.html
+app/templates\supplier_portal.zip
+app/templates\supplier_quotations.html
+app/templates\supplier_register.html
+app/templates\supplier_registrations.html

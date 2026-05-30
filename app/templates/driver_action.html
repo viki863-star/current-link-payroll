@@ -1,0 +1,763 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card statement-desk-shell">
+    <div class="panel-titlebar statement-desk-bar">
+        <span>{{ config["COMPANY_NAME"] }}</span>
+        <span>Driver Statement Desk</span>
+    </div>
+
+    <div class="statement-hero">
+        <div class="statement-identity-card">
+            <div class="statement-photo-wrap">
+                {% if photo_url %}
+                    <img class="statement-photo" src="{{ photo_url }}" alt="{{ driver.full_name }}">
+                {% else %}
+                    <div class="statement-photo statement-photo-placeholder">NO PHOTO</div>
+                {% endif %}
+                <div class="statement-month-flag {{ salary_status|lower|replace(' ', '-') }}">{{ current_month_label }} | {{ salary_status }}</div>
+            </div>
+
+            <div class="statement-identity-copy">
+                <p class="statement-eyebrow">Driver Statement</p>
+                <h1>{{ driver.full_name }}</h1>
+                <div class="statement-tags">
+                    <span>Driver ID {{ driver.driver_id }}</span>
+                    <span>{{ driver.shift }}</span>
+                    <span>{{ driver.status }}</span>
+                </div>
+                <p class="statement-intro">Simple monthly statement with salary, unrecovered received amount, and remaining salary.</p>
+            </div>
+        </div>
+
+        <div class="statement-month-card">
+            <form method="get" class="statement-month-form">
+                <label>
+                    <span>Statement Month</span>
+                    <input type="month" name="kata_month" value="{{ selected_kata_month }}">
+                </label>
+                <button class="button button-secondary" type="submit">Open Month</button>
+            </form>
+            <div class="statement-month-note">Selected month: {{ selected_kata_month_label }}</div>
+        </div>
+    </div>
+
+    <div class="statement-actions-primary">
+        <a class="button action-button navy" href="{{ url_for('driver_transactions', driver_id=driver.driver_id) }}">Deductions</a>
+        <a class="button action-button orange" href="{{ url_for('driver_salary_store', driver_id=driver.driver_id) }}">Salary Store</a>
+        <a class="button action-button green" href="{{ url_for('driver_salary_slip', driver_id=driver.driver_id) }}">Salary Statement</a>
+        <a class="button action-button slate" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, month=selected_kata_month) }}">Monthly Statement PDF</a>
+    </div>
+
+    <div class="statement-actions-secondary">
+        <a class="button button-secondary" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, mode='full') }}">Full KATA PDF</a>
+        <a class="button button-secondary" href="{{ url_for('driver_timesheet_pdf', driver_id=driver.driver_id) }}" target="_blank">Timesheet PDF</a>
+        <a class="button button-secondary" href="{{ url_for('edit_driver', driver_id=driver.driver_id) }}">Edit Driver</a>
+        <form method="post" action="{{ url_for('delete_driver', driver_id=driver.driver_id) }}" onsubmit="return confirm('Delete this driver and all related records?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="button button-secondary danger-lite" type="submit">Delete Driver</button>
+        </form>
+    </div>
+</section>
+
+<section class="card statement-table-panel">
+    <div class="section-heading slim-heading">
+        <div>
+            <p class="eyebrow">Monthly Statement</p>
+            <h2>Driver Statement</h2>
+        </div>
+    </div>
+
+    <div class="paper-statement-layout statement-three-col">
+        <article class="paper-hisaab-card">
+            <div class="paper-card-header">
+                <span>Salary Summary | {{ kata_summary.month_label }}</span>
+                <span>Driver ID {{ driver.driver_id }}</span>
+            </div>
+            <div class="paper-hisaab-lines">
+                <div class="paper-line"><span>Previous Balance</span><strong>AED {{ "%.2f"|format(kata_summary.previous_balance) }}</strong></div>
+                <div class="paper-line plus"><span>Salary</span><strong>AED {{ "%.2f"|format(kata_summary.salary_total or kata_summary.salary_amount) }}</strong></div>
+                <div class="paper-line plus"><span>Extra / OT</span><strong>AED {{ "%.2f"|format(kata_summary.extra_total or 0) }}</strong></div>
+                <div class="paper-line total"><span>Total Salary</span><strong>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</strong></div>
+            </div>
+        </article>
+
+        <article class="paper-detail-card remaining-card">
+            <div class="paper-card-header">
+                <span>Remaining Salary</span>
+                <span>{{ kata_summary.month_label }}</span>
+            </div>
+            <div class="remaining-salary-box">
+                <div class="remaining-salary-label">Remaining Salary</div>
+                <div class="remaining-salary-value">AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</div>
+            </div>
+            <div class="remaining-salary-equation">
+                <div><span>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</span><small>Total Salary</small></div>
+                <strong>-</strong>
+                <div><span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span><small>Not Yet Deducted</small></div>
+                <strong>=</strong>
+                <div><span>AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</span><small>Remaining Salary</small></div>
+            </div>
+        </article>
+
+        <article class="paper-detail-card">
+            <div class="paper-card-header">
+                <span>Received Not Yet Deducted</span>
+                <span>Total AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span>
+            </div>
+            <div class="paper-mini-list">
+                {% if kata_detail_entries %}
+                    {% for item in kata_detail_entries[:6] %}
+                        <div class="paper-mini-row statement-detail-row">
+                            <div class="statement-detail-meta">
+                                <span class="statement-detail-date">{{ item.date }}</span>
+                                <small>{{ item.given_by or item.paid_by or "-" }}</small>
+                            </div>
+                            <span>{{ item.details or item.reason or "-" }}</span>
+                            <strong>AED {{ "%.2f"|format(item.amount) }}</strong>
+                        </div>
+                    {% endfor %}
+                    <div class="paper-mini-row statement-total-mini-row">
+                        <span>Total Received</span>
+                        <span></span>
+                        <strong>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</strong>
+                    </div>
+                {% else %}
+                    <p class="muted-text">No unrecovered cash entries for this month.</p>
+                {% endif %}
+            </div>
+        </article>
+    </div>
+
+    {% if kata_detail_entries %}
+        <div class="section-heading slim-heading statement-detail-heading">
+            <div>
+                <p class="eyebrow">Detail</p>
+                <h2>Received Not Yet Deducted</h2>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table class="driver-kata-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Given By</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in kata_detail_entries %}
+                        <tr>
+                            <td>{{ item.date }}</td>
+                            <td class="driver-kata-amount">AED {{ "%.2f"|format(item.amount) }}</td>
+                            <td class="driver-kata-who">{{ item.given_by or item.paid_by or "-" }}</td>
+                            <td class="driver-kata-details">{{ item.details or item.reason or "-" }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr class="statement-total-row">
+                        <td><strong>Total</strong></td>
+                        <td class="driver-kata-amount"><strong>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</strong></td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="muted-text">No unrecovered cash entries for this month.</p>
+    {% endif %}
+</section>
+
+<style>
+.statement-desk-shell {
+    border-radius: 26px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at top right, rgba(28, 86, 139, 0.10), transparent 28%),
+        linear-gradient(180deg, #ffffff, #f5f9fd 88%);
+}
+
+.statement-desk-bar {
+    padding: 16px 24px;
+    background: linear-gradient(90deg, #1c568b, #194c79 58%, #1e4168);
+}
+
+.statement-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.7fr);
+    gap: 18px;
+    padding: 22px 22px 16px;
+}
+
+.statement-identity-card,
+.statement-month-card {
+    border: 1px solid rgba(21, 51, 93, 0.10);
+    border-radius: 22px;
+    background: linear-gradient(180deg, #ffffff, #f7fbff);
+    box-shadow: 0 14px 26px rgba(21, 51, 93, 0.06);
+}
+
+.statement-identity-card {
+    display: grid;
+    grid-template-columns: 164px minmax(0, 1fr);
+    gap: 18px;
+    padding: 18px;
+}
+
+.statement-photo-wrap {
+    position: relative;
+}
+
+.statement-photo {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 18px;
+    border: 1px solid rgba(21, 51, 93, 0.08);
+    background: linear-gradient(180deg, #eef4fb, #dfe9f5);
+}
+
+.statement-photo-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    font-weight: 800;
+}
+
+.statement-month-flag {
+    margin-top: 10px;
+}
+
+.statement-identity-copy h1 {
+    margin: 4px 0 10px;
+    color: var(--primary-dark);
+    font-size: 2rem;
+}
+
+.statement-eyebrow {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary);
+}
+
+.statement-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.statement-tags span {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #e9f1fb;
+    color: var(--primary);
+    font-size: 0.84rem;
+    font-weight: 800;
+}
+
+.statement-intro {
+    margin: 0;
+    max-width: 58ch;
+    color: var(--muted-text);
+    line-height: 1.6;
+}
+
+.statement-month-card {
+    padding: 18px;
+}
+
+.statement-month-form {
+    display: grid;
+    gap: 14px;
+}
+
+.statement-month-form label {
+    display: grid;
+    gap: 8px;
+}
+
+.statement-month-form span {
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--primary-dark);
+}
+
+.statement-month-note {
+    margin-top: 14px;
+    padding: 14px 15px;
+    border-radius: 16px;
+    background: #edf4fb;
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.statement-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    padding: 0 22px 18px;
+}
+
+.statement-stat {
+    padding: 18px 18px 20px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, #ffffff, #f7fbff);
+    border: 1px solid rgba(21, 51, 93, 0.10);
+    box-shadow: 0 14px 24px rgba(21, 51, 93, 0.05);
+}
+
+.statement-stat span {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 10px;
+}
+
+.statement-stat strong {
+    color: var(--primary-dark);
+    font-size: 1.5rem;
+    line-height: 1.2;
+}
+
+.statement-stat.primary {
+    background: linear-gradient(135deg, #1c568b, #194c79);
+}
+
+.statement-stat.primary span,
+.statement-stat.primary strong {
+    color: #ffffff;
+}
+
+.statement-stat.accent {
+    background: linear-gradient(180deg, #fff7ea, #fff1d9);
+}
+
+.statement-subfacts {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+    padding: 0 22px 20px;
+}
+
+.statement-subfacts > div,
+.statement-panel-summary > div {
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(21, 51, 93, 0.09);
+    background: #ffffff;
+}
+
+.statement-subfacts dt,
+.statement-panel-summary dt {
+    color: var(--muted-text);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+
+.statement-subfacts dd,
+.statement-panel-summary dd {
+    margin: 0;
+    color: var(--primary-dark);
+    font-weight: 800;
+}
+
+.statement-actions-primary,
+.statement-actions-secondary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 0 22px 16px;
+}
+
+.statement-actions-primary .action-button {
+    min-height: 48px;
+    border-radius: 14px;
+    box-shadow: 0 10px 18px rgba(21, 51, 93, 0.10);
+    font-weight: 800;
+}
+
+.statement-actions-secondary {
+    padding-top: 0;
+    padding-bottom: 22px;
+}
+
+.danger-lite {
+    border-color: rgba(176, 43, 43, 0.25);
+    color: #a43333;
+}
+
+.statement-support-grid .info-card,
+.statement-table-panel {
+    border-radius: 22px;
+}
+
+.statement-table-panel {
+    padding: 18px;
+}
+
+.closed-statement-block {
+    margin-bottom: 18px;
+    padding: 16px;
+    border: 1px dashed rgba(21, 51, 93, 0.18);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(247, 250, 253, 0.95), rgba(241, 246, 251, 0.98));
+}
+
+.closed-statement-note {
+    margin-bottom: 12px;
+    color: var(--muted-text);
+    font-size: 0.92rem;
+}
+
+.paper-statement-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.statement-three-col {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.78fr) minmax(0, 1fr);
+}
+
+.paper-hisaab-card,
+.paper-detail-card {
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(21, 51, 93, 0.10);
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,249,253,0.98)),
+        repeating-linear-gradient(
+            180deg,
+            transparent 0,
+            transparent 31px,
+            rgba(38, 86, 142, 0.06) 31px,
+            rgba(38, 86, 142, 0.06) 32px
+        );
+    box-shadow: 0 12px 24px rgba(21, 51, 93, 0.05);
+}
+
+.paper-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(21, 51, 93, 0.18);
+    color: var(--primary);
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.paper-hisaab-lines {
+    display: grid;
+    gap: 10px;
+}
+
+.paper-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    font-size: 1rem;
+}
+
+.paper-line span {
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+
+.paper-line strong {
+    color: var(--primary-dark);
+    font-size: 1.06rem;
+}
+
+.paper-line.plus strong { color: #1d5c99; }
+.paper-line.minus strong { color: #b96d0f; }
+
+.paper-line.total,
+.paper-line.balance {
+    padding-top: 10px;
+    border-top: 1px solid rgba(21, 51, 93, 0.12);
+}
+
+.paper-line.balance strong {
+    color: #0f5f46;
+    font-size: 1.18rem;
+}
+
+.remaining-card {
+    display: grid;
+    align-content: start;
+}
+
+.remaining-salary-box {
+    padding: 18px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #1d5c99, #173f66);
+    color: #fff;
+    text-align: center;
+    box-shadow: 0 14px 28px rgba(23, 63, 102, 0.22);
+}
+
+.remaining-salary-label {
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.88;
+}
+
+.remaining-salary-value {
+    margin-top: 10px;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.remaining-salary-formula {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    opacity: 0.92;
+}
+
+.remaining-salary-equation {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed rgba(21, 51, 93, 0.14);
+}
+
+.remaining-salary-equation div {
+    display: grid;
+    gap: 4px;
+    text-align: center;
+}
+
+.remaining-salary-equation span {
+    color: var(--primary-dark);
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.remaining-salary-equation small {
+    color: var(--muted-text);
+    font-size: 0.8rem;
+    line-height: 1.25;
+}
+
+.remaining-salary-equation strong {
+    color: var(--primary);
+    font-size: 1.15rem;
+}
+
+.paper-mini-list {
+    display: grid;
+    gap: 10px;
+}
+
+.paper-mini-row {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: start;
+    font-size: 0.95rem;
+}
+
+.paper-mini-row span {
+    color: var(--primary-dark);
+}
+
+.paper-mini-row strong {
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+.statement-detail-row {
+    grid-template-columns: 118px minmax(0, 1fr) auto;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(21, 51, 93, 0.14);
+}
+
+.statement-detail-meta {
+    display: grid;
+    gap: 3px;
+}
+
+.statement-detail-date {
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+
+.statement-detail-meta small {
+    color: var(--muted-text);
+    font-size: 0.78rem;
+    line-height: 1.3;
+}
+
+.statement-total-mini-row {
+    padding-top: 10px;
+    border-top: 1px solid rgba(21, 51, 93, 0.14);
+    border-bottom: 0;
+}
+
+.statement-total-mini-row span,
+.statement-total-mini-row strong {
+    font-weight: 800;
+}
+
+.paper-summary-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.statement-detail-heading {
+    margin-top: 8px;
+}
+
+.statement-panel-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.driver-kata-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.94rem;
+}
+
+.driver-kata-table th,
+.driver-kata-table td {
+    padding: 12px 10px;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+}
+
+.driver-kata-table thead th {
+    background: linear-gradient(180deg, #eef4fb, #e3ecf7);
+    color: var(--primary);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.driver-kata-amount,
+.driver-kata-who,
+.driver-kata-balance,
+.driver-kata-details {
+    font-weight: 700;
+}
+
+.driver-kata-details {
+    min-width: 280px;
+    max-width: 520px;
+}
+
+.statement-total-row td {
+    border-top: 1px solid rgba(21, 51, 93, 0.14);
+    background: rgba(238, 244, 251, 0.55);
+}
+
+.closed-kata-table {
+    opacity: 0.68;
+}
+
+.closed-kata-table .closed-row td {
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+}
+
+@media (max-width: 1100px) {
+    .statement-hero,
+    .statement-summary-strip,
+    .statement-subfacts,
+    .statement-panel-summary,
+    .paper-statement-layout {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .statement-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .remaining-salary-equation {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 820px) {
+    .statement-identity-card {
+        grid-template-columns: 1fr;
+    }
+
+    .statement-photo {
+        height: 220px;
+    }
+
+    .statement-subfacts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .statement-desk-bar {
+        padding: 14px 18px;
+        font-size: 0.88rem;
+    }
+
+    .statement-hero,
+    .statement-summary-strip,
+    .statement-subfacts,
+    .statement-actions-primary,
+    .statement-actions-secondary {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .statement-summary-strip,
+    .statement-subfacts,
+    .statement-panel-summary,
+    .paper-statement-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .driver-kata-table {
+        font-size: 0.88rem;
+    }
+
+    .driver-kata-table th,
+    .driver-kata-table td {
+        padding: 10px 8px;
+    }
+
+    .driver-kata-details {
+        min-width: 220px;
+        max-width: 100%;
+    }
+
+    .statement-detail-row {
+        grid-template-columns: 1fr;
+    }
+
+}
+</style>
+{% endblock %}

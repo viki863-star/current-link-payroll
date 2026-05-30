@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Party Master{% endblock %}
+{% block page_title %}Party Master{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+<style>
+.pr-stat { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center; transition:box-shadow 0.15s; }
+.pr-stat:hover { box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+.pr-stat .lbl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
+.pr-stat .val { font-size:1.4rem; font-weight:700; margin-top:6px; }
+</style>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+    <div class="pr-stat">
+        <div class="lbl">Parties</div>
+        <div class="val" style="color:var(--primary)">{{ party_count }}</div>
+    </div>
+    <div class="pr-stat">
+        <div class="lbl">Active</div>
+        <div class="val" style="color:var(--green)">{{ active_count }}</div>
+    </div>
+    <div class="pr-stat">
+        <div class="lbl">Inactive</div>
+        <div class="val" style="color:var(--muted)">{{ inactive_count }}</div>
+    </div>
+</div>
+
+<div class="profile-card" style="margin-bottom:16px">
+    <div class="section-header">
+        <h3>Filter</h3>
+        <a href="{{ url_for('create_party') }}" class="btn btn-primary btn-sm">+ Add Party</a>
+    </div>
+    <form method="get" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:8px">
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Search</label>
+            <input type="search" name="q" value="{{ query }}" placeholder="Code, name, contact..." style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+        </div>
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Status</label>
+            <select name="status" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+                <option value="">All</option>
+                <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Role</label>
+            <select name="role" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+                <option value="">All</option>
+                {% for item in role_options %}
+                <option value="{{ item }}" {% if role_filter == item %}selected{% endif %}>{{ item }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Kind</label>
+            <select name="kind" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+                <option value="">All</option>
+                {% for item in kind_options %}
+                <option value="{{ item }}" {% if kind_filter == item %}selected{% endif %}>{{ item }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:6px">
+            <button type="submit" class="btn btn-sm" style="padding:6px 16px">Filter</button>
+            {% if query or status_filter or role_filter or kind_filter %}
+            <a href="{{ url_for('party_list') }}" class="btn btn-sm btn-outline" style="padding:6px 12px">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<div class="profile-card">
+    {% if parties %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Party</th><th>Kind / Roles</th><th>Contact</th><th>Compliance</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for party in parties %}
+                <tr>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span class="badge badge-type">{{ party.party_code }}</span>
+                            <div><strong>{{ party.party_name }}</strong><div style="font-size:0.72rem;color:var(--muted)">{{ party.contact_person or 'No contact' }}</div></div>
+                        </div>
+                    </td>
+                    <td><span class="badge badge-type">{{ party.party_kind }}</span><br><small style="color:var(--muted)">{{ party.party_roles }}</small></td>
+                    <td><div>{{ party.phone_number or '-' }}</div><small style="color:var(--muted)">{{ party.email or '-' }}</small></td>
+                    <td><small>TRN: {{ party.trn_no or '-' }}</small><br><small>License: {{ party.trade_license_no or '-' }}</small></td>
+                    <td><span class="badge" style="background:{% if party.status == 'Active' %}#22c55e33;color:#16a34a{% else %}#e6510033;color:#e65100{% endif %}">{{ party.status }}</span></td>
+                    <td>
+                        <div style="display:flex;gap:4px">
+                            <a href="{{ url_for('edit_party', party_code=party.party_code) }}" class="btn btn-xs btn-outline">&#9998;</a>
+                            <form method="post" action="{{ url_for('update_party_status', party_code=party.party_code) }}" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="status" value="{{ 'Inactive' if party.status == 'Active' else 'Active' }}">
+                                <button class="btn btn-xs btn-outline" type="submit" style="color:{% if party.status == 'Active' %}#e65100{% else %}var(--green){% endif %}">{{ 'Set Inactive' if party.status == 'Active' else 'Set Active' }}</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}<tr><td colspan="6" class="empty-state">No parties found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}<p class="empty-state">No parties found.</p>{% endif %}
+</div>
+</div>
+{% endblock %}

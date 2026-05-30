@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Upload Document{% endblock %}
+{% block page_title %}Customer Document{% endblock %}
+
+{% block content %}
+<div class="form-shell" style="max-width:500px">
+    <div class="profile-card">
+        <div style="margin-bottom:14px">
+            <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='documents') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        </div>
+        <h3>Upload Document</h3>
+        <p style="color:var(--muted);font-size:0.85rem">Customer: <strong>{{ c.customer_name }}</strong></p>
+
+        <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;gap:12px">
+                <div class="form-row">
+                    <label class="form-label">Document Type</label>
+                    <select name="doc_type" class="form-control">
+                        {% for t in ['Trade License','VAT Certificate','Passport','Contract','Invoice','Other'] %}
+                        <option value="{{ t }}">{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Document Name</label>
+                    <input type="text" name="doc_name" class="form-control" placeholder="e.g. Trade License 2026">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Expiry Date</label>
+                    <input type="date" name="expiry_date" class="form-control">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">File</label>
+                    <input type="file" name="file" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:12px">Upload</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Quotations{% endblock %}
+{% block page_title %}Quotations{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    <div style="margin-bottom:16px">
+        <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" class="btn btn-outline btn-sm">&larr; Back to Profile</a>
+    </div>
+    <div class="profile-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="margin:0;font-size:0.95rem">Quotations — {{ s.supplier_name }}</h3>
+            <a href="{{ url_for('supplier.supplier_quotation_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add Quotation</a>
+        </div>
+        {% if quotations %}
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead><tr><th>Quotation #</th><th>Date</th><th>Amount</th><th>Description</th><th>File</th><th></th></tr></thead>
+                <tbody>
+                    {% for q in quotations %}
+                    <tr>
+                        <td class="mono" style="font-weight:600">{{ q.quotation_no }}</td>
+                        <td class="mono">{{ q.quotation_date }}</td>
+                        <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(q.amount) }}</td>
+                        <td style="font-size:0.78rem;max-width:140px;white-space:normal">{{ q.description or '—' }}</td>
+                        <td>{% if q.file_data %}<a href="{{ url_for('supplier.supplier_quotation_download', sup_id=s.id, q_id=q.id) }}" class="btn btn-xs btn-outline">Download</a>{% else %}—{% endif %}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('supplier.supplier_quotation_delete', sup_id=s.id, q_id=q.id) }}" style="display:inline" onsubmit="return confirm('Delete this quotation?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-xs btn-outline" style="color:#e65100">&#10005;</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">No quotations yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

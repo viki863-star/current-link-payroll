@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Professional Login with Pictures</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Inline critical CSS for faster loading */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; min-height: 100vh; overflow-x: hidden; }
+    </style>
+</head>
+<body class="login-body">
+    
+    <!-- Background with professional picture -->
+    <div class="login-bg">
+        <div class="login-overlay"></div>
+    </div>
+    
+    <div class="login-grid">
+        
+        <!-- LEFT: Branding section with visual elements -->
+        <div class="login-left">
+            
+            <!-- Home button -->
+            <a href="#" class="home-btn">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </a>
+            
+            <!-- Main branding center -->
+            <div class="brand-center">
+                
+                <!-- Visual glow effect -->
+                <div class="brand-glow"></div>
+                
+                <!-- Company name with animation -->
+                <h1 class="company-name">
+                    <span class="word-current">CURRENT</span><br>
+                    <span class="word-link">LINK</span>
+                </h1>
+                
+                <!-- Decorative line -->
+                <div class="accent-line"></div>
+                
+                <!-- Tagline -->
+                <p class="tagline">Transport & General Contracting LLC SPC</p>
+                
+                <!-- Description -->
+                <p class="description">
+                    A smart digital platform for managing workforce, transport operations,
+                    and payroll systems with efficiency, accuracy, and real-time control.
+                </p>
+                
+                <!-- Feature highlights -->
+                <div class="features">
+                    <div class="feature">
+                        <span class="feature-check">✓</span>
+                        <span>Secure & Encrypted Access</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-check">✓</span>
+                        <span>Real-time Updates & Reports</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-check">✓</span>
+                        <span>24/7 System Availability</span>
+                    </div>
+                </div>
+                
+            </div>
+            
+            <!-- Security badge -->
+            <div class="security-badge">
+                <span class="badge-dot">●</span>
+                256-bit SSL · SECURE ENTERPRISE PORTAL
+            </div>
+            
+        </div>
+        
+        <!-- RIGHT: Interactive login panel -->
+        <div class="login-right">
+            <div class="login-panel">
+                
+                <!-- Role selection cards -->
+                <div class="cards-section" id="cardsSection">
+                    <div class="cards-header">
+                        <h2>SELECT YOUR ACCESS ROLE</h2>
+                        <p>Choose your role to continue</p>
+                    </div>
+                    
+                    <div class="cards-grid">
+                        
+                        <!-- Admin Card -->
+                        <div class="role-card" data-role="admin">
+                            <div class="card-bar admin-bar"></div>
+                            <div class="card-body">
+                                <div class="card-icon">
+                                    <i class="fas fa-user-shield"></i>
+                                </div>
+                                <h3>Admin</h3>
+                                <p>Full system control</p>
+                                <div class="card-accent"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Driver Card -->
+                        <div class="role-card" data-role="driver">
+                            <div class="card-bar driver-bar"></div>
+                            <div class="card-body">
+                                <div class="card-icon">
+                                    <i class="fas fa-truck-moving"></i>
+                                </div>
+                                <h3>Driver</h3>
+                                <p>Transport operations</p>
+                                <div class="card-accent"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Supplier Card -->
+                        <div class="role-card" data-role="supplier">
+                            <div class="card-bar supplier-bar"></div>
+                            <div class="card-body">
+                                <div class="card-icon">
+                                    <i class="fas fa-box-open"></i>
+                                </div>
+                                <h3>Supplier</h3>
+                                <p>Supply chain portal</p>
+                                <div class="card-accent"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Staff Card -->
+                        <div class="role-card" data-role="staff">
+                            <div class="card-bar staff-bar"></div>
+                            <div class="card-body">
+                                <div class="card-icon">
+                                    <i class="fas fa-hard-hat"></i>
+                                </div>
+                                <h3>Staff</h3>
+                                <p>Field operations</p>
+                                <div class="card-accent"></div>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    
+                    <div class="cards-footer">
+                        <p class="secure-note">
+                            <i class="fas fa-lock"></i>
+                            All connections encrypted · Session secured
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Login form (hidden initially) -->
+                <div class="form-section" id="formSection">
+                    
+                    <!-- Colored accent strip -->
+                    <div class="form-accent" id="formAccent"></div>
+                    
+                    <div class="form-header">
+                        
+                        <!-- Back button -->
+                        <button class="back-btn" id="backBtn">
+                            <i class="fas fa-chevron-left"></i> ← Back to Roles
+                        </button>
+                        
+                        <!-- Role badge -->
+                        <div class="role-badge" id="roleBadge">
+                            <i id="roleIcon" class="fas fa-user-shield"></i>
+                            <span id="roleLabel">Admin</span>
+                        </div>
+                        
+                        <h3 id="formTitle">Admin Login</h3>
+                        <p id="formSubtitle">Enter your credentials to access the portal</p>
+                        
+                        <!-- Flash messages -->
+                        <div id="flashBox" style="display: none;"></div>
+                        
+                    </div>
+                    
+                    <div class="form-body">
+                        <form id="loginForm" method="post" action="#">
+                            
+                            <input type="hidden" name="role" id="roleValue" value="admin">
+                            
+                            <!-- Admin credentials -->
+                            <div class="cred-group active" data-cred="admin">
+                                <div class="form-field">
+                                    <label for="adminPassword">Admin Password</label>
+                                    <div class="input-wrapper">
+                                        <i class="fas fa-key"></i>
+                                        <input type="password" id="adminPassword" name="password" 
+                                               placeholder="Enter admin password" autocomplete="current-password">
+                                        <button type="button" class="eye-btn">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Driver credentials (hidden) -->
+                            <div class="cred-group" data-cred="driver">
+                                <div class="form-field">
+                                    <label for="driverPhone">Registered Phone</label>
+                                    <div class="input-wrapper">
+                                        <i class="fas fa-phone"></i>
+                                        <input type="tel" id="driverPhone" name="phone" 
+                                               placeholder="e.g. +971 50 000 0000" disabled>
+                                    </div>
+                                </div>
+                                <div class="form-field">
+                                    <label for="driverPin">Driver PIN</label>
+                                    <div class="input-wrapper">
+                                        <i class="fas fa-lock"></i>
+                                        <input type="password" id="driverPin" name="pin" 
+                                               placeholder="4-digit PIN" maxlength="8" disabled>
+                                        <button type="button" class="eye-btn">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Supplier credentials (hidden) -->
+                            <div class="cred-group" data-cred="supplier">
+                                <div class="form-field">
+                                    <label for="supplierId">Supplier User ID</label>
+                                    <div class="input-wrapper">
+                                        <i class="fas fa-id-card"></i>
+                                        <input type="text" id="supplierId" name="user_id" 
+                                               placeholder="Your supplier user ID" disabled>
+                                    </div>
+                                </div>
+                                <div class="form-field">
+                                    <label for="supplierPassword">Password</label>
+                                    <div class="input-wrapper">
+                                        <i class="fas fa-key"></i>
+                                        <input type="password" id="supplierPassword" name="password" 
+                                               placeholder="Your password" disabled>
+                                        <button type="button" class="eye-btn">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Staff credentials (hidden) -->
+                            <div class="cred-group" data-cred="staff">
+                                <div class="form-field">
+                                    <label for="staffId">User ID / Staff Code</label>
+                                    <div class="input-wrapper">
+                                        <i class="fas fa-user"></i>
+                                        <input type="text" id="staffId" name="user_id" 
+                                               placeholder="e.g. tech.001" disabled>
+                                    </div>
+                                </div>
+                                <div class="form-field">
+                                    <label for="staffPassword">Password</label>
+                                    <div class="input-wrapper">
+                                        <i class="fas fa-key"></i>
+                                        <input type="password" id="staffPassword" name="password" 
+                                               placeholder="Your password" disabled>
+                                        <button type="button" class="eye-btn">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Remember me & forgot password -->
+                            <div class="form-row">
+                                <label class="remember">
+                                    <input type="checkbox" name="remember"> Remember me
+                                </label>
+                                <a href="#" class="forgot-link">Forgot Password?</a>
+                            </div>
+                            
+                            <!-- Submit button -->
+                            <button type="submit" class="submit-btn admin-btn" id="submitBtn">
+                                <span id="submitText">Sign In</span>
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                            
+                            <!-- Form footer -->
+                            <div class="form-footer">
+                                <p id="formTip">Enter your credentials to access the system.</p>
+                            </div>
+                            
+                        </form>
+                    </div>
+                    
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- JavaScript for interactivity -->
+    <script>
+        // Configuration for different roles
+        const roleConfig = {
+            admin: {
+                title: 'Admin Login',
+                subtitle: 'Full system access — enter your password',
+                tip: 'Admin password grants full dashboard and control panel access.',
+                icon: 'fas fa-user-shield',
+                label: 'Admin',
+                color: 'admin'
+            },
+            driver: {
+                title: 'Driver Login',
+                subtitle: 'Transport portal — phone number & PIN',
+                tip: 'Use your registered phone and 4-digit driver PIN to sign in.',
+                icon: 'fas fa-truck-moving',
+                label: 'Driver',
+                color: 'driver'
+            },
+            supplier: {
+                title: 'Supplier Login',
+                subtitle: 'Supply chain portal — enter your credentials',
+                tip: 'Use your supplier user ID and password for portal access.',
+                icon: 'fas fa-box-open',
+                label: 'Supplier',
+                color: 'supplier'
+            },
+            staff: {
+                title: 'Staff Login',
+                subtitle: 'Field operations — enter your staff credentials',
+                tip: 'Enter your staff username and password to access field operations.',
+                icon: 'fas fa-hard-hat',
+                label: 'Staff',
+                color: 'staff'
+            }
+        };
+        
+        // DOM elements
+        const cardsSection = document.getElementById('cardsSection');
+        const formSection = document.getElementById('formSection');
+        const roleCards = document.querySelectorAll('.role-card');
+        const backBtn = document.getElementById('backBtn');
+        const roleValue = document.getElementById('roleValue');
+        const formTitle = document.getElementById('formTitle');
+        const formSubtitle = document.getElementById('formSubtitle');
+        const formTip = document.getElementById('formTip');
+        const roleIcon = document.getElementById('roleIcon');
+        const roleLabel = document.getElementById('roleLabel');
+        const roleBadge = document.getElementById('roleBadge');
+        const formAccent = document.getElementById('formAccent');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitText = document.getElementById('submitText');
+        const credGroups = document.querySelectorAll('.cred-group');
+        
+        // Initialize - hide form section
+        formSection.style.display = 'none';
+        
+        // Add click events to role cards
+        roleCards.forEach(card => {
+            card.addEventListener('click', function() {
+                const role = this.getAttribute('data-role');
+                openLoginForm(role);
+            });
+        });
+        
+        // Back button event
+        backBtn.addEventListener('click', function() {
+            cardsSection.style.display = 'block';
+            formSection.style.display = 'none';
+            
+            // Reset animations
+            roleCards.forEach(card => {
+                card.classList.remove('selected', 'fading');
+            });
+        });
+        
+        // Function to open login form for a specific role
+        function openLoginForm(role) {
+            const config = roleConfig[role];
+            if (!config) return;
+            
+            // Update form metadata
+            roleValue.value = role;
+            formTitle.textContent = config.title;
+            formSubtitle.textContent = config.subtitle;
+            formTip.textContent = config.tip;
+            roleIcon.className = config.icon;
+            roleLabel.textContent = config.label;
+            roleBadge.className = 'role-badge ' + config.color;
+            formAccent.className = 'form-accent ' + config.color;
+            submitBtn.className = 'submit-btn ' + config.color + '-btn';
+            submitText.textContent = 'Sign In as ' + config.label;
+            
+            // Activate correct credential group
+            credGroups.forEach(group => {
+                const isActive = group.getAttribute('data-cred') === role;
+                group.classList.toggle('active', isActive);
+                
+                // Enable/disable inputs
+                const inputs = group.querySelectorAll('input');
+                inputs.forEach(input => {
+                    if (isActive) {
+                        input.removeAttribute('disabled');
+                        if (group.querySelector('input')) {
+                            setTimeout(() => group.querySelector('input').focus(), 100);
+                        }
+                    } else {
+                        input.setAttribute('disabled', 'disabled');
+                        input.value = '';
+                    }
+                });
+            });
+            
+            // Animate card selection
+            roleCards.forEach(card => {
+                if (card.getAttribute('data-role') === role) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.add('fading');
+                }
+            });
+            
+            // Show form with animation
+            setTimeout(() => {
+                cardsSection.style.display = 'none';
+                formSection.style.display = 'block';
+                formSection.style.opacity = '0';
+                formSection.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    formSection.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+                    formSection.style.opacity = '1';
+                    formSection.style.transform = 'translateY(0)';
+                }, 50);
+            }, 300);
+        }
+        
+        // Password visibility toggle
+        document.querySelectorAll('.eye-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const input = this.parentElement.querySelector('input');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    this.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                } else {
+                    input.type = 'password';
+                    this.innerHTML = '<i class="fas fa-eye"></i>';
+                }
+            });
+        });
+        
+        // Form submission
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const role = roleValue.value;
+            alert(`Logging in as ${role}... (This is a demo)`);
+            // In real implementation, submit to server
+        });
+        
+        // Initial card entrance animation
+        setTimeout(() => {
+            roleCards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        }, 300);
+    </script>
+    
+</body>
+</html>

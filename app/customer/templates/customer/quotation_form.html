@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Add Quotation{% endblock %}
+{% block page_title %}Customer Quotation{% endblock %}
+
+{% block content %}
+<div class="form-shell" style="max-width:500px">
+    <div class="profile-card">
+        <div style="margin-bottom:14px">
+            <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='quotations') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        </div>
+        <h3>New Quotation</h3>
+        <p style="color:var(--muted);font-size:0.85rem">Customer: <strong>{{ c.customer_name }}</strong></p>
+
+        <form method="POST" style="margin-top:16px">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;gap:12px">
+                <div class="form-row">
+                    <label class="form-label">Quotation Date</label>
+                    <input type="date" name="quotation_date" class="form-control" value="{{ q.quotation_date or today }}">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Quotation No.</label>
+                    <input type="text" name="quotation_no" class="form-control" value="{{ q.quotation_no or '' }}" placeholder="e.g. QTN-001">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Amount (AED)</label>
+                    <input type="number" name="amount" class="form-control" value="{{ q.amount or '' }}" step="0.01" min="0" placeholder="e.g. 25000">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-control">
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2">{{ q.notes or '' }}</textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:12px">Save Quotation</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

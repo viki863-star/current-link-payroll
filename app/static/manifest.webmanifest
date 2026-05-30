@@ -1,0 +1,23 @@
+{
+  "name": "Current Link Driver Payroll",
+  "short_name": "Current Link",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#eef3f9",
+  "theme_color": "#1c568b",
+  "description": "Current Link driver payroll, timesheet, owner fund, and salary slip system.",
+  "icons": [
+    {
+      "src": "/static/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

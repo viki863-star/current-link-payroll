@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:600px">
+    <div class="profile-header" style="margin-bottom:24px">
+        <div class="profile-info">
+            <h1 style="margin:0">{{ page_title }}</h1>
+        </div>
+        <div class="profile-actions">
+            <a href="{{ url_for('fleet.fleet_staff_list') }}" class="btn btn-outline btn-sm">&#8592; Back</a>
+        </div>
+    </div>
+
+    <div class="profile-card">
+        <form method="POST" class="smart-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label>Staff ID</label>
+                    <input type="text" name="staff_id" value="{{ s.staff_id or '' }}" class="form-control" maxlength="20" {% if s.staff_id %}readonly style="background:#f5f7fa"{% endif %} placeholder="e.g. FS-001" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label>Full Name *</label>
+                    <input type="text" name="full_name" value="{{ s.full_name or '' }}" class="form-control" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label>Phone</label>
+                    <input type="text" name="phone" value="{{ s.phone or '' }}" class="form-control">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label>Username *</label>
+                    <input type="text" name="username" value="{{ s.username or '' }}" class="form-control" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label>Password {% if s.staff_id %}(leave blank to keep){% endif %}*</label>
+                    <input type="password" name="password" class="form-control" {% if not s.staff_id %}required{% endif %}>
+                </div>
+            </div>
+            {% if s.staff_id %}
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label style="display:flex;align-items:center;gap:8px">
+                        <input type="checkbox" name="is_active" value="1" {% if s.is_active %}checked{% endif %}>
+                        Active
+                    </label>
+                </div>
+            </div>
+            {% endif %}
+            <div style="margin-top:16px">
+                <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+                <a href="{{ url_for('fleet.fleet_staff_list') }}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

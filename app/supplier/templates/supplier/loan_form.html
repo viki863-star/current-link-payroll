@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Add Qarz Entry{% endblock %}
+{% block page_title %}Add Qarz Entry{% endblock %}
+
+{% block content %}
+<div class="form-shell" style="max-width:550px">
+    <div class="profile-card">
+        <div style="margin-bottom:16px">
+            <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='loans') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        </div>
+        <h3>Add Qarz Entry</h3>
+        <p style="color:var(--muted);font-size:0.85rem">Supplier: <strong>{{ s.supplier_name }}</strong></p>
+
+        <form method="POST" style="margin-top:16px">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-row">
+                <label class="form-label">Date</label>
+                <input type="date" name="entry_date" value="{{ loan.entry_date or '' }}" class="form-control">
+            </div>
+            <div class="form-row">
+                <label class="form-label">Type *</label>
+                <select name="loan_type" class="form-control" required>
+                    <option value="given" {% if loan.loan_type == 'given' %}selected{% endif %}>Qarz Given (Diya)</option>
+                    <option value="recovered" {% if loan.loan_type == 'recovered' %}selected{% endif %}>Qarz Recovered (Wapis Lia)</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Amount *</label>
+                <input type="number" name="amount" value="{{ loan.amount or '' }}" class="form-control" step="0.01" min="0" required>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Payment Method</label>
+                <select name="payment_method" class="form-control">
+                    {% for m in methods %}
+                    <option value="{{ m }}" {% if (loan.payment_method or 'Cash') == m %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Reference No.</label>
+                <input type="text" name="reference_no" value="{{ loan.reference_no or '' }}" class="form-control" placeholder="Cheque no / Transaction ID">
+            </div>
+            <div class="form-row">
+                <label class="form-label">Fund Source</label>
+                <select name="fund_source" class="form-control">
+                    <option value="cash_bank">Cash / Bank</option>
+                    <option value="owner_fund" {% if loan.fund_source == 'owner_fund' %}selected{% endif %}>Owner Fund</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" rows="2">{{ loan.notes or '' }}</textarea>
+            </div>
+            <div class="form-row">
+                <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem">
+                    <input type="checkbox" name="deduct_from_balance" value="1" {% if loan.deduct_from_balance %}checked{% endif %}>
+                    Apply to balance (supplier k balance se deduct karein)
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:8px">Save Entry</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

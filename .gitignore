@@ -1,0 +1,16 @@
+﻿__pycache__/
+*.pyc
+.venv/
+.env
+.env.*
+!.env.example
+payroll.db
+generated/
+.claude/
+.vs/
+.phase1a_runtime/
+.tmp.driveupload/
+*.vsix
+
+.tmp.drivedownload/
+pic/
