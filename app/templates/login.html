@@ -8,204 +8,339 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260531d') }}">
     <link rel="icon" href="{{ url_for('static', filename='icon-192.svg') }}">
     <style>
-        .cl-login-page { margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-        .cl-login-page .cl-nav { position: absolute !important; background: transparent !important; }
-        .cl-login-page .cl-nav.scrolled { background: #0F2B52 !important; }
-        .cl-login-page .cl-nav .cl-nav-links .cl-nav-link[href="#services"],
-        .cl-login-page .cl-nav .cl-nav-links .cl-nav-link[href="#about"],
-        .cl-login-page .cl-nav .cl-nav-links .cl-nav-link[href="#contact"] { display: none; }
-        .cl-login-page .cl-hero { min-height: 100vh; }
-        .cl-login-page .cl-hero-inner {
-            flex-direction: row;
-            align-items: center;
-            justify-content: space-between;
-            gap: 50px;
-            padding-top: 120px;
-            padding-bottom: 60px;
-        }
-        .cl-login-page .cl-hero-scroll { display: none; }
-        .cl-login-page .cl-hero-sub { max-width: 500px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f0f4f9; }
 
-        .cl-login-card {
-            background: #fff;
-            border-radius: 20px;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.30);
-            width: 400px;
-            min-width: 0;
-            flex-shrink: 0;
-            padding: 34px 30px 28px;
+        .cl-split {
+            display: flex;
+            min-height: 100vh;
         }
-        .cl-login-head { text-align: center; margin-bottom: 22px; }
-        .cl-login-head .cl-eyebrow {
+
+        /* ── LEFT BRAND PANEL ── */
+        .cl-split-brand {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px;
+            overflow: hidden;
+            background: #0F2B52;
+        }
+        .cl-split-brand-bg {
+            position: absolute;
+            inset: 0;
+            background: url('{{ url_for('static', filename='HERO SECTION.png') }}') center center / cover no-repeat;
+            opacity: 0.30;
+        }
+        .cl-split-brand-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(160deg, rgba(15,43,82,0.92) 0%, rgba(15,43,82,0.70) 60%, rgba(15,43,82,0.60) 100%);
+        }
+        .cl-split-brand-inner {
+            position: relative;
+            z-index: 2;
+            max-width: 520px;
+        }
+        .cl-split-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+        .cl-split-logo video {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+        }
+        .cl-split-logo-text {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: rgba(255,255,255,0.6);
+            text-transform: uppercase;
+        }
+        .cl-split-logo-text strong {
+            display: block;
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #fff;
+            letter-spacing: 0;
+            text-transform: none;
+        }
+        .cl-split-logo-text strong span { color: #F7931E; }
+
+        .cl-split-badge {
+            display: inline-block;
+            background: rgba(247,147,30,0.15);
+            border: 1px solid rgba(247,147,30,0.25);
+            color: #F7931E;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            padding: 5px 14px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+        }
+        .cl-split-brand-inner h1 {
+            font-size: 2.4rem;
+            font-weight: 900;
+            color: #fff;
+            line-height: 1.15;
+            margin-bottom: 12px;
+        }
+        .cl-split-brand-inner h1 span { color: #F7931E; }
+        .cl-split-brand-inner p {
+            font-size: 0.92rem;
+            color: rgba(255,255,255,0.65);
+            line-height: 1.7;
+            margin-bottom: 30px;
+        }
+        .cl-split-features {
+            display: grid;
+            gap: 12px;
+        }
+        .cl-split-feat {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.8);
+        }
+        .cl-split-feat svg {
+            width: 18px;
+            height: 18px;
+            color: #F7931E;
+            flex-shrink: 0;
+        }
+
+        /* ── RIGHT LOGIN PANEL ── */
+        .cl-split-login {
+            width: 480px;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 48px;
+            background: #fff;
+        }
+        .cl-split-login-inner {
+            width: 100%;
+            max-width: 380px;
+            margin: 0 auto;
+        }
+        .cl-split-login-head {
+            margin-bottom: 28px;
+        }
+        .cl-split-login-head .cl-eyebrow {
             display: inline-block;
             background: #F7931E;
             color: #fff;
-            font-size: 0.62rem;
+            font-size: 0.6rem;
             font-weight: 800;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            padding: 4px 14px;
+            padding: 4px 12px;
             border-radius: 20px;
             margin-bottom: 10px;
         }
-        .cl-login-head h2 {
-            font-size: 1.35rem;
+        .cl-split-login-head h2 {
+            font-size: 1.5rem;
             font-weight: 800;
             color: #0F2B52;
-            margin: 0 0 4px;
+            margin-bottom: 4px;
         }
-        .cl-login-head p { font-size: 0.8rem; color: #64748b; margin: 0; }
-        .cl-login-form { display: grid; gap: 16px; }
-        .cl-login-form label {
-            font-size: 0.78rem; font-weight: 700; color: #0F2B52;
-            display: block; margin-bottom: 4px;
+        .cl-split-login-head p {
+            font-size: 0.84rem;
+            color: #64748b;
         }
-        .cl-login-form input {
+        .cl-split-form { display: grid; gap: 18px; }
+        .cl-split-form label {
+            font-size: 0.8rem; font-weight: 700; color: #0F2B52;
+            display: block; margin-bottom: 5px;
+        }
+        .cl-split-form input {
             width: 100%;
-            padding: 11px 16px;
-            border: 1px solid #dde4ee;
-            border-radius: 11px;
-            font-size: 0.85rem;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 0.88rem;
             color: #0F2B52;
             background: #f8fafc;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
-            box-sizing: border-box;
             font-family: 'Inter', sans-serif;
         }
-        .cl-login-form input:focus {
+        .cl-split-form input:focus {
             border-color: #F7931E;
-            box-shadow: 0 0 0 4px rgba(247,147,30,0.12);
+            box-shadow: 0 0 0 4px rgba(247,147,30,0.10);
             background: #fff;
         }
-        .cl-login-form input::placeholder { color: #94a3b8; }
-        .cl-login-options {
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 12px; flex-wrap: wrap;
-        }
-        .cl-login-remember {
-            display: inline-flex; align-items: center; gap: 7px;
-            font-size: 0.76rem; color: #475569;
-        }
-        .cl-login-remember input { width: 14px; height: 14px; accent-color: #F7931E; }
-        .cl-login-forgot {
-            font-size: 0.74rem; font-weight: 700; color: #F7931E;
-            text-decoration: none;
-        }
-        .cl-login-forgot:hover { color: #d47c10; }
-        .cl-login-submit {
-            width: 100%; padding: 13px; border: none;
-            border-radius: 11px;
-            background: linear-gradient(135deg, #F7931E 0%, #e67e0d 100%);
-            color: #fff; font-size: 0.9rem; font-weight: 800;
-            cursor: pointer; letter-spacing: 0.01em;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 8px 24px rgba(247,147,30,0.30);
-        }
-        .cl-login-submit:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 32px rgba(247,147,30,0.35);
-        }
-        .cl-login-back {
-            text-align: center; margin-top: 14px;
-            font-size: 0.76rem;
-        }
-        .cl-login-back a {
-            color: #64748b; text-decoration: none; font-weight: 600;
-        }
-        .cl-login-back a:hover { color: #0F2B52; }
-        .cl-login-flash {
-            position: fixed; top: 90px; left: 50%;
-            transform: translateX(-50%); z-index: 9999;
-            max-width: 420px; width: 90%;
-        }
-        .cl-login-flash > div {
-            background: #fff; border-left: 4px solid #ef4444;
-            padding: 12px 16px; border-radius: 10px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-            margin-bottom: 6px; font-size: 0.82rem;
-            font-weight: 600; color: #1e293b;
-        }
-        .cl-login-flash .success { border-color: #22c55e; }
+        .cl-split-form input::placeholder { color: #94a3b8; }
 
-        .cl-role-grid {
-            display: flex; gap: 8px;
+        .cl-split-role-grid {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 4px;
         }
-        .cl-role-opt {
-            flex: 1; text-align: center;
-            padding: 10px 6px;
+        .cl-split-role {
+            flex: 1;
+            text-align: center;
+            padding: 12px 6px 10px;
             border: 2px solid #e2e8f0;
-            border-radius: 10px;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.25s;
             background: #fff;
             user-select: none;
         }
-        .cl-role-opt:hover { border-color: #F7931E; background: #fffaf2; }
-        .cl-role-opt.is-active {
+        .cl-split-role:hover { border-color: #F7931E; background: #fffaf2; }
+        .cl-split-role.is-active {
             border-color: #F7931E;
-            background: linear-gradient(180deg, #fff6e8 0%, #ffedd5 100%);
+            background: linear-gradient(180deg, #fff6e8, #ffedd5);
             box-shadow: 0 0 0 3px rgba(247,147,30,0.12);
         }
-        .cl-role-opt svg { width: 20px; height: 20px; color: #0F2B52; display: block; margin: 0 auto 4px; }
-        .cl-role-opt.is-active svg { color: #F7931E; }
-        .cl-role-opt strong {
-            display: block; font-size: 0.72rem; font-weight: 700; color: #0F2B52;
+        .cl-split-role svg {
+            width: 22px; height: 22px;
+            color: #0F2B52;
+            display: block; margin: 0 auto 5px;
         }
-        .cl-role-opt span { font-size: 0.58rem; color: #64748b; }
-        .cl-login-stage { display: none; }
-        .cl-login-stage.is-visible { display: grid; gap: 14px; }
-        .cl-login-role-note {
-            font-size: 0.74rem; color: #64748b;
-            margin: 0; line-height: 1.5; text-align: center;
+        .cl-split-role.is-active svg { color: #F7931E; }
+        .cl-split-role strong {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #0F2B52;
         }
-        .cl-login-fields { display: none; }
-        .cl-login-fields.is-active { display: block; }
-        .cl-login-fields.is-active input { margin-bottom: 10px; }
-        .cl-login-fields.is-active input:last-child { margin-bottom: 0; }
+        .cl-split-role span {
+            font-size: 0.6rem;
+            color: #64748b;
+        }
 
-        @media (max-width: 960px) {
-            .cl-login-page .cl-hero-inner { flex-direction: column; gap: 30px; padding-top: 100px; padding-bottom: 50px; }
-            .cl-login-page .cl-hero-text { text-align: center; }
-            .cl-login-page .cl-hero-sub { max-width: 100%; }
-            .cl-login-card { width: 100%; max-width: 420px; }
+        .cl-split-stage { display: none; }
+        .cl-split-stage.is-visible { display: grid; gap: 16px; }
+        .cl-split-stage-note {
+            font-size: 0.76rem;
+            color: #64748b;
+            line-height: 1.5;
+            text-align: center;
+        }
+        .cl-split-fields { display: none; }
+        .cl-split-fields.is-active { display: block; }
+        .cl-split-fields.is-active input { margin-bottom: 12px; }
+        .cl-split-fields.is-active input:last-child { margin-bottom: 0; }
+
+        .cl-split-options {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .cl-split-remember {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 0.78rem;
+            color: #475569;
+        }
+        .cl-split-remember input { width: 14px; height: 14px; accent-color: #F7931E; }
+        .cl-split-forgot {
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: #F7931E;
+            text-decoration: none;
+        }
+        .cl-split-forgot:hover { color: #d47c10; }
+
+        .cl-split-submit {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #F7931E 0%, #e67e0d 100%);
+            color: #fff;
+            font-size: 0.92rem;
+            font-weight: 800;
+            cursor: pointer;
+            letter-spacing: 0.01em;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 8px 24px rgba(247,147,30,0.28);
+        }
+        .cl-split-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(247,147,30,0.34);
+        }
+
+        .cl-split-back {
+            text-align: center;
+            margin-top: 18px;
+        }
+        .cl-split-back a {
+            font-size: 0.78rem;
+            color: #64748b;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .cl-split-back a:hover { color: #0F2B52; }
+
+        .cl-split-flash {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            max-width: 420px;
+            width: 90%;
+        }
+        .cl-split-flash > div {
+            background: #fff;
+            border-left: 4px solid #ef4444;
+            padding: 13px 16px;
+            border-radius: 10px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            margin-bottom: 6px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .cl-split-flash .success { border-color: #22c55e; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 900px) {
+            .cl-split { flex-direction: column; }
+            .cl-split-brand {
+                padding: 40px 32px;
+                min-height: 50vh;
+            }
+            .cl-split-brand-inner { max-width: 100%; }
+            .cl-split-brand-inner h1 { font-size: 1.8rem; }
+            .cl-split-login {
+                width: 100%;
+                padding: 36px 24px;
+            }
         }
         @media (max-width: 500px) {
-            .cl-login-card { padding: 22px 16px 20px; border-radius: 16px; }
-            .cl-role-opt { padding: 8px 2px; }
-            .cl-role-opt strong { font-size: 0.62rem; }
-            .cl-role-opt span { display: none; }
-            .cl-login-head h2 { font-size: 1.15rem; }
+            .cl-split-brand { padding: 28px 20px; min-height: 40vh; }
+            .cl-split-brand-inner h1 { font-size: 1.4rem; }
+            .cl-split-logo video { width: 38px; height: 38px; }
+            .cl-split-logo-text strong { font-size: 1.1rem; }
+            .cl-split-login { padding: 24px 16px; }
+            .cl-split-login-head h2 { font-size: 1.2rem; }
+            .cl-split-role { padding: 10px 4px 8px; }
+            .cl-split-role strong { font-size: 0.65rem; }
+            .cl-split-role span { display: none; }
+            .cl-split-role svg { width: 18px; height: 18px; }
         }
     </style>
 </head>
-<body class="cl-landing cl-login-page">
+<body>
 {% set initial_role = selected_role if request.method == "POST" else "" %}
 
-<nav class="cl-nav" id="clNav">
-    <div class="cl-nav-inner">
-        <a class="cl-nav-brand" href="/">
-            <video class="cl-nav-video" autoplay loop muted playsinline width="38" height="38">
-                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
-            </video>
-            <span class="cl-nav-name"><span>Current</span> <span class="cl-nav-orange">Link</span></span>
-        </a>
-        <div class="cl-nav-links">
-            <a href="{{ url_for('home') }}#services" class="cl-nav-link">Services</a>
-            <a href="{{ url_for('home') }}#about" class="cl-nav-link">About</a>
-            <a href="{{ url_for('home') }}#contact" class="cl-nav-link">Contact</a>
-            <a href="{{ url_for('login') }}" class="cl-nav-btn">Portal Login</a>
-        </div>
-        <button class="cl-hamburger" id="clHamburger" aria-label="Menu">
-            <span></span><span></span><span></span>
-        </button>
-    </div>
-</nav>
-
-<div class="cl-login-flash" id="clLoginFlash">
+<div class="cl-split-flash" id="clSplitFlash">
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -215,35 +350,61 @@
     {% endwith %}
 </div>
 
-<section class="cl-hero">
-    <div class="cl-hero-bg" style="background-image: url('{{ url_for('static', filename='HERO SECTION.png') }}');"></div>
-    <div class="cl-hero-overlay"></div>
-    <div class="cl-hero-inner">
-        <div class="cl-hero-text">
-            <span class="cl-hero-badge">ABU DHABI · UAE</span>
-            <h1 class="cl-hero-title">
-                Heavy Equipment &amp;<br>
-                <span class="cl-hero-accent">Transport Solutions</span>
-            </h1>
-            <p class="cl-hero-sub">
-                Water supply &middot; Removal &middot; Excavator &middot; Crane &middot; Man Lift &middot; Trailer &middot; Forklift &middot; Bobcat &middot; Grader —<br>
-                Monthly rentals with experienced operators for leading companies across the UAE.
-            </p>
-        </div>
+<div class="cl-split">
+    <!-- LEFT: BRAND + HERO -->
+    <div class="cl-split-brand">
+        <div class="cl-split-brand-bg"></div>
+        <div class="cl-split-brand-overlay"></div>
+        <div class="cl-split-brand-inner">
+            <div class="cl-split-logo">
+                <video autoplay loop muted playsinline width="48" height="48">
+                    <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+                </video>
+                <div class="cl-split-logo-text">
+                    <strong>Current <span>Link</span></strong>
+                    TRANSPORT &amp; GENERAL CONTRACTING LLC SPC
+                </div>
+            </div>
 
-        <div class="cl-login-card">
-            <div class="cl-login-head">
+            <div class="cl-split-badge">ABU DHABI · UAE</div>
+            <h1>Heavy Equipment &amp;<br><span>Transport Solutions</span></h1>
+            <p>
+                Water supply &middot; Removal &middot; Excavator &middot; Crane &middot; Man Lift &middot;
+                Trailer &middot; Forklift &middot; Bobcat &middot; Grader — monthly rentals with experienced operators.
+            </p>
+
+            <div class="cl-split-features">
+                <div class="cl-split-feat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    ICV &amp; ISO Certified
+                </div>
+                <div class="cl-split-feat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    10+ Years Experience
+                </div>
+                <div class="cl-split-feat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    50+ Heavy Equipment Fleet
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: LOGIN FORM -->
+    <div class="cl-split-login">
+        <div class="cl-split-login-inner">
+            <div class="cl-split-login-head">
                 <span class="cl-eyebrow">Portal Access</span>
                 <h2>Welcome Back</h2>
                 <p>Select your role to sign in</p>
             </div>
 
-            <form class="cl-login-form" method="POST" autocomplete="off">
+            <form class="cl-split-form" method="POST" autocomplete="off">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="role" id="clLoginRole" value="{{ initial_role }}">
+                <input type="hidden" name="role" id="clSplitRole" value="{{ initial_role }}">
 
-                <div class="cl-role-grid" role="group" aria-label="Select role">
-                    <button type="button" class="cl-role-opt" data-role="admin">
+                <div class="cl-split-role-grid" role="group" aria-label="Select role">
+                    <button type="button" class="cl-split-role" data-role="admin">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 3l7 4v5c0 5-3.4 8.7-7 10-3.6-1.3-7-5-7-10V7l7-4z"/>
                             <path d="M12 8v8"/><path d="M9 11h6"/>
@@ -251,7 +412,7 @@
                         <strong>Admin</strong>
                         <span>Full control</span>
                     </button>
-                    <button type="button" class="cl-role-opt" data-role="driver">
+                    <button type="button" class="cl-split-role" data-role="driver">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="7.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>
                             <path d="M5 16V9l2-3h10l2 3v7"/><path d="M5 11h14"/><path d="M12 11v-2"/>
@@ -259,7 +420,7 @@
                         <strong>Driver</strong>
                         <span>Transport ops</span>
                     </button>
-                    <button type="button" class="cl-role-opt" data-role="technician">
+                    <button type="button" class="cl-split-role" data-role="technician">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 3v5"/><path d="M7 8h10"/>
                             <path d="M9 8V6.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6.5V8"/>
@@ -270,66 +431,54 @@
                     </button>
                 </div>
 
-                <div class="cl-login-stage" id="clLoginStage">
-                    <p class="cl-login-role-note" id="clLoginNote">Choose a role above.</p>
+                <div class="cl-split-stage" id="clSplitStage">
+                    <p class="cl-split-stage-note" id="clSplitNote">Choose a role above.</p>
 
-                    <div class="cl-login-fields" data-group="admin">
+                    <div class="cl-split-fields" data-group="admin">
                         <label for="clAdminPass">Password</label>
                         <input type="password" id="clAdminPass" name="password" placeholder="Enter admin password">
                     </div>
-                    <div class="cl-login-fields" data-group="driver">
+                    <div class="cl-split-fields" data-group="driver">
                         <label for="clDriverPhone">Phone Number</label>
                         <input type="text" id="clDriverPhone" name="phone_number" placeholder="Enter phone number" inputmode="tel">
                         <label for="clDriverPin">Password / PIN</label>
                         <input type="password" id="clDriverPin" name="driver_pin" placeholder="Enter your PIN" inputmode="numeric">
                     </div>
-                    <div class="cl-login-fields" data-group="technician">
+                    <div class="cl-split-fields" data-group="technician">
                         <label for="clStaffUser">Username / Email</label>
                         <input type="text" id="clStaffUser" name="user_id" placeholder="Enter your username or email">
                         <label for="clStaffPass">Password</label>
                         <input type="password" id="clStaffPass" name="password" placeholder="Enter your password">
                     </div>
 
-                    <div class="cl-login-options">
-                        <label class="cl-login-remember">
+                    <div class="cl-split-options">
+                        <label class="cl-split-remember">
                             <input type="checkbox" name="remember_me" value="1">
                             <span>Remember me</span>
                         </label>
-                        <a class="cl-login-forgot" id="clLoginHelp" href="#">Forgot Password?</a>
+                        <a class="cl-split-forgot" id="clSplitHelp" href="#">Forgot Password?</a>
                     </div>
 
-                    <button class="cl-login-submit" type="submit" id="clLoginSubmit" hidden>Access Portal</button>
+                    <button class="cl-split-submit" type="submit" id="clSplitSubmit" hidden>Access Portal</button>
                 </div>
             </form>
 
-            <div class="cl-login-back">
+            <div class="cl-split-back">
                 <a href="{{ url_for('home') }}">&larr; Back to Homepage</a>
             </div>
         </div>
     </div>
-</section>
+</div>
 
 <script>
 (function(){
-    var form = document.querySelector('.cl-login-form');
-    var roleInput = document.getElementById('clLoginRole');
-    var stage = document.getElementById('clLoginStage');
-    var note = document.getElementById('clLoginNote');
-    var submit = document.getElementById('clLoginSubmit');
-    var helpLink = document.getElementById('clLoginHelp');
-    var opts = Array.from(document.querySelectorAll('.cl-role-opt'));
-    var fgroups = Array.from(document.querySelectorAll('.cl-login-fields'));
-    var nav = document.getElementById('clNav');
-    var ham = document.getElementById('clHamburger');
-    var links = document.querySelector('.cl-nav-links');
-
-    window.addEventListener('scroll', function(){
-        nav.classList.toggle('scrolled', window.scrollY > 40);
-    }, {passive:true});
-
-    if (ham && links) {
-        ham.addEventListener('click', function(){ links.classList.toggle('is-open'); });
-    }
+    var roleInput = document.getElementById('clSplitRole');
+    var stage = document.getElementById('clSplitStage');
+    var note = document.getElementById('clSplitNote');
+    var submit = document.getElementById('clSplitSubmit');
+    var helpLink = document.getElementById('clSplitHelp');
+    var opts = Array.from(document.querySelectorAll('.cl-split-role'));
+    var fgroups = Array.from(document.querySelectorAll('.cl-split-fields'));
 
     var configs = {
         admin: { note: 'Admin access uses the internal password only.', help: 'Forgot password? Contact system admin', href: '#' },
@@ -379,7 +528,7 @@
     resetFields();
     activateRole(roleInput.value || '');
 
-    var flashEl = document.getElementById('clLoginFlash');
+    var flashEl = document.getElementById('clSplitFlash');
     if (flashEl && flashEl.children.length === 0) { flashEl.style.display = 'none'; }
 })();
 </script>
