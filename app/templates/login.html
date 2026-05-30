@@ -17,300 +17,327 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #0F2B52;
+            background: #FFFBE6;
+            padding: 24px;
             position: relative;
-            overflow: hidden;
         }
 
-        /* ── Background ── */
-        body::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: url('{{ url_for('static', filename='HERO SECTION.png') }}') center center / cover no-repeat;
-            opacity: 0.25;
-        }
-        .glass-bg-circle {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(80px);
-            pointer-events: none;
-        }
-        .glass-bg-circle-1 {
-            width: 500px; height: 500px;
-            background: rgba(247,147,30,0.15);
-            top: -150px; right: -100px;
-        }
-        .glass-bg-circle-2 {
-            width: 400px; height: 400px;
-            background: rgba(255,255,255,0.06);
-            bottom: -100px; left: -100px;
-        }
-
-        /* ── Flash Messages ── */
-        .glass-flash {
+        /* ── Brutal background shapes ── */
+        .brutal-shape {
             position: fixed;
-            top: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            max-width: 420px;
-            width: 90%;
+            pointer-events: none;
+            z-index: 0;
         }
-        .glass-flash > div {
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(10px);
-            border-left: 4px solid #ef4444;
-            padding: 13px 16px;
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-            margin-bottom: 6px;
-            font-size: 0.84rem;
-            font-weight: 600;
-            color: #1e293b;
+        .brutal-shape-1 {
+            width: 320px; height: 320px;
+            background: #FF6B6B;
+            border: 4px solid #0F2B52;
+            transform: rotate(12deg);
+            top: -60px; right: -40px;
+            box-shadow: 10px 10px 0 #0F2B52;
         }
-        .glass-flash .success { border-color: #22c55e; }
+        .brutal-shape-2 {
+            width: 200px; height: 200px;
+            background: #F7931E;
+            border: 4px solid #0F2B52;
+            transform: rotate(-8deg);
+            bottom: -30px; left: -30px;
+            box-shadow: 8px 8px 0 #0F2B52;
+        }
+        .brutal-shape-3 {
+            width: 120px; height: 120px;
+            background: #4ECDC4;
+            border: 4px solid #0F2B52;
+            transform: rotate(20deg);
+            bottom: 80px; right: 60px;
+            box-shadow: 6px 6px 0 #0F2B52;
+        }
 
-        /* ── Glass Card ── */
-        .glass-wrap {
+        /* ── Flash ── */
+        .brutal-flash {
+            position: fixed; top: 24px; left: 50%;
+            transform: translateX(-50%); z-index: 9999;
+            max-width: 420px; width: 90%;
+        }
+        .brutal-flash > div {
+            background: #fff; border: 3px solid #0F2B52;
+            border-left: 6px solid #ef4444;
+            padding: 13px 16px;
+            box-shadow: 5px 5px 0 #0F2B52;
+            margin-bottom: 6px;
+            font-size: 0.84rem; font-weight: 600; color: #0F2B52;
+        }
+        .brutal-flash .success { border-left-color: #22c55e; }
+
+        /* ── Card ── */
+        .brutal-wrap {
             position: relative;
             z-index: 2;
             width: 100%;
-            padding: 20px;
             display: flex;
             justify-content: center;
         }
-        .glass-card {
+        .brutal-card {
             width: 100%;
-            max-width: 420px;
-            background: rgba(255,255,255,0.08);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 24px;
-            padding: 40px 32px 32px;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.25);
+            max-width: 440px;
+            background: #fff;
+            border: 4px solid #0F2B52;
+            box-shadow: 12px 12px 0 #0F2B52;
+            padding: 36px 32px 28px;
         }
 
-        /* ── Brand ── */
-        .glass-brand {
+        .brutal-brand {
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-bottom: 28px;
-            justify-content: center;
+            margin-bottom: 24px;
+            background: #0F2B52;
+            padding: 10px 16px;
+            margin-left: -8px;
+            margin-right: -8px;
+            transform: rotate(-1deg);
         }
-        .glass-brand video {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
+        .brutal-brand video {
+            width: 40px; height: 40px;
+            border: 2px solid #F7931E;
         }
-        .glass-brand-text {
-            font-size: 0.7rem;
+        .brutal-brand-text {
+            font-size: 0.65rem;
             font-weight: 700;
-            letter-spacing: 0.04em;
             color: rgba(255,255,255,0.5);
             text-transform: uppercase;
         }
-        .glass-brand-text strong {
+        .brutal-brand-text strong {
             display: block;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 900;
             color: #fff;
-            letter-spacing: 0;
             text-transform: none;
         }
-        .glass-brand-text strong span { color: #F7931E; }
+        .brutal-brand-text strong span { color: #F7931E; }
 
-        .glass-head {
+        .brutal-head {
             text-align: center;
-            margin-bottom: 26px;
+            margin-bottom: 24px;
         }
-        .glass-eyebrow {
+        .brutal-eyebrow {
             display: inline-block;
-            background: rgba(247,147,30,0.20);
-            border: 1px solid rgba(247,147,30,0.25);
-            color: #F7931E;
+            background: #F7931E;
+            color: #fff;
             font-size: 0.6rem;
             font-weight: 800;
             letter-spacing: 0.08em;
+            padding: 5px 14px;
+            border: 2px solid #0F2B52;
+            box-shadow: 3px 3px 0 #0F2B52;
+            margin-bottom: 12px;
             text-transform: uppercase;
-            padding: 4px 14px;
-            border-radius: 20px;
-            margin-bottom: 10px;
         }
-        .glass-head h2 {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: #fff;
+        .brutal-head h2 {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #0F2B52;
             margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
         }
-        .glass-head p {
-            font-size: 0.84rem;
-            color: rgba(255,255,255,0.55);
+        .brutal-head p {
+            font-size: 0.85rem;
+            color: #475569;
+            font-weight: 600;
         }
 
-        /* ── Form ── */
-        .glass-form { display: grid; gap: 18px; }
-        .glass-form label {
+        .brutal-form { display: grid; gap: 18px; }
+        .brutal-form label {
             font-size: 0.78rem;
-            font-weight: 700;
-            color: rgba(255,255,255,0.8);
+            font-weight: 800;
+            color: #0F2B52;
             display: block;
             margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
-        .glass-form input {
+        .brutal-form input {
             width: 100%;
-            padding: 12px 16px;
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 12px;
+            padding: 13px 16px;
+            border: 3px solid #0F2B52;
             font-size: 0.88rem;
-            color: #fff;
-            background: rgba(255,255,255,0.06);
+            color: #0F2B52;
+            background: #fff;
             outline: none;
-            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
             font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            transition: box-shadow 0.15s, transform 0.15s;
         }
-        .glass-form input:focus {
-            border-color: rgba(247,147,30,0.5);
-            background: rgba(255,255,255,0.10);
-            box-shadow: 0 0 0 4px rgba(247,147,30,0.08);
+        .brutal-form input:focus {
+            box-shadow: 5px 5px 0 #F7931E;
+            transform: translate(-2px, -2px);
         }
-        .glass-form input::placeholder { color: rgba(255,255,255,0.30); }
+        .brutal-form input::placeholder {
+            color: #94a3b8;
+            font-weight: 500;
+        }
 
-        .glass-role-grid {
+        .brutal-role-grid {
             display: flex;
-            gap: 8px;
+            gap: 6px;
         }
-        .glass-role {
+        .brutal-role {
             flex: 1;
             text-align: center;
-            padding: 11px 4px 9px;
-            border: 1px solid rgba(255,255,255,0.10);
-            border-radius: 12px;
+            padding: 12px 4px 10px;
+            border: 3px solid #0F2B52;
             cursor: pointer;
-            transition: all 0.25s;
-            background: rgba(255,255,255,0.04);
+            transition: all 0.15s;
+            background: #fff;
             user-select: none;
+            box-shadow: 4px 4px 0 #0F2B52;
         }
-        .glass-role:hover {
-            border-color: rgba(247,147,30,0.3);
-            background: rgba(247,147,30,0.06);
+        .brutal-role:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 #0F2B52;
         }
-        .glass-role.is-active {
-            border-color: #F7931E;
-            background: rgba(247,147,30,0.12);
-            box-shadow: 0 0 0 3px rgba(247,147,30,0.10);
+        .brutal-role.is-active {
+            background: #0F2B52;
+            box-shadow: 4px 4px 0 #F7931E;
+            transform: translate(-2px, -2px);
         }
-        .glass-role svg {
+        .brutal-role svg {
             width: 20px; height: 20px;
-            color: rgba(255,255,255,0.6);
+            color: #0F2B52;
             display: block; margin: 0 auto 5px;
         }
-        .glass-role.is-active svg { color: #F7931E; }
-        .glass-role strong {
+        .brutal-role.is-active svg { color: #F7931E; }
+        .brutal-role strong {
             display: block;
             font-size: 0.72rem;
-            font-weight: 700;
-            color: rgba(255,255,255,0.85);
+            font-weight: 800;
+            color: #0F2B52;
         }
-        .glass-role span {
+        .brutal-role.is-active strong { color: #fff; }
+        .brutal-role span {
             font-size: 0.58rem;
-            color: rgba(255,255,255,0.4);
+            color: #64748b;
         }
+        .brutal-role.is-active span { color: rgba(255,255,255,0.6); }
 
-        .glass-stage { display: none; }
-        .glass-stage.is-visible { display: grid; gap: 16px; }
-        .glass-stage-note {
+        .brutal-stage { display: none; }
+        .brutal-stage.is-visible { display: grid; gap: 16px; }
+        .brutal-stage-note {
             font-size: 0.74rem;
-            color: rgba(255,255,255,0.5);
+            color: #475569;
             line-height: 1.5;
             text-align: center;
+            font-weight: 600;
+            background: #FEF9C3;
+            padding: 8px 12px;
+            border: 2px solid #0F2B52;
         }
-        .glass-fields { display: none; }
-        .glass-fields.is-active { display: block; }
-        .glass-fields.is-active input { margin-bottom: 12px; }
-        .glass-fields.is-active input:last-child { margin-bottom: 0; }
+        .brutal-fields { display: none; }
+        .brutal-fields.is-active { display: block; }
+        .brutal-fields.is-active input { margin-bottom: 12px; }
+        .brutal-fields.is-active input:last-child { margin-bottom: 0; }
 
-        .glass-options {
+        .brutal-options {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
             flex-wrap: wrap;
         }
-        .glass-remember {
+        .brutal-remember {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
+            gap: 8px;
             font-size: 0.76rem;
-            color: rgba(255,255,255,0.55);
-        }
-        .glass-remember input { width: 14px; height: 14px; accent-color: #F7931E; }
-        .glass-forgot {
-            font-size: 0.74rem;
             font-weight: 700;
-            color: #F7931E;
-            text-decoration: none;
+            color: #0F2B52;
         }
-        .glass-forgot:hover { color: #f5a83a; }
-
-        .glass-submit {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #F7931E 0%, #e67e0d 100%);
-            color: #fff;
-            font-size: 0.92rem;
+        .brutal-remember input {
+            width: 16px; height: 16px;
+            accent-color: #F7931E;
+            border: 2px solid #0F2B52;
+        }
+        .brutal-forgot {
+            font-size: 0.76rem;
             font-weight: 800;
-            cursor: pointer;
-            letter-spacing: 0.01em;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 8px 24px rgba(247,147,30,0.25);
+            color: #0F2B52;
+            text-decoration: none;
+            border-bottom: 3px solid #F7931E;
+            padding-bottom: 2px;
         }
-        .glass-submit:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 32px rgba(247,147,30,0.30);
+        .brutal-forgot:hover { color: #F7931E; }
+
+        .brutal-submit {
+            width: 100%;
+            padding: 15px;
+            border: 3px solid #0F2B52;
+            background: #F7931E;
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            transition: all 0.15s;
+            box-shadow: 6px 6px 0 #0F2B52;
+        }
+        .brutal-submit:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 9px 9px 0 #0F2B52;
+        }
+        .brutal-submit:active {
+            transform: translate(0, 0);
+            box-shadow: 2px 2px 0 #0F2B52;
         }
 
-        .glass-back {
+        .brutal-back {
             text-align: center;
             margin-top: 18px;
         }
-        .glass-back a {
-            font-size: 0.76rem;
-            color: rgba(255,255,255,0.4);
+        .brutal-back a {
+            font-size: 0.78rem;
+            color: #0F2B52;
             text-decoration: none;
-            font-weight: 600;
+            font-weight: 800;
+            border-bottom: 3px solid #F7931E;
+            padding-bottom: 2px;
         }
-        .glass-back a:hover { color: rgba(255,255,255,0.7); }
+        .brutal-back a:hover { color: #F7931E; }
 
-        .glass-footer-text {
+        .brutal-footer {
             text-align: center;
-            margin-top: 16px;
-            font-size: 0.68rem;
-            color: rgba(255,255,255,0.25);
+            margin-top: 14px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         @media (max-width: 500px) {
-            .glass-card { padding: 28px 18px 24px; border-radius: 20px; }
-            .glass-head h2 { font-size: 1.2rem; }
-            .glass-role { padding: 9px 2px 7px; }
-            .glass-role strong { font-size: 0.62rem; }
-            .glass-role span { display: none; }
-            .glass-role svg { width: 18px; height: 18px; }
-            .glass-brand video { width: 36px; height: 36px; }
-            .glass-brand-text strong { font-size: 1rem; }
+            .brutal-card { padding: 24px 16px 20px; box-shadow: 8px 8px 0 #0F2B52; }
+            .brutal-head h2 { font-size: 1.5rem; }
+            .brutal-role { padding: 10px 2px 8px; }
+            .brutal-role strong { font-size: 0.62rem; }
+            .brutal-role span { display: none; }
+            .brutal-role svg { width: 18px; height: 18px; }
+            .brutal-brand { margin-left: -4px; margin-right: -4px; padding: 8px 12px; }
+            .brutal-brand video { width: 34px; height: 34px; }
+            .brutal-brand-text strong { font-size: 0.95rem; }
+            .brutal-shape-1 { width: 180px; height: 180px; }
+            .brutal-shape-2 { width: 120px; height: 120px; }
+            .brutal-shape-3 { display: none; }
         }
     </style>
 </head>
 <body>
 
-<div class="glass-bg-circle glass-bg-circle-1"></div>
-<div class="glass-bg-circle glass-bg-circle-2"></div>
+<div class="brutal-shape brutal-shape-1"></div>
+<div class="brutal-shape brutal-shape-2"></div>
+<div class="brutal-shape brutal-shape-3"></div>
 
-<div class="glass-flash" id="glassFlash">
+<div class="brutal-flash" id="brutalFlash">
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -320,48 +347,48 @@
     {% endwith %}
 </div>
 
-<div class="glass-wrap">
-    <div class="glass-card">
-        <div class="glass-brand">
-            <video autoplay loop muted playsinline width="44" height="44">
+<div class="brutal-wrap">
+    <div class="brutal-card">
+        <div class="brutal-brand">
+            <video autoplay loop muted playsinline width="40" height="40">
                 <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
             </video>
-            <div class="glass-brand-text">
+            <div class="brutal-brand-text">
                 <strong>Current <span>Link</span></strong>
                 PORTAL ACCESS
             </div>
         </div>
 
-        <div class="glass-head">
-            <div class="glass-eyebrow">ABU DHABI · UAE</div>
+        <div class="brutal-head">
+            <div class="brutal-eyebrow">ABU DHABI · UAE</div>
             <h2>Welcome Back</h2>
             <p>Select your role to sign in</p>
         </div>
 
         {% set initial_role = selected_role if request.method == "POST" else "" %}
-        <form class="glass-form" method="POST" autocomplete="off">
+        <form class="brutal-form" method="POST" autocomplete="off">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="role" id="glassRole" value="{{ initial_role }}">
+            <input type="hidden" name="role" id="brutalRole" value="{{ initial_role }}">
 
-            <div class="glass-role-grid" role="group" aria-label="Select role">
-                <button type="button" class="glass-role" data-role="admin">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <div class="brutal-role-grid" role="group" aria-label="Select role">
+                <button type="button" class="brutal-role" data-role="admin">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 3l7 4v5c0 5-3.4 8.7-7 10-3.6-1.3-7-5-7-10V7l7-4z"/>
                         <path d="M12 8v8"/><path d="M9 11h6"/>
                     </svg>
                     <strong>Admin</strong>
                     <span>Full control</span>
                 </button>
-                <button type="button" class="glass-role" data-role="driver">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" class="brutal-role" data-role="driver">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="7.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>
                         <path d="M5 16V9l2-3h10l2 3v7"/><path d="M5 11h14"/><path d="M12 11v-2"/>
                     </svg>
                     <strong>Driver</strong>
                     <span>Transport ops</span>
                 </button>
-                <button type="button" class="glass-role" data-role="technician">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" class="brutal-role" data-role="technician">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 3v5"/><path d="M7 8h10"/>
                         <path d="M9 8V6.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6.5V8"/>
                         <path d="M6 10h12l-1.2 6.1A3 3 0 0 1 13.9 19H10.1a3 3 0 0 1-2.9-2.9L6 10z"/>
@@ -371,54 +398,54 @@
                 </button>
             </div>
 
-            <div class="glass-stage" id="glassStage">
-                <p class="glass-stage-note" id="glassNote">Choose a role above.</p>
+            <div class="brutal-stage" id="brutalStage">
+                <p class="brutal-stage-note" id="brutalNote">Choose a role above.</p>
 
-                <div class="glass-fields" data-group="admin">
-                    <label for="glassAdminPass">Password</label>
-                    <input type="password" id="glassAdminPass" name="password" placeholder="Enter admin password">
+                <div class="brutal-fields" data-group="admin">
+                    <label for="brutalAdminPass">Password</label>
+                    <input type="password" id="brutalAdminPass" name="password" placeholder="Enter admin password">
                 </div>
-                <div class="glass-fields" data-group="driver">
-                    <label for="glassDriverPhone">Phone Number</label>
-                    <input type="text" id="glassDriverPhone" name="phone_number" placeholder="Enter phone number" inputmode="tel">
-                    <label for="glassDriverPin">Password / PIN</label>
-                    <input type="password" id="glassDriverPin" name="driver_pin" placeholder="Enter your PIN" inputmode="numeric">
+                <div class="brutal-fields" data-group="driver">
+                    <label for="brutalDriverPhone">Phone Number</label>
+                    <input type="text" id="brutalDriverPhone" name="phone_number" placeholder="Enter phone number" inputmode="tel">
+                    <label for="brutalDriverPin">Password / PIN</label>
+                    <input type="password" id="brutalDriverPin" name="driver_pin" placeholder="Enter your PIN" inputmode="numeric">
                 </div>
-                <div class="glass-fields" data-group="technician">
-                    <label for="glassStaffUser">Username / Email</label>
-                    <input type="text" id="glassStaffUser" name="user_id" placeholder="Enter your username or email">
-                    <label for="glassStaffPass">Password</label>
-                    <input type="password" id="glassStaffPass" name="password" placeholder="Enter your password">
+                <div class="brutal-fields" data-group="technician">
+                    <label for="brutalStaffUser">Username / Email</label>
+                    <input type="text" id="brutalStaffUser" name="user_id" placeholder="Enter your username or email">
+                    <label for="brutalStaffPass">Password</label>
+                    <input type="password" id="brutalStaffPass" name="password" placeholder="Enter your password">
                 </div>
 
-                <div class="glass-options">
-                    <label class="glass-remember">
+                <div class="brutal-options">
+                    <label class="brutal-remember">
                         <input type="checkbox" name="remember_me" value="1">
                         <span>Remember me</span>
                     </label>
-                    <a class="glass-forgot" id="glassHelp" href="#">Forgot Password?</a>
+                    <a class="brutal-forgot" id="brutalHelp" href="#">Forgot Password?</a>
                 </div>
 
-                <button class="glass-submit" type="submit" id="glassSubmit" hidden>Access Portal</button>
+                <button class="brutal-submit" type="submit" id="brutalSubmit" hidden>Access Portal</button>
             </div>
         </form>
 
-        <div class="glass-back">
+        <div class="brutal-back">
             <a href="{{ url_for('home') }}">&larr; Back to Homepage</a>
         </div>
-        <div class="glass-footer-text">Current Link Transport &amp; General Contracting LLC SPC</div>
+        <div class="brutal-footer">Current Link Transport &amp; General Contracting LLC SPC</div>
     </div>
 </div>
 
 <script>
 (function(){
-    var roleInput = document.getElementById('glassRole');
-    var stage = document.getElementById('glassStage');
-    var note = document.getElementById('glassNote');
-    var submit = document.getElementById('glassSubmit');
-    var helpLink = document.getElementById('glassHelp');
-    var opts = Array.from(document.querySelectorAll('.glass-role'));
-    var fgroups = Array.from(document.querySelectorAll('.glass-fields'));
+    var roleInput = document.getElementById('brutalRole');
+    var stage = document.getElementById('brutalStage');
+    var note = document.getElementById('brutalNote');
+    var submit = document.getElementById('brutalSubmit');
+    var helpLink = document.getElementById('brutalHelp');
+    var opts = Array.from(document.querySelectorAll('.brutal-role'));
+    var fgroups = Array.from(document.querySelectorAll('.brutal-fields'));
 
     var configs = {
         admin: { note: 'Admin access uses the internal password only.', help: 'Forgot password? Contact system admin', href: '#' },
@@ -468,7 +495,7 @@
     resetFields();
     activateRole(roleInput.value || '');
 
-    var flashEl = document.getElementById('glassFlash');
+    var flashEl = document.getElementById('brutalFlash');
     if (flashEl && flashEl.children.length === 0) { flashEl.style.display = 'none'; }
 })();
 </script>
