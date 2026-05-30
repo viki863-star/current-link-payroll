@@ -100,29 +100,36 @@
             text-align: center;
             margin-bottom: 28px;
         }
+        .vp-brand-inner {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+        }
         .vp-brand video {
-            width: 56px;
-            height: 56px;
-            border-radius: 14px;
-            margin-bottom: 12px;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
             box-shadow: 0 8px 24px rgba(15,43,82,0.12);
+            flex-shrink: 0;
         }
-        .vp-brand-name {
-            font-size: 0.65rem;
-            font-weight: 700;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
+        .vp-brand-text {
+            text-align: left;
         }
-        .vp-brand-name strong {
+        .vp-brand-text strong {
             display: block;
             font-size: 1.2rem;
             font-weight: 900;
             color: #0F2B52;
-            letter-spacing: 0;
-            text-transform: none;
+            line-height: 1.2;
         }
-        .vp-brand-name strong span { color: #F7931E; }
+        .vp-brand-text strong span { color: #F7931E; }
+        .vp-brand-text small {
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
 
         .vp-head { text-align: center; margin-bottom: 28px; transition: all 0.3s; }
         .vp-head.hide { display: none; }
@@ -307,12 +314,14 @@
 <div class="vp-wrap">
     <div class="vp-card">
         <div class="vp-brand">
-            <video autoplay loop muted playsinline width="56" height="56">
-                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
-            </video>
-            <div class="vp-brand-name">
-                <strong>Current <span>Link</span></strong>
-                PORTAL ACCESS
+            <div class="vp-brand-inner">
+                <video autoplay loop muted playsinline width="48" height="48">
+                    <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+                </video>
+                <div class="vp-brand-text">
+                    <strong>Current <span>Link</span></strong>
+                    <small>Transport &amp; General Contracting LLC SPC</small>
+                </div>
             </div>
         </div>
 
@@ -441,7 +450,6 @@
         }
         roleInput.value = role;
         vpHead.classList.add('hide');
-        vpRoleArea.style.display = 'none';
         vpSubmitArea.style.display = 'block';
         vpFieldsArea.style.display = 'block';
         note.textContent = cfg.note;
