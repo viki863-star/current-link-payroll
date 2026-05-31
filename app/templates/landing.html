@@ -29,15 +29,15 @@
         pointer-events: none;
     }
     .cl-preloader video {
-        width: 80px;
-        height: 80px;
-        border-radius: 18px;
-        box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+        width: 120px;
+        height: 120px;
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
     }
     .cl-preloader-bar {
-        margin-top: 24px;
-        width: 180px;
-        height: 3px;
+        margin-top: 28px;
+        width: 220px;
+        height: 4px;
         background: rgba(255,255,255,0.10);
         border-radius: 10px;
         overflow: hidden;
@@ -48,24 +48,25 @@
         width: 0;
         background: linear-gradient(90deg, #F7931E, #f5a83a);
         border-radius: 10px;
-        animation: clLoadBar 1.2s ease forwards;
+        animation: clLoadBar 1.4s ease forwards;
     }
     @keyframes clLoadBar {
         to { width: 100%; }
     }
     .cl-preloader p {
-        margin-top: 14px;
-        font-size: 0.8rem;
+        margin-top: 16px;
+        font-size: 0.85rem;
         font-weight: 600;
-        color: rgba(255,255,255,0.4);
-        letter-spacing: 0.08em;
+        color: rgba(255,255,255,0.5);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
     }
 </style>
 </head>
 <body class="cl-landing">
 
 <div class="cl-preloader" id="clPreloader">
-    <video autoplay loop muted playsinline width="80" height="80">
+    <video autoplay loop muted playsinline width="120" height="120">
         <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
     </video>
     <div class="cl-preloader-bar"><span></span></div>
