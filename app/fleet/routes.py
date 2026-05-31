@@ -224,9 +224,9 @@ def vehicle_list():
             OWNERSHIP_TYPES=OWNERSHIP_TYPES,
         )
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        return f"<h2>Fleet Error</h2><pre>{e}\n\n{tb}</pre>", 500
+        current_app.logger.error("Fleet error: %s", e, exc_info=True)
+        flash("An error occurred loading the fleet dashboard.", "error")
+        return redirect(url_for("fleet.fleet_dashboard"))
 
 
 # ── Add Vehicle ─────────────────────────────────────────────────

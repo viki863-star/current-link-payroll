@@ -195,8 +195,7 @@ def register_routes(app: Flask) -> None:
 
     @app.errorhandler(500)
     def handle_500(error):
-        import traceback
-        return f"<h2>Internal Error</h2><pre>{traceback.format_exc()}</pre>", 500
+        return "<h2>Internal Server Error</h2><p>Something went wrong. Please try again or contact support.</p>", 500
 
     @app.context_processor
     def inject_auth_context():
@@ -6844,8 +6843,9 @@ def register_routes(app: Flask) -> None:
                 sup_used=sup_used, sup_balance=sup_balance, sup_funds=sup_funds,
             )
         except Exception as e:
-            import traceback
-            return f"<h2>Owner Fund Error</h2><pre>{traceback.format_exc()}</pre>", 500
+            current_app.logger.error("Owner Fund error: %s", e, exc_info=True)
+            flash("An error occurred. Please try again.", "error")
+            return redirect(url_for("owner_fund"))
 
     @app.post("/owner-fund/<int:entry_id>/delete")
     @_login_required("admin")
@@ -8647,7 +8647,9 @@ def _auth_identifier(role: str, phone_number: str = "", supplier_code: str = "",
 def _verify_env_secret(plain_value: str, hash_value: str, submitted_value: str) -> bool:
     if hash_value:
         return check_password_hash(hash_value, submitted_value)
-    return bool(plain_value) and submitted_value == plain_value
+    if plain_value:
+        return check_password_hash(generate_password_hash(plain_value), submitted_value)
+    return False
 
 
 def _auth_rate_limit_row(db, role: str, identifier: str):

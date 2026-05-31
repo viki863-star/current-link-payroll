@@ -586,9 +586,9 @@ def supplier_dashboard():
             recent_invoices=recent_invoices,
         )
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        return f"<h2>Supplier Dashboard Error</h2><pre>{e}\n\n{tb}</pre>", 500
+        current_app.logger.error("Supplier dashboard error: %s", e, exc_info=True)
+        flash("An error occurred loading the dashboard.", "error")
+        return redirect(url_for("supplier.supplier_dashboard"))
 
 
 # ═══════════════════════════════════════════════════════════

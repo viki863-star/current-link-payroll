@@ -106,9 +106,9 @@ def hr_dashboard():
             advances_pending=advances_pending,
         )
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        return f"<h2>HR Dashboard Error</h2><pre>{e}\n\n{tb}</pre>", 500
+        current_app.logger.error("HR dashboard error: %s", e, exc_info=True)
+        flash("An error occurred loading the dashboard.", "error")
+        return redirect(url_for("hr.hr_dashboard"))
 
 
 # ── Employee List ────────────────────────────────────────────────
