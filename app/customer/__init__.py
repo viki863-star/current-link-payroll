@@ -1,9 +1,19 @@
 from datetime import date, datetime
-from flask import Blueprint, current_app
+from flask import Blueprint, current_app, session, redirect, url_for, flash
 import sqlite3
 import os
 
 customer_bp = Blueprint("customer", __name__, template_folder="templates", url_prefix="/customer")
+
+@customer_bp.before_request
+def require_admin():
+    role = session.get("role", "")
+    if not role:
+        flash("Please sign in first.", "error")
+        return redirect(url_for("login"))
+    if role != "admin":
+        flash("You do not have access to that page.", "error")
+        return redirect(url_for("login"))
 
 @customer_bp.context_processor
 def inject_globals():
