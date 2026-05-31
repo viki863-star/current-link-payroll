@@ -2,7 +2,9 @@
     <div class="erp-sidebar-head">
         <a class="erp-brand" href="{{ url_for('dashboard') }}">
             <span class="erp-brand-mark">
-                <img class="erp-brand-video" src="{{ url_for('static', filename='enhanced_logo.png') }}" alt="Current Link" id="brandLogo">
+                <video class="erp-brand-video" autoplay muted playsinline id="brandVideo">
+                    <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+                </video>
                 <span class="erp-brand-ring"></span>
             </span>
             <span class="erp-brand-copy">
@@ -136,14 +138,27 @@
 (function() {
     var btn = document.getElementById('accountsExpandBtn');
     var children = document.getElementById('accountsChildren');
-    if (!btn || !children) return;
-    btn.addEventListener('click', function(e) {
-        e.preventDefault();
-        var expanded = btn.getAttribute('aria-expanded') === 'true' ? false : true;
-        btn.setAttribute('aria-expanded', expanded);
-        btn.classList.toggle('is-expanded');
-        children.classList.toggle('is-expanded');
-    try { localStorage.setItem('erp_accounts_expanded', expanded); } catch(ex) {}
-    })();
+    if (btn && children) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var expanded = btn.getAttribute('aria-expanded') === 'true' ? false : true;
+            btn.setAttribute('aria-expanded', expanded);
+            btn.classList.toggle('is-expanded');
+            children.classList.toggle('is-expanded');
+            try { localStorage.setItem('erp_accounts_expanded', expanded); } catch(ex) {}
+        });
+    }
+
+    var video = document.getElementById('brandVideo');
+    if (video) {
+        video.loop = false;
+        video.play().catch(function(){});
+        document.querySelectorAll('.erp-nav-link, .erp-nav-expandable').forEach(function(link) {
+            link.addEventListener('click', function() {
+                video.currentTime = 0;
+                video.play().catch(function(){});
+            });
+        });
+    }
 })();
 </script>
