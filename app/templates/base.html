@@ -488,6 +488,7 @@ if ("serviceWorker" in navigator) {
     pollNotifs();
     setInterval(pollNotifs, 30000);
 })();
+{% block extra_scripts %}{% endblock %}
 </script>
 </body>
 </html>
