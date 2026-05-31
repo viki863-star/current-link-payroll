@@ -253,13 +253,16 @@
                             </div>
 
                             <div id="prorataFields" class="form-row" {% if (salary_form.salary_mode or 'full') == 'full' %}style="display:none"{% endif %}>
-                                <div class="form-group">
-                                    <label>Prorata Start Date</label>
-                                    <input type="date" name="prorata_start_date" value="{{ salary_form.prorata_start_date or '' }}" class="form-control">
-                                </div>
-                                <div class="form-group">
-                                    <label>Prorata End Date</label>
-                                    <input type="date" name="prorata_end_date" value="{{ salary_form.prorata_end_date or '' }}" class="form-control">
+                                <div class="prorata-box" style="display:flex;flex-wrap:wrap;gap:16px;width:100%;padding:16px;background:#f8faff;border:1px solid #d0d8f0;border-radius:8px;margin-top:4px">
+                                    <div style="width:100%;font-size:0.85rem;font-weight:600;color:#2c3e8f;margin-bottom:4px">&#128197; Prorata Period — select duty start & end date</div>
+                                    <div class="form-group" style="flex:1;min-width:180px">
+                                        <label>From Date</label>
+                                        <input type="date" name="prorata_start_date" value="{{ salary_form.prorata_start_date or '' }}" class="form-control">
+                                    </div>
+                                    <div class="form-group" style="flex:1;min-width:180px">
+                                        <label>To Date</label>
+                                        <input type="date" name="prorata_end_date" value="{{ salary_form.prorata_end_date or '' }}" class="form-control">
+                                    </div>
                                 </div>
                             </div>
 
