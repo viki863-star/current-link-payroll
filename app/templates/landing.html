@@ -28,7 +28,7 @@
         visibility: hidden;
         pointer-events: none;
     }
-    .cl-preloader video {
+    .cl-preloader img {
         width: 120px;
         height: 120px;
         border-radius: 24px;
@@ -66,9 +66,7 @@
 <body class="cl-landing">
 
 <div class="cl-preloader" id="clPreloader">
-    <video autoplay loop muted playsinline width="120" height="120">
-        <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
-    </video>
+    <img src="{{ url_for('static', filename='enhanced_logo.png') }}" alt="Current Link" width="120" height="120">
     <div class="cl-preloader-bar"><span></span></div>
     <p>Loading&hellip;</p>
 </div>
@@ -76,9 +74,7 @@
 <nav class="cl-nav" id="clNav">
     <div class="cl-nav-inner">
         <a class="cl-nav-brand" href="/">
-            <video class="cl-nav-video" autoplay loop muted playsinline width="38" height="38">
-                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
-            </video>
+            <img class="cl-nav-video" src="{{ url_for('static', filename='enhanced_logo.png') }}" alt="Current Link" width="38" height="38">
             <span class="cl-nav-name"><span>Current</span> <span class="cl-nav-orange">Link</span></span>
         </a>
         <div class="cl-nav-links">
@@ -340,9 +336,7 @@
 <footer class="cl-footer">
     <div class="cl-footer-inner">
         <div class="cl-footer-brand">
-            <video class="cl-footer-video" autoplay loop muted playsinline width="40" height="40">
-                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
-            </video>
+            <img class="cl-footer-video" src="{{ url_for('static', filename='enhanced_logo.png') }}" alt="Current Link" width="40" height="40">
             <div>
                 <div class="cl-footer-name"><span>Current</span> <span class="cl-nav-orange">Link</span></div>
                 <div class="cl-footer-tag">Transport &amp; General Contracting LLC SPC</div>

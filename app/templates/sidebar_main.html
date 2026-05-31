@@ -2,9 +2,7 @@
     <div class="erp-sidebar-head">
         <a class="erp-brand" href="{{ url_for('dashboard') }}">
             <span class="erp-brand-mark">
-                <video class="erp-brand-video" autoplay muted playsinline id="brandVideo">
-                    <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
-                </video>
+                <img class="erp-brand-video" src="{{ url_for('static', filename='enhanced_logo.png') }}" alt="Current Link" id="brandLogo">
                 <span class="erp-brand-ring"></span>
             </span>
             <span class="erp-brand-copy">
@@ -147,19 +145,5 @@
         children.classList.toggle('is-expanded');
     try { localStorage.setItem('erp_accounts_expanded', expanded); } catch(ex) {}
     })();
-})();
-
-(function() {
-    var video = document.getElementById('brandVideo');
-    if (video) {
-        var maxPlays = 5;
-        var count = 0;
-        video.addEventListener('ended', function() {
-            count++;
-            if (count < maxPlays) {
-                video.play();
-            }
-        });
-    }
 })();
 </script>
