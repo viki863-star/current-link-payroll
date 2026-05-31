@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="form-shell">
-    <form method="POST" enctype="multipart/form-data" class="smart-form">
+    <form method="POST" enctype="multipart/form-data" class="smart-form" novalidate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="form-grid two-col">
@@ -219,6 +219,15 @@
     if (typeSel) {
         typeSel.addEventListener('change', toggleVehicle);
         toggleVehicle();
+    }
+
+    var form = document.querySelector('.smart-form');
+    var submitBtn = form && form.querySelector('button[type="submit"]');
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Updating...';
+        });
     }
 })();
 </script>

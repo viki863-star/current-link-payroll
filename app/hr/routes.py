@@ -991,9 +991,12 @@ def employee_edit(employee_id):
         else:
             salary = float(values["basic_salary"])
             ot_rate = float(values.get("ot_rate", 0) or 0)
-            uploaded_photo = save_employee_photo(
-                current_app._get_current_object(), employee_id,
-                values["full_name"], request.files.get("photo_file"))
+            try:
+                uploaded_photo = save_employee_photo(
+                    current_app._get_current_object(), employee_id,
+                    values["full_name"], request.files.get("photo_file"))
+            except Exception:
+                uploaded_photo = None
 
             db.execute(
                 """
