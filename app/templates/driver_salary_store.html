@@ -84,8 +84,8 @@
                 <input type="text" name="personal_vehicle_note" value="{{ values.personal_vehicle_note }}" placeholder="Fuel allowance / bonus / recovery">
             </label>
             <label>
-                <span>Monthly Salary</span>
-                <input type="text" value="{{ "%.2f"|format(preview.monthly_basic_salary) }}" readonly>
+                <span>Basic Salary (AED)</span>
+                <input type="number" name="basic_salary" value="{{ values.basic_salary or driver.basic_salary or '' }}" step="0.01" min="0">
             </label>
             <label>
                 <span>Daily Rate</span>

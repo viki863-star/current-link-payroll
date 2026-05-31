@@ -228,6 +228,17 @@
 
                             <div class="form-row">
                                 <div class="form-group">
+                                    <label>Basic Salary (AED)</label>
+                                    <input type="number" name="basic_salary" value="{{ salary_form.basic_salary or employee.basic_salary or '' }}" class="form-control" step="0.01" min="0" placeholder="e.g. 3400">
+                                </div>
+                                <div class="form-group">
+                                    <label>Timesheet Hours</label>
+                                    <input type="text" class="form-control" value="{{ timesheet_hours or 0 }}" readonly style="background:#f5f7fa">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
                                     <label>Salary Mode</label>
                                     <select name="salary_mode" class="form-control" id="salaryMode">
                                         {% for key, label in salary_mode_options %}
@@ -236,8 +247,8 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>Timesheet Hours</label>
-                                    <input type="text" class="form-control" value="{{ timesheet_hours or 0 }}" readonly style="background:#f5f7fa">
+                                    <label>OT Hours</label>
+                                    <input type="number" name="ot_hours" value="{{ salary_form.ot_hours or '0' }}" class="form-control" step="0.5" min="0" placeholder="0">
                                 </div>
                             </div>
 
@@ -632,12 +643,18 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var modeSelect = document.getElementById('salaryMode');
+    function toggleProrata() {
+        var prorataFields = document.getElementById('prorataFields');
+        if (prorataFields) {
+            prorataFields.style.display = modeSelect.value === 'prorata' ? 'flex' : 'none';
+        }
+        var prorataDates = prorataFields ? prorataFields.querySelectorAll('input[type="date"]') : [];
+        prorataDates.forEach(function(inp) { inp.required = modeSelect.value === 'prorata'; });
+    }
     if (modeSelect) {
+        toggleProrata();
         modeSelect.addEventListener('change', function() {
-            var prorataFields = document.getElementById('prorataFields');
-            if (prorataFields) {
-                prorataFields.style.display = this.value === 'prorata' ? 'flex' : 'none';
-            }
+            toggleProrata();
         });
     }
 });

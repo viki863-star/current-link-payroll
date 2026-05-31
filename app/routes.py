@@ -7904,6 +7904,7 @@ def register_routes(app: Flask) -> None:
                 "salary_month": _normalize_month(request.form.get("salary_month", selected_month).strip() or selected_month),
                 "ot_month": "",
                 "salary_mode": (request.form.get("salary_mode", "full").strip() or "full").lower(),
+                "basic_salary": request.form.get("basic_salary", "").strip(),
                 "prorata_start_date": request.form.get("prorata_start_date", "").strip(),
                 "prorata_end_date": request.form.get("prorata_end_date", "").strip(),
                 "ot_hours": request.form.get("ot_hours", "0").strip() or "0",
@@ -7912,6 +7913,8 @@ def register_routes(app: Flask) -> None:
                 "remarks": request.form.get("remarks", "").strip(),
             }
             form["ot_month"] = _previous_month_value(form["salary_month"])
+            if form["basic_salary"]:
+                driver["basic_salary"] = float(form["basic_salary"])
             existing_row = db.execute(
                 "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
                 (driver_id, form["salary_month"]),
@@ -15843,7 +15846,7 @@ def _driver_pin_hash_from_form(form, *, edit_mode: bool, existing_pin_hash: str 
     return generate_password_hash(pin)
 
 
-def _default_salary_form(salary_month: str, duty_start: str | None = None):
+def _default_salary_form(salary_month: str, duty_start: str | None = None, basic_salary: float | None = None):
     normalized_month = _normalize_month(salary_month)
     cutoff_day = _salary_cutoff_day(normalized_month)
     return {
@@ -15851,6 +15854,7 @@ def _default_salary_form(salary_month: str, duty_start: str | None = None):
         "salary_month": normalized_month,
         "ot_month": _previous_month_value(normalized_month),
         "salary_mode": "full",
+        "basic_salary": f"{basic_salary:.2f}" if basic_salary is not None else "",
         "prorata_start_date": (duty_start or "").strip(),
         "prorata_end_date": f"{normalized_month}-{cutoff_day:02d}",
         "ot_hours": "0",
@@ -15877,6 +15881,7 @@ def _salary_form_from_row(row):
         "salary_month": salary_month,
         "ot_month": row["ot_month"] or _previous_month_value(salary_month),
         "salary_mode": (row["salary_mode"] or "full").strip().lower(),
+        "basic_salary": f"{float(row['monthly_basic_salary']):.2f}" if row.get("monthly_basic_salary") else "",
         "prorata_start_date": prorata_start_date,
         "prorata_end_date": prorata_end_date,
         "ot_hours": f"{float(row['ot_hours']):.2f}",

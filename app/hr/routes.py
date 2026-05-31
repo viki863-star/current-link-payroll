@@ -434,6 +434,7 @@ def employee_salary_store(employee_id):
             "salary_month": _normalize_month(request.form.get("salary_month", selected_month).strip() or selected_month),
             "ot_month": "",
             "salary_mode": (request.form.get("salary_mode", "full").strip() or "full").lower(),
+            "basic_salary": request.form.get("basic_salary", "").strip(),
             "prorata_start_date": request.form.get("prorata_start_date", "").strip(),
             "prorata_end_date": request.form.get("prorata_end_date", "").strip(),
             "ot_hours": request.form.get("ot_hours", "0").strip() or "0",
@@ -442,6 +443,8 @@ def employee_salary_store(employee_id):
             "remarks": request.form.get("remarks", "").strip(),
         }
         form["ot_month"] = _previous_month_value(form["salary_month"])
+        if form["basic_salary"]:
+            driver_like["basic_salary"] = float(form["basic_salary"])
         try:
             preview = _calculate_salary_preview(driver_like, form)
         except ValidationError as exc:
