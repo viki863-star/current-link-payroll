@@ -1058,6 +1058,16 @@ def employee_edit(employee_id):
 
             _audit_log(db, "employee_updated", entity_type="employee", entity_id=employee_id, details=f"{values['full_name']} updated")
             db.commit()
+
+            try:
+                db.execute(
+                    "UPDATE drivers SET basic_salary=?, ot_rate=? WHERE driver_id=?",
+                    (salary, ot_rate, employee_id),
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
+
             flash("Employee updated successfully.", "success")
             return redirect(url_for("hr.employee_detail", employee_id=employee_id))
 
