@@ -2,7 +2,7 @@
     <div class="erp-sidebar-head">
         <a class="erp-brand" href="{{ url_for('dashboard') }}">
             <span class="erp-brand-mark">
-                <video class="erp-brand-video" autoplay muted playsinline id="brandVideo">
+                <video class="erp-brand-video" autoplay muted playsinline preload="auto" id="brandVideo">
                     <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
                 </video>
                 <img class="erp-brand-image" src="{{ url_for('static', filename='logo.png') }}" alt="Current Link" id="brandImage">
