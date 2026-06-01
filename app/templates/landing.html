@@ -169,56 +169,56 @@
             <p class="cl-section-sub">Premium heavy equipment available for monthly rental with trained operators.</p>
         </div>
         <div class="cl-grid">
-            <div class="cl-card">
+            <div class="cl-card" data-service="Excavator">
                 <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='EXCAVATOR CARD.png') }}');"></div>
                 <div class="cl-card-body">
                     <h3>Excavator</h3>
                     <p>Heavy-duty excavation for construction, demolition, and site preparation.</p>
                 </div>
             </div>
-            <div class="cl-card">
+            <div class="cl-card" data-service="Crane">
                 <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='CRANE CARD.png') }}');"></div>
                 <div class="cl-card-body">
                     <h3>Crane</h3>
                     <p>Mobile crane services for lifting, installation, and industrial project support.</p>
                 </div>
             </div>
-            <div class="cl-card">
+            <div class="cl-card" data-service="Man Lift">
                 <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='MAN LIFT.png') }}');"></div>
                 <div class="cl-card-body">
                     <h3>Man Lift</h3>
                     <p>Boom lifts and aerial platforms for high-reach maintenance and construction.</p>
                 </div>
             </div>
-            <div class="cl-card">
+            <div class="cl-card" data-service="Trailer">
                 <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='TRAILER CARD.png') }}');"></div>
                 <div class="cl-card-body">
                     <h3>Trailer</h3>
                     <p>Low-bed and flatbed trailers with driver for monthly rental — ideal for major contractors and government projects.</p>
                 </div>
             </div>
-            <div class="cl-card">
+            <div class="cl-card" data-service="Forklift">
                 <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='FORKLIFT CARD.png') }}');"></div>
                 <div class="cl-card-body">
                     <h3>Forklift</h3>
                     <p>Warehouse and construction forklifts for material handling and loading operations.</p>
                 </div>
             </div>
-            <div class="cl-card">
+            <div class="cl-card" data-service="Bobcat">
                 <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='BOBCAT  SKID STEER.png') }}');"></div>
                 <div class="cl-card-body">
                     <h3>Bobcat / Skid Steer</h3>
                     <p>Compact loaders for grading, digging, and site clean-up in tight spaces.</p>
                 </div>
             </div>
-            <div class="cl-card">
+            <div class="cl-card" data-service="Grader">
                 <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='GRADER.png') }}');"></div>
                 <div class="cl-card-body">
                     <h3>Grader</h3>
                     <p>Precision grading for road construction, land leveling, and infrastructure projects.</p>
                 </div>
             </div>
-            <div class="cl-card">
+            <div class="cl-card" data-service="Water Tanker">
                 <div class="cl-card-img" style="background-image: url('{{ url_for('static', filename='WATER TANKER.png') }}');"></div>
                 <div class="cl-card-body">
                     <h3>Water Tanker</h3>
@@ -399,6 +399,19 @@
         }, 3500);
     }
 })();
+
+document.querySelectorAll('.cl-card').forEach(function(card) {
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', function() {
+        var service = this.getAttribute('data-service');
+        if (!service) return;
+        var select = document.querySelector('select[name="equipment"]');
+        var msg = document.querySelector('textarea[name="message"]');
+        if (select) select.value = service;
+        if (msg) msg.value = 'I am interested in ' + service + ' rental. Please provide a quote.';
+        document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+    });
+});
 </script>
 
 </body>
