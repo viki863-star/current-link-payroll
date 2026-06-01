@@ -1124,6 +1124,8 @@ def customer_kata(cid):
     for inv in db.execute(inv_q, inv_p).fetchall():
         d = dict(inv)
         d["type"] = "Invoice"
+        if (d.get("dr",0) or 0) > 0 and (d.get("dr",0) or 0) - (d.get("cr",0) or 0) <= 0.005:
+            continue
         entries.append(d)
     cn_q = "SELECT credit_note_date as d, credit_note_no as ref, 'Credit Note' as type, 0 as dr, total_amount as cr FROM customer_credit_notes WHERE customer_id=?"
     cn_p = [cid]
@@ -1176,6 +1178,8 @@ def customer_soa_pdf(cid):
     for inv in db.execute(inv_q, inv_p).fetchall():
         d = dict(inv)
         d["type"] = "Invoice"
+        if (d.get("dr",0) or 0) > 0 and (d.get("dr",0) or 0) - (d.get("cr",0) or 0) <= 0.005:
+            continue
         entries.append(d)
     cn_q = "SELECT credit_note_date as d, credit_note_no as ref, 'Credit Note' as type, 0 as dr, total_amount as cr FROM customer_credit_notes WHERE customer_id=?"
     cn_p = [cid]
