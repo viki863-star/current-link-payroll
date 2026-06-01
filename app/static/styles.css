@@ -10082,9 +10082,8 @@ textarea.form-control {
 .cl-nav-bg {
     position: absolute;
     inset: 0;
-    background: rgba(15,43,82,0.97);
-    backdrop-filter: blur(12px);
-    box-shadow: 0 2px 20px rgba(0,0,0,0.15);
+    background: #fff;
+    box-shadow: 0 2px 24px rgba(0,0,0,0.08);
     z-index: -1;
     transform: scaleX(0);
     transform-origin: center;
@@ -10122,8 +10121,12 @@ textarea.form-control {
 .cl-nav-name {
     font-size: 1.15rem;
     font-weight: 800;
-    color: #fff;
+    color: #0F2B52;
     letter-spacing: -0.3px;
+}
+
+.cl-nav.scrolled .cl-nav-name {
+    color: #0F2B52;
 }
 
 .cl-nav-orange { color: #F7931E; }
@@ -10135,7 +10138,7 @@ textarea.form-control {
 }
 
 .cl-nav-link {
-    color: rgba(255,255,255,0.8);
+    color: rgba(15,43,82,0.75);
     text-decoration: none;
     font-size: 0.85rem;
     font-weight: 500;
@@ -10145,8 +10148,8 @@ textarea.form-control {
 }
 
 .cl-nav-link:hover {
-    color: #fff;
-    background: rgba(255,255,255,0.1);
+    color: #F7931E;
+    background: rgba(247,147,30,0.08);
 }
 
 .cl-nav-btn {
@@ -10159,6 +10162,10 @@ textarea.form-control {
     border-radius: 8px;
     margin-left: 8px;
     transition: all 0.2s;
+}
+
+.cl-nav-btn:hover {
+    background: #e6820e;
 }
 
 .cl-nav-btn:hover { background: #e67e00; transform: translateY(-1px); }
