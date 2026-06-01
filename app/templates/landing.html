@@ -65,32 +65,6 @@
         background: linear-gradient(90deg, #F7931E, #f5a83a);
         border-radius: 10px;
     }
-    .cl-wa-float {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        z-index: 9999;
-        padding: 12px 22px;
-        border-radius: 50px;
-        background: #25D366;
-        color: #fff;
-        font-weight: 700;
-        font-size: 0.95rem;
-        text-decoration: none;
-        font-family: 'Inter', sans-serif;
-        letter-spacing: 0.3px;
-        box-shadow: 0 4px 20px rgba(37,211,102,0.4);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        animation: clWaPulse 2s ease infinite;
-    }
-    .cl-wa-float:hover {
-        transform: scale(1.05);
-        box-shadow: 0 6px 28px rgba(37,211,102,0.55);
-    }
-    @keyframes clWaPulse {
-        0%, 100% { box-shadow: 0 4px 20px rgba(37,211,102,0.4); }
-        50% { box-shadow: 0 4px 30px rgba(37,211,102,0.7); }
-    }
     .cl-preloader-text {
         margin-top: 16px;
         font-size: 0.85rem;
@@ -513,8 +487,6 @@ document.querySelectorAll('.cl-card').forEach(function(card) {
     });
 });
 </script>
-
-<a href="https://wa.me/971501224963?text=Hello%20Current%20Link%2C%20I%20want%20to%20inquire%20about%20equipment%20rental." target="_blank" class="cl-wa-float">Chat on WhatsApp</a>
 
 </body>
 </html>
