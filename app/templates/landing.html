@@ -387,27 +387,25 @@
     /* preloader */
     var preloader = document.getElementById('clPreloader');
     if (preloader) {
-        if (localStorage.getItem('cl_visited')) {
-            preloader.classList.add('hide');
-        } else {
-            localStorage.setItem('cl_visited', '1');
-            var video = document.getElementById('loadingVideo');
-            var bar = document.getElementById('loadingProgress');
-            var start = Date.now();
-            var dur = 3000;
-            function tick() {
-                var p = Math.min((Date.now() - start) / dur, 1);
-                bar.style.width = (p * 100) + '%';
-                if (p < 1) { requestAnimationFrame(tick); }
-            }
-            requestAnimationFrame(tick);
-            var hide = function() {
-                preloader.classList.add('hide');
-                video.pause();
-            };
-            video.addEventListener('ended', hide);
-            setTimeout(hide, dur);
+        var video = document.getElementById('loadingVideo');
+        var bar = document.getElementById('loadingProgress');
+        var doPlay = function() { video.play().catch(function(){}); };
+        if (video.readyState >= 2) { doPlay(); }
+        else { video.addEventListener('loadeddata', doPlay, {once:true}); }
+        var start = Date.now();
+        var dur = 3000;
+        function tick() {
+            var p = Math.min((Date.now() - start) / dur, 1);
+            bar.style.width = (p * 100) + '%';
+            if (p < 1) { requestAnimationFrame(tick); }
         }
+        requestAnimationFrame(tick);
+        var hide = function() {
+            preloader.classList.add('hide');
+            video.pause();
+        };
+        video.addEventListener('ended', hide);
+        setTimeout(hide, dur);
     }
 })();
 
