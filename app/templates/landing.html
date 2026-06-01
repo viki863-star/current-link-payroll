@@ -79,7 +79,7 @@
 
 <div class="cl-preloader" id="clPreloader">
     <div class="cl-preloader-video-wrap">
-        <video class="cl-preloader-video" autoplay playsinline preload="auto" id="loadingVideo">
+        <video class="cl-preloader-video" autoplay muted playsinline preload="auto" id="loadingVideo">
             <source src="{{ url_for('static', filename='loading-logo.mp4') }}" type="video/mp4">
         </video>
     </div>
@@ -401,6 +401,9 @@
         var doPlay = function() { video.play().catch(function(){}); };
         if (video.readyState >= 2) { doPlay(); }
         else { video.addEventListener('loadeddata', doPlay, {once:true}); }
+        var unmute = function() { video.muted = false; };
+        document.addEventListener('click', unmute, {once:true});
+        document.addEventListener('touchstart', unmute, {once:true});
         var start = Date.now();
         function tick() {
             var p = Math.min((Date.now() - start) / 3000, 1);
