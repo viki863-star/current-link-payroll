@@ -7885,7 +7885,7 @@ html {
     left: 0;
     width: 42px;
     height: 42px;
-    object-fit: cover;
+    object-fit: contain;
     border-radius: 10px;
 }
 
@@ -7897,15 +7897,7 @@ html {
 .erp-brand-image {
     opacity: 0;
     z-index: 1;
-}
-
-.erp-brand-mark.video-done .erp-brand-video {
-    opacity: 0;
     pointer-events: none;
-}
-
-.erp-brand-mark.video-done .erp-brand-image {
-    opacity: 1;
 }
 
 .erp-brand-ring {
