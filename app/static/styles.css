@@ -7883,10 +7883,9 @@ html {
     position: absolute;
     top: 0;
     left: 0;
-    width: 42px;
     height: 42px;
-    object-fit: contain;
-    border-radius: 10px;
+    width: auto;
+    border-radius: 8px;
 }
 
 .erp-brand-video {
@@ -10137,11 +10136,11 @@ textarea.form-control {
 }
 
 .cl-nav-video {
-    width: 46px;
     height: 46px;
-    border-radius: 12px;
-    object-fit: contain;
+    width: auto;
+    border-radius: 10px;
     border: 2px solid rgba(247,147,30,0.4);
+    display: block;
 }
 
 .cl-nav-name {
@@ -10756,11 +10755,11 @@ textarea.form-control {
 }
 
 .cl-footer-video {
-    width: 40px;
     height: 40px;
-    border-radius: 10px;
-    object-fit: contain;
+    width: auto;
+    border-radius: 8px;
     border: 2px solid rgba(247,147,30,0.3);
+    display: block;
 }
 
 .cl-footer-name {
