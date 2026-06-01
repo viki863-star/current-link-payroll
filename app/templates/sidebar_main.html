@@ -150,21 +150,19 @@
         });
     }
 
+    var mark = document.querySelector('.erp-brand-mark');
     var video = document.getElementById('brandVideo');
-    var image = document.getElementById('brandImage');
-    if (video && image) {
+    if (mark && video) {
         video.loop = false;
         video.play().catch(function(){
-            video.style.display = 'none';
-            image.style.display = 'block';
+            mark.classList.add('video-done');
         });
         video.addEventListener('ended', function() {
-            video.style.display = 'none';
-            image.style.display = 'block';
+            mark.classList.add('video-done');
         });
         document.querySelectorAll('.erp-nav-link, .erp-nav-expandable').forEach(function(link) {
             link.addEventListener('click', function() {
-                if (video.style.display !== 'none') {
+                if (!mark.classList.contains('video-done')) {
                     video.currentTime = 0;
                     video.play().catch(function(){});
                 }

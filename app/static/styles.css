@@ -7878,9 +7878,11 @@ html {
     overflow: hidden;
     position: relative;
 }
-
-.erp-brand-mark img,
-.erp-brand-mark video {
+.erp-brand-video,
+.erp-brand-image {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 42px;
     height: 42px;
     object-fit: cover;
@@ -7888,19 +7890,22 @@ html {
 }
 
 .erp-brand-video {
-    display: block;
-    width: 42px;
-    height: 42px;
-    object-fit: cover;
-    border-radius: 10px;
+    opacity: 1;
+    z-index: 2;
 }
 
 .erp-brand-image {
-    display: none;
-    width: 42px;
-    height: 42px;
-    object-fit: cover;
-    border-radius: 10px;
+    opacity: 0;
+    z-index: 1;
+}
+
+.erp-brand-mark.video-done .erp-brand-video {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.erp-brand-mark.video-done .erp-brand-image {
+    opacity: 1;
 }
 
 .erp-brand-ring {
