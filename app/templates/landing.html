@@ -85,7 +85,9 @@
 <nav class="cl-nav" id="clNav">
     <div class="cl-nav-inner">
         <a class="cl-nav-brand" href="/">
-            <img class="cl-nav-video" src="{{ url_for('static', filename='enhanced_logo.png') }}" alt="Current Link" width="38" height="38">
+            <video class="cl-nav-video" autoplay muted playsinline width="38" height="38">
+                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+            </video>
             <span class="cl-nav-name"><span>Current</span> <span class="cl-nav-orange">Link</span></span>
         </a>
         <div class="cl-nav-links">
@@ -352,7 +354,9 @@
 <footer class="cl-footer">
     <div class="cl-footer-inner">
         <div class="cl-footer-brand">
-            <img class="cl-footer-video" src="{{ url_for('static', filename='enhanced_logo.png') }}" alt="Current Link" width="40" height="40">
+            <video class="cl-footer-video" autoplay muted playsinline width="40" height="40">
+                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+            </video>
             <div>
                 <div class="cl-footer-name"><span>Current</span> <span class="cl-nav-orange">Link</span></div>
                 <div class="cl-footer-tag">Transport &amp; General Contracting LLC SPC</div>
