@@ -70,19 +70,21 @@
         bottom: 24px;
         right: 24px;
         z-index: 9999;
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
+        padding: 12px 22px;
+        border-radius: 50px;
         background: #25D366;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.95rem;
+        text-decoration: none;
+        font-family: 'Inter', sans-serif;
+        letter-spacing: 0.3px;
         box-shadow: 0 4px 20px rgba(37,211,102,0.4);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
         animation: clWaPulse 2s ease infinite;
     }
     .cl-wa-float:hover {
-        transform: scale(1.1);
+        transform: scale(1.05);
         box-shadow: 0 6px 28px rgba(37,211,102,0.55);
     }
     @keyframes clWaPulse {
@@ -512,9 +514,7 @@ document.querySelectorAll('.cl-card').forEach(function(card) {
 });
 </script>
 
-<a href="https://wa.me/971501224963?text=Hello%20Current%20Link%2C%20I%20want%20to%20inquire%20about%20equipment%20rental." target="_blank" class="cl-wa-float" aria-label="WhatsApp">
-    <svg viewBox="0 0 32 32" fill="white" width="28" height="28"><path d="M16.004 0h-.008C7.168 0 0 7.168 0 16c0 3.2.944 6.176 2.56 8.688L.032 32l7.44-2.496A15.936 15.936 0 0016 32c8.832 0 16-7.168 16-16s-7.168-16-16-16zM25.84 22.576c-.368 1.04-1.104 1.92-2.048 2.432-.624.336-1.424.512-2.336.512-1.328 0-2.688-.416-4.112-1.232-2.272-1.296-4.464-3.6-6.128-6.192-.864-1.344-1.456-2.688-1.568-3.888-.112-1.104.256-2.048.912-2.768.304-.336.656-.528.976-.528.144 0 .272.016.384.032.336.032.512.24.656.496.48.832 1.104 1.968 1.44 2.704.144.32.24.624.24.912 0 .48-.304.944-.624 1.296l-.464.496c-.128.144-.176.288-.144.432.272.768.864 1.664 1.568 2.544.96 1.2 2.128 2.288 3.312 2.96.256.144.56.224.864.112l.688-.48c.432-.304.96-.368 1.424-.176.672.256 1.712.768 2.416 1.12.224.112.4.224.544.368.144.224.112.464-.032.688-.256.384-.688.864-.976 1.136-.256.256-.496.512-.64.8z" fill="white"/></svg>
-</a>
+<a href="https://wa.me/971501224963?text=Hello%20Current%20Link%2C%20I%20want%20to%20inquire%20about%20equipment%20rental." target="_blank" class="cl-wa-float">Chat on WhatsApp</a>
 
 </body>
 </html>
