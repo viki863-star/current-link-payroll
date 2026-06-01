@@ -65,17 +65,26 @@
         background: linear-gradient(90deg, #F7931E, #f5a83a);
         border-radius: 10px;
     }
+    .cl-preloader-text {
+        margin-top: 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: rgba(255,255,255,0.5);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
 </style>
 </head>
 <body class="cl-landing">
 
 <div class="cl-preloader" id="clPreloader">
     <div class="cl-preloader-video-wrap">
-        <video class="cl-preloader-video" autoplay muted playsinline preload="auto" id="loadingVideo">
+        <video class="cl-preloader-video" autoplay playsinline preload="auto" id="loadingVideo">
             <source src="{{ url_for('static', filename='loading-logo.mp4') }}" type="video/mp4">
         </video>
     </div>
     <div class="cl-preloader-bar"><span id="loadingProgress"></span></div>
+    <p class="cl-preloader-text">Loading&hellip;</p>
 </div>
 
 <nav class="cl-nav" id="clNav">
