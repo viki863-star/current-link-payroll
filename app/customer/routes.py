@@ -795,22 +795,24 @@ def customer_invoice_pdf(cid, iid):
     sg = ParagraphStyle("SG", fontSize=9, alignment=TA_CENTER, leading=14)
     stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
     sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
-    stamp_cells = []
-    stamp_cells.append(Paragraph("_________________________", sg))
+    auth_cells = []
+    auth_cells.append(Paragraph("_________________________", sg))
     if os.path.exists(stamp_path):
-        stamp_cells.append(Image(stamp_path, width=40, height=40))
-    stamp_cells.append(Paragraph("<b>Authorized Signatory</b>", sg))
-    stamp_cell = Table([[c] for c in stamp_cells], colWidths=[W*0.35])
-    stamp_cell.setStyle(TableStyle([
+        auth_cells.append(Image(stamp_path, width=40, height=40))
+    if os.path.exists(sign_path):
+        auth_cells.append(Image(sign_path, width=40, height=40))
+    auth_cells.append(Paragraph("<b>Authorized Signatory</b>", sg))
+    auth_cell = Table([[c] for c in auth_cells], colWidths=[W*0.35])
+    auth_cell.setStyle(TableStyle([
         ("ALIGN",(0,0),(-1,-1),"CENTER"),
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("TOPPADDING",(0,0),(-1,-1),0),
         ("BOTTOMPADDING",(0,0),(-1,-1),2),
     ]))
     sgt = Table([[
-        stamp_cell,
+        auth_cell,
         C("", fontSize=4),
-        Paragraph("_________________________<br/><br/><b>Customer Signature</b><br/><font size=7 color='#6b7280'>Accepted By</font>", sg),
+        Paragraph("", sg),
     ]], colWidths=[W*0.35, W*0.30, W*0.35])
     sgt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"TOP"),
@@ -1387,35 +1389,25 @@ def customer_soa_pdf(cid):
     els.append(Spacer(1, 8*mm))
     s_sg = ParagraphStyle("SSG", fontSize=9, alignment=TA_CENTER, leading=14)
     s_stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
-    s_stamp_cells = []
-    s_stamp_cells.append(Paragraph("_________________________", s_sg))
+    s_sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
+    s_auth_cells = []
+    s_auth_cells.append(Paragraph("_________________________", s_sg))
     if os.path.exists(s_stamp_path):
-        s_stamp_cells.append(Image(s_stamp_path, width=40, height=40))
-    s_stamp_cells.append(Paragraph("<b>Authorized Signatory</b>", s_sg))
-    s_stamp_cell = Table([[c] for c in s_stamp_cells], colWidths=[W*0.35])
-    s_stamp_cell.setStyle(TableStyle([
-        ("ALIGN",(0,0),(-1,-1),"CENTER"),
-        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",(0,0),(-1,-1),0),
-        ("BOTTOMPADDING",(0,0),(-1,-1),2),
-    ]))
-    s_sign_cells = []
-    s_sign_cells.append(Paragraph("_________________________", s_sg))
-    sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
-    if os.path.exists(sign_path):
-        s_sign_cells.append(Image(sign_path, width=40, height=40))
-    s_sign_cells.append(Paragraph("<b>Customer Signature</b><br/><font size=7 color='#6b7280'>Accepted By</font>", s_sg))
-    s_sign_cell = Table([[c] for c in s_sign_cells], colWidths=[W*0.35])
-    s_sign_cell.setStyle(TableStyle([
+        s_auth_cells.append(Image(s_stamp_path, width=40, height=40))
+    if os.path.exists(s_sign_path):
+        s_auth_cells.append(Image(s_sign_path, width=40, height=40))
+    s_auth_cells.append(Paragraph("<b>Authorized Signatory</b>", s_sg))
+    s_auth_cell = Table([[c] for c in s_auth_cells], colWidths=[W*0.35])
+    s_auth_cell.setStyle(TableStyle([
         ("ALIGN",(0,0),(-1,-1),"CENTER"),
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("TOPPADDING",(0,0),(-1,-1),0),
         ("BOTTOMPADDING",(0,0),(-1,-1),2),
     ]))
     soa_sig = Table([[
-        s_stamp_cell,
+        s_auth_cell,
         C("", fontSize=4),
-        s_sign_cell,
+        Paragraph("", s_sg),
     ]], colWidths=[W*0.35, W*0.30, W*0.35])
     soa_sig.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"TOP"),
