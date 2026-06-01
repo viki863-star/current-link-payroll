@@ -10100,7 +10100,7 @@ textarea.form-control {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 70px;
+    height: 84px;
 }
 
 .cl-nav-brand {
@@ -10111,15 +10111,15 @@ textarea.form-control {
 }
 
 .cl-nav-video {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
     object-fit: contain;
     border: 2px solid rgba(247,147,30,0.4);
 }
 
 .cl-nav-name {
-    font-size: 1.15rem;
+    font-size: 1.25rem;
     font-weight: 800;
     color: #0F2B52;
     letter-spacing: -0.3px;
