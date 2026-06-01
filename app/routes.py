@@ -1634,20 +1634,32 @@ def register_routes(app: Flask) -> None:
             flash("Name, phone and message are required.", "error")
             return redirect(url_for("home") + "#contact")
 
-        db = open_db()
-        db.execute(
-            """CREATE TABLE IF NOT EXISTS contact_inquiries (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT,
-                company TEXT, equipment TEXT, message TEXT NOT NULL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )"""
-        )
-        db.execute(
-            "INSERT INTO contact_inquiries (name, phone, email, company, equipment, message) VALUES (?, ?, ?, ?, ?, ?)",
-            (name, phone, email or None, company or None, equipment or None, message),
-        )
-        db.commit()
+        try:
+            db = open_db()
+            db.execute(
+                """CREATE TABLE IF NOT EXISTS contact_inquiries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT,
+                    company TEXT, equipment TEXT, message TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )"""
+            )
+            db.execute(
+                "INSERT INTO contact_inquiries (name, phone, email, company, equipment, message) VALUES (?, ?, ?, ?, ?, ?)",
+                (name, phone, email or None, company or None, equipment or None, message),
+            )
+            db.commit()
+        except Exception as e:
+            current_app.logger.error(f"Contact form DB error: {e}")
+            flash("Something went wrong. Please try again.", "error")
+            return redirect(url_for("home") + "#contact")
+
+        try:
+            from app.email_service import send_inquiry_email
+            send_inquiry_email(name, phone, email, company, equipment, message)
+        except Exception as e:
+            current_app.logger.warning(f"Contact form email notification failed: {e}")
+
         flash("Thank you! We have received your inquiry and will contact you shortly.", "success")
         return redirect(url_for("home") + "#contact")
 

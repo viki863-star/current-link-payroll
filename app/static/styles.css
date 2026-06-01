@@ -7895,6 +7895,14 @@ html {
     border-radius: 10px;
 }
 
+.erp-brand-image {
+    display: none;
+    width: 42px;
+    height: 42px;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
 .erp-brand-ring {
     position: absolute;
     inset: 0;

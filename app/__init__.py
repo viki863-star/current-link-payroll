@@ -164,6 +164,13 @@ def create_app(test_config: dict | None = None) -> Flask:
         SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "false").strip().lower() == "true",
         WTF_CSRF_TIME_LIMIT=3600,
         PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+        MAIL_SERVER=os.getenv("MAIL_SERVER", "").strip(),
+        MAIL_PORT=int(os.getenv("MAIL_PORT", "587")),
+        MAIL_USE_TLS=os.getenv("MAIL_USE_TLS", "true").strip().lower() == "true",
+        MAIL_USERNAME=os.getenv("MAIL_USERNAME", "").strip(),
+        MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", "").strip(),
+        MAIL_DEFAULT_SENDER=os.getenv("MAIL_DEFAULT_SENDER", "").strip(),
+        MAIL_RECIPIENT=os.getenv("MAIL_RECIPIENT", "").strip(),
     )
 
     if test_config:
