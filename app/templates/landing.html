@@ -393,19 +393,16 @@
         if (video.readyState >= 2) { doPlay(); }
         else { video.addEventListener('loadeddata', doPlay, {once:true}); }
         var start = Date.now();
-        var dur = 3000;
         function tick() {
-            var p = Math.min((Date.now() - start) / dur, 1);
+            var p = Math.min((Date.now() - start) / 3000, 1);
             bar.style.width = (p * 100) + '%';
             if (p < 1) { requestAnimationFrame(tick); }
         }
         requestAnimationFrame(tick);
-        var hide = function() {
+        video.addEventListener('ended', function() {
             preloader.classList.add('hide');
-            video.pause();
-        };
-        video.addEventListener('ended', hide);
-        setTimeout(hide, dur);
+        });
+        setTimeout(function() { preloader.classList.add('hide'); }, 5000);
     }
 })();
 
