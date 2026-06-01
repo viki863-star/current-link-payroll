@@ -92,6 +92,17 @@ def _ensure_tables():
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (customer_id) REFERENCES customers(id)
         );
+        CREATE TABLE IF NOT EXISTS lpo_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lpo_id INTEGER NOT NULL,
+            description TEXT,
+            quantity REAL NOT NULL DEFAULT 1,
+            rate REAL NOT NULL DEFAULT 0,
+            amount REAL NOT NULL DEFAULT 0,
+            unit_type TEXT NOT NULL DEFAULT 'hour',
+            sort_order INTEGER DEFAULT 0,
+            FOREIGN KEY (lpo_id) REFERENCES customer_lpos(id) ON DELETE CASCADE
+        );
         CREATE TABLE IF NOT EXISTS customer_documents (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             customer_id INTEGER NOT NULL,
@@ -141,6 +152,16 @@ def _ensure_tables():
     for col, dtype in [("capacity_gallon", "TEXT"), ("unit", "TEXT"),
                        ("vat_percent_item", "REAL"), ("vat_amount_item", "REAL"),
                        ("total_incl_vat", "REAL")]:
+        try:
+            db.execute(f"ALTER TABLE customer_invoice_items ADD COLUMN {col} {dtype}")
+        except Exception:
+            pass
+    for col, dtype in [("file_data", "TEXT"), ("file_type", "TEXT")]:
+        try:
+            db.execute(f"ALTER TABLE customer_lpos ADD COLUMN {col} {dtype}")
+        except Exception:
+            pass
+    for col, dtype in [("lpo_id", "INTEGER"), ("unit", "TEXT")]:
         try:
             db.execute(f"ALTER TABLE customer_invoice_items ADD COLUMN {col} {dtype}")
         except Exception:
@@ -336,23 +357,32 @@ def customer_invoice_add(cid):
             db.close()
             return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
         vat_pct = float(request.form.get("vat_percent", 5))
-        lpo_no = request.form.get("lpo_no", "").strip() or None
+        lpo_id = request.form.get("lpo_id", "").strip()
+        lpo_no = None
         lpo_date = request.form.get("lpo_date", "").strip() or None
+        if lpo_id:
+            lpo_row = db.execute("SELECT lpo_no,lpo_date FROM customer_lpos WHERE id=? AND customer_id=?", (lpo_id, cid)).fetchone()
+            if lpo_row:
+                lpo_no = lpo_row["lpo_no"]
+                if not lpo_date:
+                    lpo_date = lpo_row["lpo_date"]
         project_no = request.form.get("project_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
         descs = request.form.getlist("item_desc[]")
         qtys = request.form.getlist("item_qty[]")
+        units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
         items = []
         sub_total = 0
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+            unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 sub_total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt})
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
         if not items:
             flash("At least one line item is required.", "error")
             db.close()
@@ -364,8 +394,8 @@ def customer_invoice_add(cid):
             (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, project_no, notes))
         inv_id = c_inv.lastrowid
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
-                (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
+                (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
             if it["desc"]:
                 try:
                     db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
@@ -420,23 +450,32 @@ def customer_invoice_edit(cid, iid):
             db.close()
             return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True)
         vat_pct = float(request.form.get("vat_percent", 5))
-        lpo_no = request.form.get("lpo_no", "").strip() or None
+        lpo_id = request.form.get("lpo_id", "").strip()
+        lpo_no = None
         lpo_date = request.form.get("lpo_date", "").strip() or None
+        if lpo_id:
+            lpo_row = db.execute("SELECT lpo_no,lpo_date FROM customer_lpos WHERE id=? AND customer_id=?", (lpo_id, cid)).fetchone()
+            if lpo_row:
+                lpo_no = lpo_row["lpo_no"]
+                if not lpo_date:
+                    lpo_date = lpo_row["lpo_date"]
         project_no = request.form.get("project_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
         descs = request.form.getlist("item_desc[]")
         qtys = request.form.getlist("item_qty[]")
+        units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
         new_items = []
         sub_total = 0
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+            unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 sub_total += amt
-                new_items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt})
+                new_items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
         if not new_items:
             flash("At least one line item is required.", "error")
             db.close()
@@ -447,8 +486,8 @@ def customer_invoice_edit(cid, iid):
             (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, project_no, notes, iid))
         db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
         for idx, it in enumerate(new_items):
-            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
-                (iid, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
+                (iid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
             if it["desc"]:
                 try:
                     db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
@@ -672,7 +711,7 @@ def customer_invoice_pdf(cid, iid):
         rws.append([
             C(str(idx+1), fontSize=7, fontName="Helvetica-Bold"),
             L(it["description"] or "—", fontSize=7),
-            R(f"{it['quantity'] or 0:,.2f}", fontSize=7),
+            R(f"{it['quantity'] or 0:,.2f} {(it['unit'] or 'hr')}", fontSize=7),
             R(f"{it['rate'] or 0:,.3f}", fontSize=7),
             R(f"{it['amount'] or 0:,.2f}", fontSize=7),
             C(f"{vp_item:.2f}%", fontSize=7),
@@ -1053,9 +1092,40 @@ def customer_lpo_add(cid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
     if request.method == "POST":
-        db.execute("INSERT INTO customer_lpos (customer_id,lpo_no,lpo_date,amount,status,notes) VALUES (?,?,?,?,?,?)",
-            (cid, request.form.get("lpo_no"), request.form.get("lpo_date", date.today().isoformat()),
-             float(request.form.get("amount", 0) or 0), request.form.get("status", "pending"), request.form.get("notes")))
+        lpo_no = request.form.get("lpo_no", "").strip()
+        lpo_date = request.form.get("lpo_date", date.today().isoformat())
+        status = request.form.get("status", "pending")
+        notes = request.form.get("notes", "").strip()
+        # file
+        file_data = None
+        file_type = None
+        file = request.files.get("lpo_file")
+        if file and file.filename:
+            file_data = base64.b64encode(file.read()).decode("utf-8")
+            file_type = file.content_type
+        # calc total from items
+        descs = request.form.getlist("item_desc[]")
+        qtys = request.form.getlist("item_qty[]")
+        units = request.form.getlist("item_unit[]")
+        rates = request.form.getlist("item_rate[]")
+        total = 0
+        items = []
+        for i in range(len(descs)):
+            desc = descs[i].strip()
+            qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+            unit = units[i] if i < len(units) else "hour"
+            rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            if desc or rate > 0:
+                amt = round(qty * rate, 2)
+                total += amt
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+        total = round(total, 2)
+        cur = db.execute("INSERT INTO customer_lpos (customer_id,lpo_no,lpo_date,amount,status,notes,file_data,file_type) VALUES (?,?,?,?,?,?,?,?)",
+            (cid, lpo_no, lpo_date, total, status, notes, file_data, file_type))
+        lpo_id = cur.lastrowid
+        for idx, it in enumerate(items):
+            db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
+                (lpo_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
         db.commit()
         db.close()
         flash("LPO added.", "success")
@@ -1071,6 +1141,49 @@ def customer_lpo_close(cid, lid):
     db.close()
     flash("LPO closed.", "success")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
+
+@customer_bp.route("/<int:cid>/lpo/<int:lid>/items")
+def customer_lpo_items(cid, lid):
+    _ensure_tables()
+    db = _get_db()
+    items = db.execute("SELECT id,description,quantity,rate,amount,unit_type FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
+    lpo = db.execute("SELECT lpo_no,lpo_date FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
+    db.close()
+    if not lpo:
+        return jsonify([])
+    return jsonify({
+        "lpo_no": lpo["lpo_no"],
+        "lpo_date": lpo["lpo_date"],
+        "items": [{"id": r["id"], "description": r["description"], "quantity": r["quantity"], "rate": r["rate"], "amount": r["amount"], "unit_type": r["unit_type"]} for r in items]
+    })
+
+@customer_bp.route("/<int:cid>/lpo/<int:lid>/file")
+def customer_lpo_file(cid, lid):
+    db = _get_db()
+    lpo = db.execute("SELECT * FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
+    db.close()
+    if not lpo or not lpo["file_data"]:
+        flash("LPO file not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
+    import io
+    data = base64.b64decode(lpo["file_data"])
+    return send_file(io.BytesIO(data), mimetype=lpo["file_type"] or "application/pdf",
+        as_attachment=True, download_name=f"LPO_{lpo['lpo_no'] or lid}.pdf")
+
+@customer_bp.route("/<int:cid>/lpo/<int:lid>/view")
+def customer_lpo_view(cid, lid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    lpo = db.execute("SELECT * FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
+    if not lpo:
+        db.close()
+        flash("LPO not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
+    items = db.execute("SELECT * FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
+    db.close()
+    return render_template("customer/lpo_view.html", c=c, lpo=lpo, items=items)
 
 # ─── DOCUMENTS ───
 

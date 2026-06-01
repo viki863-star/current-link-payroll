@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}LPO View{% endblock %}
+{% block page_title %}LPO — {{ c.customer_name }}{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:700px;margin:0 auto">
+<div class="profile-card">
+    <div style="margin-bottom:14px">
+        <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='lpos') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">
+        <div>
+            <h3 style="margin:0 0 4px">LPO Details</h3>
+            <p style="color:var(--muted);font-size:0.82rem;margin:0">Customer: <strong>{{ c.customer_name }}</strong></p>
+        </div>
+        <span class="status-badge {% if lpo.status == 'closed' %}active{% else %}pending{% endif %}">{{ lpo.status }}</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6;margin-bottom:16px">
+        <div>
+            <span style="font-size:0.72rem;color:var(--muted)">LPO No.</span>
+            <div style="font-weight:600">{{ lpo.lpo_no or '—' }}</div>
+        </div>
+        <div>
+            <span style="font-size:0.72rem;color:var(--muted)">LPO Date</span>
+            <div class="mono">{{ lpo.lpo_date }}</div>
+        </div>
+    </div>
+
+    {% if items %}
+    <h4 style="font-size:0.9rem;font-weight:600;margin:0 0 8px">Line Items</h4>
+    <div class="table-wrap" style="margin-bottom:16px">
+        <table class="smart-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Description</th>
+                    <th style="text-align:center">QTY</th>
+                    <th style="text-align:center">Unit</th>
+                    <th style="text-align:right">Rate (AED)</th>
+                    <th style="text-align:right">Amount (AED)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for it in items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ it.description or '—' }}</td>
+                    <td style="text-align:center">{{ it.quantity }}</td>
+                    <td style="text-align:center">{{ 'Per Hour' if it.unit_type == 'hour' else 'Per Trip' }}</td>
+                    <td style="text-align:right">{{ "%.2f"|format(it.rate) }}</td>
+                    <td style="text-align:right;font-weight:600">{{ "%.2f"|format(it.amount) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5" style="text-align:right;font-weight:700;font-size:1rem">Total</td>
+                    <td style="text-align:right;font-weight:800;font-size:1rem;color:var(--primary)">AED {{ "%.2f"|format(lpo.amount or 0) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if lpo.file_data %}
+    <a href="{{ url_for('customer.customer_lpo_file', cid=c.id, lid=lpo.id) }}" class="btn btn-outline btn-sm">Download LPO PDF</a>
+    {% endif %}
+
+    {% if lpo.notes %}
+    <div style="margin-top:14px;padding:12px;background:#fef9e7;border-radius:8px;font-size:0.85rem">
+        <strong style="font-size:0.72rem;color:var(--muted)">Notes:</strong><br>{{ lpo.notes }}
+    </div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}
