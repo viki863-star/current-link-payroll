@@ -829,6 +829,13 @@ CREATE TABLE IF NOT EXISTS notifications (
     is_read INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS contact_inquiries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT,
+    company TEXT, equipment TEXT, message TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
@@ -1613,6 +1620,13 @@ CREATE TABLE IF NOT EXISTS notifications (
     link TEXT,
     is_read INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS contact_inquiries (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT,
+    company TEXT, equipment TEXT, message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 """
 

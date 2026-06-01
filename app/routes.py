@@ -1637,14 +1637,6 @@ def register_routes(app: Flask) -> None:
         try:
             db = open_db()
             db.execute(
-                """CREATE TABLE IF NOT EXISTS contact_inquiries (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT,
-                    company TEXT, equipment TEXT, message TEXT NOT NULL,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                )"""
-            )
-            db.execute(
                 "INSERT INTO contact_inquiries (name, phone, email, company, equipment, message) VALUES (?, ?, ?, ?, ?, ?)",
                 (name, phone, email or None, company or None, equipment or None, message),
             )
