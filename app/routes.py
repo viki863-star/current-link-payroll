@@ -247,9 +247,10 @@ def register_routes(app: Flask) -> None:
             driver_pin = request.form.get("driver_pin", "").strip()
             selected_role = role or "admin"
             db = open_db()
-            identifier = _auth_identifier(role, phone_number)
+            user_id = request.form.get("user_id", "").strip()
+            identifier = _auth_identifier(role, phone_number, technician_code=user_id if role == "technician" else "")
 
-            if role in {"admin", "driver"}:
+            if role in {"admin", "driver", "technician"}:
                 lock_info = _get_login_lock(db, role, identifier)
                 if lock_info["locked"]:
                     flash(lock_info["message"], "error")
@@ -305,6 +306,35 @@ def register_routes(app: Flask) -> None:
                     _set_session("driver", driver_id=driver["driver_id"], display_name=driver["full_name"])
                     flash(f"Welcome {driver['full_name']}.", "success")
                     return redirect(url_for("driver_portal"))
+
+            elif role == "technician":
+                try:
+                    technician, party = _technician_login_target(db, user_id)
+                except ValidationError as exc:
+                    flash(str(exc), "error")
+                    technician = None
+                if technician is None:
+                    pass
+                elif (technician.get("status") or "") != "Active":
+                    flash("Your field staff account is not active.", "error")
+                elif not password:
+                    flash("Field staff password is required.", "error")
+                elif not technician.get("password_hash"):
+                    flash("Field staff password is not set yet.", "error")
+                elif not check_password_hash(technician["password_hash"], password):
+                    _record_failed_login(db, "technician", identifier)
+                    _audit_log(db, "login_failed", entity_type="auth", entity_id=user_id, status="failed", details="Field staff password mismatch")
+                    db.commit()
+                    flash(_latest_login_error(db, "technician", identifier, "Field staff password is not correct."), "error")
+                else:
+                    _clear_failed_login(db, "technician", identifier)
+                    _audit_log(db, "login_success", entity_type="auth", entity_id=technician["technician_code"], details="Field staff login")
+                    db.commit()
+                    _set_session("technician", display_name=f"Field Staff {technician['technician_code']}")
+                    session["technician_code"] = technician["technician_code"]
+                    session["technician_party_code"] = technician.get("party_code", "")
+                    flash(f"Welcome Field Staff {technician['technician_code']}.", "success")
+                    return redirect(url_for("technician_simple"))
             else:
                 flash("Select a valid login type.", "error")
 
