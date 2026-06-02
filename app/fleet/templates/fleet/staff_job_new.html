@@ -7,6 +7,7 @@
 <style>
 * { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust:100%; text-size-adjust:100%; box-sizing:border-box; }
 .app-layout .erp-sidebar { display: none !important; }
+.balance-value.orange { color: #F7931E; }
 .app-layout .main-content { margin-left: 0 !important; width: 100% !important; max-width:100% !important; padding:0 !important; }
 body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
 </style>
@@ -28,6 +29,14 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
         <div class="balance-item">
             <div class="balance-label">Balance</div>
             <div class="balance-value blue">AED {{ "%.0f"|format(balance or 0) }}</div>
+        </div>
+        <div class="balance-item">
+            <div class="balance-label">Approved</div>
+            <div class="balance-value green">{{ approved_count or 0 }}</div>
+        </div>
+        <div class="balance-item">
+            <div class="balance-label">Pending</div>
+            <div class="balance-value orange">{{ pending_count or 0 }}</div>
         </div>
     </div>
 

@@ -1193,11 +1193,12 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("technician_login"))
         vehicles = db.execute("SELECT * FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
         _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
-        total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM cash_receipts WHERE staff_id = ?", (technician_code,)).fetchone()["t"] or 0
-        spent_jobs = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status IN ('approved','pending')", (technician_code,)).fetchone()["t"] or 0
-        spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status IN ('Approved','Pending')", (technician_code,)).fetchone()["t"] or 0
-        total_spent = float(spent_jobs) + float(spent_papers)
+        total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?", (technician_code,)).fetchone()["t"] or 0
+        spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["t"] or 0
+        total_spent = float(spent_papers)
         balance = float(total_received) - float(total_spent)
+        pending_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Pending'", (technician_code,)).fetchone()["c"] or 0
+        approved_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["c"] or 0
         if request.method == "POST":
             vehicle_id = request.form.get("vehicle_id", "").strip()
             amount = request.form.get("amount", "").strip()
@@ -1227,7 +1228,8 @@ def register_routes(app: Flask) -> None:
             flash("Job submitted for approval.", "success")
             return redirect(url_for("technician_simple"))
         return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v={},
-                               total_received=total_received, total_spent=total_spent, balance=balance)
+                               total_received=total_received, total_spent=total_spent, balance=balance,
+                               pending_count=pending_count, approved_count=approved_count)
 
     @app.route("/portal/technician/my-jobs")
     def technician_my_jobs():
