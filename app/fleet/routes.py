@@ -1243,6 +1243,50 @@ def fleet_staff_delete_data(staff_id):
     return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
 
 
+@fleet_bp.route("/fleet/staff/<staff_id>/delete-items", methods=["POST"])
+@_login_required("admin")
+def fleet_staff_delete_items(staff_id):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    if not s:
+        flash("Staff not found.", "error")
+        return redirect(url_for("fleet.fleet_staff_list"))
+    item_ids = request.form.getlist("item_ids")
+    deleted = []
+    for item in item_ids:
+        parts = item.split("_", 1)
+        if len(parts) != 2:
+            continue
+        prefix, record_id = parts
+        try:
+            record_id = int(record_id)
+        except ValueError:
+            continue
+        if prefix == "job":
+            db.execute("DELETE FROM maintenance_jobs WHERE id = ? AND staff_id = ?", (record_id, staff_id))
+            deleted.append(f"job #{record_id}")
+        elif prefix == "paper":
+            row = db.execute("SELECT paper_no FROM maintenance_papers WHERE id = ? AND technician_code = ?", (record_id, staff_id)).fetchone()
+            if row:
+                db.execute("DELETE FROM maintenance_paper_lines WHERE paper_no = ?", (row[0],))
+            db.execute("DELETE FROM maintenance_papers WHERE id = ? AND technician_code = ?", (record_id, staff_id))
+            deleted.append(f"paper #{record_id}")
+        elif prefix == "advance":
+            db.execute("DELETE FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (record_id, staff_id))
+            deleted.append(f"advance #{record_id}")
+        elif prefix == "receipt":
+            db.execute("DELETE FROM cash_receipts WHERE id = ? AND staff_id = ?", (record_id, staff_id))
+            deleted.append(f"receipt #{record_id}")
+    db.commit()
+    if deleted:
+        flash(f"Deleted {len(deleted)} item(s): {', '.join(deleted[:10])}{'...' if len(deleted) > 10 else ''}", "success")
+    else:
+        flash("No items selected.", "error")
+    return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+
+
 # ── ADMIN: Pending Approvals ────────────────────────────────────
 
 @fleet_bp.route("/fleet/approvals")

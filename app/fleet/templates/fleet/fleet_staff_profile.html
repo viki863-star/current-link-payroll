@@ -59,15 +59,24 @@
         </div>
     </div>
 
+    <form method="post" action="{{ url_for('fleet.fleet_staff_delete_items', staff_id=s.staff_id) }}" id="deleteForm" onsubmit="var c=this.querySelectorAll('input[name=item_ids]:checked');if(c.length===0){alert('Select at least one item.');return false}return confirm('Delete '+c.length+' selected item(s)?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
     {% if advances %}
-    <div id="advancesSection" class="profile-card sp-section" style="display:none">
-        <h3 class="sp-section-title">Advances Given <span class="badge badge-dept">{{ advances|length }}</span></h3>
+    <div class="profile-card sp-section">
+        <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span>Advances Given <span class="badge badge-dept">{{ advances|length }}</span></span>
+            <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
+                <input type="checkbox" onchange="document.querySelectorAll('.advance-select').forEach(function(c){c.checked=this.checked})"> Select All
+            </label>
+        </h3>
         <div class="table-wrap">
             <table class="smart-table">
-                <thead><tr><th>Date</th><th>Amount</th><th>Reference</th><th>Source</th><th>Notes</th></tr></thead>
+                <thead><tr><th style="width:32px"></th><th>Date</th><th>Amount</th><th>Reference</th><th>Source</th><th>Notes</th></tr></thead>
                 <tbody>
                     {% for a in advances %}
                     <tr>
+                        <td><input type="checkbox" name="item_ids" value="advance_{{ a.id }}" class="advance-select" style="accent-color:#ef4444;width:16px;height:16px"></td>
                         <td class="mono">{{ a.entry_date }}</td>
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(a.amount) }}</td>
                         <td>{{ a.reference or '-' }}</td>
@@ -83,15 +92,21 @@
 
     {% if jobs %}
     <div class="profile-card sp-section">
-        <h3 class="sp-section-title">Portal Jobs <span class="badge badge-dept">{{ jobs|length }}</span></h3>
+        <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span>Portal Jobs <span class="badge badge-dept">{{ jobs|length }}</span></span>
+            <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
+                <input type="checkbox" onchange="document.querySelectorAll('.job-select').forEach(function(c){c.checked=this.checked})"> Select All
+            </label>
+        </h3>
         <div class="table-wrap">
             <table class="smart-table">
-                <thead><tr><th>Date</th><th>Vehicle</th><th>Amount</th><th>Category</th><th>Description</th><th>Status</th></tr></thead>
+                <thead><tr><th style="width:32px"></th><th>Date</th><th>Vehicle</th><th>Amount</th><th>Category</th><th>Description</th><th>Status</th></tr></thead>
                 <tbody>
                     {% for j in jobs %}
-                    <tr class="clickable-row" onclick="window.location='/fleet/vehicles/{{ j.vehicle_id }}?tab=jobs&highlight={{ j.id }}'">
+                    <tr>
+                        <td><input type="checkbox" name="item_ids" value="job_{{ j.id }}" class="job-select" style="accent-color:#ef4444;width:16px;height:16px"></td>
                         <td class="mono">{{ j.created_at.strftime("%Y-%m-%d") }}</td>
-                        <td>{{ j.vehicle_id }}</td>
+                        <td><a href="/fleet/vehicles/{{ j.vehicle_id }}?tab=jobs&highlight={{ j.id }}" style="color:var(--primary);text-decoration:none">{{ j.vehicle_id }}</a></td>
                         <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(j.amount) }}</td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
                         <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
@@ -106,15 +121,21 @@
 
     {% if papers %}
     <div class="profile-card sp-section">
-        <h3 class="sp-section-title">Maintenance Papers <span class="badge badge-dept">{{ papers|length }}</span></h3>
+        <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span>Maintenance Papers <span class="badge badge-dept">{{ papers|length }}</span></span>
+            <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
+                <input type="checkbox" onchange="document.querySelectorAll('.paper-select').forEach(function(c){c.checked=this.checked})"> Select All
+            </label>
+        </h3>
         <div class="table-wrap">
             <table class="smart-table">
-                <thead><tr><th>Date</th><th>Vehicle</th><th>Amount</th><th>Description</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th style="width:32px"></th><th>Date</th><th>Vehicle</th><th>Amount</th><th>Description</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                     {% for p in papers %}
-                    <tr class="clickable-row" onclick="window.location='/fleet/vehicles/{{ p.vehicle_id }}?tab=jobs&highlight={{ p.id }}'">
+                    <tr>
+                        <td><input type="checkbox" name="item_ids" value="paper_{{ p.id }}" class="paper-select" style="accent-color:#ef4444;width:16px;height:16px"></td>
                         <td class="mono">{{ (p.created_at or '')|string|truncate(10, True, '') }}</td>
-                        <td>{{ p.vehicle_id or '-' }}</td>
+                        <td><a href="/fleet/vehicles/{{ p.vehicle_id }}?tab=jobs&highlight={{ p.id }}" style="color:var(--primary);text-decoration:none">{{ p.vehicle_id or '-' }}</a></td>
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(p.amount|float) }}</td>
                         <td style="max-width:200px;white-space:normal">{{ p.description or '-' }}</td>
                         <td><span class="status-badge {{ p.status|lower }}">{{ p.status }}</span></td>
@@ -129,34 +150,23 @@
 
     {% if receipts %}
     <div class="profile-card sp-section">
-        <h3 class="sp-section-title">Cash Receipts <span class="badge badge-dept">{{ receipts|length }}</span></h3>
+        <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span>Cash Receipts <span class="badge badge-dept">{{ receipts|length }}</span></span>
+            <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
+                <input type="checkbox" onchange="document.querySelectorAll('.receipt-select').forEach(function(c){c.checked=this.checked})"> Select All
+            </label>
+        </h3>
         <div class="table-wrap">
             <table class="smart-table" id="receiptsTable">
-                <thead><tr><th>Date</th><th>Given By</th><th>Amount</th><th>Notes</th><th></th></tr></thead>
+                <thead><tr><th style="width:32px"></th><th>Date</th><th>Given By</th><th>Amount</th><th>Notes</th></tr></thead>
                 <tbody>
                     {% for r in receipts %}
-                    <tr class="clickable-row" onclick="toggleDetail('receipt-detail-{{ r.id }}')">
+                    <tr>
+                        <td><input type="checkbox" name="item_ids" value="receipt_{{ r.id }}" class="receipt-select" style="accent-color:#ef4444;width:16px;height:16px"></td>
                         <td class="mono">{{ r.receipt_date }}</td>
                         <td>{{ r.given_by }}</td>
                         <td class="mono" style="font-weight:600;color:#1a7a4e">AED {{ "%.0f"|format(r.amount) }}</td>
                         <td>{{ r.notes or '-' }}</td>
-                        <td>
-                            <form method="post" action="{{ url_for('fleet.fleet_staff_receipt_delete', staff_id=s.staff_id, receipt_id=r.id) }}" style="display:inline" onsubmit="return confirm('Delete this receipt?')">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-xs btn-outline" style="color:#ef4444;border-color:#ef4444">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    <tr id="receipt-detail-{{ r.id }}" style="display:none">
-                        <td colspan="5" style="padding:12px 16px;background:#f8fafd">
-                            <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:0.85rem">
-                                <div><strong>Amount:</strong> AED {{ "%.0f"|format(r.amount) }}</div>
-                                <div><strong>Given By:</strong> {{ r.given_by }}</div>
-                                <div><strong>Date:</strong> {{ r.receipt_date }}</div>
-                                <div><strong>Notes:</strong> {{ r.notes or '—' }}</div>
-                                <div><strong>Created:</strong> {{ r.created_at.strftime("%Y-%m-%d") if r.created_at else '—' }}</div>
-                            </div>
-                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -165,44 +175,20 @@
     </div>
     {% endif %}
 
-<script>
-function toggleDetail(id) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    var tag = el.tagName.toLowerCase();
-    if (tag === 'tr') {
-        el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
-    } else {
+    {% if advances or jobs or papers or receipts %}
+    <div style="text-align:center;margin-top:20px">
+        <button type="submit" class="btn" style="background:#ef4444;color:#fff;border:none;padding:10px 30px;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer">&#9888; Delete Selected Items</button>
+    </div>
+    {% endif %}
+    </form>
+
+    <script>
+    function toggleDetail(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
         el.style.display = el.style.display === 'none' ? 'block' : 'none';
     }
-}
-</script>
-
-    <div class="profile-card sp-section" style="border:2px solid #ef4444">
-        <h3 class="sp-section-title" style="color:#ef4444">&#9888; Delete Data</h3>
-        <p style="font-size:0.85rem;color:var(--muted);margin:0 0 12px">Select the data you want to delete for <strong>{{ s.full_name }}</strong>. This action cannot be undone.</p>
-        <form method="post" action="{{ url_for('fleet.fleet_staff_delete_data', staff_id=s.staff_id) }}" onsubmit="return confirm('Are you sure you want to delete the selected data for {{ s.full_name }}? This cannot be undone.')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff" onclick="event.stopPropagation()">
-                    <input type="checkbox" id="deleteSelectAll" onchange="document.querySelectorAll('.delete-type').forEach(function(c){c.checked=this.checked})" checked> <strong>Select All</strong>
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff" onclick="event.stopPropagation()">
-                    <input type="checkbox" name="delete_types" value="advances" class="delete-type" checked> Advances
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff" onclick="event.stopPropagation()">
-                    <input type="checkbox" name="delete_types" value="jobs" class="delete-type" checked> Portal Jobs
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff" onclick="event.stopPropagation()">
-                    <input type="checkbox" name="delete_types" value="papers" class="delete-type" checked> Maintenance Papers
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff" onclick="event.stopPropagation()">
-                    <input type="checkbox" name="delete_types" value="receipts" class="delete-type" checked> Cash Receipts
-                </label>
-            </div>
-            <button type="submit" class="btn btn-sm" style="background:#ef4444;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-weight:600;cursor:pointer">Delete Selected Data</button>
-        </form>
-    </div>
+    </script>
 
     {% if not jobs and not papers and not receipts and not advances %}
     <div class="profile-card" style="text-align:center;padding:40px">
