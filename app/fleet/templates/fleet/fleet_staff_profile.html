@@ -90,56 +90,27 @@
     </div>
     {% endif %}
 
-    {% if jobs %}
+    {% if items %}
     <div class="profile-card sp-section">
         <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span>Portal Jobs <span class="badge badge-dept">{{ jobs|length }}</span></span>
+            <span>Portal Jobs &amp; Maintenance Papers <span class="badge badge-dept">{{ items|length }}</span></span>
             <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
-                <input type="checkbox" onchange="document.querySelectorAll('.job-select').forEach(function(c){c.checked=this.checked})"> Select All
+                <input type="checkbox" onchange="document.querySelectorAll('.item-select').forEach(function(c){c.checked=this.checked})"> Select All
             </label>
         </h3>
         <div class="table-wrap">
             <table class="smart-table">
-                <thead><tr><th style="width:32px"></th><th>Date</th><th>Vehicle</th><th>Amount</th><th>Category</th><th>Description</th><th>Status</th></tr></thead>
+                <thead><tr><th style="width:32px"></th><th>Date</th><th>Vehicle</th><th>Amount</th><th>Type</th><th>Description</th><th>Status</th></tr></thead>
                 <tbody>
-                    {% for j in jobs %}
+                    {% for item in items %}
                     <tr>
-                        <td><input type="checkbox" name="item_ids" value="job_{{ j.id }}" class="job-select" style="accent-color:#ef4444;width:16px;height:16px"></td>
-                        <td class="mono">{{ j.created_at.strftime("%Y-%m-%d") }}</td>
-                        <td><a href="/fleet/vehicles/{{ j.vehicle_id }}?tab=jobs&highlight={{ j.id }}" style="color:var(--primary);text-decoration:none">{{ j.vehicle_id }}</a></td>
-                        <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(j.amount) }}</td>
-                        <td><span class="badge badge-type">{{ j.category }}</span></td>
-                        <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
-                        <td><span class="status-badge {{ j.status }}">{{ j.status }}</span></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if papers %}
-    <div class="profile-card sp-section">
-        <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span>Maintenance Papers <span class="badge badge-dept">{{ papers|length }}</span></span>
-            <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
-                <input type="checkbox" onchange="document.querySelectorAll('.paper-select').forEach(function(c){c.checked=this.checked})"> Select All
-            </label>
-        </h3>
-        <div class="table-wrap">
-            <table class="smart-table">
-                <thead><tr><th style="width:32px"></th><th>Date</th><th>Vehicle</th><th>Amount</th><th>Description</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    {% for p in papers %}
-                    <tr>
-                        <td><input type="checkbox" name="item_ids" value="paper_{{ p.id }}" class="paper-select" style="accent-color:#ef4444;width:16px;height:16px"></td>
-                        <td class="mono">{{ (p.created_at or '')|string|truncate(10, True, '') }}</td>
-                        <td><a href="/fleet/vehicles/{{ p.vehicle_id }}?tab=jobs&highlight={{ p.id }}" style="color:var(--primary);text-decoration:none">{{ p.vehicle_id or '-' }}</a></td>
-                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(p.amount|float) }}</td>
-                        <td style="max-width:200px;white-space:normal">{{ p.description or '-' }}</td>
-                        <td><span class="status-badge {{ p.status|lower }}">{{ p.status }}</span></td>
-                        <td><span style="font-size:0.72rem;color:var(--muted)">&#9654; View in Vehicle</span></td>
+                        <td><input type="checkbox" name="item_ids" value="{{ item._id }}" class="item-select" style="accent-color:#ef4444;width:16px;height:16px"></td>
+                        <td class="mono">{{ (item.created_at or '')|string|truncate(10, True, '') }}</td>
+                        <td>{% if item._type == 'job' %}<a href="/fleet/vehicles/{{ item.vehicle_id }}?tab=jobs&highlight={{ item.id }}" style="color:var(--primary);text-decoration:none">{{ item.vehicle_id }}</a>{% else %}{{ item.vehicle_id or '-' }}{% endif %}</td>
+                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(item.amount|float) }}</td>
+                        <td><span class="badge badge-type">{{ 'Job' if item._type == 'job' else 'Paper' }}</span></td>
+                        <td style="max-width:200px;white-space:normal">{{ item.description or item.work_summary or '-' }}</td>
+                        <td><span class="status-badge {{ item.status|lower }}">{{ item.status }}</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -175,7 +146,7 @@
     </div>
     {% endif %}
 
-    {% if advances or jobs or papers or receipts %}
+    {% if advances or items or receipts %}
     <div style="text-align:center;margin-top:20px">
         <button type="submit" class="btn" style="background:#ef4444;color:#fff;border:none;padding:10px 30px;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer">&#9888; Delete Selected Items</button>
     </div>
@@ -190,7 +161,7 @@
     }
     </script>
 
-    {% if not jobs and not papers and not receipts and not advances %}
+    {% if not items and not receipts and not advances %}
     <div class="profile-card" style="text-align:center;padding:40px">
         <p style="color:var(--muted);margin:0">No activity for this staff member yet.</p>
     </div>

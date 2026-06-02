@@ -1170,23 +1170,30 @@ def fleet_staff_profile(staff_id):
     """, (staff_id,)).fetchall()
 
     raw_papers = db.execute("""
-        SELECT mp.paper_no AS id, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
+        SELECT mp.id, mp.paper_no, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
                mp.total_amount AS amount, mp.work_summary AS description,
                mp.review_status AS status, mp.notes AS admin_notes,
-               mp.created_at, 'Maintenance' AS category, '-' AS attachment_type,
-               NULL AS attachment_data, NULL AS attachment_name
+               mp.created_at, 'Maintenance' AS category
         FROM maintenance_papers mp
         LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
         WHERE mp.technician_code = ?
         ORDER BY mp.created_at DESC
     """, (staff_id,)).fetchall()
 
-    papers = []
-    for r in raw_papers:
-        d = dict(r)
+    items = []
+    for j in jobs:
+        d = dict(j)
+        d["_type"] = "job"
+        d["_id"] = f"job_{j['id']}"
+        items.append(d)
+    for p in raw_papers:
+        d = dict(p)
         if isinstance(d.get("created_at"), datetime):
             d["created_at"] = d["created_at"].strftime("%Y-%m-%d %H:%M:%S")
-        papers.append(d)
+        d["_type"] = "paper"
+        d["_id"] = f"paper_{p['id']}"
+        items.append(d)
+    items.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
 
     receipts = db.execute(
         "SELECT * FROM cash_receipts WHERE staff_id = ? ORDER BY receipt_date DESC",
@@ -1201,8 +1208,7 @@ def fleet_staff_profile(staff_id):
         total_cash=total_cash,
         total_spent=total_spent,
         balance=balance,
-        jobs=jobs,
-        papers=papers,
+        items=items,
         receipts=receipts,
         advances=advances,
     )
