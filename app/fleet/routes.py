@@ -1208,6 +1208,41 @@ def fleet_staff_profile(staff_id):
     )
 
 
+@fleet_bp.route("/fleet/staff/<staff_id>/delete-data", methods=["POST"])
+@_login_required("admin")
+def fleet_staff_delete_data(staff_id):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    if not s:
+        flash("Staff not found.", "error")
+        return redirect(url_for("fleet.fleet_staff_list"))
+    types = request.form.getlist("delete_types")
+    deleted = []
+    if "advances" in types:
+        db.execute("DELETE FROM maintenance_staff_advances WHERE staff_code = ?", (staff_id,))
+        deleted.append("Advances")
+    if "jobs" in types:
+        db.execute("DELETE FROM maintenance_jobs WHERE staff_id = ?", (staff_id,))
+        deleted.append("Portal Jobs")
+    if "papers" in types:
+        paper_nos = [r[0] for r in db.execute("SELECT paper_no FROM maintenance_papers WHERE technician_code = ?", (staff_id,)).fetchall()]
+        for pn in paper_nos:
+            db.execute("DELETE FROM maintenance_paper_lines WHERE paper_no = ?", (pn,))
+        db.execute("DELETE FROM maintenance_papers WHERE technician_code = ?", (staff_id,))
+        deleted.append("Maintenance Papers")
+    if "receipts" in types:
+        db.execute("DELETE FROM cash_receipts WHERE staff_id = ?", (staff_id,))
+        deleted.append("Cash Receipts")
+    db.commit()
+    if deleted:
+        flash(f"Deleted: {', '.join(deleted)} for {s['full_name']}.", "success")
+    else:
+        flash("No data type selected.", "error")
+    return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+
+
 # ── ADMIN: Pending Approvals ────────────────────────────────────
 
 @fleet_bp.route("/fleet/approvals")

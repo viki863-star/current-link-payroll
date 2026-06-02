@@ -178,6 +178,32 @@ function toggleDetail(id) {
 }
 </script>
 
+    <div class="profile-card sp-section" style="border:2px solid #ef4444">
+        <h3 class="sp-section-title" style="color:#ef4444">&#9888; Delete Data</h3>
+        <p style="font-size:0.85rem;color:var(--muted);margin:0 0 12px">Select the data you want to delete for <strong>{{ s.full_name }}</strong>. This action cannot be undone.</p>
+        <form method="post" action="{{ url_for('fleet.fleet_staff_delete_data', staff_id=s.staff_id) }}" onsubmit="return confirm('Are you sure you want to delete the selected data for {{ s.full_name }}? This cannot be undone.')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff" onclick="event.stopPropagation()">
+                    <input type="checkbox" id="deleteSelectAll" onchange="document.querySelectorAll('.delete-type').forEach(function(c){c.checked=this.checked})" checked> <strong>Select All</strong>
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff" onclick="event.stopPropagation()">
+                    <input type="checkbox" name="delete_types" value="advances" class="delete-type" checked> Advances
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff" onclick="event.stopPropagation()">
+                    <input type="checkbox" name="delete_types" value="jobs" class="delete-type" checked> Portal Jobs
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff" onclick="event.stopPropagation()">
+                    <input type="checkbox" name="delete_types" value="papers" class="delete-type" checked> Maintenance Papers
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff" onclick="event.stopPropagation()">
+                    <input type="checkbox" name="delete_types" value="receipts" class="delete-type" checked> Cash Receipts
+                </label>
+            </div>
+            <button type="submit" class="btn btn-sm" style="background:#ef4444;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-weight:600;cursor:pointer">Delete Selected Data</button>
+        </form>
+    </div>
+
     {% if not jobs and not papers and not receipts and not advances %}
     <div class="profile-card" style="text-align:center;padding:40px">
         <p style="color:var(--muted);margin:0">No activity for this staff member yet.</p>
