@@ -31,8 +31,8 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
 </style>
 <nav class="staff-nav">
     <a class="staff-nav-brand" href="{{ url_for('technician_simple') }}">
-        <video class="staff-nav-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}">
-            <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+        <video class="staff-nav-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+            <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
         </video>
         <span class="staff-nav-name"><span>Current</span> <span class="staff-nav-orange">Link</span></span>
     </a>

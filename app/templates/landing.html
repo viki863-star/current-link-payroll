@@ -80,7 +80,7 @@
 <div class="cl-preloader" id="clPreloader">
     <div class="cl-preloader-video-wrap">
         <video class="cl-preloader-video" autoplay muted playsinline preload="auto" id="loadingVideo">
-            <source src="{{ url_for('static', filename='loading-logo.mp4') }}" type="video/mp4">
+            <source src="{{ url_for('static', filename='loading-logo.mp4') }}?v=2" type="video/mp4">
         </video>
     </div>
     <div class="cl-preloader-bar"><span id="loadingProgress"></span></div>
@@ -91,8 +91,8 @@
     <div class="cl-nav-bg"></div>
     <div class="cl-nav-inner">
         <a class="cl-nav-brand" href="/">
-            <video class="cl-nav-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}">
-                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+            <video class="cl-nav-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+                <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
             </video>
             <span class="cl-nav-name"><span>Current</span> <span class="cl-nav-orange">Link</span></span>
         </a>
@@ -364,8 +364,8 @@
 <footer class="cl-footer">
     <div class="cl-footer-inner">
         <div class="cl-footer-brand">
-            <video class="cl-footer-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}">
-                <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+            <video class="cl-footer-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+                <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
             </video>
             <div>
                 <div class="cl-footer-name"><span>Current</span> <span class="cl-nav-orange">Link</span></div>
