@@ -105,12 +105,15 @@
             align-items: center;
             gap: 12px;
         }
-        .vp-brand video {
+        .vp-brand-video {
             width: 48px;
             height: 48px;
             border-radius: 12px;
+            object-fit: cover;
+            border: 2px solid rgba(247,147,30,0.3);
             box-shadow: 0 8px 24px rgba(15,43,82,0.12);
             flex-shrink: 0;
+            background: #fff;
         }
         .vp-brand-text {
             text-align: left;
@@ -248,6 +251,7 @@
 
         .vp-submit {
             width: 100%;
+            margin-top: 18px;
             padding: 14px;
             border: none;
             border-radius: 12px;
@@ -315,7 +319,9 @@
     <div class="vp-card">
         <div class="vp-brand">
             <div class="vp-brand-inner">
-                <img src="{{ url_for('static', filename='enhanced_logo.png') }}" alt="Current Link" width="48" height="48">
+                <video class="vp-brand-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='enhanced_logo.png') }}" width="48" height="48">
+                    <source src="{{ url_for('static', filename='logo.mp4') }}" type="video/mp4">
+                </video>
                 <div class="vp-brand-text">
                     <strong>Current <span>Link</span></strong>
                     <small>Transport &amp; General Contracting LLC SPC</small>
@@ -333,43 +339,26 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="role" id="vpRole" value="{{ initial_role }}">
 
-            <!-- ROLE SELECTION (always visible initially) -->
             <div id="vpRoleArea">
                 <div class="vp-role-grid" role="group" aria-label="Select role">
                     <button type="button" class="vp-role" data-role="admin">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 3l7 4v5c0 5-3.4 8.7-7 10-3.6-1.3-7-5-7-10V7l7-4z"/>
-                            <path d="M12 8v8"/><path d="M9 11h6"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v5c0 5-3.4 8.7-7 10-3.6-1.3-7-5-7-10V7l7-4z"/><path d="M12 8v8"/><path d="M9 11h6"/></svg>
                         <strong>Admin</strong>
                         <span>Full control</span>
                     </button>
                     <button type="button" class="vp-role" data-role="driver">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="7.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>
-                            <path d="M5 16V9l2-3h10l2 3v7"/><path d="M5 11h14"/><path d="M12 11v-2"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/><path d="M5 16V9l2-3h10l2 3v7"/><path d="M5 11h14"/><path d="M12 11v-2"/></svg>
                         <strong>Driver</strong>
                         <span>Transport ops</span>
                     </button>
                     <button type="button" class="vp-role" data-role="technician">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 3v5"/><path d="M7 8h10"/>
-                            <path d="M9 8V6.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6.5V8"/>
-                            <path d="M6 10h12l-1.2 6.1A3 3 0 0 1 13.9 19H10.1a3 3 0 0 1-2.9-2.9L6 10z"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v5"/><path d="M7 8h10"/><path d="M9 8V6.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6.5V8"/><path d="M6 10h12l-1.2 6.1A3 3 0 0 1 13.9 19H10.1a3 3 0 0 1-2.9-2.9L6 10z"/></svg>
                         <strong>Staff</strong>
                         <span>Field ops</span>
                     </button>
                 </div>
             </div>
 
-            <!-- SUBMIT BUTTON (shows at top when role selected) -->
-            <div id="vpSubmitArea" style="display:none;">
-                <button class="vp-submit" type="submit" id="vpSubmit">Access Portal</button>
-            </div>
-
-            <!-- FORM FIELDS (shows after role selected) -->
             <div id="vpFieldsArea" style="display:none;">
                 <p class="vp-stage-note" id="vpNote">Choose a role above.</p>
 
@@ -397,6 +386,8 @@
                     </label>
                     <a class="vp-forgot" id="vpHelp" href="#">Forgot Password?</a>
                 </div>
+
+                <button class="vp-submit" type="submit" id="vpSubmit">Access Portal</button>
             </div>
         </form>
 
@@ -440,7 +431,6 @@
             roleInput.value = '';
             vpHead.classList.remove('hide');
             vpRoleArea.style.display = '';
-            vpSubmitArea.style.display = 'none';
             vpFieldsArea.style.display = 'none';
             opts.forEach(function(o){ o.classList.remove('is-active'); });
             note.textContent = 'Choose a role above.';
@@ -448,7 +438,6 @@
         }
         roleInput.value = role;
         vpHead.classList.add('hide');
-        vpSubmitArea.style.display = 'block';
         vpFieldsArea.style.display = 'block';
         note.textContent = cfg.note;
         helpLink.textContent = cfg.help;
@@ -475,6 +464,12 @@
 
     resetFields();
     if (roleInput.value) { activateRole(roleInput.value); }
+
+    document.querySelectorAll('.vp-brand-video').forEach(function(v) {
+        function doPlay() { v.play().catch(function(){}); }
+        if (v.readyState >= 2) { doPlay(); }
+        else { v.addEventListener('loadeddata', doPlay, {once:true}); }
+    });
 
     var flashEl = document.getElementById('vpFlash');
     if (flashEl && flashEl.children.length === 0) { flashEl.style.display = 'none'; }
