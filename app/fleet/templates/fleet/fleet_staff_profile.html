@@ -67,7 +67,7 @@
         <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span>Advances Given <span class="badge badge-dept">{{ advances|length }}</span></span>
             <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
-                <input type="checkbox" onchange="document.querySelectorAll('.advance-select').forEach(function(c){c.checked=this.checked})"> Select All
+                <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.advance-select').forEach(function(c){c.checked=ch})"> Select All
             </label>
         </h3>
         <div class="table-wrap">
@@ -95,7 +95,7 @@
         <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span>Portal Jobs &amp; Maintenance Papers <span class="badge badge-dept">{{ items|length }}</span></span>
             <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
-                <input type="checkbox" onchange="document.querySelectorAll('.item-select').forEach(function(c){c.checked=this.checked})"> Select All
+                <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.item-select').forEach(function(c){c.checked=ch})"> Select All
             </label>
         </h3>
         <div class="table-wrap">
@@ -124,7 +124,7 @@
         <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span>Cash Receipts <span class="badge badge-dept">{{ receipts|length }}</span></span>
             <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
-                <input type="checkbox" onchange="document.querySelectorAll('.receipt-select').forEach(function(c){c.checked=this.checked})"> Select All
+                <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.receipt-select').forEach(function(c){c.checked=ch})"> Select All
             </label>
         </h3>
         <div class="table-wrap">
