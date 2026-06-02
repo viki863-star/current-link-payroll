@@ -2122,16 +2122,17 @@ def register_routes(app: Flask) -> None:
         try:
             db = open_db()
             pending = db.execute("SELECT COUNT(*) FROM maintenance_jobs WHERE status='pending'").fetchone()[0]
+            if role == "admin":
+                db.execute("UPDATE notifications SET is_read=1 WHERE type='pending_approvals' AND role='admin'")
+                db.commit()
             if pending > 0 and role == "admin":
-                existing = db.execute("SELECT COUNT(*) FROM notifications WHERE type=? AND role=? AND is_read=0", ("pending_approvals", "admin")).fetchone()[0]
-                if existing == 0:
-                    add_notification(
-                        title=f"{pending} field staff job{'s' if pending>1 else ''} pending approval",
-                        type="pending_approvals",
-                        role="admin",
-                        message="Review and approve/reject pending maintenance jobs",
-                        link="/fleet/approvals",
-                    )
+                add_notification(
+                    title=f"{pending} field staff job{'s' if pending>1 else ''} pending approval",
+                    type="pending_approvals",
+                    role="admin",
+                    message="Review and approve/reject pending maintenance jobs",
+                    link="/fleet/approvals",
+                )
         except:
             pass
         notifs = get_unread_notifications(role=role)
