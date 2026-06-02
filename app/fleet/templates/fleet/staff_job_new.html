@@ -3,6 +3,8 @@
 {% block body_class %}staff-body{% endblock %}
 {% block page_title %}New Job{% endblock %}
 
+{% block shell_header %}{% endblock %}
+
 {% block content %}
 <style>
 * { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust:100%; text-size-adjust:100%; box-sizing:border-box; }
@@ -20,6 +22,13 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
 .staff-nav-link:hover { color:#F7931E; }
 .staff-nav-btn { font-size:0.85rem; padding:7px 18px; border-radius:8px; background:#F7931E; color:#fff; text-decoration:none; font-weight:600; }
 .staff-nav-btn:hover { background:#e6820e; }
+.staff-nav-icon { position:relative; background:none; border:none; cursor:pointer; padding:8px; border-radius:8px; color:#5a6a7a; display:flex; align-items:center; transition:background 0.2s; }
+.staff-nav-icon:hover { background:#f1f5f9; }
+.staff-nav-badge { position:absolute; top:2px; right:2px; min-width:16px; height:16px; border-radius:8px; background:#ef4444; color:#fff; font-size:0.6rem; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px; }
+.staff-nav-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:0.8rem; }
+.staff-notif-item { padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.15s; }
+.staff-notif-item:hover { background:#f8fafc; }
+.staff-notif-item:last-child { border-bottom:none; }
 </style>
 <nav class="staff-nav">
     <a class="staff-nav-brand" href="{{ url_for('technician_simple') }}">
@@ -31,6 +40,14 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
     <div class="staff-nav-links">
         <a class="staff-nav-link" href="{{ url_for('technician_simple') }}">New Job</a>
         <a class="staff-nav-link" href="{{ url_for('technician_my_jobs') }}">My Jobs</a>
+        <button class="staff-nav-icon" id="staffNotifBell" aria-label="Notifications">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                <path d="M10 2a6 6 0 0 0-6 6c0 4-2 5-2 5h16s-2-1-2-5a6 6 0 0 0-6-6z"/><path d="M8 17a2 2 0 0 0 4 0"/>
+            </svg>
+            <span class="staff-nav-badge" id="staffNotifBadge" style="display:none"></span>
+        </button>
+        <div class="staff-nav-avatar" style="background:{{ tc }}">{{ (current_user_name or 'S')[0]|upper }}</div>
+        <span style="font-size:0.85rem;font-weight:600;color:#0F2B52">{{ current_user_name }}</span>
         <a class="staff-nav-btn" href="{{ url_for('logout') }}">Logout</a>
     </div>
 </nav>
@@ -221,5 +238,47 @@ document.querySelectorAll('.staff-nav-video').forEach(function(v) {
     if (v.readyState >= 2) { doPlay(); }
     else { v.addEventListener('loadeddata', doPlay, {once:true}); }
 });
+
+(function(){
+    var bell = document.getElementById('staffNotifBell');
+    var badge = document.getElementById('staffNotifBadge');
+    if (!bell) return;
+    var dropdown = null;
+    function fetchNotifs() {
+        fetch('/notifications').then(function(r){ return r.json(); }).then(function(data){
+            var c = data.unread || 0;
+            if (c > 0) { badge.style.display = 'flex'; badge.textContent = c > 99 ? '99+' : c; }
+            else { badge.style.display = 'none'; }
+        }).catch(function(){});
+    }
+    bell.addEventListener('click', function(e){
+        e.stopPropagation();
+        if (dropdown && dropdown.parentNode) { dropdown.remove(); dropdown = null; return; }
+        fetch('/notifications').then(function(r){ return r.json(); }).then(function(data){
+            var existing = document.querySelector('.staff-notif-dropdown');
+            if (existing) existing.remove();
+            dropdown = document.createElement('div');
+            dropdown.className = 'staff-notif-dropdown';
+            dropdown.innerHTML = '<div style="padding:10px 14px;border-bottom:1px solid #eef2f6;display:flex;justify-content:space-between;align-items:center"><strong style="font-size:0.82rem">Notifications</strong><button type="button" class="staff-notif-mark-read" style="background:none;border:none;color:#F7931E;cursor:pointer;font-size:0.72rem;font-weight:600">Mark all read</button></div><div class="staff-notif-list" style="max-height:300px;overflow-y:auto">' + (data.notifications.length ? data.notifications.map(function(n){ return '<div class="staff-notif-item" data-id="'+n.id+'"><div style="font-size:0.82rem;font-weight:600;color:#0f172a">'+n.title+'</div><div style="font-size:0.72rem;color:#64748b;margin-top:2px">'+(n.message||'')+'</div></div>'; }).join('') : '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:0.82rem">No new notifications</div>') + '</div>';
+            dropdown.style.cssText = 'position:absolute;top:100%;right:0;width:340px;background:#fff;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.12);z-index:9999;margin-top:8px;border:1px solid #eef2f6;';
+            bell.parentNode.style.position = 'relative';
+            bell.parentNode.appendChild(dropdown);
+            dropdown.querySelector('.staff-notif-mark-read')?.addEventListener('click', function(){
+                fetch('/notifications/read-all', {method:'POST',headers:{'X-CSRFToken':'{{ csrf_token() }}','Content-Type':'application/json'}}).then(function(){ fetchNotifs(); if(dropdown)dropdown.remove(); dropdown=null; });
+            });
+            dropdown.querySelectorAll('.staff-notif-item').forEach(function(item){
+                item.addEventListener('click', function(){
+                    var id = this.dataset.id;
+                    fetch('/notifications/read/'+id, {method:'POST',headers:{'X-CSRFToken':'{{ csrf_token() }}','Content-Type':'application/json'}}).then(function(){ fetchNotifs(); });
+                });
+            });
+        }).catch(function(){});
+    });
+    document.addEventListener('click', function(e){
+        if (dropdown && !dropdown.contains(e.target) && e.target !== bell) { dropdown.remove(); dropdown = null; }
+    });
+    fetchNotifs();
+    setInterval(fetchNotifs, 15000);
+})();
 </script>
 {% endblock %}
