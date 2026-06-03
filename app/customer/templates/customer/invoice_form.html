@@ -59,7 +59,7 @@
                     <select name="lpo_id" id="lpoSelect" onchange="loadLpoItems()" style="flex:1;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
                         <option value="">— Select LPO —</option>
                         {% for l in lpos %}
-                        <option value="{{ l.id }}" {% if inv.lpo_id == l.id %}selected{% endif %}>{{ l.lpo_no or '—' }} | {{ l.lpo_date }} | AED {{ "%.0f"|format(l.amount) if l.amount else '0' }}</option>
+                        <option value="{{ l.id }}" {% if selected_lpo_id == l.id %}selected{% endif %}>{{ l.lpo_no or '—' }} | {{ l.lpo_date }} | AED {{ "%.0f"|format(l.amount) if l.amount else '0' }}</option>
                         {% endfor %}
                     </select>
                     <input type="date" name="lpo_date" id="lpoDate" value="{{ inv.lpo_date or '' }}" style="width:140px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
@@ -209,5 +209,10 @@ function loadLpoItems() {
         })
         .catch(() => {});
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    var sel = document.getElementById('lpoSelect');
+    if (sel && sel.value) { loadLpoItems(); }
+});
 </script>
 {% endblock %}

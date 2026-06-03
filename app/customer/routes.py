@@ -441,6 +441,11 @@ def customer_invoice_edit(cid, iid):
         db.close()
         flash("Invoice not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
+    selected_lpo_id = None
+    if inv["lpo_no"]:
+        row = db.execute("SELECT id FROM customer_lpos WHERE lpo_no=? AND customer_id=?", (inv["lpo_no"], cid)).fetchone()
+        if row:
+            selected_lpo_id = row["id"]
     if request.method == "POST":
         inv_date = request.form.get("invoice_date", date.today().isoformat())
         inv_no = request.form.get("invoice_no", "").strip() or inv["invoice_no"]
@@ -448,8 +453,7 @@ def customer_invoice_edit(cid, iid):
         if dup:
             flash(f"Invoice number '{inv_no}' already in use.", "error")
             db.close()
-            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True)
-        vat_pct = float(request.form.get("vat_percent", 5))
+            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id)
         lpo_id = request.form.get("lpo_id", "").strip()
         lpo_no = None
         lpo_date = request.form.get("lpo_date", "").strip() or None
@@ -479,7 +483,7 @@ def customer_invoice_edit(cid, iid):
         if not new_items:
             flash("At least one line item is required.", "error")
             db.close()
-            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True)
+    return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id)
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
         db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,project_no=?,notes=? WHERE id=?""",
