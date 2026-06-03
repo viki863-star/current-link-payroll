@@ -934,6 +934,36 @@ def _import_orphaned_maintenance_jobs(db):
         db.commit()
 
 
+@fleet_bp.route("/fleet/maintenance-entry", methods=["GET", "POST"])
+@_login_required("admin")
+def fleet_maintenance_entry():
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles ORDER BY plate_no").fetchall()
+    if request.method == "POST":
+        vehicle_id = request.form.get("vehicle_id", "").strip()
+        amount = request.form.get("amount", "0").strip()
+        category = request.form.get("category", "").strip()
+        description = request.form.get("description", "").strip()
+        entry_date = request.form.get("entry_date", "").strip() or date.today().isoformat()
+        if not vehicle_id:
+            flash("Please select a vehicle.", "error")
+            return render_template("fleet/fleet_maintenance_entry.html", vehicles=vehicles, today=date.today().isoformat())
+        try:
+            amount = float(amount) if amount else 0
+        except ValueError:
+            amount = 0
+        db.execute(
+            "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, status, created_at) VALUES (?, ?, ?, ?, ?, 'approved', ?)",
+            (vehicle_id, None, amount, category, description, entry_date)
+        )
+        db.commit()
+        flash(f"Maintenance entry added and approved for vehicle {vehicle_id}.", "success")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=vehicle_id))
+    return render_template("fleet/fleet_maintenance_entry.html", vehicles=vehicles, today=date.today().isoformat())
+
+
 @fleet_bp.route("/fleet/staff")
 @_login_required("admin")
 def fleet_staff_list():

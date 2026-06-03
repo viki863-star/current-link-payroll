@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Maintenance Entry — Fleet{% endblock %}
+{% block body_class %}profile-body{% endblock %}
+{% block page_title %}Add Maintenance Entry{% endblock %}
+
+{% block content %}
+<style>
+.me-container { max-width:550px; margin:0 auto; }
+.me-card { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:24px; }
+.me-card h3 { margin:0 0 4px; font-size:1.05rem; font-weight:700; }
+.me-card p { margin:0 0 18px; font-size:0.82rem; color:var(--muted); }
+.me-field { margin-bottom:14px; }
+.me-field label { display:block; font-size:0.72rem; font-weight:600; color:var(--muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:0.3px; }
+.me-field select, .me-field input, .me-field textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:0.88rem; background:#fff; }
+.me-field select:focus, .me-field input:focus, .me-field textarea:focus { border-color:var(--primary); outline:none; }
+</style>
+
+<div class="me-container">
+  <div style="margin-bottom:14px">
+    <a href="{{ url_for('fleet.fleet_dashboard') }}" class="btn btn-outline btn-sm">&larr; Fleet Dashboard</a>
+  </div>
+  <div class="me-card">
+    <h3>Maintenance Entry</h3>
+    <p>Add a direct approved maintenance entry for a vehicle.</p>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="me-field">
+        <label>Vehicle</label>
+        <select name="vehicle_id" required>
+          <option value="">— Select Vehicle —</option>
+          {% for v in vehicles %}
+          <option value="{{ v.plate_no }}">{{ v.plate_no }} | {{ v.vehicle_type or '' }} {{ v.model or '' }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="me-field">
+        <label>Date</label>
+        <input type="date" name="entry_date" value="{{ today }}">
+      </div>
+      <div class="me-field">
+        <label>Category</label>
+        <input type="text" name="category" placeholder="e.g. Engine, Tire, Service" list="catList">
+        <datalist id="catList">
+          <option value="Engine"><option value="Tire"><option value="Service">
+          <option value="Brake"><option value="AC"><option value="Electrical">
+          <option value="Body"><option value="Other">
+        </datalist>
+      </div>
+      <div class="me-field">
+        <label>Amount (AED)</label>
+        <input type="number" name="amount" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div class="me-field">
+        <label>Description</label>
+        <textarea name="description" rows="3" placeholder="Describe the maintenance work..."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;padding:10px;font-size:0.95rem;font-weight:700">&#10003; Submit &amp; Approve</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
