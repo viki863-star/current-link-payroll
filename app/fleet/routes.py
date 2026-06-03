@@ -941,6 +941,13 @@ def fleet_maintenance_entry():
     ensure_fleet_tables()
     db = open_db()
     vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles ORDER BY plate_no").fetchall()
+    # Ensure admin pseudo-staff exists for direct entries
+    if not db.execute("SELECT staff_id FROM field_staff WHERE staff_id='admin'").fetchone():
+        try:
+            db.execute("INSERT INTO field_staff (staff_id, full_name, username, password_hash, phone, is_active) VALUES ('admin','System Admin','admin','',NULL,1)")
+            db.commit()
+        except Exception:
+            pass
     if request.method == "POST":
         import base64
         vehicle_id = request.form.get("vehicle_id", "").strip()
