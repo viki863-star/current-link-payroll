@@ -942,6 +942,7 @@ def fleet_maintenance_entry():
     db = open_db()
     vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles ORDER BY plate_no").fetchall()
     if request.method == "POST":
+        import base64
         vehicle_id = request.form.get("vehicle_id", "").strip()
         amount = request.form.get("amount", "0").strip()
         category = request.form.get("category", "").strip()
@@ -954,11 +955,21 @@ def fleet_maintenance_entry():
             amount = float(amount) if amount else 0
         except ValueError:
             amount = 0
+        attachment_name = None
+        attachment_data = None
+        attachment_type = None
+        if request.files and "attachment" in request.files:
+            f = request.files["attachment"]
+            if f and f.filename:
+                attachment_name = f.filename
+                attachment_data = base64.b64encode(f.read()).decode("utf-8")
+                attachment_type = f.content_type or "application/octet-stream"
         db.execute(
-            "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, status, created_at) VALUES (?, ?, ?, ?, ?, 'approved', ?)",
-            (vehicle_id, None, amount, category, description, entry_date)
+            "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, status, created_at, attachment_name, attachment_data, attachment_type) VALUES (?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?)",
+            (vehicle_id, 'admin', amount, category, description, entry_date, attachment_name, attachment_data, attachment_type)
         )
         db.commit()
+        db.close()
         flash(f"Maintenance entry added and approved for vehicle {vehicle_id}.", "success")
         return redirect(url_for("fleet.vehicle_profile", plate_no=vehicle_id))
     return render_template("fleet/fleet_maintenance_entry.html", vehicles=vehicles, today=date.today().isoformat())

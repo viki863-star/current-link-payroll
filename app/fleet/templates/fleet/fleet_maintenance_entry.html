@@ -22,7 +22,7 @@
   <div class="me-card">
     <h3>Maintenance Entry</h3>
     <p>Add a direct approved maintenance entry for a vehicle.</p>
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="me-field">
         <label>Vehicle</label>
@@ -53,6 +53,10 @@
       <div class="me-field">
         <label>Description</label>
         <textarea name="description" rows="3" placeholder="Describe the maintenance work..."></textarea>
+      </div>
+      <div class="me-field">
+        <label>Attach Paper (PDF / Image)</label>
+        <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.webp">
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;padding:10px;font-size:0.95rem;font-weight:700">&#10003; Submit &amp; Approve</button>
     </form>
