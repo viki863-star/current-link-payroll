@@ -1384,6 +1384,16 @@ def customer_soa_pdf(cid):
         kw.setdefault("fontSize", 8); kw.setdefault("leading", 12)
         return ParagraphStyle(name, **kw)
 
+    def C(t, **kw):
+        kw.setdefault("alignment", TA_CENTER)
+        return Paragraph(str(t), F("_C", **kw))
+    def R(t, **kw):
+        kw.setdefault("alignment", TA_RIGHT)
+        return Paragraph(str(t), F("_R", **kw))
+    def L(t, **kw):
+        kw.setdefault("textColor", C5)
+        return Paragraph(str(t), F("_L", **kw))
+
     els = []
     cn = company["company_name"] if company else "COMPANY"
     trn = company["trn_no"] or "—" if company else "—"
