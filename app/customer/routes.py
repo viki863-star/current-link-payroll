@@ -696,14 +696,16 @@ def customer_invoice_pdf(cid, iid):
     # 3. ITEMS TABLE — auto-fit on one page
     # ═══════════════════════════════════
     # Estimate fixed content height (in points)
-    fixed_pt = 35*mm + 5*mm + 35*mm + 5*mm + 3*mm + 25*mm + 4*mm + 8*mm + (8*mm if inv["notes"] else 0) + 12*mm + 10*mm + 12*mm
+    fixed_pt = 30*mm + 4*mm + 30*mm + 4*mm + 2*mm + 22*mm + 3*mm + 7*mm + (7*mm if inv["notes"] else 0) + 10*mm + 8*mm + 10*mm
     avail_pt = A4[1] - TM - BM - fixed_pt
     num_rows = len(items)
-    # Choose font size: start at 7, scale down if rows don't fit
     fs = 7.0
     if num_rows > 0:
-        row_fs = (avail_pt - 8) / num_rows / 4.5  # ~4.5pt per fontSize point per row (leading+padding)
-        fs = max(5.0, min(7.0, row_fs))
+        target = avail_pt / (num_rows + 1)  # +1 for header row
+        fs = max(4.0, min(7.0, target / 2.2))
+    ldr = fs * 1.35
+    pad_t = max(1.5, fs * 0.5)
+    pad_b = max(1.5, fs * 0.5)
     ldr = fs * 1.4  # leading proportional to font
     pad_t = max(2, int(fs * 0.6))
     pad_b = max(2, int(fs * 0.6))
@@ -779,7 +781,7 @@ def customer_invoice_pdf(cid, iid):
 
     ft = Table([["", tt]], colWidths=[W - tw, tw])
     ft.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(Spacer(1, 3*mm))
+    els.append(Spacer(1, 2*mm))
     els.append(ft)
 
     # ═══════════════════════════════════
@@ -814,8 +816,7 @@ def customer_invoice_pdf(cid, iid):
         if dp: w += f" and {dp:02d}/100"
         return "AED " + w + " Only"
 
-    els.append(Spacer(1, 4*mm))
-    ab = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=13))]], colWidths=[W])
+    els.append(Spacer(1, 3*mm))
     ab.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
     els.append(ab)
 
@@ -894,7 +895,7 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════
     # 8. FOOTER
     # ═══════════════════════════════════
-    els.append(Spacer(1, 8*mm))
+    els.append(Spacer(1, 4*mm))
     pp = []
     if company:
         parts = []
