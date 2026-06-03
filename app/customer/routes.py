@@ -502,7 +502,7 @@ def customer_invoice_edit(cid, iid):
         flash(f"Invoice {inv_no} updated.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
     db.close()
-    return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True)
+    return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>")
 def customer_invoice_view(cid, iid):
@@ -701,8 +701,8 @@ def customer_invoice_pdf(cid, iid):
     num_rows = len(items)
     fs = 7.0
     if num_rows > 0:
-        target = avail_pt / (num_rows + 1)  # +1 for header row
-        fs = max(4.0, min(7.0, target / 2.2))
+        target = avail_pt / (num_rows + 1)
+        fs = max(4.0, min(7.0, target / 2.8))
     ldr = fs * 1.35
     pad_t = max(1.5, fs * 0.5)
     pad_b = max(1.5, fs * 0.5)
@@ -817,6 +817,7 @@ def customer_invoice_pdf(cid, iid):
         return "AED " + w + " Only"
 
     els.append(Spacer(1, 3*mm))
+    ab = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=13))]], colWidths=[W])
     ab.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
     els.append(ab)
 
@@ -864,12 +865,15 @@ def customer_invoice_pdf(cid, iid):
         auth_img.append(Image(stamp_path, width=35, height=35))
     if os.path.exists(sign_path):
         auth_img.append(Image(sign_path, width=35, height=35))
-    auth_imgs = Table([auth_img], colWidths=[35]*len(auth_img))
-    auth_imgs.setStyle(TableStyle([
-        ("ALIGN",(0,0),(-1,-1),"CENTER"),
-        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("LEFTPADDING",(0,0),(-1,-1),2), ("RIGHTPADDING",(0,0),(-1,-1),2),
-    ]))
+    if auth_img:
+        auth_imgs = Table([auth_img], colWidths=[35]*len(auth_img))
+        auth_imgs.setStyle(TableStyle([
+            ("ALIGN",(0,0),(-1,-1),"CENTER"),
+            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+            ("LEFTPADDING",(0,0),(-1,-1),2), ("RIGHTPADDING",(0,0),(-1,-1),2),
+        ]))
+    else:
+        auth_imgs = Paragraph("", sg)
     auth_cell = Table([
         [Paragraph("_________________________", sg)],
         [auth_imgs],
