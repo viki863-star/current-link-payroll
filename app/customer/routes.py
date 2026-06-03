@@ -696,7 +696,7 @@ def customer_invoice_pdf(cid, iid):
     # 3. ITEMS TABLE — auto-fit on one page
     # ═══════════════════════════════════
     # Estimate fixed content height (in points)
-    fixed_pt = 30*mm + 4*mm + 30*mm + 4*mm + 2*mm + 22*mm + 3*mm + 7*mm + (7*mm if inv["notes"] else 0) + 10*mm + 8*mm + 10*mm
+    fixed_pt = 35*mm + 4*mm + 35*mm + 4*mm + 2*mm + 20*mm + 3*mm + 7*mm + (7*mm if inv["notes"] else 0) + 10*mm + 8*mm + 8*mm
     avail_pt = A4[1] - TM - BM - fixed_pt
     num_rows = len(items)
     fs = 7.0
@@ -706,9 +706,6 @@ def customer_invoice_pdf(cid, iid):
     ldr = fs * 1.35
     pad_t = max(1.5, fs * 0.5)
     pad_b = max(1.5, fs * 0.5)
-    ldr = fs * 1.4  # leading proportional to font
-    pad_t = max(2, int(fs * 0.6))
-    pad_b = max(2, int(fs * 0.6))
 
     DH = colors.HexColor("#1e293b")
     cw = [10*mm, 38*mm, 16*mm, 12*mm, 16*mm, 20*mm, 14*mm, 18*mm, 28*mm]
