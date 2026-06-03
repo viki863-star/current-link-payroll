@@ -693,19 +693,36 @@ def customer_invoice_pdf(cid, iid):
     els.append(Spacer(1, 5*mm))
 
     # ═══════════════════════════════════
-    # 3. ITEMS TABLE
+    # 3. ITEMS TABLE — auto-fit on one page
     # ═══════════════════════════════════
+    # Estimate fixed content height in mm (header + cards + spacers + totals + words + bank + notes)
+    fixed_height_mm = 35 + 5 + 35 + 5 + 3 + 25 + 4 + 10 + (10 if inv["notes"] else 0) + 15
+    avail_mm = A4[1] - TM - BM - fixed_height_mm
+    num_rows = len(items)
+    # Choose font size: start at 7, scale down if rows don't fit
+    fs = 7.0
+    if num_rows > 0:
+        row_fs = (avail_mm - 8) / num_rows / 1.6  # 1.6mm per fontSize point per row (approx)
+        fs = max(5.0, min(7.0, row_fs))
+    ldr = fs * 1.4  # leading proportional to font
+    pad_t = max(2, int(fs * 0.6))
+    pad_b = max(2, int(fs * 0.6))
+
     DH = colors.HexColor("#1e293b")
     cw = [10*mm, 44*mm, 20*mm, 20*mm, 22*mm, 14*mm, 20*mm, 22*mm]
+    def _pc(t, **kw):
+        kw.setdefault("fontSize", fs)
+        kw.setdefault("leading", ldr)
+        return Paragraph(str(t), S("_pc", **kw))
     hdr = [
-        Paragraph("<b>#</b>", S("_h0", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
-        Paragraph("<b>Description</b>", S("_h1", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
-        Paragraph("<b>QTY</b>", S("_h2", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
-        Paragraph("<b>Unit Price</b>", S("_h3", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-        Paragraph("<b>Taxable Amt</b>", S("_h4", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-        Paragraph("<b>VAT %</b>", S("_h5", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
-        Paragraph("<b>VAT Amt</b>", S("_h6", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-        Paragraph("<b>Total Incl.</b>", S("_h7", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
+        Paragraph("<b>Description</b>", S("_h1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
+        Paragraph("<b>QTY</b>", S("_h2", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
+        Paragraph("<b>Unit Price</b>", S("_h3", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>Taxable Amt</b>", S("_h4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>VAT %</b>", S("_h5", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
+        Paragraph("<b>VAT Amt</b>", S("_h6", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>Total Incl.</b>", S("_h7", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
     ]
     rws = [hdr]
     for idx, it in enumerate(items):
@@ -713,14 +730,14 @@ def customer_invoice_pdf(cid, iid):
         va_item = it["vat_amount_item"] or (it["amount"] * vp_item / 100)
         ti_item = it["total_incl_vat"] or (it["amount"] + va_item)
         rws.append([
-            C(str(idx+1), fontSize=7, fontName="Helvetica-Bold"),
-            L(it["description"] or "—", fontSize=7),
-            R(f"{it['quantity'] or 0:,.2f} {(it['unit'] or 'hr')}", fontSize=7),
-            R(f"{it['rate'] or 0:,.3f}", fontSize=7),
-            R(f"{it['amount'] or 0:,.2f}", fontSize=7),
-            C(f"{vp_item:.2f}%", fontSize=7),
-            R(f"{va_item:,.2f}", fontSize=7, textColor=C6),
-            RB(f"{ti_item:,.2f}", fontSize=7),
+            _pc(str(idx+1), alignment=TA_CENTER, fontName="Helvetica-Bold"),
+            _pc(it["description"] or "—"),
+            _pc(f"{it['quantity'] or 0:,.2f} {(it['unit'] or 'hr')}", alignment=TA_RIGHT),
+            _pc(f"{it['rate'] or 0:,.3f}", alignment=TA_RIGHT),
+            _pc(f"{it['amount'] or 0:,.2f}", alignment=TA_RIGHT),
+            _pc(f"{vp_item:.2f}%", alignment=TA_CENTER),
+            _pc(f"{va_item:,.2f}", alignment=TA_RIGHT, textColor=C6),
+            Paragraph(f"<b>{ti_item:,.2f}</b>", S("_b", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr)),
         ])
 
     sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
@@ -731,7 +748,7 @@ def customer_invoice_pdf(cid, iid):
         ("BACKGROUND",(0,0),(-1,0),DH), ("TEXTCOLOR",(0,0),(-1,0),WH),
         ("BOX",(0,0),(-1,-1),0.5,C3),
         ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
+        ("TOPPADDING",(0,0),(-1,-1),pad_t), ("BOTTOMPADDING",(0,0),(-1,-1),pad_b),
         ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
         ("ROWBACKGROUNDS",(0,1),(-1,-1),[WH, colors.HexColor("#f8fafc")]),
     ]))
