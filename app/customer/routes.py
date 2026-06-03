@@ -483,9 +483,9 @@ def customer_invoice_edit(cid, iid):
         if not new_items:
             flash("At least one line item is required.", "error")
             db.close()
-    return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id)
+            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id)
+        vat_pct = float(request.form.get("vat_percent", 5))
         vat_amt = round(sub_total * vat_pct / 100, 2)
-        total = round(sub_total + vat_amt, 2)
         db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,project_no=?,notes=? WHERE id=?""",
             (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, project_no, notes, iid))
         db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
