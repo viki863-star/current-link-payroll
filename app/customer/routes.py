@@ -696,7 +696,7 @@ def customer_invoice_pdf(cid, iid):
     # 3. ITEMS TABLE — auto-fit on one page
     # ═══════════════════════════════════
     # Estimate fixed content height (in points)
-    fixed_pt = 35*mm + 5*mm + 35*mm + 5*mm + 3*mm + 25*mm + 4*mm + 10*mm + (10*mm if inv["notes"] else 0) + 15*mm
+    fixed_pt = 35*mm + 5*mm + 35*mm + 5*mm + 3*mm + 25*mm + 4*mm + 8*mm + (8*mm if inv["notes"] else 0) + 12*mm + 10*mm + 12*mm
     avail_pt = A4[1] - TM - BM - fixed_pt
     num_rows = len(items)
     # Choose font size: start at 7, scale down if rows don't fit
@@ -849,31 +849,39 @@ def customer_invoice_pdf(cid, iid):
             els.append(bkt)
 
     # ═══════════════════════════════════
-    # 7. SIGNATURES
+    # 7. SIGNATURES — stamp & sign side by side
     # ═══════════════════════════════════
-    els.append(Spacer(1, 10*mm))
+    els.append(Spacer(1, 3*mm))
     sg = ParagraphStyle("SG", fontSize=9, alignment=TA_CENTER, leading=14)
     stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
     sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
-    auth_cells = []
-    auth_cells.append(Paragraph("_________________________", sg))
+    # Top: line + "Authorized Signatory"
+    auth_img = []
     if os.path.exists(stamp_path):
-        auth_cells.append(Image(stamp_path, width=40, height=40))
+        auth_img.append(Image(stamp_path, width=35, height=35))
     if os.path.exists(sign_path):
-        auth_cells.append(Image(sign_path, width=40, height=40))
-    auth_cells.append(Paragraph("<b>Authorized Signatory</b>", sg))
-    auth_cell = Table([[c] for c in auth_cells], colWidths=[W*0.35])
+        auth_img.append(Image(sign_path, width=35, height=35))
+    auth_imgs = Table([auth_img], colWidths=[35]*len(auth_img))
+    auth_imgs.setStyle(TableStyle([
+        ("ALIGN",(0,0),(-1,-1),"CENTER"),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("LEFTPADDING",(0,0),(-1,-1),2), ("RIGHTPADDING",(0,0),(-1,-1),2),
+    ]))
+    auth_cell = Table([
+        [Paragraph("_________________________", sg)],
+        [auth_imgs],
+        [Paragraph("<b>Authorized Signatory</b>", sg)],
+    ], colWidths=[W*0.38])
     auth_cell.setStyle(TableStyle([
         ("ALIGN",(0,0),(-1,-1),"CENTER"),
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",(0,0),(-1,-1),0),
-        ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),1),
     ]))
     sgt = Table([[
         auth_cell,
         C("", fontSize=4),
         Paragraph("", sg),
-    ]], colWidths=[W*0.35, W*0.30, W*0.35])
+    ]], colWidths=[W*0.38, W*0.24, W*0.38])
     sgt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"TOP"),
         ("LINEABOVE",(0,0),(0,0),0.5,C5), ("LINEABOVE",(2,0),(2,0),0.5,C5),
