@@ -210,9 +210,13 @@ function loadLpoItems() {
         .catch(() => {});
 }
 
+var isEdit = {{ 'true' if edit else 'false' }};
+
 document.addEventListener('DOMContentLoaded', function() {
+    {% if not edit %}
     var sel = document.getElementById('lpoSelect');
     if (sel && sel.value) { loadLpoItems(); }
+    {% endif %}
 });
 </script>
 {% endblock %}

@@ -695,14 +695,14 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════
     # 3. ITEMS TABLE — auto-fit on one page
     # ═══════════════════════════════════
-    # Estimate fixed content height in mm (header + cards + spacers + totals + words + bank + notes)
-    fixed_height_mm = 35 + 5 + 35 + 5 + 3 + 25 + 4 + 10 + (10 if inv["notes"] else 0) + 15
-    avail_mm = A4[1] - TM - BM - fixed_height_mm
+    # Estimate fixed content height (in points)
+    fixed_pt = 35*mm + 5*mm + 35*mm + 5*mm + 3*mm + 25*mm + 4*mm + 10*mm + (10*mm if inv["notes"] else 0) + 15*mm
+    avail_pt = A4[1] - TM - BM - fixed_pt
     num_rows = len(items)
     # Choose font size: start at 7, scale down if rows don't fit
     fs = 7.0
     if num_rows > 0:
-        row_fs = (avail_mm - 8) / num_rows / 1.6  # 1.6mm per fontSize point per row (approx)
+        row_fs = (avail_pt - 8) / num_rows / 4.5  # ~4.5pt per fontSize point per row (leading+padding)
         fs = max(5.0, min(7.0, row_fs))
     ldr = fs * 1.4  # leading proportional to font
     pad_t = max(2, int(fs * 0.6))
