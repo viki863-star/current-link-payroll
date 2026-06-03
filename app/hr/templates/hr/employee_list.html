@@ -8,7 +8,7 @@
     {# ─── Filter Bar ─── #}
     <div class="filter-bar">
         <form method="GET" class="filter-bar-form">
-            <input type="text" name="q" value="{{ query }}" placeholder="Name, ID, phone, vehicle..." class="search-input">
+            <input type="text" name="q" value="{{ query }}" placeholder="Type name, ID..." class="search-input">
             <select name="department" class="filter-select">
                 <option value="">All Departments</option>
                 {% for d in departments %}

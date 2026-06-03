@@ -140,7 +140,7 @@ def employee_list():
                ) AS plate_no
         FROM employees e
         {where_sql}
-        ORDER BY CASE WHEN e.status = 'Active' THEN 0 ELSE 1 END, e.full_name ASC
+        ORDER BY e.full_name ASC
         """,
         params,
     ).fetchall()
