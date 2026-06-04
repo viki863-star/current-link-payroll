@@ -1962,16 +1962,6 @@ def register_routes(app: Flask) -> None:
                 seen.add(key)
                 results.append(dict(row))
 
-        # drivers
-        for row in db.execute(
-            "SELECT driver_id AS id, full_name AS name, 'driver' AS type, vehicle_no AS label FROM drivers WHERE driver_id LIKE ? OR full_name LIKE ? OR phone_number LIKE ? OR vehicle_no LIKE ? LIMIT 10",
-            (f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"),
-        ).fetchall():
-            key = ("driver", row["id"])
-            if key not in seen:
-                seen.add(key)
-                results.append(dict(row))
-
         # customers
         for row in db.execute(
             "SELECT party_code AS id, party_name AS name, 'customer' AS type, party_code AS label FROM parties WHERE party_roles LIKE '%%Customer%%' AND (party_code LIKE ? OR party_name LIKE ?) LIMIT 10",
@@ -2012,8 +2002,6 @@ def register_routes(app: Flask) -> None:
             r = results[0]
             if r["type"] == "employee":
                 return redirect(url_for("hr.employee_detail", employee_id=r["id"]))
-            if r["type"] == "driver":
-                return redirect(url_for("hr.employee_transactions", employee_id=r["id"]))
             if r["type"] == "customer":
                 return redirect(url_for("party_detail", party_code=r["id"]))
             if r["type"] == "supplier":

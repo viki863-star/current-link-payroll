@@ -36,8 +36,6 @@
                     <td class="action-cell" style="text-align:right">
                         {% if r.type == 'employee' %}
                             <a href="{{ url_for('hr.employee_detail', employee_id=r.id) }}" class="btn btn-sm btn-primary">View</a>
-                        {% elif r.type == 'driver' %}
-                            <a href="{{ url_for('hr.employee_transactions', employee_id=r.id) }}" class="btn btn-sm btn-primary">View</a>
                         {% elif r.type == 'customer' or r.type == 'supplier' %}
                             <a href="{{ url_for('party_detail', party_code=r.id) }}" class="btn btn-sm btn-primary">View</a>
                         {% elif r.type == 'invoice' %}
