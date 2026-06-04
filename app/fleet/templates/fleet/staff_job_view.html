@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Job Details — Staff Portal{% endblock %}
+{% block body_class %}staff-body{% endblock %}
+{% block page_title %}Job Details{% endblock %}
+
+{% block shell_header %}{% endblock %}
+
+{% block content %}
+<style>
+* { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust:100%; text-size-adjust:100%; box-sizing:border-box; }
+.app-layout .erp-sidebar { display: none !important; }
+.app-layout .main-content { margin-left: 0 !important; width: 100% !important; max-width:100% !important; padding:0 !important; }
+body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+.staff-nav { display:flex; align-items:center; gap:10px; padding:14px 24px; background:#fff; border-bottom:1px solid #eef2f6; }
+.staff-nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
+.staff-nav-video { width:38px; height:38px; border-radius:10px; object-fit:cover; border:2px solid rgba(247,147,30,0.4); display:block; background:#fff; }
+.staff-nav-name { font-size:1.1rem; font-weight:800; color:#0F2B52; letter-spacing:-0.3px; }
+.staff-nav-orange { color:#F7931E; }
+.staff-nav-links { margin-left:auto; display:flex; gap:16px; align-items:center; }
+.staff-nav-link { font-size:0.85rem; color:#5a6a7a; text-decoration:none; font-weight:500; transition:color 0.2s; }
+.staff-nav-link:hover { color:#F7931E; }
+.staff-nav-btn { font-size:0.85rem; padding:7px 18px; border-radius:8px; background:#F7931E; color:#fff; text-decoration:none; font-weight:600; }
+.staff-nav-btn:hover { background:#e6820e; }
+.staff-nav-icon { position:relative; background:none; border:none; cursor:pointer; padding:8px; border-radius:8px; color:#5a6a7a; display:flex; align-items:center; transition:background 0.2s; }
+.staff-nav-icon:hover { background:#f1f5f9; }
+.staff-nav-badge { position:absolute; top:2px; right:2px; min-width:16px; height:16px; border-radius:8px; background:#ef4444; color:#fff; font-size:0.6rem; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px; }
+.staff-nav-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:0.8rem; }
+.view-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.view-title { margin:0; font-size:1.1rem; font-weight:700; }
+.view-back-btn { font-size:0.85rem; color:var(--primary); text-decoration:none; padding:8px 14px; border:1px solid var(--line); border-radius:10px; }
+.view-card { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:16px; }
+.view-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:0.9rem; }
+.view-row:last-child { border-bottom:none; }
+.view-label { color:var(--muted); }
+.view-value { font-weight:600; }
+.status-badge-view { font-size:0.75rem; padding:4px 14px; border-radius:20px; font-weight:600; text-transform:uppercase; }
+.status-approved { background:#e8f5e9; color:#2e7d32; }
+.status-pending { background:#fff3e0; color:#e65100; }
+.status-rejected { background:#ffebee; color:#c62828; }
+.view-attachment { margin-top:16px; }
+.view-attachment img, .view-attachment embed { max-width:100%; border-radius:12px; border:1px solid var(--line); }
+</style>
+<nav class="staff-nav">
+    <a class="staff-nav-brand" href="{{ url_for('technician_simple') }}">
+        <video class="staff-nav-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+            <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
+        </video>
+        <span class="staff-nav-name"><span>Current</span> <span class="staff-nav-orange">Link</span></span>
+    </a>
+    <div class="staff-nav-links">
+        <a class="staff-nav-link" href="{{ url_for('technician_simple') }}">New Job</a>
+        <a class="staff-nav-link" href="{{ url_for('technician_my_jobs') }}">My Jobs</a>
+        <button class="staff-nav-icon" id="staffNotifBell" aria-label="Notifications">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                <path d="M10 2a6 6 0 0 0-6 6c0 4-2 5-2 5h16s-2-1-2-5a6 6 0 0 0-6-6z"/><path d="M8 17a2 2 0 0 0 4 0"/>
+            </svg>
+            <span class="staff-nav-badge" id="staffNotifBadge" style="display:none"></span>
+        </button>
+        <div class="staff-nav-avatar" style="background:#F7931E">{{ (session.get('current_user_name') or session.get('technician_code','S'))[0]|upper }}</div>
+        <span style="font-size:0.85rem;font-weight:600;color:#0F2B52">{{ session.get('current_user_name') or session.get('technician_code','') }}</span>
+        <a class="staff-nav-btn" href="{{ url_for('logout') }}">Logout</a>
+    </div>
+</nav>
+<div class="staff-container">
+    <div class="view-header">
+        <h1 class="view-title">Job Details</h1>
+        <a href="{{ url_for('technician_my_jobs') }}" class="view-back-btn">&#8592; Back</a>
+    </div>
+
+    <div class="view-card">
+        <div class="view-row">
+            <span class="view-label">Status</span>
+            <span class="status-badge-view status-{{ job.status }}">{{ job.status }}</span>
+        </div>
+        <div class="view-row">
+            <span class="view-label">Vehicle</span>
+            <span class="view-value">{{ job.vehicle_id or 'N/A' }}</span>
+        </div>
+        <div class="view-row">
+            <span class="view-label">Amount</span>
+            <span class="view-value">AED {{ "%.0f"|format(job.amount) }}</span>
+        </div>
+        <div class="view-row">
+            <span class="view-label">Category</span>
+            <span class="view-value">{{ job.category }}</span>
+        </div>
+        {% if job.description %}
+        <div class="view-row">
+            <span class="view-label">Description</span>
+            <span style="text-align:right;max-width:60%;font-size:0.85rem">{{ job.description }}</span>
+        </div>
+        {% endif %}
+        <div class="view-row">
+            <span class="view-label">Date</span>
+            <span class="view-value">{{ job.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+        </div>
+        {% if job.admin_notes %}
+        <div class="view-row">
+            <span class="view-label">Admin Notes</span>
+            <span style="color:var(--danger);text-align:right">{{ job.admin_notes }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if job.attachment_name %}
+    <div class="view-card">
+        <div style="font-size:0.82rem;font-weight:600;margin-bottom:10px">Attachment: {{ job.attachment_name }}</div>
+        <div class="view-attachment">
+            {% if job.attachment_type and job.attachment_type.startswith('image') %}
+            <img src="data:{{ job.attachment_type }};base64,{{ job.attachment_data }}" alt="Attachment" style="max-width:100%;border-radius:12px;border:1px solid var(--line)">
+            {% elif job.attachment_type == 'application/pdf' %}
+            <embed src="data:{{ job.attachment_type }};base64,{{ job.attachment_data }}" type="application/pdf" style="width:100%;height:500px;border-radius:12px;border:1px solid var(--line)">
+            {% else %}
+            <a href="data:{{ job.attachment_type }};base64,{{ job.attachment_data }}" download="{{ job.attachment_name }}" class="staff-action-btn" style="display:inline-flex">Download {{ job.attachment_name }}</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+<script>
+document.querySelectorAll('.staff-nav-video').forEach(function(v) {
+    function doPlay() { v.play().catch(function(){}); }
+    if (v.readyState >= 2) { doPlay(); }
+    else { v.addEventListener('loadeddata', doPlay, {once:true}); }
+});
+(function(){
+    var bell = document.getElementById('staffNotifBell');
+    var badge = document.getElementById('staffNotifBadge');
+    if (!bell) return;
+    function fetchNotifs() {
+        fetch('/notifications').then(function(r){ return r.json(); }).then(function(data){
+            var c = data.unread || 0;
+            if (c > 0) { badge.style.display = 'flex'; badge.textContent = c > 99 ? '99+' : c; }
+            else { badge.style.display = 'none'; }
+        }).catch(function(){});
+    }
+    fetchNotifs();
+    setInterval(fetchNotifs, 15000);
+})();
+</script>
+{% endblock %}

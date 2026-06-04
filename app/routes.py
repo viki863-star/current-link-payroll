@@ -1300,6 +1300,20 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("technician_my_jobs"))
         return render_template("fleet/staff_job_edit.html", job=job, vehicles=vehicles, categories=_categories_list)
 
+    @app.route("/portal/technician/my-jobs/<int:job_id>/view")
+    def technician_job_view(job_id):
+        db = open_db()
+        technician_code = session.get("technician_code", "")
+        if not technician_code:
+            session.clear()
+            flash("Field staff session expired. Please login again.", "error")
+            return redirect(url_for("technician_login"))
+        job = db.execute("SELECT * FROM maintenance_jobs WHERE id = ? AND staff_id = ?", (job_id, technician_code)).fetchone()
+        if not job:
+            flash("Job not found.", "error")
+            return redirect(url_for("technician_my_jobs"))
+        return render_template("fleet/staff_job_view.html", job=job)
+
     @app.route("/portal/technician/my-jobs/<int:job_id>/delete", methods=["POST"])
     def technician_job_delete(job_id):
         db = open_db()
