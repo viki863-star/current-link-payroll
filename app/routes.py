@@ -1319,7 +1319,6 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/portal/technician", methods=["GET", "POST"])
     def technician_portal():
-    def technician_portal():
         return redirect(url_for("technician_simple"))
         
         # Fetch technician details
