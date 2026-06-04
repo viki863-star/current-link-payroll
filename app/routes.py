@@ -2013,7 +2013,7 @@ def register_routes(app: Flask) -> None:
             if r["type"] == "employee":
                 return redirect(url_for("hr.employee_detail", employee_id=r["id"]))
             if r["type"] == "driver":
-                return redirect(url_for("driver_detail", driver_id=r["id"]))
+                return redirect(url_for("hr.employee_transactions", employee_id=r["id"]))
             if r["type"] == "customer":
                 return redirect(url_for("party_detail", party_code=r["id"]))
             if r["type"] == "supplier":
