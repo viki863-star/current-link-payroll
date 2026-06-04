@@ -106,9 +106,8 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
             </div>
             {% if j.status != 'approved' %}
             <div style="display:flex;gap:8px;margin-top:10px">
-                <a href="{{ url_for('fleet.staff_job_edit', job_id=j.id) }}" class="staff-job-action" style="background:#e3f0ff;color:var(--primary)">Edit</a>
-                <form method="POST" action="{{ url_for('fleet.staff_job_delete', job_id=j.id) }}" style="margin:0;flex:1" onsubmit="return confirm('Delete this job?')">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <a href="{{ url_for('technician_job_edit', job_id=j.id) }}" class="staff-job-action" style="background:#e3f0ff;color:var(--primary)">Edit</a>
+                <form method="POST" action="{{ url_for('technician_job_delete', job_id=j.id) }}" style="margin:0;flex:1" onsubmit="return confirm('Delete this job?')">
                     <button type="submit" class="staff-job-action" style="background:#ffebee;color:#c62828;width:100%;border:none;cursor:pointer;font-family:inherit;font-size:0.8rem;font-weight:600;border-radius:8px;padding:8px 12px">Delete</button>
                 </form>
             </div>

@@ -1259,7 +1259,66 @@ def register_routes(app: Flask) -> None:
             papers.append(d)
         return render_template("fleet/staff_jobs.html", jobs=jobs, papers=papers)
 
+    @app.route("/portal/technician/my-jobs/<int:job_id>/edit", methods=["GET", "POST"])
+    def technician_job_edit(job_id):
+        db = open_db()
+        technician_code = session.get("technician_code", "")
+        if not technician_code:
+            session.clear()
+            flash("Field staff session expired. Please login again.", "error")
+            return redirect(url_for("technician_login"))
+        job = db.execute("SELECT * FROM maintenance_jobs WHERE id = ? AND staff_id = ? AND status != 'approved'", (job_id, technician_code)).fetchone()
+        if not job:
+            flash("Job not found or cannot be edited.", "error")
+            return redirect(url_for("technician_my_jobs"))
+        vehicles = db.execute("SELECT * FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
+        _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
+        if request.method == "POST":
+            vehicle_id = request.form.get("vehicle_id", "").strip()
+            amount = request.form.get("amount", "").strip()
+            category = request.form.get("category", "").strip()
+            description = request.form.get("description", "").strip()
+            if not amount:
+                flash("Amount is required.", "error")
+                return render_template("fleet/staff_job_edit.html", job=job, vehicles=vehicles, categories=_categories_list)
+            attachment_name = job["attachment_name"]
+            attachment_data = job["attachment_data"]
+            attachment_type = job["attachment_type"]
+            if "attachment" in request.files:
+                file = request.files["attachment"]
+                if file.filename:
+                    import base64
+                    attachment_name = file.filename
+                    attachment_data = base64.b64encode(file.read()).decode("utf-8")
+                    attachment_type = file.content_type
+            db.execute(
+                "UPDATE maintenance_jobs SET vehicle_id=?, amount=?, category=?, description=?, attachment_name=?, attachment_data=?, attachment_type=? WHERE id=?",
+                (vehicle_id or "N/A", float(amount), category, description, attachment_name, attachment_data, attachment_type, job_id),
+            )
+            db.commit()
+            flash("Job updated.", "success")
+            return redirect(url_for("technician_my_jobs"))
+        return render_template("fleet/staff_job_edit.html", job=job, vehicles=vehicles, categories=_categories_list)
+
+    @app.route("/portal/technician/my-jobs/<int:job_id>/delete", methods=["POST"])
+    def technician_job_delete(job_id):
+        db = open_db()
+        technician_code = session.get("technician_code", "")
+        if not technician_code:
+            session.clear()
+            flash("Field staff session expired.", "error")
+            return redirect(url_for("technician_login"))
+        job = db.execute("SELECT id FROM maintenance_jobs WHERE id = ? AND staff_id = ? AND status != 'approved'", (job_id, technician_code)).fetchone()
+        if not job:
+            flash("Job not found or cannot be deleted.", "error")
+        else:
+            db.execute("DELETE FROM maintenance_jobs WHERE id = ?", (job_id,))
+            db.commit()
+            flash("Job deleted.", "info")
+        return redirect(url_for("technician_my_jobs"))
+
     @app.route("/portal/technician", methods=["GET", "POST"])
+    def technician_portal():
     def technician_portal():
         return redirect(url_for("technician_simple"))
         
