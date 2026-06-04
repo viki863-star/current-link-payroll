@@ -1952,10 +1952,10 @@ def register_routes(app: Flask) -> None:
         results = []
         seen = set()
 
-        # employees
+        # employees (including by assigned vehicle)
         for row in db.execute(
-            "SELECT employee_id AS id, full_name AS name, 'employee' AS type, employee_id AS label FROM employees WHERE employee_id LIKE ? OR full_name LIKE ? OR phone_number LIKE ? LIMIT 10",
-            (f"%{q}%", f"%{q}%", f"%{q}%"),
+            "SELECT e.employee_id AS id, e.full_name AS name, 'employee' AS type, e.employee_id AS label FROM employees e WHERE e.employee_id LIKE ? OR e.full_name LIKE ? OR e.phone_number LIKE ? OR EXISTS (SELECT 1 FROM vehicle_assignments va JOIN vehicles v ON v.plate_no=va.vehicle_id WHERE va.driver_id=e.employee_id AND (v.plate_no LIKE ? OR va.vehicle_id LIKE ?)) OR EXISTS (SELECT 1 FROM drivers d WHERE d.driver_id=e.employee_id AND (d.vehicle_no LIKE ?)) LIMIT 10",
+            (f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"),
         ).fetchall():
             key = ("employee", row["id"])
             if key not in seen:
