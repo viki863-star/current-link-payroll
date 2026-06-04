@@ -104,7 +104,7 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
                 </div>
                 {% endif %}
             </div>
-            {% if j.status == 'pending' %}
+            {% if j.status != 'approved' %}
             <div style="display:flex;gap:8px;margin-top:10px">
                 <a href="{{ url_for('fleet.staff_job_edit', job_id=j.id) }}" class="staff-job-action" style="background:#e3f0ff;color:var(--primary)">Edit</a>
                 <form method="POST" action="{{ url_for('fleet.staff_job_delete', job_id=j.id) }}" style="margin:0;flex:1" onsubmit="return confirm('Delete this job?')">
