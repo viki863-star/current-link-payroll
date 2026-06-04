@@ -97,12 +97,6 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
                     <span style="font-size:0.78rem;color:var(--danger)">{{ j.admin_notes }}</span>
                 </div>
                 {% endif %}
-                {% if j.attachment_name %}
-                <div class="staff-job-item-row">
-                    <span class="staff-job-item-label">Attachment</span>
-                    <a href="{{ url_for('fleet.staff_attachment', job_id=j.id) }}" style="font-size:0.78rem;color:var(--primary);text-decoration:underline" target="_blank">View</a>
-                </div>
-                {% endif %}
             </div>
             {% if j.status != 'approved' %}
             <div style="display:flex;gap:8px;margin-top:10px">
