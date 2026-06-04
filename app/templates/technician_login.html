@@ -1,89 +1,112 @@
 {% extends "base.html" %}
-{% block body_class %}login-page-body{% endblock %}
+{% block body_class %}staff-body{% endblock %}
 {% block shell_header %}{% endblock %}
 {% block shell_footer %}{% endblock %}
 {% block content %}
 <style>
-.tl-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; background:linear-gradient(135deg,#0a1a30 0%,#0F2B52 40%,#1a3d6e 100%); position:relative; }
-.tl-wrap::before { content:''; position:absolute; inset:0; background:url("{{ url_for('static', filename='Portal.png') }}") center/cover no-repeat; opacity:0.08; pointer-events:none; }
-.tl-inner { width:100%; max-width:440px; position:relative; }
-.tl-card { background:rgba(255,255,255,0.97); border-radius:24px; padding:36px 32px 32px; box-shadow:0 25px 60px rgba(0,0,0,0.3); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
-.tl-logo { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
-.tl-logo img { width:42px; height:42px; border-radius:10px; }
-.tl-logo-text { font-size:1.05rem; font-weight:800; letter-spacing:-0.3px; }
-.tl-logo-text span { color:#0F2B52; }
-.tl-logo-text .accent { color:#ff8a1f; }
-.tl-sub { font-size:0.65rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px; }
-.tl-title { font-size:1.25rem; font-weight:700; color:#0F2B52; margin:0 0 20px; }
-.tl-field { margin-bottom:16px; }
-.tl-field label { display:block; font-size:0.72rem; font-weight:600; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.3px; }
-.tl-field input { width:100%; padding:11px 14px; border:1.5px solid #e0e4ea; border-radius:12px; font-size:0.9rem; transition:all 0.15s; box-sizing:border-box; }
-.tl-field input:focus { border-color:#ff8a1f; outline:none; box-shadow:0 0 0 3px rgba(255,138,31,0.15); }
-.tl-btn { width:100%; padding:12px; border:none; border-radius:12px; font-size:0.9rem; font-weight:700; cursor:pointer; background:linear-gradient(145deg,#ff8a1f,#e67600); color:#fff; transition:all 0.15s; margin-top:6px; }
-.tl-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(230,118,0,0.35); }
-.tl-btn:active { transform:scale(0.97); }
-.tl-footer { text-align:center; margin-top:18px; font-size:0.75rem; color:var(--muted); }
-.tl-footer a { color:#0F2B52; font-weight:600; text-decoration:none; }
-.tl-footer a:hover { color:#ff8a1f; }
-.tl-error { background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:12px 14px; margin-bottom:16px; font-size:0.82rem; color:#dc2626; }
-/* hide sidebar on login page */
-.app-layout .sidebar { display:none !important; }
-.app-layout .main-content { margin-left:0 !important; width:100% !important; }
+* { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust:100%; text-size-adjust:100%; box-sizing:border-box; }
+.app-layout .erp-sidebar { display: none !important; }
+.app-layout .main-content { margin-left: 0 !important; width: 100% !important; max-width:100% !important; padding:0 !important; }
+body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+.staff-nav { display:flex; align-items:center; gap:10px; padding:14px 24px; background:#fff; border-bottom:1px solid #eef2f6; }
+.staff-nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
+.staff-nav-video { width:38px; height:38px; border-radius:10px; object-fit:cover; border:2px solid rgba(247,147,30,0.4); display:block; background:#fff; }
+.staff-nav-name { font-size:1.1rem; font-weight:800; color:#0F2B52; letter-spacing:-0.3px; }
+.staff-nav-orange { color:#F7931E; }
+.login-wrap { min-height:calc(100vh - 67px); display:flex; align-items:center; justify-content:center; padding:20px; background:linear-gradient(135deg,#0a1a30 0%,#0F2B52 40%,#1a3d6e 100%); position:relative; }
+.login-wrap::before { content:''; position:absolute; inset:0; background:url("{{ url_for('static', filename='Portal.png') }}") center/cover no-repeat; opacity:0.08; pointer-events:none; }
+.login-inner { width:100%; max-width:420px; position:relative; }
+.login-card { background:rgba(255,255,255,0.97); border-radius:24px; padding:36px 32px 32px; box-shadow:0 25px 60px rgba(0,0,0,0.3); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
+.login-badge { display:inline-block; background:rgba(247,147,30,0.12); color:#F7931E; font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; padding:4px 14px; border-radius:20px; margin-bottom:12px; }
+.login-title { font-size:1.3rem; font-weight:700; color:#0F2B52; margin:0 0 6px; }
+.login-sub { font-size:0.85rem; color:var(--muted); margin-bottom:24px; }
+.login-field { margin-bottom:18px; }
+.login-field label { display:block; font-size:0.72rem; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.3px; }
+.login-field input { width:100%; padding:12px 14px; border:1.5px solid #e0e4ea; border-radius:12px; font-size:0.9rem; transition:all 0.15s; box-sizing:border-box; font-family:inherit; }
+.login-field input:focus { border-color:#F7931E; outline:none; box-shadow:0 0 0 3px rgba(247,147,30,0.15); }
+.login-btn { width:100%; padding:13px; border:none; border-radius:12px; font-size:0.9rem; font-weight:700; cursor:pointer; background:linear-gradient(145deg,#F7931E,#e67600); color:#fff; transition:all 0.15s; margin-top:4px; }
+.login-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(230,118,0,0.35); }
+.login-btn:active { transform:scale(0.97); }
+.login-footer { text-align:center; margin-top:20px; padding-top:16px; border-top:1px solid #eef2f6; font-size:0.75rem; color:var(--muted); }
+.login-footer a { color:#0F2B52; font-weight:600; text-decoration:none; }
+.login-footer a:hover { color:#F7931E; }
+.login-error { background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:12px 14px; margin-bottom:18px; font-size:0.82rem; color:#dc2626; }
+.login-features { display:flex; gap:12px; margin-bottom:24px; }
+.login-feat { flex:1; background:#f8fafc; border-radius:12px; padding:12px; text-align:center; border:1px solid #eef2f6; }
+.login-feat-icon { font-size:1.2rem; margin-bottom:4px; }
+.login-feat-label { font-size:0.68rem; font-weight:600; color:var(--muted); }
 @media (max-width:560px) {
- .tl-wrap { padding:12px; align-items:flex-start; padding-top:40px; min-height:100dvh; }
- .tl-card { padding:24px 18px 20px; border-radius:18px; }
- .tl-logo { margin-bottom:16px; }
- .tl-logo img { width:34px; height:34px; }
- .tl-logo-text { font-size:0.9rem; }
- .tl-title { font-size:1.05rem; margin-bottom:16px; }
- .tl-field { margin-bottom:14px; }
- .tl-field label { font-size:0.68rem; }
- .tl-field input { padding:12px 12px; font-size:16px; border-radius:10px; }
- .tl-btn { padding:14px; font-size:0.95rem; border-radius:10px; }
- .page-content { padding:0 !important; }
-}
-@media (max-width:380px) {
- .tl-wrap { padding:8px; padding-top:24px; }
- .tl-card { padding:18px 14px 16px; border-radius:14px; }
- .tl-title { font-size:0.95rem; }
+ .staff-nav { padding:12px 16px; }
+ .login-wrap { padding:16px; align-items:flex-start; padding-top:32px; min-height:calc(100dvh - 63px); }
+ .login-card { padding:24px 20px 24px; border-radius:18px; }
+ .login-title { font-size:1.1rem; }
+ .login-features { gap:8px; }
+ .login-feat { padding:10px 6px; }
 }
 </style>
-<div class="tl-wrap">
-  <div class="tl-inner">
-    <div class="tl-card">
-      <div class="tl-logo">
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="Current Link">
-        <div class="tl-logo-text"><span>CURRENT</span><span class="accent">LINK</span></div>
-      </div>
-      <div class="tl-sub">Field Staff Access</div>
-      <h1 class="tl-title">Staff Portal Login</h1>
+<nav class="staff-nav">
+    <a class="staff-nav-brand" href="{{ url_for('home') }}">
+        <video class="staff-nav-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+            <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
+        </video>
+        <span class="staff-nav-name"><span>Current</span> <span class="staff-nav-orange">Link</span></span>
+    </a>
+</nav>
+<div class="login-wrap">
+  <div class="login-inner">
+    <div class="login-card">
+      <div class="login-badge">&#9679; Field Staff Portal</div>
+      <h1 class="login-title">Welcome Back</h1>
+      <p class="login-sub">Sign in to submit &amp; track maintenance jobs</p>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-        <div class="tl-error">{{ message }}</div>
+        <div class="login-error">{{ message }}</div>
         {% endfor %}
       {% endif %}
       {% endwith %}
 
+      <div class="login-features">
+        <div class="login-feat">
+          <div class="login-feat-icon">&#128736;</div>
+          <div class="login-feat-label">Submit Jobs</div>
+        </div>
+        <div class="login-feat">
+          <div class="login-feat-icon">&#128196;</div>
+          <div class="login-feat-label">Upload Papers</div>
+        </div>
+        <div class="login-feat">
+          <div class="login-feat-icon">&#128200;</div>
+          <div class="login-feat-label">Track Status</div>
+        </div>
+      </div>
+
       <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="tl-field">
+        <div class="login-field">
           <label>User ID / Staff Code</label>
           <input type="text" name="user_id" value="{{ values.user_id }}" placeholder="e.g. FS-01" required>
         </div>
-        <div class="tl-field">
+        <div class="login-field">
           <label>Password</label>
           <input type="password" name="password" placeholder="Enter your password" required>
         </div>
-        <button class="tl-btn" type="submit">Enter Field Staff Portal</button>
+        <button class="login-btn" type="submit">Sign In to Portal</button>
       </form>
 
-      <div class="tl-footer">
+      <div class="login-footer">
         Only active field staff accounts can log in.<br>
         <a href="{{ url_for('home') }}">&larr; Back to Home</a>
       </div>
     </div>
   </div>
 </div>
+<script>
+document.querySelectorAll('.staff-nav-video').forEach(function(v) {
+    function doPlay() { v.play().catch(function(){}); }
+    if (v.readyState >= 2) { doPlay(); }
+    else { v.addEventListener('loadeddata', doPlay, {once:true}); }
+});
+</script>
 {% endblock %}
