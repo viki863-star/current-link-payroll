@@ -73,6 +73,55 @@
         letter-spacing: 0.12em;
         text-transform: uppercase;
     }
+
+    /* ── Company Profile Section ── */
+    .cl-profile { padding:0; position:relative; overflow:hidden; }
+    .cl-profile-inner { display:grid; grid-template-columns:1fr 1fr; min-height:520px; max-width:1200px; margin:0 auto; }
+    .cl-profile-left { display:flex; flex-direction:column; justify-content:center; padding:60px 40px 60px 8%; position:relative; z-index:2; }
+    .cl-profile-right { display:flex; align-items:center; justify-content:center; padding:40px; position:relative; overflow:hidden; background:linear-gradient(160deg,#091e3b,#0F2B52); }
+    .cl-profile-right::before { content:''; position:absolute; inset:0; background-image:radial-gradient(rgba(255,255,255,0.018) 1px,transparent 1px); background-size:24px 24px; }
+
+    .cl-profile-eyebrow { display:inline-block; padding:4px 14px; border-radius:14px; background:rgba(247,147,30,0.08); color:#F7931E; font-size:0.55rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; border:1px solid rgba(247,147,30,0.12); margin-bottom:10px; width:fit-content; }
+    .cl-profile-title { font-size:2rem; font-weight:800; color:#0F2B52; letter-spacing:-0.5px; line-height:1.15; margin:0 0 8px; }
+    .cl-profile-desc { font-size:0.82rem; line-height:1.65; color:#5a6a82; max-width:480px; margin-bottom:10px; }
+    .cl-profile-features { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+    .cl-profile-feat { padding:3px 10px; border-radius:8px; font-size:0.6rem; font-weight:600; color:#0F2B52; background:rgba(247,147,30,0.04); border:1px solid rgba(247,147,30,0.08); display:flex; align-items:center; gap:4px; }
+    .cl-profile-actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .cl-profile-btn { padding:10px 24px; border-radius:10px; font-size:0.78rem; font-weight:600; border:none; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; }
+    .cl-profile-btn-primary { background:#0F2B52; color:#fff; }
+    .cl-profile-btn-primary:hover { background:#1a3d6e; transform:translateY(-1px); box-shadow:0 4px 12px rgba(15,43,82,0.2); }
+    .cl-profile-btn-outline { background:transparent; color:#0F2B52; border:1.5px solid #0F2B52; }
+    .cl-profile-btn-outline:hover { background:#0F2B52; color:#fff; transform:translateY(-1px); }
+
+    /* Brochure mockup */
+    .cl-profile-book { position:relative; width:280px; height:200px; perspective:800px; }
+    .cl-profile-book-cover { width:100%; height:100%; border-radius:8px 16px 16px 8px; background:linear-gradient(160deg,#091e3b,#0F2B52); position:relative; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.15); transform:rotateY(-8deg) rotateX(3deg); transition:transform 0.4s; }
+    .cl-profile-book-cover:hover { transform:rotateY(-3deg) rotateX(1deg); }
+    .cl-profile-book-cover::before { content:''; position:absolute; inset:0; background-image:radial-gradient(rgba(255,255,255,0.025) 1px,transparent 1px); background-size:20px 20px; }
+    .cl-profile-book-inner { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:20px; }
+    .cl-profile-book-logo { width:44px; height:44px; border-radius:10px; overflow:hidden; border:2px solid rgba(247,147,30,0.3); margin-bottom:8px; }
+    .cl-profile-book-logo video { width:100%; height:100%; object-fit:cover; }
+    .cl-profile-book-name { font-family:'Inter',sans-serif; font-size:1.1rem; font-weight:800; color:#fff; letter-spacing:-0.3px; }
+    .cl-profile-book-name em { color:#F7931E; font-style:normal; }
+    .cl-profile-book-sub { font-size:0.45rem; color:rgba(255,255,255,0.4); letter-spacing:2px; text-transform:uppercase; margin-top:2px; }
+    .cl-profile-book-line { width:28px; height:2px; background:linear-gradient(90deg,#F7931E,#f5a83a); margin:6px auto; border-radius:2px; }
+    .cl-profile-book-tag { font-size:0.4rem; color:rgba(255,255,255,0.2); letter-spacing:1px; text-transform:uppercase; margin-top:2px; }
+
+    .cl-profile-arrow { position:absolute; right:-18px; top:50%; transform:translateY(-50%); width:36px; height:36px; border-radius:50%; background:#F7931E; color:#fff; display:flex; align-items:center; justify-content:center; font-size:1rem; box-shadow:0 4px 12px rgba(247,147,30,0.3); z-index:3; animation:clPulse 2s infinite; }
+    @keyframes clPulse { 0%,100%{box-shadow:0 4px 12px rgba(247,147,30,0.3)} 50%{box-shadow:0 4px 24px rgba(247,147,30,0.5)} }
+
+    /* Floating cards behind book */
+    .cl-profile-floating { position:absolute; width:80px; height:110px; border-radius:6px; opacity:0.08; }
+    .cl-profile-f1 { bottom:15%; right:8%; background:linear-gradient(135deg,#F7931E,#f5a83a); transform:rotate(12deg); }
+    .cl-profile-f2 { top:12%; left:5%; background:#fff; transform:rotate(-8deg); border:1px solid rgba(255,255,255,0.1); }
+
+    @media (max-width:768px) {
+        .cl-profile-inner { grid-template-columns:1fr; min-height:auto; }
+        .cl-profile-left { padding:40px 24px; }
+        .cl-profile-right { padding:50px 24px; min-height:300px; }
+        .cl-profile-title { font-size:1.5rem; }
+        .cl-profile-book { width:220px; height:160px; }
+    }
 </style>
 </head>
 <body class="cl-landing">
@@ -99,6 +148,8 @@
         <div class="cl-nav-links">
             <a href="#services" class="cl-nav-link">Services</a>
             <a href="#about" class="cl-nav-link">About</a>
+            <a href="{{ url_for('company_profile') }}" class="cl-nav-link">Profile</a>
+            <a href="{{ url_for('brochure') }}" class="cl-nav-link">Brochure</a>
             <a href="#contact" class="cl-nav-link">Contact</a>
             <a href="{{ url_for('login') }}" class="cl-nav-btn">Portal Login</a>
         </div>
@@ -164,6 +215,56 @@
             <div class="cl-stat" data-aos="fade-up" data-aos-delay="600">
                 <span class="cl-stat-num" data-aos-id="counter">SPC</span>
                 <span class="cl-stat-lbl">Licensed</span>
+            </div>
+        </div>
+    </section>
+
+    {# ═══════════ COMPANY PROFILE SECTION ═══════════ #}
+    <section class="cl-profile" data-aos="fade-up">
+        <div class="cl-profile-inner">
+            <div class="cl-profile-left">
+                <div class="cl-profile-eyebrow">Company Profile</div>
+                <h2 class="cl-profile-title">Your Complete <span style="color:#F7931E">Company Overview</span></h2>
+                <p class="cl-profile-desc">
+                    A comprehensive digital profile — our company history, full equipment fleet with 
+                    specifications, management team, certifications (ICV, ISO 14001, VMS), service 
+                    coverage across all 7 emirates, and contact information — all in one place.
+                </p>
+                <div class="cl-profile-features">
+                    <span class="cl-profile-feat">&#10003; 10+ Years</span>
+                    <span class="cl-profile-feat">&#10003; 50+ Fleet</span>
+                    <span class="cl-profile-feat">&#10003; 8 Service Categories</span>
+                    <span class="cl-profile-feat">&#10003; ICV &amp; ISO Certified</span>
+                    <span class="cl-profile-feat">&#10003; UAE-Wide Coverage</span>
+                </div>
+                <div class="cl-profile-actions">
+                    <a href="{{ url_for('company_profile') }}" class="cl-profile-btn cl-profile-btn-primary">
+                        Full Profile &rarr;
+                    </a>
+                    <a href="{{ url_for('brochure') }}" class="cl-profile-btn cl-profile-btn-outline">
+                        &#9650; Digital Brochure
+                    </a>
+                </div>
+            </div>
+            <div class="cl-profile-right">
+                <div class="cl-profile-floating cl-profile-f1"></div>
+                <div class="cl-profile-floating cl-profile-f2"></div>
+                <div class="cl-profile-book" onclick="window.location.href='{{ url_for('brochure') }}'" style="cursor:pointer">
+                    <div class="cl-profile-book-cover">
+                        <div class="cl-profile-book-inner">
+                            <div class="cl-profile-book-logo">
+                                <video autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+                                    <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="cl-profile-book-name">Current <em>Link</em></div>
+                            <div class="cl-profile-book-line"></div>
+                            <div class="cl-profile-book-sub">Company Profile</div>
+                            <div class="cl-profile-book-tag">Est. 2015 &middot; Abu Dhabi</div>
+                        </div>
+                    </div>
+                    <div class="cl-profile-arrow">&rarr;</div>
+                </div>
             </div>
         </div>
     </section>
@@ -375,6 +476,8 @@
         <div class="cl-footer-links">
             <a href="#services">Services</a>
             <a href="#about">About</a>
+            <a href="{{ url_for('company_profile') }}">Profile</a>
+            <a href="{{ url_for('brochure') }}">Brochure</a>
             <a href="#contact">Contact</a>
             <a href="{{ url_for('login') }}">Portal Login</a>
         </div>
