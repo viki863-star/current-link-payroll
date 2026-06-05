@@ -1195,7 +1195,8 @@ def register_routes(app: Flask) -> None:
         _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
         total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?", (technician_code,)).fetchone()["t"] or 0
         spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["t"] or 0
-        total_spent = float(spent_papers)
+        spent_jobs = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status IN ('pending','approved')", (technician_code,)).fetchone()["t"] or 0
+        total_spent = float(spent_papers) + float(spent_jobs)
         balance = float(total_received) - float(total_spent)
         pending_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Pending'", (technician_code,)).fetchone()["c"] or 0
         approved_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["c"] or 0
@@ -1412,6 +1413,12 @@ def register_routes(app: Flask) -> None:
             """,
             (technician_code,)
         ).fetchone()["total"] or 0
+
+        job_spent = db.execute(
+            "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status IN ('pending','approved')",
+            (technician_code,)
+        ).fetchone()["t"] or 0
+        total_spent = float(total_spent) + float(job_spent)
 
         total_paid_to_vendors = db.execute(
             """
