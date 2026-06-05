@@ -171,44 +171,6 @@
   </div>
   {% endif %}
 
-  {% if receipts %}
-  <div class="profile-card sp-section">
-    <div class="sp-section-head">
-      <h3 class="sp-section-title">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
-        Cash Receipts <span class="badge badge-dept">{{ receipts|length }}</span>
-      </h3>
-      <label style="font-size:0.72rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
-        <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.receipt-select').forEach(function(c){c.checked=ch})"> Select All
-      </label>
-    </div>
-    <div class="table-wrap">
-      <table class="sp-table">
-        <thead><tr><th style="width:28px"></th><th>Date</th><th>Given By</th><th>Amount</th><th>Notes</th><th style="width:90px"></th></tr></thead>
-        <tbody>
-          {% for r in receipts %}
-          <tr>
-            <td><input type="checkbox" name="item_ids" value="receipt_{{ r.id }}" class="receipt-select" style="accent-color:#ef4444;width:15px;height:15px"></td>
-            <td class="mono">{{ r.receipt_date }}</td>
-            <td>{{ r.given_by }}</td>
-            <td class="mono" style="font-weight:600;color:#16a34a">AED {{ "%.0f"|format(r.amount) }}</td>
-            <td style="color:var(--muted);font-size:0.72rem">{{ r.notes or '—' }}</td>
-            <td>
-              <div class="action-btns">
-                <a href="{{ url_for('fleet.fleet_staff_receipts', staff_id=s.staff_id) }}" style="background:#e3f0ff;color:var(--primary)">Edit</a>
-                <form method="POST" action="{{ url_for('fleet.fleet_staff_receipt_delete', staff_id=s.staff_id, receipt_id=r.id) }}" style="margin:0;display:inline" onsubmit="return confirm('Delete this receipt?')">
-                  <button type="submit" style="background:#ffebee;color:#c62828">Del</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endif %}
-
   {% if cash_items or items %}
   <div style="text-align:center;margin-top:20px">
     <button type="submit" class="btn" style="background:#ef4444;color:#fff;border:none;padding:10px 30px;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer">&#9888; Delete Selected</button>
