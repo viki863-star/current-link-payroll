@@ -1097,10 +1097,15 @@ def fleet_staff_delete(staff_id):
     if not s:
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
+    # Nullify references so submitted data is preserved
+    db.execute("UPDATE maintenance_jobs SET staff_id=NULL WHERE staff_id=?", (staff_id,))
+    db.execute("UPDATE maintenance_papers SET technician_code=NULL WHERE technician_code=?", (staff_id,))
+    db.execute("UPDATE maintenance_staff_advances SET staff_code=NULL WHERE staff_code=?", (staff_id,))
+    db.execute("UPDATE cash_receipts SET staff_id=NULL WHERE staff_id=?", (staff_id,))
     db.execute("DELETE FROM field_staff WHERE staff_id = ?", (staff_id,))
     db.execute("DELETE FROM technicians WHERE technician_code = ?", (staff_id,))
     db.commit()
-    flash(f"Staff {s['full_name']} deleted.", "success")
+    flash(f"Staff {s['full_name']} deleted. Submitted data preserved.", "success")
     return redirect(url_for("fleet.fleet_staff_list"))
 
 
