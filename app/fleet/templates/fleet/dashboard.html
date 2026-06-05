@@ -185,9 +185,10 @@
       </div>
       <div class="fd-chart">
         {% set max_spent = top_vehicles[0].total_spent if top_vehicles else 1 %}
-        {% set colors = ['orange','blue','green','purple','red','teal','pink'] %}
+        {% if max_spent == 0 %}{% set max_spent = 1 %}{% endif %}
+        {% set colors = ['orange','blue','green','purple','red'] %}
         {% for v in top_vehicles %}
-        {% set pct = (v.total_spent / max_spent * 100)|int %}
+        {% set pct = (v.total_spent / max_spent * 100)|round|int %}
         {% set ci = loop.index0 % colors|length %}
         <a href="{{ vehicle_url(v.plate_no) }}" style="text-decoration:none;color:inherit">
           <div class="fd-chart-bar-wrap">
