@@ -84,8 +84,6 @@
   </div>
 
   {# ═══ SECTIONS ═══ #}
-  <form method="post" action="{{ url_for('fleet.fleet_staff_delete_items', staff_id=s.staff_id) }}" id="deleteForm" onsubmit="var c=this.querySelectorAll('input[name=item_ids]:checked');if(c.length===0){alert('Select items first.');return false}return confirm('Delete '+c.length+' selected?')">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   {% if cash_items %}
   <div class="profile-card sp-section">
@@ -94,24 +92,21 @@
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
         Cash Received <span class="badge badge-dept">{{ cash_items|length }}</span>
       </h3>
-      <label style="font-size:0.72rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
-        <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.cash-select').forEach(function(c){c.checked=ch})"> Select All
-      </label>
     </div>
     <div class="table-wrap">
       <table class="sp-table">
-        <thead><tr><th style="width:28px"></th><th>Date</th><th>Amount</th><th>Type</th><th>Details</th><th style="width:90px"></th></tr></thead>
+        <thead><tr><th>Date</th><th>Amount</th><th>Type</th><th>Details</th><th style="width:90px"></th></tr></thead>
         <tbody>
           {% for c in cash_items %}
           <tr>
-            <td><input type="checkbox" name="item_ids" value="{{ c._id }}" class="cash-select" style="accent-color:#ef4444;width:15px;height:15px"></td>
             <td class="mono">{{ c._date }}</td>
             <td class="mono" style="font-weight:600;color:#16a34a">AED {{ "%.0f"|format(c._amount) }}</td>
             <td><span class="badge badge-type">{{ 'Advance' if c._type == 'advance' else 'Receipt' }}</span></td>
             <td style="color:var(--muted);font-size:0.72rem">{{ c._source }}{% if c._notes %} &middot; {{ c._notes|truncate(50) }}{% endif %}</td>
             <td>
               <div class="action-btns">
-                <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) if c._type == 'advance' else url_for('fleet.fleet_staff_receipt_delete', staff_id=s.staff_id, receipt_id=c.id) }}" style="margin:0;display:inline" onsubmit="return confirm('Delete this entry?')">
+                <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) if c._type == 'advance' else url_for('fleet.fleet_staff_receipt_delete', staff_id=s.staff_id, receipt_id=c.id) }}" onsubmit="return confirm('Delete this entry?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" style="background:#ffebee;color:#c62828">Del</button>
                 </form>
               </div>
@@ -131,17 +126,13 @@
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Jobs &amp; Papers <span class="badge badge-dept">{{ items|length }}</span>
       </h3>
-      <label style="font-size:0.72rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
-        <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.item-select').forEach(function(c){c.checked=ch})"> Select All
-      </label>
     </div>
     <div class="table-wrap">
       <table class="sp-table">
-        <thead><tr><th style="width:28px"></th><th>Date</th><th>Vehicle</th><th>Amount</th><th>Type</th><th>Status</th><th style="width:90px"></th></tr></thead>
+        <thead><tr><th>Date</th><th>Vehicle</th><th>Amount</th><th>Type</th><th>Status</th><th style="width:90px"></th></tr></thead>
         <tbody>
           {% for item in items %}
           <tr>
-            <td><input type="checkbox" name="item_ids" value="{{ item._id }}" class="item-select" style="accent-color:#ef4444;width:15px;height:15px"></td>
             <td class="mono">{{ (item.created_at or '')|string|truncate(10, True, '') }}</td>
             <td>{% if item._type == 'job' %}<a href="/fleet/vehicles/{{ item.vehicle_id }}?tab=jobs&highlight={{ item.id }}" style="color:var(--primary);text-decoration:none;font-weight:600">{{ item.vehicle_id }}</a>{% else %}{{ item.vehicle_id or '-' }}{% endif %}</td>
             <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(item.amount|float) }}</td>
@@ -163,13 +154,6 @@
     </div>
   </div>
   {% endif %}
-
-  {% if cash_items or items %}
-  <div style="text-align:center;margin-top:20px">
-    <button type="submit" class="btn" style="background:#ef4444;color:#fff;border:none;padding:10px 30px;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer">&#9888; Delete Selected</button>
-  </div>
-  {% endif %}
-  </form>
 
   {% if not cash_items and not items %}
   <div class="profile-card" style="text-align:center;padding:40px">
