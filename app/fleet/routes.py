@@ -1386,8 +1386,6 @@ def fleet_staff_profile(staff_id):
 
     total_pending = float(total_jobs_pending) + float(total_papers_pending)
     balance = total_received - total_spent
-    # Remaining credit: if surplus, subtract pending; if due, subtract pending from due amount
-    remaining = (balance - total_pending) if balance >= 0 else (abs(balance) - total_pending)
 
     advances = db.execute(
         "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
@@ -1462,7 +1460,6 @@ def fleet_staff_profile(staff_id):
         total_cash=total_cash,
         total_spent=total_spent,
         balance=balance,
-        remaining=remaining,
         items=items,
         receipts=receipts,
         advances=advances,
