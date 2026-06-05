@@ -74,53 +74,99 @@
         text-transform: uppercase;
     }
 
-    /* ── Company Profile Section ── */
-    .cl-profile { padding:0; position:relative; overflow:hidden; }
-    .cl-profile-inner { display:grid; grid-template-columns:1fr 1fr; min-height:520px; max-width:1200px; margin:0 auto; }
-    .cl-profile-left { display:flex; flex-direction:column; justify-content:center; padding:60px 40px 60px 8%; position:relative; z-index:2; }
-    .cl-profile-right { display:flex; align-items:center; justify-content:center; padding:40px; position:relative; overflow:hidden; background:linear-gradient(160deg,#091e3b,#0F2B52); }
-    .cl-profile-right::before { content:''; position:absolute; inset:0; background-image:radial-gradient(rgba(255,255,255,0.018) 1px,transparent 1px); background-size:24px 24px; }
+    /* ── Flip Brochure Section ── */
+    .cl-flip { padding:0; position:relative; overflow:hidden; }
+    .cl-flip-inner { display:grid; grid-template-columns:1fr 1fr; min-height:520px; max-width:1200px; margin:0 auto; }
+    .cl-flip-left { display:flex; flex-direction:column; justify-content:center; padding:60px 40px 60px 8%; position:relative; z-index:2; }
+    .cl-flip-right { display:flex; align-items:center; justify-content:center; padding:30px; position:relative; overflow:hidden; background:linear-gradient(160deg,#091e3b,#0F2B52); }
+    .cl-flip-right::before { content:''; position:absolute; inset:0; background-image:radial-gradient(rgba(255,255,255,0.018) 1px,transparent 1px); background-size:24px 24px; }
 
-    .cl-profile-eyebrow { display:inline-block; padding:4px 14px; border-radius:14px; background:rgba(247,147,30,0.08); color:#F7931E; font-size:0.55rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; border:1px solid rgba(247,147,30,0.12); margin-bottom:10px; width:fit-content; }
-    .cl-profile-title { font-size:2rem; font-weight:800; color:#0F2B52; letter-spacing:-0.5px; line-height:1.15; margin:0 0 8px; }
-    .cl-profile-desc { font-size:0.82rem; line-height:1.65; color:#5a6a82; max-width:480px; margin-bottom:10px; }
-    .cl-profile-features { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
-    .cl-profile-feat { padding:3px 10px; border-radius:8px; font-size:0.6rem; font-weight:600; color:#0F2B52; background:rgba(247,147,30,0.04); border:1px solid rgba(247,147,30,0.08); display:flex; align-items:center; gap:4px; }
-    .cl-profile-actions { display:flex; gap:10px; flex-wrap:wrap; }
-    .cl-profile-btn { padding:10px 24px; border-radius:10px; font-size:0.78rem; font-weight:600; border:none; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; }
-    .cl-profile-btn-primary { background:#0F2B52; color:#fff; }
-    .cl-profile-btn-primary:hover { background:#1a3d6e; transform:translateY(-1px); box-shadow:0 4px 12px rgba(15,43,82,0.2); }
-    .cl-profile-btn-outline { background:transparent; color:#0F2B52; border:1.5px solid #0F2B52; }
-    .cl-profile-btn-outline:hover { background:#0F2B52; color:#fff; transform:translateY(-1px); }
+    .cl-flip-eyebrow { display:inline-block; padding:4px 14px; border-radius:14px; background:rgba(247,147,30,0.08); color:#F7931E; font-size:0.55rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; border:1px solid rgba(247,147,30,0.12); margin-bottom:10px; width:fit-content; }
+    .cl-flip-title { font-size:2rem; font-weight:800; color:#0F2B52; letter-spacing:-0.5px; line-height:1.15; margin:0 0 8px; }
+    .cl-flip-desc { font-size:0.82rem; line-height:1.65; color:#5a6a82; max-width:480px; margin-bottom:10px; }
+    .cl-flip-features { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+    .cl-flip-feat { padding:3px 10px; border-radius:8px; font-size:0.6rem; font-weight:600; color:#0F2B52; background:rgba(247,147,30,0.04); border:1px solid rgba(247,147,30,0.08); display:flex; align-items:center; gap:4px; }
+    .cl-flip-actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .cl-flip-btn { padding:10px 24px; border-radius:10px; font-size:0.78rem; font-weight:600; border:none; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; }
+    .cl-flip-btn-primary { background:#0F2B52; color:#fff; }
+    .cl-flip-btn-primary:hover { background:#1a3d6e; transform:translateY(-1px); box-shadow:0 4px 12px rgba(15,43,82,0.2); }
+    .cl-flip-btn-outline { background:transparent; color:#0F2B52; border:1.5px solid #0F2B52; }
+    .cl-flip-btn-outline:hover { background:#0F2B52; color:#fff; transform:translateY(-1px); }
 
-    /* Brochure mockup */
-    .cl-profile-book { position:relative; width:280px; height:200px; perspective:800px; }
-    .cl-profile-book-cover { width:100%; height:100%; border-radius:8px 16px 16px 8px; background:linear-gradient(160deg,#091e3b,#0F2B52); position:relative; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.15); transform:rotateY(-8deg) rotateX(3deg); transition:transform 0.4s; }
-    .cl-profile-book-cover:hover { transform:rotateY(-3deg) rotateX(1deg); }
-    .cl-profile-book-cover::before { content:''; position:absolute; inset:0; background-image:radial-gradient(rgba(255,255,255,0.025) 1px,transparent 1px); background-size:20px 20px; }
-    .cl-profile-book-inner { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:20px; }
-    .cl-profile-book-logo { width:44px; height:44px; border-radius:10px; overflow:hidden; border:2px solid rgba(247,147,30,0.3); margin-bottom:8px; }
-    .cl-profile-book-logo video { width:100%; height:100%; object-fit:cover; }
-    .cl-profile-book-name { font-family:'Inter',sans-serif; font-size:1.1rem; font-weight:800; color:#fff; letter-spacing:-0.3px; }
-    .cl-profile-book-name em { color:#F7931E; font-style:normal; }
-    .cl-profile-book-sub { font-size:0.45rem; color:rgba(255,255,255,0.4); letter-spacing:2px; text-transform:uppercase; margin-top:2px; }
-    .cl-profile-book-line { width:28px; height:2px; background:linear-gradient(90deg,#F7931E,#f5a83a); margin:6px auto; border-radius:2px; }
-    .cl-profile-book-tag { font-size:0.4rem; color:rgba(255,255,255,0.2); letter-spacing:1px; text-transform:uppercase; margin-top:2px; }
+    /* ── Flip book ── */
+    .cl-flipbook-wrap { position:relative; width:300px; height:220px; perspective:1400px; }
+    .cl-flipbook { position:relative; width:100%; height:100%; transform-style:preserve-3d; }
+    .cl-flip-page {
+      position:absolute; top:0; left:0; width:100%; height:100%;
+      backface-visibility:hidden; -webkit-backface-visibility:hidden;
+      transform-origin:left center;
+      transition:transform 0.55s cubic-bezier(0.25,0.46,0.45,0.94);
+      border-radius:4px 14px 14px 4px; overflow:hidden;
+      box-shadow:0 4px 16px rgba(0,0,0,0.12), inset 3px 0 8px rgba(0,0,0,0.02);
+      cursor:pointer;
+    }
+    .cl-flip-page .fp-inner {
+      width:100%; height:100%; padding:16px 18px;
+      display:flex; flex-direction:column;
+      background:#fefcf7;
+      background-image:linear-gradient(rgba(21,51,93,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(21,51,93,0.012) 1px,transparent 1px);
+      background-size:30px 30px;
+    }
+    .cl-flip-page.flipped { transform:rotateY(-180deg); z-index:1; }
+    .cl-flip-page.active { z-index:10; }
 
-    .cl-profile-arrow { position:absolute; right:-18px; top:50%; transform:translateY(-50%); width:36px; height:36px; border-radius:50%; background:#F7931E; color:#fff; display:flex; align-items:center; justify-content:center; font-size:1rem; box-shadow:0 4px 12px rgba(247,147,30,0.3); z-index:3; animation:clPulse 2s infinite; }
-    @keyframes clPulse { 0%,100%{box-shadow:0 4px 12px rgba(247,147,30,0.3)} 50%{box-shadow:0 4px 24px rgba(247,147,30,0.5)} }
+    /* spine shadow */
+    .cl-flip-page::after { content:''; position:absolute; top:0; right:0; bottom:0; width:14px; background:linear-gradient(90deg,rgba(0,0,0,0.02),rgba(0,0,0,0.05)); pointer-events:none; }
 
-    /* Floating cards behind book */
-    .cl-profile-floating { position:absolute; width:80px; height:110px; border-radius:6px; opacity:0.08; }
-    .cl-profile-f1 { bottom:15%; right:8%; background:linear-gradient(135deg,#F7931E,#f5a83a); transform:rotate(12deg); }
-    .cl-profile-f2 { top:12%; left:5%; background:#fff; transform:rotate(-8deg); border:1px solid rgba(255,255,255,0.1); }
+    /* page content */
+    .fp-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .fp-header h3 { font-size:0.78rem; font-weight:700; color:#0F2B52; }
+    .fp-num { font-size:0.5rem; font-weight:600; color:#c4b8a8; letter-spacing:0.5px; }
+    .fp-content { flex:1; }
+    .fp-content p { font-size:0.6rem; line-height:1.5; color:#5a6a82; }
+    .fp-content p strong { color:#1a2332; }
+
+    /* cover page */
+    .fp-cover { background:linear-gradient(160deg,#091e3b,#0F2B52); }
+    .fp-cover .fp-inner { background:transparent; background-image:radial-gradient(rgba(255,255,255,0.015) 1px,transparent 1px); background-size:18px 18px; align-items:center; justify-content:center; text-align:center; padding:14px; }
+    .fp-cover-logo { width:40px; height:40px; border-radius:8px; overflow:hidden; border:2px solid rgba(247,147,30,0.25); margin-bottom:6px; }
+    .fp-cover-logo video { width:100%; height:100%; object-fit:cover; }
+    .fp-cover-lbl { font-size:0.4rem; color:rgba(247,147,30,0.5); letter-spacing:1.5px; text-transform:uppercase; }
+    .fp-cover-title { font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:#fff; line-height:1.1; }
+    .fp-cover-sub { font-size:0.42rem; color:rgba(255,255,255,0.35); letter-spacing:2px; text-transform:uppercase; margin:1px 0; }
+    .fp-cover-line { width:20px; height:1.5px; background:linear-gradient(90deg,#F7931E,#f5a83a); margin:4px auto; border-radius:2px; }
+
+    .fp-stats { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:4px; }
+    .fp-stat { background:rgba(15,43,82,0.03); border-radius:6px; padding:5px 4px; text-align:center; }
+    .fp-stat-num { font-size:0.85rem; font-weight:800; color:#0F2B52; }
+    .fp-stat-num.orange { color:#F7931E; }
+    .fp-stat-lbl { font-size:0.45rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.2px; }
+
+    .fp-list { margin-top:2px; }
+    .fp-list-item { display:flex; align-items:center; gap:4px; padding:2px 0; font-size:0.55rem; color:#4a5a73; }
+    .fp-list-dot { width:4px; height:4px; border-radius:50%; background:#F7931E; flex-shrink:0; }
+
+    .fp-contact-row { margin-bottom:3px; }
+    .fp-contact-label { font-size:0.42rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.3px; }
+    .fp-contact-val { font-size:0.55rem; font-weight:500; color:#1a2332; }
+
+    .fp-flip-hint { position:absolute; bottom:4px; left:50%; transform:translateX(-50%); font-size:0.4rem; color:#c4b8a8; letter-spacing:1px; text-transform:uppercase; pointer-events:none; }
+
+    /* flip controls */
+    .cl-flip-nav { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:10px; }
+    .cl-flip-nav button { width:28px; height:28px; border-radius:50%; border:none; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.4); font-size:0.7rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+    .cl-flip-nav button:hover { background:rgba(255,255,255,0.1); color:#fff; }
+    .cl-flip-nav button:disabled { opacity:0.15; cursor:default; }
+    .cl-flip-nav .flip-indicator { font-size:0.5rem; font-weight:600; color:rgba(255,255,255,0.25); letter-spacing:0.5px; min-width:40px; text-align:center; }
 
     @media (max-width:768px) {
-        .cl-profile-inner { grid-template-columns:1fr; min-height:auto; }
-        .cl-profile-left { padding:40px 24px; }
-        .cl-profile-right { padding:50px 24px; min-height:300px; }
-        .cl-profile-title { font-size:1.5rem; }
-        .cl-profile-book { width:220px; height:160px; }
+        .cl-flip-inner { grid-template-columns:1fr; min-height:auto; }
+        .cl-flip-left { padding:40px 24px; }
+        .cl-flip-right { padding:40px 24px; min-height:340px; }
+        .cl-flip-title { font-size:1.5rem; }
+        .cl-flipbook-wrap { width:240px; height:180px; }
+        .cl-flip-page .fp-inner { padding:12px 14px; }
+        .fp-cover-title { font-size:0.95rem; }
     }
 </style>
 </head>
@@ -219,51 +265,157 @@
         </div>
     </section>
 
-    {# ═══════════ COMPANY PROFILE SECTION ═══════════ #}
-    <section class="cl-profile" data-aos="fade-up">
-        <div class="cl-profile-inner">
-            <div class="cl-profile-left">
-                <div class="cl-profile-eyebrow">Company Profile</div>
-                <h2 class="cl-profile-title">Your Complete <span style="color:#F7931E">Company Overview</span></h2>
-                <p class="cl-profile-desc">
-                    A comprehensive digital profile — our company history, full equipment fleet with 
-                    specifications, management team, certifications (ICV, ISO 14001, VMS), service 
-                    coverage across all 7 emirates, and contact information — all in one place.
+    {# ═══════════ FLIP BROCHURE SECTION ═══════════ #}
+    <section class="cl-flip" data-aos="fade-up">
+        <div class="cl-flip-inner">
+            <div class="cl-flip-left">
+                <div class="cl-flip-eyebrow">Interactive Brochure</div>
+                <h2 class="cl-flip-title">Flip Through Our <span style="color:#F7931E">Company Profile</span></h2>
+                <p class="cl-flip-desc">
+                    Tap the brochure to flip through pages — company overview, equipment fleet, 
+                    certifications, management, and contact — all in one interactive card.
                 </p>
-                <div class="cl-profile-features">
-                    <span class="cl-profile-feat">&#10003; 10+ Years</span>
-                    <span class="cl-profile-feat">&#10003; 50+ Fleet</span>
-                    <span class="cl-profile-feat">&#10003; 8 Service Categories</span>
-                    <span class="cl-profile-feat">&#10003; ICV &amp; ISO Certified</span>
-                    <span class="cl-profile-feat">&#10003; UAE-Wide Coverage</span>
+                <div class="cl-flip-features">
+                    <span class="cl-flip-feat">&#10003; 10+ Years</span>
+                    <span class="cl-flip-feat">&#10003; 50+ Fleet</span>
+                    <span class="cl-flip-feat">&#10003; 8 Service Categories</span>
+                    <span class="cl-flip-feat">&#10003; ICV &amp; ISO Certified</span>
+                    <span class="cl-flip-feat">&#10003; UAE-Wide Coverage</span>
                 </div>
-                <div class="cl-profile-actions">
-                    <a href="{{ url_for('company_profile') }}" class="cl-profile-btn cl-profile-btn-primary">
+                <div class="cl-flip-actions">
+                    <a href="{{ url_for('company_profile') }}" class="cl-flip-btn cl-flip-btn-primary">
                         Full Profile &rarr;
                     </a>
-                    <a href="{{ url_for('brochure') }}" class="cl-profile-btn cl-profile-btn-outline">
-                        &#9650; Digital Brochure
+                    <a href="{{ url_for('brochure') }}" class="cl-flip-btn cl-flip-btn-outline">
+                        Full Brochure &rarr;
                     </a>
                 </div>
             </div>
-            <div class="cl-profile-right">
-                <div class="cl-profile-floating cl-profile-f1"></div>
-                <div class="cl-profile-floating cl-profile-f2"></div>
-                <div class="cl-profile-book" onclick="window.location.href='{{ url_for('brochure') }}'" style="cursor:pointer">
-                    <div class="cl-profile-book-cover">
-                        <div class="cl-profile-book-inner">
-                            <div class="cl-profile-book-logo">
-                                <video autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
-                                    <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
-                                </video>
+            <div class="cl-flip-right">
+                <div>
+                    <div class="cl-flipbook-wrap">
+                        <div class="cl-flipbook" id="flipbook">
+
+                            {# PAGE 1 - COVER #}
+                            <div class="cl-flip-page active" data-idx="0">
+                                <div class="fp-cover"><div class="fp-inner">
+                                    <div class="fp-cover-logo">
+                                        <video autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+                                            <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
+                                        </video>
+                                    </div>
+                                    <div class="fp-cover-lbl">Company Profile</div>
+                                    <div class="fp-cover-title">Current Link</div>
+                                    <div class="fp-cover-sub">Transport &amp; General Contracting</div>
+                                    <div class="fp-cover-line"></div>
+                                    <div class="fp-cover-sub" style="font-size:0.38rem;color:rgba(255,255,255,0.2)">Est. 2015 &middot; Abu Dhabi</div>
+                                    <div style="font-size:0.32rem;color:rgba(255,255,255,0.12);margin-top:3px;letter-spacing:0.5px">Tap to flip &rarr;</div>
+                                </div></div>
                             </div>
-                            <div class="cl-profile-book-name">Current <em>Link</em></div>
-                            <div class="cl-profile-book-line"></div>
-                            <div class="cl-profile-book-sub">Company Profile</div>
-                            <div class="cl-profile-book-tag">Est. 2015 &middot; Abu Dhabi</div>
+
+                            {# PAGE 2 - ABOUT #}
+                            <div class="cl-flip-page" data-idx="1">
+                                <div class="fp-inner">
+                                    <div class="fp-header"><h3>About</h3><span class="fp-num">02/06</span></div>
+                                    <div class="fp-content">
+                                        <p><strong>Current Link</strong> — trusted heavy equipment &amp; transport provider based in Mussaffah, Abu Dhabi since 2015.</p>
+                                        <div class="fp-stats">
+                                            <div class="fp-stat"><div class="fp-stat-num orange">10+</div><div class="fp-stat-lbl">Years</div></div>
+                                            <div class="fp-stat"><div class="fp-stat-num">50+</div><div class="fp-stat-lbl">Fleet</div></div>
+                                            <div class="fp-stat"><div class="fp-stat-num">100+</div><div class="fp-stat-lbl">Projects</div></div>
+                                            <div class="fp-stat"><div class="fp-stat-num orange">24/7</div><div class="fp-stat-lbl">Support</div></div>
+                                        </div>
+                                        <p style="margin-top:3px">We serve construction, infrastructure &amp; industrial clients across UAE with trained operators on monthly rental.</p>
+                                    </div>
+                                    <div class="fp-flip-hint">Tap to continue</div>
+                                </div>
+                            </div>
+
+                            {# PAGE 3 - SERVICES #}
+                            <div class="cl-flip-page" data-idx="2">
+                                <div class="fp-inner">
+                                    <div class="fp-header"><h3>Services</h3><span class="fp-num">03/06</span></div>
+                                    <div class="fp-content">
+                                        <p>Equipment &amp; transport solutions for construction, infrastructure &amp; industrial projects.</p>
+                                        <div class="fp-list" style="display:grid;grid-template-columns:1fr 1fr;gap:1px 6px">
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Water Tankers</div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Cranes</div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Forklifts</div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Trailers</div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Graders</div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Excavators</div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Man Lifts</div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Bobcat</div>
+                                        </div>
+                                    </div>
+                                    <div class="fp-flip-hint">Tap to continue</div>
+                                </div>
+                            </div>
+
+                            {# PAGE 4 - FLEET #}
+                            <div class="cl-flip-page" data-idx="3">
+                                <div class="fp-inner">
+                                    <div class="fp-header"><h3>Our Fleet</h3><span class="fp-num">04/06</span></div>
+                                    <div class="fp-content">
+                                        <p>50+ well-maintained units — all with trained operators on monthly rental.</p>
+                                        <div class="fp-list" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 10px">
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Water Tankers <span style="margin-left:auto;color:#7a8aa3;font-size:0.5rem">6</span></div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Cranes <span style="margin-left:auto;color:#7a8aa3;font-size:0.5rem">8</span></div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Forklifts <span style="margin-left:auto;color:#7a8aa3;font-size:0.5rem">6</span></div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Trailers <span style="margin-left:auto;color:#7a8aa3;font-size:0.5rem">10</span></div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Graders <span style="margin-left:auto;color:#7a8aa3;font-size:0.5rem">4</span></div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span>Excavators <span style="margin-left:auto;color:#7a8aa3;font-size:0.5rem">10+</span></div>
+                                        </div>
+                                    </div>
+                                    <div class="fp-flip-hint">Tap to continue</div>
+                                </div>
+                            </div>
+
+                            {# PAGE 5 - QUALITY #}
+                            <div class="cl-flip-page" data-idx="4">
+                                <div class="fp-inner">
+                                    <div class="fp-header"><h3>Why Choose Us</h3><span class="fp-num">05/06</span></div>
+                                    <div class="fp-content">
+                                        <div class="fp-list">
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span><strong>Safety First</strong> &mdash; HSE protocols, zero-incident</div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span><strong>Experienced</strong> &mdash; 8+ yrs UAE operators</div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span><strong>Modern Fleet</strong> &mdash; Strict maintenance</div>
+                                            <div class="fp-list-item"><span class="fp-list-dot"></span><strong>24/7 Support</strong> &mdash; Always available</div>
+                                        </div>
+                                        <p style="margin-top:3px;font-weight:600;color:#0F2B52;font-size:0.55rem">Certifications</p>
+                                        <div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:1px">
+                                            <span style="padding:1px 6px;border-radius:4px;font-size:0.45rem;font-weight:600;color:#0F2B52;background:rgba(247,147,30,0.06);border:1px solid rgba(247,147,30,0.1)">ICV</span>
+                                            <span style="padding:1px 6px;border-radius:4px;font-size:0.45rem;font-weight:600;color:#0F2B52;background:rgba(247,147,30,0.06);border:1px solid rgba(247,147,30,0.1)">ISO 14001</span>
+                                            <span style="padding:1px 6px;border-radius:4px;font-size:0.45rem;font-weight:600;color:#0F2B52;background:rgba(247,147,30,0.06);border:1px solid rgba(247,147,30,0.1)">VMS</span>
+                                        </div>
+                                        <p style="margin-top:3px;font-size:0.5rem;color:#7a8aa3">Serving all 7 emirates</p>
+                                    </div>
+                                    <div class="fp-flip-hint">Tap to continue</div>
+                                </div>
+                            </div>
+
+                            {# PAGE 6 - CONTACT #}
+                            <div class="cl-flip-page" data-idx="5">
+                                <div class="fp-inner">
+                                    <div class="fp-header"><h3>Contact</h3><span class="fp-num">06/06</span></div>
+                                    <div class="fp-content">
+                                        <div class="fp-contact-row"><div class="fp-contact-label">Location</div><div class="fp-contact-val">Mussaffah, Abu Dhabi, UAE</div></div>
+                                        <div class="fp-contact-row"><div class="fp-contact-label">Phone</div><div class="fp-contact-val"><a href="tel:+971501224963" style="color:#0F2B52;text-decoration:none">050-1224963</a></div></div>
+                                        <div class="fp-contact-row"><div class="fp-contact-label">Email</div><div class="fp-contact-val"><a href="mailto:info@currentlinktgc.com" style="color:#0F2B52;text-decoration:none">info@currentlinktgc.com</a></div></div>
+                                        <div class="fp-contact-row"><div class="fp-contact-label">Web</div><div class="fp-contact-val">currentlinkgc.com</div></div>
+                                        <div class="fp-contact-row"><div class="fp-contact-label">Hours</div><div class="fp-contact-val">Sun&ndash;Fri 8AM&ndash;6PM</div></div>
+                                    </div>
+                                    <div class="fp-flip-hint" style="font-size:0.35rem">Flip back to start</div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
-                    <div class="cl-profile-arrow">&rarr;</div>
+                    <div class="cl-flip-nav">
+                        <button id="flipPrev" onclick="flipPrev()" disabled>&larr;</button>
+                        <span class="flip-indicator" id="flipIndicator">1/6</span>
+                        <button id="flipNext" onclick="flipNext()">&rarr;</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -589,6 +741,96 @@ document.querySelectorAll('.cl-card').forEach(function(card) {
         document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
     });
 });
+
+/* ── FLIP BOOK ── */
+(function(){
+    var pages = document.querySelectorAll('.cl-flip-page');
+    var total = pages.length;
+    var current = 0;
+    var flipping = false;
+    var indicator = document.getElementById('flipIndicator');
+    var prevBtn = document.getElementById('flipPrev');
+    var nextBtn = document.getElementById('flipNext');
+
+    // Web Audio API paper sound
+    var audioCtx = null;
+    function playFlipSound() {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            var dur = 0.15;
+            var buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+            var data = buf.getChannelData(0);
+            for (var i = 0; i < data.length; i++) {
+                var t = i / audioCtx.sampleRate;
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t / dur, 3) * (1 + Math.sin(t * 3000) * 0.3);
+            }
+            var src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            var gain = audioCtx.createGain();
+            gain.gain.value = 0.06;
+            src.connect(gain);
+            gain.connect(audioCtx.destination);
+            src.start();
+        } catch(e) {}
+    }
+
+    function updateFlip() {
+        pages.forEach(function(p, i) {
+            if (i < current) {
+                p.classList.add('flipped');
+                p.classList.remove('active');
+            } else if (i === current) {
+                p.classList.remove('flipped');
+                p.classList.add('active');
+            } else {
+                p.classList.remove('flipped', 'active');
+            }
+        });
+        indicator.textContent = (current + 1) + '/' + total;
+        prevBtn.disabled = (current === 0);
+        nextBtn.disabled = (current === total - 1);
+    }
+
+    window.flipNext = function() {
+        if (flipping || current >= total - 1) return;
+        flipping = true;
+        playFlipSound();
+        var p = pages[current];
+        p.classList.add('flipped');
+        p.classList.remove('active');
+        if (current + 1 < total) pages[current + 1].classList.add('active');
+        current++;
+        indicator.textContent = (current + 1) + '/' + total;
+        prevBtn.disabled = false;
+        if (current === total - 1) nextBtn.disabled = true;
+        setTimeout(function() { flipping = false; }, 580);
+    };
+
+    window.flipPrev = function() {
+        if (flipping || current <= 0) return;
+        flipping = true;
+        playFlipSound();
+        current--;
+        var p = pages[current];
+        p.classList.remove('flipped');
+        p.classList.add('active');
+        if (current + 1 < total) pages[current + 1].classList.remove('active');
+        indicator.textContent = (current + 1) + '/' + total;
+        nextBtn.disabled = false;
+        if (current === 0) prevBtn.disabled = true;
+        setTimeout(function() { flipping = false; }, 580);
+    };
+
+    // click on page to flip
+    pages.forEach(function(p) {
+        p.addEventListener('click', function() {
+            var idx = parseInt(this.getAttribute('data-idx'));
+            if (idx === current) window.flipNext();
+        });
+    });
+
+    updateFlip();
+})();
 </script>
 
 </body>
