@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Digital Brochure — Current Link Transport & General Contracting LLC SPC</title>
+    <meta name="theme-color" content="#0F2B52">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="icon" href="{{ url_for('static', filename='icon-192.svg') }}">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; }
+body {
+  font-family:'Inter',sans-serif;
+  background:linear-gradient(135deg,#e8e4de 0%,#d6d0c8 100%);
+  color:#1a2332;
+  -webkit-font-smoothing:antialiased;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:100vh; padding:20px; overflow:hidden;
+  user-select:none;
+}
+
+/* ── Page background texture ── */
+.book-page {
+  width:100%; height:100%;
+  background:#fefcf7;
+  background-image:
+    linear-gradient(rgba(21,51,93,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(21,51,93,0.015) 1px, transparent 1px);
+  background-size:40px 40px;
+  position:relative;
+  overflow:hidden;
+}
+.book-page-inner {
+  width:100%; height:100%;
+  padding:28px 32px;
+  display:flex; flex-direction:column;
+  position:relative;
+  z-index:2;
+}
+
+/* ── BOOK ── */
+.book-wrap {
+  position:relative;
+  width:100%;
+  max-width:820px;
+  aspect-ratio: 4 / 3;
+  perspective:1600px;
+  margin-bottom:16px;
+}
+.book {
+  width:100%; height:100%;
+  position:relative;
+  transform-style:preserve-3d;
+  border-radius:4px 16px 16px 4px;
+  box-shadow:
+    -4px 0 20px rgba(0,0,0,0.08),
+    0 8px 40px rgba(0,0,0,0.12),
+    0 2px 8px rgba(0,0,0,0.06);
+}
+.page {
+  position:absolute;
+  top:0; left:0;
+  width:100%; height:100%;
+  transform-origin:left center;
+  transform-style:preserve-3d;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  transition:transform 0.7s cubic-bezier(0.645, 0.045, 0.355, 1);
+  border-radius:4px 16px 16px 4px;
+  overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,0.03), inset 4px 0 12px rgba(0,0,0,0.02);
+  cursor:pointer;
+}
+.page.hidden { display:none; }
+.page.cover { cursor:pointer; }
+.page .back-face {
+  position:absolute;
+  top:0; left:0;
+  width:100%; height:100%;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  transform:rotateY(180deg);
+  background:linear-gradient(135deg,#f5f0e8,#ece5da);
+  border-radius:4px 16px 16px 4px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.75rem; color:#b8a99a; letter-spacing:1px;
+}
+.page.flipped { transform:rotateY(-180deg); }
+.page.active { z-index:10; }
+
+/* spine shadow on right edge */
+.page::after {
+  content:''; position:absolute; top:0; right:0; bottom:0; width:20px;
+  background:linear-gradient(90deg,rgba(0,0,0,0.02),rgba(0,0,0,0.04));
+  pointer-events:none;
+}
+
+/* ── COVER PAGE ── */
+.cover-page { background:linear-gradient(160deg,#091e3b 0%,#0F2B52 40%,#1a3d6e 100%); }
+.cover-page::before {
+  content:''; position:absolute; inset:0;
+  background-image:radial-gradient(rgba(255,255,255,0.018) 1px,transparent 1px);
+  background-size:24px 24px;
+}
+.cover-inner { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:30px; }
+.cover-logo { width:90px; height:90px; border-radius:16px; overflow:hidden; border:2px solid rgba(247,147,30,0.3); margin-bottom:16px; }
+.cover-logo video { width:100%; height:100%; object-fit:cover; }
+.cover-lbl { display:inline-block; padding:4px 16px; border-radius:14px; background:rgba(247,147,30,0.1); color:#fbb259; font-size:0.55rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; border:1px solid rgba(247,147,30,0.15); margin-bottom:10px; }
+.cover-title { font-family:'Playfair Display',serif; font-size:2.8rem; font-weight:700; color:#fff; letter-spacing:-1px; line-height:1.05; }
+.cover-sub { font-size:0.75rem; color:rgba(255,255,255,0.45); font-weight:300; letter-spacing:3px; text-transform:uppercase; margin:2px 0; }
+.cover-divider { width:40px; height:2px; background:linear-gradient(90deg,#F7931E,#f5a83a); margin:12px auto; border-radius:2px; }
+.cover-tag { font-size:0.65rem; color:rgba(255,255,255,0.35); letter-spacing:1px; }
+.cover-footer { position:absolute; bottom:20px; left:0; right:0; text-align:center; font-size:0.5rem; color:rgba(255,255,255,0.15); letter-spacing:1px; }
+
+/* ── BACK COVER ── */
+.back-cover { background:linear-gradient(160deg,#091e3b,#0F2B52); }
+.back-cover-inner { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:30px; color:#fff; }
+.back-cover-inner .cover-divider { margin:16px auto; }
+.back-cover-inner p { font-size:0.7rem; color:rgba(255,255,255,0.35); line-height:1.6; max-width:280px; }
+
+/* ── PAGE CONTENT ── */
+.page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.page-header h2 { font-family:'Playfair Display',serif; font-size:1.2rem; font-weight:700; color:#0F2B52; }
+.page-header .page-num { font-size:0.6rem; font-weight:600; color:#c4b8a8; letter-spacing:1px; }
+.page-content { flex:1; overflow-y:auto; }
+.page-content p { font-size:0.75rem; line-height:1.65; color:#5a6a82; }
+.page-content p strong { color:#1a2332; }
+.page-content .stat-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+.page-content .stat-box { background:rgba(15,43,82,0.03); border-radius:10px; padding:10px; text-align:center; border:1px solid rgba(21,51,93,0.04); }
+.page-content .stat-num { font-size:1.2rem; font-weight:800; color:#0F2B52; margin:0; }
+.page-content .stat-num.orange { color:#F7931E; }
+.page-content .stat-lbl { font-size:0.55rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.3px; margin-top:1px; }
+
+/* service grid inside book */
+.svc-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:6px; }
+.svc-item { display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:6px; font-size:0.65rem; font-weight:500; color:#1a2332; background:rgba(247,147,30,0.04); border:1px solid rgba(247,147,30,0.06); }
+.svc-dot { width:5px; height:5px; border-radius:50%; background:#F7931E; flex-shrink:0; }
+
+.fleet-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:6px; }
+.fleet-item { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; border-radius:6px; font-size:0.65rem; background:rgba(15,43,82,0.02); border:1px solid rgba(21,51,93,0.04); }
+.fleet-name { font-weight:600; color:#0F2B52; }
+.fleet-count { font-size:0.6rem; color:#7a8aa3; }
+
+.cert-list { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+.cert-tag { padding:3px 10px; border-radius:8px; font-size:0.6rem; font-weight:600; color:#0F2B52; background:rgba(247,147,30,0.04); border:1px solid rgba(247,147,30,0.08); display:flex; align-items:center; gap:4px; }
+
+.team-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
+.team-card { text-align:center; border-radius:10px; background:rgba(15,43,82,0.02); border:1px solid rgba(21,51,93,0.04); padding:10px 6px; }
+.team-card img { width:50px; height:50px; border-radius:50%; object-fit:cover; margin:0 auto 6px; border:2px solid rgba(247,147,30,0.15); }
+.team-card h4 { font-size:0.7rem; font-weight:700; color:#0F2B52; margin:0; }
+.team-card p { font-size:0.55rem; color:#F7931E; font-weight:500; margin-top:1px; }
+.team-card .bio { font-size:0.55rem; color:#8a9aae; margin-top:3px; }
+
+.contact-items { margin-top:4px; }
+.contact-item { display:flex; gap:6px; align-items:flex-start; margin-bottom:6px; }
+.contact-item .lbl { font-size:0.55rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.3px; min-width:50px; }
+.contact-item .val { font-size:0.65rem; font-weight:500; color:#1a2332; line-height:1.3; }
+.contact-item .val a { color:#0F2B52; text-decoration:none; }
+
+/* ── CONTROLS ── */
+.controls { display:flex; align-items:center; gap:12px; }
+.controls button {
+  width:40px; height:40px; border-radius:50%; border:none;
+  background:rgba(15,43,82,0.06); color:#0F2B52; font-size:1rem;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all 0.15s; backdrop-filter:blur(4px);
+}
+.controls button:hover { background:#0F2B52; color:#fff; }
+.controls button:disabled { opacity:0.2; cursor:default; }
+.controls .page-indicator { font-size:0.65rem; font-weight:600; color:#7a8aa3; min-width:60px; text-align:center; letter-spacing:0.5px; }
+
+/* ── TOP BAR ── */
+.top-bar { position:fixed; top:0; left:0; right:0; z-index:100; padding:8px 16px; display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.7); backdrop-filter:blur(10px); border-bottom:1px solid rgba(0,0,0,0.04); }
+.top-bar a { font-size:0.7rem; font-weight:600; color:#7a8aa3; text-decoration:none; display:flex; align-items:center; gap:4px; }
+.top-bar a:hover { color:#0F2B52; }
+.top-bar .spacer { flex:1; }
+.top-bar .title { font-size:0.7rem; font-weight:600; color:#0F2B52; letter-spacing:0.3px; }
+
+/* ── PAGE SPECIFICS ── */
+.why-list { margin-top:4px; }
+.why-row { display:flex; gap:6px; align-items:flex-start; padding:3px 0; font-size:0.7rem; }
+.why-row .icon { color:#F7931E; font-size:0.75rem; flex-shrink:0; }
+.why-row .wt { color:#5a6a82; line-height:1.4; }
+.why-row .wt strong { color:#1a2332; }
+
+/* ── RESPONSIVE ── */
+@media (max-width:600px) {
+  .book-wrap { aspect-ratio: 3 / 4; }
+  .book-page-inner { padding:18px 16px; }
+  .cover-title { font-size:2rem; }
+  .cover-logo { width:60px; height:60px; }
+  .page-header h2 { font-size:1rem; }
+  .page-content p { font-size:0.7rem; }
+  .svc-grid { grid-template-columns:1fr; }
+  .team-grid { grid-template-columns:1fr; }
+  .top-bar .title { display:none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <a href="{{ url_for('company_profile') }}">&larr; Company Profile</a>
+  <span class="spacer"></span>
+  <span class="title">Digital Brochure</span>
+  <span class="spacer"></span>
+  <a href="{{ url_for('login') }}" style="background:rgba(247,147,30,0.1);color:#F7931E;padding:4px 10px;border-radius:6px;font-size:0.65rem">Portal</a>
+</div>
+
+<!-- Book -->
+<div class="book-wrap" id="bookWrap">
+  <div class="book" id="book">
+
+    <!-- PAGE 1 — COVER -->
+    <div class="page cover active" data-page="0" onclick="goNext()">
+      <div class="cover-page book-page">
+        <div class="cover-inner">
+          <div class="cover-logo">
+            <video autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+              <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
+            </video>
+          </div>
+          <div class="cover-lbl">Company Profile</div>
+          <h1 class="cover-title">Current Link</h1>
+          <p class="cover-sub">Transport &amp; General Contracting</p>
+          <div class="cover-divider"></div>
+          <p class="cover-tag">Est. 2015 · Abu Dhabi, UAE</p>
+          <p class="cover-footer">Tap or click to flip &rarr;</p>
+        </div>
+      </div>
+      <div class="back-face"></div>
+    </div>
+
+    <!-- PAGE 2 — ABOUT -->
+    <div class="page" data-page="1">
+      <div class="book-page">
+        <div class="book-page-inner">
+          <div class="page-header">
+            <h2>About Us</h2>
+            <span class="page-num">02</span>
+          </div>
+          <div class="page-content">
+            <p>
+              <strong>Current Link Transport &amp; General Contracting LLC SPC</strong>, based in Mussaffah, 
+              Abu Dhabi, has been a trusted provider of heavy equipment, water tankers, and transport 
+              solutions since 2015.
+            </p>
+            <p style="margin-top:6px">
+              We serve leading construction, infrastructure, and industrial companies across the UAE 
+              with a modern fleet and trained operators on monthly rental basis.
+            </p>
+            <div class="stat-row">
+              <div class="stat-box"><p class="stat-num orange">10+</p><p class="stat-lbl">Years Experience</p></div>
+              <div class="stat-box"><p class="stat-num">50+</p><p class="stat-lbl">Equipment Fleet</p></div>
+              <div class="stat-box"><p class="stat-num">100+</p><p class="stat-lbl">Projects Delivered</p></div>
+              <div class="stat-box"><p class="stat-num orange">24/7</p><p class="stat-lbl">Operations</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="back-face"></div>
+    </div>
+
+    <!-- PAGE 3 — OUR SERVICES -->
+    <div class="page" data-page="2">
+      <div class="book-page">
+        <div class="book-page-inner">
+          <div class="page-header">
+            <h2>Our Services</h2>
+            <span class="page-num">03</span>
+          </div>
+          <div class="page-content">
+            <p>Heavy equipment and transport solutions for construction, infrastructure, and industrial projects across the UAE.</p>
+            <div class="svc-grid">
+              <div class="svc-item"><span class="svc-dot"></span>Water Tankers</div>
+              <div class="svc-item"><span class="svc-dot"></span>Cranes</div>
+              <div class="svc-item"><span class="svc-dot"></span>Forklifts</div>
+              <div class="svc-item"><span class="svc-dot"></span>Trailers</div>
+              <div class="svc-item"><span class="svc-dot"></span>Graders</div>
+              <div class="svc-item"><span class="svc-dot"></span>Excavators</div>
+              <div class="svc-item"><span class="svc-dot"></span>Man Lifts</div>
+              <div class="svc-item"><span class="svc-dot"></span>Bobcat / Skid Steer</div>
+            </div>
+            <p style="margin-top:8px;font-size:0.7rem;color:#7a8aa3;font-style:italic">
+              All equipment provided with trained operators on monthly rental basis.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="back-face"></div>
+    </div>
+
+    <!-- PAGE 4 — FLEET SPECS -->
+    <div class="page" data-page="3">
+      <div class="book-page">
+        <div class="book-page-inner">
+          <div class="page-header">
+            <h2>Our Fleet</h2>
+            <span class="page-num">04</span>
+          </div>
+          <div class="page-content">
+            <p>A well-maintained fleet of <strong>50+ units</strong> available for monthly rental across the UAE.</p>
+            <div class="fleet-grid">
+              <div class="fleet-item"><span class="fleet-name">Water Tankers</span><span class="fleet-count">6 units</span></div>
+              <div class="fleet-item"><span class="fleet-name">Cranes</span><span class="fleet-count">8 units</span></div>
+              <div class="fleet-item"><span class="fleet-name">Forklifts</span><span class="fleet-count">6 units</span></div>
+              <div class="fleet-item"><span class="fleet-name">Trailers</span><span class="fleet-count">10 units</span></div>
+              <div class="fleet-item"><span class="fleet-name">Graders</span><span class="fleet-count">4 units</span></div>
+              <div class="fleet-item"><span class="fleet-name">Excavators</span><span class="fleet-count">10+ units</span></div>
+              <div class="fleet-item"><span class="fleet-name">Man Lifts</span><span class="fleet-count">4 units</span></div>
+              <div class="fleet-item"><span class="fleet-name">Bobcat</span><span class="fleet-count">3 units</span></div>
+            </div>
+            <p style="margin-top:6px;font-size:0.6rem;color:#7a8aa3;text-align:center">
+              Regular maintenance &amp; inspection · 24/7 breakdown support
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="back-face"></div>
+    </div>
+
+    <!-- PAGE 5 — WHY CHOOSE US / CERTIFICATIONS -->
+    <div class="page" data-page="4">
+      <div class="book-page">
+        <div class="book-page-inner">
+          <div class="page-header">
+            <h2>Why Choose Us</h2>
+            <span class="page-num">05</span>
+          </div>
+          <div class="page-content">
+            <div class="why-list">
+              <div class="why-row"><span class="icon">&#9679;</span><span class="wt"><strong>Safety First</strong> &mdash; HSE protocols, regular inspections, zero-incident culture.</span></div>
+              <div class="why-row"><span class="icon">&#9679;</span><span class="wt"><strong>Experienced Team</strong> &mdash; Operators with 8+ years UAE experience.</span></div>
+              <div class="why-row"><span class="icon">&#9679;</span><span class="wt"><strong>Modern Fleet</strong> &mdash; Strict maintenance schedule, pre-rental inspections.</span></div>
+              <div class="why-row"><span class="icon">&#9679;</span><span class="wt"><strong>24/7 Support</strong> &mdash; Emergency breakdown, after-hours &amp; weekend service.</span></div>
+              <div class="why-row"><span class="icon">&#9679;</span><span class="wt"><strong>UAE-Wide</strong> &mdash; Service across all 7 emirates, quick deployment.</span></div>
+            </div>
+            <p style="margin-top:8px;font-size:0.65rem;font-weight:600;color:#0F2B52">Certifications</p>
+            <div class="cert-list">
+              <span class="cert-tag">&#9679; ICV Certified</span>
+              <span class="cert-tag">&#9679; ISO 14001</span>
+              <span class="cert-tag">&#9679; VMS Certified</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="back-face"></div>
+    </div>
+
+    <!-- PAGE 6 — MANAGEMENT -->
+    <div class="page" data-page="5">
+      <div class="book-page">
+        <div class="book-page-inner">
+          <div class="page-header">
+            <h2>Management</h2>
+            <span class="page-num">06</span>
+          </div>
+          <div class="page-content">
+            <p style="margin-bottom:6px">Experienced leadership committed to operational excellence.</p>
+            <div class="team-grid">
+              <div class="team-card">
+                <img src="{{ url_for('static', filename='owner-portrait.jpeg') }}" alt="Nasrullah Fazal Jamir" onerror="this.style.display='none'">
+                <h4>Nasrullah Fazal Jamir</h4>
+                <p>Managing Director / Owner</p>
+                <p class="bio">Founder &amp; visionary leader with extensive UAE industry experience.</p>
+              </div>
+              <div class="team-card">
+                <img src="{{ url_for('static', filename='manager-portrait.jpeg') }}" alt="Shakir Ullah" onerror="this.style.display='none'">
+                <h4>Shakir Ullah Fazal Jamir</h4>
+                <p>Operations Manager</p>
+                <p class="bio">Managing fleet operations, client coordination, field team supervision.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="back-face"></div>
+    </div>
+
+    <!-- PAGE 7 — CONTACT -->
+    <div class="page" data-page="6">
+      <div class="book-page">
+        <div class="book-page-inner">
+          <div class="page-header">
+            <h2>Contact</h2>
+            <span class="page-num">07</span>
+          </div>
+          <div class="page-content">
+            <p style="margin-bottom:6px">Get in touch for inquiries, quotes, or equipment rental.</p>
+            <div class="contact-items">
+              <div class="contact-item"><span class="lbl">Location</span><span class="val">Confident property building, Behind Aramex, First Floor, B-Block - office 102, M9, Mussaffah, Abu Dhabi, UAE</span></div>
+              <div class="contact-item"><span class="lbl">Phone</span><span class="val"><a href="tel:+971501224963">050-1224963</a> / <a href="tel:+971501082900">050-1082900</a></span></div>
+              <div class="contact-item"><span class="lbl">Email</span><span class="val"><a href="mailto:info@currentlinktgc.com">info@currentlinktgc.com</a></span></div>
+              <div class="contact-item"><span class="lbl">Web</span><span class="val"><a href="https://www.currentlinkgc.com" target="_blank">www.currentlinkgc.com</a></span></div>
+              <div class="contact-item"><span class="lbl">Hours</span><span class="val">Sun&ndash;Fri: 8AM&ndash;6PM &middot; 24/7 Emergency Support</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="back-face"></div>
+    </div>
+
+    <!-- PAGE 8 — BACK COVER -->
+    <div class="page" data-page="7">
+      <div class="back-cover book-page">
+        <div class="back-cover-inner">
+          <div class="cover-logo" style="width:60px;height:60px;margin-bottom:12px">
+            <video autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+              <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
+            </video>
+          </div>
+          <div class="cover-divider"></div>
+          <p style="font-size:0.75rem;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;font-weight:300">Transport &amp; General Contracting</p>
+          <p style="margin-top:10px">Reliable Equipment. Trusted Service. UAE-Wide.</p>
+          <p style="margin-top:14px;color:rgba(255,255,255,0.2);font-size:0.55rem">&copy; 2026 Current Link LLC SPC</p>
+        </div>
+      </div>
+      <div class="back-face"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <button id="prevBtn" onclick="goPrev()" disabled>&larr;</button>
+  <span class="page-indicator" id="pageIndicator">1 / 8</span>
+  <button id="nextBtn" onclick="goNext()">&rarr;</button>
+</div>
+
+<script>
+var pages = document.querySelectorAll('.page');
+var current = 0;
+var total = pages.length;
+var flipping = false;
+
+function update() {
+  pages.forEach(function(p, i) {
+    if (i < current) {
+      p.classList.add('flipped');
+      p.classList.remove('active');
+    } else if (i === current) {
+      p.classList.remove('flipped');
+      p.classList.add('active');
+    } else {
+      p.classList.remove('flipped', 'active');
+    }
+  });
+  document.getElementById('pageIndicator').textContent = (current + 1) + ' / ' + total;
+  document.getElementById('prevBtn').disabled = (current === 0);
+  document.getElementById('nextBtn').disabled = (current === total - 1);
+}
+
+function goNext() {
+  if (flipping) return;
+  if (current >= total - 1) return;
+  flipping = true;
+  var p = pages[current];
+  p.classList.add('flipped');
+  p.classList.remove('active');
+  if (current + 1 < total) {
+    pages[current + 1].classList.add('active');
+  }
+  current++;
+  document.getElementById('pageIndicator').textContent = (current + 1) + ' / ' + total;
+  document.getElementById('prevBtn').disabled = false;
+  if (current === total - 1) {
+    document.getElementById('nextBtn').disabled = true;
+  }
+  setTimeout(function() { flipping = false; }, 700);
+}
+
+function goPrev() {
+  if (flipping) return;
+  if (current <= 0) return;
+  flipping = true;
+  current--;
+  var p = pages[current];
+  p.classList.remove('flipped');
+  p.classList.add('active');
+  if (current + 1 < total) {
+    pages[current + 1].classList.remove('active');
+  }
+  document.getElementById('pageIndicator').textContent = (current + 1) + ' / ' + total;
+  document.getElementById('nextBtn').disabled = false;
+  if (current === 0) {
+    document.getElementById('prevBtn').disabled = true;
+  }
+  setTimeout(function() { flipping = false; }, 700);
+}
+
+// Keyboard nav
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goNext(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); goPrev(); }
+});
+
+update();
+</script>
+
+</body>
+</html>

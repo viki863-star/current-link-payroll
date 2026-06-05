@@ -238,6 +238,10 @@ def register_routes(app: Flask) -> None:
     def company_profile():
         return render_template("company_profile.html"), 200, {"Content-Type": "text/html; charset=utf-8"}
 
+    @app.route("/brochure")
+    def brochure():
+        return render_template("brochure.html"), 200, {"Content-Type": "text/html; charset=utf-8"}
+
     @app.route("/login", methods=["GET", "POST"])
     def login():
         if _current_role():
