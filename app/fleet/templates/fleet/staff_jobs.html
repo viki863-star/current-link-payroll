@@ -56,6 +56,21 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
         <a href="{{ url_for('technician_simple') }}" class="staff-back-btn">&#8592; New Job</a>
     </div>
 
+    <div class="balance-strip">
+        <div class="balance-item">
+            <div class="balance-label">Received</div>
+            <div class="balance-value green">AED {{ "%.0f"|format(total_received or 0) }}</div>
+        </div>
+        <div class="balance-item">
+            <div class="balance-label">Spent</div>
+            <div class="balance-value red">AED {{ "%.0f"|format(total_spent or 0) }}</div>
+        </div>
+        <div class="balance-item">
+            <div class="balance-label">Balance</div>
+            <div class="balance-value" style="color:{{ '#1a7a4e' if (balance or 0) >= 0 else '#c0392b' }}">AED {{ "%.0f"|format((balance or 0)|abs) }} {{ 'Left' if (balance or 0) >= 0 else 'Due' }}</div>
+        </div>
+    </div>
+
     <div style="display:flex;gap:8px;margin-bottom:14px">
         <a href="{{ url_for('technician_simple') }}" class="staff-action-btn" style="flex:1;text-align:center;padding:12px;font-size:0.9rem">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
@@ -178,8 +193,17 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
 .staff-job-item-value { font-weight: 600; color: #e65100; }
 .job-cat-badge { background: #e3f0ff; color: #1c568b; padding: 3px 12px; border-radius: 20px; font-size: 0.74rem; font-weight: 600; }
 .staff-job-action { display: block; text-align:center; padding: 10px 12px; border-radius: 10px; font-size: 0.82rem; font-weight: 600; text-decoration: none; }
+.balance-strip { display:flex; gap:8px; margin-bottom:16px; }
+.balance-item { flex:1; background:#fff; border-radius:14px; padding:12px 8px; text-align:center; border:1px solid #e8ecf2; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+.balance-label { font-size:0.6rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
+.balance-value { font-size:1.05rem; font-weight:800; }
+.balance-value.green { color:#1a7a4e; }
+.balance-value.red { color:#c0392b; }
 @media (max-width:480px) {
  .staff-container { padding:12px; }
+ .balance-strip { gap:6px; }
+ .balance-item { padding:10px 4px; }
+ .balance-value { font-size:0.95rem; }
 }
 </style>
 <script>

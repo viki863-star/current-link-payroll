@@ -1195,7 +1195,7 @@ def register_routes(app: Flask) -> None:
         _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
         total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?", (technician_code,)).fetchone()["t"] or 0
         spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["t"] or 0
-        spent_jobs = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status IN ('pending','approved')", (technician_code,)).fetchone()["t"] or 0
+        spent_jobs = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'", (technician_code,)).fetchone()["t"] or 0
         total_spent = float(spent_papers) + float(spent_jobs)
         balance = float(total_received) - float(total_spent)
         pending_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Pending'", (technician_code,)).fetchone()["c"] or 0
@@ -1240,6 +1240,11 @@ def register_routes(app: Flask) -> None:
             session.clear()
             flash("Field staff session expired. Please login again.", "error")
             return redirect(url_for("technician_login"))
+        total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?", (technician_code,)).fetchone()["t"] or 0
+        spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["t"] or 0
+        spent_jobs = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'", (technician_code,)).fetchone()["t"] or 0
+        total_spent = float(spent_papers) + float(spent_jobs)
+        balance = float(total_received) - float(total_spent)
         jobs = db.execute("SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id WHERE mj.staff_id = ? ORDER BY mj.created_at DESC", (technician_code,)).fetchall()
         raw_papers = db.execute("""
             SELECT mp.paper_no AS id, mp.vehicle_id, mp.technician_code AS staff_id,
@@ -1258,7 +1263,7 @@ def register_routes(app: Flask) -> None:
             if isinstance(d.get("created_at"), datetime):
                 d["created_at"] = d["created_at"].strftime("%Y-%m-%d %H:%M:%S")
             papers.append(d)
-        return render_template("fleet/staff_jobs.html", jobs=jobs, papers=papers)
+        return render_template("fleet/staff_jobs.html", jobs=jobs, papers=papers, total_received=total_received, total_spent=total_spent, balance=balance)
 
     @app.route("/portal/technician/my-jobs/<int:job_id>/edit", methods=["GET", "POST"])
     def technician_job_edit(job_id):
