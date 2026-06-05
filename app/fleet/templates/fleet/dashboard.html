@@ -14,9 +14,10 @@
 .fd-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 14px; border-radius:20px; font-size:0.72rem; font-weight:600; background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.9); border:1px solid rgba(255,255,255,0.1); }
 .fd-badge strong { color:#fff; }
 
-.fd-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:14px; margin-bottom:26px; }
-.fd-kpi { border-radius:18px; padding:18px 16px; position:relative; overflow:hidden; transition:transform 0.2s; cursor:default; border:none; }
+.fd-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:14px; margin-bottom:26px; }
+.fd-kpi { border-radius:18px; padding:18px 16px; position:relative; overflow:hidden; transition:transform 0.2s, box-shadow 0.2s; cursor:pointer; border:none; text-decoration:none; display:block; color:inherit; }
 .fd-kpi:active { transform:scale(0.96); }
+.fd-kpi:hover { transform:translateY(-3px); box-shadow:0 12px 30px rgba(0,0,0,0.15); }
 .fd-kpi-shine { position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg,rgba(255,255,255,0.18) 0%,rgba(255,255,255,0) 100%); border-radius:18px 18px 0 0; }
 .fd-kpi-icon { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; margin-bottom:10px; position:relative; z-index:1; }
 .fd-kpi-label { font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; position:relative; z-index:1; }
@@ -86,7 +87,6 @@
     <p>Vehicles, assignments, field staff, approvals &amp; maintenance — all in one place</p>
     <div class="fd-hero-badges">
       <span class="fd-badge">Total &#9654; <strong>{{ total }}</strong></span>
-      <span class="fd-badge">Active &#9654; <strong>{{ active_count }}</strong></span>
       <span class="fd-badge">Standard &#9654; <strong>{{ standard_count }}</strong></span>
       <span class="fd-badge">Partnership &#9654; <strong>{{ partnership_count }}</strong></span>
       <span class="fd-badge">Pending &#9654; <strong>{{ pending_count }}</strong></span>
@@ -95,44 +95,38 @@
 
   {# ═════ KPI GRID ═════ #}
   <div class="fd-kpi-grid">
-    <div class="fd-kpi" style="background:linear-gradient(145deg,#1a3d6e,#0F2B52);box-shadow:0 8px 25px rgba(15,43,82,0.35)">
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list') }}" style="background:linear-gradient(145deg,#1a3d6e,#0F2B52);box-shadow:0 8px 25px rgba(15,43,82,0.35)">
       <div class="fd-kpi-shine"></div>
       <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.12)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><path d="M7 3V1"/><path d="M13 3V1"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg></div>
       <div class="fd-kpi-label light">Total Vehicles</div>
       <div class="fd-kpi-val light">{{ total }}</div>
-    </div>
-    <div class="fd-kpi" style="background:linear-gradient(145deg,#22c55e,#16a34a);box-shadow:0 8px 25px rgba(34,197,94,0.3)">
-      <div class="fd-kpi-shine"></div>
-      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M5 3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2"/><path d="M8 2v4"/><path d="M12 2v4"/><path d="M2 9h16"/></svg></div>
-      <div class="fd-kpi-label light">Active</div>
-      <div class="fd-kpi-val light">{{ active_count }}</div>
-    </div>
-    <div class="fd-kpi" style="background:linear-gradient(145deg,#ff8a1f,#e67600);box-shadow:0 8px 25px rgba(230,118,0,0.3)">
+    </a>
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list', ownership='Standard') }}" style="background:linear-gradient(145deg,#ff8a1f,#e67600);box-shadow:0 8px 25px rgba(230,118,0,0.3)">
       <div class="fd-kpi-shine"></div>
       <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div>
       <div class="fd-kpi-label light">Standard</div>
       <div class="fd-kpi-val light">{{ standard_count }}</div>
-    </div>
-    <div class="fd-kpi" style="background:linear-gradient(145deg,#7c3aed,#6d28d9);box-shadow:0 8px 25px rgba(124,58,237,0.3)">
+    </a>
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list', ownership='Partnership') }}" style="background:linear-gradient(145deg,#7c3aed,#6d28d9);box-shadow:0 8px 25px rgba(124,58,237,0.3)">
       <div class="fd-kpi-shine"></div>
       <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg></div>
       <div class="fd-kpi-label light">Partnership</div>
       <div class="fd-kpi-val light">{{ partnership_count }}</div>
-    </div>
-    <div class="fd-kpi" style="background:linear-gradient(145deg,#ef4444,#dc2626);box-shadow:0 8px 25px rgba(239,68,68,0.3)">
+    </a>
+    <a class="fd-kpi" href="{{ url_for('fleet.fleet_approvals') }}" style="background:linear-gradient(145deg,#ef4444,#dc2626);box-shadow:0 8px 25px rgba(239,68,68,0.3)">
       <div class="fd-kpi-shine"></div>
       <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
       <div class="fd-kpi-label light">Pending Jobs</div>
       <div class="fd-kpi-val light">{{ pending_count }}</div>
       <div class="fd-kpi-sub light">awaiting approval</div>
-    </div>
-    <div class="fd-kpi" style="background:linear-gradient(145deg,#e65100,#d84315);box-shadow:0 8px 25px rgba(230,81,0,0.3)">
+    </a>
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list') }}" style="background:linear-gradient(145deg,#e65100,#d84315);box-shadow:0 8px 25px rgba(230,81,0,0.3)">
       <div class="fd-kpi-shine"></div>
       <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
       <div class="fd-kpi-label light">Maintenance Cost</div>
       <div class="fd-kpi-val light" style="font-size:1rem">AED {{ "%.0f"|format(total_maintenance_cost) }}</div>
       <div class="fd-kpi-sub light">{{ pending_count }} pending AED {{ "%.0f"|format(total_pending_cost) }}</div>
-    </div>
+    </a>
   </div>
 
   {# ═════ QUICK NAV ═════ #}

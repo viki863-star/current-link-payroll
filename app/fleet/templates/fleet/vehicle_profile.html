@@ -55,6 +55,7 @@
         <a class="vp-tab {% if active_tab == 'overview' %}is-active{% endif %}" href="?tab=overview">Overview</a>
         <a class="vp-tab {% if active_tab == 'driver' %}is-active{% endif %}" href="?tab=driver">Driver</a>
         <a class="vp-tab {% if active_tab == 'jobs' %}is-active{% endif %}" href="?tab=jobs">Maintenance Jobs</a>
+        <a class="vp-tab {% if active_tab == 'documents' %}is-active{% endif %}" href="?tab=documents">Documents</a>
     </div>
 
     {# ═══════ OVERVIEW ═══════ #}
@@ -229,6 +230,57 @@
         </div>
         {% else %}
         <p class="empty-state">No maintenance jobs yet.</p>
+        {% endif %}
+    </div>
+
+    {# ═══════ DOCUMENTS ═══════ #}
+    {% elif active_tab == 'documents' %}
+    <div class="profile-card">
+        <h3 style="margin:0 0 12px;font-size:0.95rem">Upload Document</h3>
+        <form method="POST" action="{{ url_for('fleet.vehicle_document_upload', plate_no=v.plate_no) }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-row">
+                <label class="form-label">Document Name</label>
+                <input type="text" name="doc_name" class="form-control" required>
+            </div>
+            <div class="form-row">
+                <label class="form-label">File</label>
+                <input type="file" name="doc_file" class="form-control">
+            </div>
+            <div class="form-row">
+                <label class="form-label">Notes</label>
+                <input type="text" name="notes" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+    </div>
+    <div class="profile-card" style="margin-top:1rem">
+        <h3 style="margin:0 0 12px;font-size:0.95rem">All Documents</h3>
+        {% if documents %}
+        <table class="smart-table">
+            <thead><tr><th>Name</th><th>Type</th><th>Uploaded</th><th>Notes</th><th></th></tr></thead>
+            <tbody>
+                {% for d in documents %}
+                <tr>
+                    <td><strong>{{ d.doc_name }}</strong></td>
+                    <td><span class="badge badge-type">{{ d.doc_type or '—' }}</span></td>
+                    <td class="mono">{{ d.uploaded_at|string|truncate(16, True, '') }}</td>
+                    <td style="max-width:180px;white-space:normal;font-size:0.82rem">{{ d.notes or '' }}</td>
+                    <td>
+                        {% if d.doc_data %}
+                        <a href="{{ url_for('fleet.vehicle_document_view', plate_no=v.plate_no, doc_id=d.id) }}" class="btn btn-xs btn-outline" target="_blank">View</a>
+                        {% endif %}
+                        <form method="post" action="{{ url_for('fleet.vehicle_document_delete', plate_no=v.plate_no, doc_id=d.id) }}" style="display:inline" onsubmit="return confirm('Delete {{ d.doc_name }}?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-xs btn-outline" style="color:#dc3545;border-color:#dc3545">&#10005;</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">No documents uploaded.</p>
         {% endif %}
     </div>
     {% endif %}

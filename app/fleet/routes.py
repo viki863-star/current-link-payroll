@@ -42,6 +42,21 @@ def ensure_fleet_tables():
         db.execute("ALTER TABLE maintenance_jobs ALTER COLUMN staff_id SET DEFAULT ''")
     except Exception:
         pass
+    # Create vehicle_documents table
+    id_col = "id INTEGER PRIMARY KEY AUTOINCREMENT" if db.backend == "sqlite" else "id SERIAL PRIMARY KEY"
+    default_ts = "CURRENT_TIMESTAMP"
+    db.execute(f"""
+        CREATE TABLE IF NOT EXISTS vehicle_documents (
+            {id_col},
+            plate_no TEXT NOT NULL,
+            doc_name TEXT NOT NULL,
+            doc_type TEXT,
+            doc_data TEXT,
+            uploaded_at TEXT DEFAULT {default_ts},
+            notes TEXT
+        )
+    """)
+    db.commit()
 
 
 def _migrate_vehicle_master(db):
@@ -436,6 +451,12 @@ def vehicle_profile(plate_no):
         key=lambda x: (x.get("created_at") or ""),
         reverse=True,
     )
+
+    documents = db.execute(
+        "SELECT * FROM vehicle_documents WHERE plate_no = ? ORDER BY uploaded_at DESC",
+        (plate_no,),
+    ).fetchall()
+
     return render_template(
         "fleet/vehicle_profile.html",
         v=v,
@@ -446,6 +467,7 @@ def vehicle_profile(plate_no):
         maintenance_papers_list=maintenance_papers_list,
         combined_jobs=combined,
         all_drivers=_all_employees_drivers(),
+        documents=documents,
     )
 
 
@@ -515,6 +537,70 @@ def _staff_login_required(f):
             return redirect(url_for("fleet.staff_login"))
         return f(*args, **kwargs)
     return wrapper
+
+
+# ── Vehicle Documents ─────────────────────────────────────────────
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/documents/upload", methods=["POST"])
+@_login_required("admin")
+def vehicle_document_upload(plate_no):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    v = _vehicle_full(plate_no)
+    if not v:
+        flash("Vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_list"))
+    doc_name = request.form.get("doc_name", "").strip()
+    notes = request.form.get("notes", "").strip()
+    if not doc_name:
+        flash("Document name is required.", "error")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
+    import base64
+    doc_data = None
+    doc_type = None
+    if "doc_file" in request.files:
+        f = request.files["doc_file"]
+        if f.filename:
+            doc_data = base64.b64encode(f.read()).decode("utf-8")
+            doc_type = f.content_type
+    db.execute(
+        "INSERT INTO vehicle_documents (plate_no, doc_name, doc_type, doc_data, notes) VALUES (?,?,?,?,?)",
+        (plate_no, doc_name, doc_type, doc_data, notes),
+    )
+    db.commit()
+    flash(f"Document '{doc_name}' uploaded.", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
+
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/documents/<int:doc_id>/delete", methods=["POST"])
+@_login_required("admin")
+def vehicle_document_delete(plate_no, doc_id):
+    _touch_admin_workspace("fleet")
+    db = open_db()
+    db.execute("DELETE FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no))
+    db.commit()
+    flash("Document deleted.", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
+
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/documents/<int:doc_id>/view")
+@_login_required("admin")
+def vehicle_document_view(plate_no, doc_id):
+    db = open_db()
+    doc = db.execute("SELECT * FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no)).fetchone()
+    if not doc or not doc["doc_data"]:
+        flash("Document not found.", "error")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
+    import base64
+    from io import BytesIO
+    data = base64.b64decode(doc["doc_data"])
+    return send_file(
+        BytesIO(data),
+        mimetype=doc["doc_type"] or "application/octet-stream",
+        as_attachment=False,
+        download_name=doc["doc_name"],
+    )
 
 
 # ═════════════════════════════════════════════════════════════════
