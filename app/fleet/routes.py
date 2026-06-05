@@ -22,6 +22,23 @@ def ensure_fleet_tables():
     db = open_db()
     db.execute("SELECT 1 FROM vehicles LIMIT 1")
     _migrate_vehicle_master(db)
+    # Drop FK constraints on PostgreSQL so staff can be deleted without losing data
+    try:
+        db.execute("ALTER TABLE maintenance_jobs DROP CONSTRAINT IF EXISTS maintenance_jobs_staff_id_fkey")
+    except Exception:
+        pass
+    try:
+        db.execute("ALTER TABLE maintenance_jobs DROP CONSTRAINT IF EXISTS fk_maintenance_jobs_staff_id")
+    except Exception:
+        pass
+    try:
+        db.execute("ALTER TABLE maintenance_jobs ALTER COLUMN staff_id DROP NOT NULL")
+    except Exception:
+        pass
+    try:
+        db.execute("ALTER TABLE maintenance_jobs ALTER COLUMN staff_id SET DEFAULT ''")
+    except Exception:
+        pass
 
 
 def _migrate_vehicle_master(db):
@@ -1098,10 +1115,14 @@ def fleet_staff_delete(staff_id):
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
     # Nullify references so submitted data is preserved
-    db.execute("UPDATE maintenance_jobs SET staff_id=NULL WHERE staff_id=?", (staff_id,))
-    db.execute("UPDATE maintenance_papers SET technician_code=NULL WHERE technician_code=?", (staff_id,))
-    db.execute("UPDATE maintenance_staff_advances SET staff_code=NULL WHERE staff_code=?", (staff_id,))
-    db.execute("UPDATE cash_receipts SET staff_id=NULL WHERE staff_id=?", (staff_id,))
+    for tbl, col in [("maintenance_jobs", "staff_id"), ("maintenance_papers", "technician_code"), ("maintenance_staff_advances", "staff_code"), ("cash_receipts", "staff_id")]:
+        try:
+            db.execute(f"UPDATE {tbl} SET {col}='' WHERE {col}=?", (staff_id,))
+        except Exception:
+            try:
+                db.execute(f"UPDATE {tbl} SET {col}=NULL WHERE {col}=?", (staff_id,))
+            except Exception:
+                pass
     db.execute("DELETE FROM field_staff WHERE staff_id = ?", (staff_id,))
     db.execute("DELETE FROM technicians WHERE technician_code = ?", (staff_id,))
     db.commit()
