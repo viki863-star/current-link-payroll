@@ -1462,6 +1462,7 @@ def fleet_staff_profile(staff_id):
         total_cash=total_cash,
         total_spent=total_spent,
         balance=balance,
+        remaining=remaining,
         items=items,
         receipts=receipts,
         advances=advances,
