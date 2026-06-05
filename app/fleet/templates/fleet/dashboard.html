@@ -7,7 +7,7 @@
 <style>
 .fd-container { max-width:1100px; margin:0 auto; }
 .fd-hero { background:linear-gradient(145deg,#0F2B52,#1a3d6e); border-radius:20px; padding:28px 30px; margin-bottom:24px; position:relative; overflow:hidden; }
-.fd-hero::before { content:''; position:absolute; top:0; left:0; right:0; height:55%; background:linear-gradient(180deg,rgba(255,255,255,0.08) 0%,transparent 100%); pointer-events:none; border-radius:20px 20px 0 0; }
+.fd-hero::before { content:''; position:absolute; top:0; left:0; right:0; height:55%; background:linear-gradient(180deg,rgba(255,255,255,0.08) 0%,transparent 100%); border-radius:20px 20px 0 0; }
 .fd-hero h1 { margin:0; font-size:1.4rem; font-weight:700; color:#fff; position:relative; }
 .fd-hero p { margin:4px 0 0; font-size:0.88rem; color:rgba(255,255,255,0.7); position:relative; }
 .fd-hero-badges { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; position:relative; }
@@ -15,9 +15,9 @@
 .fd-badge strong { color:#fff; }
 
 .fd-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:14px; margin-bottom:26px; }
-.fd-kpi { border-radius:18px; padding:18px 16px; position:relative; overflow:hidden; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); transition:transform 0.2s,box-shadow 0.2s; cursor:default; border:none; }
+.fd-kpi { border-radius:18px; padding:18px 16px; position:relative; overflow:hidden; transition:transform 0.2s; cursor:default; border:none; }
 .fd-kpi:active { transform:scale(0.96); }
-.fd-kpi-shine { position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg,rgba(255,255,255,0.18) 0%,rgba(255,255,255,0) 100%); pointer-events:none; border-radius:18px 18px 0 0; }
+.fd-kpi-shine { position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg,rgba(255,255,255,0.18) 0%,rgba(255,255,255,0) 100%); border-radius:18px 18px 0 0; }
 .fd-kpi-icon { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; margin-bottom:10px; position:relative; z-index:1; }
 .fd-kpi-label { font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; position:relative; z-index:1; }
 .fd-kpi-label.light { color:rgba(255,255,255,0.8); }
@@ -52,10 +52,26 @@
 .fd-alert-orange strong { color:#d45c00; }
 .fd-alert a { margin-left:auto; }
 
+.fd-chart { padding:16px 18px; }
+.fd-chart-bar-wrap { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.fd-chart-label { font-size:0.72rem; font-weight:600; min-width:80px; color:var(--text); }
+.fd-chart-bar { height:24px; border-radius:6px; transition:width 0.6s ease; display:flex; align-items:center; padding:0 8px; font-size:0.68rem; font-weight:700; color:#fff; min-width:fit-content; }
+.fd-chart-bar.orange { background:linear-gradient(90deg,#ff8a1f,#e65100); }
+.fd-chart-bar.blue { background:linear-gradient(90deg,#1a3d6e,#0F2B52); }
+.fd-chart-bar.green { background:linear-gradient(90deg,#22c55e,#16a34a); }
+.fd-chart-bar.purple { background:linear-gradient(90deg,#7c3aed,#6d28d9); }
+.fd-chart-bar.red { background:linear-gradient(90deg,#ef4444,#dc2626); }
+.fd-chart-bar.teal { background:linear-gradient(90deg,#14b8a6,#0d9488); }
+.fd-chart-bar.pink { background:linear-gradient(90deg,#ec4899,#db2777); }
+.fd-chart-colors { display:flex; gap:4px; }
+.chart-color-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+
 @media(max-width:768px){
   .fd-panels { grid-template-columns:1fr; }
   .fd-kpi-grid { grid-template-columns:repeat(3,1fr); }
   .fd-nav { grid-template-columns:repeat(3,1fr); }
+  .fd-chart-bar-wrap { gap:6px; }
+  .fd-chart-label { min-width:60px; font-size:0.65rem; }
 }
 @media(max-width:480px){
   .fd-kpi-grid { grid-template-columns:repeat(2,1fr); }
@@ -115,6 +131,7 @@
       <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
       <div class="fd-kpi-label light">Maintenance Cost</div>
       <div class="fd-kpi-val light" style="font-size:1rem">AED {{ "%.0f"|format(total_maintenance_cost) }}</div>
+      <div class="fd-kpi-sub light">{{ pending_count }} pending AED {{ "%.0f"|format(total_pending_cost) }}</div>
     </div>
   </div>
 
@@ -154,34 +171,37 @@
   {% if pending_jobs %}
   <div class="fd-alert fd-alert-orange">
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18" style="flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-    <span><strong>{{ pending_jobs|length }} pending {{ 'job' if pending_jobs|length == 1 else 'jobs' }}</strong> awaiting approval</span>
+    <span><strong>{{ pending_jobs|length }} pending {{ 'job' if pending_jobs|length == 1 else 'jobs' }}</strong> awaiting approval — AED {{ "%.0f"|format(total_pending_cost) }}</span>
     <a href="{{ url_for('fleet.fleet_approvals') }}" style="font-size:0.82rem;font-weight:600;color:#e67600;text-decoration:none">Review now &rarr;</a>
   </div>
   {% endif %}
 
-  {# ═════ PANELS ═════ #}
+  {# ═════ TOP VEHICLES CHART + PANELS ═════ #}
   <div class="fd-panels">
     <div class="fd-panel">
       <div class="fd-panel-head">
-        <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg> All Vehicles</h3>
+        <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Top Vehicles by Expense</h3>
         <a href="{{ url_for('fleet.vehicle_list') }}">View all</a>
       </div>
-      <table class="fd-table">
-        <thead><tr><th>Plate</th><th>Type</th><th>Owner</th><th>Driver</th><th>Status</th></tr></thead>
-        <tbody>
-          {% for v in vehicles[:8] %}
-          <tr class="clickable" onclick="window.location='{{ vehicle_url(v.plate_no) }}'">
-            <td style="font-weight:600;font-family:monospace">{{ v.plate_no }}</td>
-            <td>{{ v.vehicle_type }}</td>
-            <td>{% if v.ownership_type == 'Partnership' %}{{ v.partner_name or 'Partner' }} ({{ "%.0f"|format(v.partner_percent) }}%){% else %}Standard{% endif %}</td>
-            <td>{{ v.get('current_driver').full_name if v.get('current_driver') else '—' }}</td>
-            <td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td>
-          </tr>
-          {% else %}
-          <tr><td colspan="5" style="padding:30px;text-align:center;color:var(--muted)">No vehicles yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="fd-chart">
+        {% set max_spent = top_vehicles[0].total_spent if top_vehicles else 1 %}
+        {% set colors = ['orange','blue','green','purple','red','teal','pink'] %}
+        {% for v in top_vehicles %}
+        {% set pct = (v.total_spent / max_spent * 100)|int %}
+        {% set ci = loop.index0 % colors|length %}
+        <a href="{{ vehicle_url(v.plate_no) }}" style="text-decoration:none;color:inherit">
+          <div class="fd-chart-bar-wrap">
+            <span class="fd-chart-label">{{ v.plate_no }}</span>
+            <div class="fd-chart-bar {{ colors[ci] }}" style="width:{{ pct }}%">
+              AED {{ "%.0f"|format(v.total_spent) }}
+            </div>
+            <span style="font-size:0.6rem;color:var(--muted);white-space:nowrap">({{ v.job_count }} jobs)</span>
+          </div>
+        </a>
+        {% else %}
+        <div style="padding:24px;text-align:center;color:var(--muted);font-size:0.85rem">No approved jobs yet.</div>
+        {% endfor %}
+      </div>
     </div>
     <div class="fd-panel">
       <div class="fd-panel-head">
@@ -205,6 +225,30 @@
       <div style="padding:30px;text-align:center;color:var(--muted);font-size:0.85rem">No completed jobs yet.</div>
       {% endif %}
     </div>
+  </div>
+
+  {# ═════ VEHICLES TABLE ═════ #}
+  <div class="fd-panel">
+    <div class="fd-panel-head">
+      <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg> All Vehicles</h3>
+      <a href="{{ url_for('fleet.vehicle_list') }}">View all</a>
+    </div>
+    <table class="fd-table">
+      <thead><tr><th>Plate</th><th>Type</th><th>Owner</th><th>Driver</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for v in vehicles[:8] %}
+        <tr class="clickable" onclick="window.location='{{ vehicle_url(v.plate_no) }}'">
+          <td style="font-weight:600;font-family:monospace">{{ v.plate_no }}</td>
+          <td>{{ v.vehicle_type }}</td>
+          <td>{% if v.ownership_type == 'Partnership' %}{{ v.partner_name or 'Partner' }} ({{ "%.0f"|format(v.partner_percent) }}%){% else %}Standard{% endif %}</td>
+          <td>{{ v.get('current_driver').full_name if v.get('current_driver') else '—' }}</td>
+          <td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="padding:30px;text-align:center;color:var(--muted)">No vehicles yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 {% endblock %}

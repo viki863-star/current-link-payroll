@@ -148,6 +148,23 @@ def fleet_dashboard():
         "SELECT mj.*, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, v.vehicle_type, s.full_name AS staff_name FROM maintenance_jobs mj LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id JOIN field_staff s ON s.staff_id = mj.staff_id WHERE mj.status = 'approved' ORDER BY mj.created_at DESC LIMIT 10"
     ).fetchall()
 
+    top_vehicles = db.execute(
+        """SELECT COALESCE(v.plate_no, mj.vehicle_id) AS plate_no,
+                  v.vehicle_type,
+                  SUM(mj.amount) AS total_spent,
+                  COUNT(mj.id) AS job_count
+           FROM maintenance_jobs mj
+           LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
+           WHERE mj.status = 'approved'
+           GROUP BY plate_no
+           ORDER BY total_spent DESC
+           LIMIT 10"""
+    ).fetchall()
+
+    total_pending_cost = db.execute(
+        "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE status='pending'"
+    ).fetchone()["t"] or 0
+
     return render_template(
         "fleet/dashboard.html",
         vehicles=vehicles,
@@ -159,6 +176,8 @@ def fleet_dashboard():
         pending_count=pending_count,
         total_maintenance_cost=total_maintenance_cost,
         recent_jobs=recent_jobs,
+        top_vehicles=top_vehicles,
+        total_pending_cost=float(total_pending_cost),
     )
 
 
