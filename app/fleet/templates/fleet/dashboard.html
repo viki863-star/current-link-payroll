@@ -248,92 +248,38 @@
     </table>
   </div>
 
-  {# ═════ STAFF BALANCE CHART — LINE GRAPH ═════ #}
-  {% if chart_data %}
-  {% set cw = 720 %}  {# chart inner width #}
-  {% set ch = 220 %}  {# chart inner height #}
-  {% set pl = 60 %}   {# padding left #}
-  {% set pr = 20 %}   {# padding right #}
-  {% set pt = 20 %}   {# padding top #}
-  {% set pb = 50 %}   {# padding bottom #}
-  {% set sw = cw + pl + pr %}  {# svg width #}
-  {% set sh = ch + pt + pb %}  {# svg height #}
-  {% set n = chart_data|length %}
-  {% set x0 = pl %}
-  {% set step = (cw // (n - 1)) if n > 1 else cw // 2 %}
-  {% set bottom = pt + ch %}
-  {% set grid_lines = [0, chart_max * 0.25, chart_max * 0.5, chart_max * 0.75, chart_max] %}
-  {# build point strings using concatenation (guaranteed Jinja2 safe) #}
-  {% set rec_pts = "" %}
-  {% set spent_pts = "" %}
-  {% set bal_pts = "" %}
-  {% set xs = "" %}
-  {% for d in chart_data %}
-    {% set xi = x0 + (loop.index0 * step) if n > 1 else x0 + cw // 2 %}
-    {% set xs = xs ~ xi ~ ',' %}
-    {% set rec_y = pt + ch - (d.rec / chart_max * ch)|round|int %}
-    {% set spent_y = pt + ch - (d.spent / chart_max * ch)|round|int %}
-    {% set bal_y = pt + ch - ((d.bal|abs) / chart_max * ch)|round|int %}
-    {% set rec_pts = rec_pts ~ xi ~ ',' ~ rec_y ~ ' ' %}
-    {% set spent_pts = spent_pts ~ xi ~ ',' ~ spent_y ~ ' ' %}
-    {% set bal_pts = bal_pts ~ xi ~ ',' ~ bal_y ~ ' ' %}
-  {% endfor %}
-  {% set x_list = xs.split(',') %}
+  {# ═════ STAFF BALANCE MINI CHART ═════ #}
+  {% if staff_balances %}
+  {% set max_rec = staff_balances|map(attribute='total_received')|map('float')|list|max or 1 %}
+  {% set colors = ['#22c55e','#ff8a1f','#3b82f6','#7c3aed','#ec4899','#14b8a6','#e67600','#ef4444'] %}
   <div class="fd-panel" style="margin-bottom:18px">
     <div class="fd-panel-head">
-      <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Balance Overview</h3>
+      <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Balances</h3>
+      <a href="{{ url_for('fleet.fleet_staff_list') }}">View all</a>
     </div>
-    <div style="padding:10px 20px 0">
-      {# legend #}
-      <div style="display:flex;gap:18px;margin-bottom:8px;font-size:0.72rem;font-weight:600">
-        <span><span style="display:inline-block;width:14px;height:3px;background:#22c55e;border-radius:2px;vertical-align:middle;margin-right:5px"></span> Received</span>
-        <span><span style="display:inline-block;width:14px;height:3px;background:#ff8a1f;border-radius:2px;vertical-align:middle;margin-right:5px"></span> Spent</span>
-        <span><span style="display:inline-block;width:14px;height:3px;background:#3b82f6;border-radius:2px;vertical-align:middle;margin-right:5px;opacity:0.6"></span> Balance</span>
-      </div>
-      <svg viewBox="0 0 {{ sw }} {{ sh }}" style="width:100%;height:auto;display:block">
-        {# grid lines #}
-        {% for g in grid_lines %}
-        {% set gy = pt + ch - (g / chart_max * ch)|round|int %}
-        <line x1="{{ pl }}" y1="{{ gy }}" x2="{{ pl + cw }}" y2="{{ gy }}" stroke="#eee" stroke-width="1"/>
-        <text x="{{ pl - 8 }}" y="{{ gy + 3 }}" text-anchor="end" font-size="10" fill="#999">AED {{ "%.0f"|format(g) }}</text>
-        {% endfor %}
-        {# axes #}
-        <line x1="{{ pl }}" y1="{{ pt }}" x2="{{ pl }}" y2="{{ pt + ch }}" stroke="#ddd" stroke-width="1"/>
-        <line x1="{{ pl }}" y1="{{ pt + ch }}" x2="{{ pl + cw }}" y2="{{ pt + ch }}" stroke="#ddd" stroke-width="1"/>
-        {# lines #}
-        <polyline points="{{ rec_pts }}" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-        <polyline points="{{ spent_pts }}" fill="none" stroke="#ff8a1f" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-        <polyline points="{{ bal_pts }}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6,3"/>
-        {# points + labels #}
-        {% for d in chart_data %}
-        {% set xi = x_list[loop.index0]|int %}
-        {% set rec_y = pt + ch - (d.rec / chart_max * ch)|round|int %}
-        {% set spent_y = pt + ch - (d.spent / chart_max * ch)|round|int %}
-        {% set bal_y = pt + ch - ((d.bal|abs) / chart_max * ch)|round|int %}
-        {% set rec_off = 0 %}
-        {% set spent_off = 18 %}
-        {% set bal_off = 36 %}
-        {% if loop.index is odd %}
-          {% set rec_off = -12 %}
-          {% set spent_off = 6 %}
-          {% set bal_off = 24 %}
-        {% endif %}
-        {# x-axis name #}
-        <a href="{{ url_for('fleet.fleet_staff_profile', staff_id=d.id) }}" style="cursor:pointer">
-          <text x="{{ xi }}" y="{{ pt + ch + 16 }}" text-anchor="middle" font-size="10" fill="#555" font-weight="600">{{ d.name.split(' ')[0] }}</text>
-          <text x="{{ xi }}" y="{{ pt + ch + 28 }}" text-anchor="middle" font-size="9" fill="#999">{{ d.id }}</text>
-        </a>
-        {# received point #}
-        <circle cx="{{ xi }}" cy="{{ rec_y }}" r="4.5" fill="#22c55e" stroke="#fff" stroke-width="2"/>
-        <text x="{{ xi }}" y="{{ rec_y - 8 + rec_off }}" text-anchor="middle" font-size="9" fill="#22c55e" font-weight="700">AED {{ "%.0f"|format(d.rec) }}</text>
-        {# spent point #}
-        <circle cx="{{ xi }}" cy="{{ spent_y }}" r="4.5" fill="#ff8a1f" stroke="#fff" stroke-width="2"/>
-        <text x="{{ xi }}" y="{{ spent_y - 8 + spent_off }}" text-anchor="middle" font-size="9" fill="#ff8a1f" font-weight="700">AED {{ "%.0f"|format(d.spent) }}</text>
-        {# balance point #}
-        <circle cx="{{ xi }}" cy="{{ bal_y }}" r="4.5" fill="{{ '#22c55e' if d.bal >= 0 else '#ef4444' }}" stroke="#fff" stroke-width="2"/>
-        <text x="{{ xi }}" y="{{ bal_y - 8 + bal_off }}" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700">AED {{ "%.0f"|format(d.bal|abs) }} {{ 'Left' if d.bal >= 0 else 'Due' }}</text>
-        {% endfor %}
-      </svg>
+    <div class="fd-chart">
+      {% for s in staff_balances %}
+      {% set rec = s.total_received|float %}
+      {% set spent = s.total_spent|float %}
+      {% set bal = rec - spent %}
+      {% set pct = (rec / max_rec * 100)|round|int %}
+      {% if pct < 5 %}{% set pct = 5 %}{% endif %}
+      {% set spent_pct = (spent / rec * 100)|round|int if rec > 0 else 0 %}
+      <a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="text-decoration:none;color:inherit">
+        <div class="fd-chart-bar-wrap">
+          <span class="fd-chart-label" style="min-width:90px;font-size:0.68rem">{{ s.full_name.split(' ')[0] }}</span>
+          <div style="flex:1;position:relative;height:24px;background:#e8f5e9;border-radius:6px;overflow:hidden">
+            <div class="fd-chart-bar green" style="width:{{ pct }}%;height:100%;position:absolute;left:0;top:0;border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:0.65rem;font-weight:700;color:#fff;z-index:1">
+              AED {{ "%.0f"|format(rec) }}
+            </div>
+            <div style="width:{{ spent_pct }}%;height:100%;position:absolute;left:0;top:0;background:linear-gradient(90deg,rgba(255,138,31,0.6),rgba(230,81,0,0.7));border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:0.65rem;font-weight:700;color:#fff">
+              AED {{ "%.0f"|format(spent) }}
+            </div>
+          </div>
+          <span style="font-size:0.65rem;font-weight:700;min-width:55px;text-align:right;color:{{ '#16a34a' if bal >= 0 else '#dc2626' }}">AED {{ "%.0f"|format(bal|abs) }} {{ 'L' if bal >= 0 else 'D' }}</span>
+        </div>
+      </a>
+      {% endfor %}
     </div>
   </div>
   {% endif %}

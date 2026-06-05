@@ -213,19 +213,6 @@ def fleet_dashboard():
         ORDER BY fs.full_name
     """).fetchall()
 
-    chart_data = []
-    chart_max = 1
-    for s in staff_balances:
-        rec = float(s["total_received"])
-        spent = float(s["total_spent"])
-        bal = rec - spent
-        chart_max = max(chart_max, rec, spent, abs(bal))
-        chart_data.append({
-            "name": s["full_name"], "id": s["staff_id"],
-            "rec": rec, "spent": spent, "bal": bal,
-        })
-    chart_max = chart_max * 1.15  # headroom
-
     return render_template(
         "fleet/dashboard.html",
         vehicles=vehicles,
@@ -240,8 +227,6 @@ def fleet_dashboard():
         top_vehicles=top_vehicles,
         total_pending_cost=float(total_pending_cost),
         staff_balances=staff_balances,
-        chart_data=chart_data,
-        chart_max=chart_max,
     )
 
 
