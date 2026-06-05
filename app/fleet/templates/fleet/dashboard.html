@@ -248,36 +248,42 @@
     </table>
   </div>
 
-  {# ═════ STAFF BALANCE MINI CHART ═════ #}
+  {# ═════ STAFF BALANCE DONUT CHART ═════ #}
   {% if staff_balances %}
-  {% set max_rec = staff_balances|map(attribute='total_received')|map('float')|list|max or 1 %}
-  {% set colors = ['#22c55e','#ff8a1f','#3b82f6','#7c3aed','#ec4899','#14b8a6','#e67600','#ef4444'] %}
   <div class="fd-panel" style="margin-bottom:18px">
     <div class="fd-panel-head">
       <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Balances</h3>
       <a href="{{ url_for('fleet.fleet_staff_list') }}">View all</a>
     </div>
-    <div class="fd-chart">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;padding:14px 16px">
+      {% set r = 16 %}
+      {% set sw = 7 %}
+      {% set circ = (2 * 3.1416 * r)|round(1) %}
       {% for s in staff_balances %}
       {% set rec = s.total_received|float %}
       {% set spent = s.total_spent|float %}
       {% set bal = rec - spent %}
-      {% set pct = (rec / max_rec * 100)|round|int %}
-      {% if pct < 5 %}{% set pct = 5 %}{% endif %}
-      {% set spent_pct = (spent / rec * 100)|round|int if rec > 0 else 0 %}
-      <a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="text-decoration:none;color:inherit">
-        <div class="fd-chart-bar-wrap">
-          <span class="fd-chart-label" style="min-width:90px;font-size:0.68rem">{{ s.full_name.split(' ')[0] }}</span>
-          <div style="flex:1;position:relative;height:24px;background:#e8f5e9;border-radius:6px;overflow:hidden">
-            <div class="fd-chart-bar green" style="width:{{ pct }}%;height:100%;position:absolute;left:0;top:0;border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:0.65rem;font-weight:700;color:#fff;z-index:1">
-              AED {{ "%.0f"|format(rec) }}
-            </div>
-            <div style="width:{{ spent_pct }}%;height:100%;position:absolute;left:0;top:0;background:linear-gradient(90deg,rgba(255,138,31,0.6),rgba(230,81,0,0.7));border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:0.65rem;font-weight:700;color:#fff">
-              AED {{ "%.0f"|format(spent) }}
-            </div>
-          </div>
-          <span style="font-size:0.65rem;font-weight:700;min-width:55px;text-align:right;color:{{ '#16a34a' if bal >= 0 else '#dc2626' }}">AED {{ "%.0f"|format(bal|abs) }} {{ 'L' if bal >= 0 else 'D' }}</span>
-        </div>
+      {% if rec > 0 %}
+        {% set spent_ratio = (spent / rec) %}
+        {% if spent_ratio > 1 %}{% set spent_ratio = 1 %}{% endif %}
+        {% set spent_len = (spent_ratio * circ)|round(1) %}
+      {% else %}
+        {% set spent_len = 0 %}
+      {% endif %}
+      <a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="text-decoration:none;color:inherit;display:flex;flex-direction:column;align-items:center;min-width:68px">
+        <svg viewBox="0 0 48 48" width="48" height="48">
+          {# background ring #}
+          <circle cx="24" cy="24" r="{{ r }}" fill="none" stroke="#e8f5e9" stroke-width="{{ sw }}"/>
+          {% if rec > 0 and spent > 0 %}
+          <circle cx="24" cy="24" r="{{ r }}" fill="none" stroke="#ff8a1f" stroke-width="{{ sw }}" stroke-dasharray="{{ spent_len }} {{ circ - spent_len }}" stroke-dashoffset="0" transform="rotate(-90 24 24)"/>
+          {% endif %}
+          {% if bal < 0 %}
+          <circle cx="24" cy="24" r="{{ r }}" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="4 4" transform="rotate(-90 24 24)" opacity="0.6"/>
+          {% endif %}
+          <text x="24" y="20" text-anchor="middle" font-size="7" font-weight="700" fill="#333">{{ s.full_name.split(' ')[0] }}</text>
+          <text x="24" y="28" text-anchor="middle" font-size="5" fill="#888">{{ s.staff_id }}</text>
+        </svg>
+        <div style="font-size:0.6rem;font-weight:700;margin-top:2px;color:{{ '#16a34a' if bal >= 0 else '#dc2626' }}">AED {{ "%.0f"|format(bal|abs) }}</div>
       </a>
       {% endfor %}
     </div>
