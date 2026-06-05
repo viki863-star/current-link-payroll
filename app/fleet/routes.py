@@ -1381,11 +1381,6 @@ def fleet_staff_profile(staff_id):
     total_pending = float(total_jobs_pending) + float(total_papers_pending)
     balance = total_received - total_spent
 
-    advances = db.execute(
-        "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
-        (staff_id,),
-    ).fetchall()
-
     jobs = db.execute("""
         SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
         LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
@@ -1440,8 +1435,6 @@ def fleet_staff_profile(staff_id):
         "fleet/fleet_staff_profile.html",
         s=s,
         total_received=total_received,
-        total_advances=total_advances,
-        total_cash=total_cash,
         total_spent=total_spent,
         balance=balance,
         items=items,
