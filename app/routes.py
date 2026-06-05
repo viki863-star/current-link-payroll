@@ -236,7 +236,7 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/company-profile")
     def company_profile():
-        return render_template("company_profile.html")
+        return render_template("company_profile.html"), 200, {"Content-Type": "text/html; charset=utf-8"}
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
