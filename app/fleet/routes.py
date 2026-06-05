@@ -270,7 +270,7 @@ def vehicle_list():
                 LEFT JOIN vehicle_assignments va ON va.vehicle_id = v.plate_no AND va.is_current = 1
                 LEFT JOIN employees e ON e.employee_id = va.driver_id
                 WHERE {where_sql}
-                ORDER BY v.plate_no""",
+                ORDER BY v.ownership_type, v.plate_no""",
             params,
 
         ).fetchall()
