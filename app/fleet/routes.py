@@ -1362,18 +1362,30 @@ def fleet_staff_profile(staff_id):
 
     total_received = float(total_advances) + float(total_cash)
 
-    total_jobs = db.execute(
-        "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status IN ('approved','pending')",
+    total_jobs_approved = db.execute(
+        "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'",
         (staff_id,),
     ).fetchone()["t"] or 0
 
-    total_papers = db.execute(
-        "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status IN ('Approved','Pending')",
+    total_papers_approved = db.execute(
+        "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status = 'Approved'",
         (staff_id,),
     ).fetchone()["t"] or 0
 
-    total_spent = float(total_jobs) + float(total_papers)
-    balance = total_received - total_spent
+    total_spent = float(total_jobs_approved) + float(total_papers_approved)
+
+    total_jobs_pending = db.execute(
+        "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'pending'",
+        (staff_id,),
+    ).fetchone()["t"] or 0
+
+    total_papers_pending = db.execute(
+        "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status = 'Pending'",
+        (staff_id,),
+    ).fetchone()["t"] or 0
+
+    total_pending = float(total_jobs_pending) + float(total_papers_pending)
+    balance = total_received - total_spent - total_pending
 
     advances = db.execute(
         "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
