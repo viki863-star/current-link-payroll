@@ -72,14 +72,14 @@
       <div class="sp-card-val light">AED {{ "%.0f"|format(total_spent) }}</div>
       <div class="sp-card-sub light">Approved jobs</div>
     </div>
-    <div class="sp-card" style="background:linear-gradient(145deg,{{ '#22c55e' if balance >= 0 else '#dc2626' }},{{ '#16a34a' if balance >= 0 else '#b91c1c' }});box-shadow:0 8px 25px rgba({{ '34,197,94' if balance >= 0 else '220,38,38' }},0.3)">
+    <div class="sp-card" style="background:linear-gradient(145deg,{{ '#22c55e' if remaining >= 0 else '#dc2626' }},{{ '#16a34a' if remaining >= 0 else '#b91c1c' }});box-shadow:0 8px 25px rgba({{ '34,197,94' if remaining >= 0 else '220,38,38' }},0.3)">
       <div class="sp-card-shine"></div>
       <div class="sp-card-icon" style="background:rgba(255,255,255,0.12);width:32px;height:32px;border-radius:8px;display:grid;place-items:center">
         <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       </div>
-      <div class="sp-card-label light">{{ 'Available' if balance >= 0 else 'Due' }}</div>
-      <div class="sp-card-val light">AED {{ "%.0f"|format(balance|abs) }}</div>
-      <div class="sp-card-sub light">{{ 'Received minus spent' if balance >= 0 else 'Overspent by' }}</div>
+      <div class="sp-card-label light">{{ 'Available' if remaining >= 0 else 'Due' }}</div>
+      <div class="sp-card-val light">AED {{ "%.0f"|format(remaining|abs) }}</div>
+      <div class="sp-card-sub light">{{ 'Remaining credit' if remaining >= 0 else 'Exceeded by' }}</div>
     </div>
   </div>
 
