@@ -234,6 +234,10 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for(_role_home_endpoint()))
         return render_template("landing.html")
 
+    @app.route("/company-profile")
+    def company_profile():
+        return render_template("company_profile.html")
+
     @app.route("/login", methods=["GET", "POST"])
     def login():
         if _current_role():
