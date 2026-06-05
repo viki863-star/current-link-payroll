@@ -1377,6 +1377,33 @@ def fleet_approvals():
     return render_template("fleet/fleet_approvals.html", pending_jobs=pending_jobs, recent_approved=recent_approved)
 
 
+@fleet_bp.route("/fleet/jobs/approve-all", methods=["POST"])
+@_login_required("admin")
+def fleet_job_approve_all():
+    _touch_admin_workspace("fleet")
+    db = open_db()
+    pending = db.execute("SELECT id, category, amount, staff_id FROM maintenance_jobs WHERE status='pending'").fetchall()
+    if not pending:
+        flash("No pending jobs to approve.", "info")
+        return redirect(url_for("fleet.fleet_approvals"))
+    now = datetime.now().isoformat()
+    db.execute("UPDATE maintenance_jobs SET status='approved', approved_at=? WHERE status='pending'", (now,))
+    db.commit()
+    try:
+        from app.notification_service import add_notification
+        add_notification(title=f"All {len(pending)} pending jobs approved", type="success", role="admin", link="/fleet/approvals")
+        notified = set()
+        for j in pending:
+            sid = j["staff_id"]
+            if sid and sid not in notified:
+                notified.add(sid)
+                add_notification(title=f"Your job{'s' if len(pending)>1 else ''} approved", type="success", role="technician")
+    except:
+        pass
+    flash(f"All {len(pending)} pending jobs approved.", "success")
+    return redirect(url_for("fleet.fleet_approvals"))
+
+
 @fleet_bp.route("/fleet/jobs/<int:job_id>/approve", methods=["POST"])
 @_login_required("admin")
 def fleet_job_approve(job_id):

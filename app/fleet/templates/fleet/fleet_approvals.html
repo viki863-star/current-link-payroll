@@ -7,10 +7,16 @@
 <div class="list-shell">
     {% if pending_jobs %}
     <div class="profile-card" style="margin-bottom:20px;border-color:var(--orange)">
-        <h3 style="color:var(--orange);margin-bottom:12px">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            Pending Approval ({{ pending_jobs|length }})
-        </h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="color:var(--orange);margin:0">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Pending Approval ({{ pending_jobs|length }})
+            </h3>
+            <form method="POST" action="{{ url_for('fleet.fleet_job_approve_all') }}" onsubmit="return confirm('Approve all {{ pending_jobs|length }} pending jobs?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-primary" style="background:var(--green);border-color:var(--green)">&#10003; Approve All</button>
+            </form>
+        </div>
         <div class="table-wrap">
             <table class="smart-table">
                 <thead>
