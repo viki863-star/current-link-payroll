@@ -98,6 +98,12 @@
                         <td><span class="status-badge {{ 'active' if j.status == 'approved' else 'danger' }}">{{ j.status }}</span></td>
                         <td class="action-cell" style="white-space:nowrap">
                             <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline">&#9998; Edit</a>
+                            {% if j.status == 'approved' or j.status == 'rejected' %}
+                            <form method="POST" action="{{ url_for('fleet.fleet_job_revert', job_id=j.id) }}" style="display:inline" onsubmit="return confirm('Revert job #{{ j.id }} to pending?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-xs btn-outline" style="color:var(--orange);border-color:var(--orange)">&#8634; Pending</button>
+                            </form>
+                            {% endif %}
                             <form method="POST" action="{{ url_for('fleet.fleet_job_delete', job_id=j.id) }}" style="display:inline" onsubmit="return confirm('Delete this job?')">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-xs btn-outline" style="color:var(--danger);border-color:var(--danger)">&#10005; Delete</button>

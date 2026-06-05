@@ -48,6 +48,15 @@
                 <input type="file" name="attachment" class="form-control" accept="image/*,.pdf">
             </div>
 
+            <div class="form-row">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-control">
+                    <option value="pending" {% if job.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="approved" {% if job.status == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="rejected" {% if job.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                </select>
+            </div>
+
             <button type="submit" class="btn btn-primary">Update Job</button>
         </form>
     </div>

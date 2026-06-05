@@ -1717,6 +1717,7 @@ def fleet_job_edit(job_id):
         amount = request.form.get("amount", "").strip()
         category = request.form.get("category", "").strip()
         description = request.form.get("description", "").strip()
+        status = request.form.get("status", "").strip()
 
         attachment_name = job["attachment_name"]
         attachment_data = job["attachment_data"]
@@ -1729,13 +1730,15 @@ def fleet_job_edit(job_id):
                 attachment_data = base64.b64encode(file.read()).decode("utf-8")
                 attachment_type = file.content_type
 
+        new_status = status if status in ("pending", "approved", "rejected") else job["status"]
         db.execute(
             """UPDATE maintenance_jobs
                SET vehicle_id=?, amount=?, category=?, description=?,
-                   attachment_name=?, attachment_data=?, attachment_type=?
+                   attachment_name=?, attachment_data=?, attachment_type=?,
+                   status=?
                WHERE id=?""",
             (vehicle_id or "N/A", float(amount), category, description,
-             attachment_name, attachment_data, attachment_type, job_id),
+             attachment_name, attachment_data, attachment_type, new_status, job_id),
         )
         db.commit()
         flash("Job updated.", "success")
@@ -1756,6 +1759,17 @@ def fleet_job_delete(job_id):
         db.execute("DELETE FROM maintenance_jobs WHERE id = ?", (job_id,))
         db.commit()
         flash("Job deleted.", "info")
+    return redirect(url_for("fleet.fleet_approvals"))
+
+
+@fleet_bp.route("/fleet/jobs/<int:job_id>/revert", methods=["POST"])
+@_login_required("admin")
+def fleet_job_revert(job_id):
+    _touch_admin_workspace("fleet")
+    db = open_db()
+    db.execute("UPDATE maintenance_jobs SET status='pending' WHERE id=?", (job_id,))
+    db.commit()
+    flash("Job reverted to pending.", "success")
     return redirect(url_for("fleet.fleet_approvals"))
 
 
