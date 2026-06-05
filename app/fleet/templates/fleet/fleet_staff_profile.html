@@ -111,16 +111,9 @@
             <td style="color:var(--muted);font-size:0.72rem">{{ c._source }}{% if c._notes %} &middot; {{ c._notes|truncate(50) }}{% endif %}</td>
             <td>
               <div class="action-btns">
-                <a href="{{ url_for('fleet.fleet_staff_receipts', staff_id=s.staff_id) }}" style="background:#e3f0ff;color:var(--primary)">Edit</a>
-                {% if c._type == 'advance' %}
-                <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) }}" style="margin:0;display:inline" onsubmit="return confirm('Delete this entry?')">
+                <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) if c._type == 'advance' else url_for('fleet.fleet_staff_receipt_delete', staff_id=s.staff_id, receipt_id=c.id) }}" style="margin:0;display:inline" onsubmit="return confirm('Delete this entry?')">
                   <button type="submit" style="background:#ffebee;color:#c62828">Del</button>
                 </form>
-                {% else %}
-                <form method="POST" action="{{ url_for('fleet.fleet_staff_receipt_delete', staff_id=s.staff_id, receipt_id=c.id) }}" style="margin:0;display:inline" onsubmit="return confirm('Delete this entry?')">
-                  <button type="submit" style="background:#ffebee;color:#c62828">Del</button>
-                </form>
-                {% endif %}
               </div>
             </td>
           </tr>
