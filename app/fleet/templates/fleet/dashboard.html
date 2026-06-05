@@ -248,71 +248,7 @@
     </table>
   </div>
 
-  {# ═════ STAFF BALANCE DONUT CHART ═════ #}
-  {% if staff_balances %}
-  <style>
-  .bd-card { display:flex; flex-direction:column; align-items:center; padding:14px 10px 12px; background:#f8fafb; border-radius:14px; text-decoration:none; color:inherit; transition:all 0.15s; min-width:88px; border:1px solid #eef2f4; }
-  .bd-card:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,0.08); border-color:#d0d9e0; background:#fff; }
-  .bd-name { font-size:0.7rem; font-weight:700; margin-top:4px; color:#1a2332; text-align:center; }
-  .bd-id { font-size:0.58rem; color:#8a9aa8; }
-  .bd-amt { font-size:0.72rem; font-weight:800; margin-top:1px; }
-  </style>
-  <div class="fd-panel" style="margin-bottom:18px">
-    <div class="fd-panel-head">
-      <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Balances</h3>
-      <a href="{{ url_for('fleet.fleet_staff_list') }}">View all</a>
-    </div>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;padding:12px 14px">
-      {% set r = 26 %}
-      {% set sw = 9 %}
-      {% set circ = (2 * 3.1416 * r)|round(1) %}
-      {% for s in staff_balances %}
-      {% set rec = s.total_received|float %}
-      {% set spent = s.total_spent|float %}
-      {% set bal = rec - spent %}
-      {% if rec > 0 %}
-        {% set sr = (spent / rec) %}{% if sr > 1 %}{% set sr = 1 %}{% endif %}
-        {% set spent_len = (sr * circ)|round(1) %}
-        {% set gap_len = (circ - spent_len)|round(1) %}
-      {% else %}
-        {% set spent_len = 0 %}{% set gap_len = circ %}
-      {% endif %}
-      <a class="bd-card" href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}">
-        <svg viewBox="0 0 64 64" width="58" height="58">
-          {# green — cash received (full ring) #}
-          <circle cx="32" cy="32" r="{{ r }}" fill="none" stroke="#22c55e" stroke-width="{{ sw }}" opacity="0.2"/>
-          {# red — spent #}
-          {% if rec > 0 and spent > 0 %}
-          <circle cx="32" cy="32" r="{{ r }}" fill="none" stroke="#ef4444" stroke-width="{{ sw }}" stroke-dasharray="{{ spent_len }} {{ circ }}" stroke-dashoffset="0" transform="rotate(-90 32 32)"/>
-          {% endif %}
-          {# yellow — balance left #}
-          {% if bal > 0 %}
-          <circle cx="32" cy="32" r="{{ r }}" fill="none" stroke="#eab308" stroke-width="{{ sw }}" stroke-dasharray="{{ gap_len }} {{ circ }}" stroke-dashoffset="{{ -spent_len }}" transform="rotate(-90 32 32)"/>
-          {% endif %}
-          {# if overspent — yellow dotted ring for due #}
-          {% if bal < 0 and rec > 0 %}
-          {% set due_len = ((bal|abs) / rec * circ)|round(1) %}
-          <circle cx="32" cy="32" r="{{ r + 4 }}" fill="none" stroke="#eab308" stroke-width="3" stroke-dasharray="6 5" opacity="0.9" transform="rotate(-90 32 32)"/>
-          {% endif %}
-          {# if no received yet — gray #}
-          {% if rec == 0 %}
-          <circle cx="32" cy="32" r="{{ r }}" fill="none" stroke="#d0d9e0" stroke-width="{{ sw }}" stroke-dasharray="6 8"/>
-          {% endif %}
-          <text x="32" y="25" text-anchor="middle" font-size="9" font-weight="700" fill="#1a2332">{{ s.full_name.split(' ')[0] }}</text>
-          <text x="32" y="35" text-anchor="middle" font-size="7" fill="#8a9aa8">{{ s.staff_id }}</text>
-          {# small dots for legend #}
-          <circle cx="15" cy="50" r="2.5" fill="#22c55e" opacity="0.5"/>
-          <circle cx="25" cy="50" r="2.5" fill="#ef4444"/>
-          <circle cx="35" cy="50" r="2.5" fill="#eab308"/>
-        </svg>
-        <div class="bd-name">{{ s.full_name }}</div>
-        <div class="bd-id">{{ s.staff_id }}</div>
-        <div class="bd-amt" style="color:{{ '#16a34a' if bal >= 0 else '#dc2626' }}">AED {{ "%.0f"|format(bal|abs) }} {{ 'Left' if bal >= 0 else 'Due' }}</div>
-      </a>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
+  {# ═════ VEHICLES TABLE ═════ #}
 
   {# ═════ VEHICLES TABLE ═════ #}
   <div class="fd-panel">
