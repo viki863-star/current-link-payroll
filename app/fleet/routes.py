@@ -1286,6 +1286,29 @@ def fleet_staff_profile(staff_id):
         (staff_id,),
     ).fetchall()
 
+    cash_items = []
+    for a in advances:
+        d = dict(a)
+        d["_type"] = "advance"
+        d["_id"] = f"advance_{a['id']}"
+        d["_date"] = str(a.get("entry_date", ""))
+        d["_amount"] = a["amount"]
+        d["_source"] = a.get("funding_source", "Advance")
+        d["_notes"] = a.get("notes", a.get("reference", ""))
+        d["_given_by"] = ""
+        cash_items.append(d)
+    for r in receipts:
+        d = dict(r)
+        d["_type"] = "receipt"
+        d["_id"] = f"receipt_{r['id']}"
+        d["_date"] = str(r.get("receipt_date", ""))
+        d["_amount"] = r["amount"]
+        d["_source"] = f"Receipt from {r.get('given_by','')}"
+        d["_notes"] = r.get("notes", "")
+        d["_given_by"] = r.get("given_by", "")
+        cash_items.append(d)
+    cash_items.sort(key=lambda x: x["_date"], reverse=True)
+
     return render_template(
         "fleet/fleet_staff_profile.html",
         s=s,
@@ -1297,6 +1320,7 @@ def fleet_staff_profile(staff_id):
         items=items,
         receipts=receipts,
         advances=advances,
+        cash_items=cash_items,
     )
 
 
