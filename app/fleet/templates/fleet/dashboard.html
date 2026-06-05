@@ -228,6 +228,32 @@
     </div>
   </div>
 
+  {# ═════ STAFF BALANCES ═════ #}
+  <div class="fd-panel" style="margin-bottom:18px">
+    <div class="fd-panel-head">
+      <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg> Field Staff Balances</h3>
+      <a href="{{ url_for('fleet.fleet_staff_list') }}">View all</a>
+    </div>
+    <table class="fd-table">
+      <thead><tr><th>Staff</th><th>Phone</th><th>Received</th><th>Spent</th><th>Balance</th><th></th></tr></thead>
+      <tbody>
+        {% for s in staff_balances %}
+        {% set bal = s.total_received|float - s.total_spent|float %}
+        <tr class="clickable" onclick="window.location='{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}'">
+          <td style="font-weight:600">{{ s.full_name }}<br><span class="mono" style="font-size:0.65rem;color:var(--muted)">{{ s.staff_id }}</span></td>
+          <td style="font-size:0.72rem">{{ s.phone or '—' }}</td>
+          <td style="font-weight:600;color:#16a34a">AED {{ "%.0f"|format(s.total_received) }}</td>
+          <td style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(s.total_spent) }}</td>
+          <td style="font-weight:700;font-size:0.85rem;color:{{ '#16a34a' if bal >= 0 else '#dc2626' }}">AED {{ "%.0f"|format(bal|abs) }} {{ 'Due' if bal < 0 else 'Left' }}</td>
+          <td><a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" class="btn btn-xs btn-primary">Profile</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="padding:30px;text-align:center;color:var(--muted)">No field staff.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
   {# ═════ VEHICLES TABLE ═════ #}
   <div class="fd-panel">
     <div class="fd-panel-head">
@@ -235,18 +261,17 @@
       <a href="{{ url_for('fleet.vehicle_list') }}">View all</a>
     </div>
     <table class="fd-table">
-      <thead><tr><th>Plate</th><th>Type</th><th>Owner</th><th>Driver</th><th>Status</th></tr></thead>
+      <thead><tr><th>Plate</th><th>Type</th><th>Owner</th><th>Status</th></tr></thead>
       <tbody>
-        {% for v in vehicles[:8] %}
+        {% for v in vehicles[:6] %}
         <tr class="clickable" onclick="window.location='{{ vehicle_url(v.plate_no) }}'">
           <td style="font-weight:600;font-family:monospace">{{ v.plate_no }}</td>
           <td>{{ v.vehicle_type }}</td>
-          <td>{% if v.ownership_type == 'Partnership' %}{{ v.partner_name or 'Partner' }} ({{ "%.0f"|format(v.partner_percent) }}%){% else %}Standard{% endif %}</td>
-          <td>{{ v.get('current_driver').full_name if v.get('current_driver') else '—' }}</td>
+          <td>{% if v.ownership_type == 'Partnership' %}{{ v.partner_name or 'Partner' }}{% else %}Standard{% endif %}</td>
           <td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td>
         </tr>
         {% else %}
-        <tr><td colspan="5" style="padding:30px;text-align:center;color:var(--muted)">No vehicles yet.</td></tr>
+        <tr><td colspan="4" style="padding:30px;text-align:center;color:var(--muted)">No vehicles yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>

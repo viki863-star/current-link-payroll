@@ -185,6 +185,20 @@ def fleet_dashboard():
         "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE status='pending'"
     ).fetchone()["t"] or 0
 
+    # Staff balances
+    staff_balances = db.execute("""
+        SELECT fs.staff_id, fs.full_name, fs.phone,
+            COALESCE(adv.total_adv, 0) + COALESCE(cr.total_cr, 0) AS total_received,
+            COALESCE(mj.total_jobs, 0) + COALESCE(mp.total_papers, 0) AS total_spent
+        FROM field_staff fs
+        LEFT JOIN (SELECT staff_code, SUM(amount) AS total_adv FROM maintenance_staff_advances GROUP BY staff_code) adv ON adv.staff_code = fs.staff_id
+        LEFT JOIN (SELECT staff_id, SUM(amount) AS total_cr FROM cash_receipts GROUP BY staff_id) cr ON cr.staff_id = fs.staff_id
+        LEFT JOIN (SELECT staff_id, SUM(amount) AS total_jobs FROM maintenance_jobs WHERE status IN ('pending','approved') GROUP BY staff_id) mj ON mj.staff_id = fs.staff_id
+        LEFT JOIN (SELECT technician_code, SUM(total_amount) AS total_papers FROM maintenance_papers WHERE review_status='Approved' GROUP BY technician_code) mp ON mp.technician_code = fs.staff_id
+        WHERE fs.staff_id IS NOT NULL AND fs.staff_id != ''
+        ORDER BY fs.full_name
+    """).fetchall()
+
     return render_template(
         "fleet/dashboard.html",
         vehicles=vehicles,
@@ -198,6 +212,7 @@ def fleet_dashboard():
         recent_jobs=recent_jobs,
         top_vehicles=top_vehicles,
         total_pending_cost=float(total_pending_cost),
+        staff_balances=staff_balances,
     )
 
 
