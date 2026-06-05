@@ -1385,7 +1385,8 @@ def fleet_staff_profile(staff_id):
     ).fetchone()["t"] or 0
 
     total_pending = float(total_jobs_pending) + float(total_papers_pending)
-    balance = total_received - total_spent
+    # Available = what they received minus what they've spent (capped at 0, no confusing abs increase)
+    available = max(0, total_received - total_spent)
 
     advances = db.execute(
         "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
@@ -1459,7 +1460,7 @@ def fleet_staff_profile(staff_id):
         total_advances=total_advances,
         total_cash=total_cash,
         total_spent=total_spent,
-        balance=balance,
+        available=available,
         items=items,
         receipts=receipts,
         advances=advances,
