@@ -156,7 +156,7 @@ def fleet_dashboard():
            FROM maintenance_jobs mj
            LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
            WHERE mj.status = 'approved'
-           GROUP BY plate_no
+           GROUP BY COALESCE(v.plate_no, mj.vehicle_id), v.vehicle_type
            ORDER BY total_spent DESC
            LIMIT 10"""
     ).fetchall()
