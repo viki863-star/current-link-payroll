@@ -5,166 +5,215 @@
 
 {% block content %}
 <style>
-.sp-container { max-width:900px; margin:0 auto; }
+.sp-container { max-width:1000px; margin:0 auto; }
 .sp-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
 .sp-name { margin:0; font-size:1.3rem; font-weight:700; }
 .sp-id { font-size:0.8rem; color:var(--muted); font-family:monospace; }
-.sp-summary { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
-.sp-card { flex:1; min-width:110px; border-radius:18px; padding:18px 12px; text-align:center; position:relative; overflow:hidden; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); transition:transform 0.2s, box-shadow 0.2s; }
+.sp-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
+.sp-card { border-radius:18px; padding:20px 16px; position:relative; overflow:hidden; transition:transform 0.2s; cursor:default; }
 .sp-card:active { transform:scale(0.96); }
-.sp-card-orange { background:linear-gradient(145deg, #ff8a1f, #e67600); box-shadow:0 8px 25px rgba(230,118,0,0.35), inset 0 1px 0 rgba(255,255,255,0.3); border:none; }
-.sp-card-red { background:linear-gradient(145deg, #dc3545, #b91c2e); box-shadow:0 8px 25px rgba(220,53,69,0.35), inset 0 1px 0 rgba(255,255,255,0.25); border:none; }
-.sp-card-blue { background:linear-gradient(145deg, #1c568b, #0f3a6b); box-shadow:0 8px 25px rgba(28,86,139,0.35), inset 0 1px 0 rgba(255,255,255,0.2); border:none; }
-.sp-card-default { background:var(--surface); border:1px solid var(--line); box-shadow:0 2px 8px rgba(0,0,0,0.04); }
-.sp-card-shine { position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%); pointer-events:none; border-radius:18px 18px 0 0; }
-.sp-card-label { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; position:relative; z-index:1; }
-.sp-card-label.light { color:rgba(255,255,255,0.85); }
-.sp-card-label.dark { color:var(--muted); }
-.sp-card-value { font-size:1.2rem; font-weight:800; position:relative; z-index:1; }
-.sp-card-value.light { color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.2); }
-.sp-card-value.dark { color:var(--text); }
+.sp-card-shine { position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg,rgba(255,255,255,0.2) 0%,transparent 100%); border-radius:18px 18px 0 0; }
+.sp-card-icon { width:32px; height:32px; border-radius:10px; display:grid; place-items:center; margin-bottom:8px; }
+.sp-card-label { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; position:relative; z-index:1; }
+.sp-card-label.light { color:rgba(255,255,255,0.8); }
+.sp-card-val { font-size:1.4rem; font-weight:800; position:relative; z-index:1; }
+.sp-card-val.light { color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.sp-card-sub { font-size:0.65rem; position:relative; z-index:1; margin-top:2px; }
+.sp-card-sub.light { color:rgba(255,255,255,0.65); }
 .sp-section { margin-bottom:20px; }
-.sp-section-title { font-size:0.95rem; font-weight:700; margin:0 0 12px; display:flex; align-items:center; gap:8px; }
-.sp-section-title .badge { font-size:0.7rem; }
+.sp-section-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+.sp-section-title { font-size:0.95rem; font-weight:700; margin:0; display:flex; align-items:center; gap:8px; }
+.sp-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+.sp-table th { text-align:left; padding:8px 10px; font-size:0.62rem; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; color:var(--muted); background:rgba(0,0,0,0.02); border-bottom:1px solid var(--line); }
+.sp-table td { padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+.sp-table tr:last-child td { border-bottom:none; }
+.sp-table .action-btns { display:flex; gap:4px; }
+.sp-table .action-btns a, .sp-table .action-btns button { padding:4px 8px; border-radius:6px; font-size:0.65rem; font-weight:600; text-decoration:none; border:none; cursor:pointer; transition:opacity 0.1s; }
+.sp-table .action-btns a:hover, .sp-table .action-btns button:hover { opacity:0.75; }
+.sp-empty { padding:30px; text-align:center; color:var(--muted); font-size:0.85rem; }
+@media(max-width:600px){
+  .sp-cards { grid-template-columns:1fr; gap:10px; }
+  .sp-card { padding:16px; }
+  .sp-card-val { font-size:1.2rem; }
+}
 </style>
 
 <div class="sp-container">
-    <div class="sp-header">
-        <div>
-            <h1 class="sp-name">{{ s.full_name }}</h1>
-            <span class="sp-id">{{ s.staff_id }} · {{ s.phone or '—' }} · {{ s.username }}</span>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <a href="{{ url_for('fleet.fleet_staff_edit', staff_id=s.staff_id) }}" class="btn btn-sm btn-outline">Edit</a>
-            <a href="{{ url_for('fleet.fleet_staff_receipts', staff_id=s.staff_id) }}" class="btn btn-sm btn-primary">Add Cash</a>
-            <a href="{{ url_for('fleet.fleet_staff_list') }}" class="btn btn-sm btn-outline">&larr; Back</a>
-        </div>
+  {# ═══ HEADER ═══ #}
+  <div class="sp-header">
+    <div>
+      <h1 class="sp-name">{{ s.full_name }}</h1>
+      <span class="sp-id">{{ s.staff_id }} &middot; {{ s.phone or '—' }} &middot; {{ s.username }}</span>
     </div>
-
-    <div class="sp-summary">
-        <div class="sp-card sp-card-orange" onclick="toggleDetail('advancesSection')" style="cursor:pointer">
-            <div class="sp-card-shine"></div>
-            <div class="sp-card-label light">Advances</div>
-            <div class="sp-card-value light">AED {{ "%.0f"|format(total_advances) }}</div>
-        </div>
-        <div class="sp-card sp-card-red">
-            <div class="sp-card-shine"></div>
-            <div class="sp-card-label light">Spent</div>
-            <div class="sp-card-value light">AED {{ "%.0f"|format(total_spent) }}</div>
-        </div>
-        <div class="sp-card sp-card-blue">
-            <div class="sp-card-shine"></div>
-            <div class="sp-card-label light">{% if balance >= 0 %}Remaining{% else %}Due{% endif %}</div>
-            <div class="sp-card-value light">AED {{ "%.0f"|format(balance * -1 if balance < 0 else balance) }}</div>
-        </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="{{ url_for('fleet.fleet_staff_edit', staff_id=s.staff_id) }}" class="btn btn-sm btn-outline">Edit Staff</a>
+      <a href="{{ url_for('fleet.fleet_staff_receipts', staff_id=s.staff_id) }}" class="btn btn-sm btn-primary">+ Receive Cash</a>
+      <a href="{{ url_for('fleet.fleet_staff_list') }}" class="btn btn-sm btn-outline">&larr; Back</a>
     </div>
+  </div>
 
-    <form method="post" action="{{ url_for('fleet.fleet_staff_delete_items', staff_id=s.staff_id) }}" id="deleteForm" onsubmit="var c=this.querySelectorAll('input[name=item_ids]:checked');if(c.length===0){alert('Select at least one item.');return false}return confirm('Delete '+c.length+' selected item(s)?')">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-    {% if advances %}
-    <div class="profile-card sp-section">
-        <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span>Advances Given <span class="badge badge-dept">{{ advances|length }}</span></span>
-            <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
-                <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.advance-select').forEach(function(c){c.checked=ch})"> Select All
-            </label>
-        </h3>
-        <div class="table-wrap">
-            <table class="smart-table">
-                <thead><tr><th style="width:32px"></th><th>Date</th><th>Amount</th><th>Reference</th><th>Source</th><th>Notes</th></tr></thead>
-                <tbody>
-                    {% for a in advances %}
-                    <tr>
-                        <td><input type="checkbox" name="item_ids" value="advance_{{ a.id }}" class="advance-select" style="accent-color:#ef4444;width:16px;height:16px"></td>
-                        <td class="mono">{{ a.entry_date }}</td>
-                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(a.amount) }}</td>
-                        <td>{{ a.reference or '-' }}</td>
-                        <td>{{ a.funding_source }}</td>
-                        <td>{{ a.notes or '-' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+  {# ═══ 3 CARDS ═══ #}
+  <div class="sp-cards">
+    <div class="sp-card" style="background:linear-gradient(145deg,#22c55e,#16a34a);box-shadow:0 8px 25px rgba(34,197,94,0.3)">
+      <div class="sp-card-shine"></div>
+      <div class="sp-card-icon" style="background:rgba(255,255,255,0.12);width:32px;height:32px;border-radius:8px;display:grid;place-items:center">
+        <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" width="16" height="16"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+      </div>
+      <div class="sp-card-label light">Receive Cash</div>
+      <div class="sp-card-val light">AED {{ "%.0f"|format(total_received) }}</div>
+      <div class="sp-card-sub light">Advances + Cash Receipts</div>
     </div>
-    {% endif %}
-
-    {% if items %}
-    <div class="profile-card sp-section">
-        <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span>Portal Jobs &amp; Maintenance Papers <span class="badge badge-dept">{{ items|length }}</span></span>
-            <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
-                <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.item-select').forEach(function(c){c.checked=ch})"> Select All
-            </label>
-        </h3>
-        <div class="table-wrap">
-            <table class="smart-table">
-                <thead><tr><th style="width:32px"></th><th>Date</th><th>Vehicle</th><th>Amount</th><th>Type</th><th>Description</th><th>Status</th></tr></thead>
-                <tbody>
-                    {% for item in items %}
-                    <tr>
-                        <td><input type="checkbox" name="item_ids" value="{{ item._id }}" class="item-select" style="accent-color:#ef4444;width:16px;height:16px"></td>
-                        <td class="mono">{{ (item.created_at or '')|string|truncate(10, True, '') }}</td>
-                        <td>{% if item._type == 'job' %}<a href="/fleet/vehicles/{{ item.vehicle_id }}?tab=jobs&highlight={{ item.id }}" style="color:var(--primary);text-decoration:none">{{ item.vehicle_id }}</a>{% else %}{{ item.vehicle_id or '-' }}{% endif %}</td>
-                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(item.amount|float) }}</td>
-                        <td><span class="badge badge-type">{{ 'Job' if item._type == 'job' else 'Paper' }}</span></td>
-                        <td style="max-width:200px;white-space:normal">{{ item.description or item.work_summary or '-' }}</td>
-                        <td><span class="status-badge {{ item.status|lower }}">{{ item.status }}</span></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <div class="sp-card" style="background:linear-gradient(145deg,#ef4444,#dc2626);box-shadow:0 8px 25px rgba(239,68,68,0.3)">
+      <div class="sp-card-shine"></div>
+      <div class="sp-card-icon" style="background:rgba(255,255,255,0.12);width:32px;height:32px;border-radius:8px;display:grid;place-items:center">
+        <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+      </div>
+      <div class="sp-card-label light">Spent</div>
+      <div class="sp-card-val light">AED {{ "%.0f"|format(total_spent) }}</div>
+      <div class="sp-card-sub light">Approved + Pending jobs</div>
     </div>
-    {% endif %}
-
-    {% if receipts %}
-    <div class="profile-card sp-section">
-        <h3 class="sp-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span>Cash Receipts <span class="badge badge-dept">{{ receipts|length }}</span></span>
-            <label style="margin-left:auto;font-size:0.78rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
-                <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.receipt-select').forEach(function(c){c.checked=ch})"> Select All
-            </label>
-        </h3>
-        <div class="table-wrap">
-            <table class="smart-table" id="receiptsTable">
-                <thead><tr><th style="width:32px"></th><th>Date</th><th>Given By</th><th>Amount</th><th>Notes</th></tr></thead>
-                <tbody>
-                    {% for r in receipts %}
-                    <tr>
-                        <td><input type="checkbox" name="item_ids" value="receipt_{{ r.id }}" class="receipt-select" style="accent-color:#ef4444;width:16px;height:16px"></td>
-                        <td class="mono">{{ r.receipt_date }}</td>
-                        <td>{{ r.given_by }}</td>
-                        <td class="mono" style="font-weight:600;color:#1a7a4e">AED {{ "%.0f"|format(r.amount) }}</td>
-                        <td>{{ r.notes or '-' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <div class="sp-card" style="background:linear-gradient(145deg,#1a3d6e,#0F2B52);box-shadow:0 8px 25px rgba(15,43,82,0.35)">
+      <div class="sp-card-shine"></div>
+      <div class="sp-card-icon" style="background:rgba(255,255,255,0.12);width:32px;height:32px;border-radius:8px;display:grid;place-items:center">
+        <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div class="sp-card-label light">Due Balance</div>
+      <div class="sp-card-val light">AED {{ "%.0f"|format(balance|abs) }}</div>
+      <div class="sp-card-sub light">{{ 'Surplus' if balance >= 0 else 'Outstanding' }}</div>
     </div>
-    {% endif %}
+  </div>
 
-    {% if advances or items or receipts %}
-    <div style="text-align:center;margin-top:20px">
-        <button type="submit" class="btn" style="background:#ef4444;color:#fff;border:none;padding:10px 30px;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer">&#9888; Delete Selected Items</button>
+  {# ═══ SECTIONS ═══ #}
+  <form method="post" action="{{ url_for('fleet.fleet_staff_delete_items', staff_id=s.staff_id) }}" id="deleteForm" onsubmit="var c=this.querySelectorAll('input[name=item_ids]:checked');if(c.length===0){alert('Select items first.');return false}return confirm('Delete '+c.length+' selected?')">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  {% if advances %}
+  <div class="profile-card sp-section">
+    <div class="sp-section-head">
+      <h3 class="sp-section-title">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+        Cash Received <span class="badge badge-dept">{{ advances|length }}</span>
+      </h3>
+      <label style="font-size:0.72rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
+        <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.advance-select').forEach(function(c){c.checked=ch})"> Select All
+      </label>
     </div>
-    {% endif %}
-    </form>
-
-    <script>
-    function toggleDetail(id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-    }
-    </script>
-
-    {% if not items and not receipts and not advances %}
-    <div class="profile-card" style="text-align:center;padding:40px">
-        <p style="color:var(--muted);margin:0">No activity for this staff member yet.</p>
+    <div class="table-wrap">
+      <table class="sp-table">
+        <thead><tr><th style="width:28px"></th><th>Date</th><th>Amount</th><th>Source</th><th>Notes</th><th style="width:90px"></th></tr></thead>
+        <tbody>
+          {% for a in advances %}
+          <tr>
+            <td><input type="checkbox" name="item_ids" value="advance_{{ a.id }}" class="advance-select" style="accent-color:#ef4444;width:15px;height:15px"></td>
+            <td class="mono">{{ a.entry_date }}</td>
+            <td class="mono" style="font-weight:600;color:#16a34a">AED {{ "%.0f"|format(a.amount) }}</td>
+            <td>{{ a.funding_source }}</td>
+            <td style="color:var(--muted);font-size:0.72rem">{{ (a.notes or a.reference or '—')|truncate(30) }}</td>
+            <td>
+              <div class="action-btns">
+                <a href="{{ url_for('fleet.fleet_staff_receipts', staff_id=s.staff_id) }}" style="background:#e3f0ff;color:var(--primary)">Edit</a>
+                <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=a.id) }}" style="margin:0;display:inline" onsubmit="return confirm('Delete this cash entry?')">
+                  <button type="submit" style="background:#ffebee;color:#c62828">Del</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if items %}
+  <div class="profile-card sp-section">
+    <div class="sp-section-head">
+      <h3 class="sp-section-title">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Jobs &amp; Papers <span class="badge badge-dept">{{ items|length }}</span>
+      </h3>
+      <label style="font-size:0.72rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
+        <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.item-select').forEach(function(c){c.checked=ch})"> Select All
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table class="sp-table">
+        <thead><tr><th style="width:28px"></th><th>Date</th><th>Vehicle</th><th>Amount</th><th>Type</th><th>Status</th><th style="width:90px"></th></tr></thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td><input type="checkbox" name="item_ids" value="{{ item._id }}" class="item-select" style="accent-color:#ef4444;width:15px;height:15px"></td>
+            <td class="mono">{{ (item.created_at or '')|string|truncate(10, True, '') }}</td>
+            <td>{% if item._type == 'job' %}<a href="/fleet/vehicles/{{ item.vehicle_id }}?tab=jobs&highlight={{ item.id }}" style="color:var(--primary);text-decoration:none;font-weight:600">{{ item.vehicle_id }}</a>{% else %}{{ item.vehicle_id or '-' }}{% endif %}</td>
+            <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(item.amount|float) }}</td>
+            <td><span class="badge badge-type">{{ 'Job' if item._type == 'job' else 'Paper' }}</span></td>
+            <td><span class="status-badge {{ item.status|lower }}">{{ item.status }}</span></td>
+            <td>
+              <div class="action-btns">
+                {% if item._type == 'job' %}
+                <a href="{{ url_for('fleet.fleet_job_edit', job_id=item.id) }}" style="background:#e3f0ff;color:var(--primary)">Edit</a>
+                {% else %}
+                <span style="font-size:0.6rem;color:var(--muted)">—</span>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if receipts %}
+  <div class="profile-card sp-section">
+    <div class="sp-section-head">
+      <h3 class="sp-section-title">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
+        Cash Receipts <span class="badge badge-dept">{{ receipts|length }}</span>
+      </h3>
+      <label style="font-size:0.72rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff" onclick="event.stopPropagation()">
+        <input type="checkbox" onchange="var ch=this.checked;document.querySelectorAll('.receipt-select').forEach(function(c){c.checked=ch})"> Select All
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table class="sp-table">
+        <thead><tr><th style="width:28px"></th><th>Date</th><th>Given By</th><th>Amount</th><th>Notes</th><th style="width:90px"></th></tr></thead>
+        <tbody>
+          {% for r in receipts %}
+          <tr>
+            <td><input type="checkbox" name="item_ids" value="receipt_{{ r.id }}" class="receipt-select" style="accent-color:#ef4444;width:15px;height:15px"></td>
+            <td class="mono">{{ r.receipt_date }}</td>
+            <td>{{ r.given_by }}</td>
+            <td class="mono" style="font-weight:600;color:#16a34a">AED {{ "%.0f"|format(r.amount) }}</td>
+            <td style="color:var(--muted);font-size:0.72rem">{{ r.notes or '—' }}</td>
+            <td>
+              <div class="action-btns">
+                <a href="{{ url_for('fleet.fleet_staff_receipts', staff_id=s.staff_id) }}" style="background:#e3f0ff;color:var(--primary)">Edit</a>
+                <form method="POST" action="{{ url_for('fleet.fleet_staff_receipt_delete', staff_id=s.staff_id, receipt_id=r.id) }}" style="margin:0;display:inline" onsubmit="return confirm('Delete this receipt?')">
+                  <button type="submit" style="background:#ffebee;color:#c62828">Del</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if advances or items or receipts %}
+  <div style="text-align:center;margin-top:20px">
+    <button type="submit" class="btn" style="background:#ef4444;color:#fff;border:none;padding:10px 30px;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer">&#9888; Delete Selected</button>
+  </div>
+  {% endif %}
+  </form>
+
+  {% if not items and not receipts and not advances %}
+  <div class="profile-card" style="text-align:center;padding:40px">
+    <p style="color:var(--muted);margin:0">No activity for this staff member yet.</p>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

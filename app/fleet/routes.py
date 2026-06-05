@@ -1193,6 +1193,19 @@ def fleet_staff_receipt_delete(staff_id, receipt_id):
     return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
 
 
+@fleet_bp.route("/fleet/staff/<staff_id>/advances/<int:advance_id>/delete", methods=["POST"])
+@_login_required("admin")
+def fleet_staff_advance_delete(staff_id, advance_id):
+    _touch_admin_workspace("fleet")
+    db = open_db()
+    a = db.execute("SELECT * FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (advance_id, staff_id)).fetchone()
+    if a:
+        db.execute("DELETE FROM maintenance_staff_advances WHERE id = ?", (advance_id,))
+        db.commit()
+        flash("Advance deleted.", "success")
+    return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+
+
 # ── ADMIN: Staff Profile ─────────────────────────────────────────
 
 @fleet_bp.route("/fleet/staff/<staff_id>/profile")
