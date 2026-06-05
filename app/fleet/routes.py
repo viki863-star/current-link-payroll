@@ -22,6 +22,9 @@ def ensure_fleet_tables():
     db = open_db()
     db.execute("SELECT 1 FROM vehicles LIMIT 1")
     _migrate_vehicle_master(db)
+    # Clean up blank staff entries
+    db.execute("DELETE FROM field_staff WHERE staff_id IS NULL OR staff_id = ''")
+    db.commit()
     # Drop FK constraints on PostgreSQL so staff can be deleted without losing data
     try:
         db.execute("ALTER TABLE maintenance_jobs DROP CONSTRAINT IF EXISTS maintenance_jobs_staff_id_fkey")
@@ -1059,6 +1062,7 @@ def fleet_staff_list():
             SELECT staff_code, COUNT(*) AS advance_count
             FROM maintenance_staff_advances GROUP BY staff_code
         ) ac ON ac.staff_code = fs.staff_id
+        WHERE fs.staff_id IS NOT NULL AND fs.staff_id != ''
         ORDER BY fs.full_name
     """).fetchall()
     return render_template("fleet/fleet_staff_list.html", staff_list=staff_list)
