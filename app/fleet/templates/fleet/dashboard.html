@@ -238,7 +238,7 @@
           <td style="font-size:0.72rem">{{ s.phone or '—' }}</td>
           <td style="font-weight:600;color:#16a34a">AED {{ "%.0f"|format(s.total_received) }}</td>
           <td style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(s.total_spent) }}</td>
-          <td style="font-weight:700;font-size:0.85rem;color:{{ '#16a34a' if bal >= 0 else '#dc2626' }}">AED {{ "%.0f"|format(bal|abs) }} {{ 'Due' if bal < 0 else 'Left' }}</td>
+          <td style="font-weight:700;font-size:0.85rem;color:{{ '#16a34a' if bal >= 0 else '#dc2626' }}">AED {{ "%.0f"|format(bal|abs) }} {{ 'Left' if bal >= 0 else 'Due' }}</td>
           <td><a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" class="btn btn-xs btn-primary">Profile</a></td>
         </tr>
         {% else %}
@@ -247,6 +247,46 @@
       </tbody>
     </table>
   </div>
+
+  {# ═════ STAFF BALANCE CHART ═════ #}
+  {% if staff_balances %}
+  <div class="fd-panel" style="margin-bottom:18px">
+    <div class="fd-panel-head">
+      <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Balance Overview</h3>
+    </div>
+    <div class="fd-chart">
+      {% set max_rec = staff_balances|map(attribute='total_received')|map('float')|max or 1 %}
+      {% if max_rec == 0 %}{% set max_rec = 1 %}{% endif %}
+      {% for s in staff_balances %}
+      {% set rec = s.total_received|float %}
+      {% set spent = s.total_spent|float %}
+      {% set bal = rec - spent %}
+      {% set rec_pct = (rec / max_rec * 100)|round|int %}
+      {% set spent_pct = (spent / max_rec * 100)|round|int %}
+      <a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="text-decoration:none;color:inherit">
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:600;margin-bottom:3px">
+            <span>{{ s.full_name }}</span>
+            <span style="color:{{ '#16a34a' if bal >= 0 else '#dc2626' }}">AED {{ "%.0f"|format(bal|abs) }} {{ 'Left' if bal >= 0 else 'Due' }}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:0.6rem;color:var(--muted);margin-bottom:2px">
+            <span>Received</span>
+            <div style="flex:1;height:16px;background:#e8f5e9;border-radius:4px;overflow:hidden">
+              <div class="fd-chart-bar green" style="width:{{ rec_pct }}%;height:100%;font-size:0.6rem">AED {{ "%.0f"|format(rec) }}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:0.6rem;color:var(--muted)">
+            <span>Spent</span>
+            <div style="flex:1;height:16px;background:#fff3e0;border-radius:4px;overflow:hidden">
+              <div class="fd-chart-bar orange" style="width:{{ spent_pct }}%;height:100%;font-size:0.6rem">AED {{ "%.0f"|format(spent) }}</div>
+            </div>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 
   {# ═════ VEHICLES TABLE ═════ #}
   <div class="fd-panel">

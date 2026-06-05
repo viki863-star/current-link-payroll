@@ -61,7 +61,7 @@
       </div>
       <div class="sp-card-label light">Receive Cash</div>
       <div class="sp-card-val light">AED {{ "%.0f"|format(total_received) }}</div>
-      <div class="sp-card-sub light">Advances + Cash Receipts</div>
+      <div class="sp-card-sub light">Total Cash Received</div>
     </div>
     <div class="sp-card" style="background:linear-gradient(145deg,#ef4444,#dc2626);box-shadow:0 8px 25px rgba(239,68,68,0.3)">
       <div class="sp-card-shine"></div>
@@ -77,9 +77,9 @@
       <div class="sp-card-icon" style="background:rgba(255,255,255,0.12);width:32px;height:32px;border-radius:8px;display:grid;place-items:center">
         <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       </div>
-      <div class="sp-card-label light">{{ 'Surplus' if balance >= 0 else 'Due' }}</div>
+      <div class="sp-card-label light">{{ 'Available' if balance >= 0 else 'Due' }}</div>
       <div class="sp-card-val light">AED {{ "%.0f"|format(balance|abs) }}</div>
-      <div class="sp-card-sub light">{{ 'Received minus spent' if balance >= 0 else 'Overspent by' }}</div>
+      <div class="sp-card-sub light">{{ 'Available balance' if balance >= 0 else 'Extra amount used' }}</div>
     </div>
   </div>
 

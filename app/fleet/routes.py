@@ -1367,18 +1367,6 @@ def fleet_staff_profile(staff_id):
     ).fetchone()["t"] or 0
 
     total_spent = float(total_jobs_approved) + float(total_papers_approved)
-
-    total_jobs_pending = db.execute(
-        "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'pending'",
-        (staff_id,),
-    ).fetchone()["t"] or 0
-
-    total_papers_pending = db.execute(
-        "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status = 'Pending'",
-        (staff_id,),
-    ).fetchone()["t"] or 0
-
-    total_pending = float(total_jobs_pending) + float(total_papers_pending)
     balance = total_received - total_spent
 
     jobs = db.execute("""
