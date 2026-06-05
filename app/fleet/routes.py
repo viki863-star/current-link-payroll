@@ -203,11 +203,10 @@ def fleet_dashboard():
     # Staff balances
     staff_balances = db.execute("""
         SELECT fs.staff_id, fs.full_name, fs.phone,
-            COALESCE(adv.total_adv, 0) + COALESCE(cr.total_cr, 0) AS total_received,
+            COALESCE(adv.total_adv, 0) AS total_received,
             COALESCE(mj.total_jobs, 0) + COALESCE(mp.total_papers, 0) AS total_spent
         FROM field_staff fs
         LEFT JOIN (SELECT staff_code, SUM(amount) AS total_adv FROM maintenance_staff_advances GROUP BY staff_code) adv ON adv.staff_code = fs.staff_id
-        LEFT JOIN (SELECT staff_id, SUM(amount) AS total_cr FROM cash_receipts GROUP BY staff_id) cr ON cr.staff_id = fs.staff_id
         LEFT JOIN (SELECT staff_id, SUM(amount) AS total_jobs FROM maintenance_jobs WHERE status = 'approved' GROUP BY staff_id) mj ON mj.staff_id = fs.staff_id
         LEFT JOIN (SELECT technician_code, SUM(total_amount) AS total_papers FROM maintenance_papers WHERE review_status='Approved' GROUP BY technician_code) mp ON mp.technician_code = fs.staff_id
         WHERE fs.staff_id IS NOT NULL AND fs.staff_id != ''
@@ -1147,9 +1146,6 @@ def fleet_staff_list():
     if unsynced:
         db.commit()
 
-    _migrate_old_staff_entries(db)
-    db.commit()
-
     staff_list = db.execute("""
         SELECT fs.*,
             COALESCE(ec.entry_count, 0) AS entry_count,
@@ -1296,12 +1292,17 @@ def fleet_staff_receipts(staff_id):
             flash("Given by and amount are required.", "error")
             return redirect(url_for("fleet.fleet_staff_receipts", staff_id=staff_id))
 
+        last = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
+        num = 1
+        if last:
+            num = int(last["advance_no"].split("-")[1]) + 1
+        adv_no = f"ADV-{num:04d}"
         db.execute(
-            "INSERT INTO cash_receipts (staff_id, given_by, amount, receipt_date, notes) VALUES (?,?,?,?,?)",
-            (staff_id, given_by, float(amount), receipt_date, notes),
+            "INSERT INTO maintenance_staff_advances (advance_no, staff_code, entry_date, funding_source, amount, reference, notes) VALUES (?,?,?,?,?,?,?)",
+            (adv_no, staff_id, receipt_date, given_by, float(amount), given_by, notes),
         )
         db.commit()
-        flash(f"AED {amount} receipt added.", "success")
+        flash(f"AED {amount} received from {given_by}.", "success")
         return redirect(url_for("fleet.fleet_staff_receipts", staff_id=staff_id))
 
     receipts = db.execute(
@@ -1350,17 +1351,10 @@ def fleet_staff_profile(staff_id):
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
 
-    total_advances = db.execute(
+    total_received = db.execute(
         "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?",
         (staff_id,),
     ).fetchone()["t"] or 0
-
-    total_cash = db.execute(
-        "SELECT COALESCE(SUM(amount),0) AS t FROM cash_receipts WHERE staff_id = ?",
-        (staff_id,),
-    ).fetchone()["t"] or 0
-
-    total_received = float(total_advances) + float(total_cash)
 
     total_jobs_approved = db.execute(
         "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'",
@@ -1424,8 +1418,8 @@ def fleet_staff_profile(staff_id):
         items.append(d)
     items.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
 
-    receipts = db.execute(
-        "SELECT * FROM cash_receipts WHERE staff_id = ? ORDER BY receipt_date DESC",
+    advances = db.execute(
+        "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
         (staff_id,),
     ).fetchall()
 
@@ -1440,16 +1434,6 @@ def fleet_staff_profile(staff_id):
         d["_notes"] = a.get("notes", a.get("reference", ""))
         d["_given_by"] = ""
         cash_items.append(d)
-    for r in receipts:
-        d = dict(r)
-        d["_type"] = "receipt"
-        d["_id"] = f"receipt_{r['id']}"
-        d["_date"] = str(r.get("receipt_date", ""))
-        d["_amount"] = r["amount"]
-        d["_source"] = f"Receipt from {r.get('given_by','')}"
-        d["_notes"] = r.get("notes", "")
-        d["_given_by"] = r.get("given_by", "")
-        cash_items.append(d)
     cash_items.sort(key=lambda x: x["_date"], reverse=True)
 
     return render_template(
@@ -1461,7 +1445,6 @@ def fleet_staff_profile(staff_id):
         total_spent=total_spent,
         balance=balance,
         items=items,
-        receipts=receipts,
         advances=advances,
         cash_items=cash_items,
     )

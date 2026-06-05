@@ -101,11 +101,11 @@
           <tr>
             <td class="mono">{{ c._date }}</td>
             <td class="mono" style="font-weight:600;color:#16a34a">AED {{ "%.0f"|format(c._amount) }}</td>
-            <td><span class="badge badge-type">{{ 'Advance' if c._type == 'advance' else 'Receipt' }}</span></td>
+            <td><span class="badge badge-type">Cash</span></td>
             <td style="color:var(--muted);font-size:0.72rem">{{ c._source }}{% if c._notes %} &middot; {{ c._notes|truncate(50) }}{% endif %}</td>
             <td>
               <div class="action-btns">
-                <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) if c._type == 'advance' else url_for('fleet.fleet_staff_receipt_delete', staff_id=s.staff_id, receipt_id=c.id) }}" onsubmit="return confirm('Delete this entry?')">
+                <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) }}" onsubmit="return confirm('Delete this entry?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" style="background:#ffebee;color:#c62828">Del</button>
                 </form>
