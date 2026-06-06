@@ -1748,7 +1748,7 @@ def supplier_payment_add(sup_id):
 
         db.commit()
 
-        flash("Payment recorded." + (f" Qarz {deduct_amt} deducted." if deduct_amt else ""), "success")
+        flash("Payment recorded.", "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
 
 
