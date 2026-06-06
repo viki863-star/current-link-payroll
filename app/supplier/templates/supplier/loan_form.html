@@ -21,8 +21,7 @@
 .lf-type-btn:hover { border-color:#94a3b8; }
 .lf-type-btn.active { border-color:var(--primary); background:#eef2ff; color:var(--primary); }
 .lf-type-btn input { display:none; }
-.lf-chk { display:flex; align-items:center; gap:8px; font-size:0.82rem; color:#475569; cursor:pointer; padding:8px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; }
-.lf-chk input { width:16px; height:16px; accent-color:var(--primary); }
+
 </style>
 
 <div class="lf-wrap">
@@ -90,13 +89,6 @@
       <div class="lf-row">
         <label>Notes</label>
         <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes...">{{ loan.notes or '' }}</textarea>
-      </div>
-
-      <div class="lf-row">
-        <label class="lf-chk">
-          <input type="checkbox" name="deduct_from_balance" value="1" {% if loan.deduct_from_balance %}checked{% endif %}>
-          Apply to balance (supplier k balance se deduct karein)
-        </label>
       </div>
 
       <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px;padding:10px;font-size:0.85rem;font-weight:600">

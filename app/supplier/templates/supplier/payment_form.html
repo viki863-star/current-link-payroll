@@ -75,15 +75,6 @@
         </select>
       </div>
 
-      {% if qarz_balance > 0 %}
-      <div class="pf-row" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:14px">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:#92400e;text-transform:none;font-weight:500">
-          <input type="checkbox" name="deduct_qarz" value="1">
-          Deduct AED {{ "%.0f"|format(qarz_balance) }} from Qarz balance
-        </label>
-      </div>
-      {% endif %}
-
       <div class="pf-row">
         <label>Notes</label>
         <textarea name="notes" class="form-control" rows="2">{{ pay.notes or '' }}</textarea>

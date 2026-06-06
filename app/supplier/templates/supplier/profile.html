@@ -5,7 +5,6 @@
 {% block content %}
 {% set is_cash = s.supplier_type == 'without_invoice' %}
 {% set loan_net = loan_given - loan_recovered %}
-{% set sep_net = loan_given_sep - loan_recovered_sep %}
 {% set show_overview = active_tab in ('overview', '') %}
 {% set pri = '#e65100' if is_cash else 'var(--primary)' %}
 
@@ -410,13 +409,6 @@
 {% for p in payments %}
   {% set _ = ledger.append({'date': p.payment_date, 'desc': 'Payment (' ~ p.payment_method ~ ')', 'credit': 0, 'debit': p.amount}) %}
 {% endfor %}
-{% for l in loans %}
-  {% if l.loan_type == 'given' and l.deduct_from_balance %}
-    {% set _ = ledger.append({'date': l.entry_date, 'desc': 'Qarz Given: ' ~ (l.notes or ''), 'credit': 0, 'debit': l.amount}) %}
-  {% elif l.loan_type == 'recovered' and l.deduct_from_balance %}
-    {% set _ = ledger.append({'date': l.entry_date, 'desc': 'Qarz Recovered: ' ~ (l.notes or ''), 'credit': l.amount, 'debit': 0}) %}
-  {% endif %}
-{% endfor %}
 {% set ledger = ledger|sort(attribute='date') %}
 {% set running = namespace(val=0) %}
 
@@ -462,15 +454,15 @@
   <div class="loan-summary">
     <div class="ls-item">
       <div class="ls-lbl">Total Given</div>
-      <div class="ls-val" style="color:#dc2626">{{ "%.0f"|format(loan_given + loan_given_sep) }}</div>
+      <div class="ls-val" style="color:#dc2626">{{ "%.0f"|format(loan_given) }}</div>
     </div>
     <div class="ls-item">
       <div class="ls-lbl">Total Recovered</div>
-      <div class="ls-val" style="color:var(--green)">{{ "%.0f"|format(loan_recovered + loan_recovered_sep) }}</div>
+      <div class="ls-val" style="color:var(--green)">{{ "%.0f"|format(loan_recovered) }}</div>
     </div>
     <div class="ls-item">
       <div class="ls-lbl">Net Qarz</div>
-      <div class="ls-val" style="color:{% if loan_net + sep_net > 0 %}#dc2626{% else %}var(--green){% endif %}">{{ "%.0f"|format(loan_net + sep_net) }}</div>
+      <div class="ls-val" style="color:{% if loan_net > 0 %}#dc2626{% else %}var(--green){% endif %}">{{ "%.0f"|format(loan_net) }}</div>
     </div>
   </div>
 </div>

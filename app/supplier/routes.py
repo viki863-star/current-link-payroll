@@ -766,23 +766,17 @@ def supplier_profile(sup_id):
         (sup_id,),
     ).fetchall()
     loan_given = db.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='given' AND deduct_from_balance=1",
+        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='given'",
         (sup_id,),
     ).fetchone()[0]
     loan_recovered = db.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='recovered' AND deduct_from_balance=1",
+        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='recovered'",
         (sup_id,),
     ).fetchone()[0]
-    loan_given_sep = db.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='given' AND deduct_from_balance=0",
-        (sup_id,),
-    ).fetchone()[0]
-    loan_recovered_sep = db.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='recovered' AND deduct_from_balance=0",
-        (sup_id,),
-    ).fetchone()[0]
+    loan_given_sep = 0
+    loan_recovered_sep = 0
 
-    net_balance = round(inv_total + expense_total - paid_total - loan_given + loan_recovered, 2)
+    net_balance = round(inv_total + expense_total - paid_total, 2)
 
     lpos = db.execute(
         "SELECT sl.*, sq.quotation_no, (SELECT COUNT(*) FROM supplier_invoices si WHERE si.lpo_id=sl.id) as inv_count FROM supplier_lpos sl LEFT JOIN supplier_quotations sq ON sl.quotation_id=sq.id WHERE sl.supplier_id = ? ORDER BY sl.lpo_date DESC",
@@ -1716,16 +1710,6 @@ def supplier_payment_add(sup_id):
         (sup_id,),
     ).fetchall()
 
-    qarz_given = db.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='given' AND deduct_from_balance=1",
-        (sup_id,),
-    ).fetchone()[0]
-    qarz_recovered = db.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='recovered' AND deduct_from_balance=1",
-        (sup_id,),
-    ).fetchone()[0]
-    qarz_balance = round(qarz_given - qarz_recovered, 2)
-
     if request.method == "POST":
         payment_date = request.form.get("payment_date", "").strip() or date.today().isoformat()
         amount = request.form.get("amount", "").strip()
@@ -1733,23 +1717,13 @@ def supplier_payment_add(sup_id):
         payment_method = request.form.get("payment_method", "Cash").strip()
         reference_no = request.form.get("reference_no", "").strip()
         notes = request.form.get("notes", "").strip()
-        deduct_qarz = request.form.get("deduct_qarz")
 
         if not amount:
             flash("Payment amount is required.", "error")
-            return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS, qarz_balance=qarz_balance)
+            return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS)
 
         amount_f = float(amount)
         inv_id_val = int(invoice_id) if invoice_id.isdigit() else None
-
-        # If deducting qarz from this payment
-        deduct_amt = 0
-        if deduct_qarz and qarz_balance > 0:
-            deduct_amt = min(qarz_balance, amount_f)
-            db.execute(
-                "INSERT INTO supplier_loans (supplier_id, entry_date, loan_type, amount, payment_method, reference_no, notes, deduct_from_balance) VALUES (?,?,?,?,?,?,?,?)",
-                (sup_id, payment_date, "recovered", deduct_amt, payment_method, reference_no, f"Deducted from payment of {amount}", 1),
-            )
 
         fund_source = request.form.get("fund_source", "cash_bank").strip()
 
@@ -1770,7 +1744,7 @@ def supplier_payment_add(sup_id):
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
 
 
-    return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS, qarz_balance=qarz_balance)
+    return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS)
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1811,16 +1785,6 @@ def supplier_payment_edit(sup_id, pay_id):
         (sup_id,),
     ).fetchall()
 
-    qarz_given = db.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='given' AND deduct_from_balance=1",
-        (sup_id,),
-    ).fetchone()[0]
-    qarz_recovered = db.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='recovered' AND deduct_from_balance=1",
-        (sup_id,),
-    ).fetchone()[0]
-    qarz_balance = round(qarz_given - qarz_recovered, 2)
-
     if request.method == "POST":
         payment_date = request.form.get("payment_date", "").strip() or date.today().isoformat()
         amount = request.form.get("amount", "").strip()
@@ -1830,7 +1794,7 @@ def supplier_payment_edit(sup_id, pay_id):
         notes = request.form.get("notes", "").strip()
         if not amount:
             flash("Payment amount is required.", "error")
-            return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS, qarz_balance=qarz_balance)
+            return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS)
         amount_f = float(amount)
         inv_id_val = int(invoice_id) if invoice_id.isdigit() else None
         fund_source = request.form.get("fund_source", "cash_bank").strip()
@@ -1843,7 +1807,7 @@ def supplier_payment_edit(sup_id, pay_id):
         flash("Payment updated.", "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
 
-    return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS, qarz_balance=qarz_balance)
+    return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS)
 
 
 @supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/delete", methods=["POST"])
@@ -1888,7 +1852,6 @@ def supplier_loan_add(sup_id):
         payment_method = request.form.get("payment_method", "Cash").strip()
         reference_no = request.form.get("reference_no", "").strip()
         notes = request.form.get("notes", "").strip()
-        deduct = 1 if request.form.get("deduct_from_balance") else 0
 
         if not amount:
             flash("Amount is required.", "error")
@@ -1896,8 +1859,8 @@ def supplier_loan_add(sup_id):
 
         fund_source = request.form.get("fund_source", "cash_bank").strip()
         db.execute(
-            "INSERT INTO supplier_loans (supplier_id, entry_date, loan_type, amount, payment_method, reference_no, notes, deduct_from_balance, fund_source) VALUES (?,?,?,?,?,?,?,?,?)",
-            (sup_id, entry_date, loan_type, float(amount), payment_method, reference_no, notes, deduct, fund_source),
+            "INSERT INTO supplier_loans (supplier_id, entry_date, loan_type, amount, payment_method, reference_no, notes, fund_source) VALUES (?,?,?,?,?,?,?,?)",
+            (sup_id, entry_date, loan_type, float(amount), payment_method, reference_no, notes, fund_source),
         )
         db.commit()
 
@@ -1925,7 +1888,6 @@ def supplier_loan_edit(sup_id, loan_id):
         payment_method = request.form.get("payment_method", "Cash").strip()
         reference_no = request.form.get("reference_no", "").strip()
         notes = request.form.get("notes", "").strip()
-        deduct = 1 if request.form.get("deduct_from_balance") else 0
         fund_source = request.form.get("fund_source", "cash_bank").strip()
 
         if not amount:
@@ -1933,8 +1895,8 @@ def supplier_loan_edit(sup_id, loan_id):
             return render_template("supplier/loan_form.html", s=s, loan=loan, methods=PAYMENT_METHODS)
 
         db.execute(
-            "UPDATE supplier_loans SET entry_date=?, loan_type=?, amount=?, payment_method=?, reference_no=?, notes=?, deduct_from_balance=?, fund_source=? WHERE id=?",
-            (entry_date, loan_type, float(amount), payment_method, reference_no, notes, deduct, fund_source, loan_id),
+            "UPDATE supplier_loans SET entry_date=?, loan_type=?, amount=?, payment_method=?, reference_no=?, notes=?, fund_source=? WHERE id=?",
+            (entry_date, loan_type, float(amount), payment_method, reference_no, notes, fund_source, loan_id),
         )
         db.commit()
         flash("Loan entry updated.", "success")
@@ -2054,31 +2016,6 @@ def supplier_kata(sup_id):
             "credit": 0,
             "ref": pay["ref"],
         })
-
-    # Loans — Qarz
-    for loan in db.execute(
-        "SELECT id, entry_date as dt, loan_type, amount as amt, reference_no as ref, notes, deduct_from_balance FROM supplier_loans WHERE supplier_id = ?",
-        (sup_id,),
-    ).fetchall():
-        tag = " ✓" if loan["deduct_from_balance"] else " (Separate)"
-        if loan["loan_type"] == "given":
-            ledger.append({
-                "date": loan["dt"],
-                "type": "loan_given" if loan["deduct_from_balance"] else "loan_given_sep",
-                "description": f"Qarz Given{tag}: {loan['notes'] or ''}",
-                "debit": loan["amt"] if loan["deduct_from_balance"] else 0,
-                "credit": 0,
-                "ref": loan["ref"],
-            })
-        else:
-            ledger.append({
-                "date": loan["dt"],
-                "type": "loan_recovered" if loan["deduct_from_balance"] else "loan_recovered_sep",
-                "description": f"Qarz Recovered{tag}: {loan['notes'] or ''}",
-                "debit": 0 if loan["deduct_from_balance"] else 0,
-                "credit": loan["amt"] if loan["deduct_from_balance"] else 0,
-                "ref": loan["ref"],
-            })
 
     # Sort by date
     ledger.sort(key=lambda x: x["date"])
