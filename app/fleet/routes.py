@@ -1121,6 +1121,44 @@ def fleet_maintenance_entry():
     return render_template("fleet/fleet_maintenance_entry.html", vehicles=vehicles, today=date.today().isoformat())
 
 
+@fleet_bp.route("/fleet/vehicles/<plate_no>/add-maintenance", methods=["POST"])
+@_login_required("admin")
+def vehicle_add_maintenance(plate_no):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    v = _vehicle_full(plate_no)
+    if not v:
+        flash("Vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_list"))
+    import base64
+    amount = request.form.get("amount", "0").strip()
+    category = request.form.get("category", "").strip()
+    description = request.form.get("description", "").strip()
+    entry_date = request.form.get("entry_date", "").strip() or date.today().isoformat()
+    try:
+        amount = float(amount) if amount else 0
+    except ValueError:
+        amount = 0
+    attachment_name = None
+    attachment_data = None
+    attachment_type = None
+    if request.files and "attachment" in request.files:
+        f = request.files["attachment"]
+        if f and f.filename:
+            attachment_name = f.filename
+            attachment_data = base64.b64encode(f.read()).decode("utf-8")
+            attachment_type = f.content_type or "application/octet-stream"
+    db.execute(
+        "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, status, created_at, attachment_name, attachment_data, attachment_type) VALUES (?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?)",
+        (plate_no, 'admin', amount, category, description, entry_date, attachment_name, attachment_data, attachment_type)
+    )
+    db.commit()
+    db.close()
+    flash(f"Maintenance entry added for {plate_no}.", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="jobs"))
+
+
 @fleet_bp.route("/fleet/staff")
 @_login_required("admin")
 def fleet_staff_list():

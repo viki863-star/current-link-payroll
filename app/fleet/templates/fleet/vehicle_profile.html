@@ -166,6 +166,37 @@
     {# ═══════ MAINTENANCE JOBS ═══════ #}
     {% elif active_tab == 'jobs' %}
     <div class="profile-card">
+        <h3 style="margin:0 0 12px;font-size:0.95rem">Add Maintenance Entry</h3>
+        <form method="POST" action="{{ url_for('fleet.vehicle_add_maintenance', plate_no=v.plate_no) }}" enctype="multipart/form-data" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px 12px;align-items:end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div>
+                <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Date</label>
+                <input type="date" name="entry_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:6px 8px;font-size:0.82rem">
+            </div>
+            <div>
+                <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Category</label>
+                <input type="text" name="category" placeholder="e.g. Engine" list="catList" class="form-control" style="padding:6px 8px;font-size:0.82rem">
+                <datalist id="catList">
+                    <option value="Engine"><option value="Tire"><option value="Service">
+                    <option value="Brake"><option value="AC"><option value="Electrical">
+                    <option value="Body"><option value="Other">
+                </datalist>
+            </div>
+            <div>
+                <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Amount (AED)</label>
+                <input type="number" name="amount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:6px 8px;font-size:0.82rem">
+            </div>
+            <div style="display:flex;gap:6px;align-items:end">
+                <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.webp" style="flex:1;font-size:0.78rem">
+                <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap">+ Add</button>
+            </div>
+            <div style="grid-column:1/-1">
+                <input type="text" name="description" placeholder="Description (optional)" class="form-control" style="padding:6px 8px;font-size:0.82rem">
+            </div>
+        </form>
+    </div>
+
+    <div class="profile-card" style="margin-top:1rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <h3 style="margin:0;font-size:0.95rem">Approved Maintenance Jobs</h3>
             <span class="badge badge-dept">{{ approved_jobs|length }} jobs</span>
