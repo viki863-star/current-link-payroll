@@ -3,62 +3,117 @@
 {% block page_title %}{% if loan.id %}Edit Qarz Entry{% else %}Add Qarz Entry{% endif %}{% endblock %}
 
 {% block content %}
-<div class="form-shell" style="max-width:550px">
-    <div class="profile-card">
-        <div style="margin-bottom:16px">
-            <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='loans') }}" class="btn btn-outline btn-sm">&larr; Back</a>
-        </div>
-        <h3>{% if loan.id %}Edit Qarz Entry{% else %}Add Qarz Entry{% endif %}</h3>
-        <p style="color:var(--muted);font-size:0.85rem">Supplier: <strong>{{ s.supplier_name }}</strong></p>
+<div class="form-shell" style="max-width:540px">
+<style>
+.lf-wrap { background:#fff; border:2px solid var(--line); border-radius:14px; overflow:hidden; }
+.lf-hdr { background:var(--primary); padding:14px 22px; display:flex; align-items:center; gap:10px; }
+.lf-hdr h3 { margin:0; font-size:0.95rem; font-weight:700; color:#fff; }
+.lf-hdr .back { margin-left:auto; color:rgba(255,255,255,0.85); font-size:0.78rem; text-decoration:none; }
+.lf-hdr .back:hover { color:#fff; }
+.lf-body { padding:20px 22px 22px; }
+.lf-row { margin-bottom:14px; }
+.lf-row label { display:block; font-size:0.7rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
+.lf-row .form-control { font-size:0.85rem; }
+.lf-row .form-control:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(28,86,139,0.12); }
+.lf-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.lf-type-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:4px; }
+.lf-type-btn { padding:12px; border:2px solid var(--line); border-radius:8px; text-align:center; cursor:pointer; transition:all 0.15s; background:#fff; font-weight:600; font-size:0.82rem; color:#475569; }
+.lf-type-btn:hover { border-color:#94a3b8; }
+.lf-type-btn.active { border-color:var(--primary); background:#eef2ff; color:var(--primary); }
+.lf-type-btn input { display:none; }
+.lf-chk { display:flex; align-items:center; gap:8px; font-size:0.82rem; color:#475569; cursor:pointer; padding:8px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; }
+.lf-chk input { width:16px; height:16px; accent-color:var(--primary); }
+</style>
 
-        <form method="POST" style="margin-top:16px">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-row">
-                <label class="form-label">Date</label>
-                <input type="date" name="entry_date" value="{{ loan.entry_date or '' }}" class="form-control">
-            </div>
-            <div class="form-row">
-                <label class="form-label">Type *</label>
-                <select name="loan_type" class="form-control" required>
-                    <option value="given" {% if loan.loan_type == 'given' %}selected{% endif %}>Qarz Given (Diya)</option>
-                    <option value="recovered" {% if loan.loan_type == 'recovered' %}selected{% endif %}>Qarz Recovered (Wapis Lia)</option>
-                </select>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Amount *</label>
-                <input type="number" name="amount" value="{{ loan.amount or '' }}" class="form-control" step="0.01" min="0" required>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Payment Method</label>
-                <select name="payment_method" class="form-control">
-                    {% for m in methods %}
-                    <option value="{{ m }}" {% if (loan.payment_method or 'Cash') == m %}selected{% endif %}>{{ m }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Reference No.</label>
-                <input type="text" name="reference_no" value="{{ loan.reference_no or '' }}" class="form-control" placeholder="Cheque no / Transaction ID">
-            </div>
-            <div class="form-row">
-                <label class="form-label">Fund Source</label>
-                <select name="fund_source" class="form-control">
-                    <option value="cash_bank">Cash / Bank</option>
-                    <option value="owner_fund" {% if loan.fund_source == 'owner_fund' %}selected{% endif %}>Owner Fund</option>
-                </select>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Notes</label>
-                <textarea name="notes" class="form-control" rows="2">{{ loan.notes or '' }}</textarea>
-            </div>
-            <div class="form-row">
-                <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem">
-                    <input type="checkbox" name="deduct_from_balance" value="1" {% if loan.deduct_from_balance %}checked{% endif %}>
-                    Apply to balance (supplier k balance se deduct karein)
-                </label>
-            </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:8px">{% if loan.id %}Update Entry{% else %}Save Entry{% endif %}</button>
-        </form>
-    </div>
+<div class="lf-wrap">
+  <div class="lf-hdr">
+    <h3>{% if loan.id %}✏️ Edit Qarz Entry{% else %}➕ Add Qarz Entry{% endif %}</h3>
+    <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='loans') }}" class="back">← Back</a>
+  </div>
+  <div class="lf-body">
+    <p style="font-size:0.85rem;color:var(--muted);margin:0 0 14px">
+      Supplier: <strong style="color:#0f172a">{{ s.supplier_name }}</strong>
+      <span class="mono" style="font-size:0.78rem;color:var(--muted)"> · {{ s.supplier_code }}</span>
+    </p>
+
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="lf-row">
+        <label>Date</label>
+        <input type="date" name="entry_date" value="{{ loan.entry_date or '' }}" class="form-control">
+      </div>
+
+      <div class="lf-row">
+        <label>Type *</label>
+        <div class="lf-type-grid">
+          {% set lt = loan.loan_type if loan and loan.loan_type else 'given' %}
+          <label class="lf-type-btn {{ 'active' if lt == 'given' else '' }}">
+            <input type="radio" name="loan_type" value="given" {{ 'checked' if lt == 'given' else '' }}>
+            <div style="font-size:1.3rem;margin-bottom:2px">💸</div> Qarz Given (Diya)
+          </label>
+          <label class="lf-type-btn {{ 'active' if lt == 'recovered' else '' }}">
+            <input type="radio" name="loan_type" value="recovered" {{ 'checked' if lt == 'recovered' else '' }}>
+            <div style="font-size:1.3rem;margin-bottom:2px">💰</div> Qarz Recovered (Wapis Lia)
+          </label>
+        </div>
+      </div>
+
+      <div class="lf-row">
+        <label>Amount *</label>
+        <input type="number" name="amount" value="{{ loan.amount or '' }}" class="form-control" step="0.01" min="0" placeholder="0.00" required>
+      </div>
+
+      <div class="lf-grid-2">
+        <div class="lf-row">
+          <label>Payment Method</label>
+          <select name="payment_method" class="form-control">
+            {% for m in methods %}
+            <option value="{{ m }}" {% if (loan.payment_method or 'Cash') == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="lf-row">
+          <label>Fund Source</label>
+          <select name="fund_source" class="form-control">
+            <option value="cash_bank">Cash / Bank</option>
+            <option value="owner_fund" {% if loan.fund_source == 'owner_fund' %}selected{% endif %}>Owner Fund</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="lf-row">
+        <label>Reference No.</label>
+        <input type="text" name="reference_no" value="{{ loan.reference_no or '' }}" class="form-control" placeholder="Cheque no / Transaction ID">
+      </div>
+
+      <div class="lf-row">
+        <label>Notes</label>
+        <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes...">{{ loan.notes or '' }}</textarea>
+      </div>
+
+      <div class="lf-row">
+        <label class="lf-chk">
+          <input type="checkbox" name="deduct_from_balance" value="1" {% if loan.deduct_from_balance %}checked{% endif %}>
+          Apply to balance (supplier k balance se deduct karein)
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px;padding:10px;font-size:0.85rem;font-weight:600">
+        {% if loan.id %}✏️ Update Entry{% else %}💾 Save Entry{% endif %}
+      </button>
+    </form>
+  </div>
 </div>
+</div>
+
+<script>
+document.querySelectorAll('.lf-type-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.lf-type-btn').forEach(function(b){b.classList.remove('active')});
+    this.classList.add('active');
+    this.querySelector('input[type=radio]').checked = true;
+  });
+});
+</script>
 {% endblock %}
