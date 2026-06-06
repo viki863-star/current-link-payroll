@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Add Qarz Entry{% endblock %}
-{% block page_title %}Add Qarz Entry{% endblock %}
+{% block title %}{% if loan.id %}Edit Qarz Entry{% else %}Add Qarz Entry{% endif %}{% endblock %}
+{% block page_title %}{% if loan.id %}Edit Qarz Entry{% else %}Add Qarz Entry{% endif %}{% endblock %}
 
 {% block content %}
 <div class="form-shell" style="max-width:550px">
@@ -8,7 +8,7 @@
         <div style="margin-bottom:16px">
             <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='loans') }}" class="btn btn-outline btn-sm">&larr; Back</a>
         </div>
-        <h3>Add Qarz Entry</h3>
+        <h3>{% if loan.id %}Edit Qarz Entry{% else %}Add Qarz Entry{% endif %}</h3>
         <p style="color:var(--muted);font-size:0.85rem">Supplier: <strong>{{ s.supplier_name }}</strong></p>
 
         <form method="POST" style="margin-top:16px">
@@ -57,7 +57,7 @@
                     Apply to balance (supplier k balance se deduct karein)
                 </label>
             </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:8px">Save Entry</button>
+            <button type="submit" class="btn btn-primary" style="margin-top:8px">{% if loan.id %}Update Entry{% else %}Save Entry{% endif %}</button>
         </form>
     </div>
 </div>

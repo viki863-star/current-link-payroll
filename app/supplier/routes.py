@@ -1908,6 +1908,55 @@ def supplier_loan_add(sup_id):
     return render_template("supplier/loan_form.html", s=s, loan={}, methods=PAYMENT_METHODS)
 
 
+@supplier_bp.route("/<int:sup_id>/loans/<int:loan_id>/edit", methods=["GET", "POST"])
+def supplier_loan_edit(sup_id, loan_id):
+    _ensure_tables()
+    db = _get_db()
+    s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    loan = db.execute("SELECT * FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()
+    if not s or not loan:
+        flash("Loan entry not found.", "error")
+        return redirect(url_for("supplier.supplier_list"))
+
+    if request.method == "POST":
+        entry_date = request.form.get("entry_date", "").strip() or date.today().isoformat()
+        loan_type = request.form.get("loan_type", "given").strip()
+        amount = request.form.get("amount", "").strip()
+        payment_method = request.form.get("payment_method", "Cash").strip()
+        reference_no = request.form.get("reference_no", "").strip()
+        notes = request.form.get("notes", "").strip()
+        deduct = 1 if request.form.get("deduct_from_balance") else 0
+        fund_source = request.form.get("fund_source", "cash_bank").strip()
+
+        if not amount:
+            flash("Amount is required.", "error")
+            return render_template("supplier/loan_form.html", s=s, loan=loan, methods=PAYMENT_METHODS)
+
+        db.execute(
+            "UPDATE supplier_loans SET entry_date=?, loan_type=?, amount=?, payment_method=?, reference_no=?, notes=?, deduct_from_balance=?, fund_source=? WHERE id=?",
+            (entry_date, loan_type, float(amount), payment_method, reference_no, notes, deduct, fund_source, loan_id),
+        )
+        db.commit()
+        flash("Loan entry updated.", "success")
+        return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
+
+    return render_template("supplier/loan_form.html", s=s, loan=loan, methods=PAYMENT_METHODS)
+
+
+@supplier_bp.route("/<int:sup_id>/loans/<int:loan_id>/delete", methods=["POST"])
+def supplier_loan_delete(sup_id, loan_id):
+    _ensure_tables()
+    db = _get_db()
+    try:
+        db.execute("DELETE FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id))
+        db.commit()
+        flash("Loan entry deleted.", "info")
+    except Exception as e:
+        db.rollback()
+        flash(f"Error deleting loan: {e}", "error")
+    return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
+
+
 @supplier_bp.route("/<int:sup_id>/loans")
 def supplier_loans_list(sup_id):
     _ensure_tables()

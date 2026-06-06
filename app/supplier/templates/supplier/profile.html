@@ -479,19 +479,28 @@
 <div class="sec-card">
   <div class="sec-card-h"><h3>🏦 Loan History</h3></div>
   <div class="sec-card-b">
-    <table class="sec-table">
-      <thead><tr><th>Date</th><th>Type</th><th class="r">Amount</th><th>Method</th><th>Reference</th><th>Notes</th></tr></thead>
-      <tbody>
-        {% for l in loans %}
-        <tr>
-          <td class="mono">{{ l.entry_date }}</td>
-          <td><span class="status-badge {{ 'approved' if l.loan_type == 'given' else 'active' }}">{{ 'Given' if l.loan_type == 'given' else 'Recovered' }}</span></td>
-          <td class="r mono" style="font-weight:700">{{ "%.0f"|format(l.amount) }}</td>
-          <td>{{ l.payment_method }}</td>
-          <td class="mono">{{ l.reference_no or '-' }}</td>
-          <td style="font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis">{{ l.notes or '' }}</td>
-        </tr>
-        {% endfor %}
+      <table class="sec-table">
+        <thead><tr><th>Date</th><th>Type</th><th class="r">Amount</th><th>Method</th><th>Reference</th><th>Notes</th><th class="c">Actions</th></tr></thead>
+        <tbody>
+          {% for l in loans %}
+          <tr>
+            <td class="mono">{{ l.entry_date }}</td>
+            <td><span class="status-badge {{ 'approved' if l.loan_type == 'given' else 'active' }}">{{ 'Given' if l.loan_type == 'given' else 'Recovered' }}</span></td>
+            <td class="r mono" style="font-weight:700">{{ "%.0f"|format(l.amount) }}</td>
+            <td>{{ l.payment_method }}</td>
+            <td class="mono">{{ l.reference_no or '-' }}</td>
+            <td style="font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis">{{ l.notes or '' }}</td>
+            <td class="c">
+              <div class="act-group">
+                <a href="{{ url_for('supplier.supplier_loan_edit', sup_id=s.id, loan_id=l.id) }}" class="act-btn edit" title="Edit">✏️</a>
+                <form method="POST" action="{{ url_for('supplier.supplier_loan_delete', sup_id=s.id, loan_id=l.id) }}" style="display:inline" onsubmit="return confirm('Delete this loan entry?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="act-btn del" title="Delete">🗑️</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
       </tbody>
     </table>
   </div>
