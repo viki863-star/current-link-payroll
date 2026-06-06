@@ -15,6 +15,7 @@ from flask import (
 )
 
 from . import supplier_bp
+from app import csrf
 
 from ..database import open_db
 
@@ -1922,7 +1923,7 @@ def supplier_loan_delete(sup_id, loan_id):
         flash(f"Error deleting loan: {e}", "error")
     return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
 
-supplier_loan_delete.csrf_exempt = True
+csrf.exempt(supplier_loan_delete)
 
 
 @supplier_bp.route("/<int:sup_id>/loans")
