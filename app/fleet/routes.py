@@ -407,8 +407,8 @@ def vehicle_profile(plate_no):
 
     # Approved jobs (maintenance_jobs + maintenance_papers)
     approved_jobs = db.execute(
-        """SELECT mj.*, s.full_name AS staff_name FROM maintenance_jobs mj
-           JOIN field_staff s ON s.staff_id = mj.staff_id
+        """SELECT mj.*, COALESCE(s.full_name, 'Admin') AS staff_name FROM maintenance_jobs mj
+           LEFT JOIN field_staff s ON s.staff_id = mj.staff_id
            WHERE mj.vehicle_id = ? AND mj.status = 'approved'
            ORDER BY mj.created_at DESC""",
         (plate_no,),
