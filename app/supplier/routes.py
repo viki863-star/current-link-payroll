@@ -1943,9 +1943,8 @@ def supplier_loan_edit(sup_id, loan_id):
     return render_template("supplier/loan_form.html", s=s, loan=loan, methods=PAYMENT_METHODS)
 
 
-@supplier_bp.route("/<int:sup_id>/loans/<int:loan_id>/delete", methods=["POST"])
+@supplier_bp.route("/<int:sup_id>/loans/<int:loan_id>/delete", methods=["GET", "POST"])
 def supplier_loan_delete(sup_id, loan_id):
-    _ensure_tables()
     db = _get_db()
     try:
         db.execute("DELETE FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id))

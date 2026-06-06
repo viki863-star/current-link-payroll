@@ -493,10 +493,7 @@
             <td class="c">
               <div class="act-group">
                 <a href="{{ url_for('supplier.supplier_loan_edit', sup_id=s.id, loan_id=l.id) }}" class="act-btn edit" title="Edit">✏️</a>
-                <form method="POST" action="{{ url_for('supplier.supplier_loan_delete', sup_id=s.id, loan_id=l.id) }}" style="display:inline" onsubmit="return confirm('Delete this loan entry?')">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="act-btn del" title="Delete">🗑️</button>
-                </form>
+                <a href="{{ url_for('supplier.supplier_loan_delete', sup_id=s.id, loan_id=l.id) }}" class="act-btn del" title="Delete" onclick="return confirm('Delete this loan entry?')">🗑️</a>
               </div>
             </td>
           </tr>
