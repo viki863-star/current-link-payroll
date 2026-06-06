@@ -271,10 +271,7 @@ def _ensure_tables():
         notes TEXT,
         created_at TEXT NOT NULL DEFAULT {now_val}
     )""")
-    db.execute("""CREATE TABLE IF NOT EXISTS app_config (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-    )""")
+
     for col, dtype in [("owner_name", "TEXT DEFAULT 'Owner'"), ("transaction_type", "TEXT DEFAULT 'deposit'")]:
         try:
             db.execute(f"ALTER TABLE owner_funds ADD COLUMN {col} {dtype}")
@@ -308,16 +305,12 @@ def _ensure_tables():
 
     db.commit()
     db.close()
-
-    # One-time migration from old tables (run only once)
+    # One-time migration runs only when suppliers table is empty
     try:
-        flag_db = _get_db()
-        flag = flag_db.execute("SELECT value FROM app_config WHERE key='supplier_migrated'").fetchone()
-        if not flag:
+        check = _get_db().execute("SELECT COUNT(*) FROM suppliers").fetchone()[0]
+        if check == 0:
             sync_parties_to_suppliers()
             _migrate_old_supplier_data()
-            flag_db.execute("INSERT INTO app_config (key,value) VALUES ('supplier_migrated','1')")
-            flag_db.commit()
     except Exception:
         pass
 
