@@ -35,7 +35,7 @@
       <span class="mono" style="font-size:0.78rem;color:var(--muted)"> · {{ s.supplier_code }}</span>
     </p>
 
-    <form method="POST">
+    <form method="POST" action="{% if loan.id %}{{ url_for('supplier.supplier_loan_edit', sup_id=s.id, loan_id=loan.id) }}{% else %}{{ url_for('supplier.supplier_loan_add', sup_id=s.id) }}{% endif %}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div class="lf-row">

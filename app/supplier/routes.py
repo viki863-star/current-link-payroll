@@ -1905,10 +1905,15 @@ def supplier_loan_edit(sup_id, loan_id):
     return render_template("supplier/loan_form.html", s=s, loan=loan, methods=PAYMENT_METHODS)
 
 
-@supplier_bp.route("/<int:sup_id>/loans/<int:loan_id>/delete", methods=["GET", "POST"])
+@supplier_bp.route("/<int:sup_id>/loans/<int:loan_id>/delete", methods=["POST"])
 def supplier_loan_delete(sup_id, loan_id):
+    _ensure_tables()
     db = _get_db()
     try:
+        row = db.execute("SELECT id FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()
+        if not row:
+            flash("Loan entry not found.", "error")
+            return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
         db.execute("DELETE FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id))
         db.commit()
         flash("Loan entry deleted.", "info")
@@ -1916,6 +1921,8 @@ def supplier_loan_delete(sup_id, loan_id):
         db.rollback()
         flash(f"Error deleting loan: {e}", "error")
     return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
+
+supplier_loan_delete.csrf_exempt = True
 
 
 @supplier_bp.route("/<int:sup_id>/loans")
