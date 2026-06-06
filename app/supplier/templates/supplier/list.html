@@ -3,101 +3,147 @@
 {% block page_title %}Suppliers{% endblock %}
 
 {% block content %}
-<div class="profile-shell">
-    <div class="profile-card" style="margin-bottom:16px">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <form method="GET" style="display:flex;gap:8px;flex:1;flex-wrap:wrap">
-                <div style="display:flex;align-items:center;gap:6px;background:#f5f7fa;border:1.5px solid var(--line);border-radius:10px;padding:8px 12px;flex:1;min-width:180px">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/></svg>
-                    <input type="text" name="q" value="{{ q }}" placeholder="Search by name, code, phone..." style="border:none;background:none;flex:1;font-size:0.85rem;outline:none;font-family:inherit">
-                </div>
-                <select name="type" style="padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:0.82rem;background:#fff;font-family:inherit">
-                    <option value="">All Types</option>
-                    <option value="with_invoice" {% if typ == 'with_invoice' %}selected{% endif %}>With Invoice</option>
-                    <option value="without_invoice" {% if typ == 'without_invoice' %}selected{% endif %}>Without Invoice</option>
-                </select>
-                <button type="submit" class="btn btn-primary btn-sm">Search</button>
-                <a href="{{ url_for('supplier.supplier_list') }}" class="btn btn-outline btn-sm">Clear</a>
-            </form>
-            <a href="{{ url_for('supplier.supplier_add') }}" class="btn btn-primary btn-sm">+ Add Supplier</a>
-        </div>
-    </div>
+<style>
+.sl-wrap { max-width:1100px; margin:0 auto; }
+.sl-toolbar { background:#fff; border:2px solid var(--line); border-radius:12px; padding:16px 20px; margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+.sl-search { flex:1; min-width:200px; position:relative; }
+.sl-search input { padding-left:34px; font-size:0.85rem; width:100%; }
+.sl-search .ic { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:#64748b; font-size:0.85rem; pointer-events:none; }
+.sl-actions { display:flex; gap:8px; align-items:center; margin-left:auto; }
+.sl-card { background:#fff; border:2px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+.sl-card-h { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; }
+.sl-card-h h3 { margin:0; font-size:0.85rem; font-weight:700; color:#0f172a; }
+.sl-card-h .count { margin-left:auto; font-size:0.68rem; color:#64748b; font-weight:500; background:#f1f4f9; padding:2px 12px; border-radius:20px; }
+.sl-table { width:100%; border-collapse:collapse; }
+.sl-table thead { background:linear-gradient(135deg,#1a2a3a,#0f172a); }
+.sl-table th { padding:10px 14px; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.5px; color:#e2e8f0; font-weight:700; white-space:nowrap; text-align:left; }
+.sl-table th.c, .sl-table td.c { text-align:center; }
+.sl-table td { padding:10px 14px; font-size:0.82rem; border-bottom:1px solid #f1f5f9; color:#000; vertical-align:middle; }
+.sl-table tbody tr { transition:background 0.12s; }
+.sl-table tbody tr:last-child td { border-bottom:none; }
+.sl-table tbody tr:hover { background:#f0f4fe; }
+.sl-table tbody tr.deleted-row { opacity:0.7; background:#fafafa; }
+.sl-table tbody tr.deleted-row:hover { background:#f0f0f0; }
+.sl-table .num { text-align:center; font-size:0.78rem; color:#000; font-weight:600; width:36px; }
+.sl-table .mono { font-family:Consolas,'Courier New',monospace; }
+.sl-empty { text-align:center; padding:50px 20px; }
+.sl-empty .ic { font-size:2rem; margin-bottom:8px; opacity:0.4; }
+.sl-empty p { color:#64748b; font-size:0.85rem; margin:0; }
+.badge-del { display:inline-block; background:#fee2e2; color:#b91c1c; font-size:0.65rem; font-weight:700; padding:2px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:0.3px; }
+.badge-act { display:inline-block; background:#dcfce7; color:#15803d; font-size:0.65rem; font-weight:700; padding:2px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:0.3px; }
+.btn-restore { color:#2563eb; font-size:0.72rem; font-weight:600; cursor:pointer; border:none; background:none; padding:4px 10px; border-radius:6px; border:1px solid #2563eb; transition:all 0.15s; }
+.btn-restore:hover { background:#2563eb; color:#fff; }
+.btn-del-soft { color:#dc2626; font-size:0.72rem; font-weight:600; cursor:pointer; border:none; background:none; padding:4px 10px; border-radius:6px; border:1px solid #dc2626; transition:all 0.15s; }
+.btn-del-soft:hover { background:#dc2626; color:#fff; }
+.toggle-trash { display:flex; align-items:center; gap:6px; font-size:0.78rem; color:#64748b; cursor:pointer; }
+.toggle-trash input { margin:0; }
+@media (max-width:700px) { .sl-toolbar { flex-direction:column; align-items:stretch; } .sl-actions { margin-left:0; justify-content:flex-end; } }
+</style>
 
-    <div class="profile-card" style="padding:0">
+<div class="sl-wrap">
+  <div class="sl-toolbar">
+    <div class="sl-search">
+      <span class="ic">🔍</span>
+      <input type="text" id="searchInput" value="{{ q }}" class="form-control" placeholder="Search by name, code, phone, TRN…" onkeyup="if(event.key==='Enter')doSearch()">
+    </div>
+    <select id="typeFilter" class="form-control" style="width:auto;min-width:130px;font-size:0.82rem" onchange="doSearch()">
+      <option value="">All Types</option>
+      <option value="with_invoice" {% if typ == 'with_invoice' %}selected{% endif %}>With Invoice</option>
+      <option value="without_invoice" {% if typ == 'without_invoice' %}selected{% endif %}>Cash</option>
+    </select>
+    <label class="toggle-trash">
+      <input type="checkbox" id="showDeleted" onchange="doSearch()" {% if show_all %}checked{% endif %}>
+      Show deleted
+    </label>
+    <div class="sl-actions">
+      <a href="{{ url_for('supplier.supplier_add') }}" class="btn btn-primary btn-sm">+ Add Supplier</a>
+    </div>
+  </div>
+
+  <form method="POST" action="{{ url_for('supplier.supplier_bulk_delete') }}" id="bulkForm" onsubmit="return confirm('Move selected suppliers to trash?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="sl-card">
+      <div class="sl-card-h">
+        <h3>📋 All Suppliers</h3>
+        <span class="count">{{ suppliers|length }} total</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="selCount" style="font-size:0.78rem;color:#64748b"></span>
+          <button type="submit" class="btn btn-outline btn-xs" id="bulkDelBtn" style="display:none;color:#dc2626">Trash Selected</button>
+        </div>
+      </div>
+      <div style="padding:0">
         {% if suppliers %}
-        <form method="post" action="{{ url_for('supplier.supplier_bulk_delete') }}" id="bulkForm" onsubmit="return confirm('Delete selected supplier(s) and ALL linked data? This cannot be undone.');">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);background:#f8fafc;flex-wrap:wrap">
-            <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer">
-                <input type="checkbox" id="selectAll"> Select All
-            </label>
-            <span style="color:var(--muted);font-size:0.78rem" id="selectedCount">0 selected</span>
-            <button type="submit" class="btn btn-danger btn-sm" id="deleteSelected" disabled style="margin-left:auto">Delete Selected</button>
-        </div>
-        <div class="table-wrap">
-            <table class="smart-table">
-                <thead>
-                    <tr>
-                        <th style="width:32px"><input type="checkbox" id="selectAll"></th>
-                        <th>Code</th>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Phone</th>
-                        <th>TRN</th>
-                        <th>Category</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for s in suppliers %}
-                    <tr class="clickable-row" style="cursor:pointer">
-                        <td style="width:32px" onclick="event.stopPropagation()"><input type="checkbox" name="selected_ids" value="{{ s.id }}" class="select-row"></td>
-                        <td class="mono" onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'">{{ s.supplier_code }}</td>
-                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'"><strong>{{ s.supplier_name }}</strong></td>
-                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'"><span class="badge badge-dept">{{ 'With Invoice' if s.supplier_type == 'with_invoice' else 'Cash' }}</span></td>
-                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'">{{ s.phone or '-' }}</td>
-                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'" class="mono">{{ s.trn or '-' }}</td>
-                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'"><span class="badge badge-type">{{ s.category or '-' }}</span></td>
-                        <td onclick="window.location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}'"><span class="status-badge {{ s.status|lower }}">{{ s.status }}</span></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        </form>
+        <table class="sl-table">
+          <thead>
+            <tr>
+              <th class="c" style="width:32px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>
+              <th class="c" style="width:36px">#</th>
+              <th>Party Code</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>TRN</th>
+              <th>Status</th>
+              <th class="c" style="width:90px">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in suppliers %}
+            <tr class="{% if s.is_deleted %}deleted-row{% endif %}">
+              <td class="c"><input type="checkbox" name="selected_ids[]" value="{{ s.id }}" class="select-row" onchange="updateBulk()"></td>
+              <td class="num">{{ loop.index }}</td>
+              <td class="mono" style="font-weight:600;color:var(--primary)">{{ s.supplier_code }}</td>
+              <td><a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" style="font-weight:600;color:#0f172a;text-decoration:none">{{ s.supplier_name }}</a></td>
+              <td class="mono" style="font-size:0.8rem;color:#000">{{ s.phone or '—' }}</td>
+              <td class="mono" style="font-size:0.8rem;color:#000">{{ s.trn or '—' }}</td>
+              <td>{% if s.is_deleted %}<span class="badge-del">Deleted</span>{% else %}<span class="badge-act">Active</span>{% endif %}</td>
+              <td class="c">
+                {% if s.is_deleted %}
+                <form method="POST" action="{{ url_for('supplier.supplier_restore', sup_id=s.id) }}" style="display:inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn-restore">↩ Restore</button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('supplier.supplier_delete', sup_id=s.id) }}" style="display:inline" onsubmit="return confirm('Move {{ s.supplier_name }} to trash?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn-del-soft">✕ Trash</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         {% else %}
-        <div style="padding:40px;text-align:center;color:var(--muted)">
-            <div style="font-size:2rem;margin-bottom:8px">&#127970;</div>
-            No suppliers found.
-            <a href="{{ url_for('supplier.supplier_add') }}" style="display:block;margin-top:12px">Add your first supplier</a>
+        <div class="sl-empty">
+          <div class="ic">📋</div>
+          <p>No suppliers found.{% if q or typ or show_all %} <a href="{{ url_for('supplier.supplier_list') }}" style="color:var(--primary);font-weight:600">Clear filters</a>{% endif %}</p>
         </div>
         {% endif %}
+      </div>
     </div>
+  </form>
 </div>
+
 <script>
-(function(){
-    var selectAll = document.getElementById('selectAll');
-    var rows = document.querySelectorAll('.select-row');
-    var count = document.getElementById('selectedCount');
-    var delBtn = document.getElementById('deleteSelected');
-    function update() {
-        var n = document.querySelectorAll('.select-row:checked').length;
-        count.textContent = n + ' selected';
-        delBtn.disabled = n === 0;
-    }
-    if (selectAll) {
-        selectAll.addEventListener('change', function() {
-            rows.forEach(function(cb) { cb.checked = selectAll.checked; });
-            update();
-        });
-    }
-    rows.forEach(function(cb) {
-        cb.addEventListener('change', function() {
-            if (selectAll) selectAll.checked = rows.length > 0 && document.querySelectorAll('.select-row:not(:checked)').length === 0;
-            update();
-        });
-    });
-    update();
-})();
+function toggleAll(master) {
+  document.querySelectorAll('.select-row').forEach(function(c){c.checked=master.checked});
+  updateBulk();
+}
+function updateBulk() {
+  var n = document.querySelectorAll('.select-row:checked').length;
+  document.getElementById('selCount').textContent = n ? n + ' selected' : '';
+  document.getElementById('bulkDelBtn').style.display = n ? 'inline-block' : 'none';
+}
+function doSearch() {
+  var q = document.getElementById('searchInput').value;
+  var typ = document.getElementById('typeFilter').value;
+  var show = document.getElementById('showDeleted').checked ? 'all' : '';
+  var params = [];
+  if (q) params.push('q=' + encodeURIComponent(q));
+  if (typ) params.push('type=' + encodeURIComponent(typ));
+  if (show) params.push('show=' + show);
+  window.location.href = '{{ url_for("supplier.supplier_list") }}' + (params.length ? '?' + params.join('&') : '');
+}
 </script>
 {% endblock %}

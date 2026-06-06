@@ -18,8 +18,6 @@ from . import supplier_bp
 
 from ..database import open_db
 
-from ..routes import _touch_admin_workspace
-
 
 MAINTENANCE_CATEGORIES = [
     "Engine", "Transmission", "Brakes", "Tires", "Electrical",
@@ -250,6 +248,13 @@ def _ensure_tables():
         except Exception:
             db.rollback()
 
+    for col, dtype in [("vehicle_no", "TEXT")]:
+        try:
+            db.execute(f"ALTER TABLE supplier_expenses ADD COLUMN {col} {dtype}")
+            db.commit()
+        except Exception:
+            db.rollback()
+
     for col, dtype in [("deduct_from_balance", "INTEGER DEFAULT 0")]:
         try:
             db.execute(f"ALTER TABLE supplier_loans ADD COLUMN {col} {dtype}")
@@ -285,6 +290,13 @@ def _ensure_tables():
             db.rollback()
         try:
             db.execute(f"ALTER TABLE supplier_loans ADD COLUMN {col} {dtype}")
+            db.commit()
+        except Exception:
+            db.rollback()
+
+    for col, dtype in [("is_deleted", "INTEGER DEFAULT 0")]:
+        try:
+            db.execute(f"ALTER TABLE suppliers ADD COLUMN {col} {dtype}")
             db.commit()
         except Exception:
             db.rollback()
@@ -555,7 +567,6 @@ def _migrate_old_supplier_data():
 @supplier_bp.route("/")
 def supplier_dashboard():
     try:
-        _touch_admin_workspace("suppliers-normal")
         _ensure_tables()
         db = _get_db()
 
@@ -586,9 +597,9 @@ def supplier_dashboard():
             recent_invoices=recent_invoices,
         )
     except Exception as e:
-        current_app.logger.error("Supplier dashboard error: %s", e, exc_info=True)
-        flash("An error occurred loading the dashboard.", "error")
-        return redirect(url_for("supplier.supplier_dashboard"))
+        import traceback
+        tb = traceback.format_exc()
+        return f"<h2>Supplier Dashboard Error</h2><pre>{e}\n\n{tb}</pre>", 500
 
 
 # ═══════════════════════════════════════════════════════════
@@ -601,9 +612,12 @@ def supplier_list():
     db = _get_db()
     q = request.args.get("q", "").strip()
     typ = request.args.get("type", "")
+    show_all = request.args.get("show", "") == "all"
     sql = "SELECT * FROM suppliers"
     params = []
     conditions = []
+    if not show_all:
+        conditions.append("COALESCE(is_deleted,0) = 0")
     if q:
         conditions.append(
             "(supplier_name LIKE ? OR supplier_code LIKE ? OR phone LIKE ? OR email LIKE ?)"
@@ -615,10 +629,10 @@ def supplier_list():
         params.append(typ)
     if conditions:
         sql += " WHERE " + " AND ".join(conditions)
-    sql += " ORDER BY supplier_name"
+    sql += " ORDER BY COALESCE(is_deleted,0), supplier_name"
     suppliers = db.execute(sql, params).fetchall()
 
-    return render_template("supplier/list.html", suppliers=suppliers, q=q, typ=typ)
+    return render_template("supplier/list.html", suppliers=suppliers, q=q, typ=typ, show_all=show_all)
 
 
 # ═══════════════════════════════════════════════════════════
@@ -786,9 +800,23 @@ def supplier_profile(sup_id):
     ).fetchall()
 
 
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+
+    # Monthly chart data
+    monthly_map = {}
+    for inv in invoices:
+        m = inv["invoice_date"][:7]
+        monthly_map[m] = monthly_map.get(m, 0) + inv["total_amount"]
+    for e in expenses:
+        m = e["expense_date"][:7]
+        monthly_map[m] = monthly_map.get(m, 0) + e["amount"]
+    chart_months = sorted(monthly_map.keys())
+    chart_values = [round(monthly_map[m], 2) for m in chart_months]
+
     return render_template(
         "supplier/profile.html",
         s=s,
+        company=company,
         active_tab=active_tab,
         invoices=invoices,
         expenses=expenses,
@@ -806,6 +834,8 @@ def supplier_profile(sup_id):
         loan_given_sep=loan_given_sep,
         loan_recovered_sep=loan_recovered_sep,
         net_balance=net_balance,
+        chart_months=chart_months,
+        chart_values=chart_values,
         today=date.today().isoformat(),
     )
 
@@ -823,6 +853,7 @@ def supplier_invoice_add(sup_id):
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
 
+    preselected_lpo = request.args.get("lpo_id", "").strip()
     if request.method == "POST":
         invoice_no = request.form.get("invoice_no", "").strip()
         invoice_date = request.form.get("invoice_date", "").strip()
@@ -855,12 +886,13 @@ def supplier_invoice_add(sup_id):
         db.execute(
             """INSERT INTO supplier_invoices (supplier_id, invoice_no, invoice_date, due_date,
                amount, vat_percentage, vat_amount, total_amount, description,
-               attachment_name, attachment_data, attachment_type, notes, lpo_id)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               attachment_name, attachment_data, attachment_type, notes, lpo_id, status)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (sup_id, invoice_no, invoice_date, due_date or None,
              amount_f, vat_pct_f, vat_amt, total, description,
              attachment_name, attachment_data, attachment_type, notes,
-             int(lpo_id) if lpo_id and lpo_id != "none" else None),
+             int(lpo_id) if lpo_id and lpo_id != "none" else None,
+             'approved'),
         )
         db.commit()
 
@@ -869,7 +901,8 @@ def supplier_invoice_add(sup_id):
 
 
     lpos = _get_db().execute("SELECT * FROM supplier_lpos WHERE supplier_id=? AND status='open' ORDER BY lpo_date DESC", (sup_id,)).fetchall()
-    return render_template("supplier/invoice_form.html", s=s, inv={}, lpos=lpos, categories=SUPPLIER_CATEGORIES)
+    preselected = int(preselected_lpo) if preselected_lpo.isdigit() else None
+    return render_template("supplier/invoice_form.html", s=s, inv={}, lpos=lpos, categories=SUPPLIER_CATEGORIES, preselected_lpo=preselected)
 
 
 @supplier_bp.route("/<int:sup_id>/invoices/<int:inv_id>/edit", methods=["GET", "POST"])
@@ -950,6 +983,21 @@ def supplier_invoice_attachment(inv_id):
     )
 
 
+@supplier_bp.route("/<int:sup_id>/invoices/<int:inv_id>/delete", methods=["POST"])
+def supplier_invoice_delete(sup_id, inv_id):
+    _ensure_tables()
+    db = _get_db()
+    try:
+        db.execute("UPDATE supplier_payment_records SET invoice_id=NULL WHERE invoice_id=? AND supplier_id=?", (inv_id, sup_id))
+        db.execute("DELETE FROM supplier_invoices WHERE id=? AND supplier_id=?", (inv_id, sup_id))
+        db.commit()
+        flash("Invoice deleted.", "info")
+    except Exception as e:
+        db.rollback()
+        flash(f"Error deleting invoice: {e}", "error")
+    return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="earnings"))
+
+
 # ═══════════════════════════════════════════════════════════
 # LPO (Local Purchase Order)
 # ═══════════════════════════════════════════════════════════
@@ -999,7 +1047,8 @@ def supplier_lpo_add(sup_id):
         notes = request.form.get("notes", "").strip()
         if not lpo_no or not lpo_date:
             flash("LPO number and date are required.", "error")
-            return render_template("supplier/lpo_form.html", s=s, lpo={}, lpo_types=LPO_TYPES, quotations=[], qitems=[])
+            company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+            return render_template("supplier/lpo_form.html", s=s, company=company, lpo={}, lpo_types=LPO_TYPES, quotations=[], qitems=[])
         qid = int(quotation_id) if quotation_id and quotation_id != "none" else None
 
         row = db.execute(
@@ -1035,8 +1084,82 @@ def supplier_lpo_add(sup_id):
         return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
 
     quotations = db.execute("SELECT * FROM supplier_quotations WHERE supplier_id=? ORDER BY quotation_date DESC", (sup_id,)).fetchall()
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
 
-    return render_template("supplier/lpo_form.html", s=s, lpo={}, lpo_types=LPO_TYPES, quotations=quotations, qitems=[])
+    return render_template("supplier/lpo_form.html", s=s, company=company, lpo={}, lpo_types=LPO_TYPES, quotations=quotations, qitems=[])
+
+
+@supplier_bp.route("/<int:sup_id>/lpos/<int:lpo_id>/edit", methods=["GET", "POST"])
+def supplier_lpo_edit(sup_id, lpo_id):
+    _ensure_tables()
+    db = _get_db()
+    s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    lpo = db.execute("SELECT * FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
+    if not s or not lpo:
+        flash("LPO not found.", "error")
+        return redirect(url_for("supplier.supplier_list"))
+
+    if request.method == "POST":
+        lpo_no = request.form.get("lpo_no", "").strip()
+        lpo_date = request.form.get("lpo_date", "").strip()
+        lpo_type = request.form.get("lpo_type", "fixed").strip()
+        quotation_id = request.form.get("quotation_id", "").strip()
+        description = request.form.get("description", "").strip()
+        notes = request.form.get("notes", "").strip()
+        if not lpo_no or not lpo_date:
+            flash("LPO number and date are required.", "error")
+            company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+            return render_template("supplier/lpo_form.html", s=s, company=company, lpo=lpo, lpo_types=LPO_TYPES, quotations=[], qitems=[])
+        qid = int(quotation_id) if quotation_id and quotation_id != "none" else None
+
+        total_amount = 0
+        db.execute("DELETE FROM supplier_lpo_items WHERE lpo_id=?", (lpo_id,))
+
+        descriptions = request.form.getlist("item_desc[]")
+        qtys = request.form.getlist("item_qty[]")
+        basis_types = request.form.getlist("item_basis[]")
+        rates = request.form.getlist("item_rate[]")
+
+        for i in range(len(descriptions)):
+            desc = descriptions[i].strip()
+            if not desc:
+                continue
+            qty = float(qtys[i]) if qtys[i] else 1
+            basis = basis_types[i] if i < len(basis_types) else "trip"
+            rate = float(rates[i]) if i < len(rates) and rates[i] else 0
+            amt = round(qty * rate, 2)
+            total_amount += amt
+            db.execute(
+                "INSERT INTO supplier_lpo_items (lpo_id, description, qty, basis_type, day_rate, amount, sort_order) VALUES (?,?,?,?,?,?,?)",
+                (lpo_id, desc, qty, basis, rate, amt, i),
+            )
+
+        db.execute("UPDATE supplier_lpos SET lpo_no=?, lpo_date=?, lpo_type=?, quotation_id=?, amount=?, description=?, notes=? WHERE id=?",
+                   (lpo_no, lpo_date, lpo_type, qid, round(total_amount, 2), description, notes, lpo_id))
+        db.commit()
+
+        flash("LPO updated.", "success")
+        return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
+
+    items = db.execute("SELECT * FROM supplier_lpo_items WHERE lpo_id=? ORDER BY sort_order", (lpo_id,)).fetchall()
+    quotations = db.execute("SELECT * FROM supplier_quotations WHERE supplier_id=? ORDER BY quotation_date DESC", (sup_id,)).fetchall()
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+
+    return render_template("supplier/lpo_form.html", s=s, company=company, lpo=lpo, items=items, lpo_types=LPO_TYPES, quotations=quotations, qitems=[])
+
+
+@supplier_bp.route("/<int:sup_id>/lpos/<int:lpo_id>/delete", methods=["POST"])
+def supplier_lpo_delete(sup_id, lpo_id):
+    _ensure_tables()
+    db = _get_db()
+    try:
+        db.execute("DELETE FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id))
+        db.commit()
+        flash("LPO deleted.", "info")
+    except Exception as e:
+        db.rollback()
+        flash(f"Error deleting LPO: {e}", "error")
+    return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="lpos"))
 
 
 @supplier_bp.route("/<int:sup_id>/lpos/<int:lpo_id>/close", methods=["POST"])
@@ -1053,12 +1176,15 @@ def supplier_lpo_close(sup_id, lpo_id):
 @supplier_bp.route("/<int:sup_id>/lpos/<int:lpo_id>/pdf")
 def supplier_lpo_pdf(sup_id, lpo_id):
     from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import mm, cm
+    from reportlab.lib.units import mm
     from reportlab.lib import colors
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from reportlab.platypus import Image as RLImage
+    from reportlab.lib.units import cm
     from io import BytesIO
+    import base64
 
     _ensure_tables()
     db = _get_db()
@@ -1068,7 +1194,10 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     quotation = None
     if lpo and lpo["quotation_id"]:
         quotation = db.execute("SELECT * FROM supplier_quotations WHERE id=?", (lpo["quotation_id"],)).fetchone()
-
+    try:
+        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    except Exception:
+        company = None
 
     if not s or not lpo:
         flash("LPO not found.", "error")
@@ -1076,169 +1205,187 @@ def supplier_lpo_pdf(sup_id, lpo_id):
 
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
-        leftMargin=18*mm, rightMargin=18*mm,
-        topMargin=15*mm, bottomMargin=15*mm)
-    styles = getSampleStyleSheet()
+        leftMargin=2*cm, rightMargin=2*cm,
+        topMargin=1.5*cm, bottomMargin=1.5*cm)
+    avail = A4[0] - 4*cm  # ~146mm
+
+    NAVY = colors.HexColor("#1a3a5c")
+    LINE = colors.HexColor("#e2e8f0")
+    MUTED = colors.HexColor("#94a3b8")
+    DARK = colors.HexColor("#0f172a")
 
     # Styles
-    s_title = ParagraphStyle("Title", fontSize=18, fontName="Helvetica-Bold", alignment=TA_CENTER, spaceAfter=2, textColor=colors.HexColor("#1a3a5c"))
-    s_subtitle = ParagraphStyle("Sub", fontSize=8, textColor=colors.grey, alignment=TA_CENTER, spaceAfter=10)
-    s_label = ParagraphStyle("Lbl", fontSize=8, textColor=colors.HexColor("#555"), spaceAfter=1)
-    s_field = ParagraphStyle("Fld", fontSize=9.5, fontName="Helvetica-Bold", spaceAfter=3)
-    s_sec = ParagraphStyle("Sec", fontSize=11, fontName="Helvetica-Bold", spaceAfter=6, spaceBefore=10, textColor=colors.HexColor("#1a3a5c"))
-    s_cell = ParagraphStyle("Cell", fontSize=8.5, spaceAfter=0)
-    s_cell_bold = ParagraphStyle("CellB", fontSize=8.5, fontName="Helvetica-Bold", spaceAfter=0, alignment=TA_CENTER)
-    s_total = ParagraphStyle("Tot", fontSize=12, fontName="Helvetica-Bold", spaceAfter=2, alignment=TA_RIGHT)
-    s_sign = ParagraphStyle("Sign", fontSize=8.5, alignment=TA_CENTER, spaceBefore=4)
-    s_footer = ParagraphStyle("Foot", fontSize=7, textColor=colors.grey, alignment=TA_CENTER)
+    s_hdr = ParagraphStyle("hdr", fontSize=11, fontName="Helvetica-Bold", textColor=NAVY, leading=14)
+    s_hdr_sm = ParagraphStyle("hsm", fontSize=7.5, textColor=MUTED, leading=10)
+    s_title = ParagraphStyle("tit", fontSize=16, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=18)
+    s_info = ParagraphStyle("inf", fontSize=9, textColor=DARK, leading=12, spaceAfter=2)
+    s_info_lbl = ParagraphStyle("ibl", fontSize=7, textColor=colors.HexColor("#64748b"), leading=9, spaceAfter=0)
+    s_sec = ParagraphStyle("sec", fontSize=10, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f2b52"), leading=12, spaceAfter=4, spaceBefore=8)
+    s_cell = ParagraphStyle("cel", fontSize=8, leading=10, spaceAfter=0)
+    s_cell_b = ParagraphStyle("celb", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_CENTER)
+    s_cell_r = ParagraphStyle("celr", fontSize=8, leading=10, spaceAfter=0, alignment=TA_RIGHT)
+    s_sign = ParagraphStyle("sgn", fontSize=8, alignment=TA_CENTER, leading=10, textColor=DARK)
+    s_foot = ParagraphStyle("fot", fontSize=6.5, textColor=MUTED, alignment=TA_CENTER, leading=8)
 
     type_labels = dict(LPO_TYPES)
     lpo_type_str = type_labels.get(lpo["lpo_type"], lpo["lpo_type"] or "Fixed Amount")
-
     basis_labels = {"trip": "Trip", "hour": "Hour", "monthly": "Monthly", "fixed": "Fixed", "other": "Other"}
-
-    elements = []
-
-    # ═══ HEADER ═══
-    hdr_data = [[
-        Paragraph("AL SAQR TRANSPORT<br/><font size=7>P.O. Box XXXXX, Dubai, UAE<br/>TRN: XXXXXXXXXX</font>",
-            ParagraphStyle("Co", fontSize=11, fontName="Helvetica-Bold", textColor=colors.HexColor("#1a3a5c"))),
-        Paragraph("LOCAL PURCHASE ORDER<br/><font size=10>LPO #: <b>{}</b></font>".format(lpo['lpo_no']),
-            ParagraphStyle("LpoHdr", fontSize=14, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=colors.HexColor("#1a3a5c"))),
-    ]]
-    hdr_table = Table(hdr_data, colWidths=[230, 140])
-    hdr_table.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LINEBELOW", (0, 0), (-1, 0), 1.5, colors.HexColor("#1a3a5c")),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-    ]))
-    elements.append(hdr_table)
-    elements.append(Spacer(1, 3*mm))
-
-    # ═══ INFO ROW ═══
-    info_data = [
-        [Paragraph("LPO Date", s_label), Paragraph(lpo['lpo_date'], s_field),
-         Paragraph("Basis", s_label), Paragraph(lpo_type_str, s_field),
-         Paragraph("Status", s_label), Paragraph(f"<b>{lpo['status'].upper()}</b>", s_field)],
-    ]
-    info_tbl = Table(info_data, colWidths=[45, 95, 40, 85, 40, 65])
-    info_tbl.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#ccc")),
-        ("INNERGRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#ddd")),
-        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8f9fa")),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-    ]))
-    elements.append(info_tbl)
-    elements.append(Spacer(1, 4*mm))
-
-    # ═══ SUPPLIER ═══
-    elements.append(Paragraph("SUPPLIER INFORMATION", s_sec))
-    sup_data = [
-        [Paragraph("Supplier Name", s_label), Paragraph(f"<b>{s['supplier_name']}</b>", s_field), Paragraph("TRN", s_label), Paragraph(f"{s['trn'] or '—'}", s_field)],
-        [Paragraph("Contact", s_label), Paragraph(f"{s['contact_person'] or s['phone'] or '—'}", s_field), Paragraph("Phone", s_label), Paragraph(f"{s['phone'] or '—'}", s_field)],
-        [Paragraph("Address", s_label), Paragraph(f"{s['address'] or '—'}", s_field), Paragraph("", s_label), Paragraph("", s_field)],
-    ]
-    sup_tbl = Table(sup_data, colWidths=[60, 140, 40, 130])
-    sup_tbl.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("TOPPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-    ]))
-    elements.append(sup_tbl)
-    elements.append(Spacer(1, 4*mm))
-
-    # ═══ ITEMS TABLE ═══
-    elements.append(Paragraph("SERVICE / WORK DETAILS", s_sec))
-
-    item_hdr = [
-        Paragraph("<b>#</b>", s_cell_bold),
-        Paragraph("<b>Description</b>", ParagraphStyle("CH", fontSize=8.5, fontName="Helvetica-Bold", spaceAfter=0)),
-        Paragraph("<b>QTY</b>", s_cell_bold),
-        Paragraph("<b>Basis</b>", s_cell_bold),
-        Paragraph("<b>Rate (AED)</b>", s_cell_bold),
-        Paragraph("<b>Amount</b>", s_cell_bold),
-    ]
-    item_rows = [item_hdr]
-    for idx, it in enumerate(items):
-        basis_txt = basis_labels.get(it["basis_type"], it["basis_type"])
-        rate = it["day_rate"] or 0
-        amt = it["amount"] or 0
-        item_rows.append([
-            Paragraph(str(idx+1), s_cell_bold),
-            Paragraph(it["description"], s_cell),
-            Paragraph(f"{it['qty']:,.0f}", s_cell_bold),
-            Paragraph(basis_txt, s_cell),
-            Paragraph(f"{rate:,.2f}", ParagraphStyle("CR", fontSize=8.5, spaceAfter=0, alignment=TA_RIGHT)),
-            Paragraph(f"{amt:,.2f}", ParagraphStyle("CR3", fontSize=8.5, fontName="Helvetica-Bold", spaceAfter=0, alignment=TA_RIGHT)),
-        ])
-
-    # Totals row
     total_amt = lpo["amount"] or 0
-    item_rows.append([
-        Paragraph("", s_cell),
-        Paragraph("<b>TOTAL</b>", ParagraphStyle("TotL", fontSize=9, fontName="Helvetica-Bold", spaceAfter=0, alignment=TA_RIGHT)),
-        Paragraph("", s_cell),
-        Paragraph("", s_cell),
-        Paragraph("", s_cell),
-        Paragraph(f"<b>{total_amt:,.2f}</b>", ParagraphStyle("TotR", fontSize=10, fontName="Helvetica-Bold", spaceAfter=0, alignment=TA_RIGHT, textColor=colors.HexColor("#1a3a5c"))),
-    ])
 
-    col_w = [14, 160, 40, 55, 65, 70]
-    items_tbl = Table(item_rows, colWidths=col_w, repeatRows=1)
-    items_tbl.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#ccc")),
-        ("INNERGRID", (0, 0), (-1, -2), 0.3, colors.HexColor("#eee")),
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a3a5c")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#f0f4f8")),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#fafafa")]),
+    cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT") or "CURRENT LINK TRANSPORT"
+    c_addr = (company["address"] if company else "") or ""
+    c_trn = (company["trn_no"] if company else "XXXXXXXXXX") or "XXXXXXXXXX"
+    c_ph = (company["phone_number"] if company else "") or ""
+    c_em = (company["email"] if company else "") or ""
+
+    logo_img = None
+    if company and company.get("logo_data"):
+        try:
+            logo_img = RLImage(BytesIO(base64.b64decode(company["logo_data"])), width=22*mm, height=22*mm)
+        except Exception:
+            logo_img = None
+
+    els = []
+
+    # ── HEADER ──
+    co_lines = []
+    if c_addr: co_lines.append("<font size=7>" + c_addr + "</font>")
+    parts = []
+    if c_ph: parts.append("Phone: " + c_ph)
+    if c_em: parts.append("Email: " + c_em)
+    if parts: co_lines.append("<font size=7>" + " &middot; ".join(parts) + "</font>")
+    co_lines.append("<font size=7><b>TRN:</b> " + c_trn + "</font>")
+    co_html = cn + "<br/>" + "<br/>".join(co_lines)
+    if logo_img:
+        hdr_data = [[logo_img, Paragraph(co_html, s_hdr), Paragraph("LOCAL PURCHASE ORDER<br/><font size=8>LPO #: <b>" + lpo['lpo_no'] + "</b></font>", s_title)]]
+        hdr_tbl = Table(hdr_data, colWidths=[2.2*cm, None, None])
+    else:
+        hdr_data = [[Paragraph(co_html, s_hdr), Paragraph("LOCAL PURCHASE ORDER<br/><font size=8>LPO #: <b>" + lpo['lpo_no'] + "</b></font>", s_title)]]
+        hdr_tbl = Table(hdr_data, colWidths=[None, None])
+    hdr_tbl.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("LINEBELOW", (0,0), (-1,0), 2.5, NAVY),
+        ("TOPPADDING", (0,0), (-1,-1), 0),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ("LEFTPADDING", (0,0), (-1,-1), 0),
+        ("RIGHTPADDING", (0,0), (-1,-1), 0),
     ]))
-    elements.append(items_tbl)
+    els.append(hdr_tbl)
+    els.append(Spacer(1, 3*mm))
 
-    if lpo["description"]:
-        elements.append(Spacer(1, 3*mm))
-        elements.append(Paragraph(f"<b>Notes:</b> {lpo['description']}", ParagraphStyle("Notes", fontSize=8.5, textColor=colors.HexColor("#555"), spaceAfter=2)))
+    # ── INFO section as simple table ──
+    els.append(Paragraph("LPO INFORMATION", s_sec))
+    info_rows = [
+        [Paragraph("LPO Number", s_info_lbl), Paragraph(lpo['lpo_no'], s_info),
+         Paragraph("Date", s_info_lbl), Paragraph(lpo['lpo_date'], s_info),
+         Paragraph("Basis / Type", s_info_lbl), Paragraph(lpo_type_str, s_info)],
+        [Paragraph("Quotation", s_info_lbl), Paragraph((quotation['quotation_no'] if quotation else "-"), s_info),
+         Paragraph("Supplier", s_info_lbl), Paragraph(s['supplier_name'], s_info),
+         Paragraph("Status", s_info_lbl), Paragraph("<font color='#e65100'><b>" + lpo['status'].upper() + "</b></font>", s_info)],
+    ]
+    info_tbl = Table(info_rows, colWidths=[None, None, None, None, None, None])
+    info_tbl.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("BOX", (0,0), (-1,-1), 0.5, LINE),
+        ("INNERGRID", (0,0), (-1,-1), 0.3, LINE),
+        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f8fafc")),
+        ("TOPPADDING", (0,0), (-1,-1), 3),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        ("LEFTPADDING", (0,0), (-1,-1), 5),
+        ("RIGHTPADDING", (0,0), (-1,-1), 5),
+    ]))
+    els.append(info_tbl)
+    els.append(Spacer(1, 3*mm))
 
-    if quotation:
-        elements.append(Paragraph(f"<i>Based on Quotation: {quotation['quotation_no']} dated {quotation['quotation_date']}</i>",
-            ParagraphStyle("QRef", fontSize=8, textColor=colors.grey, spaceAfter=4)))
+    # ── ITEMS TABLE ──
+    els.append(Paragraph("SERVICE / WORK ITEMS", s_sec))
+    i_hdr = [Paragraph("<b>#</b>", s_cell_b), Paragraph("<b>Description</b>", s_cell),
+             Paragraph("<b>QTY</b>", s_cell_b), Paragraph("<b>Basis</b>", s_cell),
+             Paragraph("<b>Rate (AED)</b>", s_cell_b), Paragraph("<b>Amount</b>", s_cell_b)]
+    i_rows = [i_hdr]
+    for idx, it in enumerate(items):
+        i_rows.append([
+            Paragraph(str(idx+1), s_cell_b), Paragraph(it["description"], s_cell),
+            Paragraph(str(it["qty"]), s_cell_b),
+            Paragraph(basis_labels.get(it["basis_type"], it["basis_type"]), s_cell),
+            Paragraph(f"{it['day_rate'] or 0:,.2f}", s_cell_r),
+            Paragraph(f"{it['amount'] or 0:,.2f}", ParagraphStyle("cr3", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_RIGHT)),
+        ])
+    i_rows.append([
+        Paragraph("", s_cell), Paragraph("<b>TOTAL</b>", ParagraphStyle("tl", fontSize=10, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=13)),
+        Paragraph("", s_cell), Paragraph("", s_cell), Paragraph("", s_cell),
+        Paragraph(f"<b>{total_amt:,.2f}</b>", ParagraphStyle("tv", fontSize=11, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=14)),
+    ])
+    i_tbl = Table(i_rows, colWidths=[None]*6, repeatRows=1)
+    i_tbl.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("BOX", (0,0), (-1,-1), 0.5, LINE),
+        ("INNERGRID", (0,0), (-1,-2), 0.3, LINE),
+        ("BACKGROUND", (0,0), (-1,0), NAVY),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f0f4f8")),
+        ("TOPPADDING", (0,0), (-1,-1), 3),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        ("LEFTPADDING", (0,0), (-1,-1), 4),
+        ("RIGHTPADDING", (0,0), (-1,-1), 4),
+    ]))
+    els.append(i_tbl)
+    els.append(Spacer(1, 2*mm))
 
-    elements.append(Spacer(1, 6*mm))
-
-    # ═══ AMOUNT IN WORDS ═══
+    # ── TOTAL & AMOUNT IN WORDS ──
     def num_to_words(n):
-        if n == 0: return "Zero"
-        ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
-                "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
-                "Seventeen", "Eighteen", "Nineteen"]
-        tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
-        def convert(num):
-            if num < 20: return ones[num]
-            if num < 100: return tens[num//10] + (" " + ones[num%10] if num%10 else "")
-            if num < 1000: return ones[num//100] + " Hundred" + (" " + convert(num%100) if num%100 else "")
-            return ""
-        int_part = int(n)
-        dec_part = round((n - int_part) * 100)
-        words = convert(int_part)
-        if dec_part:
-            words += f" and {dec_part}/100"
-        return "AED " + words + " Only"
+        if n == 0: return "Zero Only"
+        ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
+                "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen",
+                "Seventeen","Eighteen","Nineteen"]
+        tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
+        def cvt(x):
+            if x < 20: return ones[x]
+            if x < 100: return tens[x//10] + (" " + ones[x%10] if x%10 else "")
+            if x < 1000: return ones[x//100] + " Hundred" + (" " + cvt(x%100) if x%100 else "")
+            if x < 100000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
+            return cvt(x//100000) + " Lakh" + (" " + cvt(x%100000) if x%100000 else "")
+        ip = int(n); dp = round((n - ip) * 100)
+        w = cvt(ip)
+        if dp: w += f" and {dp}/100"
+        return "AED " + w + " Only"
 
-    elements.append(Paragraph(f"<b>Amount in Words:</b> {num_to_words(total_amt)}",
-        ParagraphStyle("Words", fontSize=9, textColor=colors.HexColor("#555"), spaceAfter=6, spaceBefore=4)))
+    # Simple bordered boxes for total and words
+    total_p = Paragraph("Total: AED " + f"{total_amt:,.2f}", ParagraphStyle("tb", fontSize=13, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=16))
+    total_box = Table([[total_p]], colWidths=[None])
+    total_box.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f0f4f8")),
+        ("BOX", (0,0), (-1,-1), 0.5, colors.HexColor("#dde4ec")),
+        ("TOPPADDING", (0,0), (-1,-1), 5), ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+        ("LEFTPADDING", (0,0), (-1,-1), 10), ("RIGHTPADDING", (0,0), (-1,-1), 10),
+    ]))
+    els.append(total_box)
+    els.append(Spacer(1, 2*mm))
 
-    # ═══ TERMS ═══
-    elements.append(Paragraph("TERMS & CONDITIONS", s_sec))
-    terms = [
+    words_p = Paragraph("<b>Amount in Words:</b> " + num_to_words(total_amt), ParagraphStyle("wrds", fontSize=8.5, textColor=colors.HexColor("#64748b"), leading=11))
+    words_box = Table([[words_p]], colWidths=[None])
+    words_box.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f8fafc")),
+        ("BOX", (0,0), (-1,-1), 0.5, LINE),
+        ("TOPPADDING", (0,0), (-1,-1), 4), ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ("LEFTPADDING", (0,0), (-1,-1), 8), ("RIGHTPADDING", (0,0), (-1,-1), 8),
+    ]))
+    els.append(words_box)
+    els.append(Spacer(1, 3*mm))
+
+    # ── NOTES & TERMS ──
+    desc_text = lpo["description"] or ""
+    notes_text = lpo["notes"] or ""
+    if desc_text or notes_text:
+        els.append(Paragraph("DESCRIPTION &amp; TERMS", s_sec))
+        if desc_text:
+            els.append(Paragraph("<b>Scope / Notes</b><br/>" + desc_text, ParagraphStyle("nts", fontSize=8, textColor=colors.HexColor("#334155"), leading=11, spaceAfter=4)))
+        if notes_text:
+            els.append(Paragraph("<b>Special Terms</b><br/>" + notes_text, ParagraphStyle("stn", fontSize=8, textColor=colors.HexColor("#334155"), leading=11, spaceAfter=4)))
+
+    # ── Standard Terms ──
+    els.append(Spacer(1, 2*mm))
+    std_terms = [
         "Payment as per agreed payment terms.",
         "VAT @ 5% will be charged separately as per UAE Federal Law.",
         "This LPO is valid for 30 days from the date of issue.",
@@ -1246,30 +1393,30 @@ def supplier_lpo_pdf(sup_id, lpo_id):
         "Any changes or amendments to this LPO require written confirmation.",
         "Delivery location: As per agreement.",
     ]
-    for t in terms:
-        elements.append(Paragraph(f"&bull; {t}", ParagraphStyle("Terms", fontSize=8.5, leftIndent=12, spaceAfter=1.5, textColor=colors.HexColor("#444"))))
-    elements.append(Spacer(1, 8*mm))
+    t_html = "<b>Terms &amp; Conditions</b><br/>" + "<br/>".join([chr(8226) + " " + t for t in std_terms])
+    els.append(Paragraph(t_html, ParagraphStyle("st", fontSize=7.5, textColor=colors.HexColor("#64748b"), leading=11, leftIndent=6)))
 
-    # ═══ SIGNATURES ═══
-    sign_data = [[
-        Paragraph("_________________________<br/><b>Company Sign &amp; Stamp</b><br/>Date: _____/_____/_____", s_sign),
+    # ── SIGNATURES ──
+    els.append(Spacer(1, 5*mm))
+    sig_rows = [[
+        Paragraph("_________________________<br/><b>Company Sign &amp; Stamp</b><br/><font size=7>Date: _____/_____/_____</font>", s_sign),
         Paragraph("", s_sign),
-        Paragraph("_________________________<br/><b>Supplier Sign &amp; Stamp</b><br/>Date: _____/_____/_____", s_sign),
+        Paragraph("_________________________<br/><b>Supplier Sign &amp; Stamp</b><br/><font size=7>Date: _____/_____/_____</font>", s_sign),
     ]]
-    sign_tbl = Table(sign_data, colWidths=[170, 30, 170])
-    sign_tbl.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LINEABOVE", (0, 0), (0, 0), 0.5, colors.HexColor("#999")),
-        ("LINEABOVE", (2, 0), (2, 0), 0.5, colors.HexColor("#999")),
+    sig_tbl = Table(sig_rows, colWidths=[None, 20, None])
+    sig_tbl.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("LINEABOVE", (0,0), (0,0), 0.5, colors.HexColor("#999")),
+        ("LINEABOVE", (2,0), (2,0), 0.5, colors.HexColor("#999")),
     ]))
-    elements.append(sign_tbl)
+    els.append(sig_tbl)
 
-    # ═══ FOOTER ═══
-    elements.append(Spacer(1, 8*mm))
-    elements.append(Paragraph("This is a computer-generated document. No signature required for electronic transmission.", s_footer))
-    elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%d-%b-%Y %H:%M')}", ParagraphStyle("Gen", fontSize=6.5, textColor=colors.HexColor("#aaa"), alignment=TA_CENTER, spaceAfter=0)))
+    # ── FOOTER ──
+    els.append(Spacer(1, 4*mm))
+    els.append(Paragraph("This is a computer-generated document. No signature required for electronic transmission.", s_foot))
+    els.append(Paragraph("Generated on: " + datetime.now().strftime("%d-%b-%Y %H:%M"), ParagraphStyle("gn", fontSize=6, textColor=colors.HexColor("#aaa"), alignment=TA_CENTER, leading=8, spaceAfter=0)))
 
-    doc.build(elements)
+    doc.build(els)
     pdf_data = buf.getvalue()
     buf.close()
 
@@ -1449,6 +1596,8 @@ def supplier_expense_add(sup_id):
                 return render_template("supplier/expense_form.html", s=s, exp={})
             amount = float(amount)
 
+        vehicle_no = request.form.get("vehicle_no", "").strip()
+
         if not category:
             flash("Category is required.", "error")
             return render_template("supplier/expense_form.html", s=s, exp={})
@@ -1466,10 +1615,11 @@ def supplier_expense_add(sup_id):
         fund_source = request.form.get("fund_source", "cash_bank").strip()
         db.execute(
             """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description,
-               receipt_name, receipt_data, receipt_type, earning_type, quantity, rate, fund_source)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+               receipt_name, receipt_data, receipt_type, earning_type, quantity, rate, fund_source, vehicle_no, status)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (sup_id, expense_date, amount, category, description,
-             receipt_name, receipt_data, receipt_type, earning_type, qty_f, rate_f, fund_source),
+             receipt_name, receipt_data, receipt_type, earning_type, qty_f, rate_f, fund_source, vehicle_no or None,
+             'approved'),
         )
         db.commit()
 
@@ -1477,7 +1627,7 @@ def supplier_expense_add(sup_id):
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="expenses"))
 
 
-    return render_template("supplier/expense_form.html", s=s, exp={})
+    return render_template("supplier/expense_form.html", s=s, exp={}, today=date.today().isoformat())
 
 
 @supplier_bp.route("/<int:sup_id>/expenses/<int:exp_id>/approve", methods=["POST"])
@@ -1489,6 +1639,63 @@ def supplier_expense_approve(sup_id, exp_id):
 
     flash("Expense approved.", "success")
     return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="expenses"))
+
+
+@supplier_bp.route("/<int:sup_id>/expenses/<int:exp_id>/edit", methods=["GET", "POST"])
+def supplier_expense_edit(sup_id, exp_id):
+    _ensure_tables()
+    db = _get_db()
+    s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    exp = db.execute("SELECT * FROM supplier_expenses WHERE id=? AND supplier_id=?", (exp_id, sup_id)).fetchone()
+    if not s or not exp:
+        flash("Expense not found.", "error")
+        return redirect(url_for("supplier.supplier_list"))
+
+    if request.method == "POST":
+        expense_date = request.form.get("expense_date", "").strip() or date.today().isoformat()
+        earning_type = request.form.get("earning_type", "fixed").strip()
+        category = request.form.get("category", "").strip()
+        description = request.form.get("description", "").strip()
+        qty = request.form.get("quantity", "").strip()
+        rate = request.form.get("rate", "").strip()
+        vehicle_no = request.form.get("vehicle_no", "").strip()
+
+        if earning_type in ("trip", "hour"):
+            qty_f = float(qty) if qty else 0
+            rate_f = float(rate) if rate else 0
+            amount = round(qty_f * rate_f, 2)
+        else:
+            amount = float(request.form.get("amount", 0))
+            qty_f = None
+            rate_f = None
+
+        if not category:
+            flash("Category is required.", "error")
+            return render_template("supplier/expense_form.html", s=s, exp=exp)
+
+        db.execute(
+            "UPDATE supplier_expenses SET expense_date=?, amount=?, category=?, description=?, earning_type=?, quantity=?, rate=?, vehicle_no=? WHERE id=?",
+            (expense_date, amount, category, description, earning_type, qty_f, rate_f, vehicle_no or None, exp_id),
+        )
+        db.commit()
+        flash("Earning updated.", "success")
+        return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="earnings"))
+
+    return render_template("supplier/expense_form.html", s=s, exp=exp, today=exp["expense_date"])
+
+
+@supplier_bp.route("/<int:sup_id>/expenses/<int:exp_id>/delete", methods=["POST"])
+def supplier_expense_delete(sup_id, exp_id):
+    _ensure_tables()
+    db = _get_db()
+    try:
+        db.execute("DELETE FROM supplier_expenses WHERE id=? AND supplier_id=?", (exp_id, sup_id))
+        db.commit()
+        flash("Earning deleted.", "info")
+    except Exception as e:
+        db.rollback()
+        flash(f"Error deleting earning: {e}", "error")
+    return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="earnings"))
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1564,6 +1771,96 @@ def supplier_payment_add(sup_id):
 
 
     return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS, qarz_balance=qarz_balance)
+
+
+# ═══════════════════════════════════════════════════════════
+# PAYMENT VOUCHER PDF
+# ═══════════════════════════════════════════════════════════
+
+@supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/voucher")
+def supplier_payment_voucher(sup_id, pay_id):
+    _ensure_tables()
+    db = _get_db()
+    s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    pay = db.execute("SELECT * FROM supplier_payment_records WHERE id = ? AND supplier_id = ?", (pay_id, sup_id)).fetchone()
+    if not s or not pay:
+        flash("Payment not found.", "error")
+        return redirect(url_for("supplier.supplier_profile", sup_id=sup_id))
+    inv = None
+    if pay["invoice_id"]:
+        inv = db.execute("SELECT * FROM supplier_invoices WHERE id = ?", (pay["invoice_id"],)).fetchone()
+    try:
+        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    except Exception:
+        company = None
+    return render_template("supplier/payment_voucher.html", s=s, pay=pay, inv=inv, company=company, today=date.today().isoformat())
+
+
+@supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/edit", methods=["GET", "POST"])
+def supplier_payment_edit(sup_id, pay_id):
+    _ensure_tables()
+    db = _get_db()
+    s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    pay = db.execute("SELECT * FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id)).fetchone()
+    if not s or not pay:
+        flash("Payment not found.", "error")
+        return redirect(url_for("supplier.supplier_list"))
+
+    unpaid = db.execute(
+        "SELECT id, invoice_no, total_amount FROM supplier_invoices WHERE supplier_id = ? ORDER BY invoice_date",
+        (sup_id,),
+    ).fetchall()
+
+    qarz_given = db.execute(
+        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='given' AND deduct_from_balance=1",
+        (sup_id,),
+    ).fetchone()[0]
+    qarz_recovered = db.execute(
+        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='recovered' AND deduct_from_balance=1",
+        (sup_id,),
+    ).fetchone()[0]
+    qarz_balance = round(qarz_given - qarz_recovered, 2)
+
+    if request.method == "POST":
+        payment_date = request.form.get("payment_date", "").strip() or date.today().isoformat()
+        amount = request.form.get("amount", "").strip()
+        invoice_id = request.form.get("invoice_id", "").strip()
+        payment_method = request.form.get("payment_method", "Cash").strip()
+        reference_no = request.form.get("reference_no", "").strip()
+        notes = request.form.get("notes", "").strip()
+        if not amount:
+            flash("Payment amount is required.", "error")
+            return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS, qarz_balance=qarz_balance)
+        amount_f = float(amount)
+        inv_id_val = int(invoice_id) if invoice_id.isdigit() else None
+        fund_source = request.form.get("fund_source", "cash_bank").strip()
+
+        db.execute(
+            "UPDATE supplier_payment_records SET payment_date=?, amount=?, invoice_id=?, payment_method=?, reference_no=?, notes=?, fund_source=? WHERE id=?",
+            (payment_date, amount_f, inv_id_val, payment_method, reference_no, notes, fund_source, pay_id),
+        )
+        db.commit()
+        flash("Payment updated.", "success")
+        return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
+
+    return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS, qarz_balance=qarz_balance)
+
+
+@supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/delete", methods=["POST"])
+def supplier_payment_delete(sup_id, pay_id):
+    _ensure_tables()
+    db = _get_db()
+    try:
+        pay = db.execute("SELECT * FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id)).fetchone()
+        db.execute("DELETE FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id))
+        if pay and pay["invoice_id"]:
+            db.execute("UPDATE supplier_invoices SET status='approved', payment_date=NULL, payment_method=NULL, payment_ref=NULL WHERE id=?", (pay["invoice_id"],))
+        db.commit()
+        flash("Payment deleted.", "info")
+    except Exception as e:
+        db.rollback()
+        flash(f"Error deleting payment: {e}", "error")
+    return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1773,43 +2070,9 @@ def supplier_bulk_delete():
         return redirect(url_for("supplier.supplier_list"))
     db = _get_db()
     placeholders = ",".join("?" * len(ids))
-    codes = [r["supplier_code"] for r in db.execute(f"SELECT supplier_code FROM suppliers WHERE id IN ({placeholders})", ids).fetchall()]
-    db.execute(f"DELETE FROM supplier_payment_records WHERE supplier_id IN ({placeholders})", ids)
-    db.execute(f"DELETE FROM supplier_expenses WHERE supplier_id IN ({placeholders})", ids)
-    db.execute(f"DELETE FROM supplier_invoices WHERE supplier_id IN ({placeholders})", ids)
-    db.execute(f"DELETE FROM supplier_loans WHERE supplier_id IN ({placeholders})", ids)
-    db.execute(f"DELETE FROM supplier_lpos WHERE supplier_id IN ({placeholders})", ids)
-    db.execute(f"DELETE FROM supplier_documents WHERE supplier_id IN ({placeholders})", ids)
-    db.execute(f"DELETE FROM supplier_quotations WHERE supplier_id IN ({placeholders})", ids)
-    db.execute(f"DELETE FROM suppliers WHERE id IN ({placeholders})", ids)
-    for code in codes:
-        db.execute("UPDATE supplier_profile SET partner_party_code = NULL WHERE partner_party_code = ?", (code,))
-        db.execute("UPDATE maintenance_papers SET workshop_party_code = NULL WHERE workshop_party_code = ?", (code,))
-        db.execute("UPDATE maintenance_settlements SET party_code = NULL WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM account_invoice_lines WHERE invoice_no IN (SELECT invoice_no FROM account_invoices WHERE party_code = ?)", (code,))
-        db.execute("DELETE FROM account_payments WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM account_invoices WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM hire_records WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM lpos WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM agreements WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_invoice_submissions WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_payments WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_vouchers WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_timesheets WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_partnership_entries WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_assets WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_quotation_submissions WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM cash_supplier_payments WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM cash_supplier_debits WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM cash_supplier_trips WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM loan_entries WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM annual_fee_entries WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_registration_requests WHERE approved_party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_portal_accounts WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_profile WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM parties WHERE party_code = ?", (code,))
+    db.execute(f"UPDATE suppliers SET is_deleted=1, status='Deleted' WHERE id IN ({placeholders})", ids)
     db.commit()
-    flash(f"{len(ids)} supplier(s) deleted.", "info")
+    flash(f"{len(ids)} supplier(s) moved to trash.", "info")
     return redirect(url_for("supplier.supplier_list"))
 
 @supplier_bp.route("/<int:sup_id>/delete", methods=["POST"])
@@ -1820,43 +2083,22 @@ def supplier_delete(sup_id):
     if not s:
         flash("Supplier not found.", "error")
     else:
-        code = s["supplier_code"]
-        db.execute("DELETE FROM supplier_payment_records WHERE supplier_id = ?", (sup_id,))
-        db.execute("DELETE FROM supplier_expenses WHERE supplier_id = ?", (sup_id,))
-        db.execute("DELETE FROM supplier_invoices WHERE supplier_id = ?", (sup_id,))
-        db.execute("DELETE FROM supplier_loans WHERE supplier_id = ?", (sup_id,))
-        db.execute("DELETE FROM supplier_lpos WHERE supplier_id = ?", (sup_id,))
-        db.execute("DELETE FROM supplier_documents WHERE supplier_id = ?", (sup_id,))
-        db.execute("DELETE FROM supplier_quotations WHERE supplier_id = ?", (sup_id,))
-        db.execute("DELETE FROM suppliers WHERE id = ?", (sup_id,))
-        db.execute("UPDATE supplier_profile SET partner_party_code = NULL WHERE partner_party_code = ?", (code,))
-        db.execute("UPDATE maintenance_papers SET workshop_party_code = NULL WHERE workshop_party_code = ?", (code,))
-        db.execute("UPDATE maintenance_settlements SET party_code = NULL WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM account_invoice_lines WHERE invoice_no IN (SELECT invoice_no FROM account_invoices WHERE party_code = ?)", (code,))
-        db.execute("DELETE FROM account_payments WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM account_invoices WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM hire_records WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM lpos WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM agreements WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_invoice_submissions WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_payments WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_vouchers WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_timesheets WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_partnership_entries WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_assets WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_quotation_submissions WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM cash_supplier_payments WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM cash_supplier_debits WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM cash_supplier_trips WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM loan_entries WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM annual_fee_entries WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_registration_requests WHERE approved_party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_portal_accounts WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM supplier_profile WHERE party_code = ?", (code,))
-        db.execute("DELETE FROM parties WHERE party_code = ?", (code,))
+        db.execute("UPDATE suppliers SET is_deleted=1, status='Deleted' WHERE id = ?", (sup_id,))
         db.commit()
-        flash(f"Supplier {s['supplier_name']} deleted.", "info")
+        flash(f"Supplier {s['supplier_name']} moved to trash.", "info")
+    return redirect(url_for("supplier.supplier_list"))
 
+@supplier_bp.route("/<int:sup_id>/restore", methods=["POST"])
+def supplier_restore(sup_id):
+    _ensure_tables()
+    db = _get_db()
+    s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    if not s:
+        flash("Supplier not found.", "error")
+    else:
+        db.execute("UPDATE suppliers SET is_deleted=0, status='Active' WHERE id = ?", (sup_id,))
+        db.commit()
+        flash(f"Supplier {s['supplier_name']} restored.", "success")
     return redirect(url_for("supplier.supplier_list"))
 
 

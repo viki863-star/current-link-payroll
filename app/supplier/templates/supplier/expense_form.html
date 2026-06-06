@@ -1,109 +1,150 @@
 {% extends "base.html" %}
-{% block title %}Add Expense{% endblock %}
-{% block page_title %}Add Expense{% endblock %}
+{% block title %}{{ 'Edit' if exp else 'Add' }} Earning{% endblock %}
+{% block page_title %}Earning{% endblock %}
 
 {% block content %}
-<div class="form-shell" style="max-width:550px">
-    <div class="profile-card">
-        <div style="margin-bottom:16px">
-            <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='expenses') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+<div class="form-shell" style="max-width:540px">
+<style>
+.ef-wrap { background:#fff; border:2px solid var(--line); border-radius:14px; overflow:hidden; }
+.ef-hdr { background:var(--primary); padding:14px 22px; display:flex; align-items:center; gap:10px; }
+.ef-hdr h3 { margin:0; font-size:0.95rem; font-weight:700; color:#fff; }
+.ef-hdr .back { margin-left:auto; color:rgba(255,255,255,0.85); font-size:0.78rem; text-decoration:none; }
+.ef-hdr .back:hover { color:#fff; }
+.ef-body { padding:20px 22px 22px; }
+.ef-type-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+.ef-type-btn { padding:10px; border:2px solid var(--line); border-radius:8px; text-align:center; cursor:pointer; transition:all 0.15s; background:#fff; font-weight:600; font-size:0.82rem; color:#475569; }
+.ef-type-btn:hover { border-color:#94a3b8; }
+.ef-type-btn.active { border-color:var(--primary); background:#eef2ff; color:var(--primary); }
+.ef-type-btn input { display:none; }
+.ef-row { margin-bottom:14px; }
+.ef-row label { display:block; font-size:0.7rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
+.ef-row .form-control { font-size:0.85rem; }
+.ef-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.ef-total { background:#f0f4f8; border:1px solid #dde4ec; border-radius:8px; padding:12px 16px; text-align:right; font-size:1.05rem; font-weight:700; color:var(--primary); }
+.ef-total span { font-weight:400; color:#64748b; font-size:0.78rem; }
+</style>
+
+<div class="ef-wrap">
+  <div class="ef-hdr">
+    <h3>💰 {{ 'Edit' if exp else 'Add' }} Earning</h3>
+    <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='earnings') }}" class="back">← Back</a>
+  </div>
+  <div class="ef-body">
+    <p style="font-size:0.85rem;color:var(--muted);margin:0 0 14px">
+      Supplier: <strong style="color:#0f172a">{{ s.supplier_name }}</strong>
+      <span class="mono" style="font-size:0.78rem;color:var(--muted)"> · {{ s.supplier_code }}</span>
+    </p>
+
+    <form method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="ef-row">
+        <label>Date</label>
+        <input type="date" name="expense_date" value="{{ exp.expense_date or today }}" class="form-control">
+      </div>
+
+      <div class="ef-row">
+        <label>Basis / Type</label>
+        <div class="ef-type-grid" id="typeGrid">
+{% set ef_type = exp.earning_type if exp and exp.earning_type else 'fixed' %}
+          <label class="ef-type-btn {{ 'active' if ef_type == 'fixed' else '' }}">
+            <input type="radio" name="earning_type" value="fixed" {{ 'checked' if ef_type == 'fixed' else '' }} onchange="toggleType(this)">
+            <div style="font-size:1.2rem;margin-bottom:2px">💰</div> Fixed
+          </label>
+          <label class="ef-type-btn {{ 'active' if ef_type == 'trip' else '' }}">
+            <input type="radio" name="earning_type" value="trip" {{ 'checked' if ef_type == 'trip' else '' }} onchange="toggleType(this)">
+            <div style="font-size:1.2rem;margin-bottom:2px">🚛</div> Trip
+          </label>
+          <label class="ef-type-btn {{ 'active' if ef_type == 'hour' else '' }}">
+            <input type="radio" name="earning_type" value="hour" {{ 'checked' if ef_type == 'hour' else '' }} onchange="toggleType(this)">
+            <div style="font-size:1.2rem;margin-bottom:2px">⏱️</div> Hour
+          </label>
         </div>
-        <h3>Add Expense / Earning</h3>
-        <p style="color:var(--muted);font-size:0.85rem">Supplier: <strong>{{ s.supplier_name }}</strong></p>
+      </div>
 
-        <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-row">
-                <label class="form-label">Date</label>
-                <input type="date" name="expense_date" value="{{ date.today().isoformat() }}" class="form-control">
-            </div>
+      <div id="efFixed" style="display:{{ 'none' if ef_type != 'fixed' else '' }}">
+        <div class="ef-row">
+          <label>Amount *</label>
+          <input type="number" name="amount" step="0.01" min="0" class="form-control" placeholder="0.00" value="{{ exp.amount if ef_type == 'fixed' and exp else '' }}">
+        </div>
+      </div>
 
-            <div class="form-row">
-                <label class="form-label">Type *</label>
-                <select name="earning_type" class="form-control" id="earningType" onchange="toggleEarningType()" required>
-                    <option value="fixed" {% if exp.earning_type == 'fixed' or not exp.earning_type %}selected{% endif %}>Fixed Amount</option>
-                    <option value="trip" {% if exp.earning_type == 'trip' %}selected{% endif %}>Trips</option>
-                    <option value="hour" {% if exp.earning_type == 'hour' %}selected{% endif %}>Hours</option>
-                </select>
-            </div>
+      <div id="efQty" style="display:{{ 'none' if ef_type == 'fixed' else '' }}">
+        <div class="ef-grid-2">
+          <div class="ef-row">
+            <label id="qtyLbl">{{ 'Hours' if ef_type == 'hour' else 'Trip Count' }}</label>
+            <input type="number" name="quantity" step="0.01" min="0" class="form-control" id="qtyInput" oninput="calcEFTotal()" placeholder="0" value="{{ exp.quantity if exp else '' }}">
+          </div>
+          <div class="ef-row">
+            <label id="rateLbl">{{ 'Rate per Hour' if ef_type == 'hour' else 'Rate per Trip' }}</label>
+            <input type="number" name="rate" step="0.01" min="0" class="form-control" id="rateInput" oninput="calcEFTotal()" placeholder="0.00" value="{{ exp.rate if exp else '' }}">
+          </div>
+        </div>
+        <div class="ef-total">Total: AED <span id="efTotalDisplay">{{ "%.2f"|format(exp.amount) if ef_type != 'fixed' and exp else '0.00' }}</span></div>
+      </div>
 
-            <div id="fixedFields">
-                <div class="form-row">
-                    <label class="form-label">Amount *</label>
-                    <input type="number" name="amount" value="{{ exp.amount or '' }}" class="form-control" step="0.01" min="0" id="fixedAmount">
-                </div>
-            </div>
+      <div class="ef-row">
+        <label>Category *</label>
+        <select name="category" class="form-control" required>
+          <option value="">Select Category</option>
+          {% for c in ['Transport','Fuel','Food','Stationery','Cleaning','Safety','Tools','Other'] %}
+          <option value="{{ c }}" {{ 'selected' if exp and exp.category == c else '' }}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-            <div id="qtyFields" style="display:none">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                    <div class="form-row">
-                        <label class="form-label" id="qtyLabel">Trip Count</label>
-                        <input type="number" name="quantity" value="{{ exp.quantity or '' }}" class="form-control" step="0.01" min="0" id="qtyInput" oninput="calcTotal()">
-                    </div>
-                    <div class="form-row">
-                        <label class="form-label" id="rateLabel">Rate per Trip</label>
-                        <input type="number" name="rate" value="{{ exp.rate or '' }}" class="form-control" step="0.01" min="0" id="rateInput" oninput="calcTotal()">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <label class="form-label">Total Amount</label>
-                    <input type="text" id="totalDisplay" class="form-control" style="background:#f5f7fa;font-weight:700;font-size:1.1rem" readonly>
-                </div>
-            </div>
+      <div class="ef-grid-2">
+        <div class="ef-row">
+          <label>Vehicle No.</label>
+          <input type="text" name="vehicle_no" class="form-control" placeholder="e.g. 12345" value="{{ exp.vehicle_no or '' }}">
+        </div>
+        <div class="ef-row">
+          <label>Fund Source</label>
+          <select name="fund_source" class="form-control">
+            <option value="cash_bank" {{ 'selected' if not exp or exp.fund_source == 'cash_bank' else '' }}>Cash / Bank</option>
+            <option value="owner_fund" {{ 'selected' if exp and exp.fund_source == 'owner_fund' else '' }}>Owner Fund</option>
+          </select>
+        </div>
+      </div>
 
-            <div class="form-row">
-                <label class="form-label">Category *</label>
-                <select name="category" class="form-control" required>
-                    <option value="">Select category</option>
-                    {% for c in ['Food','Fuel','Stationery','Cleaning','Safety','Transport','Tools','Other'] %}
-                    <option value="{{ c }}" {% if exp.category == c %}selected{% endif %}>{{ c }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Description</label>
-                <textarea name="description" class="form-control" rows="2">{{ exp.description or '' }}</textarea>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Fund Source</label>
-                <select name="fund_source" class="form-control">
-                    <option value="cash_bank">Cash / Bank</option>
-                    <option value="owner_fund">Owner Fund</option>
-                </select>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Receipt / Photo</label>
-                <input type="file" name="receipt" accept="image/*,.pdf" class="form-control">
-            </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:8px">Add Expense</button>
-        </form>
-    </div>
+      <div class="ef-row">
+        <label>Description</label>
+        <input type="text" name="description" class="form-control" placeholder="What was this for?" value="{{ exp.description or '' }}">
+      </div>
+
+      <div class="ef-row">
+        <label>Attachment (receipt)</label>
+        <input type="file" name="receipt" class="form-control">
+      </div>
+
+      {% if exp and exp.receipt_name %}
+      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:8px">Current: {{ exp.receipt_name }}</div>
+      {% endif %}
+
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px;padding:10px">{{ 'Update' if exp else 'Save' }} Earning</button>
+    </form>
+  </div>
+</div>
 </div>
 
 <script>
-function toggleEarningType() {
-    var t = document.getElementById('earningType').value;
-    document.getElementById('fixedFields').style.display = (t === 'fixed') ? '' : 'none';
-    document.getElementById('qtyFields').style.display = (t === 'fixed') ? 'none' : '';
-    document.getElementById('fixedAmount').required = (t === 'fixed');
-    document.getElementById('qtyInput').required = (t !== 'fixed');
-    document.getElementById('rateInput').required = (t !== 'fixed');
-    var qtyLabel = document.getElementById('qtyLabel');
-    var rateLabel = document.getElementById('rateLabel');
-    if (t === 'trip') {
-        qtyLabel.textContent = 'Trip Count';
-        rateLabel.textContent = 'Rate per Trip';
-    } else if (t === 'hour') {
-        qtyLabel.textContent = 'Hours';
-        rateLabel.textContent = 'Rate per Hour';
-    }
-    calcTotal();
+function toggleType(el) {
+  document.querySelectorAll('.ef-type-btn').forEach(function(b){b.classList.remove('active')});
+  el.closest('.ef-type-btn').classList.add('active');
+  var t = el.value;
+  document.getElementById('efFixed').style.display = t === 'fixed' ? '' : 'none';
+  document.getElementById('efQty').style.display = t !== 'fixed' ? '' : 'none';
+  if (t === 'trip') { document.getElementById('qtyLbl').textContent = 'Trip Count'; document.getElementById('rateLbl').textContent = 'Rate per Trip'; }
+  else if (t === 'hour') { document.getElementById('qtyLbl').textContent = 'Hours'; document.getElementById('rateLbl').textContent = 'Rate per Hour'; }
+  calcEFTotal();
 }
-function calcTotal() {
-    var qty = parseFloat(document.getElementById('qtyInput').value) || 0;
-    var rate = parseFloat(document.getElementById('rateInput').value) || 0;
-    document.getElementById('totalDisplay').value = (qty * rate).toFixed(2);
+function calcEFTotal() {
+  var q = parseFloat(document.getElementById('qtyInput').value) || 0;
+  var r = parseFloat(document.getElementById('rateInput').value) || 0;
+  document.getElementById('efTotalDisplay').textContent = (q * r).toFixed(2);
 }
-toggleEarningType();
+{% if ef_type != 'fixed' %}
+calcEFTotal();
+{% endif %}
 </script>
 {% endblock %}

@@ -1,95 +1,139 @@
 {% extends "base.html" %}
-{% block title %}Add LPO{% endblock %}
+{% block title %}{{ 'Edit' if lpo.lpo_no else 'Issue' }} LPO{% endblock %}
 {% block page_title %}LPO{% endblock %}
 
 {% block content %}
-<div class="form-shell" style="max-width:760px">
-    <div class="profile-card">
-        <div style="margin-bottom:14px">
-            <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='lpos') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+<div class="form-shell" style="max-width:820px">
+  <style>
+    .lpo-form-wrap { }
+    :root { --primary:#1a3a5c; --line:#e2e8f0; --muted:#94a3b8; }
+    .lpo-body { background:#fff; border:2px solid var(--line); border-radius:14px; padding:20px 32px 30px; margin-top:16px; }
+    .lpo-section { margin-bottom:16px; }
+    .lpo-section h4 { font-size:11px; color:#0f2b52; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin:0 0 8px; border-bottom:1px solid #e2e8f0; padding-bottom:4px; }
+    .lpo-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px; }
+    .lpo-field { }
+    .lpo-field label { display:block; font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:0.3px; font-weight:600; margin-bottom:2px; }
+    .lpo-field .val { font-weight:600; font-size:13px; color:#0f172a; }
+    .items-wrap { border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; margin-bottom:8px; }
+    .items-wrap table { margin:0; }
+    .items-wrap th { background:#0f2b52; color:#fff; padding:6px 8px; font-size:10px; font-weight:600; }
+    .items-wrap td { padding:4px 6px; }
+    .items-wrap input,.items-wrap select { font-size:12px !important; padding:5px 7px !important; height:30px !important; border:1px solid #e2e8f0; border-radius:4px; width:100%; }
+    .items-wrap input:focus,.items-wrap select:focus { border-color:#F7931E; outline:none; box-shadow:0 0 0 2px rgba(247,147,30,0.1); }
+    .total-bar { text-align:right; font-size:15px; font-weight:700; padding:8px 14px; background:linear-gradient(135deg,#f0f4f8,#e8edf4); border-radius:6px; border:1px solid #dde4ec; }
+    .terms-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; }
+    .terms-box label { font-size:10px; font-weight:600; color:#0f2b52; display:block; margin-bottom:4px; }
+    .terms-box textarea { font-size:11px; padding:7px 10px; border:1px solid #e2e8f0; border-radius:5px; width:100%; min-height:60px; resize:vertical; }
+    .terms-box textarea:focus { border-color:#F7931E; outline:none; }
+  </style>
+
+  <div class="lpo-form-wrap">
+    {% set doc_title = 'LOCAL PURCHASE ORDER' %}
+    {% if lpo.lpo_no %}
+    {% set doc_meta = '# ' ~ lpo.lpo_no ~ ' &middot; ' ~ (lpo.lpo_date or '') %}
+    {% else %}
+    {% set doc_meta = 'Issue new purchase order' %}
+    {% endif %}
+    {% include "_doc_header.html" with context %}
+
+    <div class="lpo-body">
+      <form method="POST" id="lpoForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="lpo-section">
+          <h4>LPO Information</h4>
+          <div class="lpo-grid">
+            <div class="lpo-field">
+              <label>LPO Number *</label>
+              <input type="text" name="lpo_no" value="{{ lpo.lpo_no or '' }}" class="form-control" required placeholder="e.g. LPO-2024-001">
+            </div>
+            <div class="lpo-field">
+              <label>Date *</label>
+              <input type="date" name="lpo_date" value="{{ lpo.lpo_date or '' }}" class="form-control" required>
+            </div>
+            <div class="lpo-field">
+              <label>Basis / Type *</label>
+              <select name="lpo_type" class="form-control" required>
+                {% for val, label in lpo_types %}
+                <option value="{{ val }}" {% if lpo.lpo_type == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="lpo-field">
+              <label>Link Quotation</label>
+              <select name="quotation_id" class="form-control" id="quotationSelect" onchange="loadQuotationItems(this)">
+                <option value="none">— No Quotation —</option>
+                {% for q in quotations %}
+                <option value="{{ q.id }}" {% if lpo.quotation_id == q.id %}selected{% endif %}>{{ q.quotation_no }} — AED {{ "%.0f"|format(q.amount) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="lpo-field">
+              <label>Supplier</label>
+              <div class="val">{{ s.supplier_name }}</div>
+            </div>
+            <div class="lpo-field">
+              <label>Status</label>
+              <div class="val" style="color:#e65100">Open</div>
+            </div>
+          </div>
         </div>
-        <h3 style="margin:0 0 2px">Add LPO</h3>
-        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 16px">Supplier: <strong>{{ s.supplier_name }}</strong></p>
 
-        <form method="POST" id="lpoForm">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px;background:#f8f9fa;padding:14px;border-radius:10px;border:1px solid #eee">
-                <div class="form-row" style="margin:0">
-                    <label class="form-label">LPO Number *</label>
-                    <input type="text" name="lpo_no" value="{{ lpo.lpo_no or '' }}" class="form-control" required placeholder="e.g. LPO-2024-001">
-                </div>
-                <div class="form-row" style="margin:0">
-                    <label class="form-label">LPO Date *</label>
-                    <input type="date" name="lpo_date" value="{{ lpo.lpo_date or '' }}" class="form-control" required>
-                </div>
-                <div class="form-row" style="margin:0">
-                    <label class="form-label">Basis / Type *</label>
-                    <select name="lpo_type" class="form-control" required>
-                        {% for val, label in lpo_types %}
-                        <option value="{{ val }}" {% if lpo.lpo_type == val %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-row" style="margin:0">
-                    <label class="form-label">Link Quotation</label>
-                    <select name="quotation_id" class="form-control" id="quotationSelect" onchange="loadQuotationItems(this)">
-                        <option value="none">— No Quotation —</option>
-                        {% for q in quotations %}
-                        <option value="{{ q.id }}" {% if lpo.quotation_id == q.id %}selected{% endif %}>{{ q.quotation_no }} — AED {{ "%.0f"|format(q.amount) }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-row" style="margin:0">
-                    <label class="form-label">Status</label>
-                    <input type="text" class="form-control" value="{{ lpo.status or 'open' }}" style="background:#eee" readonly>
-                </div>
-            </div>
+        <div class="lpo-section">
+          <h4>Service / Work Items</h4>
+          <p style="font-size:11px;color:#64748b;margin:0 0 6px">Select a quotation to load items, or enter manually.</p>
+          <div class="items-wrap">
+            <table class="smart-table">
+              <thead>
+                <tr>
+                  <th style="width:24px">#</th>
+                  <th>Description *</th>
+                  <th style="width:60px">QTY</th>
+                  <th style="width:80px">Basis</th>
+                  <th style="width:90px">Rate (AED)</th>
+                  <th style="width:90px">Amount</th>
+                  <th style="width:28px"></th>
+                </tr>
+              </thead>
+              <tbody id="itemsBody"></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="addRow()">+ Add Item</button>
+        </div>
 
-            {# ─── Line Items ─── #}
-            <h4 style="margin:0 0 6px;font-size:0.9rem;font-weight:600">Line Items</h4>
-            <p style="font-size:0.75rem;color:var(--muted);margin:0 0 10px">Select a quotation above to load items, or enter manually. For double shift, add two rows (day + night).</p>
-            <div class="table-wrap" style="margin-bottom:10px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
-                <table class="smart-table" id="itemsTable" style="margin:0">
-                    <thead>
-                        <tr>
-                            <th style="width:28px;padding:6px 4px;font-size:0.7rem">#</th>
-                            <th style="padding:6px 8px;font-size:0.7rem">Description *</th>
-                            <th style="width:55px;padding:6px 4px;font-size:0.7rem">QTY</th>
-                            <th style="width:80px;padding:6px 4px;font-size:0.7rem">Basis</th>
-                            <th style="width:80px;padding:6px 4px;font-size:0.7rem">Rate (AED)</th>
-                            <th style="width:80px;padding:6px 4px;font-size:0.7rem">Amount</th>
-                            <th style="width:28px;padding:6px 4px;font-size:0.7rem"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="itemsBody"></tbody>
-                </table>
-            </div>
-            <button type="button" class="btn btn-outline btn-sm" onclick="addRow()" style="margin-bottom:16px">+ Add Item</button>
+        <div class="total-bar">
+          Total: AED <span id="totalAmount">0.00</span>
+        </div>
 
-            <div style="text-align:right;font-size:1.05rem;font-weight:700;padding:10px 14px;background:#eef3f8;border-radius:8px;margin-bottom:16px;border:1px solid #dde4ec">
-                Total: AED <span id="totalAmount">0.00</span>
+        <div class="lpo-section" style="margin-top:14px">
+          <h4>Description &amp; Terms</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label style="font-size:10px;font-weight:600;color:#0f2b52;display:block;margin-bottom:3px">Scope / Notes</label>
+              <textarea name="description" class="form-control" rows="3" placeholder="Describe the scope of work...">{{ lpo.description or '' }}</textarea>
             </div>
+            <div class="terms-box">
+              <label>Terms &amp; Conditions</label>
+              <textarea name="notes" rows="3" placeholder="Payment terms, delivery terms, special conditions...">{{ lpo.notes or '' }}</textarea>
+              <div style="font-size:10px;color:#64748b;margin-top:4px;line-height:1.5">
+                <strong>Standard Terms:</strong><br>
+                • Payment as per agreed terms<br>
+                • VAT @ 5% extra as per UAE law<br>
+                • Valid for 30 days from issue<br>
+                • PO required before service
+              </div>
+            </div>
+          </div>
+        </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;background:#f8f9fa;padding:14px;border-radius:10px;border:1px solid #eee">
-                <div class="form-row" style="margin:0;grid-column:1/-1">
-                    <label class="form-label">Service / Work Description</label>
-                    <textarea name="description" class="form-control" rows="2" placeholder="Additional scope notes...">{{ lpo.description or '' }}</textarea>
-                </div>
-                <div class="form-row" style="margin:0;grid-column:1/-1">
-                    <label class="form-label">Notes / Terms</label>
-                    <textarea name="notes" class="form-control" rows="2">{{ lpo.notes or '' }}</textarea>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary" style="padding:10px 28px">Add LPO</button>
-        </form>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button type="submit" class="btn btn-primary" style="padding:10px 28px">Issue LPO</button>
+          <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='lpos') }}" class="btn btn-outline">Cancel</a>
+        </div>
+      </form>
     </div>
+  </div>
 </div>
-
-<style>
-.item-row td { padding:5px 4px !important; vertical-align:middle; }
-.item-row input, .item-row select { font-size:0.78rem !important; padding:5px 7px !important; height:32px !important; box-sizing:border-box; }
-.item-row input[readonly] { background:#f5f6f7; cursor:default; font-weight:600; }
-</style>
 
 <script>
 function calcRow(el) {
@@ -99,15 +143,11 @@ function calcRow(el) {
     row.querySelector('.item-amount').value = (qty * rate).toFixed(2);
     calcTotal();
 }
-
 function calcTotal() {
     var total = 0;
-    document.querySelectorAll('.item-amount').forEach(function(el) {
-        total += parseFloat(el.value) || 0;
-    });
+    document.querySelectorAll('.item-amount').forEach(function(el) { total += parseFloat(el.value) || 0; });
     document.getElementById('totalAmount').textContent = total.toFixed(2);
 }
-
 function addRow(data) {
     var tbody = document.getElementById('itemsBody');
     var row = document.createElement('tr');
@@ -116,47 +156,41 @@ function addRow(data) {
     var qty = data ? (data.qty || '1') : '1';
     var basis = data ? (data.basis_type || data.basis || 'trip') : 'trip';
     var rate = data ? (data.day_rate || data.rate || 0) : 0;
-
     row.innerHTML = `
-        <td class="row-num" style="text-align:center;font-weight:600;font-size:0.78rem;color:#888">${tbody.children.length+1}</td>
-        <td><input type="text" name="item_desc[]" class="form-control" value="${desc}" required placeholder="Service/item description"></td>
-        <td><input type="number" name="item_qty[]" class="form-control item-qty" value="${qty}" min="0" step="any" oninput="calcRow(this)" style="text-align:center"></td>
-        <td><select name="item_basis[]" class="form-control item-basis"><option value="trip" ${basis==='trip'?'selected':''}>Trip</option><option value="hour" ${basis==='hour'?'selected':''}>Hour</option><option value="monthly" ${basis==='monthly'?'selected':''}>Monthly</option><option value="fixed" ${basis==='fixed'?'selected':''}>Fixed</option><option value="other" ${basis==='other'?'selected':''}>Other</option></select></td>
-        <td><input type="number" name="item_rate[]" class="form-control item-rate" value="${rate}" min="0" step="any" oninput="calcRow(this)" style="text-align:right"></td>
-        <td><input type="text" class="form-control item-amount" readonly style="text-align:right" value="0.00"></td>
-        <td style="text-align:center"><button type="button" class="btn btn-xs btn-outline" style="color:#e65100;padding:2px 5px;font-size:0.7rem" onclick="removeRow(this)">✕</button></td>
+        <td class="row-num" style="text-align:center;font-weight:600;font-size:12px;color:#888">${tbody.children.length+1}</td>
+        <td><input type="text" name="item_desc[]" value="${desc}" required placeholder="Service/item description"></td>
+        <td><input type="number" name="item_qty[]" class="item-qty" value="${qty}" min="0" step="any" oninput="calcRow(this)" style="text-align:center"></td>
+        <td><select name="item_basis[]" class="item-basis"><option value="trip" ${basis==='trip'?'selected':''}>Trip</option><option value="hour" ${basis==='hour'?'selected':''}>Hour</option><option value="monthly" ${basis==='monthly'?'selected':''}>Monthly</option><option value="fixed" ${basis==='fixed'?'selected':''}>Fixed</option></select></td>
+        <td><input type="number" name="item_rate[]" class="item-rate" value="${rate}" min="0" step="any" oninput="calcRow(this)" style="text-align:right"></td>
+        <td><input type="text" class="item-amount" readonly style="text-align:right;font-weight:600;background:#f5f7fa" value="0.00"></td>
+        <td style="text-align:center"><button type="button" class="btn btn-xs btn-outline" style="color:#e65100;padding:1px 5px;font-size:11px" onclick="removeRow(this)">✕</button></td>
     `;
     tbody.appendChild(row);
     calcRow(row.querySelector('.item-rate'));
 }
-
 function removeRow(btn) {
     if (document.querySelectorAll('#itemsBody .item-row').length <= 1) return;
     btn.closest('tr').remove();
-    renumber();
-    calcTotal();
+    renumber(); calcTotal();
 }
-
 function renumber() {
     document.querySelectorAll('#itemsBody .row-num').forEach(function(el, i) { el.textContent = i + 1; });
 }
-
 function loadQuotationItems(sel) {
     var qid = sel.value;
     var tbody = document.getElementById('itemsBody');
     tbody.innerHTML = '';
-
     if (qid === 'none') { addRow(); return; }
-
     fetch('/supplier/' + {{ s.id }} + '/quotations/' + qid + '/items')
-        .then(function(r) { return r.json(); })
-        .then(function(items) {
-            if (!items.length) { addRow(); return; }
-            items.forEach(function(it) { addRow(it); });
-        })
-        .catch(function() { addRow(); });
+        .then(function(r){return r.json()})
+        .then(function(items){if(!items.length){addRow();return;}items.forEach(function(it){addRow(it);});})
+        .catch(function(){addRow();});
 }
-
+{% if items %}
+var existingItems = {{ items|tojson }};
+existingItems.forEach(function(it){ addRow(it); });
+{% else %}
 addRow();
+{% endif %}
 </script>
 {% endblock %}

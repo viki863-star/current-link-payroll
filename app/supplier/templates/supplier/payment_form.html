@@ -1,69 +1,97 @@
 {% extends "base.html" %}
-{% block title %}Record Payment{% endblock %}
-{% block page_title %}Record Payment{% endblock %}
+{% block title %}{{ 'Edit' if pay else 'Record' }} Payment{% endblock %}
+{% block page_title %}Payment{% endblock %}
 
 {% block content %}
-<div class="form-shell" style="max-width:550px">
-    <div class="profile-card">
-        <div style="margin-bottom:16px">
-            <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='payments') }}" class="btn btn-outline btn-sm">&larr; Back</a>
-        </div>
-        <h3>Record Payment</h3>
-        <p style="color:var(--muted);font-size:0.85rem">Supplier: <strong>{{ s.supplier_name }}</strong></p>
+<div class="form-shell" style="max-width:540px">
+<style>
+.pf-wrap { background:#fff; border:2px solid var(--line); border-radius:14px; overflow:hidden; }
+.pf-hdr { background:var(--primary); padding:14px 22px; display:flex; align-items:center; gap:10px; }
+.pf-hdr h3 { margin:0; font-size:0.95rem; font-weight:700; color:#fff; }
+.pf-hdr .back { margin-left:auto; color:rgba(255,255,255,0.85); font-size:0.78rem; text-decoration:none; }
+.pf-hdr .back:hover { color:#fff; }
+.pf-body { padding:20px 22px 22px; }
+.pf-row { margin-bottom:14px; }
+.pf-row label { display:block; font-size:0.7rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
+.pf-row .form-control { font-size:0.85rem; }
+.pf-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+</style>
 
-        <form method="POST" style="margin-top:16px">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-row">
-                <label class="form-label">Payment Date</label>
-                <input type="date" name="payment_date" value="{{ pay.payment_date or date.today().isoformat() }}" class="form-control">
-            </div>
-            <div class="form-row">
-                <label class="form-label">Amount *</label>
-                <input type="number" name="amount" value="{{ pay.amount or '' }}" class="form-control" step="0.01" min="0" required>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Link to Invoice (optional)</label>
-                <select name="invoice_id" class="form-control">
-                    <option value="">— General Payment —</option>
-                    {% for inv in invoices %}
-                    <option value="{{ inv.id }}">{{ inv.invoice_no }} — AED {{ "%.0f"|format(inv.total_amount) }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Payment Method</label>
-                <select name="payment_method" class="form-control">
-                    {% for m in methods %}
-                    <option value="{{ m }}" {% if (pay.payment_method or 'Cash') == m %}selected{% endif %}>{{ m }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Reference No.</label>
-                <input type="text" name="reference_no" value="{{ pay.reference_no or '' }}" class="form-control" placeholder="Cheque no / Transaction ID">
-            </div>
-            <div class="form-row">
-                <label class="form-label">Fund Source</label>
-                <select name="fund_source" class="form-control">
-                    <option value="cash_bank">Cash / Bank</option>
-                    <option value="owner_fund" {% if pay.fund_source == 'owner_fund' %}selected{% endif %}>Owner Fund</option>
-                </select>
-            </div>
-            {% if qarz_balance and qarz_balance > 0 %}
-            <div class="form-row" style="background:#fff3e0;border:1px solid #ffe0b2;border-radius:8px;padding:10px">
-                <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem">
-                    <input type="checkbox" name="deduct_qarz" value="1">
-                    Deduct Qarz ({{ "%.0f"|format(qarz_balance) }}) from this payment
-                </label>
-                <div style="font-size:0.78rem;color:#e65100;margin-top:4px">Payment will be: Amount - Qarz</div>
-            </div>
-            {% endif %}
-            <div class="form-row">
-                <label class="form-label">Notes</label>
-                <textarea name="notes" class="form-control" rows="2">{{ pay.notes or '' }}</textarea>
-            </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:8px">Record Payment</button>
-        </form>
-    </div>
+<div class="pf-wrap">
+  <div class="pf-hdr">
+    <h3>💳 {{ 'Edit' if pay else 'Record' }} Payment</h3>
+    <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='payments') }}" class="back">← Back</a>
+  </div>
+  <div class="pf-body">
+    <p style="font-size:0.85rem;color:var(--muted);margin:0 0 14px">
+      Supplier: <strong style="color:#0f172a">{{ s.supplier_name }}</strong>
+      <span class="mono" style="font-size:0.78rem;color:var(--muted)"> · {{ s.supplier_code }}</span>
+    </p>
+
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="pf-grid-2">
+        <div class="pf-row">
+          <label>Payment Date</label>
+          <input type="date" name="payment_date" value="{{ pay.payment_date or today }}" class="form-control">
+        </div>
+        <div class="pf-row">
+          <label>Amount *</label>
+          <input type="number" name="amount" step="0.01" min="0" class="form-control" required placeholder="0.00" value="{{ pay.amount or '' }}">
+        </div>
+      </div>
+
+      <div class="pf-row">
+        <label>Invoice (optional)</label>
+        <select name="invoice_id" class="form-control">
+          <option value="">— No Invoice —</option>
+          {% for inv in invoices %}
+          <option value="{{ inv.id }}" {{ 'selected' if pay and pay.invoice_id == inv.id else '' }}>{{ inv.invoice_no }} — AED {{ "%.0f"|format(inv.total_amount) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="pf-grid-2">
+        <div class="pf-row">
+          <label>Payment Method</label>
+          <select name="payment_method" class="form-control">
+            {% for m in ['Cash','Bank Transfer','Cheque','Card'] %}
+            <option value="{{ m }}" {{ 'selected' if pay and pay.payment_method == m else '' }}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="pf-row">
+          <label>Reference No.</label>
+          <input type="text" name="reference_no" class="form-control" placeholder="Optional" value="{{ pay.reference_no or '' }}">
+        </div>
+      </div>
+
+      <div class="pf-row">
+        <label>Fund Source</label>
+        <select name="fund_source" class="form-control">
+          <option value="cash_bank" {{ 'selected' if not pay or pay.fund_source == 'cash_bank' else '' }}>Cash / Bank</option>
+          <option value="owner_fund" {{ 'selected' if pay and pay.fund_source == 'owner_fund' else '' }}>Owner Fund</option>
+        </select>
+      </div>
+
+      {% if qarz_balance > 0 %}
+      <div class="pf-row" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:#92400e;text-transform:none;font-weight:500">
+          <input type="checkbox" name="deduct_qarz" value="1">
+          Deduct AED {{ "%.0f"|format(qarz_balance) }} from Qarz balance
+        </label>
+      </div>
+      {% endif %}
+
+      <div class="pf-row">
+        <label>Notes</label>
+        <textarea name="notes" class="form-control" rows="2">{{ pay.notes or '' }}</textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px;padding:10px">{{ 'Update' if pay else 'Save' }} Payment</button>
+    </form>
+  </div>
+</div>
 </div>
 {% endblock %}

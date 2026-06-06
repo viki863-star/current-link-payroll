@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { margin:0; size:A4; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Helvetica','Arial',sans-serif; background:#fff; color:#0f172a; font-size:11px; line-height:1.4; padding:18px 24px; }
+.card { border:2px solid #e2e8f0; border-radius:14px; overflow:hidden; }
+/* ── HEADER ── */
+.hdr { padding:28px 30px 14px; }
+.hdr-inner { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #1a3a5c; padding-bottom:14px; }
+.hdr-l { display:flex; gap:14px; align-items:flex-start; }
+.hdr-logo { width:100px; height:100px; flex-shrink:0; border-radius:10px; border:1px solid #eef2f6; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#fff; }
+.hdr-logo img { width:100%; height:100%; object-fit:contain; }
+.hdr-info { padding-top:2px; }
+.hdr-info h2 { font-size:18px; font-weight:800; color:#1a3a5c; margin:0; }
+.hdr-info .detail { font-size:10px; color:#94a3b8; margin-top:3px; }
+.hdr-info .detail strong { color:#1a3a5c; }
+.hdr-r { text-align:right; min-width:200px; }
+.hdr-r h1 { margin:0; font-size:22px; font-weight:800; color:#1a3a5c; letter-spacing:1px; }
+.hdr-r .meta { font-size:11px; color:#94a3b8; margin-top:3px; }
+/* ── BODY ── */
+.body { padding:18px 30px 24px; }
+.section { margin-bottom:16px; }
+.section h4 { font-size:11px; color:#0f2b52; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin:0 0 8px; border-bottom:1px solid #e2e8f0; padding-bottom:4px; }
+.info-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px; }
+.field { }
+.field label { display:block; font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:0.3px; font-weight:600; margin-bottom:2px; }
+.field .val { font-weight:600; font-size:13px; color:#0f172a; }
+.items-wrap { border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; }
+.items-wrap table { width:100%; border-collapse:collapse; font-size:11px; }
+.items-wrap th { background:#0f2b52; color:#fff; padding:7px 8px; font-size:10px; font-weight:600; text-align:left; }
+.items-wrap th.right { text-align:right; }
+.items-wrap th.center { text-align:center; }
+.items-wrap td { padding:6px 8px; border-bottom:1px solid #f1f5f9; }
+.items-wrap td.right { text-align:right; font-weight:600; }
+.items-wrap td.center { text-align:center; }
+.items-wrap tr.total td { background:#f0f4f8; font-weight:700; font-size:13px; border-bottom:none; }
+.total-bar { text-align:right; font-size:15px; font-weight:700; padding:8px 14px; background:linear-gradient(135deg,#f0f4f8,#e8edf4); border-radius:6px; border:1px solid #dde4ec; margin-top:8px; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.notes-box { }
+.notes-box label { font-size:10px; font-weight:600; color:#0f2b52; display:block; margin-bottom:4px; }
+.notes-box .content { font-size:11px; color:#334155; line-height:1.5; }
+.terms-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; }
+.terms-box label { font-size:10px; font-weight:600; color:#0f2b52; display:block; margin-bottom:4px; }
+.terms-box ul { margin:6px 0 0 14px; padding:0; font-size:10px; color:#64748b; line-height:1.6; }
+.words { font-size:10px; color:#64748b; margin-top:8px; padding:6px 12px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0; }
+.sign-wrap { display:flex; justify-content:space-between; margin-top:30px; padding-top:10px; }
+.sign-box { text-align:center; width:200px; }
+.sign-box .line { border-top:1px solid #94a3b8; padding-top:8px; margin-bottom:4px; }
+.sign-box .lbl { font-size:10px; font-weight:600; color:#334155; }
+.sign-box .sub { font-size:9px; color:#94a3b8; }
+.footer { text-align:center; font-size:8px; color:#94a3b8; margin-top:28px; padding-top:12px; border-top:1px solid #e2e8f0; }
+.quotation-ref { font-size:10px; color:#94a3b8; font-style:italic; margin:4px 0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="hdr">
+    <div class="hdr-inner">
+      <div class="hdr-l">
+        {% if logo_data %}
+        <div class="hdr-logo">
+          <img src="data:{{ logo_type or 'image/png' }};base64,{{ logo_data }}" alt="Logo">
+        </div>
+        {% endif %}
+        <div class="hdr-info">
+          <h2>{{ company_name }}</h2>
+          <div class="detail">{{ address or 'Dubai, UAE' }}</div>
+          <div class="detail">Phone: {{ phone or '+971' }} &middot; Email: {{ email or 'info@example.ae' }}</div>
+          <div class="detail"><strong>TRN: {{ trn }}</strong></div>
+        </div>
+      </div>
+      <div class="hdr-r">
+        <h1>LOCAL PURCHASE ORDER</h1>
+        <div class="meta">LPO #: <strong>{{ lpo_no }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="section">
+      <h4>LPO Information</h4>
+      <div class="info-grid">
+        <div class="field">
+          <label>LPO Number</label>
+          <div class="val">{{ lpo_no }}</div>
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <div class="val">{{ lpo_date }}</div>
+        </div>
+        <div class="field">
+          <label>Basis / Type</label>
+          <div class="val">{{ lpo_type }}</div>
+        </div>
+        <div class="field">
+          <label>Quotation</label>
+          <div class="val">{{ quotation_ref or '—' }}</div>
+        </div>
+        <div class="field">
+          <label>Supplier</label>
+          <div class="val">{{ supplier_name }}</div>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <div class="val" style="color:#e65100">{{ status }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h4>Service / Work Items</h4>
+      <div class="items-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:24px">#</th>
+              <th>Description</th>
+              <th style="width:50px" class="center">QTY</th>
+              <th style="width:65px" class="center">Basis</th>
+              <th style="width:80px" class="right">Rate (AED)</th>
+              <th style="width:80px" class="right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+            <tr>
+              <td class="center">{{ loop.index }}</td>
+              <td>{{ item.description }}</td>
+              <td class="center">{{ item.qty }}</td>
+              <td class="center">{{ item.basis_label }}</td>
+              <td class="right">{{ "%.2f"|format(item.rate) }}</td>
+              <td class="right">{{ "%.2f"|format(item.amount) }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total">
+              <td colspan="4"></td>
+              <td class="right" style="font-weight:700">TOTAL</td>
+              <td class="right" style="font-weight:700;color:#1a3a5c">{{ "%.2f"|format(total_amount) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="total-bar">Total: AED {{ "%.2f"|format(total_amount) }}</div>
+    </div>
+
+    <div class="section">
+      <h4>Description &amp; Terms</h4>
+      <div class="two-col">
+        <div>
+          {% if scope_notes %}
+          <div class="notes-box" style="margin-bottom:10px">
+            <label>Scope / Notes</label>
+            <div class="content">{{ scope_notes }}</div>
+          </div>
+          {% endif %}
+          {% if terms_notes %}
+          <div class="notes-box">
+            <label>Special Terms</label>
+            <div class="content">{{ terms_notes }}</div>
+          </div>
+          {% endif %}
+          {% if not scope_notes and not terms_notes %}
+          <div class="notes-box"><div class="content" style="color:#94a3b8">—</div></div>
+          {% endif %}
+        </div>
+        <div class="terms-box">
+          <label>Terms &amp; Conditions</label>
+          <ul>
+            <li>Payment as per agreed payment terms.</li>
+            <li>VAT @ 5% will be charged separately as per UAE Federal Law.</li>
+            <li>This LPO is valid for 30 days from the date of issue.</li>
+            <li>Services/goods must be delivered as per the specifications mentioned above.</li>
+            <li>Any changes or amendments to this LPO require written confirmation.</li>
+            <li>Delivery location: As per agreement.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="words"><strong>Amount in Words:</strong> {{ amount_words }}</div>
+
+    <div class="sign-wrap">
+      <div class="sign-box">
+        <div class="line"></div>
+        <div class="lbl">Company Sign &amp; Stamp</div>
+        <div class="sub">Date: _____/_____/_____</div>
+      </div>
+      <div class="sign-box">
+        <div class="line"></div>
+        <div class="lbl">Supplier Sign &amp; Stamp</div>
+        <div class="sub">Date: _____/_____/_____</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      This is a computer-generated document. No signature required for electronic transmission.
+      <br>Generated on: {{ generated_on }}
+    </div>
+  </div>
+</div>
+</body>
+</html>
