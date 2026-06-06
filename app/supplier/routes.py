@@ -1827,6 +1827,7 @@ def supplier_payment_delete(sup_id, pay_id):
         flash(f"Error deleting payment: {e}", "error")
     return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
 
+csrf.exempt(supplier_payment_delete)
 
 # ═══════════════════════════════════════════════════════════
 # LOANS / QARZ

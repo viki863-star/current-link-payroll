@@ -306,6 +306,23 @@
   <a href="{{ url_for('supplier.supplier_payment_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Record Payment</a>
 </div>
 
+<div class="sec-card" style="margin-bottom:16px">
+  <div class="loan-summary">
+    <div class="ls-item">
+      <div class="ls-lbl">Total Invoiced</div>
+      <div class="ls-val" style="color:#1c568b">{{ "%.0f"|format(inv_total + expense_total) }}</div>
+    </div>
+    <div class="ls-item">
+      <div class="ls-lbl">Total Paid</div>
+      <div class="ls-val" style="color:var(--green)">{{ "%.0f"|format(paid_total) }}</div>
+    </div>
+    <div class="ls-item">
+      <div class="ls-lbl">Outstanding</div>
+      <div class="ls-val" style="color:{% if net_balance > 0 %}#e65100{% else %}var(--green){% endif %}">{{ "%.0f"|format(net_balance) }}</div>
+    </div>
+  </div>
+</div>
+
 {% if payments %}
 <div class="sec-card">
   <div class="sec-card-h"><h3>💳 Payment History</h3></div>
