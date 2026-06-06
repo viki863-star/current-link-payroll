@@ -1909,19 +1909,22 @@ def supplier_loan_edit(sup_id, loan_id):
 
 @supplier_bp.route("/<int:sup_id>/loans/<int:loan_id>/delete", methods=["POST"])
 def supplier_loan_delete(sup_id, loan_id):
-    _ensure_tables()
     db = _get_db()
     try:
-        row = db.execute("SELECT id FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()
-        if not row:
-            flash("Loan entry not found.", "error")
+        # First check: count rows before
+        before = db.execute("SELECT COUNT(*) FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()[0]
+        if before == 0:
+            flash(f"Loan #{loan_id} not found for supplier #{sup_id}.", "error")
             return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
         db.execute("DELETE FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id))
         db.commit()
-        flash("Loan entry deleted.", "info")
+        # Verify: count rows after
+        after = db.execute("SELECT COUNT(*) FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()[0]
+        flash(f"Loan #{loan_id} deleted (before={before}, after={after}).", "info")
     except Exception as e:
-        db.rollback()
-        flash(f"Error deleting loan: {e}", "error")
+        try: db.rollback()
+        except: pass
+        flash(f"Delete error: {e}", "error")
     return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
 
 csrf.exempt(supplier_loan_delete)
