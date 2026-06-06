@@ -26,7 +26,10 @@
     .md-brand { font-size:1.05rem; font-weight:800; color:{{ tc }}; letter-spacing:-0.25px; white-space:nowrap; }
     .md-brand-accent { color:#f7931e; }
     .md-divider { width:1px; height:22px; background:#e2e8f0; flex-shrink:0; }
-    .md-breadcrumb { font-size:0.82rem; font-weight:500; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .md-breadcrumb { font-size:0.82rem; font-weight:500; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px; }
+    .md-breadcrumb .ws-eyebrow { font-size:0.68rem; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.4px; }
+    .md-breadcrumb .ws-eyebrow::after { content:"/"; margin-left:6px; color:#cbd5e1; font-weight:400; }
+    .md-breadcrumb .ws-page-title { color:#0f172a; font-weight:600; }
     .md-center { flex:1; display:flex; justify-content:center; min-width:0; }
     .md-search { position:relative; width:100%; max-width:440px; }
     .md-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; color:#94a3b8; pointer-events:none; }
@@ -92,10 +95,9 @@
                     <div class="md-divider"></div>
                     <div class="md-breadcrumb">
                         {% if current_workspace_meta %}
-                            {{ current_workspace_meta.title }}
-                        {% else %}
-                            {% block page_title %}Dashboard{% endblock %}
+                            <span class="ws-eyebrow">{{ current_workspace_meta.label }}</span>
                         {% endif %}
+                        <span class="ws-page-title">{% block page_title %}Dashboard{% endblock %}</span>
                     </div>
                 </div>
                 {% if not is_admin %}
