@@ -1911,16 +1911,19 @@ def supplier_loan_edit(sup_id, loan_id):
 def supplier_loan_delete(sup_id, loan_id):
     db = _get_db()
     try:
-        # First check: count rows before
-        before = db.execute("SELECT COUNT(*) FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()[0]
-        if before == 0:
-            flash(f"Loan #{loan_id} not found for supplier #{sup_id}.", "error")
+        loan = db.execute("SELECT * FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()
+        if not loan:
+            flash(f"Loan #{loan_id} not found.", "error")
             return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
-        db.execute("DELETE FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id))
+
+        # Delete all duplicate entries with same date/amount/notes (edit bug created copies)
+        result = db.execute(
+            "DELETE FROM supplier_loans WHERE supplier_id=? AND entry_date=? AND amount=? AND notes=?",
+            (sup_id, loan["entry_date"], loan["amount"], loan["notes"]),
+        )
+        total = result.cursor.rowcount
         db.commit()
-        # Verify: count rows after
-        after = db.execute("SELECT COUNT(*) FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()[0]
-        flash(f"Loan #{loan_id} deleted (before={before}, after={after}).", "info")
+        flash(f"{total} loan entr{'y' if total == 1 else 'ies'} deleted.", "info")
     except Exception as e:
         try: db.rollback()
         except: pass
