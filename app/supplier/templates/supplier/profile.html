@@ -222,13 +222,11 @@
 {# ═══════════════════════════════════════════════════ #}
 {% if active_tab == 'earnings' %}
 <div class="action-bar">
-  {% if not is_cash %}
   <a href="{{ url_for('supplier.supplier_invoice_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add Invoice</a>
-  {% endif %}
   <a href="{{ url_for('supplier.supplier_expense_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add Earning</a>
 </div>
 
-{% if not is_cash and invoices %}
+{% if invoices %}
 <div class="sec-card">
   <div class="sec-card-h"><h3>📄 Invoices</h3></div>
   <div class="sec-card-b">
