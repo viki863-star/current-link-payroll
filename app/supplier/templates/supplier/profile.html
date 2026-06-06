@@ -226,26 +226,51 @@
   <a href="{{ url_for('supplier.supplier_expense_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add Earning</a>
 </div>
 
-{% if invoices %}
+{% set all_earnings = [] %}
+{% for inv in invoices %}
+  {% set _ = all_earnings.append({
+    'date': inv.invoice_date, 'ref': inv.invoice_no, 'type': 'Invoice',
+    'detail': 'Invoice · ' ~ inv.invoice_no, 'vehicle': '-',
+    'amount': inv.total_amount, 'status': inv.status,
+    'edit_url': url_for('supplier.supplier_invoice_edit', sup_id=s.id, inv_id=inv.id),
+    'delete_url': url_for('supplier.supplier_invoice_delete', sup_id=s.id, inv_id=inv.id),
+    'del_csrf': csrf_token()
+  }) %}
+{% endfor %}
+{% for e in expenses %}
+  {% set lbl = e.earning_type|title if e.earning_type else 'Fixed' %}
+  {% set detail = e.description or e.category %}
+  {% if e.quantity and e.rate %}{% set detail = detail ~ ' (' ~ e.quantity ~ ' × ' ~ ("%.0f"|format(e.rate)) ~ ')' %}{% endif %}
+  {% set _ = all_earnings.append({
+    'date': e.expense_date, 'ref': lbl, 'type': lbl,
+    'detail': detail, 'vehicle': e.vehicle_no or '-',
+    'amount': e.amount, 'status': e.status or 'approved',
+    'edit_url': url_for('supplier.supplier_expense_edit', sup_id=s.id, exp_id=e.id),
+    'delete_url': url_for('supplier.supplier_expense_delete', sup_id=s.id, exp_id=e.id),
+    'del_csrf': csrf_token()
+  }) %}
+{% endfor %}
+{% set all_earnings = all_earnings|sort(attribute='date') %}
+
 <div class="sec-card">
-  <div class="sec-card-h"><h3>📄 Invoices</h3></div>
+  <div class="sec-card-h"><h3>💰 All Earnings</h3></div>
   <div class="sec-card-b">
+    {% if all_earnings %}
     <table class="sec-table">
-      <thead><tr><th>Date</th><th>Invoice</th><th class="r">Amount</th><th class="r">VAT</th><th class="r">Total</th><th>Status</th><th class="c">Actions</th></tr></thead>
+      <thead><tr><th>Date</th><th>Type</th><th>Details</th><th class="r">Amount</th><th>Status</th><th class="c">Actions</th></tr></thead>
       <tbody>
-        {% for inv in invoices %}
+        {% for r in all_earnings %}
         <tr>
-          <td class="mono">{{ inv.invoice_date }}</td>
-          <td class="mono">{{ inv.invoice_no }}</td>
-          <td class="r mono">{{ "%.0f"|format(inv.amount) }}</td>
-          <td class="r mono">{{ "%.0f"|format(inv.vat_amount) }}</td>
-          <td class="r mono" style="font-weight:700">{{ "%.0f"|format(inv.total_amount) }}</td>
-          <td><span class="status-badge {{ 'active' if inv.status == 'approved' else 'pending' }}">{{ inv.status }}</span></td>
+          <td class="mono">{{ r.date }}</td>
+          <td><span class="status-badge {{ 'approved' if r.type == 'Invoice' else 'active' }}">{{ r.type }}</span></td>
+          <td style="font-size:0.82rem">{{ r.detail }}</td>
+          <td class="r mono" style="font-weight:700">{{ "%.0f"|format(r.amount) }}</td>
+          <td><span class="status-badge {{ 'active' if r.status == 'approved' or r.status == 'paid' else 'pending' }}" style="font-size:0.6rem">{{ r.status }}</span></td>
           <td class="c">
             <div class="act-group">
-              <a href="{{ url_for('supplier.supplier_invoice_edit', sup_id=s.id, inv_id=inv.id) }}" class="act-btn edit" title="Edit">✏️</a>
-              <form method="POST" action="{{ url_for('supplier.supplier_invoice_delete', sup_id=s.id, inv_id=inv.id) }}" style="display:inline" onsubmit="return confirm('Delete this invoice?')">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <a href="{{ r.edit_url }}" class="act-btn edit" title="Edit">✏️</a>
+              <form method="POST" action="{{ r.delete_url }}" style="display:inline" onsubmit="return confirm('Delete this entry?')">
+                <input type="hidden" name="csrf_token" value="{{ r.del_csrf }}">
                 <button type="submit" class="act-btn del" title="Delete">🗑️</button>
               </form>
             </div>
@@ -254,47 +279,11 @@
         {% endfor %}
       </tbody>
     </table>
+    {% else %}
+    <div class="empty-state"><div class="empty-ic">💰</div>No earnings recorded yet.<br><a href="{{ url_for('supplier.supplier_expense_add', sup_id=s.id) }}">Add first earning</a></div>
+    {% endif %}
   </div>
 </div>
-{% endif %}
-
-{% if expenses %}
-<div class="sec-card">
-  <div class="sec-card-h"><h3>📋 Trip / Hour Earnings</h3></div>
-  <div class="sec-card-b">
-    <table class="sec-table">
-      <thead><tr><th>Date</th><th>Type</th><th>Details</th><th>Vehicle</th><th class="r">Amount</th><th>Status</th><th class="c">Actions</th></tr></thead>
-      <tbody>
-        {% for e in expenses %}
-        <tr>
-          <td class="mono">{{ e.expense_date }}</td>
-          <td>{{ e.earning_type|title if e.earning_type else 'Fixed' }}</td>
-          <td style="font-size:0.82rem">{{ e.description or e.category }}
-            {% if e.quantity and e.rate %}<span class="mono" style="font-size:0.72rem"> ({{ e.quantity }} × {{ "%.0f"|format(e.rate) }})</span>{% endif %}
-          </td>
-          <td class="mono">{{ e.vehicle_no or '-' }}</td>
-          <td class="r mono" style="font-weight:700">{{ "%.0f"|format(e.amount) }}</td>
-          <td><span class="status-badge {{ 'active' if e.status == 'approved' else 'pending' }}" style="font-size:0.6rem">{{ e.status }}</span></td>
-          <td class="c">
-            <div class="act-group">
-              <a href="{{ url_for('supplier.supplier_expense_edit', sup_id=s.id, exp_id=e.id) }}" class="act-btn edit" title="Edit">✏️</a>
-              <form method="POST" action="{{ url_for('supplier.supplier_expense_delete', sup_id=s.id, exp_id=e.id) }}" style="display:inline" onsubmit="return confirm('Delete this earning?')">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="act-btn del" title="Delete">🗑️</button>
-              </form>
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
-
-{% if not invoices and not expenses %}
-<div class="empty-state"><div class="empty-ic">💰</div>No earnings recorded yet.<br><a href="{{ url_for('supplier.supplier_expense_add', sup_id=s.id) }}">Add first earning</a></div>
-{% endif %}
 
 {# ═══════════════════════════════════════════════════ #}
 {# TAB: PAYMENTS                                       #}
