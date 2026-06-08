@@ -591,7 +591,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
     return str(output_path)
 
 
-def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_deduction, remaining, month_value, output_dir: str, assets_dir: str) -> str:
+def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_deduction, remaining, month_value, output_dir: str, assets_dir: str, company_profile: dict | None = None) -> str:
     normalized_month = format_month_label(month_value) if month_value else ""
     file_suffix = f"kata-{month_value}" if month_value else "kata-statement"
     output_path = Path(output_dir) / f"{driver['driver_id']}_{file_suffix}.pdf"
@@ -715,7 +715,7 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
         pdf.setFont("Helvetica", 6.5)
         pdf.drawString(20 * mm, sum_y - 4 * mm, f"Previous: AED {format_currency(prev_remaining)}  →  Deducted: AED {format_currency(this_deduction)}  →  Remaining: AED {format_currency(remaining)}")
 
-    _draw_header(pdf, assets_dir)
+    _draw_header(pdf, assets_dir, company_profile)
     _draw_title(pdf, "Employee Monthly Statement", normalized_month)
     _draw_driver_info()
     if salary_row:
@@ -727,7 +727,7 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
     return str(output_path)
 
 
-def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: str, assets_dir: str) -> str:
+def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: str, assets_dir: str, company_profile: dict | None = None) -> str:
     normalized_month = format_month_label(month_value) if month_value else ""
     file_suffix = f"transactions-{month_value}" if month_value else "transactions"
     output_path = Path(output_dir) / f"{driver['driver_id']}_{file_suffix}.pdf"
@@ -790,7 +790,7 @@ def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: st
             pdf.setFillColor(TEXT)
             row_y -= row_h
 
-    _draw_header(pdf, assets_dir)
+    _draw_header(pdf, assets_dir, company_profile)
     _draw_title(pdf, "Outstanding Advances Statement", normalized_month)
     _draw_driver_info()
     _draw_advances_table()

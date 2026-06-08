@@ -930,6 +930,8 @@ def employee_kata(employee_id):
             "full_name": employee["full_name"],
             "basic_salary": employee["basic_salary"] or 0,
         }
+        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company_profile = dict(company) if company else None
 
         if download_type == "transactions":
             outstanding = [a for a in kata_advances if a["status"] != "cleared"]
@@ -937,6 +939,7 @@ def employee_kata(employee_id):
                 driver_display, outstanding, selected_month,
                 str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
                 current_app.config["STATIC_ASSETS_DIR"],
+                company_profile=company_profile,
             )
             if tx_path:
                 rel = Path(tx_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
@@ -948,6 +951,7 @@ def employee_kata(employee_id):
                 selected_month,
                 str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
                 current_app.config["STATIC_ASSETS_DIR"],
+                company_profile=company_profile,
             )
             if pdf_path:
                 rel = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
@@ -962,6 +966,7 @@ def employee_kata(employee_id):
                     selected_month,
                     str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
                     current_app.config["STATIC_ASSETS_DIR"],
+                    company_profile=company_profile,
                 )
                 if full_path:
                     rel = Path(full_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
@@ -972,6 +977,7 @@ def employee_kata(employee_id):
                 driver_display, outstanding, selected_month,
                 str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
                 current_app.config["STATIC_ASSETS_DIR"],
+                company_profile=company_profile,
             )
             if tx_path:
                 rel = Path(tx_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
