@@ -644,23 +644,6 @@
                         </div>
                         {% endif %}
                     </div>
-                        {% else %}
-                        <p class="empty-state">No advances.</p>
-                        {% endif %}
-
-                        {% if kata_selected_month and kata_salary_row %}
-                        <div style="margin-top:1rem">
-                            <a href="{{ url_for('hr.employee_kata', employee_id=employee.employee_id, month=kata_selected_month, download='pdf') }}" class="btn btn-primary" style="width:100%">Download Kata PDF</a>
-                        </div>
-                        {% endif %}
-
-                        {% if kata_pdf_url %}
-                        <div style="margin-top:8px;padding:10px;background:#e8f5e9;border-radius:6px;border:1px solid #c8e6c9;text-align:center">
-                            <strong>PDF Ready:</strong>
-                            <a href="{{ kata_pdf_url }}" target="_blank" class="btn btn-sm btn-outline" style="margin-left:8px">Open PDF</a>
-                        </div>
-                        {% endif %}
-                    </div>
                     {% else %}
                     <div class="profile-card">
                         <h3>Advances</h3>
