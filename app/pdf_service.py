@@ -727,6 +727,78 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
     return str(output_path)
 
 
+def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: str, assets_dir: str) -> str:
+    normalized_month = format_month_label(month_value) if month_value else ""
+    file_suffix = f"transactions-{month_value}" if month_value else "transactions"
+    output_path = Path(output_dir) / f"{driver['driver_id']}_{file_suffix}.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+
+    def _draw_driver_info():
+        info_y = PAGE_HEIGHT - 82 * mm
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(16 * mm, info_y, 178 * mm, 15 * mm, 3 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(16 * mm, info_y, 178 * mm, 15 * mm, 3 * mm, fill=0, stroke=1)
+        pdf.setFillColor(TEXT)
+        pdf.setFont("Helvetica-Bold", 9)
+        pdf.drawString(20 * mm, info_y + 9 * mm, f"Employee: {driver.get('full_name', '-')}")
+        pdf.drawString(85 * mm, info_y + 9 * mm, f"ID: {driver.get('driver_id', '-')}")
+        pdf.drawString(140 * mm, info_y + 9 * mm, f"Month: {normalized_month}")
+
+    def _draw_advances_table():
+        table_y = PAGE_HEIGHT - 104 * mm
+        row_h = 5.5 * mm
+        total_h = len(advances) * row_h + 32 * mm
+        table_h = max(total_h, 30 * mm)
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(16 * mm, table_y - table_h + 40 * mm, 178 * mm, table_h, 3 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(16 * mm, table_y - table_h + 40 * mm, 178 * mm, table_h, 3 * mm, fill=0, stroke=1)
+
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont("Helvetica-Bold", 8.5)
+        pdf.drawString(20 * mm, table_y + 4 * mm, "OUTSTANDING ADVANCES")
+
+        headers = ["Date", "Amount", "Given By", "Details", "Remaining"]
+        col_x = [20 * mm, 52 * mm, 80 * mm, 105 * mm, 143 * mm]
+        hdr_y = table_y - 3 * mm
+        pdf.setFont("Helvetica-Bold", 6.5)
+        pdf.setFillColor(MUTED)
+        for i, h in enumerate(headers):
+            if i >= 3:
+                pdf.drawRightString(col_x[i] + 18 * mm, hdr_y, h)
+            else:
+                pdf.drawString(col_x[i], hdr_y, h)
+
+        row_y = hdr_y - row_h
+        pdf.setFont("Helvetica", 6.5)
+        is_alt = False
+        for a in advances:
+            if is_alt:
+                pdf.setFillColor(SOFT)
+                pdf.rect(col_x[0], row_y, 170 * mm, row_h, fill=1, stroke=0)
+            is_alt = not is_alt
+            pdf.setFillColor(TEXT)
+            pdf.drawString(col_x[0], row_y + 1.5 * mm, str(a.get("entry_date", ""))[:10])
+            pdf.drawRightString(col_x[1] + 18 * mm, row_y + 1.5 * mm, f"AED {format_currency(float(a.get('amount', 0)))}")
+            pdf.drawString(col_x[2], row_y + 1.5 * mm, str(a.get("given_by", "-"))[:12])
+            pdf.drawString(col_x[3], row_y + 1.5 * mm, str(a.get("details", "-"))[:14])
+            rem = float(a.get("amount", 0)) - float(a.get("deducted", 0))
+            pdf.setFillColor(colors.HexColor("#D32F2F") if rem > 0 else TEXT)
+            pdf.drawRightString(col_x[4] + 18 * mm, row_y + 1.5 * mm, f"AED {format_currency(rem)}")
+            pdf.setFillColor(TEXT)
+            row_y -= row_h
+
+    _draw_header(pdf, assets_dir)
+    _draw_title(pdf, "Outstanding Advances Statement", normalized_month)
+    _draw_driver_info()
+    _draw_advances_table()
+    _draw_footer_banner(pdf, assets_dir)
+    pdf.save()
+    return str(output_path)
+
+
 def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir: str, filters=None) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = Path(output_dir) / f"owner-fund-kata_{timestamp}.pdf"

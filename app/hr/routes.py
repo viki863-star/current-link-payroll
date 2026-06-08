@@ -920,28 +920,61 @@ def employee_kata(employee_id):
                 deduction_left = 0.0
 
     pdf_url = None
-    if request.args.get("download") == "pdf" and selected_month:
-        from ..pdf_service import generate_simple_kata_pdf
+    transactions_pdf_url = None
+    download_type = request.args.get("download", "")
+    if download_type and selected_month:
+        from ..pdf_service import generate_simple_kata_pdf, generate_transactions_kata_pdf
 
         driver_display = {
             "driver_id": eid,
             "full_name": employee["full_name"],
             "basic_salary": employee["basic_salary"] or 0,
         }
-        pdf_path = generate_simple_kata_pdf(
-            driver_display,
-            salary_row,
-            kata_advances,
-            kata_prev_remaining,
-            kata_this_deduction,
-            kata_remaining,
-            selected_month,
-            str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
-            current_app.config["STATIC_ASSETS_DIR"],
-        )
-        if pdf_path:
-            relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
-            pdf_url = url_for("generated_file", filename=relative_path)
+
+        if download_type == "transactions":
+            outstanding = [a for a in kata_advances if a["status"] != "cleared"]
+            tx_path = generate_transactions_kata_pdf(
+                driver_display, outstanding, selected_month,
+                str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
+                current_app.config["STATIC_ASSETS_DIR"],
+            )
+            if tx_path:
+                rel = Path(tx_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
+                transactions_pdf_url = url_for("generated_file", filename=rel)
+        else:
+            pdf_path = generate_simple_kata_pdf(
+                driver_display, salary_row, kata_advances,
+                kata_prev_remaining, kata_this_deduction, kata_remaining,
+                selected_month,
+                str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
+                current_app.config["STATIC_ASSETS_DIR"],
+            )
+            if pdf_path:
+                rel = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
+                pdf_url = url_for("generated_file", filename=rel)
+
+        # Pre-generate the companion PDF
+        if download_type == "transactions":
+            full_path = generate_simple_kata_pdf(
+                driver_display, salary_row, kata_advances,
+                kata_prev_remaining, kata_this_deduction, kata_remaining,
+                selected_month,
+                str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
+                current_app.config["STATIC_ASSETS_DIR"],
+            )
+            if full_path:
+                rel = Path(full_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
+                pdf_url = url_for("generated_file", filename=rel)
+        else:
+            outstanding = [a for a in kata_advances if a["status"] != "cleared"]
+            tx_path = generate_transactions_kata_pdf(
+                driver_display, outstanding, selected_month,
+                str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
+                current_app.config["STATIC_ASSETS_DIR"],
+            )
+            if tx_path:
+                rel = Path(tx_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
+                transactions_pdf_url = url_for("generated_file", filename=rel)
 
     photo_url = _employee_photo_url(current_app._get_current_object(), employee)
 
@@ -961,6 +994,7 @@ def employee_kata(employee_id):
         kata_this_deduction=kata_this_deduction,
         kata_remaining=kata_remaining,
         kata_pdf_url=pdf_url,
+        kata_transactions_pdf_url=transactions_pdf_url,
     )
 
 
