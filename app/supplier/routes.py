@@ -1732,11 +1732,18 @@ def supplier_payment_add(sup_id):
 
         amount_f = float(amount)
         fund_source = request.form.get("fund_source", "cash_bank").strip()
+        invoice_ids_str = ",".join(invoice_ids)
+
+        # Ensure column exists
+        try:
+            db.execute("ALTER TABLE supplier_payment_records ADD COLUMN invoice_ids TEXT")
+        except Exception:
+            pass
 
         # Create one payment record for the batch
         db.execute(
-            "INSERT INTO supplier_payment_records (supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, fund_source) VALUES (?,?,?,?,?,?,?,?)",
-            (sup_id, None, payment_date, amount_f, payment_method, reference_no, notes, fund_source),
+            "INSERT INTO supplier_payment_records (supplier_id, invoice_id, invoice_ids, payment_date, amount, payment_method, reference_no, notes, fund_source) VALUES (?,?,?,?,?,?,?,?,?)",
+            (sup_id, None, invoice_ids_str, payment_date, amount_f, payment_method, reference_no, notes, fund_source),
         )
 
         # Mark all selected invoices as paid
@@ -1771,14 +1778,21 @@ def supplier_payment_voucher(sup_id, pay_id):
     if not s or not pay:
         flash("Payment not found.", "error")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id))
-    inv = None
-    if pay["invoice_id"]:
-        inv = db.execute("SELECT * FROM supplier_invoices WHERE id = ?", (pay["invoice_id"],)).fetchone()
+    invoices = []
+    if pay.get("invoice_ids"):
+        ids = [x.strip() for x in pay["invoice_ids"].split(",") if x.strip().isdigit()]
+        if ids:
+            placeholders = ",".join("?" * len(ids))
+            invoices = db.execute(
+                f"SELECT id, invoice_no, invoice_date, total_amount FROM supplier_invoices WHERE id IN ({placeholders})",
+                ids,
+            ).fetchall()
+    inv = db.execute("SELECT * FROM supplier_invoices WHERE id = ?", (pay["invoice_id"],)).fetchone() if pay["invoice_id"] else None
     try:
         company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     except Exception:
         company = None
-    return render_template("supplier/payment_voucher.html", s=s, pay=pay, inv=inv, company=company, today=date.today().isoformat())
+    return render_template("supplier/payment_voucher.html", s=s, pay=pay, inv=inv, invoices=invoices, company=company, today=date.today().isoformat())
 
 
 @supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/edit", methods=["GET", "POST"])

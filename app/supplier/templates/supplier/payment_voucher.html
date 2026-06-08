@@ -105,7 +105,16 @@ body { font-family:'Segoe UI',Arial,sans-serif; font-size:13px; color:#0f172a; l
       <tr>
         <td style="font-weight:500;color:#0f172a">
           Payment to {{ s.supplier_name }}
-          {% if inv %}<br><span style="color:#64748b;font-size:0.78rem">Invoice: {{ inv.invoice_no }} ({{ inv.invoice_date }})</span>{% endif %}
+          {% if invoices %}
+          <br><span style="color:#64748b;font-size:0.78rem">
+            Against invoices:
+            {% for inv in invoices %}
+            {{ inv.invoice_no }} ({{ inv.invoice_date }}){% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </span>
+          {% elif inv %}
+          <br><span style="color:#64748b;font-size:0.78rem">Invoice: {{ inv.invoice_no }} ({{ inv.invoice_date }})</span>
+          {% endif %}
           {% if pay.notes %}<br><span style="color:#64748b;font-size:0.78rem">{{ pay.notes }}</span>{% endif %}
         </td>
         <td style="font-weight:700">{{ "%.2f"|format(pay.amount) }}</td>
