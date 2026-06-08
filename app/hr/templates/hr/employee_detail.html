@@ -98,57 +98,64 @@
                         <h3>
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
                             New Transaction
+                            {% if edit_txn %}<span style="font-size:0.7rem;color:var(--orange);font-weight:400"> — Editing #{{ edit_txn.id }}</span>{% endif %}
                         </h3>
                         <form method="POST" class="smart-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="form-group">
                                 <label>Type</label>
-                                <select name="txn_type" class="form-control">
-                                    <option value="Advance">Advance</option>
-                                    <option value="Loan">Loan</option>
-                                    <option value="Payment">Payment</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Amount (AED) *</label>
-                                <input type="number" name="amount" value="{{ txn_form.amount or '' }}" class="form-control" required step="0.01" min="0.01" placeholder="0.00">
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Date</label>
-                                    <input type="date" name="entry_date" value="{{ txn_form.entry_date or '' }}" class="form-control">
-                                </div>
-                                <div class="form-group">
-                                    <label>Month</label>
-                                    <select name="salary_month" class="form-control">
-                                        {% for m in range(1, 13) %}
-                                        {% set ym = "%04d-%02d"|format(date.today().year, m) %}
-                                        <option value="{{ ym }}" {% if ym == (txn_form.salary_month or '') %}selected{% endif %}>{{ ym }}</option>
-                                        {% endfor %}
+                                    <select name="txn_type" class="form-control">
+                                        <option value="Advance" {{ 'selected' if edit_txn and edit_txn.txn_type == 'Advance' else '' }}>Advance</option>
+                                        <option value="Loan" {{ 'selected' if edit_txn and edit_txn.txn_type == 'Loan' else '' }}>Loan</option>
+                                        <option value="Payment" {{ 'selected' if edit_txn and edit_txn.txn_type == 'Payment' else '' }}>Payment</option>
+                                        <option value="Other" {{ 'selected' if edit_txn and edit_txn.txn_type == 'Other' else '' }}>Other</option>
                                     </select>
                                 </div>
-                            </div>
-                            <div class="form-group">
-                                <label>Source</label>
-                                <select name="source" class="form-control">
-                                    <option value="Cash">Cash</option>
-                                    <option value="Bank">Bank</option>
-                                    <option value="Owner Fund">Owner Fund</option>
-                                    <option value="Current Link">Current Link</option>
-                                    <option value="Office">Office</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Given By *</label>
-                                <input type="text" name="given_by" value="{{ txn_form.given_by or '' }}" class="form-control" required placeholder="Person who issued">
-                            </div>
-                            <div class="form-group">
-                                <label>Details / Reason *</label>
-                                <textarea name="details" class="form-control" rows="2" required placeholder="Why this amount was given">{{ txn_form.details or '' }}</textarea>
-                            </div>
-                            <button type="submit" class="btn btn-primary" style="width:100%">Record Transaction</button>
+                                <div class="form-group">
+                                    <label>Amount (AED) *</label>
+                                    <input type="number" name="amount" value="{{ edit_txn.amount or txn_form.amount or '' }}" class="form-control" required step="0.01" min="0.01" placeholder="0.00">
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Date</label>
+                                        <input type="date" name="entry_date" value="{{ edit_txn.entry_date or txn_form.entry_date or '' }}" class="form-control">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Month</label>
+                                        <select name="salary_month" class="form-control">
+                                            {% for m in range(1, 13) %}
+                                            {% set ym = "%04d-%02d"|format(date.today().year, m) %}
+                                            <option value="{{ ym }}" {% if ym == (edit_txn.salary_month or txn_form.salary_month or '') %}selected{% endif %}>{{ ym }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Source</label>
+                                    <select name="source" class="form-control">
+                                        <option value="Cash" {{ 'selected' if edit_txn and edit_txn.source == 'Cash' else '' }}>Cash</option>
+                                        <option value="Bank" {{ 'selected' if edit_txn and edit_txn.source == 'Bank' else '' }}>Bank</option>
+                                        <option value="Owner Fund" {{ 'selected' if edit_txn and edit_txn.source == 'Owner Fund' else '' }}>Owner Fund</option>
+                                        <option value="Current Link" {{ 'selected' if edit_txn and edit_txn.source == 'Current Link' else '' }}>Current Link</option>
+                                        <option value="Office" {{ 'selected' if edit_txn and edit_txn.source == 'Office' else '' }}>Office</option>
+                                        <option value="Other" {{ 'selected' if edit_txn and edit_txn.source == 'Other' else '' }}>Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Given By *</label>
+                                    <input type="text" name="given_by" value="{{ edit_txn.given_by or txn_form.given_by or '' }}" class="form-control" required placeholder="Person who issued">
+                                </div>
+                                <div class="form-group">
+                                    <label>Details / Reason *</label>
+                                    <textarea name="details" class="form-control" rows="2" required placeholder="Why this amount was given">{{ edit_txn.details or txn_form.details or '' }}</textarea>
+                                </div>
+                                {% if edit_txn %}
+                                <input type="hidden" name="edit_id" value="{{ edit_txn.id }}">
+                                <button type="submit" class="btn btn-primary" style="width:100%">Update Transaction</button>
+                                <a href="{{ url_for('hr.employee_transactions', employee_id=employee.employee_id) }}" class="btn btn-outline" style="width:100%;margin-top:6px;text-align:center;display:block">Cancel</a>
+                                {% else %}
+                                <button type="submit" class="btn btn-primary" style="width:100%">Record Transaction</button>
+                                {% endif %}
                         </form>
                     </div>
                 </div>
@@ -171,6 +178,7 @@
                                         <th>Source</th>
                                         <th>Given By</th>
                                         <th>Details</th>
+                                        <th class="c">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -182,9 +190,18 @@
                                         <td>{{ txn.source }}</td>
                                         <td>{{ txn.given_by or '-' }}</td>
                                         <td style="max-width:180px;white-space:normal">{{ txn.details }}</td>
+                                        <td class="c">
+                                            <div class="act-group">
+                                                <a href="{{ url_for('hr.employee_transactions', employee_id=employee.employee_id) }}?edit={{ txn.id }}" class="act-btn edit" title="Edit">&#9998;</a>
+                                                <form method="POST" action="{{ url_for('hr.employee_transaction_delete', employee_id=employee.employee_id, txn_id=txn.id) }}" style="display:inline" onsubmit="return confirm('Delete this transaction?')">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit" class="act-btn del" title="Delete">&#128465;</button>
+                                                </form>
+                                            </div>
+                                        </td>
                                     </tr>
                                     {% else %}
-                                    <tr><td colspan="6" class="empty-state">No transactions yet.</td></tr>
+                                    <tr><td colspan="7" class="empty-state">No transactions yet.</td></tr>
                                     {% endfor %}
                                 </tbody>
                             </table>

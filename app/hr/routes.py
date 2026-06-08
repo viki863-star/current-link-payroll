@@ -350,6 +350,7 @@ def employee_transactions(employee_id):
     }
 
     if request.method == "POST":
+        edit_id = request.form.get("edit_id", "").strip()
         form_values = {
             "entry_date": request.form.get("entry_date", today).strip() or today,
             "amount": request.form.get("amount", "0").strip(),
@@ -366,35 +367,31 @@ def employee_transactions(employee_id):
             txn_type = request.form.get("txn_type", "Advance").strip()
             salary_month = request.form.get("salary_month", "").strip() or _current_month_value()
 
-            db.execute(
-                """
-                INSERT INTO driver_transactions
-                    (driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (eid, form_values["entry_date"], salary_month, txn_type, form_values["source"],
-                 form_values["given_by"], amount, form_values["details"]),
-            )
-            _audit_log(
-                db, "employee_transaction_created",
-                entity_type="employee_transaction",
-                entity_id=eid,
-                details=f"AED {amount:.2f} / {form_values['source']} / {form_values['details']}",
-            )
-            db.commit()
-            flash(f"Transaction of AED {amount:.2f} recorded for {employee['full_name']}.", "success")
-            return redirect(url_for("hr.employee_transactions", employee_id=eid))
+            if edit_id and edit_id.isdigit():
+                db.execute(
+                    """UPDATE driver_transactions SET entry_date=?, salary_month=?, txn_type=?, source=?, given_by=?, amount=?, details=? WHERE id=? AND driver_id=?""",
+                    (form_values["entry_date"], salary_month, txn_type, form_values["source"],
+                     form_values["given_by"], amount, form_values["details"], int(edit_id), eid),
+                )
+                _audit_log(db, "employee_transaction_updated", entity_type="employee_transaction", entity_id=eid, details=f"AED {amount:.2f} / txn#{edit_id}")
+                db.commit()
+                flash(f"Transaction #{edit_id} updated.", "success")
+                return redirect(url_for("hr.employee_transactions", employee_id=eid))
+            else:
+                db.execute(
+                    """INSERT INTO driver_transactions (driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (eid, form_values["entry_date"], salary_month, txn_type, form_values["source"],
+                     form_values["given_by"], amount, form_values["details"]),
+                )
+                _audit_log(db, "employee_transaction_created", entity_type="employee_transaction", entity_id=eid, details=f"AED {amount:.2f} / {form_values['source']} / {form_values['details']}")
+                db.commit()
+                flash(f"Transaction of AED {amount:.2f} recorded for {employee['full_name']}.", "success")
+                return redirect(url_for("hr.employee_transactions", employee_id=eid))
         except ValidationError as exc:
             flash(str(exc), "error")
 
     transactions = db.execute(
-        """
-        SELECT id, entry_date, salary_month, txn_type, source, given_by, amount, details, created_at
-        FROM driver_transactions
-        WHERE driver_id = ?
-        ORDER BY entry_date DESC, id DESC
-        LIMIT 50
-        """,
+        """SELECT id, entry_date, salary_month, txn_type, source, given_by, amount, details, created_at FROM driver_transactions WHERE driver_id = ? ORDER BY entry_date DESC, id DESC LIMIT 50""",
         (eid,),
     ).fetchall()
 
@@ -402,6 +399,11 @@ def employee_transactions(employee_id):
         "SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE driver_id = ?",
         (eid,),
     ).fetchone()[0]
+
+    edit_txn = None
+    edit_id = request.args.get("edit", "").strip()
+    if edit_id and edit_id.isdigit():
+        edit_txn = db.execute("SELECT * FROM driver_transactions WHERE id = ? AND driver_id = ?", (int(edit_id), eid)).fetchone()
 
     photo_url = _employee_photo_url(current_app._get_current_object(), employee)
 
@@ -413,7 +415,25 @@ def employee_transactions(employee_id):
         txn_form=form_values,
         transactions=transactions,
         total_advance=total_advance,
+        edit_txn=edit_txn,
     )
+
+
+@hr_bp.route("/hr/employees/<employee_id>/transactions/<int:txn_id>/delete", methods=["POST"])
+@_login_required("admin")
+def employee_transaction_delete(employee_id, txn_id):
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    try:
+        db.execute("DELETE FROM driver_transactions WHERE id=? AND driver_id=?", (txn_id, employee_id))
+        _audit_log(db, "employee_transaction_deleted", entity_type="employee_transaction", entity_id=employee_id, details=f"txn#{txn_id}")
+        db.commit()
+        flash("Transaction deleted.", "info")
+    except Exception as e:
+        db.rollback()
+        flash(f"Error deleting transaction: {e}", "error")
+    return redirect(url_for("hr.employee_transactions", employee_id=employee_id))
 
 
 # ── Store Salary Tab ─────────────────────────────────────────────
