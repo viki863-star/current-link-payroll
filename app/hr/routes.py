@@ -438,6 +438,8 @@ def employee_salary_store(employee_id):
             "prorata_start_date": request.form.get("prorata_start_date", "").strip(),
             "prorata_end_date": request.form.get("prorata_end_date", "").strip(),
             "ot_hours": request.form.get("ot_hours", "0").strip() or "0",
+            "ot_type": (request.form.get("ot_type", "hours").strip() or "hours").lower(),
+            "ot_trips": request.form.get("ot_trips", "0").strip() or "0",
             "personal_vehicle": request.form.get("personal_vehicle", "0").strip() or "0",
             "personal_vehicle_note": request.form.get("personal_vehicle_note", "").strip(),
             "remarks": request.form.get("remarks", "").strip(),
@@ -462,8 +464,8 @@ def employee_salary_store(employee_id):
                     INSERT INTO salary_store (
                         driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date,
                         salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate,
-                        ot_amount, personal_vehicle, personal_vehicle_note, net_salary, remarks
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(driver_id, salary_month) DO UPDATE SET
                         entry_date = excluded.entry_date, ot_month = excluded.ot_month,
                         salary_mode = excluded.salary_mode, prorata_start_date = excluded.prorata_start_date,
@@ -471,6 +473,7 @@ def employee_salary_store(employee_id):
                         monthly_basic_salary = excluded.monthly_basic_salary,
                         basic_salary = excluded.basic_salary, ot_hours = excluded.ot_hours,
                         ot_rate = excluded.ot_rate, ot_amount = excluded.ot_amount,
+                        ot_type = excluded.ot_type, ot_trips = excluded.ot_trips,
                         personal_vehicle = excluded.personal_vehicle,
                         personal_vehicle_note = excluded.personal_vehicle_note,
                         net_salary = excluded.net_salary, remarks = excluded.remarks
@@ -482,7 +485,8 @@ def employee_salary_store(employee_id):
                         preview["salary_days"], preview["daily_rate"],
                         preview["monthly_basic_salary"], preview["basic_salary"],
                         preview["ot_hours"], preview["ot_rate"],
-                        preview["ot_amount"], preview["personal_vehicle"],
+                        preview["ot_amount"], preview["ot_type"],
+                        preview["ot_trips"], preview["personal_vehicle"],
                         preview["personal_vehicle_note"] or None,
                         preview["net_salary"], form["remarks"],
                     ),

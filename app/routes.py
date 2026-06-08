@@ -15977,6 +15977,8 @@ def _default_salary_form(salary_month: str, duty_start: str | None = None, basic
         "prorata_start_date": (duty_start or "").strip(),
         "prorata_end_date": f"{normalized_month}-{cutoff_day:02d}",
         "ot_hours": "0",
+        "ot_type": "hours",
+        "ot_trips": "0",
         "personal_vehicle": "0",
         "personal_vehicle_note": "",
         "remarks": "",
@@ -16004,6 +16006,8 @@ def _salary_form_from_row(row):
         "prorata_start_date": prorata_start_date,
         "prorata_end_date": prorata_end_date,
         "ot_hours": f"{float(row['ot_hours']):.2f}",
+        "ot_type": row.get("ot_type") or "hours",
+        "ot_trips": f"{float(row.get('ot_trips') or 0):.2f}",
         "personal_vehicle": f"{float(row['personal_vehicle']):.2f}",
         "personal_vehicle_note": row["personal_vehicle_note"] or "",
         "remarks": row["remarks"] or "",
@@ -16042,6 +16046,8 @@ def _salary_preview_from_row(row):
         "ot_hours": float(row["ot_hours"]),
         "ot_rate": float(row["ot_rate"]),
         "ot_amount": float(row["ot_amount"]),
+        "ot_type": row.get("ot_type") or "hours",
+        "ot_trips": float(row.get("ot_trips") or 0),
         "personal_vehicle": float(row["personal_vehicle"]),
         "personal_vehicle_note": row["personal_vehicle_note"] or "",
         "net_salary": float(row["net_salary"]),
@@ -16090,9 +16096,18 @@ def _calculate_salary_preview(driver, form):
         salary_days = float((end_date - start_date).days + 1)
         basic_salary = round(daily_rate * salary_days, 2)
     ot_rate = float(driver["ot_rate"])
-    ot_hours = _parse_decimal(form.get("ot_hours", "0"), "OT hours", required=False, default=0.0, minimum=0.0)
+    ot_type = (form.get("ot_type", "hours") or "hours").strip().lower()
+    if ot_type not in ("hours", "trips"):
+        ot_type = "hours"
+    if ot_type == "trips":
+        ot_trips = _parse_decimal(form.get("ot_trips", "0"), "OT trips", required=False, default=0.0, minimum=0.0)
+        ot_hours = 0.0
+        ot_amount = round(ot_trips * ot_rate, 2)
+    else:
+        ot_hours = _parse_decimal(form.get("ot_hours", "0"), "OT hours", required=False, default=0.0, minimum=0.0)
+        ot_trips = 0.0
+        ot_amount = round(ot_hours * ot_rate, 2)
     personal_vehicle = _parse_decimal(form.get("personal_vehicle", "0"), "Personal / Vehicle", required=False, default=0.0)
-    ot_amount = round(ot_hours * ot_rate, 2)
     net_salary = round(basic_salary + ot_amount + personal_vehicle, 2)
     return {
         "entry_date": form.get("entry_date", date.today().isoformat()),
@@ -16106,9 +16121,11 @@ def _calculate_salary_preview(driver, form):
         "daily_rate": daily_rate,
         "monthly_basic_salary": monthly_basic_salary,
         "basic_salary": basic_salary,
+        "ot_type": ot_type,
         "ot_hours": ot_hours,
         "ot_rate": ot_rate,
         "ot_amount": ot_amount,
+        "ot_trips": ot_trips,
         "personal_vehicle": personal_vehicle,
         "personal_vehicle_note": (form.get("personal_vehicle_note", "") or "").strip(),
         "net_salary": net_salary,

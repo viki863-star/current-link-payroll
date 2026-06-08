@@ -247,8 +247,23 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
+                                    <label>OT Type</label>
+                                    <select name="ot_type" class="form-control" id="otType" onchange="toggleOT()">
+                                        <option value="hours" {% if (salary_form.ot_type or 'hours') == 'hours' %}selected{% endif %}>Hours</option>
+                                        <option value="trips" {% if (salary_form.ot_type or 'hours') == 'trips' %}selected{% endif %}>Extra Trip</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row" id="otHoursRow">
+                                <div class="form-group">
                                     <label>OT Hours</label>
                                     <input type="number" name="ot_hours" value="{{ salary_form.ot_hours or '0' }}" class="form-control" step="0.5" min="0" placeholder="0">
+                                </div>
+                            </div>
+                            <div class="form-row" id="otTripsRow" style="display:none">
+                                <div class="form-group">
+                                    <label>Extra Trips</label>
+                                    <input type="number" name="ot_trips" value="{{ salary_form.ot_trips or '0' }}" class="form-control" step="1" min="0" placeholder="0">
                                 </div>
                             </div>
 
@@ -303,8 +318,8 @@
                                         <span class="preview-value">AED {{ "%.2f"|format(salary_preview.basic_salary) }}</span>
                                     </div>
                                     <div class="preview-item">
-                                        <span class="preview-label">OT Hours</span>
-                                        <span class="preview-value">{{ salary_preview.ot_hours }} hrs</span>
+                                        <span class="preview-label">OT {{ 'Trips' if salary_preview.ot_type == 'trips' else 'Hours' }}</span>
+                                        <span class="preview-value">{{ salary_preview.ot_trips if salary_preview.ot_type == 'trips' else salary_preview.ot_hours }} {{ 'trips' if salary_preview.ot_type == 'trips' else 'hrs' }}</span>
                                     </div>
                                     <div class="preview-item">
                                         <span class="preview-label">OT Amount</span>
@@ -541,7 +556,8 @@
                             <div class="preview-item"><span class="preview-label">Personal Exp.{% if s.personal_vehicle_note %} ({{ s.personal_vehicle_note }}){% endif %}</span><span class="preview-value green">+AED {{ "%.2f"|format(s.personal_vehicle) }}</span></div>
                             {% endif %}
                             {% if s.ot_amount and s.ot_amount|float > 0 %}
-                            <div class="preview-item"><span class="preview-label">OT ({{ s.ot_month or '-' }})</span><span class="preview-value green">+AED {{ "%.2f"|format(s.ot_amount) }}</span></div>
+                            {% set ot_type = s.get('ot_type') or 'hours' %}
+                            <div class="preview-item"><span class="preview-label">{{ 'Extra Trips' if ot_type == 'trips' else 'OT Hours' }} ({{ s.ot_month or '-' }})</span><span class="preview-value green">+AED {{ "%.2f"|format(s.ot_amount) }}</span></div>
                             {% endif %}
                             <div class="preview-item highlight" style="grid-column:1/-1;margin-top:4px">
                                 <span class="preview-label" style="font-weight:700">Total Salary</span>
@@ -655,5 +671,16 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleProrata();
         });
     }
+    window.toggleOT = function() {
+        var sel = document.getElementById('otType');
+        var hrs = document.getElementById('otHoursRow');
+        var trips = document.getElementById('otTripsRow');
+        if (sel && hrs && trips) {
+            var showTrips = sel.value === 'trips';
+            hrs.style.display = showTrips ? 'none' : 'flex';
+            trips.style.display = showTrips ? 'flex' : 'none';
+        }
+    };
+    toggleOT();
 });
 {% endblock %}

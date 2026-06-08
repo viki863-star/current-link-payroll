@@ -646,7 +646,9 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
             row_y -= 6.5 * mm
             pdf.setFillColor(TEXT)
         if ot_amt > 0:
-            pdf.drawString(20 * mm, row_y, f"OT Hours ({ot_month})")
+            ot_type = (salary_row or {}).get("ot_type") or "hours"
+            ot_label = "OT Extra Trips" if ot_type == "trips" else f"OT Hours ({ot_month})"
+            pdf.drawString(20 * mm, row_y, ot_label)
             pdf.setFillColor(colors.HexColor("#2E7D32"))
             pdf.drawRightString(170 * mm, row_y, f"+AED {format_currency(ot_amt)}")
             row_y -= 6.5 * mm
@@ -2038,9 +2040,12 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
     personal_vehicle_label = "Personal / Vehicle"
     if personal_vehicle_note:
         personal_vehicle_label = f"Personal / Vehicle - {personal_vehicle_note}"
+    ot_type = salary_row.get("ot_type") or "hours"
+    ot_qty_label = f"OT Extra Trips" if ot_type == "trips" else f"OT Hours ({format_month_label(ot_month)})"
+    ot_qty = float(salary_row.get("ot_trips") or 0) if ot_type == "trips" else float(salary_row["ot_hours"])
     earnings = [
         ("Basic Salary", float(salary_row["basic_salary"])),
-        (f"OT Hours ({format_month_label(ot_month)})", float(salary_row["ot_hours"])),
+        (ot_qty_label, ot_qty),
         ("OT Amount", float(salary_row["ot_amount"])),
         (personal_vehicle_label, float(salary_row["personal_vehicle"])),
         ("Stored Salary", gross),
