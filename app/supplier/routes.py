@@ -1721,7 +1721,7 @@ def supplier_payment_add(sup_id):
     if request.method == "POST":
         payment_date = request.form.get("payment_date", "").strip() or date.today().isoformat()
         amount = request.form.get("amount", "").strip()
-        invoice_id = request.form.get("invoice_id", "").strip()
+        invoice_ids = request.form.getlist("invoice_ids")
         payment_method = request.form.get("payment_method", "Cash").strip()
         reference_no = request.form.get("reference_no", "").strip()
         notes = request.form.get("notes", "").strip()
@@ -1731,24 +1731,27 @@ def supplier_payment_add(sup_id):
             return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS)
 
         amount_f = float(amount)
-        inv_id_val = int(invoice_id) if invoice_id.isdigit() else None
-
         fund_source = request.form.get("fund_source", "cash_bank").strip()
 
+        # Create one payment record for the batch
         db.execute(
             "INSERT INTO supplier_payment_records (supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, fund_source) VALUES (?,?,?,?,?,?,?,?)",
-            (sup_id, inv_id_val, payment_date, amount_f, payment_method, reference_no, notes, fund_source),
+            (sup_id, None, payment_date, amount_f, payment_method, reference_no, notes, fund_source),
         )
 
-        if inv_id_val:
-            db.execute(
-                "UPDATE supplier_invoices SET status='paid', payment_date=?, payment_method=?, payment_ref=? WHERE id=?",
-                (payment_date, payment_method, reference_no, inv_id_val),
-            )
+        # Mark all selected invoices as paid
+        for inv_id_str in invoice_ids:
+            inv_id = int(inv_id_str.strip()) if inv_id_str.strip().isdigit() else None
+            if inv_id:
+                db.execute(
+                    "UPDATE supplier_invoices SET status='paid', payment_date=?, payment_method=?, payment_ref=? WHERE id=?",
+                    (payment_date, payment_method, reference_no, inv_id),
+                )
 
         db.commit()
 
-        flash("Payment recorded.", "success")
+        inv_count = len(invoice_ids)
+        flash(f"Payment of AED {amount_f:.2f} recorded against {inv_count} invoice(s).", "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
 
 
