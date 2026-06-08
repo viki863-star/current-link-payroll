@@ -225,6 +225,6 @@ def sync_field_staff_to_employees(db):
             db.execute(
                 """INSERT INTO employees (employee_id, full_name, phone_number, employee_type,
                    department, designation, join_date, status, created_at)
-                   VALUES (?,?,?,'Field Staff','Field Staff','Field Staff',date('now'),?,COALESCE(?,CURRENT_TIMESTAMP))""",
+                   VALUES (?,?,?,'Field Staff','Field Staff','Field Staff',CURRENT_DATE,?,COALESCE(?,CURRENT_TIMESTAMP))""",
                 (emp_id, name, phone, active, created),
             )

@@ -26,6 +26,39 @@ CREATE TABLE IF NOT EXISTS drivers (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS employees (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_id TEXT NOT NULL UNIQUE,
+    full_name TEXT NOT NULL,
+    phone_number TEXT NOT NULL,
+    email TEXT,
+    employee_type TEXT NOT NULL DEFAULT 'Staff',
+    department TEXT DEFAULT 'Other',
+    designation TEXT DEFAULT 'Staff',
+    gender TEXT,
+    shift TEXT DEFAULT 'Morning',
+    contract_type TEXT DEFAULT 'Permanent',
+    join_date TEXT NOT NULL,
+    basic_salary REAL NOT NULL DEFAULT 0,
+    ot_rate REAL NOT NULL DEFAULT 0,
+    nationality TEXT,
+    iqama_no TEXT,
+    passport_no TEXT,
+    bank_name TEXT,
+    bank_account TEXT,
+    iban TEXT,
+    emergency_contact TEXT,
+    emergency_name TEXT,
+    address TEXT,
+    photo_name TEXT,
+    photo_data TEXT,
+    photo_content_type TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    remarks TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS driver_transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     driver_id TEXT NOT NULL,
@@ -858,6 +891,39 @@ CREATE TABLE IF NOT EXISTS drivers (
     status TEXT NOT NULL DEFAULT 'Active',
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS employees (
+    id SERIAL PRIMARY KEY,
+    employee_id TEXT NOT NULL UNIQUE,
+    full_name TEXT NOT NULL,
+    phone_number TEXT NOT NULL,
+    email TEXT,
+    employee_type TEXT NOT NULL DEFAULT 'Staff',
+    department TEXT DEFAULT 'Other',
+    designation TEXT DEFAULT 'Staff',
+    gender TEXT,
+    shift TEXT DEFAULT 'Morning',
+    contract_type TEXT DEFAULT 'Permanent',
+    join_date TEXT NOT NULL,
+    basic_salary DOUBLE PRECISION NOT NULL DEFAULT 0,
+    ot_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
+    nationality TEXT,
+    iqama_no TEXT,
+    passport_no TEXT,
+    bank_name TEXT,
+    bank_account TEXT,
+    iban TEXT,
+    emergency_contact TEXT,
+    emergency_name TEXT,
+    address TEXT,
+    photo_name TEXT,
+    photo_data TEXT,
+    photo_content_type TEXT,
+    status TEXT NOT NULL DEFAULT 'Active',
+    remarks TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS driver_transactions (

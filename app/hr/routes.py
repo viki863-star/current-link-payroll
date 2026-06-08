@@ -57,7 +57,7 @@ def ensure_employees_table():
 
 def _fetch_employee(db, employee_id):
     return db.execute(
-        "SELECT * FROM employees WHERE employee_id = ?",
+        "SELECT * FROM employees WHERE UPPER(employee_id) = ?",
         (employee_id.strip().upper(),),
     ).fetchone()
 
