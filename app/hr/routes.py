@@ -955,16 +955,17 @@ def employee_kata(employee_id):
 
         # Pre-generate the companion PDF
         if download_type == "transactions":
-            full_path = generate_simple_kata_pdf(
-                driver_display, salary_row, kata_advances,
-                kata_prev_remaining, kata_this_deduction, kata_remaining,
-                selected_month,
-                str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
-                current_app.config["STATIC_ASSETS_DIR"],
-            )
-            if full_path:
-                rel = Path(full_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
-                pdf_url = url_for("generated_file", filename=rel)
+            if salary_row:
+                full_path = generate_simple_kata_pdf(
+                    driver_display, salary_row, kata_advances,
+                    kata_prev_remaining, kata_this_deduction, kata_remaining,
+                    selected_month,
+                    str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
+                    current_app.config["STATIC_ASSETS_DIR"],
+                )
+                if full_path:
+                    rel = Path(full_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
+                    pdf_url = url_for("generated_file", filename=rel)
         else:
             outstanding = [a for a in kata_advances if a["status"] != "cleared"]
             tx_path = generate_transactions_kata_pdf(

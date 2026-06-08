@@ -590,7 +590,6 @@
 
                 {# ── Right: Advances Table + PDF ── #}
                 <div class="panel-half">
-                    {% if kata_salary_row %}
                     <div class="profile-card">
                         <h3>
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="3" y1="7" x2="17" y2="7"/><line x1="7" y1="11" x2="13" y2="11"/></svg>
@@ -626,9 +625,11 @@
                         <p class="empty-state">No outstanding advances.</p>
                         {% endif %}
 
-                        {% if kata_selected_month and kata_salary_row %}
+                        {% if kata_selected_month %}
                         <div style="margin-top:1rem;display:flex;gap:8px">
+                            {% if kata_salary_row %}
                             <a href="{{ url_for('hr.employee_kata', employee_id=employee.employee_id, month=kata_selected_month, download='pdf') }}" class="btn btn-primary" style="flex:1">&#128196; Full Statement</a>
+                            {% endif %}
                             <a href="{{ url_for('hr.employee_kata', employee_id=employee.employee_id, month=kata_selected_month, download='transactions') }}" class="btn btn-outline" style="flex:1">&#128196; Transactions</a>
                         </div>
                         {% endif %}
@@ -644,12 +645,6 @@
                         </div>
                         {% endif %}
                     </div>
-                    {% else %}
-                    <div class="profile-card">
-                        <h3>Advances</h3>
-                        <p class="empty-state">No salary data yet. Store salary first.</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
