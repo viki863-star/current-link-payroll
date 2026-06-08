@@ -241,6 +241,30 @@ def employee_new():
             ),
         )
 
+        db.execute(
+            """
+            INSERT INTO drivers (
+                driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
+                basic_salary, ot_rate, duty_start, photo_name, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(driver_id) DO UPDATE SET
+                full_name=excluded.full_name,
+                phone_number=excluded.phone_number,
+                shift=excluded.shift,
+                basic_salary=excluded.basic_salary,
+                ot_rate=excluded.ot_rate,
+                status=excluded.status
+            """,
+            (
+                values["employee_id"], values["full_name"], values["phone_number"] or None,
+                values.get("vehicle_id", "") or "", values["shift"] or "Morning",
+                values.get("vehicle_type", "Car") or "Car", salary, ot_rate,
+                values["join_date"] or None,
+                uploaded_photo["photo_name"] if uploaded_photo else None,
+                values["status"],
+            ),
+        )
+
         if values["vehicle_id"]:
             db.execute(
                 "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
