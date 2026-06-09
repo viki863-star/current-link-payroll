@@ -598,15 +598,26 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-
-    box_w = 86 * mm; box_h = 36 * mm; box_y = PAGE_HEIGHT - 88 * mm
     _draw_header(pdf, assets_dir, company_profile)
     _draw_title(pdf, "Employee Monthly Statement", normalized_month)
 
-    _draw_invoice_party_box(pdf, 16 * mm, box_y, box_w, box_h, "EMPLOYEE", driver.get("full_name", "-"), f"ID: {driver.get('driver_id', '-')}", f"Basic Salary: AED {format_currency(float(driver.get('basic_salary', 0)))}", "", f"Month: {normalized_month}")
-    _draw_invoice_party_box(pdf, 108 * mm, box_y, box_w, box_h, "PERIOD", normalized_month, "", "", "", "")
+    box_w = 86 * mm; box_h = 42 * mm; box_y = PAGE_HEIGHT - 116 * mm
+    basic_sal = float(driver.get("basic_salary", 0))
+    _draw_invoice_party_box(pdf, 16 * mm, box_y, box_w, box_h, "EMPLOYEE",
+        driver.get("full_name", "-"), f"ID: {driver.get('driver_id', '-')}",
+        f"Nationality: {driver.get('nationality', '-')}",
+        f"Basic: AED {format_currency(basic_sal)}",
+        f"Month: {normalized_month}")
 
-    # Income section
+    period_extra = "With Salary Data" if salary_row else "Advances Only"
+    _draw_invoice_party_box(pdf, 108 * mm, box_y, box_w, box_h, "PERIOD",
+        normalized_month, period_extra,
+        f"Deduction Applied: AED {format_currency(this_deduction)}",
+        f"Previous: AED {format_currency(prev_remaining)}",
+        f"Remaining: AED {format_currency(remaining)}")
+
+    table_top = PAGE_HEIGHT - 163 * mm
+
     if salary_row:
         basic = float(salary_row.get("basic_salary") or 0)
         personal = float(salary_row.get("personal_vehicle") or 0)
@@ -615,13 +626,12 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
         ot_month = str(salary_row.get("ot_month") or "-")
         net_sal = float(salary_row.get("net_salary") or 0)
 
-        inc_top = box_y - 8 * mm
-        _draw_table_header(pdf, inc_top, ["Description", "Amount (AED)"], [18, 190])
+        _draw_table_header(pdf, table_top, ["Description", "Amount (AED)"], [18, 190])
 
-        y = inc_top - 7.2 * mm
-        row_h = 6.5 * mm
-        pdf.setFont("Helvetica", 7.5)
-        items = [("Basic Salary", f"AED {format_currency(basic)}", False)]
+        y = table_top - 7 * mm
+        row_height = 7.2 * mm
+        items = []
+        items.append(("Basic Salary", f"AED {format_currency(basic)}", False))
         if personal > 0:
             label = f"Personal Expense ({personal_note})" if personal_note else "Personal Expense"
             items.append((label, f"+AED {format_currency(personal)}", True))
@@ -634,35 +644,45 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
         for idx, (desc, amt, is_green) in enumerate(items):
             if idx % 2 == 0:
                 pdf.setFillColor(SOFT)
-                pdf.roundRect(16 * mm, y - 2 * mm, 178 * mm, 5.8 * mm, 1.8 * mm, fill=1, stroke=0)
-            if is_green:
-                pdf.setFillColor(colors.HexColor("#2E7D32"))
-            else:
-                pdf.setFillColor(TEXT)
-            pdf.setFont("Helvetica-Bold" if desc == "TOTAL SALARY" else "Helvetica", 7.5 if desc != "TOTAL SALARY" else 8.5)
+                pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.1 * mm, 1.8 * mm, fill=1, stroke=0)
+            pdf.setFillColor(colors.HexColor("#2E7D32") if is_green else TEXT)
+            pdf.setFont("Helvetica-Bold" if desc == "TOTAL SALARY" else "Helvetica", 8 if desc == "TOTAL SALARY" else 7.8)
             pdf.drawString(18 * mm, y, desc)
-            pdf.drawRightString(192 * mm, y, amt)
-            y -= row_h
+            pdf.drawRightString(193 * mm, y, amt)
+            y -= row_height
 
-        advances_top = y - 4 * mm
+        min_rows = 8
+        filler_idx = len(items)
+        while filler_idx < min_rows and y >= 67 * mm:
+            if filler_idx % 2 == 0:
+                pdf.setFillColor(colors.white)
+                pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.1 * mm, 1.8 * mm, fill=1, stroke=0)
+            pdf.setStrokeColor(LINE)
+            pdf.line(16 * mm, y - 2.2 * mm, 194 * mm, y - 2.2 * mm)
+            y -= row_height
+            filler_idx += 1
+
+        adv_top = y - 4 * mm
     else:
-        advances_top = box_y - 8 * mm
+        adv_top = table_top
+        y = table_top
 
-    # Advances table
-    _draw_table_header(pdf, advances_top, ["Date", "Amount", "Given By", "Details", "Deducted", "Remaining"], [18, 48, 72, 96, 140, 190])
+    _draw_table_header(pdf, adv_top, ["Date", "Amount", "Given By", "Details", "Deducted", "Remaining"], [18, 48, 72, 96, 140, 190])
 
-    y = advances_top - 7.2 * mm
-    row_h = 6.5 * mm
-    pdf.setFont("Helvetica", 7.5)
-    max_rows = int((advances_top - 28 * mm) / row_h)
-    visible = advances[:max(max_rows, 0)]
+    y = adv_top - 7 * mm
+    row_height = 7.2 * mm
+    max_body = int((adv_top - 50 * mm) / row_height)
+    visible = advances[:max(max_body, 0)]
     for i, a in enumerate(visible):
         if i % 2 == 0:
             pdf.setFillColor(SOFT)
-            pdf.roundRect(16 * mm, y - 2 * mm, 178 * mm, 5.8 * mm, 1.8 * mm, fill=1, stroke=0)
+            pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.1 * mm, 1.8 * mm, fill=1, stroke=0)
         pdf.setFillColor(TEXT)
+        pdf.setFont("Helvetica", 7.8)
         pdf.drawString(18 * mm, y, str(a.get("entry_date", ""))[:10])
+        pdf.setFont("Helvetica-Bold", 7.8)
         pdf.drawRightString(66 * mm, y, f"AED {format_currency(float(a.get('amount', 0)))}")
+        pdf.setFont("Helvetica", 7.8)
         pdf.drawString(76 * mm, y, (a.get("given_by") or "-")[:10])
         pdf.drawString(100 * mm, y, (a.get("details") or "-")[:16])
         ded = float(a.get("deducted", 0))
@@ -671,15 +691,51 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
         pdf.setFillColor(colors.HexColor("#D32F2F") if rem > 0 else TEXT)
         pdf.drawRightString(192 * mm, y, f"AED {format_currency(rem)}" if rem > 0 else "-")
         pdf.setFillColor(TEXT)
-        y -= row_h
+        y -= row_height
 
-    # Summary stat boxes
-    sum_y = max(20 * mm, y - 4 * mm)
-    _draw_stat_box(pdf, 16 * mm, sum_y, 86 * mm, 14 * mm, "DEDUCTION APPLIED", f"AED {format_currency(this_deduction)}", fill_color=colors.HexColor("#FFF4E8"), text_color=ORANGE, border_color=ORANGE)
-    _draw_stat_box(pdf, 108 * mm, sum_y, 86 * mm, 14 * mm, "REMAINING ADVANCE", f"AED {format_currency(remaining)}", fill_color=colors.HexColor("#E8F5E9"), text_color=colors.HexColor("#2E7D32"), border_color=colors.HexColor("#4CAF50"))
-    pdf.setFillColor(MUTED)
-    pdf.setFont("Helvetica", 6)
-    pdf.drawString(20 * mm, sum_y - 3 * mm, f"Previous: AED {format_currency(prev_remaining)}  →  Deducted: AED {format_currency(this_deduction)}  →  Remaining: AED {format_currency(remaining)}")
+    min_adv_rows = 6
+    filler_idx = len(visible)
+    while filler_idx < min_adv_rows and y >= 50 * mm:
+        if filler_idx % 2 == 0:
+            pdf.setFillColor(colors.white)
+            pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.1 * mm, 1.8 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.line(16 * mm, y - 2.2 * mm, 194 * mm, y - 2.2 * mm)
+        y -= row_height
+        filler_idx += 1
+
+    summary_y = 43 * mm
+    _draw_stat_box(pdf, 118 * mm, summary_y + 30 * mm, 76 * mm, 12 * mm, "DEDUCTION APPLIED",
+        f"AED {format_currency(this_deduction)}",
+        fill_color=colors.HexColor("#FFF4E8"), text_color=ORANGE, border_color=ORANGE)
+    _draw_stat_box(pdf, 118 * mm, summary_y + 15 * mm, 76 * mm, 12 * mm, "PREVIOUS REMAINING",
+        f"AED {format_currency(prev_remaining)}", fill_color=SOFT)
+    _draw_stat_box(pdf, 118 * mm, summary_y, 76 * mm, 12 * mm, "REMAINING ADVANCE",
+        f"AED {format_currency(remaining)}",
+        fill_color=colors.HexColor("#2E7D32"), text_color=colors.white, border_color=colors.HexColor("#2E7D32"))
+
+    notes_y = 38 * mm
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(16 * mm, notes_y, 96 * mm, 24 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(16 * mm, notes_y, 96 * mm, 24 * mm, 4 * mm, fill=0, stroke=1)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 8.2)
+    pdf.drawString(20 * mm, notes_y + 17 * mm, "ADVANCE BREAKDOWN")
+    breakdown_lines = []
+    total_adv = sum(float(a.get("amount", 0)) for a in advances)
+    total_ded = sum(float(a.get("deducted", 0)) for a in advances)
+    cleared = sum(1 for a in advances if float(a.get("remaining", 0)) <= 0)
+    outstanding = len(advances) - cleared
+    breakdown_lines.append(f"Total Advances: AED {format_currency(total_adv)}")
+    breakdown_lines.append(f"Total Deducted: AED {format_currency(total_ded)}  |  Cleared: {cleared}  |  Outstanding: {outstanding}")
+    pdf.setFillColor(TEXT)
+    pdf.setFont("Helvetica", 7.1)
+    for idx, line in enumerate(breakdown_lines[:2]):
+        pdf.drawString(20 * mm, notes_y + 11.5 * mm - (idx * 4.2 * mm), line)
+
+    _draw_small_meta_row(pdf, 20 * mm, notes_y + 3.4 * mm, "Driver ID", driver.get("driver_id", "-"), 50 * mm)
+    _draw_small_meta_row(pdf, 118 * mm, notes_y - 4.8 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 54 * mm)
 
     _draw_footer_banner(pdf, assets_dir)
     pdf.save()
@@ -691,30 +747,44 @@ def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: st
     file_suffix = f"transactions-{month_value}" if month_value else "transactions"
     output_path = Path(output_dir) / f"{driver['driver_id']}_{file_suffix}.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    pdf = canvas.Canvas(str(output_path), pagesize=A4)
 
-    box_w = 86 * mm; box_h = 36 * mm; box_y = PAGE_HEIGHT - 88 * mm
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
     _draw_header(pdf, assets_dir, company_profile)
     _draw_title(pdf, "Outstanding Advances Statement", normalized_month)
 
-    _draw_invoice_party_box(pdf, 16 * mm, box_y, box_w, box_h, "EMPLOYEE", driver.get("full_name", "-"), f"ID: {driver.get('driver_id', '-')}", f"Basic Salary: AED {format_currency(float(driver.get('basic_salary', 0)))}", "", f"Month: {normalized_month}")
-    _draw_invoice_party_box(pdf, 108 * mm, box_y, box_w, box_h, "STATEMENT TYPE", "Outstanding Advances Only", f"{len(advances)} transaction(s)", "", "", "")
+    box_w = 86 * mm; box_h = 42 * mm; box_y = PAGE_HEIGHT - 116 * mm
+    basic_sal = float(driver.get("basic_salary", 0))
+    _draw_invoice_party_box(pdf, 16 * mm, box_y, box_w, box_h, "EMPLOYEE",
+        driver.get("full_name", "-"), f"ID: {driver.get('driver_id', '-')}",
+        f"Nationality: {driver.get('nationality', '-')}",
+        f"Basic: AED {format_currency(basic_sal)}",
+        f"Month: {normalized_month}")
 
-    table_top = box_y - 12 * mm
+    cleared_count = sum(1 for a in advances if float(a.get("deducted", 0)) >= float(a.get("amount", 0)))
+    total_out = sum(float(a.get("amount", 0)) - float(a.get("deducted", 0)) for a in advances)
+    _draw_invoice_party_box(pdf, 108 * mm, box_y, box_w, box_h, "STATEMENT TYPE",
+        "Outstanding Advances Only",
+        f"{len(advances)} transaction(s), {cleared_count} cleared",
+        f"Total Outstanding: AED {format_currency(total_out)}",
+        "", f"Month: {normalized_month}")
+
+    table_top = PAGE_HEIGHT - 163 * mm
     _draw_table_header(pdf, table_top, ["Date", "Amount", "Given By", "Details", "Remaining"], [18, 52, 80, 105, 190])
 
-    y = table_top - 7.2 * mm
-    row_height = 6.5 * mm
-    pdf.setFont("Helvetica", 7.5)
-    max_rows = int((table_top - 24 * mm) / row_height)
-    visible = advances[:max(max_rows, 0)]
+    y = table_top - 7 * mm
+    row_height = 7.2 * mm
+    max_body = int((table_top - 50 * mm) / row_height)
+    visible = advances[:max(max_body, 0)]
     for i, a in enumerate(visible):
         if i % 2 == 0:
             pdf.setFillColor(SOFT)
-            pdf.roundRect(16 * mm, y - 2 * mm, 178 * mm, 5.8 * mm, 1.8 * mm, fill=1, stroke=0)
+            pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.1 * mm, 1.8 * mm, fill=1, stroke=0)
         pdf.setFillColor(TEXT)
+        pdf.setFont("Helvetica", 7.8)
         pdf.drawString(18 * mm, y, str(a.get("entry_date", ""))[:10])
+        pdf.setFont("Helvetica-Bold", 7.8)
         pdf.drawRightString(78 * mm, y, f"AED {format_currency(float(a.get('amount', 0)))}")
+        pdf.setFont("Helvetica", 7.8)
         pdf.drawString(84 * mm, y, (a.get("given_by") or "-")[:14])
         pdf.drawString(110 * mm, y, (a.get("details") or "-")[:18])
         rem = float(a.get("amount", 0)) - float(a.get("deducted", 0))
@@ -722,6 +792,48 @@ def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: st
         pdf.drawRightString(192 * mm, y, f"AED {format_currency(rem)}")
         pdf.setFillColor(TEXT)
         y -= row_height
+
+    min_rows = 6
+    filler_idx = len(visible)
+    while filler_idx < min_rows and y >= 50 * mm:
+        if filler_idx % 2 == 0:
+            pdf.setFillColor(colors.white)
+            pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.1 * mm, 1.8 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.line(16 * mm, y - 2.2 * mm, 194 * mm, y - 2.2 * mm)
+        y -= row_height
+        filler_idx += 1
+
+    summary_y = 43 * mm
+    total_amt = sum(float(a.get("amount", 0)) for a in advances)
+    total_ded = sum(float(a.get("deducted", 0)) for a in advances)
+    _draw_stat_box(pdf, 118 * mm, summary_y + 30 * mm, 76 * mm, 12 * mm, "TOTAL ADVANCES",
+        f"AED {format_currency(total_amt)}")
+    _draw_stat_box(pdf, 118 * mm, summary_y + 15 * mm, 76 * mm, 12 * mm, "TOTAL DEDUCTED",
+        f"AED {format_currency(total_ded)}", fill_color=SOFT)
+    _draw_stat_box(pdf, 118 * mm, summary_y, 76 * mm, 12 * mm, "OUTSTANDING",
+        f"AED {format_currency(total_out)}",
+        fill_color=colors.HexColor("#D32F2F"), text_color=colors.white, border_color=colors.HexColor("#D32F2F"))
+
+    notes_y = 38 * mm
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(16 * mm, notes_y, 96 * mm, 24 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(16 * mm, notes_y, 96 * mm, 24 * mm, 4 * mm, fill=0, stroke=1)
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 8.2)
+    pdf.drawString(20 * mm, notes_y + 17 * mm, "ADVANCE SUMMARY")
+    summary_lines = [
+        f"Total Transactions: {len(advances)}",
+        f"Fully Cleared: {cleared_count}  |  Partially/Uncleared: {len(advances) - cleared_count}",
+    ]
+    pdf.setFillColor(TEXT)
+    pdf.setFont("Helvetica", 7.1)
+    for idx, line in enumerate(summary_lines[:2]):
+        pdf.drawString(20 * mm, notes_y + 11.5 * mm - (idx * 4.2 * mm), line)
+
+    _draw_small_meta_row(pdf, 20 * mm, notes_y + 3.4 * mm, "Driver ID", driver.get("driver_id", "-"), 50 * mm)
+    _draw_small_meta_row(pdf, 118 * mm, notes_y - 4.8 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 54 * mm)
 
     _draw_footer_banner(pdf, assets_dir)
     pdf.save()
