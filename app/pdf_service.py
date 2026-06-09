@@ -591,6 +591,67 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
     return str(output_path)
 
 
+def _draw_kata_header(pdf: canvas.Canvas, company_profile: dict | None = None) -> None:
+    header_x = 15 * mm
+    header_y = PAGE_HEIGHT - 45 * mm
+    header_w = 180 * mm
+    header_h = 39 * mm
+    company = company_profile or {}
+
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=0, stroke=1)
+
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(header_x + 5 * mm, header_y + 26 * mm, (company.get("company_name") or "Company Name")[:50])
+
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 7)
+    c_addr = (company.get("address") or "")[:65]
+    if c_addr:
+        pdf.drawString(header_x + 5 * mm, header_y + 18 * mm, c_addr)
+
+    contact_parts = [company.get("phone_number") or "", company.get("email") or ""]
+    c_contact = " | ".join(p for p in contact_parts if p)
+    trn = company.get("trn_no") or "-"
+    pdf.drawString(header_x + 5 * mm, header_y + 12 * mm, f"TRN: {trn}")
+    if c_contact:
+        pdf.drawString(header_x + 5 * mm, header_y + 6.5 * mm, c_contact)
+
+    pdf.setFillColor(BLUE)
+    pdf.rect(15 * mm, PAGE_HEIGHT - 46 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
+
+
+def _draw_kata_footer(pdf: canvas.Canvas, company_profile: dict | None = None) -> None:
+    company = company_profile or {}
+    pdf.setFillColor(ORANGE)
+    pdf.rect(15 * mm, 30 * mm, 180 * mm, 1.2 * mm, fill=1, stroke=0)
+
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(15 * mm, 8 * mm, 180 * mm, 20 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(15 * mm, 8 * mm, 180 * mm, 20 * mm, 4 * mm, fill=0, stroke=1)
+
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 8)
+    pdf.drawCentredString(PAGE_WIDTH / 2, 21 * mm, (company.get("company_name") or "Current Link Transport").upper())
+
+    addr = company.get("address") or ""
+    if addr:
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 6.5)
+        pdf.drawCentredString(PAGE_WIDTH / 2, 15.5 * mm, addr[:80])
+
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 6.5)
+    parts = [p for p in [company.get("phone_number"), company.get("email")] if p]
+    contact_str = "  |  ".join(parts) if parts else ""
+    if contact_str:
+        pdf.drawCentredString(PAGE_WIDTH / 2, 11 * mm, contact_str)
+
+
 def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_deduction, remaining, month_value, output_dir: str, assets_dir: str, company_profile: dict | None = None) -> str:
     normalized_month = format_month_label(month_value) if month_value else ""
     file_suffix = f"kata-{month_value}" if month_value else "kata-statement"
@@ -598,7 +659,7 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_header(pdf, assets_dir, company_profile)
+    _draw_kata_header(pdf, company_profile)
     _draw_title(pdf, "Employee Monthly Statement", normalized_month)
 
     box_w = 86 * mm; box_h = 42 * mm; box_y = PAGE_HEIGHT - 116 * mm
@@ -737,7 +798,7 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
     _draw_small_meta_row(pdf, 20 * mm, notes_y + 3.4 * mm, "Driver ID", driver.get("driver_id", "-"), 50 * mm)
     _draw_small_meta_row(pdf, 118 * mm, notes_y - 4.8 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 54 * mm)
 
-    _draw_footer_banner(pdf, assets_dir)
+    _draw_kata_footer(pdf, company_profile)
     pdf.save()
     return str(output_path)
 
@@ -749,7 +810,7 @@ def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: st
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_header(pdf, assets_dir, company_profile)
+    _draw_kata_header(pdf, company_profile)
     _draw_title(pdf, "Outstanding Advances Statement", normalized_month)
 
     box_w = 86 * mm; box_h = 42 * mm; box_y = PAGE_HEIGHT - 116 * mm
@@ -835,7 +896,7 @@ def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: st
     _draw_small_meta_row(pdf, 20 * mm, notes_y + 3.4 * mm, "Driver ID", driver.get("driver_id", "-"), 50 * mm)
     _draw_small_meta_row(pdf, 118 * mm, notes_y - 4.8 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 54 * mm)
 
-    _draw_footer_banner(pdf, assets_dir)
+    _draw_kata_footer(pdf, company_profile)
     pdf.save()
     return str(output_path)
 
