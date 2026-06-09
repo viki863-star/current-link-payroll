@@ -709,7 +709,7 @@ def customer_invoice_pdf(cid, iid):
     pad_b = max(1.5, fs * 0.5)
 
     DH = colors.HexColor("#1e293b")
-    cw = [10*mm, 38*mm, 16*mm, 12*mm, 16*mm, 20*mm, 14*mm, 18*mm, 28*mm]
+    cw = [10*mm, 36*mm, 20*mm, 10*mm, 16*mm, 20*mm, 14*mm, 18*mm, 28*mm]
     def _pc(t, **kw):
         kw.setdefault("fontSize", fs)
         kw.setdefault("leading", ldr)
