@@ -137,6 +137,7 @@
           {# Actions #}
           <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">
             <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="btn btn-xs btn-primary" style="padding:4px 12px;font-size:0.68rem;font-weight:600">Download</a>
+            <a href="{{ url_for('documents.document_edit', doc_id=d.id) }}" style="display:inline-flex;align-items:center;gap:3px;padding:4px 10px;font-size:0.68rem;font-weight:600;color:#2563eb;background:#e8f0fe;border:1px solid #b3d0ff;border-radius:6px;text-decoration:none">✏️ Edit</a>
             <form method="POST" action="{{ url_for('documents.document_delete', doc_id=d.id) }}" style="display:inline" onsubmit="return confirm('Delete {{ d.doc_name|e }}?')">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-xs" style="padding:4px 10px;font-size:0.68rem;color:#c62828;background:#ffebee;border:1px solid #ef9a9a;border-radius:6px;cursor:pointer;font-weight:600">Delete</button>

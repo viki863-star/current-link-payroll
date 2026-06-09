@@ -134,6 +134,58 @@ def document_download(doc_id):
     )
 
 
+@documents_bp.route("/documents/<int:doc_id>/edit", methods=["GET", "POST"])
+def document_edit(doc_id):
+    db = open_db()
+    doc = db.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+    if not doc:
+        db.close()
+        flash("Document not found.", "error")
+        return redirect(url_for("documents.document_hub"))
+
+    if request.method == "POST":
+        entity_type = request.form.get("entity_type", "").strip()
+        entity_id = request.form.get("entity_id", "").strip()
+        doc_name = request.form.get("doc_name", "").strip()
+        doc_category = request.form.get("doc_category", "Other").strip()
+        doc_ref_no = request.form.get("doc_ref_no", "").strip() or None
+        issue_date = request.form.get("issue_date", "").strip() or None
+        expiry_date = request.form.get("expiry_date", "").strip() or None
+        notes = request.form.get("notes", "").strip() or None
+        file = request.files.get("file")
+
+        if not entity_type or not entity_id or not doc_name:
+            flash("Entity and document name are required.", "error")
+            return render_template("documents/upload.html", doc=doc, ENTITY_LABELS=ENTITY_LABELS)
+
+        if file and file.filename:
+            file_data = base64.b64encode(file.read()).decode("utf-8")
+            file_type = file.content_type or "application/octet-stream"
+            file_size = len(file_data)
+            db.execute(
+                """UPDATE documents SET entity_type=?, entity_id=?, doc_name=?, doc_category=?,
+                   doc_ref_no=?, issue_date=?, expiry_date=?, notes=?, file_data=?, file_type=?, file_size=?
+                   WHERE id=?""",
+                (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                 issue_date, expiry_date, notes, file_data, file_type, file_size, doc_id),
+            )
+        else:
+            db.execute(
+                """UPDATE documents SET entity_type=?, entity_id=?, doc_name=?, doc_category=?,
+                   doc_ref_no=?, issue_date=?, expiry_date=?, notes=?
+                   WHERE id=?""",
+                (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                 issue_date, expiry_date, notes, doc_id),
+            )
+        db.commit()
+        db.close()
+        flash(f"Document '{doc_name}' updated.", "success")
+        return redirect(url_for("documents.document_hub"))
+
+    db.close()
+    return render_template("documents/upload.html", doc=doc, ENTITY_LABELS=ENTITY_LABELS)
+
+
 @documents_bp.route("/documents/<int:doc_id>/delete", methods=["POST"])
 def document_delete(doc_id):
     db = open_db()

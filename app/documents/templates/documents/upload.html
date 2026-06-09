@@ -1,15 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Upload Document{% endblock %}
-{% block page_title %}Upload Document{% endblock %}
+{% block title %}{{ 'Edit' if doc else 'Upload' }} Document{% endblock %}
+{% block page_title %}{{ 'Edit' if doc else 'Upload' }} Document{% endblock %}
 
 {% block content %}
 <div class="profile-shell" style="max-width:600px;margin:0 auto">
 
 <div class="profile-card">
-    <div style="margin-bottom:14px">
+    <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
         <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        {% if doc %}
+        <span style="font-size:0.72rem;color:var(--muted)">Editing: <strong>{{ doc.doc_name }}</strong></span>
+        {% endif %}
     </div>
-    <h3>Upload New Document</h3>
+    <h3>{{ '✏️ Edit Document' if doc else '📁 Upload New Document' }}</h3>
 
     <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -20,14 +23,14 @@
                 <select name="entity_type" id="entityType" class="form-control" required onchange="document.getElementById('entityId').value='';loadEntities()">
                     <option value="">— Select —</option>
                     {% for k,v in ENTITY_LABELS.items() %}
-                    <option value="{{ k }}" {% if pre_type == k %}selected{% endif %}>{{ v }}</option>
+                    <option value="{{ k }}" {% if (doc and doc.entity_type == k) or (pre_type == k) %}selected{% endif %}>{{ v }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="form-row">
                 <label class="form-label">Entity ID *</label>
                 <div style="position:relative">
-                    <input type="text" name="entity_id" id="entityId" class="form-control" value="{{ pre_id }}" required placeholder="Type to search..." autocomplete="off" oninput="loadEntities()">
+                    <input type="text" name="entity_id" id="entityId" class="form-control" value="{{ doc.entity_id if doc else pre_id }}" required placeholder="Type to search..." autocomplete="off" oninput="loadEntities()">
                     <div id="entityResults" style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d8e4f5;border-radius:6px;max-height:200px;overflow-y:auto;display:none;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,0.1)"></div>
                 </div>
             </div>
@@ -36,48 +39,53 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
             <div class="form-row" style="grid-column:span 2">
                 <label class="form-label">Document Name *</label>
-                <input type="text" name="doc_name" class="form-control" required placeholder="e.g. Passport Copy, Insurance Policy">
+                <input type="text" name="doc_name" class="form-control" value="{{ doc.doc_name if doc else '' }}" required placeholder="e.g. Passport Copy, Insurance Policy">
             </div>
             <div class="form-row">
                 <label class="form-label">Category</label>
                 <select name="doc_category" class="form-control">
-                    <option value="Registration">Registration</option>
-                    <option value="Insurance">Insurance</option>
-                    <option value="License">License</option>
-                    <option value="Contract">Contract</option>
-                    <option value="ID Proof">ID Proof</option>
-                    <option value="Certificate">Certificate</option>
-                    <option value="Bank">Bank</option>
-                    <option value="Other" selected>Other</option>
+                    <option value="Registration" {% if doc and doc.doc_category == 'Registration' %}selected{% endif %}>Registration</option>
+                    <option value="Insurance" {% if doc and doc.doc_category == 'Insurance' %}selected{% endif %}>Insurance</option>
+                    <option value="License" {% if doc and doc.doc_category == 'License' %}selected{% endif %}>License</option>
+                    <option value="Contract" {% if doc and doc.doc_category == 'Contract' %}selected{% endif %}>Contract</option>
+                    <option value="ID Proof" {% if doc and doc.doc_category == 'ID Proof' %}selected{% endif %}>ID Proof</option>
+                    <option value="Certificate" {% if doc and doc.doc_category == 'Certificate' %}selected{% endif %}>Certificate</option>
+                    <option value="Bank" {% if doc and doc.doc_category == 'Bank' %}selected{% endif %}>Bank</option>
+                    <option value="Other" {% if not doc or doc.doc_category == 'Other' %}selected{% endif %}>Other</option>
                 </select>
             </div>
             <div class="form-row">
                 <label class="form-label">Ref No.</label>
-                <input type="text" name="doc_ref_no" class="form-control" placeholder="Policy/license number">
+                <input type="text" name="doc_ref_no" class="form-control" value="{{ doc.doc_ref_no if doc else '' }}" placeholder="Policy/license number">
             </div>
             <div class="form-row">
                 <label class="form-label">Issue Date</label>
-                <input type="date" name="issue_date" class="form-control">
+                <input type="date" name="issue_date" class="form-control" value="{{ doc.issue_date if doc else '' }}">
             </div>
             <div class="form-row">
                 <label class="form-label">Expiry Date</label>
-                <input type="date" name="expiry_date" class="form-control">
+                <input type="date" name="expiry_date" class="form-control" value="{{ doc.expiry_date if doc else '' }}">
             </div>
         </div>
 
         <div style="margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
             <div class="form-row">
-                <label class="form-label">File *</label>
-                <input type="file" name="file" class="form-control" required accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx">
-                <span style="font-size:0.72rem;color:var(--muted)">PDF, images, Word, Excel</span>
+                <label class="form-label">{{ 'Replace File' if doc else 'File' }} {% if not doc %}*{% endif %}</label>
+                <input type="file" name="file" class="form-control" {% if not doc %}required{% endif %} accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx">
+                <span style="font-size:0.72rem;color:var(--muted)">
+                    {% if doc %}Leave empty to keep current file. {% endif %}
+                    PDF, images, Word, Excel
+                </span>
             </div>
             <div class="form-row" style="margin-top:10px">
                 <label class="form-label">Notes</label>
-                <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes"></textarea>
+                <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes">{{ doc.notes if doc else '' }}</textarea>
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="width:100%;padding:12px">Upload Document</button>
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:12px">
+            {{ 'Update Document' if doc else 'Upload Document' }}
+        </button>
     </form>
 </div>
 </div>
