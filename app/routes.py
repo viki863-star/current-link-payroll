@@ -1891,6 +1891,21 @@ def register_routes(app: Flask) -> None:
         except:
             latest_backup_notification = None
 
+        # ── Document Expiry Alerts ──
+        try:
+            today_str = __import__("datetime").date.today().isoformat()
+            expiring_soon = db.execute(
+                "SELECT COUNT(*) FROM documents WHERE expiry_date IS NOT NULL AND expiry_date >= ? AND expiry_date <= ?",
+                (today_str, (__import__("datetime").date.today() + __import__("datetime").timedelta(days=30)).isoformat())
+            ).fetchone()[0] or 0
+            expired_count = db.execute(
+                "SELECT COUNT(*) FROM documents WHERE expiry_date IS NOT NULL AND expiry_date < ?",
+                (today_str,)
+            ).fetchone()[0] or 0
+        except:
+            expiring_soon = 0
+            expired_count = 0
+
         # ── Customer Modules Data (SQLite payroll.db) ──
         monthly_trend = []
         recent_invoices = []
@@ -1955,6 +1970,8 @@ def register_routes(app: Flask) -> None:
             monthly_trend=monthly_trend,
             recent_invoices=recent_invoices,
             recent_payments=recent_payments,
+            doc_expiring_soon=expiring_soon,
+            doc_expired=expired_count,
         )
 
     @app.route("/search")

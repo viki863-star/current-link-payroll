@@ -24,6 +24,26 @@
         <a href="{{ url_for('documents.document_upload') }}" class="btn btn-primary btn-sm">+ Upload</a>
     </div>
 
+    {# ─── Expiry Alerts ─── #}
+    {% set expired_docs = docs|selectattr('_status', 'equalto', 'expired')|list %}
+    {% set soon_docs = docs|selectattr('_status', 'equalto', 'soon')|list %}
+    {% if expired_docs or soon_docs %}
+    <div style="margin-bottom:14px">
+      {% if expired_docs %}
+      <div style="padding:10px 14px;background:#ffebee;border:1.5px solid #ef9a9a;border-radius:8px;color:#c62828;font-size:0.82rem;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <span>⏰ <strong>{{ expired_docs|length }} document{% if expired_docs|length > 1 %}s{% endif %} expired</strong></span>
+        <span style="font-size:0.7rem;color:#c62828">Renew soon to avoid issues</span>
+      </div>
+      {% endif %}
+      {% if soon_docs %}
+      <div style="padding:10px 14px;background:#fff3e0;border:1.5px solid #ffcc80;border-radius:8px;color:#e65100;font-size:0.82rem;display:flex;justify-content:space-between;align-items:center">
+        <span>⚠️ <strong>{{ soon_docs|length }} document{% if soon_docs|length > 1 %}s{% endif %} expiring within 30 days</strong></span>
+        <a href="{{ url_for('documents.document_hub') }}?expiry=soon" style="font-size:0.7rem;color:#e65100;text-decoration:underline">View all</a>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {# ─── Filters ─── #}
     <form method="GET" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:12px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
         <input type="text" name="q" value="{{ q }}" placeholder="Search name, ref, notes..." style="flex:2;min-width:160px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.82rem">
