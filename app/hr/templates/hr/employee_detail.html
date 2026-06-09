@@ -642,22 +642,13 @@
                         <p class="empty-state">No outstanding advances.</p>
                         {% endif %}
 
-                        {% if kata_selected_month %}
-                        <div style="margin-top:1rem;display:flex;gap:8px">
-                            {% if kata_salary_row %}
-                            <a href="{{ url_for('hr.employee_kata', employee_id=employee.employee_id, month=kata_selected_month, download='pdf') }}" class="btn btn-primary" style="flex:1">&#128196; Full Statement</a>
-                            {% endif %}
-                            <a href="{{ url_for('hr.employee_kata', employee_id=employee.employee_id, month=kata_selected_month, download='transactions') }}" class="btn btn-outline" style="flex:1">&#128196; Transactions</a>
-                        </div>
-                        {% endif %}
-
                         {% if kata_pdf_url or kata_transactions_pdf_url %}
-                        <div style="margin-top:8px;padding:10px;background:#e8f5e9;border-radius:6px;border:1px solid #c8e6c9;text-align:center;display:flex;gap:8px;justify-content:center">
+                        <div style="margin-top:1rem;display:flex;gap:8px;justify-content:center">
                             {% if kata_pdf_url %}
-                            <a href="{{ kata_pdf_url }}" target="_blank" class="btn btn-sm btn-outline">&#128196; Open Full PDF</a>
+                            <a href="{{ kata_pdf_url }}" class="btn btn-primary" style="flex:1" download> Download Full Statement</a>
                             {% endif %}
                             {% if kata_transactions_pdf_url %}
-                            <a href="{{ kata_transactions_pdf_url }}" target="_blank" class="btn btn-sm btn-outline">&#128196; Open Transactions PDF</a>
+                            <a href="{{ kata_transactions_pdf_url }}" class="btn btn-outline-primary" style="flex:1" download> Download Transactions</a>
                             {% endif %}
                         </div>
                         {% endif %}
