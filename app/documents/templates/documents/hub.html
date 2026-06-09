@@ -1,120 +1,154 @@
 {% extends "base.html" %}
-{% block title %}Documents{% endblock %}
+{% block title %}Documents — Current Link ERP{% endblock %}
 {% block page_title %}Document Management{% endblock %}
 
 {% block content %}
 <div class="profile-shell" style="max-width:1100px;margin:0 auto">
-<style>
-.doc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-top:16px; }
-.doc-card { background:#fff; border:1.5px solid var(--line); border-radius:12px; padding:14px 16px; transition:box-shadow .15s; }
-.doc-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); }
-.doc-card .doc-icon { font-size:1.4rem; margin-bottom:6px; }
-.doc-card h4 { margin:0 0 4px; font-size:0.88rem; }
-.doc-card .doc-meta { font-size:0.7rem; color:var(--muted); line-height:1.45; }
-.doc-card .doc-actions { display:flex; gap:6px; margin-top:8px; }
-.expiry-badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:0.6rem; font-weight:600; }
-.expiry-ok { background:#e8f5e9; color:#2e7d32; }
-.expiry-soon { background:#fff3e0; color:#e65100; }
-.expiry-expired { background:#ffebee; color:#c62828; }
-</style>
 
 <div class="profile-card">
-    <div class="section-header">
-        <h3>All Documents</h3>
-        <a href="{{ url_for('documents.document_upload') }}" class="btn btn-primary btn-sm">+ Upload</a>
-    </div>
 
-    {# ─── Expiry Alerts ─── #}
-    {% set expired_docs = docs|selectattr('_status', 'equalto', 'expired')|list %}
-    {% set soon_docs = docs|selectattr('_status', 'equalto', 'soon')|list %}
-    {% if expired_docs or soon_docs %}
-    <div style="margin-bottom:14px">
-      {% if expired_docs %}
-      <div style="padding:10px 14px;background:#ffebee;border:1.5px solid #ef9a9a;border-radius:8px;color:#c62828;font-size:0.82rem;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
-        <span>⏰ <strong>{{ expired_docs|length }} document{% if expired_docs|length > 1 %}s{% endif %} expired</strong></span>
-        <span style="font-size:0.7rem;color:#c62828">Renew soon to avoid issues</span>
-      </div>
-      {% endif %}
-      {% if soon_docs %}
-      <div style="padding:10px 14px;background:#fff3e0;border:1.5px solid #ffcc80;border-radius:8px;color:#e65100;font-size:0.82rem;display:flex;justify-content:space-between;align-items:center">
-        <span>⚠️ <strong>{{ soon_docs|length }} document{% if soon_docs|length > 1 %}s{% endif %} expiring within 30 days</strong></span>
-        <a href="{{ url_for('documents.document_hub') }}?expiry=soon" style="font-size:0.7rem;color:#e65100;text-decoration:underline">View all</a>
-      </div>
-      {% endif %}
+  {# ═══ HEADER ═══ #}
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+    <div>
+      <h3 style="margin:0;font-size:1.05rem;font-weight:800">📁 All Documents</h3>
+      <p style="margin:3px 0 0;font-size:0.75rem;color:var(--muted)">{{ docs|length }} total document{{ 's' if docs|length != 1 else '' }}</p>
+    </div>
+    <a href="{{ url_for('documents.document_upload') }}" class="btn btn-primary btn-sm" style="padding:8px 20px;font-weight:600">+ Upload New</a>
+  </div>
+
+  {# ═══ EXPIRY ALERTS ═══ #}
+  {% set expired_docs = docs|selectattr('_status', 'equalto', 'expired')|list %}
+  {% set soon_docs = docs|selectattr('_status', 'equalto', 'soon')|list %}
+  {% if expired_docs or soon_docs %}
+  <div style="margin-bottom:14px;display:flex;flex-direction:column;gap:6px">
+    {% if expired_docs %}
+    <div style="padding:10px 16px;background:#ffebee;border:1.5px solid #ef9a9a;border-radius:10px;color:#c62828;font-size:0.82rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <span>⏰ <strong>{{ expired_docs|length }} document{% if expired_docs|length > 1 %}s{% endif %} expired</strong> — renew immediately</span>
+      <a href="{{ url_for('documents.document_hub') }}?expiry=expired" style="font-size:0.72rem;color:#c62828;text-decoration:underline;font-weight:600">View all →</a>
     </div>
     {% endif %}
-
-    {# ─── Filters ─── #}
-    <form method="GET" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:12px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
-        <input type="text" name="q" value="{{ q }}" placeholder="Search name, ref, notes..." style="flex:2;min-width:160px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.82rem">
-        <select name="entity_type" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.82rem">
-            <option value="">All Types</option>
-            {% for k,v in ENTITY_LABELS.items() %}
-            <option value="{{ k }}" {% if entity_type == k %}selected{% endif %}>{{ v }}</option>
-            {% endfor %}
-        </select>
-        <select name="expiry" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.82rem">
-            <option value="">Any Expiry</option>
-            <option value="expired" {% if expiry == 'expired' %}selected{% endif %}>Expired</option>
-            <option value="soon" {% if expiry == 'soon' %}selected{% endif %}>Expiring Soon</option>
-        </select>
-        <input type="hidden" name="sort" value="{{ sort }}">
-        <input type="hidden" name="order" value="{{ order }}">
-        <button class="btn btn-outline btn-sm">Filter</button>
-        <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm">Clear</a>
-    </form>
-
-    {# ─── Stats ─── #}
-    {% set total = docs|length %}
-    {% set expired = docs|selectattr('_status', 'equalto', 'expired')|list|length %}
-    <div style="display:flex;gap:16px;margin-bottom:12px;font-size:0.78rem;color:var(--muted)">
-        <span>Total: <strong>{{ total }}</strong></span>
-        {% if expired %}<span style="color:#c62828">Expired: <strong>{{ expired }}</strong></span>{% endif %}
+    {% if soon_docs %}
+    <div style="padding:10px 16px;background:#fff3e0;border:1.5px solid #ffcc80;border-radius:10px;color:#e65100;font-size:0.82rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <span>⚠️ <strong>{{ soon_docs|length }} document{% if soon_docs|length > 1 %}s{% endif %} expiring within 30 days</strong></span>
+      <a href="{{ url_for('documents.document_hub') }}?expiry=soon" style="font-size:0.72rem;color:#e65100;text-decoration:underline;font-weight:600">View all →</a>
     </div>
+    {% endif %}
+  </div>
+  {% endif %}
 
-    {# ─── Document Cards ─── #}
-    {% if docs %}
-    <div class="doc-grid">
-        {% for d in docs %}
-        {% set icon = '📄' %}
-        {% if d.doc_category in ('Registration','License') %}{% set icon = '📋' %}
-        {% elif d.doc_category == 'Insurance' %}{% set icon = '🛡️' %}
-        {% elif d.doc_category == 'Contract' %}{% set icon = '📝' %}
-        {% elif d.doc_category == 'ID Proof' %}{% set icon = '🪪' %}
-        {% elif d.doc_category == 'Certificate' %}{% set icon = '🎓' %}
-        {% elif d.doc_category == 'Bank' %}{% set icon = '🏦' %}
-        {% endif %}
-        <div class="doc-card">
-            <div class="doc-icon">{{ icon }}</div>
-            <h4>{{ d.doc_name }}</h4>
-            <div class="doc-meta">
-                <div><strong>{{ ENTITY_LABELS.get(d.entity_type, d.entity_type) }}:</strong> {{ d.entity_id }}</div>
-                <div><strong>Category:</strong> {{ d.doc_category }}</div>
-                {% if d.doc_ref_no %}<div><strong>Ref:</strong> {{ d.doc_ref_no }}{% endif %}
-                {% if d.issue_date %}<div><strong>Issued:</strong> {{ d.issue_date }}{% endif %}
-                {% if d.expiry_date %}
-                <div><strong>Expiry:</strong>
-                    <span class="expiry-badge {% if d._status == 'expired' %}expiry-expired{% elif d._status == 'soon' %}expiry-soon{% else %}expiry-ok{% endif %}">
-                        {{ d.expiry_date }}{% if d._status == 'expired' %} (Expired){% else %}{% endif %}
-                    </span>
-                </div>
-                {% endif %}
-                {% if d.notes %}<div>{{ d.notes|truncate(60) }}</div>{% endif %}
-                <div style="font-size:0.6rem;color:#aaa;margin-top:2px">{{ d.uploaded_at }}</div>
+  {# ═══ FILTERS ═══ #}
+  <form method="GET" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:12px 16px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search name, ref, notes..." style="flex:2;min-width:160px;padding:7px 12px;border:1px solid var(--line);border-radius:6px;font-size:0.8rem;outline:none" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--line)'">
+    <select name="entity_type" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.8rem;outline:none">
+      <option value="">All Types</option>
+      {% for k,v in ENTITY_LABELS.items() %}
+      <option value="{{ k }}" {% if entity_type == k %}selected{% endif %}>{{ v }}</option>
+      {% endfor %}
+    </select>
+    <select name="expiry" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.8rem;outline:none">
+      <option value="">Any Expiry</option>
+      <option value="expired" {% if expiry == 'expired' %}selected{% endif %}>⏰ Expired</option>
+      <option value="soon" {% if expiry == 'soon' %}selected{% endif %}>⚠️ Expiring Soon</option>
+    </select>
+    <input type="hidden" name="sort" value="uploaded_at">
+    <input type="hidden" name="order" value="desc">
+    <button class="btn btn-outline btn-sm">Filter</button>
+    <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm">Clear</a>
+  </form>
+
+  {# ═══ CATEGORY STATS ROW ═══ #}
+  {% set cat_order = ['Registration','Insurance','License','Contract','ID Proof','Certificate','Bank','Other'] %}
+  {% set cat_icons = {'Registration':'📋','Insurance':'🛡️','License':'🅿️','Contract':'📝','ID Proof':'🪪','Certificate':'🎓','Bank':'🏦','Other':'📄'} %}
+  {% set cat_colors = {'Registration':'#3b82f6','Insurance':'#22c55e','License':'#f59e0b','Contract':'#8b5cf6','ID Proof':'#ec4899','Certificate':'#14b8a6','Bank':'#f97316','Other':'#64748b'} %}
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px">
+    {% for cat in cat_order %}
+      {% set cat_docs = docs|selectattr('doc_category', 'equalto', cat)|list %}
+      {% if cat_docs %}
+      <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:0.7rem;font-weight:600;background:{{ cat_colors[cat] }}15;color:{{ cat_colors[cat] }};border:1px solid {{ cat_colors[cat] }}30">
+        {{ cat_icons.get(cat,'📄') }} {{ cat }} ({{ cat_docs|length }})
+      </span>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  {# ═══ EMPTY STATE ═══ #}
+  {% if not docs %}
+  <div style="text-align:center;padding:48px 16px;color:var(--muted)">
+    <div style="font-size:2.5rem;margin-bottom:8px">📂</div>
+    <p style="font-size:0.9rem;font-weight:600;color:var(--ink)">No documents yet</p>
+    <p style="font-size:0.78rem;margin-bottom:14px">Upload your first document to get started</p>
+    <a href="{{ url_for('documents.document_upload') }}" class="btn btn-primary">+ Upload Document</a>
+  </div>
+  {% endif %}
+
+  {# ═══ CATEGORY SECTIONS ═══ #}
+  {% for cat in cat_order %}
+    {% set cat_docs = docs|selectattr('doc_category', 'equalto', cat)|list %}
+    {% if cat_docs %}
+    <div style="margin-bottom:20px">
+      {# Category Header #}
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 4px">
+        <span style="font-size:1.1rem">{{ cat_icons.get(cat,'📄') }}</span>
+        <h4 style="margin:0;font-size:0.82rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.3px">{{ cat }}</h4>
+        <span style="font-size:0.68rem;color:var(--muted);background:#f1f5f9;padding:1px 10px;border-radius:10px">{{ cat_docs|length }}</span>
+      </div>
+
+      {# Document Rows #}
+      <div style="border:1px solid #eef2f6;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.03)">
+        {% for d in cat_docs|sort(attribute='uploaded_at', reverse=True) %}
+        {% set icon = cat_icons.get(cat, '📄') %}
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #f1f5f9;transition:background 0.12s" onmouseover="this.style.background='#fafbfc'" onmouseout="this.style.background=''">
+          {% if loop.last %}{% set brdr = '' %}{% endif %}
+          {# Document icon #}
+          <span style="font-size:1.2rem;flex-shrink:0;width:32px;height:32px;display:grid;place-items:center;background:{{ cat_colors[cat] }}10;border-radius:8px">{{ icon }}</span>
+
+          {# Document info #}
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px">
+              <strong style="font-size:0.85rem;color:var(--ink)">{{ d.doc_name }}</strong>
+              {% if d.doc_ref_no %}
+              <span style="font-size:0.7rem;color:var(--muted)">Ref: {{ d.doc_ref_no }}</span>
+              {% endif %}
             </div>
-            <div class="doc-actions">
-                <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="btn btn-xs btn-primary">Download</a>
-                <form method="POST" action="{{ url_for('documents.document_delete', doc_id=d.id) }}" style="display:inline" onsubmit="return confirm('Delete {{ d.doc_name }}?')">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn btn-xs btn-outline" style="color:#c62828">Delete</button>
-                </form>
+            <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:3px;font-size:0.72rem;color:var(--muted)">
+              <span><strong>{{ ENTITY_LABELS.get(d.entity_type, d.entity_type) }}:</strong> {{ d.entity_id }}</span>
+              {% if d.issue_date %}
+              <span>📅 Issued: {{ d.issue_date }}</span>
+              {% endif %}
+              {% if d.expiry_date %}
+              {% set es = d._status %}
+              <span>⏳ Expires:
+                <span style="font-weight:600;padding:1px 8px;border-radius:8px;font-size:0.68rem;
+                  {% if es == 'expired' %}background:#ffebee;color:#c62828
+                  {% elif es == 'soon' %}background:#fff3e0;color:#e65100
+                  {% else %}background:#e8f5e9;color:#2e7d32{% endif %}">
+                  {{ d.expiry_date }}
+                  {% if es == 'expired' %} ⏰ Expired{% endif %}
+                </span>
+              </span>
+              {% endif %}
+              {% if d.notes %}
+              <span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📌 {{ d.notes }}</span>
+              {% endif %}
             </div>
+            <div style="font-size:0.6rem;color:#bbb;margin-top:2px">Uploaded {{ d.uploaded_at }}</div>
+          </div>
+
+          {# Actions #}
+          <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">
+            <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="btn btn-xs btn-primary" style="padding:4px 12px;font-size:0.68rem;font-weight:600">Download</a>
+            <form method="POST" action="{{ url_for('documents.document_delete', doc_id=d.id) }}" style="display:inline" onsubmit="return confirm('Delete {{ d.doc_name|e }}?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-xs" style="padding:4px 10px;font-size:0.68rem;color:#c62828;background:#ffebee;border:1px solid #ef9a9a;border-radius:6px;cursor:pointer;font-weight:600">Delete</button>
+            </form>
+          </div>
         </div>
         {% endfor %}
+      </div>
     </div>
-    {% else %}
-    <p class="empty-state">No documents found. <a href="{{ url_for('documents.document_upload') }}">Upload one</a>.</p>
     {% endif %}
+  {% endfor %}
+
 </div>
 </div>
 {% endblock %}
