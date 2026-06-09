@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from flask import render_template, request, redirect, url_for, flash, current_app, send_file
 from . import core_bp
-from ..database import open_db, _existing_columns
+from ..database import open_db
 
 logger = logging.getLogger(__name__)
 
@@ -12,20 +12,6 @@ logger = logging.getLogger(__name__)
 def settings():
     try:
         db = open_db()
-        existing = _existing_columns(db, "company_profile")
-        for col, dtype in [("legal_name", "TEXT"), ("trade_license_no", "TEXT"), ("trade_license_expiry", "TEXT"),
-                           ("trn_no", "TEXT"), ("vat_status", "TEXT"), ("phone_number", "TEXT"),
-                           ("email", "TEXT"), ("address", "TEXT"), ("bank_name", "TEXT"),
-                           ("bank_account_name", "TEXT"), ("bank_account_number", "TEXT"), ("iban", "TEXT"),
-                           ("swift_code", "TEXT"), ("invoice_terms", "TEXT"), ("base_currency", "TEXT"),
-                           ("financial_year_label", "TEXT"), ("financial_year_start", "TEXT"),
-                           ("financial_year_end", "TEXT"), ("logo_data", "TEXT"), ("logo_type", "TEXT"),
-                           ("theme_color", "TEXT DEFAULT '#0F2B52'")]:
-            if col not in existing:
-                try:
-                    db.execute(f"ALTER TABLE company_profile ADD COLUMN {col} {dtype}")
-                except Exception:
-                    pass
         company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
         if request.method == "POST":
             action = request.form.get("action", "")
