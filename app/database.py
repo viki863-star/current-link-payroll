@@ -831,6 +831,7 @@ CREATE TABLE IF NOT EXISTS cash_receipts (
     given_by TEXT NOT NULL,
     amount REAL NOT NULL,
     receipt_date TEXT NOT NULL,
+    payment_time TEXT,
     notes TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
@@ -1658,6 +1659,7 @@ CREATE TABLE IF NOT EXISTS cash_receipts (
     given_by TEXT NOT NULL,
     amount DOUBLE PRECISION NOT NULL,
     receipt_date TEXT NOT NULL,
+    payment_time TEXT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
@@ -1873,6 +1875,9 @@ REQUIRED_COLUMNS = {
         "logo_data": "TEXT",
         "logo_type": "TEXT",
         "theme_color": "TEXT DEFAULT '#0F2B52'",
+    },
+    "cash_receipts": {
+        "payment_time": "TEXT",
     },
 }
 
