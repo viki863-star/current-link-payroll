@@ -212,6 +212,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     init_db(app)
     from .core import core_bp
     app.register_blueprint(core_bp)
+    from .documents import documents_bp
+    app.register_blueprint(documents_bp)
     from .hr import hr_bp
     app.register_blueprint(hr_bp)
     from .fleet import fleet_bp

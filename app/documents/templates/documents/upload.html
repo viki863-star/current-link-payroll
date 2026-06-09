@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Upload Document{% endblock %}
+{% block page_title %}Upload Document{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:600px;margin:0 auto">
+
+<div class="profile-card">
+    <div style="margin-bottom:14px">
+        <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+    </div>
+    <h3>Upload New Document</h3>
+
+    <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
+            <div class="form-row">
+                <label class="form-label">Entity Type *</label>
+                <select name="entity_type" id="entityType" class="form-control" required onchange="document.getElementById('entityId').value='';loadEntities()">
+                    <option value="">— Select —</option>
+                    {% for k,v in ENTITY_LABELS.items() %}
+                    <option value="{{ k }}" {% if pre_type == k %}selected{% endif %}>{{ v }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Entity ID *</label>
+                <div style="position:relative">
+                    <input type="text" name="entity_id" id="entityId" class="form-control" value="{{ pre_id }}" required placeholder="Type to search..." autocomplete="off" oninput="loadEntities()">
+                    <div id="entityResults" style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d8e4f5;border-radius:6px;max-height:200px;overflow-y:auto;display:none;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,0.1)"></div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
+            <div class="form-row" style="grid-column:span 2">
+                <label class="form-label">Document Name *</label>
+                <input type="text" name="doc_name" class="form-control" required placeholder="e.g. Passport Copy, Insurance Policy">
+            </div>
+            <div class="form-row">
+                <label class="form-label">Category</label>
+                <select name="doc_category" class="form-control">
+                    <option value="Registration">Registration</option>
+                    <option value="Insurance">Insurance</option>
+                    <option value="License">License</option>
+                    <option value="Contract">Contract</option>
+                    <option value="ID Proof">ID Proof</option>
+                    <option value="Certificate">Certificate</option>
+                    <option value="Bank">Bank</option>
+                    <option value="Other" selected>Other</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Ref No.</label>
+                <input type="text" name="doc_ref_no" class="form-control" placeholder="Policy/license number">
+            </div>
+            <div class="form-row">
+                <label class="form-label">Issue Date</label>
+                <input type="date" name="issue_date" class="form-control">
+            </div>
+            <div class="form-row">
+                <label class="form-label">Expiry Date</label>
+                <input type="date" name="expiry_date" class="form-control">
+            </div>
+        </div>
+
+        <div style="margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
+            <div class="form-row">
+                <label class="form-label">File *</label>
+                <input type="file" name="file" class="form-control" required accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx">
+                <span style="font-size:0.72rem;color:var(--muted)">PDF, images, Word, Excel</span>
+            </div>
+            <div class="form-row" style="margin-top:10px">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes"></textarea>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:12px">Upload Document</button>
+    </form>
+</div>
+</div>
+
+<script>
+let entityTimer;
+function loadEntities() {
+    clearTimeout(entityTimer);
+    const typ = document.getElementById('entityType').value;
+    const q = document.getElementById('entityId').value;
+    const res = document.getElementById('entityResults');
+    if (!typ || q.length < 1) { res.style.display = 'none'; return; }
+    entityTimer = setTimeout(() => {
+        fetch('{{ url_for("documents.document_search_entity") }}?entity_type=' + encodeURIComponent(typ) + '&q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                if (!data.length) { res.style.display = 'none'; return; }
+                res.innerHTML = data.map(item =>
+                    '<div style="padding:6px 10px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #f0f2f5" onclick="selectEntity(\\'' + item.id + '\\',\\'' + item.label.replace(/'/g,"\\'") + '\\')">' + item.label + '</div>'
+                ).join('');
+                res.style.display = 'block';
+            })
+            .catch(() => { res.style.display = 'none'; });
+    }, 300);
+}
+function selectEntity(id, label) {
+    document.getElementById('entityId').value = id;
+    document.getElementById('entityResults').style.display = 'none';
+}
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#entityId') && !e.target.closest('#entityResults')) {
+        document.getElementById('entityResults').style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

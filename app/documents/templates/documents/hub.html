@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Documents{% endblock %}
+{% block page_title %}Document Management{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:1100px;margin:0 auto">
+<style>
+.doc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-top:16px; }
+.doc-card { background:#fff; border:1.5px solid var(--line); border-radius:12px; padding:14px 16px; transition:box-shadow .15s; }
+.doc-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+.doc-card .doc-icon { font-size:1.4rem; margin-bottom:6px; }
+.doc-card h4 { margin:0 0 4px; font-size:0.88rem; }
+.doc-card .doc-meta { font-size:0.7rem; color:var(--muted); line-height:1.45; }
+.doc-card .doc-actions { display:flex; gap:6px; margin-top:8px; }
+.expiry-badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:0.6rem; font-weight:600; }
+.expiry-ok { background:#e8f5e9; color:#2e7d32; }
+.expiry-soon { background:#fff3e0; color:#e65100; }
+.expiry-expired { background:#ffebee; color:#c62828; }
+</style>
+
+<div class="profile-card">
+    <div class="section-header">
+        <h3>All Documents</h3>
+        <a href="{{ url_for('documents.document_upload') }}" class="btn btn-primary btn-sm">+ Upload</a>
+    </div>
+
+    {# ─── Filters ─── #}
+    <form method="GET" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:12px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search name, ref, notes..." style="flex:2;min-width:160px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.82rem">
+        <select name="entity_type" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.82rem">
+            <option value="">All Types</option>
+            {% for k,v in ENTITY_LABELS.items() %}
+            <option value="{{ k }}" {% if entity_type == k %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+        </select>
+        <select name="expiry" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.82rem">
+            <option value="">Any Expiry</option>
+            <option value="expired" {% if expiry == 'expired' %}selected{% endif %}>Expired</option>
+            <option value="soon" {% if expiry == 'soon' %}selected{% endif %}>Expiring Soon</option>
+        </select>
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <input type="hidden" name="order" value="{{ order }}">
+        <button class="btn btn-outline btn-sm">Filter</button>
+        <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm">Clear</a>
+    </form>
+
+    {# ─── Stats ─── #}
+    {% set total = docs|length %}
+    {% set expired = docs|selectattr('_status', 'equalto', 'expired')|list|length %}
+    <div style="display:flex;gap:16px;margin-bottom:12px;font-size:0.78rem;color:var(--muted)">
+        <span>Total: <strong>{{ total }}</strong></span>
+        {% if expired %}<span style="color:#c62828">Expired: <strong>{{ expired }}</strong></span>{% endif %}
+    </div>
+
+    {# ─── Document Cards ─── #}
+    {% if docs %}
+    <div class="doc-grid">
+        {% for d in docs %}
+        {% set icon = '📄' %}
+        {% if d.doc_category in ('Registration','License') %}{% set icon = '📋' %}
+        {% elif d.doc_category == 'Insurance' %}{% set icon = '🛡️' %}
+        {% elif d.doc_category == 'Contract' %}{% set icon = '📝' %}
+        {% elif d.doc_category == 'ID Proof' %}{% set icon = '🪪' %}
+        {% elif d.doc_category == 'Certificate' %}{% set icon = '🎓' %}
+        {% elif d.doc_category == 'Bank' %}{% set icon = '🏦' %}
+        {% endif %}
+        <div class="doc-card">
+            <div class="doc-icon">{{ icon }}</div>
+            <h4>{{ d.doc_name }}</h4>
+            <div class="doc-meta">
+                <div><strong>{{ ENTITY_LABELS.get(d.entity_type, d.entity_type) }}:</strong> {{ d.entity_id }}</div>
+                <div><strong>Category:</strong> {{ d.doc_category }}</div>
+                {% if d.doc_ref_no %}<div><strong>Ref:</strong> {{ d.doc_ref_no }}{% endif %}
+                {% if d.issue_date %}<div><strong>Issued:</strong> {{ d.issue_date }}{% endif %}
+                {% if d.expiry_date %}
+                <div><strong>Expiry:</strong>
+                    <span class="expiry-badge {% if d._status == 'expired' %}expiry-expired{% elif d._status == 'soon' %}expiry-soon{% else %}expiry-ok{% endif %}">
+                        {{ d.expiry_date }}{% if d._status == 'expired' %} (Expired){% else %}{% endif %}
+                    </span>
+                </div>
+                {% endif %}
+                {% if d.notes %}<div>{{ d.notes|truncate(60) }}</div>{% endif %}
+                <div style="font-size:0.6rem;color:#aaa;margin-top:2px">{{ d.uploaded_at }}</div>
+            </div>
+            <div class="doc-actions">
+                <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="btn btn-xs btn-primary">Download</a>
+                <form method="POST" action="{{ url_for('documents.document_delete', doc_id=d.id) }}" style="display:inline" onsubmit="return confirm('Delete {{ d.doc_name }}?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-xs btn-outline" style="color:#c62828">Delete</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">No documents found. <a href="{{ url_for('documents.document_upload') }}">Upload one</a>.</p>
+    {% endif %}
+</div>
+</div>
+{% endblock %}

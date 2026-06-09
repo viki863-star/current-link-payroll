@@ -837,6 +837,22 @@ CREATE TABLE IF NOT EXISTS cash_receipts (
     FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
 );
 
+CREATE TABLE IF NOT EXISTS documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    doc_name TEXT NOT NULL,
+    doc_category TEXT NOT NULL DEFAULT 'Other',
+    doc_ref_no TEXT,
+    issue_date TEXT,
+    expiry_date TEXT,
+    file_data TEXT NOT NULL,
+    file_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+    file_size INTEGER DEFAULT 0,
+    notes TEXT,
+    uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS maintenance_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     vehicle_id TEXT NOT NULL,
@@ -1665,6 +1681,22 @@ CREATE TABLE IF NOT EXISTS cash_receipts (
     FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
 );
 
+CREATE TABLE IF NOT EXISTS documents (
+    id BIGSERIAL PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    doc_name TEXT NOT NULL,
+    doc_category TEXT NOT NULL DEFAULT 'Other',
+    doc_ref_no TEXT,
+    issue_date TEXT,
+    expiry_date TEXT,
+    file_data TEXT NOT NULL,
+    file_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+    file_size INTEGER DEFAULT 0,
+    notes TEXT,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS maintenance_jobs (
     id BIGSERIAL PRIMARY KEY,
     vehicle_id TEXT NOT NULL,
@@ -1878,6 +1910,13 @@ REQUIRED_COLUMNS = {
     },
     "cash_receipts": {
         "payment_time": "TEXT",
+    },
+    "documents": {
+        "doc_category": "TEXT NOT NULL DEFAULT 'Other'",
+        "doc_ref_no": "TEXT",
+        "issue_date": "TEXT",
+        "expiry_date": "TEXT",
+        "file_size": "INTEGER DEFAULT 0",
     },
 }
 
