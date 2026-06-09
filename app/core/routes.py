@@ -9,7 +9,6 @@ from ..database import open_db
 @core_bp.route("/settings", methods=["GET", "POST"])
 def settings():
     db = open_db()
-    db.execute("CREATE TABLE IF NOT EXISTS company_profile (id SERIAL PRIMARY KEY, company_name TEXT)")
     for col, dtype in [("legal_name", "TEXT"), ("trade_license_no", "TEXT"), ("trade_license_expiry", "TEXT"),
                        ("trn_no", "TEXT"), ("vat_status", "TEXT"), ("phone_number", "TEXT"),
                        ("email", "TEXT"), ("address", "TEXT"), ("bank_name", "TEXT"),
