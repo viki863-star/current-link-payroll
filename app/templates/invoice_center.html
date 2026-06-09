@@ -1,353 +1,186 @@
 {% extends "base.html" %}
+{% block title %}Invoices — Current Link ERP{% endblock %}
+{% block page_title %}Invoice Center{% endblock %}
 
 {% block content %}
-{% set line_ns = namespace(count=0, subtotal=0) %}
-{% for line in invoice_line_rows %}
-    {% if line.description or line.rate or line.subtotal %}
-        {% set line_ns.count = line_ns.count + 1 %}
-    {% endif %}
-    {% if line.subtotal %}
-        {% set line_ns.subtotal = line_ns.subtotal + (line.subtotal|float) %}
-    {% endif %}
-{% endfor %}
+<div class="profile-shell" style="max-width:1200px;margin:0 auto">
 
-<section class="admin-desk-shell">
-    <article class="card admin-desk-toolbar">
-        <div class="admin-toolbar-row">
-            <div class="admin-toolbar-actions">
-                <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a class="button button-secondary" href="{{ url_for('customer.customer_dashboard') }}">Customer Desk</a>
-                <a class="button" href="#invoice-entry">New Invoice</a>
-            </div>
-            <div class="admin-mini-stats">
-                <span><strong>AED {{ "%.0f"|format(summary.sales_total) }}</strong><small>Sales</small></span>
-                <span><strong>AED {{ "%.0f"|format(summary.purchase_total) }}</strong><small>Purchase</small></span>
-                <span><strong>{{ summary.open_invoice_count }}</strong><small>Open</small></span>
-                <span><strong>AED {{ "%.0f"|format(summary.received_total + summary.paid_total) }}</strong><small>Movement</small></span>
-            </div>
-        </div>
-        <div class="mini-link-stack inline-link-stack">
-            <a class="mini-link-pill" href="{{ url_for('agreements_lpos') }}">Agreements</a>
-            <a class="mini-link-pill" href="{{ url_for('party_list') }}">Party Master</a>
-            <a class="mini-link-pill" href="{{ url_for('customer.customer_dashboard') }}">Statements</a>
-        </div>
-    </article>
+<div class="profile-card">
 
-    <section class="desk-content-grid invoice-entry-grid">
-        <article class="card desk-panel-card invoice-form-card" id="invoice-entry">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Invoice</span>
-                    <h2>{% if invoice_values.original_invoice_no %}Edit Invoice{% else %}Create Invoice{% endif %}</h2>
-                </div>
-            </div>
-            <form method="post" class="desk-form-grid invoice-form-grid">
+  {# ═══ HEADER ═══ #}
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+    <div>
+      <h3 style="margin:0;font-size:1.05rem;font-weight:800">📄 All Invoices</h3>
+      <p style="margin:3px 0 0;font-size:0.75rem;color:var(--muted)">{{ invoices|length }} invoice{{ 's' if invoices|length != 1 else '' }}</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <a href="{{ url_for('dashboard') }}" class="btn btn-outline btn-sm">Dashboard</a>
+      <a href="{{ url_for('customer.customer_dashboard') }}" class="btn btn-outline btn-sm">Customer Desk</a>
+    </div>
+  </div>
+
+  {# ═══ STATS ROW ═══ #}
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px">
+    <div style="background:#f0f9ff;border:1px solid #b9d9f7;border-radius:10px;padding:12px 14px;text-align:center">
+      <div style="font-size:0.65rem;font-weight:600;color:#2563eb;text-transform:uppercase;letter-spacing:0.3px">Sales</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#1e40af;margin-top:3px">AED {{ "{:,.0f}".format(summary.sales_total) }}</div>
+    </div>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 14px;text-align:center">
+      <div style="font-size:0.65rem;font-weight:600;color:#dc2626;text-transform:uppercase;letter-spacing:0.3px">Purchase</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#991b1b;margin-top:3px">AED {{ "{:,.0f}".format(summary.purchase_total) }}</div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;text-align:center">
+      <div style="font-size:0.65rem;font-weight:600;color:#16a34a;text-transform:uppercase;letter-spacing:0.3px">Received</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#166534;margin-top:3px">AED {{ "{:,.0f}".format(summary.received_total) }}</div>
+    </div>
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;text-align:center">
+      <div style="font-size:0.65rem;font-weight:600;color:#ca8a04;text-transform:uppercase;letter-spacing:0.3px">Paid</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#854d0e;margin-top:3px">AED {{ "{:,.0f}".format(summary.paid_total) }}</div>
+    </div>
+    <div style="background:#faf5ff;border:1px solid #d8b4fe;border-radius:10px;padding:12px 14px;text-align:center">
+      <div style="font-size:0.65rem;font-weight:600;color:#9333ea;text-transform:uppercase;letter-spacing:0.3px">Open</div>
+      <div style="font-size:1.1rem;font-weight:800;color:#6b21a8;margin-top:3px">{{ summary.open_invoice_count }}</div>
+    </div>
+  </div>
+
+  {# ═══ FILTERS ═══ #}
+  <form method="GET" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;padding:12px 16px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
+    <input type="text" name="q" value="{{ q|default('') }}" placeholder="Search invoice no, party..." style="flex:2;min-width:180px;padding:7px 12px;border:1px solid var(--line);border-radius:6px;font-size:0.8rem;outline:none" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--line)'">
+    <select name="kind" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.8rem;outline:none">
+      <option value="">All Kinds</option>
+      <option value="Sales" {% if kind == 'Sales' %}selected{% endif %}>Sales</option>
+      <option value="Purchase" {% if kind == 'Purchase' %}selected{% endif %}>Purchase</option>
+    </select>
+    <select name="status" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.8rem;outline:none">
+      <option value="">All Status</option>
+      <option value="Open" {% if status == 'Open' %}selected{% endif %}>Open</option>
+      <option value="Paid" {% if status == 'Paid' %}selected{% endif %}>Paid</option>
+      <option value="Overdue" {% if status == 'Overdue' %}selected{% endif %}>Overdue</option>
+    </select>
+    <button class="btn btn-outline btn-sm">Search</button>
+    <a href="{{ url_for('invoice_center') }}" class="btn btn-outline btn-sm">Clear</a>
+  </form>
+
+  {# ═══ INVOICES TABLE ═══ #}
+  {% if invoices %}
+  <div style="border:1px solid #eef2f6;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.03);margin-bottom:24px">
+    <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+      <thead>
+        <tr style="background:#f8fafc;border-bottom:2px solid #eef2f6">
+          <th style="padding:10px 14px;text-align:left;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Invoice</th>
+          <th style="padding:10px 14px;text-align:left;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Party</th>
+          <th style="padding:10px 14px;text-align:left;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Date</th>
+          <th style="padding:10px 14px;text-align:right;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Total</th>
+          <th style="padding:10px 14px;text-align:right;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Balance</th>
+          <th style="padding:10px 14px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Status</th>
+          <th style="padding:10px 14px;text-align:right;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        {% set cid = customer_map.get(inv.party_code) %}
+        <tr style="border-bottom:1px solid #f1f5f9;transition:background 0.1s" onmouseover="this.style.background='#fafbfc'" onmouseout="this.style.background=''">
+          <td style="padding:10px 14px">
+            {% if cid %}
+            <a href="{{ url_for('customer.customer_profile', cid=cid) }}" style="font-weight:700;color:var(--primary);text-decoration:none">{{ inv.invoice_no }}</a>
+            {% else %}
+            <strong>{{ inv.invoice_no }}</strong>
+            {% endif %}
+            <br><span style="font-size:0.68rem;color:#94a3b8">{{ inv.document_type or '—' }}</span>
+          </td>
+          <td style="padding:10px 14px">
+            {% if cid %}
+            <a href="{{ url_for('customer.customer_profile', cid=cid) }}" style="color:var(--ink);text-decoration:none;font-weight:500">{{ inv.party_name or inv.party_code }}</a>
+            {% else %}
+            <span style="font-weight:500">{{ inv.party_name or inv.party_code }}</span>
+            {% endif %}
+            {% if inv.invoice_kind %}
+            <br><span style="font-size:0.68rem;color:#94a3b8">{{ inv.invoice_kind }}</span>
+            {% endif %}
+          </td>
+          <td style="padding:10px 14px;color:#64748b">{{ inv.issue_date }}</td>
+          <td style="padding:10px 14px;text-align:right;font-weight:700;color:var(--ink)">AED {{ "{:,.2f}".format(inv.total_amount) }}</td>
+          <td style="padding:10px 14px;text-align:right;font-weight:700;color:{% if inv.balance_amount > 0 %}#dc2626{% else %}#16a34a{% endif %}">AED {{ "{:,.2f}".format(inv.balance_amount) }}</td>
+          <td style="padding:10px 14px;text-align:center">
+            <span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:0.65rem;font-weight:600;
+              {% if inv.status == 'Paid' or inv.balance_amount <= 0.009 %}background:#dcfce7;color:#166534
+              {% elif inv.balance_amount > 0 %}background:#fef3c7;color:#92400e
+              {% else %}background:#f1f5f9;color:#475569{% endif %}">
+              {% if inv.balance_amount <= 0.009 %}Paid{% elif inv.status %}{{ inv.status }}{% else %}Open{% endif %}
+            </span>
+          </td>
+          <td style="padding:10px 14px;text-align:right">
+            <div style="display:flex;gap:4px;justify-content:flex-end">
+              <a href="{{ url_for('invoice_pdf', invoice_no=inv.invoice_no) }}" class="btn btn-xs" style="padding:3px 10px;font-size:0.65rem;font-weight:600;color:#2563eb;background:#e8f0fe;border:1px solid #b3d0ff;border-radius:6px;text-decoration:none">PDF</a>
+              <form method="POST" action="{{ url_for('delete_invoice', invoice_no=inv.invoice_no) }}" style="display:inline" onsubmit="return confirm('Delete invoice {{ inv.invoice_no }}?')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="action" value="save_invoice">
-                <input type="hidden" name="original_invoice_no" value="{{ invoice_values.original_invoice_no }}">
+                <button class="btn btn-xs" style="padding:3px 10px;font-size:0.65rem;font-weight:600;color:#c62828;background:#ffebee;border:1px solid #ef9a9a;border-radius:6px;cursor:pointer">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:48px 16px;color:var(--muted)">
+    <div style="font-size:2.5rem;margin-bottom:8px">📄</div>
+    <p style="font-size:0.9rem;font-weight:600;color:var(--ink)">No invoices found</p>
+    <p style="font-size:0.78rem">Create invoices from any customer profile</p>
+  </div>
+  {% endif %}
 
-                <label>
-                    <span>Invoice No</span>
-                    <input type="text" name="invoice_no" value="{{ invoice_values.invoice_no }}">
-                </label>
-                <label>
-                    <span>Kind</span>
-                    <select name="invoice_kind">
-                        {% for item in invoice_kind_options %}
-                            <option value="{{ item }}" {% if invoice_values.invoice_kind == item %}selected{% endif %}>{{ item }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-
-                <label>
-                    <span>Document</span>
-                    <select name="document_type">
-                        {% for item in invoice_document_options %}
-                            <option value="{{ item }}" {% if invoice_values.document_type == item %}selected{% endif %}>{{ item }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <label>
-                    <span>Party</span>
-                    <select name="party_code">
-                        <option value="">Select</option>
-                        {% for party in parties %}
-                            <option value="{{ party.party_code }}" {% if invoice_values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-
-                <label>
-                    <span>Agreement</span>
-                    <select name="agreement_no">
-                        <option value="">Optional</option>
-                        {% for item in agreements %}
-                            <option value="{{ item.agreement_no }}" {% if invoice_values.agreement_no == item.agreement_no %}selected{% endif %}>{{ item.agreement_no }} | {{ item.party_name }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <label>
-                    <span>LPO</span>
-                    <select name="lpo_no">
-                        <option value="">Optional</option>
-                        {% for item in lpos %}
-                            <option value="{{ item.lpo_no }}" {% if invoice_values.lpo_no == item.lpo_no %}selected{% endif %}>{{ item.lpo_no }} | {{ item.party_name }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-
-                <label>
-                    <span>Hire No</span>
-                    <select name="hire_no">
-                        <option value="">Optional</option>
-                        {% for item in hires %}
-                            <option value="{{ item.hire_no }}" {% if invoice_values.hire_no == item.hire_no %}selected{% endif %}>{{ item.hire_no }} | {{ item.asset_name }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <label>
-                    <span>Issue Date</span>
-                    <input type="date" name="issue_date" value="{{ invoice_values.issue_date }}">
-                </label>
-
-                <label>
-                    <span>Due Date</span>
-                    <input type="date" name="due_date" value="{{ invoice_values.due_date }}">
-                </label>
-                <label>
-                    <span>VAT %</span>
-                    <input type="number" step="0.01" name="tax_percent" value="{{ invoice_values.tax_percent }}">
-                </label>
-
-                <label class="full-span">
-                    <span>Manual Subtotal</span>
-                    <input type="number" step="0.01" name="subtotal" value="{{ invoice_values.subtotal }}" placeholder="Only used if line rows are blank">
-                </label>
-
-                <div class="full-span invoice-line-editor">
-                    <div class="invoice-line-header">
-                        <span>Description</span>
-                        <span>Unit</span>
-                        <span>Qty</span>
-                        <span>Rate</span>
-                        <span>Amount</span>
-                    </div>
-                    {% for line in invoice_line_rows %}
-                        <div class="invoice-line-row">
-                            <input type="text" name="line_description_{{ line.line_no }}" value="{{ line.description }}" placeholder="Service / hire detail">
-                            <input type="text" name="line_unit_{{ line.line_no }}" value="{{ line.unit_label }}" placeholder="Lot">
-                            <input type="number" step="0.01" name="line_quantity_{{ line.line_no }}" value="{{ line.quantity }}" placeholder="1">
-                            <input type="number" step="0.01" name="line_rate_{{ line.line_no }}" value="{{ line.rate }}" placeholder="0.00">
-                            <input type="number" step="0.01" name="line_subtotal_{{ line.line_no }}" value="{{ line.subtotal }}" placeholder="Auto" readonly>
-                        </div>
-                    {% endfor %}
-                    <div class="invoice-line-footer">
-                        <span class="invoice-value-chip"><strong>{{ line_ns.count }}</strong><small>Lines</small></span>
-                        <span class="invoice-value-chip"><strong>AED {{ "%.2f"|format(line_ns.subtotal) }}</strong><small>Draft Subtotal</small></span>
-                        <span class="invoice-value-chip"><strong>{{ invoice_values.document_type }}</strong><small>Format</small></span>
-                    </div>
-                </div>
-
-                <label class="full-span">
-                    <span>Notes</span>
-                    <textarea name="notes" rows="4" placeholder="Terms, delivery note, reference, scope">{{ invoice_values.notes }}</textarea>
-                </label>
-
-                <div class="form-actions left-actions full-span">
-                    <button class="button" type="submit">Save Invoice</button>
-                    {% if invoice_values.original_invoice_no %}
-                        <a class="button button-secondary" href="{{ url_for('invoice_center') }}">Clear</a>
-                    {% endif %}
-                </div>
+  {# ═══ PAYMENTS TABLE ═══ #}
+  {% if payments %}
+  <h4 style="margin:0 0 10px;font-size:0.85rem;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:6px">
+    💳 Recent Payments
+    <span style="font-size:0.68rem;color:var(--muted);background:#f1f5f9;padding:1px 10px;border-radius:10px;font-weight:500">{{ payments|length }}</span>
+  </h4>
+  <div style="border:1px solid #eef2f6;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.03)">
+    <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+      <thead>
+        <tr style="background:#f8fafc;border-bottom:2px solid #eef2f6">
+          <th style="padding:10px 14px;text-align:left;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Voucher</th>
+          <th style="padding:10px 14px;text-align:left;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Party</th>
+          <th style="padding:10px 14px;text-align:left;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Invoice</th>
+          <th style="padding:10px 14px;text-align:left;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Date</th>
+          <th style="padding:10px 14px;text-align:left;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Method</th>
+          <th style="padding:10px 14px;text-align:right;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Amount</th>
+          <th style="padding:10px 14px;text-align:right;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.3px">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pmt in payments %}
+        {% set cid = customer_map.get(pmt.party_code) %}
+        <tr style="border-bottom:1px solid #f1f5f9;transition:background 0.1s" onmouseover="this.style.background='#fafbfc'" onmouseout="this.style.background=''">
+          <td style="padding:10px 14px;font-weight:600;color:var(--ink)">{{ pmt.voucher_no }}</td>
+          <td style="padding:10px 14px">
+            {% if cid %}
+            <a href="{{ url_for('customer.customer_profile', cid=cid) }}" style="color:var(--ink);text-decoration:none">{{ pmt.party_name or pmt.party_code }}</a>
+            {% else %}
+            {{ pmt.party_name or pmt.party_code }}
+            {% endif %}
+          </td>
+          <td style="padding:10px 14px;color:#64748b">{{ pmt.invoice_no }}</td>
+          <td style="padding:10px 14px;color:#64748b">{{ pmt.entry_date }}</td>
+          <td style="padding:10px 14px">
+            <span style="display:inline-block;padding:1px 8px;border-radius:8px;font-size:0.65rem;font-weight:600;background:#f1f5f9;color:#475569">{{ pmt.payment_method }}</span>
+          </td>
+          <td style="padding:10px 14px;text-align:right;font-weight:700;color:#16a34a">AED {{ "{:,.2f}".format(pmt.amount) }}</td>
+          <td style="padding:10px 14px;text-align:right">
+            <form method="POST" action="{{ url_for('delete_payment', voucher_no=pmt.voucher_no) }}" style="display:inline" onsubmit="return confirm('Delete payment {{ pmt.voucher_no }}?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-xs" style="padding:3px 10px;font-size:0.65rem;font-weight:600;color:#c62828;background:#ffebee;border:1px solid #ef9a9a;border-radius:6px;cursor:pointer">Delete</button>
             </form>
-        </article>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
 
-        <div class="desk-side-stack">
-            <article class="card desk-panel-card compact-side-card">
-                <div class="desk-panel-head">
-                    <div>
-                        <span class="admin-desk-label">Payment</span>
-                        <h2>{% if payment_values.original_voucher_no %}Edit Receipt / Payment{% else %}Post Receipt / Payment{% endif %}</h2>
-                    </div>
-                </div>
-                <form method="post" class="desk-form-grid">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="save_payment">
-                    <input type="hidden" name="original_voucher_no" value="{{ payment_values.original_voucher_no }}">
-
-                    <label>
-                        <span>Voucher No</span>
-                        <input type="text" name="voucher_no" value="{{ payment_values.voucher_no }}">
-                    </label>
-                    <label>
-                        <span>Invoice</span>
-                        <select name="invoice_no">
-                            <option value="">Select open invoice</option>
-                            {% for item in open_invoices %}
-                                <option value="{{ item.invoice_no }}" {% if payment_values.invoice_no == item.invoice_no %}selected{% endif %}>{{ item.invoice_no }} | {{ item.party_name or item.party_code }} | AED {{ "%.2f"|format(item.balance_amount) }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-
-                    <label>
-                        <span>Payment Date</span>
-                        <input type="date" name="entry_date" value="{{ payment_values.entry_date }}">
-                    </label>
-                    <label>
-                        <span>Method</span>
-                        <select name="payment_method">
-                            {% for item in payment_method_options %}
-                                <option value="{{ item }}" {% if payment_values.payment_method == item %}selected{% endif %}>{{ item }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-
-                    <label>
-                        <span>Amount</span>
-                        <input type="number" step="0.01" name="amount" value="{{ payment_values.amount }}">
-                    </label>
-                    <label>
-                        <span>Reference</span>
-                        <input type="text" name="reference" value="{{ payment_values.reference }}">
-                    </label>
-
-                    <label class="full-span">
-                        <span>Notes</span>
-                        <textarea name="notes" rows="4">{{ payment_values.notes }}</textarea>
-                    </label>
-
-                    <div class="form-actions left-actions full-span">
-                        <button class="button" type="submit">Save Payment</button>
-                        {% if payment_values.original_voucher_no %}
-                            <a class="button button-secondary" href="{{ url_for('invoice_center') }}">Clear</a>
-                        {% endif %}
-                    </div>
-                </form>
-            </article>
-
-            <article class="card desk-panel-card compact-side-card">
-                <div class="desk-panel-head">
-                    <div>
-                        <span class="admin-desk-label">Open</span>
-                        <h2>Balance Queue</h2>
-                    </div>
-                </div>
-                <div class="mini-ledger-list invoice-open-list">
-                    {% for item in open_invoices[:6] %}
-                        <div class="mini-ledger-row stacked-row">
-                            <strong>{{ item.invoice_no }}</strong>
-                            <span>{{ item.party_name or item.party_code }}</span>
-                            <span>AED {{ "%.2f"|format(item.balance_amount) }}</span>
-                        </div>
-                    {% else %}
-                        <p class="muted-text">No open invoices.</p>
-                    {% endfor %}
-                </div>
-            </article>
-        </div>
-    </section>
-
-    <section class="desk-content-grid compact-content-grid invoice-ledger-grid">
-        <article class="card desk-panel-card invoice-table-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Invoices</span>
-                    <h2>Recent Invoices</h2>
-                </div>
-            </div>
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Invoice</th>
-                            <th>Party</th>
-                            <th>Issue</th>
-                            <th>Total</th>
-                            <th>Balance</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in invoices %}
-                            <tr>
-                                <td>
-                                    <strong>{{ item.invoice_no }}</strong><br>
-                                    <small>{{ item.document_type }}</small>
-                                </td>
-                                <td>{{ item.party_name or item.party_code }}</td>
-                                <td>{{ item.issue_date }}</td>
-                                <td>AED {{ "%.2f"|format(item.total_amount) }}</td>
-                                <td>AED {{ "%.2f"|format(item.balance_amount) }}</td>
-                                <td>
-                                    <div class="table-actions">
-                                        <a class="mini-link-pill" href="{{ url_for('invoice_center', edit_invoice=item.invoice_no) }}">Edit</a>
-                                        <a class="mini-link-pill" href="{{ url_for('invoice_pdf', invoice_no=item.invoice_no) }}">PDF</a>
-                                        <form method="post" action="{{ url_for('delete_invoice', invoice_no=item.invoice_no) }}" onsubmit="return confirm('Delete this invoice?');">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button class="button danger-button" type="submit">Delete</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        {% else %}
-                            <tr>
-                                <td colspan="6">No invoices yet.</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </article>
-
-        <article class="card desk-panel-card invoice-table-card">
-            <div class="desk-panel-head">
-                <div>
-                    <span class="admin-desk-label">Payments</span>
-                    <h2>Recent Movement</h2>
-                </div>
-            </div>
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Voucher</th>
-                            <th>Invoice</th>
-                            <th>Date</th>
-                            <th>Method</th>
-                            <th>Amount</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in payments %}
-                            <tr>
-                                <td>
-                                    <strong>{{ item.voucher_no }}</strong><br>
-                                    <small>{{ item.party_name or item.party_code }}</small>
-                                </td>
-                                <td>{{ item.invoice_no }}</td>
-                                <td>{{ item.entry_date }}</td>
-                                <td>{{ item.payment_method }}</td>
-                                <td>AED {{ "%.2f"|format(item.amount) }}</td>
-                                <td>
-                                    <div class="table-actions">
-                                        <a class="mini-link-pill" href="{{ url_for('invoice_center', edit_payment=item.voucher_no) }}">Edit</a>
-                                        <form method="post" action="{{ url_for('delete_payment', voucher_no=item.voucher_no) }}" onsubmit="return confirm('Delete this payment?');">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button class="button danger-button" type="submit">Delete</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        {% else %}
-                            <tr>
-                                <td colspan="6">No payments yet.</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </article>
-    </section>
-</section>
+</div>
+</div>
 {% endblock %}

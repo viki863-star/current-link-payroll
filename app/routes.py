@@ -4858,6 +4858,15 @@ def register_routes(app: Flask) -> None:
             except ValidationError as exc:
                 flash(str(exc), "error")
 
+        # Build party_code → customer id map
+        customer_map = {}
+        try:
+            for row in db.execute("SELECT id, customer_code FROM customers").fetchall():
+                if row["customer_code"]:
+                    customer_map[row["customer_code"]] = row["id"]
+        except:
+            pass
+
         return render_template(
             "invoice_center.html",
             invoice_values=invoice_values,
@@ -4871,9 +4880,10 @@ def register_routes(app: Flask) -> None:
             lpos=_lpo_rows(db, limit=40),
             hires=_hire_rows(db, limit=40),
             open_invoices=_open_invoice_rows(db),
-            invoices=_invoice_rows(db, limit=12),
-            payments=_payment_rows(db, limit=12),
+            invoices=_invoice_rows(db, limit=200),
+            payments=_payment_rows(db, limit=200),
             summary=_invoice_center_summary(db),
+            customer_map=customer_map,
         )
 
 
