@@ -1910,6 +1910,7 @@ def register_routes(app: Flask) -> None:
         monthly_trend = []
         recent_invoices = []
         recent_payments = []
+        invoice_status_chart = []
         try:
             import sqlite3
             cdb_path = app.config.get("DATABASE") or "payroll.db"
@@ -1931,6 +1932,11 @@ def register_routes(app: Flask) -> None:
                 SELECT p.payment_date, p.amount, p.reference_no, c.customer_name
                 FROM customer_payments p JOIN customers c ON c.id=p.customer_id
                 ORDER BY p.created_at DESC LIMIT 8
+            """).fetchall()
+            invoice_status_chart = cdb.execute("""
+                SELECT status, COUNT(*) AS value, COALESCE(SUM(total_amount),0) AS total
+                FROM customer_invoices
+                GROUP BY status ORDER BY COUNT(*) DESC
             """).fetchall()
             cdb.close()
         except:
@@ -1970,6 +1976,7 @@ def register_routes(app: Flask) -> None:
             monthly_trend=monthly_trend,
             recent_invoices=recent_invoices,
             recent_payments=recent_payments,
+            invoice_status_chart=invoice_status_chart,
             doc_expiring_soon=expiring_soon,
             doc_expired=expired_count,
         )
