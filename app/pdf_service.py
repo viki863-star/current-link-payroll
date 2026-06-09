@@ -39,7 +39,7 @@ LPO_STANDARD_TERMS = [
 ]
 
 
-def generate_lpo_pdf(company, party, lpo: dict, assets_dir: str, output_dir: str) -> str:
+def generate_lpo_pdf(company, party, lpo: dict, assets_dir: str, output_dir: str, company_profile: dict | None = None) -> str:
     """Generate a professional A4 LPO PDF.
 
     Args:
@@ -68,7 +68,7 @@ def generate_lpo_pdf(company, party, lpo: dict, assets_dir: str, output_dir: str
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
 
     # ── Header & title ────────────────────────────────────────────────────────
-    _draw_header(pdf, assets_dir)
+    _draw_header(pdf, assets_dir, company_profile)
     _draw_title(
         pdf,
         "Local Purchase Order",
@@ -238,18 +238,18 @@ def generate_lpo_pdf(company, party, lpo: dict, assets_dir: str, output_dir: str
                    f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}  |  "
                    f"{company.get('company_name') or 'Current Link'}  |  "
                    f"TRN: {company.get('trn_no') or '-'}")
-    _draw_footer_banner(pdf, assets_dir)
+    _draw_footer_banner(pdf, assets_dir, True, company_profile)
 
     pdf.showPage()
     pdf.save()
     return str(output_path)
 
-def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, assets_dir: str, generated_dir: str, payment_rows=None) -> str:
+def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, assets_dir: str, generated_dir: str, payment_rows=None, company_profile: dict | None = None) -> str:
     output_path = Path(output_dir) / f"{driver['driver_id']}_{salary_row['salary_month']}_salary-slip.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_header(pdf, assets_dir)
+    _draw_header(pdf, assets_dir, company_profile)
     _draw_title(
         pdf,
         f"Salary Slip {format_month_label(salary_row['salary_month'])}",
@@ -257,13 +257,13 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
     )
     _draw_salary_summary(pdf, driver, salary_row, slip_payload)
     _draw_salary_breakdown(pdf, salary_row, slip_payload)
-    _draw_salary_footer(pdf, driver, slip_payload, assets_dir, generated_dir, payment_rows or [])
+    _draw_salary_footer(pdf, driver, slip_payload, assets_dir, generated_dir, payment_rows or [], company_profile)
     pdf.showPage()
     pdf.save()
     return str(output_path)
 
 
-def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_payments=None, output_dir: str = "", assets_dir: str = "", month_value: str | None = None) -> str:
+def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_payments=None, output_dir: str = "", assets_dir: str = "", month_value: str | None = None, company_profile: dict | None = None) -> str:
     if isinstance(salary_payments, (str, Path)) and output_dir and not assets_dir:
         assets_dir = output_dir
         output_dir = str(salary_payments)
@@ -522,7 +522,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
     pages = [entries[index:index + rows_per_page] for index in range(0, len(entries), rows_per_page)] or [[]]
 
     for page_number, page_rows in enumerate(pages, start=1):
-        _draw_header(pdf, assets_dir)
+        _draw_header(pdf, assets_dir, company_profile)
         _draw_title(
             pdf,
             "Driver Full KATA" if not selected_month else f"Driver Monthly Statement {normalized_month}",
@@ -584,72 +584,11 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
             )
         table_top = PAGE_HEIGHT - 254 * mm if selected_month else None
         _draw_kata_statement_table(pdf, page_rows, top=table_top)
-        _draw_footer_banner(pdf, assets_dir)
+        _draw_footer_banner(pdf, assets_dir, True, company_profile)
         pdf.showPage()
 
     pdf.save()
     return str(output_path)
-
-
-def _draw_kata_header(pdf: canvas.Canvas, company_profile: dict | None = None) -> None:
-    header_x = 15 * mm
-    header_y = PAGE_HEIGHT - 45 * mm
-    header_w = 180 * mm
-    header_h = 39 * mm
-    company = company_profile or {}
-
-    pdf.setFillColor(colors.white)
-    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
-    pdf.setStrokeColor(LINE)
-    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=0, stroke=1)
-
-    pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(header_x + 5 * mm, header_y + 26 * mm, (company.get("company_name") or "Company Name")[:50])
-
-    pdf.setFillColor(MUTED)
-    pdf.setFont("Helvetica", 7)
-    c_addr = (company.get("address") or "")[:65]
-    if c_addr:
-        pdf.drawString(header_x + 5 * mm, header_y + 18 * mm, c_addr)
-
-    contact_parts = [company.get("phone_number") or "", company.get("email") or ""]
-    c_contact = " | ".join(p for p in contact_parts if p)
-    trn = company.get("trn_no") or "-"
-    pdf.drawString(header_x + 5 * mm, header_y + 12 * mm, f"TRN: {trn}")
-    if c_contact:
-        pdf.drawString(header_x + 5 * mm, header_y + 6.5 * mm, c_contact)
-
-    pdf.setFillColor(BLUE)
-    pdf.rect(15 * mm, PAGE_HEIGHT - 46 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
-
-
-def _draw_kata_footer(pdf: canvas.Canvas, company_profile: dict | None = None) -> None:
-    company = company_profile or {}
-    pdf.setFillColor(ORANGE)
-    pdf.rect(15 * mm, 30 * mm, 180 * mm, 1.2 * mm, fill=1, stroke=0)
-
-    pdf.setFillColor(colors.white)
-    pdf.roundRect(15 * mm, 8 * mm, 180 * mm, 20 * mm, 4 * mm, fill=1, stroke=0)
-    pdf.setStrokeColor(LINE)
-    pdf.roundRect(15 * mm, 8 * mm, 180 * mm, 20 * mm, 4 * mm, fill=0, stroke=1)
-
-    pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 8)
-    pdf.drawCentredString(PAGE_WIDTH / 2, 21 * mm, (company.get("company_name") or "Current Link Transport").upper())
-
-    addr = company.get("address") or ""
-    if addr:
-        pdf.setFillColor(MUTED)
-        pdf.setFont("Helvetica", 6.5)
-        pdf.drawCentredString(PAGE_WIDTH / 2, 15.5 * mm, addr[:80])
-
-    pdf.setFillColor(MUTED)
-    pdf.setFont("Helvetica", 6.5)
-    parts = [p for p in [company.get("phone_number"), company.get("email")] if p]
-    contact_str = "  |  ".join(parts) if parts else ""
-    if contact_str:
-        pdf.drawCentredString(PAGE_WIDTH / 2, 11 * mm, contact_str)
 
 
 def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_deduction, remaining, month_value, output_dir: str, assets_dir: str, company_profile: dict | None = None) -> str:
@@ -659,7 +598,7 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_kata_header(pdf, company_profile)
+    _draw_header(pdf, assets_dir, company_profile)
     _draw_title(pdf, "Employee Monthly Statement", normalized_month)
 
     box_w = 86 * mm; box_h = 42 * mm; box_y = PAGE_HEIGHT - 116 * mm
@@ -798,7 +737,7 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
     _draw_small_meta_row(pdf, 20 * mm, notes_y + 3.4 * mm, "Driver ID", driver.get("driver_id", "-"), 50 * mm)
     _draw_small_meta_row(pdf, 118 * mm, notes_y - 4.8 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 54 * mm)
 
-    _draw_kata_footer(pdf, company_profile)
+    _draw_footer_banner(pdf, assets_dir, True, company_profile)
     pdf.save()
     return str(output_path)
 
@@ -810,7 +749,7 @@ def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: st
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_kata_header(pdf, company_profile)
+    _draw_header(pdf, assets_dir, company_profile)
     _draw_title(pdf, "Outstanding Advances Statement", normalized_month)
 
     box_w = 86 * mm; box_h = 42 * mm; box_y = PAGE_HEIGHT - 116 * mm
@@ -896,12 +835,12 @@ def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: st
     _draw_small_meta_row(pdf, 20 * mm, notes_y + 3.4 * mm, "Driver ID", driver.get("driver_id", "-"), 50 * mm)
     _draw_small_meta_row(pdf, 118 * mm, notes_y - 4.8 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 54 * mm)
 
-    _draw_kata_footer(pdf, company_profile)
+    _draw_footer_banner(pdf, assets_dir, True, company_profile)
     pdf.save()
     return str(output_path)
 
 
-def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir: str, filters=None) -> str:
+def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir: str, filters=None, company_profile: dict | None = None) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = Path(output_dir) / f"owner-fund-kata_{timestamp}.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -994,7 +933,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
         pdf.drawRightString(194 * mm, PAGE_HEIGHT - 113 * mm, f"Page {page_number} / {total_pages}")
 
     def _draw_table(page_rows, page_number: int):
-        _draw_header(pdf, assets_dir)
+        _draw_header(pdf, assets_dir, company_profile)
         _draw_title(pdf, "Owner Fund Kata", "Incoming owner funds, outgoing usage and running balance")
         _draw_filter_bar()
         _draw_summary(page_number)
@@ -1042,7 +981,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
         footer_line, footer_size = _fit_text(pdf, footer_text, "Helvetica", 7.0, 120 * mm, min_size=6.0)
         pdf.setFont("Helvetica", footer_size)
         pdf.drawString(16 * mm, 33 * mm, footer_line)
-        _draw_footer_banner(pdf, assets_dir)
+        _draw_footer_banner(pdf, assets_dir, True, company_profile)
         pdf.showPage()
 
     for page_number, page_rows in enumerate(pages, start=1):
@@ -1052,12 +991,12 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
     return str(output_path)
 
 
-def generate_timesheet_pdf(driver, month_value: str, calendar_days, summary, output_dir: str, assets_dir: str, generated_dir: str) -> str:
+def generate_timesheet_pdf(driver, month_value: str, calendar_days, summary, output_dir: str, assets_dir: str, generated_dir: str, company_profile: dict | None = None) -> str:
     output_path = Path(output_dir) / f"{driver['driver_id']}_{month_value}_timesheet.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_header(pdf, assets_dir)
+    _draw_header(pdf, assets_dir, company_profile)
     _draw_title(pdf, f"Driver Timesheet {format_month_label(month_value)}", "Daily attendance, working hours and missing-day review")
 
     top_x = 16 * mm
@@ -1098,18 +1037,18 @@ def generate_timesheet_pdf(driver, month_value: str, calendar_days, summary, out
         _draw_stat_box(pdf, (138 + index * 0) * mm, (208 - index * 13.5) * mm, 56 * mm, 11 * mm, label, value)
 
     _draw_timesheet_table(pdf, calendar_days)
-    _draw_timesheet_footer(pdf, driver, summary, assets_dir, generated_dir)
+    _draw_timesheet_footer(pdf, driver, summary, assets_dir, generated_dir, company_profile)
     pdf.showPage()
     pdf.save()
     return str(output_path)
 
 
-def generate_supplier_payment_voucher_pdf(party, voucher, payment, output_dir: str, assets_dir: str) -> str:
+def generate_supplier_payment_voucher_pdf(party, voucher, payment, output_dir: str, assets_dir: str, company_profile: dict | None = None) -> str:
     output_path = Path(output_dir) / f"{payment['payment_no']}_payment-voucher.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_header(pdf, assets_dir)
+    _draw_header(pdf, assets_dir, company_profile)
     _draw_title(pdf, "Supplier Payment Voucher", "Month-end payable settlement summary")
 
     card_x = 16 * mm
@@ -1185,18 +1124,18 @@ def generate_supplier_payment_voucher_pdf(party, voucher, payment, output_dir: s
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 7.6)
     pdf.drawString(16 * mm, 36 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
-    _draw_footer_banner(pdf, assets_dir)
+    _draw_footer_banner(pdf, assets_dir, True, company_profile)
     pdf.showPage()
     pdf.save()
     return str(output_path)
 
 
-def generate_cash_supplier_payment_voucher_pdf(party, payment, summary, output_dir: str, assets_dir: str) -> str:
+def generate_cash_supplier_payment_voucher_pdf(party, payment, summary, output_dir: str, assets_dir: str, company_profile: dict | None = None) -> str:
     output_path = Path(output_dir) / f"{payment['payment_no']}_payment-voucher.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_header(pdf, assets_dir)
+    _draw_header(pdf, assets_dir, company_profile)
     _draw_title(pdf, "Supplier Payment Voucher", "Cash supplier payment acknowledgement and running balance summary")
 
     card_x = 16 * mm
@@ -1272,13 +1211,13 @@ def generate_cash_supplier_payment_voucher_pdf(party, payment, summary, output_d
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 7.6)
     pdf.drawString(16 * mm, 36 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
-    _draw_footer_banner(pdf, assets_dir)
+    _draw_footer_banner(pdf, assets_dir, True, company_profile)
     pdf.showPage()
     pdf.save()
     return str(output_path)
 
 
-def generate_plain_supplier_statement_pdf(party, statement_rows, summary, output_dir: str, title: str = "Supplier Statement") -> str:
+def generate_plain_supplier_statement_pdf(party, statement_rows, summary, output_dir: str, title: str = "Supplier Statement", assets_dir: str = "", company_profile: dict | None = None) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_code = str(party["party_code"]).replace("/", "-")
     output_path = Path(output_dir) / f"{safe_code}_statement_{timestamp}.pdf"
@@ -1298,6 +1237,7 @@ def generate_plain_supplier_statement_pdf(party, statement_rows, summary, output
     for page_number, page_rows in enumerate(pages, start=1):
         pdf.setFillColor(colors.white)
         pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
+        _draw_header(pdf, assets_dir, company_profile)
         _draw_title(pdf, title, f"{party['party_name']} | {party['party_code']}")
         stats_y = PAGE_HEIGHT - 68 * mm
         _draw_stat_box(pdf, 16 * mm, stats_y, 42 * mm, 14 * mm, "All Submitted", f"AED {format_currency(float(summary.get('all_submitted', 0.0)))}")
@@ -1332,13 +1272,14 @@ def generate_plain_supplier_statement_pdf(party, statement_rows, summary, output
         pdf.setFont("Helvetica", 7.0)
         pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
         pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number} / {len(pages)}")
+        _draw_footer_banner(pdf, assets_dir, True, company_profile)
         pdf.showPage()
 
     pdf.save()
     return str(output_path)
 
 
-def generate_partnership_supplier_statement_pdf(party, period_month: str, asset_rows, summary, output_dir: str) -> str:
+def generate_partnership_supplier_statement_pdf(party, period_month: str, asset_rows, summary, output_dir: str, assets_dir: str = "", company_profile: dict | None = None) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_code = str(party["party_code"]).replace("/", "-")
     output_path = Path(output_dir) / f"{safe_code}_partnership_{period_month}_{timestamp}.pdf"
@@ -1358,6 +1299,7 @@ def generate_partnership_supplier_statement_pdf(party, period_month: str, asset_
     for page_number, page_rows in enumerate(pages, start=1):
         pdf.setFillColor(colors.white)
         pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
+        _draw_header(pdf, assets_dir, company_profile)
         _draw_title(pdf, "Partnership Profit Statement", f"{party['party_name']} | {format_month_label(period_month)}")
         _draw_stat_box(pdf, 16 * mm, PAGE_HEIGHT - 58 * mm, 42 * mm, 14 * mm, "Work", f"AED {format_currency(float(summary.get('work_total', 0.0)))}")
         _draw_stat_box(pdf, 61 * mm, PAGE_HEIGHT - 58 * mm, 42 * mm, 14 * mm, "Salary", f"AED {format_currency(float(summary.get('total_salary_cost', 0.0)))}", fill_color=SOFT)
@@ -1388,6 +1330,7 @@ def generate_partnership_supplier_statement_pdf(party, period_month: str, asset_
         pdf.setFont("Helvetica", 7.0)
         pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
         pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number} / {len(pages)}")
+        _draw_footer_banner(pdf, assets_dir, True, company_profile)
         pdf.showPage()
 
     pdf.save()
@@ -1402,6 +1345,7 @@ def generate_cash_supplier_kata_pdf(
     assets_dir: str,
     title: str = "Cash Supplier Kata",
     filter_caption: str = "",
+    company_profile: dict | None = None,
 ) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_code = str(party["party_code"]).replace("/", "-")
@@ -1517,7 +1461,7 @@ def generate_cash_supplier_kata_pdf(
     def _draw_page_frame(pdf_obj: canvas.Canvas, page_number: int, page_count: int) -> float:
         pdf_obj.setFillColor(colors.white)
         pdf_obj.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
-        _draw_header(pdf_obj, assets_dir)
+        _draw_header(pdf_obj, assets_dir, company_profile)
 
         pdf_obj.setFillColor(BLUE_DARK)
         title_text, title_size = _fit_text(pdf_obj, title, "Times-Bold", 14.5, 88 * mm, min_size=12.0)
@@ -1684,14 +1628,14 @@ def generate_cash_supplier_kata_pdf(
         pdf.setFont("Helvetica", 7.0)
         pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
         pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number} / {len(pages)}")
-        _draw_footer_banner(pdf, assets_dir, show_top_rule=False)
+        _draw_footer_banner(pdf, assets_dir, False, company_profile)
         pdf.showPage()
 
     pdf.save()
     return str(output_path)
 
 
-def generate_cash_supplier_manual_pdf(sections, output_dir: str, assets_dir: str) -> str:
+def generate_cash_supplier_manual_pdf(sections, output_dir: str, assets_dir: str, company_profile: dict | None = None) -> str:
     output_path = Path(output_dir) / "cash-supplier-desk-guide.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1699,7 +1643,7 @@ def generate_cash_supplier_manual_pdf(sections, output_dir: str, assets_dir: str
     page_number = 1
 
     def start_page() -> float:
-        _draw_header(pdf, assets_dir)
+        _draw_header(pdf, assets_dir, company_profile)
         _draw_title(pdf, "Cash Supplier Desk Guide", "Roman Urdu SOP for portal, kata workflow, aur backup routine")
         pdf.setFillColor(BLUE_SOFT)
         pdf.roundRect(15 * mm, PAGE_HEIGHT - 82 * mm, 180 * mm, 12 * mm, 3 * mm, fill=1, stroke=0)
@@ -1716,7 +1660,7 @@ def generate_cash_supplier_manual_pdf(sections, output_dir: str, assets_dir: str
             pdf.setFont("Helvetica", 7.2)
             pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
             pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number}")
-            _draw_footer_banner(pdf, assets_dir, show_top_rule=False)
+            _draw_footer_banner(pdf, assets_dir, False, company_profile)
             pdf.showPage()
             page_number += 1
             y = start_page()
@@ -1740,7 +1684,7 @@ def generate_cash_supplier_manual_pdf(sections, output_dir: str, assets_dir: str
                 pdf.setFont("Helvetica", 7.2)
                 pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
                 pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number}")
-                _draw_footer_banner(pdf, assets_dir, show_top_rule=False)
+                _draw_footer_banner(pdf, assets_dir, False, company_profile)
                 pdf.showPage()
                 page_number += 1
                 y = start_page()
@@ -1763,12 +1707,12 @@ def generate_cash_supplier_manual_pdf(sections, output_dir: str, assets_dir: str
     pdf.setFont("Helvetica", 7.2)
     pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
     pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number}")
-    _draw_footer_banner(pdf, assets_dir, show_top_rule=False)
+    _draw_footer_banner(pdf, assets_dir, False, company_profile)
     pdf.save()
     return str(output_path)
 
 
-def generate_field_staff_vehicle_report_pdf(vehicle_meta, report_rows, summary, output_dir: str, assets_dir: str) -> str:
+def generate_field_staff_vehicle_report_pdf(vehicle_meta, report_rows, summary, output_dir: str, assets_dir: str, company_profile: dict | None = None) -> str:
     vehicle_no = (vehicle_meta.get("vehicle_no") or vehicle_meta.get("vehicle_id") or "general").strip() or "general"
     safe_vehicle = str(vehicle_no).replace("/", "-").replace(" ", "_")
     output_path = Path(output_dir) / f"{safe_vehicle}_vehicle_report.pdf"
@@ -1840,7 +1784,7 @@ def generate_field_staff_vehicle_report_pdf(vehicle_meta, report_rows, summary, 
                 pdf.drawString(cell_x + 2.5 * mm, row_y, text)
 
     def draw_page(page_rows, page_no: int, total_pages: int):
-        _draw_header(pdf, assets_dir)
+        _draw_header(pdf, assets_dir, company_profile)
         _draw_title(pdf, title, subtitle)
 
         summary_x = 15 * mm
@@ -1890,7 +1834,7 @@ def generate_field_staff_vehicle_report_pdf(vehicle_meta, report_rows, summary, 
         pdf.setFont("Helvetica", 7.0)
         pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
         pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_no} / {total_pages}")
-        _draw_footer_banner(pdf, assets_dir, show_top_rule=False)
+        _draw_footer_banner(pdf, assets_dir, False, company_profile)
         pdf.showPage()
 
     pages = [report_rows[i : i + rows_per_page] for i in range(0, len(report_rows), rows_per_page)] or [[]]
@@ -2031,15 +1975,22 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
     return str(output_path)
 
 
-def _draw_header(pdf: canvas.Canvas, assets_dir: str, company_profile: dict | None = None) -> None:
+def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict | None = None) -> None:
     header_x = 15 * mm
     header_y = PAGE_HEIGHT - 45 * mm
     header_w = 180 * mm
     header_h = 39 * mm
+    company = company_profile or {}
 
-    logo_data = (company_profile or {}).get("logo_data")
-    logo_type = (company_profile or {}).get("logo_type")
+    logo_data = company.get("logo_data")
+    logo_type = company.get("logo_type")
 
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=0, stroke=1)
+
+    text_x = header_x + 5 * mm
     if logo_data and logo_type:
         try:
             logo_binary = base64.b64decode(logo_data)
@@ -2047,59 +1998,34 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str, company_profile: dict | No
             logo_img = ImageReader(logo_buf)
             target_h = 34 * mm
             target_w = 34 * mm
-            pdf.setFillColor(colors.white)
-            pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
             pdf.drawImage(
                 logo_img,
                 header_x + 3 * mm,
                 header_y + (header_h - target_h) / 2,
-                width=target_w,
-                height=target_h,
-                preserveAspectRatio=True,
-                mask="auto",
+                width=target_w, height=target_h,
+                preserveAspectRatio=True, mask="auto",
             )
-            company = company_profile or {}
-            pdf.setFillColor(BLUE_DARK)
-            pdf.setFont("Helvetica-Bold", 11)
-            pdf.drawString(header_x + 42 * mm, header_y + 22 * mm, (company.get("company_name") or "Company Name")[:40])
-            pdf.setFillColor(MUTED)
-            pdf.setFont("Helvetica", 6.8)
-            c_addr = (company.get("address") or "")[:60]
-            c_info = f"TRN: {company.get('trn_no') or '-'}"
-            pdf.drawString(header_x + 42 * mm, header_y + 15 * mm, c_addr)
-            pdf.drawString(header_x + 42 * mm, header_y + 10 * mm, c_info)
-            pdf.setFillColor(BLUE)
-            pdf.rect(15 * mm, PAGE_HEIGHT - 46 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
-            return
+            text_x = header_x + 42 * mm
         except Exception:
             pass
 
-    premium_banner = Path(assets_dir) / "current-link-header-premium.png"
-    banner = premium_banner if premium_banner.exists() else Path(assets_dir) / "current-link-header.png"
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(text_x, header_y + 26 * mm, (company.get("company_name") or "Current Link Transport")[:50])
 
-    pdf.setFillColor(colors.white)
-    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 7)
+    c_addr = (company.get("address") or "")[:65]
+    if c_addr:
+        pdf.drawString(text_x, header_y + 18 * mm, c_addr)
 
-    if banner.exists():
-        image = ImageReader(str(banner))
-        image_width, image_height = image.getSize()
-        target_width = 180 * mm
-        target_height = target_width * (image_height / image_width)
-        banner_x = 15 * mm
-        banner_y = PAGE_HEIGHT - 44 * mm
+    trn = company.get("trn_no") or "-"
+    pdf.drawString(text_x, header_y + 12 * mm, f"TRN: {trn}")
 
-        pdf.drawImage(
-            image,
-            banner_x,
-            banner_y,
-            width=target_width,
-            height=target_height,
-            preserveAspectRatio=False,
-            mask="auto",
-        )
-    else:
-        pdf.setFillColor(BLUE_DARK)
-        pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
+    contact_parts = [company.get("phone_number") or "", company.get("email") or ""]
+    c_contact = " | ".join(p for p in contact_parts if p)
+    if c_contact:
+        pdf.drawString(text_x, header_y + 6.5 * mm, c_contact)
 
     pdf.setFillColor(BLUE)
     pdf.rect(15 * mm, PAGE_HEIGHT - 46 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
@@ -2260,7 +2186,7 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
     _draw_stat_box(pdf, 139 * mm, metrics_y, 56 * mm, 14 * mm, "COMPANY BALANCE", f"{format_currency(company_balance_due)} AED", fill_color=BLUE, text_color=colors.white, border_color=BLUE)
 
 
-def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: str, generated_dir: str, payment_rows) -> None:
+def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: str, generated_dir: str, payment_rows, company_profile: dict | None = None) -> None:
     card_x = 16 * mm
     card_y = 38 * mm
     card_w = 44 * mm
@@ -2316,7 +2242,7 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 7.1)
     pdf.drawString(16 * mm, 30 * mm, "This is a system-generated salary slip for internal payroll records.")
-    _draw_footer_banner(pdf, assets_dir)
+    _draw_footer_banner(pdf, assets_dir, True, company_profile)
 
 
 def _draw_timesheet_table(pdf: canvas.Canvas, calendar_days) -> None:
@@ -2386,7 +2312,7 @@ def _draw_timesheet_rows(pdf: canvas.Canvas, x: float, y: float, rows, row_heigh
         current_y -= row_height
 
 
-def _draw_timesheet_footer(pdf: canvas.Canvas, driver, summary, assets_dir: str, generated_dir: str) -> None:
+def _draw_timesheet_footer(pdf: canvas.Canvas, driver, summary, assets_dir: str, generated_dir: str, company_profile: dict | None = None) -> None:
     photo_x = 16 * mm
     photo_y = 38 * mm
     photo_w = 36 * mm
@@ -2435,7 +2361,7 @@ def _draw_timesheet_footer(pdf: canvas.Canvas, driver, summary, assets_dir: str,
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 7)
     pdf.drawString(16 * mm, 33 * mm, "This monthly timesheet is system-generated for operational review.")
-    _draw_footer_banner(pdf, assets_dir)
+    _draw_footer_banner(pdf, assets_dir, True, company_profile)
 
 
 def _draw_driver_photo(pdf: canvas.Canvas, driver, generated_dir: str, x: float, y: float, w: float, h: float) -> bool:
@@ -2667,30 +2593,33 @@ def _draw_kata_statement_table(pdf: canvas.Canvas, entries, top=None) -> None:
         pdf.drawRightString(75 * mm, y - 3 * mm, format_currency(sum(float(item["amount"]) for item in entries)))
 
 
-def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str, show_top_rule: bool = True) -> None:
-    footer = Path(assets_dir) / "current-link-footer.png"
+def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str = "", show_top_rule: bool = True, company_profile: dict | None = None) -> None:
+    company = company_profile or {}
     if show_top_rule:
         pdf.setFillColor(ORANGE)
         pdf.rect(15 * mm, 30 * mm, 180 * mm, 1.2 * mm, fill=1, stroke=0)
-    if footer.exists():
-        image = ImageReader(str(footer))
-        image_width, image_height = image.getSize()
-        target_width = 180 * mm
-        target_height = target_width * (image_height / image_width)
-        footer_x = 15 * mm
-        footer_y = 9 * mm
 
-        pdf.setFillColor(colors.white)
-        pdf.roundRect(15 * mm, 8 * mm, 180 * mm, 21 * mm, 4 * mm, fill=1, stroke=0)
-        pdf.drawImage(
-            image,
-            footer_x,
-            footer_y,
-            width=target_width,
-            height=target_height,
-            preserveAspectRatio=False,
-            mask="auto",
-        )
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(15 * mm, 8 * mm, 180 * mm, 20 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(15 * mm, 8 * mm, 180 * mm, 20 * mm, 4 * mm, fill=0, stroke=1)
+
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 8)
+    pdf.drawCentredString(PAGE_WIDTH / 2, 21 * mm, (company.get("company_name") or "Current Link Transport").upper())
+
+    addr = company.get("address") or ""
+    if addr:
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 6.5)
+        pdf.drawCentredString(PAGE_WIDTH / 2, 15.5 * mm, addr[:80])
+
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 6.5)
+    parts = [p for p in [company.get("phone_number"), company.get("email")] if p]
+    contact_str = "  |  ".join(parts) if parts else ""
+    if contact_str:
+        pdf.drawCentredString(PAGE_WIDTH / 2, 11 * mm, contact_str)
 
 
 def _draw_label_value_row(pdf: canvas.Canvas, x: float, y: float, label_width: float, value_width: float, label: str, value: str) -> None:

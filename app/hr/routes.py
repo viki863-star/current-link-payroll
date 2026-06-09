@@ -734,6 +734,7 @@ def employee_salary_slip(employee_id):
                         remaining_advance = max(available_advance - deduction_amount, 0.0)
                         from ..pdf_service import generate_salary_slip_pdf
                         company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+                        company_profile = dict(company) if company else None
 
                         if existing_slip is not None:
                             db.execute(
@@ -792,6 +793,7 @@ def employee_salary_slip(employee_id):
                             slip_output_dir,
                             current_app.config["STATIC_ASSETS_DIR"],
                             generated_dir,
+                            company_profile=company_profile,
                         )
                         relative_pdf = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix() if pdf_path else ""
                         db.execute("UPDATE salary_slips SET pdf_path=? WHERE id=?", (relative_pdf, slip_id))
