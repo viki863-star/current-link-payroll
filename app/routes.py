@@ -4384,79 +4384,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/customers", methods=["GET", "POST"])
     @_login_required("admin")
     def customers():
-        _touch_admin_workspace("customers")
-        db = open_db()
-        values = _default_customer_form()
-        edit_party_code = request.args.get("edit", "").strip().upper()
-        if edit_party_code:
-            existing_party = _fetch_party(db, edit_party_code)
-            if existing_party is not None and "Customer" in _deserialize_party_roles(existing_party["party_roles"] or ""):
-                values = _customer_form_from_party(existing_party)
-
-        if request.method == "POST":
-            values = _customer_form_data(request)
-            try:
-                payload = _prepare_customer_party_payload(db, values)
-                if values["original_party_code"]:
-                    db.execute(
-                        """
-                        UPDATE parties
-                        SET party_name = ?, party_kind = ?, party_roles = ?, contact_person = ?,
-                            phone_number = ?, email = ?, trn_no = ?, trade_license_no = ?,
-                            address = ?, notes = ?, status = ?
-                        WHERE party_code = ?
-                        """,
-                        payload[1:] + (values["original_party_code"],),
-                    )
-                    _audit_log(
-                        db,
-                        "customer_updated",
-                        entity_type="customer",
-                        entity_id=payload[0],
-                        details=payload[1],
-                    )
-                    message = "Customer updated successfully."
-                else:
-                    db.execute(
-                        """
-                        INSERT INTO parties (
-                            party_code, party_name, party_kind, party_roles, contact_person,
-                            phone_number, email, trn_no, trade_license_no, address, notes, status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        payload,
-                    )
-                    _audit_log(
-                        db,
-                        "customer_created",
-                        entity_type="customer",
-                        entity_id=payload[0],
-                        details=payload[1],
-                    )
-                    message = "Customer saved successfully."
-                db.commit()
-                flash(message, "success")
-                return redirect(url_for("customers"))
-            except ValidationError as exc:
-                flash(str(exc), "error")
-            except Exception:
-                current_app.logger.exception("Customer save failed for %s", values.get("party_code") or values.get("original_party_code") or "new")
-                flash("Customer save failed. Please review the form and try again.", "error")
-
-        customer_parties = _parties_by_role(db, "Customer", active_only=True)
-        summary = _customer_summary(db)
-        top_receivables = _party_balance_rows(db, invoice_kind="Sales", limit=8)
-        recent_hires = _hire_rows(db, direction="Customer Rental", limit=8)
-        recent_invoices = _invoice_rows(db, invoice_kind="Sales", limit=8)
-        return render_template(
-            "customers.html",
-            values=values,
-            customer_parties=customer_parties,
-            summary=summary,
-            top_receivables=top_receivables,
-            recent_hires=recent_hires,
-            recent_invoices=recent_invoices,
-        )
+        return redirect(url_for("customer.customer_dashboard"))
 
     @app.get("/customers/<party_code>/statement")
     @_login_required("admin")
@@ -4466,7 +4394,7 @@ def register_routes(app: Flask) -> None:
         party = _fetch_party(db, party_code)
         if party is None:
             flash("Customer was not found.", "error")
-            return redirect(url_for("customers"))
+            return redirect(url_for("customer.customer_dashboard"))
         rows, summary = _party_statement(db, party_code, invoice_kind="Sales", hire_direction="Customer Rental")
         return render_template(
             "party_statement.html",
@@ -4475,7 +4403,7 @@ def register_routes(app: Flask) -> None:
             party=party,
             rows=rows,
             summary=summary,
-            back_endpoint="customers",
+            back_endpoint="customer.customer_dashboard",
         )
 
     @app.post("/customers/<party_code>/archive")
@@ -4485,7 +4413,7 @@ def register_routes(app: Flask) -> None:
         party = _fetch_party(db, party_code)
         if party is None or "Customer" not in _deserialize_party_roles(party["party_roles"] or ""):
             flash("Customer was not found.", "error")
-            return redirect(url_for("customers"))
+            return redirect(url_for("customer.customer_dashboard"))
         next_status = "Inactive" if (party["status"] or "Active") == "Active" else "Active"
         db.execute("UPDATE parties SET status = ? WHERE party_code = ?", (next_status, party_code))
         _audit_log(
@@ -4497,7 +4425,7 @@ def register_routes(app: Flask) -> None:
         )
         db.commit()
         flash(f"{party['party_name']} marked as {next_status}.", "success")
-        return redirect(url_for("customers"))
+        return redirect(url_for("customer.customer_dashboard"))
 
     @app.route("/agreements-lpos", methods=["GET", "POST"])
     @_login_required("admin")

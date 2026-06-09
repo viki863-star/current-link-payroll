@@ -46,7 +46,7 @@
                 <div class="form-actions left-actions full-span">
                     <button class="button" type="submit">{% if values.original_party_code %}Update Customer{% else %}Save Customer{% endif %}</button>
                     {% if values.original_party_code %}
-                        <a class="button button-secondary" href="{{ url_for('customers') }}">Cancel</a>
+                        <a class="button button-secondary" href="{{ url_for('customer.customer_dashboard') }}">Cancel</a>
                     {% endif %}
                 </div>
             </form>
@@ -110,7 +110,7 @@
                 </div>
                 <div class="directory-card-foot split-actions">
                     <a class="button button-secondary directory-open" href="{{ url_for('customer_statement', party_code=item.party_code) }}">Open Statement</a>
-                    <a class="button button-secondary directory-open" href="{{ url_for('customers', edit=item.party_code) }}">Edit</a>
+                    <a class="button button-secondary directory-open" href="{{ url_for('customer.customer_profile', customer_code=item.party_code) }}">Edit</a>
                     <form method="post" action="{{ url_for('archive_customer', party_code=item.party_code) }}" onsubmit="return confirm('Archive this customer from the desk?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button class="button button-secondary directory-open" type="submit">Archive</button>

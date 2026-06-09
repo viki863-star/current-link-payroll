@@ -16,7 +16,7 @@
         <div class="admin-toolbar-row">
             <div class="admin-toolbar-actions">
                 <a class="button button-secondary" href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a class="button button-secondary" href="{{ url_for('customers') }}">Customer Desk</a>
+                <a class="button button-secondary" href="{{ url_for('customer.customer_dashboard') }}">Customer Desk</a>
                 <a class="button" href="#invoice-entry">New Invoice</a>
             </div>
             <div class="admin-mini-stats">
@@ -29,7 +29,7 @@
         <div class="mini-link-stack inline-link-stack">
             <a class="mini-link-pill" href="{{ url_for('agreements_lpos') }}">Agreements</a>
             <a class="mini-link-pill" href="{{ url_for('party_list') }}">Party Master</a>
-            <a class="mini-link-pill" href="{{ url_for('customers') }}">Statements</a>
+            <a class="mini-link-pill" href="{{ url_for('customer.customer_dashboard') }}">Statements</a>
         </div>
     </article>
 
