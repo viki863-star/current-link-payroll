@@ -1165,7 +1165,77 @@ def customer_lpo_add(cid):
         flash("LPO added.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
     db.close()
-    return render_template("customer/lpo_form.html", c=c, lpo={}, today=date.today().isoformat())
+    return render_template("customer/lpo_form.html", c=c, lpo={}, items=[], today=date.today().isoformat())
+
+
+@customer_bp.route("/<int:cid>/lpo/<int:lid>/edit", methods=["GET", "POST"])
+def customer_lpo_edit(cid, lid):
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    lpo = db.execute("SELECT * FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
+    if not lpo:
+        db.close()
+        flash("LPO not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
+    if request.method == "POST":
+        lpo_no = request.form.get("lpo_no", "").strip()
+        lpo_date = request.form.get("lpo_date", date.today().isoformat())
+        status = request.form.get("status", "pending")
+        notes = request.form.get("notes", "").strip()
+        file_data = lpo["file_data"]
+        file_type = lpo["file_type"]
+        file = request.files.get("lpo_file")
+        if file and file.filename:
+            file_data = base64.b64encode(file.read()).decode("utf-8")
+            file_type = file.content_type
+        descs = request.form.getlist("item_desc[]")
+        qtys = request.form.getlist("item_qty[]")
+        units = request.form.getlist("item_unit[]")
+        rates = request.form.getlist("item_rate[]")
+        total = 0
+        items = []
+        for i in range(len(descs)):
+            desc = descs[i].strip()
+            qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+            unit = units[i] if i < len(units) else "hour"
+            rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            if desc or rate > 0:
+                amt = round(qty * rate, 2)
+                total += amt
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+        total = round(total, 2)
+        db.execute("UPDATE customer_lpos SET lpo_no=?,lpo_date=?,amount=?,status=?,notes=?,file_data=?,file_type=? WHERE id=?",
+            (lpo_no, lpo_date, total, status, notes, file_data, file_type, lid))
+        db.execute("DELETE FROM lpo_items WHERE lpo_id=?", (lid,))
+        for idx, it in enumerate(items):
+            db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
+                (lid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+        db.commit()
+        db.close()
+        flash("LPO updated.", "success")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
+    items = db.execute("SELECT * FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
+    db.close()
+    return render_template("customer/lpo_form.html", c=c, lpo=lpo, items=items, edit=True, today=date.today().isoformat())
+
+
+@customer_bp.route("/<int:cid>/lpo/<int:lid>/delete", methods=["POST"])
+def customer_lpo_delete(cid, lid):
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    lpo = db.execute("SELECT id FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
+    if not lpo:
+        db.close()
+        flash("LPO not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
+    db.execute("DELETE FROM lpo_items WHERE lpo_id=?", (lid,))
+    db.execute("DELETE FROM customer_lpos WHERE id=?", (lid,))
+    db.commit()
+    db.close()
+    flash("LPO deleted.", "success")
+    return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
 
 @customer_bp.route("/<int:cid>/lpo/<int:lid>/close", methods=["POST"])
 def customer_lpo_close(cid, lid):

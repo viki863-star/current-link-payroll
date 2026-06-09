@@ -336,11 +336,16 @@ td .mono-sm { font-size:0.75rem; }
                     <td style="display:flex;gap:4px">
                         <a href="{{ url_for('customer.customer_lpo_view', cid=c.id, lid=l.id) }}" class="btn btn-xs btn-outline">View</a>
                         {% if l.status != 'closed' %}
+                        <a href="{{ url_for('customer.customer_lpo_edit', cid=c.id, lid=l.id) }}" class="btn btn-xs btn-outline">Edit</a>
                         <form method="POST" action="{{ url_for('customer.customer_lpo_close', cid=c.id, lid=l.id) }}" style="display:inline" onsubmit="return confirm('Close this LPO?')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-xs btn-outline">Close</button>
                         </form>
                         {% endif %}
+                        <form method="POST" action="{{ url_for('customer.customer_lpo_delete', cid=c.id, lid=l.id) }}" style="display:inline" onsubmit="return confirm('Delete this LPO permanently?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-xs btn-outline" style="color:#c62828">Delete</button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}
