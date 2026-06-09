@@ -4675,7 +4675,6 @@ def register_routes(app: Flask) -> None:
         return redirect(url_for("agreements_lpos"))
 
     @app.route("/invoice-center", methods=["GET", "POST"])
-    @app.route("/invoices", methods=["GET", "POST"])
     @_login_required("admin")
     def invoice_center():
         db = open_db()
@@ -4877,7 +4876,14 @@ def register_routes(app: Flask) -> None:
             summary=_invoice_center_summary(db),
         )
 
-    @app.get("/invoices/<invoice_no>/pdf")
+
+@app.route("/invoices", methods=["GET", "POST"])
+@_login_required("admin")
+def invoices_redirect():
+    return redirect(url_for("invoice_center"))
+
+
+@app.get("/invoices/<invoice_no>/pdf")
     @_login_required("admin")
     def invoice_pdf(invoice_no: str):
         db = open_db()
