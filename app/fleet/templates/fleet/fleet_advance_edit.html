@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Edit Cash Given — {{ s.full_name }}{% endblock %}
+{% block body_class %}profile-body{% endblock %}
+{% block page_title %}Edit Cash Given to Staff{% endblock %}
+{% block content %}
+<style>
+.edit-wrap{max-width:500px;margin:0 auto}
+</style>
+<div class="edit-wrap">
+  <div class="profile-card" style="padding:20px">
+    <h3 style="margin:0 0 4px;font-size:1rem;font-weight:700">{{ s.full_name }}</h3>
+    <p style="margin:0 0 16px;font-size:0.78rem;color:var(--muted)">{{ s.staff_id }}</p>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Amount (AED)</label>
+        <input type="number" name="amount" step="0.01" min="0" required value="{{ a.amount }}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Source</label>
+        <select name="funding_source" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+          <option value="Owner Fund" {{ 'selected' if a.funding_source == 'Owner Fund' }}>Owner Fund</option>
+          <option value="Office Cash" {{ 'selected' if a.funding_source == 'Office Cash' }}>Office Cash</option>
+          <option value="Direct Payment" {{ 'selected' if a.funding_source == 'Direct Payment' }}>Direct Payment</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Given By</label>
+        <input type="text" name="given_by" value="{{ a.reference or '' }}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Date</label>
+        <input type="date" name="entry_date" value="{{ (a.entry_date or '')[:10] }}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Time</label>
+        <input type="time" name="entry_time" value="{{ (a.entry_date or '')[11:16] }}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Notes</label>
+        <input type="text" name="notes" value="{{ a.notes or '' }}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button type="submit" class="btn btn-sm btn-primary">Update</button>
+        <a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" class="btn btn-sm btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

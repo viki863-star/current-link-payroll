@@ -1277,6 +1277,44 @@ def fleet_staff_advance_delete(staff_id, advance_id):
     return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
 
 
+@fleet_bp.route("/fleet/staff/<staff_id>/advances/<int:advance_id>/edit", methods=["GET", "POST"])
+@_login_required("admin")
+def fleet_staff_advance_edit(staff_id, advance_id):
+    _touch_admin_workspace("fleet")
+    db = open_db()
+    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    if not s:
+        flash("Staff not found.", "error")
+        return redirect(url_for("fleet.fleet_staff_list"))
+    a = db.execute("SELECT * FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (advance_id, staff_id)).fetchone()
+    if not a:
+        flash("Advance not found.", "error")
+        return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+
+    if request.method == "POST":
+        amount = request.form.get("amount", "").strip()
+        entry_date = request.form.get("entry_date", "").strip()
+        entry_time = request.form.get("entry_time", "").strip()
+        funding_source = request.form.get("funding_source", "").strip() or "Owner Fund"
+        given_by = request.form.get("given_by", "").strip()
+        notes = request.form.get("notes", "").strip()
+
+        if not amount:
+            flash("Amount is required.", "error")
+            return render_template("fleet/fleet_advance_edit.html", s=s, a=a, today=date.today().isoformat(), now=datetime.now())
+
+        full_dt = f"{entry_date} {entry_time}" if entry_time else entry_date
+        db.execute(
+            "UPDATE maintenance_staff_advances SET amount=?, entry_date=?, funding_source=?, reference=?, notes=? WHERE id=?",
+            (float(amount), full_dt, funding_source, given_by or session.get("username", "Admin"), notes or "", advance_id),
+        )
+        db.commit()
+        flash("Advance updated.", "success")
+        return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+
+    return render_template("fleet/fleet_advance_edit.html", s=s, a=a, today=date.today().isoformat(), now=datetime.now())
+
+
 # ── ADMIN: Staff Profile ─────────────────────────────────────────
 
 @fleet_bp.route("/fleet/staff/<staff_id>/profile", methods=["GET", "POST"])

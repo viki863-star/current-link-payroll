@@ -141,6 +141,7 @@
             <td style="color:var(--muted);font-size:0.72rem">{{ c._notes|truncate(40) if c._notes else '—' }}</td>
             <td>
               <div class="action-btns">
+                <a href="{{ url_for('fleet.fleet_staff_advance_edit', staff_id=s.staff_id, advance_id=c.id) }}" style="background:#e3f0ff;color:var(--primary)">Edit</a>
                 <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) }}" onsubmit="return confirm('Delete this entry?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" style="background:#ffebee;color:#c62828">Del</button>
