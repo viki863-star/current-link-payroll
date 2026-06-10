@@ -1279,7 +1279,7 @@ def fleet_staff_advance_delete(staff_id, advance_id):
 
 # ── ADMIN: Staff Profile ─────────────────────────────────────────
 
-@fleet_bp.route("/fleet/staff/<staff_id>/profile")
+@fleet_bp.route("/fleet/staff/<staff_id>/profile", methods=["GET", "POST"])
 @_login_required("admin")
 def fleet_staff_profile(staff_id):
     _touch_admin_workspace("fleet")
@@ -1289,6 +1289,30 @@ def fleet_staff_profile(staff_id):
     if not s:
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
+
+    if request.method == "POST":
+        amount = request.form.get("amount", "").strip()
+        entry_date = request.form.get("entry_date", "").strip() or date.today().isoformat()
+        entry_time = request.form.get("entry_time", "").strip()
+        notes = request.form.get("notes", "").strip()
+
+        if not amount:
+            flash("Amount is required.", "error")
+            return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+
+        last = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
+        num = 1
+        if last:
+            num = int(last["advance_no"].split("-")[1]) + 1
+        adv_no = f"ADV-{num:04d}"
+        full_dt = f"{entry_date} {entry_time}" if entry_time else entry_date
+        db.execute(
+            "INSERT INTO maintenance_staff_advances (advance_no, staff_code, entry_date, funding_source, amount, reference, notes) VALUES (?,?,?,?,?,?,?)",
+            (adv_no, staff_id, full_dt, "Owner Fund", float(amount), session.get("username", "Admin"), notes or ""),
+        )
+        db.commit()
+        flash(f"AED {amount} given to {s['full_name']}.", "success")
+        return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
 
     total_received = db.execute(
         "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?",
@@ -1366,6 +1390,8 @@ def fleet_staff_profile(staff_id):
         balance=balance,
         items=items,
         cash_items=cash_items,
+        today=date.today().isoformat(),
+        now=datetime.now(),
     )
 
 

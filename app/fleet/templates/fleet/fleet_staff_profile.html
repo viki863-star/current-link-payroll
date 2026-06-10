@@ -84,7 +84,6 @@
 
   {# ═══ SECTIONS ═══ #}
 
-  {% if cash_items %}
   <div class="profile-card sp-section">
     <div class="sp-section-head">
       <h3 class="sp-section-title">
@@ -92,6 +91,31 @@
         Cash Given to Staff <span class="badge badge-dept">{{ cash_items|length }}</span>
       </h3>
     </div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;padding:12px;background:rgba(0,0,0,0.02);border-radius:12px;margin-bottom:12px">
+      <form method="POST" action="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;width:100%">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div>
+          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Amount (AED)</label>
+          <input type="number" name="amount" step="0.01" min="0" required style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem;width:130px">
+        </div>
+        <div>
+          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Date</label>
+          <input type="date" name="entry_date" value="{{ today }}" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+        </div>
+        <div>
+          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Time</label>
+          <input type="time" name="entry_time" value="{{ now.strftime('%H:%M') }}" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+        </div>
+        <div style="flex:1;min-width:120px">
+          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Notes</label>
+          <input type="text" name="notes" placeholder="Optional" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem;width:100%">
+        </div>
+        <div>
+          <button type="submit" class="btn btn-sm btn-primary" style="padding:6px 16px">Give Cash</button>
+        </div>
+      </form>
+    </div>
+    {% if cash_items %}
     <div class="table-wrap">
       <table class="sp-table">
         <thead><tr><th>Date</th><th>Amount</th><th>Type</th><th>Details</th><th style="width:90px"></th></tr></thead>
@@ -115,8 +139,8 @@
         </tbody>
       </table>
     </div>
+    {% endif %}
   </div>
-  {% endif %}
 
   {% if items %}
   <div class="profile-card sp-section">
@@ -154,7 +178,7 @@
   </div>
   {% endif %}
 
-  {% if not cash_items and not items %}
+  {% if not items %}
   <div class="profile-card" style="text-align:center;padding:40px">
     <p style="color:var(--muted);margin:0">No activity for this staff member yet.</p>
   </div>
