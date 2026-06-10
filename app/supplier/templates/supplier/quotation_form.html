@@ -1,26 +1,34 @@
 {% extends "base.html" %}
-{% block title %}Add Quotation{% endblock %}
+{% block title %}{{ 'Edit' if quotation.quotation_no else 'Add' }} Quotation{% endblock %}
 {% block page_title %}Quotation{% endblock %}
 
 {% block content %}
-<div class="form-shell" style="max-width:760px">
+<div class="form-shell" style="max-width:820px">
     <div class="profile-card">
         <div style="margin-bottom:14px">
             <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='quotations') }}" class="btn btn-outline btn-sm">&larr; Back</a>
         </div>
-        <h3 style="margin:0 0 2px">Add Quotation</h3>
+        <h3 style="margin:0 0 2px">{{ 'Edit' if quotation.quotation_no else 'Add' }} Quotation</h3>
         <p style="color:var(--muted);font-size:0.85rem;margin:0 0 16px">Supplier: <strong>{{ s.supplier_name }}</strong></p>
 
         <form method="POST" enctype="multipart/form-data" id="quotationForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;background:#f8f9fa;padding:14px;border-radius:10px;border:1px solid #eee">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px;background:#f8f9fa;padding:14px;border-radius:10px;border:1px solid #eee">
                 <div class="form-row" style="margin:0">
                     <label class="form-label">Quotation No. *</label>
                     <input type="text" name="quotation_no" value="{{ quotation.quotation_no or '' }}" class="form-control" required placeholder="e.g. QTN-2024-001">
                 </div>
                 <div class="form-row" style="margin:0">
-                    <label class="form-label">Quotation Date *</label>
+                    <label class="form-label">Date *</label>
                     <input type="date" name="quotation_date" value="{{ quotation.quotation_date or '' }}" class="form-control" required>
+                </div>
+                <div class="form-row" style="margin:0">
+                    <label class="form-label">Status</label>
+                    <div class="form-control" style="background:#f0f0f0;padding:8px 12px;font-weight:600;color:#e65100">Pending</div>
+                </div>
+                <div class="form-row" style="margin:0;grid-column:1/-1">
+                    <label class="form-label">Location / Work Site</label>
+                    <input type="text" name="location" value="{{ quotation.location or '' }}" class="form-control" placeholder="e.g. Site address, project location...">
                 </div>
             </div>
 
@@ -51,6 +59,14 @@
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;background:#f8f9fa;padding:14px;border-radius:10px;border:1px solid #eee">
                 <div class="form-row" style="margin:0;grid-column:1/-1">
+                    <label class="form-label">Contact Details</label>
+                    {% set default_contact %}
+Contact Person: Mr. Nasrullah<br>
+{% if company %}{{ company.company_name }}<br>{% if company.phone_number %}Phone: {{ company.phone_number }}{% endif %}{% if company.email %} | Email: {{ company.email }}{% endif %}<br>{% if company.address %}{{ company.address }}{% endif %}<br>TRN: {{ company.trn_no or '—' }}{% endif %}
+                    {% endset %}
+                    <textarea name="contact_details" class="form-control" rows="3" placeholder="Company contact details displayed on quotation">{{ quotation.contact_details or default_contact }}</textarea>
+                </div>
+                <div class="form-row" style="margin:0;grid-column:1/-1">
                     <label class="form-label">Description / Scope of Work</label>
                     <textarea name="description" class="form-control" rows="2" placeholder="Overall scope notes...">{{ quotation.description or '' }}</textarea>
                 </div>
@@ -63,7 +79,7 @@
                     <textarea name="notes" class="form-control" rows="2">{{ quotation.notes or '' }}</textarea>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary" style="padding:10px 28px">Add Quotation</button>
+            <button type="submit" class="btn btn-primary" style="padding:10px 28px">{{ 'Update' if quotation.quotation_no else 'Add' }} Quotation</button>
         </form>
     </div>
 </div>

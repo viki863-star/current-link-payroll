@@ -23,7 +23,10 @@
                         <td class="mono">{{ q.quotation_date }}</td>
                         <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(q.amount) }}</td>
                         <td style="font-size:0.78rem;max-width:140px;white-space:normal">{{ q.description or '—' }}</td>
-                        <td>{% if q.file_data %}<a href="{{ url_for('supplier.supplier_quotation_download', sup_id=s.id, q_id=q.id) }}" class="btn btn-xs btn-outline">Download</a>{% else %}—{% endif %}</td>
+                        <td>
+                            <a href="{{ url_for('supplier.supplier_quotation_pdf', sup_id=s.id, q_id=q.id) }}" class="btn btn-xs btn-outline" style="margin-right:4px">PDF</a>
+                            {% if q.file_data %}<a href="{{ url_for('supplier.supplier_quotation_download', sup_id=s.id, q_id=q.id) }}" class="btn btn-xs btn-outline">Download</a>{% endif %}
+                        </td>
                         <td>
                             <form method="POST" action="{{ url_for('supplier.supplier_quotation_delete', sup_id=s.id, q_id=q.id) }}" style="display:inline" onsubmit="return confirm('Delete this quotation?')">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

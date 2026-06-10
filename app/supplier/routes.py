@@ -333,6 +333,16 @@ def _ensure_tables():
             except Exception:
                 pass
 
+    for col, dtype in [("location", "TEXT"), ("contact_details", "TEXT")]:
+        try:
+            db.execute(f"ALTER TABLE supplier_quotations ADD COLUMN {col} {dtype}")
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
     for col, dtype in [("is_deleted", "INTEGER DEFAULT 0")]:
         try:
             db.execute(f"ALTER TABLE suppliers ADD COLUMN {col} {dtype}")
@@ -1509,11 +1519,14 @@ def supplier_quotation_add(sup_id):
     if request.method == "POST":
         q_no = request.form.get("quotation_no", "").strip()
         q_date = request.form.get("quotation_date", "").strip()
+        location = request.form.get("location", "").strip()
+        contact_details = request.form.get("contact_details", "").strip()
         description = request.form.get("description", "").strip()
         notes = request.form.get("notes", "").strip()
         if not q_no or not q_date:
             flash("Quotation number and date are required.", "error")
-            return render_template("supplier/quotation_form.html", s=s, quotation={})
+            company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+            return render_template("supplier/quotation_form.html", s=s, company=company, quotation={})
 
         file_data = None
         file_type = None
@@ -1530,8 +1543,8 @@ def supplier_quotation_add(sup_id):
         rates = request.form.getlist("item_rate[]")
 
         row = db.execute(
-            "INSERT INTO supplier_quotations (supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes) VALUES (?,?,?,?,?,?,?,?) RETURNING id",
-            (sup_id, q_no, q_date, 0, description, file_data, file_type, notes),
+            "INSERT INTO supplier_quotations (supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, location, contact_details) VALUES (?,?,?,?,?,?,?,?,?,?) RETURNING id",
+            (sup_id, q_no, q_date, 0, description, file_data, file_type, notes, location, contact_details),
         ).fetchone()
         q_id = row["id"]
 
@@ -1556,7 +1569,8 @@ def supplier_quotation_add(sup_id):
         return redirect(url_for("supplier.supplier_quotation_list", sup_id=sup_id))
 
 
-    return render_template("supplier/quotation_form.html", s=s, quotation={})
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    return render_template("supplier/quotation_form.html", s=s, company=company, quotation={})
 
 
 @supplier_bp.route("/<int:sup_id>/quotations/<int:q_id>/items")
@@ -1567,6 +1581,288 @@ def supplier_quotation_items_api(sup_id, q_id):
 
     from flask import jsonify
     return jsonify([dict(i) for i in items])
+
+
+@supplier_bp.route("/<int:sup_id>/quotations/<int:q_id>/download")
+@supplier_bp.route("/<int:sup_id>/quotations/<int:q_id>/pdf")
+def supplier_quotation_pdf(sup_id, q_id):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from reportlab.platypus import Image as RLImage
+    from reportlab.lib.units import cm
+    from io import BytesIO
+    import os, base64
+
+    _ensure_tables()
+    db = _get_db()
+    q = db.execute("SELECT * FROM supplier_quotations WHERE id=? AND supplier_id=?", (q_id, sup_id)).fetchone()
+    s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    items = db.execute("SELECT * FROM supplier_quotation_items WHERE quotation_id=? ORDER BY sort_order", (q_id,)).fetchall()
+    try:
+        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    except Exception:
+        company = None
+
+    if not q or not s:
+        flash("Quotation not found.", "error")
+        return redirect(url_for("supplier.supplier_quotation_list", sup_id=sup_id))
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+        leftMargin=2*cm, rightMargin=2*cm,
+        topMargin=1.5*cm, bottomMargin=1.5*cm)
+
+    NAVY = colors.HexColor("#1a3a5c")
+    LINE = colors.HexColor("#e2e8f0")
+    MUTED = colors.HexColor("#94a3b8")
+    DARK = colors.HexColor("#0f172a")
+
+    s_hdr = ParagraphStyle("hdr", fontSize=11, fontName="Helvetica-Bold", textColor=NAVY, leading=14)
+    s_hdr_sm = ParagraphStyle("hsm", fontSize=7.5, textColor=MUTED, leading=10)
+    s_title = ParagraphStyle("tit", fontSize=16, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=18)
+    s_info = ParagraphStyle("inf", fontSize=9, textColor=DARK, leading=12, spaceAfter=2)
+    s_info_lbl = ParagraphStyle("ibl", fontSize=7, textColor=colors.HexColor("#64748b"), leading=9, spaceAfter=0)
+    s_sec = ParagraphStyle("sec", fontSize=10, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f2b52"), leading=12, spaceAfter=4, spaceBefore=8)
+    s_cell = ParagraphStyle("cel", fontSize=8, leading=10, spaceAfter=0)
+    s_cell_b = ParagraphStyle("celb", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_CENTER)
+    s_cell_r = ParagraphStyle("celr", fontSize=8, leading=10, spaceAfter=0, alignment=TA_RIGHT)
+    s_sign = ParagraphStyle("sgn", fontSize=8, alignment=TA_CENTER, leading=10, textColor=DARK)
+    s_foot = ParagraphStyle("fot", fontSize=6.5, textColor=MUTED, alignment=TA_CENTER, leading=8)
+
+    basis_labels = {"trip": "Trip", "hour": "Hour", "daily": "Daily", "weekly": "Weekly", "monthly": "Monthly", "kg": "Kg", "gallon": "Gallon", "lump": "Lump Sum", "fixed": "Fixed", "other": "Other"}
+    total_amt = q["amount"] or 0
+
+    cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT") or "CURRENT LINK TRANSPORT"
+    c_addr = (company["address"] if company else "") or ""
+    c_trn = (company["trn_no"] if company else "XXXXXXXXXX") or "XXXXXXXXXX"
+    c_ph = (company["phone_number"] if company else "") or ""
+    c_em = (company["email"] if company else "") or ""
+
+    logo_img = None
+    if company and company.get("logo_data"):
+        try:
+            logo_img = RLImage(BytesIO(base64.b64decode(company["logo_data"])), width=22*mm, height=22*mm)
+        except Exception:
+            logo_img = None
+
+    els = []
+
+    # ── HEADER ──
+    co_lines = []
+    if c_addr: co_lines.append("<font size=7>" + c_addr + "</font>")
+    parts = []
+    if c_ph: parts.append("Phone: " + c_ph)
+    if c_em: parts.append("Email: " + c_em)
+    if parts: co_lines.append("<font size=7>" + " &middot; ".join(parts) + "</font>")
+    co_lines.append("<font size=7><b>TRN:</b> " + c_trn + "</font>")
+    co_html = cn + "<br/>" + "<br/>".join(co_lines)
+    if logo_img:
+        hdr_data = [[logo_img, Paragraph(co_html, s_hdr), Paragraph("QUOTATION<br/><font size=8>#: <b>" + q['quotation_no'] + "</b></font>", s_title)]]
+        hdr_tbl = Table(hdr_data, colWidths=[2.2*cm, None, None])
+    else:
+        hdr_data = [[Paragraph(co_html, s_hdr), Paragraph("QUOTATION<br/><font size=8>#: <b>" + q['quotation_no'] + "</b></font>", s_title)]]
+        hdr_tbl = Table(hdr_data, colWidths=[None, None])
+    hdr_tbl.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("LINEBELOW", (0,0), (-1,0), 2.5, NAVY),
+        ("TOPPADDING", (0,0), (-1,-1), 0),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ("LEFTPADDING", (0,0), (-1,-1), 0),
+        ("RIGHTPADDING", (0,0), (-1,-1), 0),
+    ]))
+    els.append(hdr_tbl)
+    els.append(Spacer(1, 3*mm))
+
+    # ── INFO section ──
+    els.append(Paragraph("QUOTATION INFORMATION", s_sec))
+    info_rows = [
+        [Paragraph("Quotation No.", s_info_lbl), Paragraph(q['quotation_no'], s_info),
+         Paragraph("Date", s_info_lbl), Paragraph(q['quotation_date'], s_info),
+         Paragraph("", s_info_lbl), Paragraph("", s_info)],
+        [Paragraph("Supplier", s_info_lbl), Paragraph(s['supplier_name'], s_info),
+         Paragraph("Location / Work Site", s_info_lbl), Paragraph(q.get('location') or '—', s_info),
+         Paragraph("", s_info_lbl), Paragraph("", s_info)],
+    ]
+    info_tbl = Table(info_rows, colWidths=[None, None, None, None, None, None])
+    info_tbl.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("BOX", (0,0), (-1,-1), 0.5, LINE),
+        ("INNERGRID", (0,0), (-1,-1), 0.3, LINE),
+        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f8fafc")),
+        ("TOPPADDING", (0,0), (-1,-1), 3),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        ("LEFTPADDING", (0,0), (-1,-1), 5),
+        ("RIGHTPADDING", (0,0), (-1,-1), 5),
+    ]))
+    els.append(info_tbl)
+    els.append(Spacer(1, 3*mm))
+
+    # ── ITEMS TABLE ──
+    els.append(Paragraph("SERVICE / WORK ITEMS", s_sec))
+    i_hdr = [Paragraph("<b>#</b>", s_cell_b), Paragraph("<b>Description</b>", s_cell),
+             Paragraph("<b>QTY</b>", s_cell_b), Paragraph("<b>Basis</b>", s_cell),
+             Paragraph("<b>Rate (AED)</b>", s_cell_b), Paragraph("<b>Amount</b>", s_cell_b)]
+    i_rows = [i_hdr]
+    for idx, it in enumerate(items):
+        i_rows.append([
+            Paragraph(str(idx+1), s_cell_b), Paragraph(it["description"], s_cell),
+            Paragraph(str(it["qty"]), s_cell_b),
+            Paragraph(basis_labels.get(it["basis_type"], it["basis_type"]), s_cell),
+            Paragraph(f"{it['day_rate'] or 0:,.2f}", s_cell_r),
+            Paragraph(f"{it['amount'] or 0:,.2f}", ParagraphStyle("cr3", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_RIGHT)),
+        ])
+    i_rows.append([
+        Paragraph("", s_cell), Paragraph("<b>TOTAL</b>", ParagraphStyle("tl", fontSize=10, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=13)),
+        Paragraph("", s_cell), Paragraph("", s_cell), Paragraph("", s_cell),
+        Paragraph(f"<b>{total_amt:,.2f}</b>", ParagraphStyle("tv", fontSize=11, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=14)),
+    ])
+    i_tbl = Table(i_rows, colWidths=[None]*6, repeatRows=1)
+    i_tbl.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("BOX", (0,0), (-1,-1), 0.5, LINE),
+        ("INNERGRID", (0,0), (-1,-2), 0.3, LINE),
+        ("BACKGROUND", (0,0), (-1,0), NAVY),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f0f4f8")),
+        ("TOPPADDING", (0,0), (-1,-1), 3),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        ("LEFTPADDING", (0,0), (-1,-1), 4),
+        ("RIGHTPADDING", (0,0), (-1,-1), 4),
+    ]))
+    els.append(i_tbl)
+    els.append(Spacer(1, 2*mm))
+
+    # ── SUB TOTAL / VAT / TOTAL ──
+    sub_total = total_amt
+    vat_pct = 5
+    vat_amt = round(sub_total * vat_pct / 100, 2)
+    grand_total = round(sub_total + vat_amt, 2)
+
+    s_sm = ParagraphStyle("sm", fontSize=9, alignment=TA_RIGHT, leading=12)
+    s_sm_b = ParagraphStyle("smb", fontSize=9, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=12)
+    s_sm_l = ParagraphStyle("sml", fontSize=9, textColor=MUTED, alignment=TA_RIGHT, leading=12)
+
+    totals_rows = [
+        [Paragraph("Sub Total", s_sm_l), Paragraph(f"AED {sub_total:,.2f}", s_sm)],
+        [Paragraph(f"VAT @ {vat_pct}%", s_sm_l), Paragraph(f"AED {vat_amt:,.2f}", s_sm)],
+        [Paragraph("", s_sm), Paragraph("", s_sm)],
+        [Paragraph("<b>Total</b>", s_sm_b), Paragraph(f"<b>AED {grand_total:,.2f}</b>", ParagraphStyle("tv2", fontSize=11, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=14))],
+    ]
+    totals_tbl = Table(totals_rows, colWidths=[None, 4*cm])
+    totals_tbl.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("LINEBELOW", (0,0), (-1,-2), 0.3, colors.HexColor("#ddd")),
+        ("LINEBELOW", (0,-1), (-1,-1), 1.5, NAVY),
+        ("TOPPADDING", (0,0), (-1,-1), 2),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+    ]))
+    els.append(totals_tbl)
+    els.append(Spacer(1, 2*mm))
+
+    # ── AMOUNT IN WORDS ──
+    def num_to_words(n):
+        if n == 0: return "Zero Only"
+        ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
+                "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen",
+                "Seventeen","Eighteen","Nineteen"]
+        tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
+        def cvt(x):
+            if x < 20: return ones[x]
+            if x < 100: return tens[x//10] + (" " + ones[x%10] if x%10 else "")
+            if x < 1000: return ones[x//100] + " Hundred" + (" " + cvt(x%100) if x%100 else "")
+            if x < 100000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
+            return cvt(x//100000) + " Lakh" + (" " + cvt(x%100000) if x%100000 else "")
+        ip = int(n); dp = round((n - ip) * 100)
+        w = cvt(ip)
+        if dp: w += f" and {dp}/100"
+        return "AED " + w + " Only"
+
+    words_p = Paragraph("<b>Amount in Words:</b> " + num_to_words(grand_total), ParagraphStyle("wrds", fontSize=8.5, textColor=colors.HexColor("#64748b"), leading=11))
+    words_box = Table([[words_p]], colWidths=[None])
+    words_box.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f8fafc")),
+        ("BOX", (0,0), (-1,-1), 0.5, LINE),
+        ("TOPPADDING", (0,0), (-1,-1), 4), ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ("LEFTPADDING", (0,0), (-1,-1), 8), ("RIGHTPADDING", (0,0), (-1,-1), 8),
+    ]))
+    els.append(words_box)
+    els.append(Spacer(1, 3*mm))
+
+    # ── CONTACT DETAILS & TERMS ──
+    contact_text = q.get("contact_details") or ""
+    if contact_text:
+        els.append(Paragraph("CONTACT DETAILS", s_sec))
+        contact_display = "<b>Contact Person:</b> Mr. Nasrullah<br/>" + contact_text
+        els.append(Paragraph(contact_display, ParagraphStyle("cnt", fontSize=8, textColor=colors.HexColor("#334155"), leading=11, spaceAfter=4)))
+
+    desc_text = q["description"] or ""
+    notes_text = q["notes"] or ""
+    if desc_text or notes_text:
+        els.append(Paragraph("SCOPE &amp; TERMS", s_sec))
+        if desc_text:
+            els.append(Paragraph("<b>Scope / Notes</b><br/>" + desc_text, ParagraphStyle("nts", fontSize=8, textColor=colors.HexColor("#334155"), leading=11, spaceAfter=4)))
+        if notes_text:
+            els.append(Paragraph("<b>Special Terms</b><br/>" + notes_text, ParagraphStyle("stn", fontSize=8, textColor=colors.HexColor("#334155"), leading=11, spaceAfter=4)))
+
+    # ── Standard Terms ──
+    els.append(Spacer(1, 2*mm))
+    std_terms = [
+        "This quotation is valid for 15 days from the date of issue.",
+        "VAT @ 5% will be charged separately as per UAE Federal Law.",
+        "Payment as per agreed payment terms.",
+        "Location of work as mentioned above unless otherwise agreed.",
+        "Any changes to scope require a revised quotation.",
+    ]
+    t_html = "<b>Terms &amp; Conditions</b><br/>" + "<br/>".join([chr(8226) + " " + t for t in std_terms])
+    els.append(Paragraph(t_html, ParagraphStyle("st", fontSize=7.5, textColor=colors.HexColor("#64748b"), leading=11, leftIndent=6)))
+
+    # ── AUTHORIZED SIGNATORY ──
+    els.append(Spacer(1, 6*mm))
+    s_stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
+    s_sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
+    s_auth_cells = []
+    s_auth_cells.append(Paragraph("_________________________", s_sign))
+    if os.path.exists(s_stamp_path):
+        s_auth_cells.append(RLImage(s_stamp_path, width=38, height=38))
+    if os.path.exists(s_sign_path):
+        s_auth_cells.append(RLImage(s_sign_path, width=38, height=38))
+    s_auth_cells.append(Paragraph("<b>Authorized Signatory</b><br/><font size=6>" + cn + "</font>", s_sign))
+    s_auth_cell = Table([[c] for c in s_auth_cells], colWidths=[5*cm])
+    s_auth_cell.setStyle(TableStyle([
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("TOPPADDING", (0,0), (-1,-1), 0),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 2),
+    ]))
+    sig_tbl = Table([[
+        s_auth_cell,
+        Paragraph("", s_sign),
+        Paragraph("_________________________<br/><b>Customer Sign &amp; Stamp</b><br/><font size=7>Date: _____/_____/_____</font>", s_sign),
+    ]], colWidths=[5*cm, 2*cm, 5*cm])
+    sig_tbl.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+    ]))
+    els.append(sig_tbl)
+
+    # ── FOOTER ──
+    els.append(Spacer(1, 4*mm))
+    els.append(Paragraph("This is a computer-generated quotation. No signature required for electronic transmission.", s_foot))
+    els.append(Paragraph("Generated on: " + datetime.now().strftime("%d-%b-%Y %H:%M"), ParagraphStyle("gn", fontSize=6, textColor=colors.HexColor("#aaa"), alignment=TA_CENTER, leading=8, spaceAfter=0)))
+
+    doc.build(els)
+    pdf_data = buf.getvalue()
+    buf.close()
+
+    return send_file(
+        BytesIO(pdf_data),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"Quotation_{q['quotation_no']}.pdf",
+    )
 
 
 @supplier_bp.route("/<int:sup_id>/quotations/<int:q_id>/download")
