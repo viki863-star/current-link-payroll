@@ -49,7 +49,7 @@
             </div>
             {% endif %}
             <div style="padding-top:{% if company and company.logo_data %}4px{% else %}0{% endif %}">
-                <h2 style="font-size:1.4rem;font-weight:800">{{ company.company_name if company else "AL SAQR TRANSPORT" }}</h2>
+                <h2 style="font-size:1.4rem;font-weight:800">{{ company.company_name if company else "CURRENT LINK TRANSPORT" }}</h2>
                 <div class="detail" style="font-size:0.78rem;margin-top:4px">{{ company.address if company else "Dubai, UAE" }}</div>
                 <div class="detail" style="font-size:0.78rem">Phone: {{ company.phone_number or "+971" if company else "+971" }} &middot; Email: {{ company.email if company else "info@example.ae" }}</div>
                 <div class="detail" style="font-size:0.78rem;font-weight:700">TRN: {{ company.trn_no if company else "XXXXXXXXXX" }}</div>
@@ -64,7 +64,7 @@
     {# ─── INFO ─── #}
     <div class="inv-info-grid">
         <div class="inv-info-card">
-            <h4>Bill To</h4>
+            <h4>Customer</h4>
             <div class="inv-customer-name">{{ c.customer_name }}</div>
             {% if c.address %}<div class="inv-info-line">{{ c.address }}</div>{% endif %}
             {% if c.trn %}<div class="inv-info-line"><span class="lbl">TRN:</span> <span class="val">{{ c.trn }}</span></div>{% endif %}
@@ -141,25 +141,12 @@
         </ol>
     </div>
 
-    {# ─── BANK DETAILS ─── #}
-    {% if company and (company.bank_name or company.bank_account_name or company.bank_account_number or company.iban) %}
-    <div style="margin-bottom:14px;padding:12px 15px;background:#fff;border-radius:10px;border:1.5px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
-        <h4 style="margin:0 0 8px;font-size:0.6rem;text-transform:uppercase;color:#94a3b8;letter-spacing:0.7px;font-weight:700">Bank Details</h4>
-        <div style="font-size:0.76rem">
-            {% if company.bank_name %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Bank:</span><span style="color:#0f172a;font-weight:500">{{ company.bank_name }}</span></div>{% endif %}
-            {% if company.bank_account_name %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Account:</span><span style="color:#0f172a;font-weight:500">{{ company.bank_account_name }}</span></div>{% endif %}
-            {% if company.bank_account_number %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">A/C No.:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.bank_account_number }}</span></div>{% endif %}
-            {% if company.iban %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">IBAN:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.iban }}</span></div>{% endif %}
-            {% if company.swift_code %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Swift:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.swift_code }}</span></div>{% endif %}
-        </div>
-    </div>
-    {% endif %}
-
     {# ─── CONTACT DETAILS ─── #}
     {% if company and (company.phone_number or company.email or company.trn_no) %}
     <div style="margin-bottom:14px;padding:12px 15px;background:#fff;border-radius:10px;border:1.5px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
         <h4 style="margin:0 0 8px;font-size:0.6rem;text-transform:uppercase;color:#94a3b8;letter-spacing:0.7px;font-weight:700">Contact Details</h4>
         <div style="font-size:0.76rem">
+            <div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Contact Person:</span><span style="color:#0f172a;font-weight:500">Mr. Nasrullah</span></div>
             {% if company.phone_number %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Phone:</span><span style="color:#0f172a;font-weight:500">{{ company.phone_number }}</span></div>{% endif %}
             {% if company.email %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Email:</span><span style="color:#0f172a;font-weight:500">{{ company.email }}</span></div>{% endif %}
             {% if company.trn_no %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">TRN:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.trn_no }}</span></div>{% endif %}

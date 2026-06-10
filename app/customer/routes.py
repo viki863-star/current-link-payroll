@@ -593,7 +593,7 @@ def customer_invoice_pdf(cid, iid):
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64748b"); C6 = colors.HexColor("#dc2626")
 
-    cn = company["company_name"] if company else "AL SAQR TRANSPORT"
+    cn = company["company_name"] if company else "CURRENT LINK TRANSPORT"
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""
@@ -1299,7 +1299,7 @@ def customer_quotation_pdf(cid, qid):
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64748b"); C6 = colors.HexColor("#dc2626")
 
-    cn = company["company_name"] if company else "AL SAQR TRANSPORT"
+    cn = company["company_name"] if company else "CURRENT LINK TRANSPORT"
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""
@@ -1396,7 +1396,7 @@ def customer_quotation_pdf(cid, qid):
     if c["address"]: bd.append(("Address", c["address"]))
     id_ = [("Quotation #", q_no), ("Date", q_dt), ("Status", q["status"].upper() if q["status"] else "PENDING")]
 
-    iw = Table([[card("BILL TO", bd), Spacer(1, 4*mm), card("QUOTATION INFO", id_)]], colWidths=[W*0.50, 4*mm, W*0.50])
+    iw = Table([[card("CUSTOMER", bd), Spacer(1, 4*mm), card("QUOTATION INFO", id_)]], colWidths=[W*0.50, 4*mm, W*0.50])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(iw)
     els.append(Spacer(1, 5*mm))
@@ -1540,21 +1540,18 @@ def customer_quotation_pdf(cid, qid):
     tb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#fffbeb")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#fde68a")),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
     els.append(tb)
 
-    # BANK DETAILS
-    if company and (company["bank_name"] or company["bank_account_name"] or company["bank_account_number"] or company["iban"]):
-        bk_items = []
-        if company["bank_name"]: bk_items.append(("Bank", company["bank_name"]))
-        if company["bank_account_name"]: bk_items.append(("Account", company["bank_account_name"]))
-        if company["bank_account_number"]: bk_items.append(("A/C No.", company["bank_account_number"]))
-        if company["iban"]: bk_items.append(("IBAN", company["iban"]))
-        if company["swift_code"]: bk_items.append(("Swift", company["swift_code"]))
-        if bk_items:
-            els.append(Spacer(1, 2*mm))
-            els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=8, fontName="Helvetica-Bold", textColor=C5, leading=10, spaceAfter=2)))
-            bk_rows = [[Paragraph(f"<font color='#64748b'>{lbl}:</font>", S("_bkl", fontSize=8, textColor=C5, leading=12)), Paragraph(f"<b>{val}</b>", S("_bkv", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=12))] for lbl, val in bk_items]
-            bkt = Table(bk_rows, colWidths=[22*mm, W - 22*mm])
-            bkt.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),1.5),("BOTTOMPADDING",(0,0),(-1,-1),1.5),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-            els.append(bkt)
+    # CONTACT DETAILS
+    if company:
+        els.append(Spacer(1, 3*mm))
+        cd_items = [("Contact Person", "Mr. Nasrullah")]
+        if company["phone_number"]: cd_items.append(("Phone", company["phone_number"]))
+        if company["email"]: cd_items.append(("Email", company["email"]))
+        if company["trn_no"]: cd_items.append(("TRN", company["trn_no"]))
+        els.append(Paragraph("<b>CONTACT DETAILS</b>", S("BD", fontSize=8, fontName="Helvetica-Bold", textColor=C5, leading=10, spaceAfter=2)))
+        cd_rows = [[Paragraph(f"<font color='#64748b'>{lbl}:</font>", S("_bkl", fontSize=8, textColor=C5, leading=12)), Paragraph(f"<b>{val}</b>", S("_bkv", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=12))] for lbl, val in cd_items]
+        cdt = Table(cd_rows, colWidths=[22*mm, W - 22*mm])
+        cdt.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),1.5),("BOTTOMPADDING",(0,0),(-1,-1),1.5),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+        els.append(cdt)
 
     # SIGNATURES
     els.append(Spacer(1, 3*mm))
