@@ -1259,6 +1259,26 @@ def customer_quotation_delete(cid, qid):
     flash("Quotation deleted.", "success")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
 
+
+@customer_bp.route("/<int:cid>/quotation/<int:qid>/approve", methods=["POST"])
+def customer_quotation_approve(cid, qid):
+    _ensure_tables()
+    db = _get_db()
+    q = db.execute("SELECT * FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
+    if not q:
+        db.close()
+        flash("Quotation not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
+    if q["status"] != "pending":
+        db.close()
+        flash("Only pending quotations can be approved.", "error")
+        return redirect(url_for("customer.customer_quotation_view", cid=cid, qid=qid))
+    db.execute("UPDATE customer_quotations SET status='approved' WHERE id=?", (qid,))
+    db.commit()
+    db.close()
+    flash(f"Quotation {q['quotation_no']} approved!", "success")
+    return redirect(url_for("customer.customer_quotation_view", cid=cid, qid=qid))
+
 @customer_bp.route("/<int:cid>/quotation/<int:qid>/view")
 def customer_quotation_view(cid, qid):
     _ensure_tables()

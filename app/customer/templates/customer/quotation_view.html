@@ -168,6 +168,12 @@
 
     {# ─── ACTIONS ─── #}
     <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+        {% if q.status == 'pending' %}
+        <form method="POST" action="{{ url_for('customer.customer_quotation_approve', cid=c.id, qid=q.id) }}" style="display:inline" onsubmit="return confirm('Approve this quotation?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary" style="background:#16a34a;border-color:#16a34a">Approve</button>
+        </form>
+        {% endif %}
         <a href="{{ url_for('customer.customer_quotation_edit', cid=c.id, qid=q.id) }}" class="btn btn-outline">Edit</a>
         <a href="{{ url_for('customer.customer_quotation_pdf', cid=c.id, qid=q.id) }}" class="btn btn-primary" target="_blank">Download PDF</a>
         <form method="POST" action="{{ url_for('customer.customer_quotation_delete', cid=c.id, qid=q.id) }}" style="display:inline" onsubmit="return confirm('Delete quotation {{ q.quotation_no }}?')">

@@ -305,7 +305,7 @@ td .mono-sm { font-size:0.75rem; }
                     <td class="mono">{{ "%.0f"|format(q.vat_amount or 0) }}</td>
                     <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(q.total_amount or q.amount or 0) }}</td>
                     <td class="mono" style="color:var(--muted)">{{ q.items_count or '—' }}</td>
-                    <td><span class="status-badge {% if q.status == 'approved' %}approved{% elif q.status == 'rejected' %}pending{% else %}active{% endif %}">{{ q.status }}</span></td>
+                    <td><span class="status-badge {% if q.status == 'approved' %}approved{% elif q.status == 'rejected' %}rejected{% else %}active{% endif %}">{{ q.status }}</span></td>
                     <td>
                         <div style="display:flex;gap:4px">
                         <a href="{{ url_for('customer.customer_quotation_view', cid=c.id, qid=q.id) }}" class="btn btn-xs btn-outline">View</a>
