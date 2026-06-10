@@ -1406,7 +1406,10 @@ def customer_quotation_pdf(cid, qid):
     if c["email"]: bd.append(("Email", c["email"]))
     if c["address"]: bd.append(("Address", c["address"]))
     id_ = [("Quotation #", q_no), ("Date", q_dt), ("Status", q["status"].upper() if q["status"] else "PENDING")]
-    if q.get("location"): id_.append(("Location", q["location"]))
+    try:
+        if q["location"]: id_.append(("Location", q["location"]))
+    except (KeyError, IndexError):
+        pass
 
     iw = Table([[card("CUSTOMER", bd), Spacer(1, 4*mm), card("QUOTATION INFO", id_)]], colWidths=[W*0.50, 4*mm, W*0.50])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
