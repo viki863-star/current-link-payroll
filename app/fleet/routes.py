@@ -1386,7 +1386,7 @@ def fleet_staff_profile(staff_id):
         return redirect(url_for("fleet.fleet_staff_list"))
 
     total_received = db.execute(
-        "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?",
+        "SELECT COALESCE(SUM(amount),0) AS t FROM cash_receipts WHERE staff_id = ?",
         (staff_id,),
     ).fetchone()["t"] or 0
 
@@ -1435,21 +1435,21 @@ def fleet_staff_profile(staff_id):
         items.append(d)
     items.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
 
-    advances = db.execute(
-        "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
+    receipts = db.execute(
+        "SELECT * FROM cash_receipts WHERE staff_id = ? ORDER BY receipt_date DESC",
         (staff_id,),
     ).fetchall()
 
     cash_items = []
-    for a in advances:
-        d = dict(a)
-        d["_type"] = "advance"
-        d["_id"] = f"advance_{a['id']}"
-        d["_date"] = str(a.get("entry_date", ""))
-        d["_amount"] = a["amount"]
-        d["_source"] = a.get("funding_source", "Advance")
-        d["_notes"] = a.get("notes", a.get("reference", ""))
-        d["_given_by"] = ""
+    for r in receipts:
+        d = dict(r)
+        d["_type"] = "receipt"
+        d["_id"] = f"receipt_{r['id']}"
+        d["_date"] = str(r.get("receipt_date", ""))
+        d["_amount"] = r["amount"]
+        d["_source"] = r.get("given_by", "")
+        d["_notes"] = r.get("notes", "")
+        d["_given_by"] = r.get("given_by", "")
         cash_items.append(d)
     cash_items.sort(key=lambda x: x["_date"], reverse=True)
 
@@ -1460,7 +1460,6 @@ def fleet_staff_profile(staff_id):
         total_spent=total_spent,
         balance=balance,
         items=items,
-        advances=advances,
         cash_items=cash_items,
     )
 

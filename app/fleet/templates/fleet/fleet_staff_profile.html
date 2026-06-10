@@ -90,7 +90,7 @@
     <div class="sp-section-head">
       <h3 class="sp-section-title">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-        Cash Received <span class="badge badge-dept">{{ cash_items|length }}</span>
+        Cash Given to Staff <span class="badge badge-dept">{{ cash_items|length }}</span>
       </h3>
     </div>
     <div class="table-wrap">
@@ -105,7 +105,7 @@
             <td style="color:var(--muted);font-size:0.72rem">{{ c._source }}{% if c._notes %} &middot; {{ c._notes|truncate(50) }}{% endif %}</td>
             <td>
               <div class="action-btns">
-                <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) }}" onsubmit="return confirm('Delete this entry?')">
+                <form method="POST" action="{{ url_for('fleet.fleet_staff_receipt_delete', staff_id=s.staff_id, receipt_id=c.id) }}" onsubmit="return confirm('Delete this entry?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" style="background:#ffebee;color:#c62828">Del</button>
                 </form>
