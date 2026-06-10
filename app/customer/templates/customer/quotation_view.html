@@ -76,6 +76,7 @@
             <div class="inv-info-line"><span class="lbl">Quotation #:</span> <span class="val">{{ q.quotation_no }}</span></div>
             <div class="inv-info-line"><span class="lbl">Date:</span> <span class="val">{{ q.quotation_date }}</span></div>
             <div class="inv-info-line"><span class="lbl">Status:</span> <span class="val" style="text-transform:uppercase">{{ q.status or 'pending' }}</span></div>
+            {% if q.location %}<div class="inv-info-line"><span class="lbl">Location:</span> <span class="val">{{ q.location }}</span></div>{% endif %}
         </div>
     </div>
 

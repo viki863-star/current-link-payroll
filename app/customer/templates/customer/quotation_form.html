@@ -64,6 +64,25 @@
                 <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">VAT %</label>
                 <input type="number" name="vat_percent" value="{{ q.vat_percent or 5 }}" step="any" min="0" id="vatPercent" oninput="calcTotals()" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
             </div>
+            <div style="grid-column:1/-1">
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Location / Work Site</label>
+                <input type="text" name="location" value="{{ q.location or '' }}" placeholder="e.g. Site address, project location..." style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+            </div>
+        </div>
+
+        {# ─── Contact Details ─── #}
+        <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:18px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Contact Details (shown on quotation)</label>
+                {% set company = company or None %}
+                {% set default_contact %}
+Contact Person: Mr. Nasrullah
+CURRENT LINK TRANSPORT AND GENERAL CONTRACTING
+Phone: 0581082900 | Email: info@currentlinktgc.com
+TRN: 105046792500003
+                {% endset %}
+                <textarea name="contact_details" class="form-control" rows="3" placeholder="Contact details displayed on quotation">{{ q.contact_details or default_contact }}</textarea>
+            </div>
         </div>
 
         {# ─── Line Items ─── #}

@@ -173,6 +173,11 @@ def _ensure_tables():
             db.execute(f"ALTER TABLE customer_quotations ADD COLUMN {col} {dtype}")
         except Exception:
             pass
+    for col, dtype in [("location", "TEXT"), ("contact_details", "TEXT")]:
+        try:
+            db.execute(f"ALTER TABLE customer_quotations ADD COLUMN {col} {dtype}")
+        except Exception:
+            pass
     db.execute("""
         CREATE TABLE IF NOT EXISTS customer_quotation_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1134,14 +1139,17 @@ def customer_quotation_add(cid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
     next_no = _next_quotation_no(db)
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     if request.method == "POST":
         q_date = request.form.get("quotation_date", date.today().isoformat())
         q_no = request.form.get("quotation_no", "").strip() or next_no
+        location = request.form.get("location", "").strip()
+        contact_details = request.form.get("contact_details", "").strip()
         existing = db.execute("SELECT id FROM customer_quotations WHERE quotation_no=?", (q_no,)).fetchone()
         if existing:
             flash(f"Quotation number '{q_no}' already exists.", "error")
             db.close()
-            return render_template("customer/quotation_form.html", c=c, q={}, today=date.today().isoformat(), next_no=next_no)
+            return render_template("customer/quotation_form.html", c=c, q={}, company=company, today=date.today().isoformat(), next_no=next_no)
         vat_pct = float(request.form.get("vat_percent", 5))
         terms = request.form.get("terms", "").strip()
         notes = request.form.get("notes", "").strip()
@@ -1163,13 +1171,13 @@ def customer_quotation_add(cid):
         if not items:
             flash("At least one line item is required.", "error")
             db.close()
-            return render_template("customer/quotation_form.html", c=c, q={}, today=date.today().isoformat(), next_no=next_no)
+            return render_template("customer/quotation_form.html", c=c, q={}, company=company, today=date.today().isoformat(), next_no=next_no)
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
         cur = db.execute(
-            """INSERT INTO customer_quotations (customer_id,quotation_no,quotation_date,sub_total,vat_percent,vat_amount,total_amount,status,terms,notes)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            (cid, q_no, q_date, sub_total, vat_pct, vat_amt, total, "pending", terms, notes))
+            """INSERT INTO customer_quotations (customer_id,quotation_no,quotation_date,sub_total,vat_percent,vat_amount,total_amount,status,terms,notes,location,contact_details)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, q_no, q_date, sub_total, vat_pct, vat_amt, total, "pending", terms, notes, location, contact_details))
         qid = cur.lastrowid
         for idx, it in enumerate(items):
             db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
@@ -1184,7 +1192,7 @@ def customer_quotation_add(cid):
         flash(f"Quotation {q_no} created.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
     db.close()
-    return render_template("customer/quotation_form.html", c=c, q={}, today=date.today().isoformat(), next_no=next_no)
+    return render_template("customer/quotation_form.html", c=c, q={}, company=company, today=date.today().isoformat(), next_no=next_no)
 
 @customer_bp.route("/<int:cid>/quotation/<int:qid>/edit", methods=["GET", "POST"])
 def customer_quotation_edit(cid, qid):
@@ -1198,9 +1206,12 @@ def customer_quotation_edit(cid, qid):
         flash("Quotation not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
     items = db.execute("SELECT * FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     if request.method == "POST":
         q_date = request.form.get("quotation_date", q["quotation_date"])
         q_no = request.form.get("quotation_no", "").strip() or q["quotation_no"]
+        location = request.form.get("location", "").strip()
+        contact_details = request.form.get("contact_details", "").strip()
         vat_pct = float(request.form.get("vat_percent", q["vat_percent"] or 5))
         terms = request.form.get("terms", "").strip()
         notes = request.form.get("notes", "").strip()
@@ -1222,12 +1233,12 @@ def customer_quotation_edit(cid, qid):
         if not new_items:
             flash("At least one line item is required.", "error")
             db.close()
-            return render_template("customer/quotation_form.html", c=c, q=q, items=items, edit=True, today=date.today().isoformat())
+            return render_template("customer/quotation_form.html", c=c, q=q, items=items, edit=True, company=company, today=date.today().isoformat())
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
         db.execute(
-            """UPDATE customer_quotations SET quotation_no=?,quotation_date=?,sub_total=?,vat_percent=?,vat_amount=?,total_amount=?,terms=?,notes=? WHERE id=?""",
-            (q_no, q_date, sub_total, vat_pct, vat_amt, total, terms, notes, qid))
+            """UPDATE customer_quotations SET quotation_no=?,quotation_date=?,sub_total=?,vat_percent=?,vat_amount=?,total_amount=?,terms=?,notes=?,location=?,contact_details=? WHERE id=?""",
+            (q_no, q_date, sub_total, vat_pct, vat_amt, total, terms, notes, location, contact_details, qid))
         db.execute("DELETE FROM customer_quotation_items WHERE quotation_id=?", (qid,))
         for idx, it in enumerate(new_items):
             db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
@@ -1237,7 +1248,7 @@ def customer_quotation_edit(cid, qid):
         flash(f"Quotation {q_no} updated.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
     db.close()
-    return render_template("customer/quotation_form.html", c=c, q=q, items=items, edit=True, today=date.today().isoformat())
+    return render_template("customer/quotation_form.html", c=c, q=q, items=items, edit=True, company=company, today=date.today().isoformat())
 
 @customer_bp.route("/<int:cid>/quotation/<int:qid>/delete", methods=["POST"])
 def customer_quotation_delete(cid, qid):
@@ -1395,6 +1406,7 @@ def customer_quotation_pdf(cid, qid):
     if c["email"]: bd.append(("Email", c["email"]))
     if c["address"]: bd.append(("Address", c["address"]))
     id_ = [("Quotation #", q_no), ("Date", q_dt), ("Status", q["status"].upper() if q["status"] else "PENDING")]
+    if q.get("location"): id_.append(("Location", q["location"]))
 
     iw = Table([[card("CUSTOMER", bd), Spacer(1, 4*mm), card("QUOTATION INFO", id_)]], colWidths=[W*0.50, 4*mm, W*0.50])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
@@ -1590,9 +1602,12 @@ def quotation_walkin():
     _ensure_tables()
     db = _get_db()
     next_no = _next_quotation_no(db)
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     if request.method == "POST":
         q_date = request.form.get("quotation_date", date.today().isoformat())
         q_no = request.form.get("quotation_no", "").strip() or next_no
+        location = request.form.get("location", "").strip()
+        contact_details = request.form.get("contact_details", "").strip()
         customer_name = request.form.get("customer_name", "").strip() or "Walk-in Customer"
         customer_phone = request.form.get("customer_phone", "").strip() or None
         customer_email = request.form.get("customer_email", "").strip() or None
@@ -1617,7 +1632,7 @@ def quotation_walkin():
         if not items:
             flash("At least one line item is required.", "error")
             db.close()
-            return render_template("customer/quotation_form.html", c=None, q={}, walkin=True, today=date.today().isoformat(), next_no=next_no)
+            return render_template("customer/quotation_form.html", c=None, q={}, walkin=True, company=company, today=date.today().isoformat(), next_no=next_no)
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
         # Create a temporary customer record for walk-in
@@ -1631,9 +1646,9 @@ def quotation_walkin():
             cid = cur.lastrowid
             db.execute("UPDATE customers SET customer_code=? WHERE id=?", (f"WCI{cid:04d}", cid))
         cur = db.execute(
-            """INSERT INTO customer_quotations (customer_id,quotation_no,quotation_date,sub_total,vat_percent,vat_amount,total_amount,status,terms,notes)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            (cid, q_no, q_date, sub_total, vat_pct, vat_amt, total, "pending", terms, notes))
+            """INSERT INTO customer_quotations (customer_id,quotation_no,quotation_date,sub_total,vat_percent,vat_amount,total_amount,status,terms,notes,location,contact_details)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, q_no, q_date, sub_total, vat_pct, vat_amt, total, "pending", terms, notes, location, contact_details))
         qid = cur.lastrowid
         for idx, it in enumerate(items):
             db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
@@ -1643,7 +1658,7 @@ def quotation_walkin():
         flash(f"Quotation {q_no} created for {customer_name}.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
     db.close()
-    return render_template("customer/quotation_form.html", c=None, q={}, walkin=True, today=date.today().isoformat(), next_no=next_no)
+    return render_template("customer/quotation_form.html", c=None, q={}, walkin=True, company=company, today=date.today().isoformat(), next_no=next_no)
 
 # ─── LPOs ───
 
