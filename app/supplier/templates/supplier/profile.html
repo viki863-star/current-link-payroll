@@ -234,7 +234,10 @@
     'amount': inv.total_amount, 'status': inv.status,
     'edit_url': url_for('supplier.supplier_invoice_edit', sup_id=s.id, inv_id=inv.id),
     'delete_url': url_for('supplier.supplier_invoice_delete', sup_id=s.id, inv_id=inv.id),
-    'del_csrf': csrf_token()
+    'del_csrf': csrf_token(),
+    'has_attachment': inv.attachment_data is not none and inv.attachment_data != '',
+    'attachment_url': url_for('supplier.supplier_invoice_attachment', inv_id=inv.id),
+    'attachment_name': inv.attachment_name or ''
   }) %}
 {% endfor %}
 {% for e in expenses %}
@@ -268,6 +271,9 @@
           <td><span class="status-badge {{ 'active' if r.status == 'approved' or r.status == 'paid' else 'pending' }}" style="font-size:0.6rem">{{ r.status }}</span></td>
           <td class="c">
             <div class="act-group">
+              {% if r.has_attachment %}
+              <a href="{{ r.attachment_url }}" class="act-btn" title="{{ r.attachment_name }}">📎</a>
+              {% endif %}
               <a href="{{ r.edit_url }}" class="act-btn edit" title="Edit">✏️</a>
               <form method="POST" action="{{ r.delete_url }}" style="display:inline" onsubmit="return confirm('Delete this entry?')">
                 <input type="hidden" name="csrf_token" value="{{ r.del_csrf }}">

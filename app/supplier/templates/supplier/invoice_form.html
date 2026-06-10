@@ -89,7 +89,7 @@
       <div class="if-row">
         <label>Attach Invoice (PDF/Image)</label>
         {% if inv and inv.attachment_name %}
-        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:4px">Current: {{ inv.attachment_name }}</div>
+        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:4px">Current: <a href="{{ url_for('supplier.supplier_invoice_attachment', inv_id=inv.id) }}" target="_blank">{{ inv.attachment_name }}</a></div>
         {% endif %}
         <input type="file" name="attachment" accept="image/*,.pdf" class="form-control">
       </div>

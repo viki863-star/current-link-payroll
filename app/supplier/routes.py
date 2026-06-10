@@ -1020,7 +1020,7 @@ def supplier_invoice_attachment(inv_id):
     return send_file(
         BytesIO(data),
         mimetype=inv["attachment_type"] or "application/octet-stream",
-        as_attachment=False,
+        as_attachment=True,
         download_name=inv["attachment_name"] or f"invoice_{inv_id}",
     )
 
