@@ -166,6 +166,27 @@ def _ensure_tables():
             db.execute(f"ALTER TABLE customer_invoice_items ADD COLUMN {col} {dtype}")
         except Exception:
             pass
+    for col, dtype in [("vat_percent", "REAL DEFAULT 0"), ("vat_amount", "REAL DEFAULT 0"),
+                       ("total_amount", "REAL DEFAULT 0"), ("terms", "TEXT DEFAULT ''"),
+                       ("sub_total", "REAL DEFAULT 0")]:
+        try:
+            db.execute(f"ALTER TABLE customer_quotations ADD COLUMN {col} {dtype}")
+        except Exception:
+            pass
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS customer_quotation_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            quotation_id INTEGER NOT NULL,
+            description TEXT,
+            quantity REAL DEFAULT 1,
+            rate REAL DEFAULT 0,
+            amount REAL DEFAULT 0,
+            sort_order INTEGER DEFAULT 0,
+            FOREIGN KEY (quotation_id) REFERENCES customer_quotations(id) ON DELETE CASCADE
+        )
+    """)
+    db.execute("""CREATE TABLE IF NOT EXISTS quotation_sequence (last_number INTEGER DEFAULT 0)""")
+    db.execute("INSERT INTO quotation_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM quotation_sequence)")
     for col, dtype in [("logo_data", "TEXT"), ("logo_type", "TEXT"), ("theme_color", "TEXT DEFAULT '#0F2B52'"),
                        ("bank_name", "TEXT"), ("bank_account_name", "TEXT"), ("bank_account_number", "TEXT"),
                        ("iban", "TEXT")]:
@@ -323,7 +344,10 @@ def customer_profile(cid):
     invoices = db.execute("SELECT * FROM customer_invoices WHERE customer_id=? ORDER BY invoice_date DESC", (cid,)).fetchall()
     payments = db.execute("SELECT p.*, i.invoice_no FROM customer_payments p LEFT JOIN customer_invoices i ON p.invoice_id=i.id WHERE p.customer_id=? ORDER BY p.payment_date DESC", (cid,)).fetchall()
     contracts = db.execute("SELECT * FROM customer_contracts WHERE customer_id=? ORDER BY contract_date DESC", (cid,)).fetchall()
-    quotations = db.execute("SELECT * FROM customer_quotations WHERE customer_id=? ORDER BY quotation_date DESC", (cid,)).fetchall()
+    quotations = db.execute("""
+        SELECT q.*, (SELECT COUNT(*) FROM customer_quotation_items WHERE quotation_id=q.id) AS items_count
+        FROM customer_quotations q WHERE q.customer_id=? ORDER BY q.quotation_date DESC
+    """, (cid,)).fetchall()
     lpos = db.execute("SELECT * FROM customer_lpos WHERE customer_id=? ORDER BY lpo_date DESC", (cid,)).fetchall()
     docs = db.execute("SELECT * FROM customer_documents WHERE customer_id=? ORDER BY created_at DESC", (cid,)).fetchall()
     credit_notes = db.execute("SELECT * FROM customer_credit_notes WHERE customer_id=? ORDER BY credit_note_date DESC", (cid,)).fetchall()
@@ -1093,21 +1117,120 @@ def customer_contract_close(cid, ctid):
 
 # ─── QUOTATIONS ───
 
+def _next_quotation_no(db):
+    db.execute("UPDATE quotation_sequence SET last_number = last_number + 1")
+    n = db.execute("SELECT last_number FROM quotation_sequence").fetchone()[0]
+    return f"QTN{n + 1000}"
+
 @customer_bp.route("/<int:cid>/quotation/add", methods=["GET", "POST"])
 def customer_quotation_add(cid):
+    _ensure_tables()
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
+    next_no = _next_quotation_no(db)
+    svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
     if request.method == "POST":
-        db.execute("INSERT INTO customer_quotations (customer_id,quotation_no,quotation_date,amount,status,notes) VALUES (?,?,?,?,?,?)",
-            (cid, request.form.get("quotation_no"), request.form.get("quotation_date", date.today().isoformat()),
-             float(request.form.get("amount", 0) or 0), request.form.get("status", "pending"), request.form.get("notes")))
+        q_date = request.form.get("quotation_date", date.today().isoformat())
+        q_no = request.form.get("quotation_no", "").strip() or next_no
+        existing = db.execute("SELECT id FROM customer_quotations WHERE quotation_no=?", (q_no,)).fetchone()
+        if existing:
+            flash(f"Quotation number '{q_no}' already exists.", "error")
+            db.close()
+            return render_template("customer/quotation_form.html", c=c, q={}, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+        vat_pct = float(request.form.get("vat_percent", 5))
+        terms = request.form.get("terms", "").strip()
+        notes = request.form.get("notes", "").strip()
+        descs = request.form.getlist("item_desc[]")
+        qtys = request.form.getlist("item_qty[]")
+        rates = request.form.getlist("item_rate[]")
+        items = []
+        sub_total = 0
+        for i in range(len(descs)):
+            desc = descs[i].strip()
+            qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+            rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            if desc or rate > 0:
+                amt = round(qty * rate, 2)
+                sub_total += amt
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt})
+        if not items:
+            flash("At least one line item is required.", "error")
+            db.close()
+            return render_template("customer/quotation_form.html", c=c, q={}, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+        vat_amt = round(sub_total * vat_pct / 100, 2)
+        total = round(sub_total + vat_amt, 2)
+        cur = db.execute(
+            """INSERT INTO customer_quotations (customer_id,quotation_no,quotation_date,sub_total,vat_percent,vat_amount,total_amount,status,terms,notes)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (cid, q_no, q_date, sub_total, vat_pct, vat_amt, total, "pending", terms, notes))
+        qid = cur.lastrowid
+        for idx, it in enumerate(items):
+            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
+                (qid, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+            if it["desc"]:
+                try:
+                    db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
+                except Exception:
+                    pass
         db.commit()
         db.close()
-        flash("Quotation added.", "success")
+        flash(f"Quotation {q_no} created.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
     db.close()
-    return render_template("customer/quotation_form.html", c=c, q={}, today=date.today().isoformat())
+    return render_template("customer/quotation_form.html", c=c, q={}, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+
+@customer_bp.route("/<int:cid>/quotation/<int:qid>/edit", methods=["GET", "POST"])
+def customer_quotation_edit(cid, qid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    q = db.execute("SELECT * FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
+    if not q:
+        db.close()
+        flash("Quotation not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
+    items = db.execute("SELECT * FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
+    svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
+    if request.method == "POST":
+        q_date = request.form.get("quotation_date", q["quotation_date"])
+        q_no = request.form.get("quotation_no", "").strip() or q["quotation_no"]
+        vat_pct = float(request.form.get("vat_percent", q["vat_percent"] or 5))
+        terms = request.form.get("terms", "").strip()
+        notes = request.form.get("notes", "").strip()
+        descs = request.form.getlist("item_desc[]")
+        qtys = request.form.getlist("item_qty[]")
+        rates = request.form.getlist("item_rate[]")
+        new_items = []
+        sub_total = 0
+        for i in range(len(descs)):
+            desc = descs[i].strip()
+            qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+            rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            if desc or rate > 0:
+                amt = round(qty * rate, 2)
+                sub_total += amt
+                new_items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt})
+        if not new_items:
+            flash("At least one line item is required.", "error")
+            db.close()
+            return render_template("customer/quotation_form.html", c=c, q=q, items=items, svc_items=svc_items, edit=True, today=date.today().isoformat())
+        vat_amt = round(sub_total * vat_pct / 100, 2)
+        total = round(sub_total + vat_amt, 2)
+        db.execute(
+            """UPDATE customer_quotations SET quotation_no=?,quotation_date=?,sub_total=?,vat_percent=?,vat_amount=?,total_amount=?,terms=?,notes=? WHERE id=?""",
+            (q_no, q_date, sub_total, vat_pct, vat_amt, total, terms, notes, qid))
+        db.execute("DELETE FROM customer_quotation_items WHERE quotation_id=?", (qid,))
+        for idx, it in enumerate(new_items):
+            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
+                (qid, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+        db.commit()
+        db.close()
+        flash(f"Quotation {q_no} updated.", "success")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
+    db.close()
+    return render_template("customer/quotation_form.html", c=c, q=q, items=items, svc_items=svc_items, edit=True, today=date.today().isoformat())
 
 @customer_bp.route("/<int:cid>/quotation/<int:qid>/delete", methods=["POST"])
 def customer_quotation_delete(cid, qid):
@@ -1117,6 +1240,391 @@ def customer_quotation_delete(cid, qid):
     db.close()
     flash("Quotation deleted.", "success")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
+
+@customer_bp.route("/<int:cid>/quotation/<int:qid>/view")
+def customer_quotation_view(cid, qid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    q = db.execute("SELECT * FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
+    if not q:
+        db.close()
+        flash("Quotation not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
+    items = db.execute("SELECT * FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    db.close()
+    return render_template("customer/quotation_view.html", c=c, q=q, items=items, company=company)
+
+@customer_bp.route("/<int:cid>/quotation/<int:qid>/pdf")
+def customer_quotation_pdf(cid, qid):
+    import tempfile
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from io import BytesIO
+
+    _logo_tmp_files = []
+    _ensure_tables()
+    db = _get_db()
+    c = db.execute("SELECT * FROM customers WHERE id=?", (cid,)).fetchone()
+    q = db.execute("SELECT * FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
+    items = db.execute("SELECT * FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    db.close()
+    if not c or not q:
+        flash("Quotation not found.", "error")
+        return redirect(url_for("customer.customer_dashboard"))
+
+    buf = BytesIO()
+    LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 12*mm
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = A4[0] - LM - RM
+
+    tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
+    try: TH = colors.HexColor(tc)
+    except: TH = colors.HexColor("#1a3a5c")
+    WH = colors.white; BG = colors.HexColor("#f8fafc")
+    C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
+    C5 = colors.HexColor("#64748b"); C6 = colors.HexColor("#dc2626")
+
+    cn = company["company_name"] if company else "AL SAQR TRANSPORT"
+    c_addr = (company["address"] or "") if company else ""
+    c_ph = (company["phone_number"] or "") if company else ""
+    c_em = (company["email"] or "") if company else ""
+    c_trn = company["trn_no"] or "—" if company else "—"
+
+    def S(name, **kw):
+        kw.setdefault("fontSize", 8)
+        kw.setdefault("leading", 12)
+        return ParagraphStyle(name, **kw)
+
+    def L(t, **kw):
+        kw.setdefault("textColor", C5)
+        return Paragraph(str(t), S("_L", **kw))
+
+    def V(t, **kw):
+        kw.setdefault("fontName", "Helvetica-Bold")
+        kw.setdefault("textColor", C4)
+        kw.setdefault("fontSize", 8.5)
+        return Paragraph(str(t), S("_V", **kw))
+
+    def C(t, **kw):
+        kw.setdefault("alignment", TA_CENTER)
+        return Paragraph(str(t), S("_C", **kw))
+
+    def R(t, **kw):
+        kw.setdefault("alignment", TA_RIGHT)
+        return Paragraph(str(t), S("_R", **kw))
+
+    def RB(t, **kw):
+        kw.setdefault("fontName", "Helvetica-Bold")
+        kw.setdefault("alignment", TA_RIGHT)
+        return Paragraph(f"<b>{t}</b>", S("_RB", **kw))
+
+    safe = lambda v, d="—": str(v) if v else d
+    els = []
+    q_no = q["quotation_no"] or "—"
+    q_dt = q["quotation_date"] or "—"
+
+    # HEADER
+    logo = None; LW = 0
+    if company and company["logo_data"]:
+        try:
+            lb = base64.b64decode(company["logo_data"])
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            f.write(lb); f.close()
+            logo = Image(f.name, width=90, height=90)
+            LW = 90
+            _logo_tmp_files.append(f.name)
+        except: pass
+
+    ci_lines = []
+    if c_addr: ci_lines.append(f"<font size=7 color='#64748b'>{c_addr}</font>")
+    c_contact = []
+    if c_ph: c_contact.append(f"Phone: {c_ph}")
+    if c_em: c_contact.append(f"Email: {c_em}")
+    if c_contact: ci_lines.append('<font size=7 color="#64748b">' + ' &middot; '.join(c_contact) + '</font>')
+    ci_lines.append(f"<font size=7 color='#64748b'><b>TRN: {c_trn}</b></font>")
+    ci_html = f"<font size=12><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
+    co_p = Paragraph(ci_html, S("CO", fontSize=12, fontName="Helvetica-Bold", textColor=TH, leading=16))
+
+    if logo:
+        lh = Table([[logo, Spacer(1, 4*mm), co_p]], colWidths=[LW, 4*mm, W*0.65 - LW - 4*mm])
+        lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    else:
+        lh = co_p
+
+    rh = Paragraph(
+        f"<b>QUOTATION</b><br/>"
+        f"<font size=7 color='#64748b'># {q_no}<br/>{q_dt}</font>",
+        S("TI", fontSize=16, fontName="Helvetica-Bold", textColor=TH, leading=20, alignment=TA_RIGHT))
+
+    ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
+    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ht)
+
+    bl = Table([[""]], colWidths=[W], rowHeights=[3])
+    bl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(bl)
+    els.append(Spacer(1, 5*mm))
+
+    # BILL TO / QUOTATION INFO
+    def card(title, pairs):
+        cw = W*0.50
+        r = [[Paragraph(f"<b>{title}</b>", S("_ch", fontSize=6.5, fontName="Helvetica-Bold", textColor=C5, leading=9)), Paragraph("", S("_cs", fontSize=2, leading=2))]]
+        for a, b in pairs:
+            r.append([Paragraph(a, S("_cl", fontSize=7.5, textColor=C5, leading=11)), Paragraph(f"{b}", S("_cv", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11.5))])
+        t = Table(r, colWidths=[cw*0.28, cw*0.72])
+        t.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),3),("BOTTOMPADDING",(0,0),(-1,-1),3),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("BOX",(0,0),(-1,-1),0.5,C3)]))
+        return t
+
+    bd = [("Customer", safe(c["customer_name"])), ("TRN", safe(c["trn"]))]
+    if c["phone"]: bd.append(("Phone", c["phone"]))
+    if c["email"]: bd.append(("Email", c["email"]))
+    if c["address"]: bd.append(("Address", c["address"]))
+    id_ = [("Quotation #", q_no), ("Date", q_dt), ("Status", q["status"].upper() if q["status"] else "PENDING")]
+
+    iw = Table([[card("BILL TO", bd), Spacer(1, 4*mm), card("QUOTATION INFO", id_)]], colWidths=[W*0.50, 4*mm, W*0.50])
+    iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(iw)
+    els.append(Spacer(1, 5*mm))
+
+    # ITEMS TABLE
+    fixed_pt = 35*mm + 4*mm + 35*mm + 4*mm + 2*mm + 20*mm + 3*mm + 7*mm + 10*mm + 8*mm + 8*mm
+    avail_pt = A4[1] - TM - BM - fixed_pt
+    num_rows = len(items)
+    fs = 7.0
+    if num_rows > 0:
+        target = avail_pt / (num_rows + 1)
+        fs = max(4.0, min(7.0, target / 2.8))
+    ldr = fs * 1.35
+    pad_t = max(1.5, fs * 0.5)
+    pad_b = max(1.5, fs * 0.5)
+
+    DH = colors.HexColor("#1e293b")
+    cw = [10*mm, 60*mm, 20*mm, 24*mm, 30*mm, 30*mm]
+    def _pc(t, **kw):
+        kw.setdefault("fontSize", fs)
+        kw.setdefault("leading", ldr)
+        return Paragraph(str(t), S("_pc", **kw))
+    hdr = [
+        Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
+        Paragraph("<b>Description</b>", S("_h1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
+        Paragraph("<b>Qty</b>", S("_h2", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
+        Paragraph("<b>Rate (AED)</b>", S("_h3", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>Amount (AED)</b>", S("_h4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("", S("_h5", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
+    ]
+    rws = [hdr]
+    for idx, it in enumerate(items):
+        rws.append([
+            _pc(str(idx+1), alignment=TA_CENTER, fontName="Helvetica-Bold"),
+            _pc(it["description"] or "—"),
+            _pc(f"{it['quantity'] or 0:,.2f}", alignment=TA_CENTER),
+            _pc(f"{it['rate'] or 0:,.3f}", alignment=TA_RIGHT),
+            _pc(f"{it['amount'] or 0:,.2f}", alignment=TA_RIGHT),
+            _pc("", alignment=TA_RIGHT),
+        ])
+
+    sub = q["sub_total"] or q["amount"] or 0
+    vat = q["vat_amount"] or 0
+    tot = q["total_amount"] or sub
+    vp = q["vat_percent"] or 0
+
+    itt = Table(rws, colWidths=cw, repeatRows=1)
+    itt.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BACKGROUND",(0,0),(-1,0),DH), ("TEXTCOLOR",(0,0),(-1,0),WH),
+        ("BOX",(0,0),(-1,-1),0.5,C3),
+        ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),pad_t), ("BOTTOMPADDING",(0,0),(-1,-1),pad_b),
+        ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
+        ("ROWBACKGROUNDS",(0,1),(-1,-1),[WH, BG]),
+    ]))
+    els.append(itt)
+
+    # TOTALS
+    tw = 90*mm
+    trows = [
+        [Paragraph("Sub Total", S("_st", fontSize=9, textColor=C5, leading=14)),
+         Paragraph(f"<b>AED {sub:,.2f}</b>", S("_stv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=14, alignment=TA_RIGHT))],
+        [Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=9, textColor=C5, leading=14)),
+         Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=9, fontName="Helvetica-Bold", textColor=C6, leading=14, alignment=TA_RIGHT))],
+        [Paragraph("<b>Total</b>", S("_td", fontSize=11, fontName="Helvetica-Bold", textColor=C4, leading=16)),
+         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))],
+    ]
+    tt = Table(trows, colWidths=[tw*0.45, tw*0.55])
+    tt.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
+        ("LEFTPADDING",(0,0),(-1,-1),12), ("RIGHTPADDING",(0,0),(-1,-1),12),
+        ("BOX",(0,0),(-1,-1),0.5,C3),
+        ("LINEABOVE",(0,2),(-1,2),2,TH),
+    ]))
+
+    ft = Table([["", tt]], colWidths=[W - tw, tw])
+    ft.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(Spacer(1, 2*mm))
+    els.append(ft)
+
+    # AMOUNT IN WORDS
+    def n2w(n):
+        if n == 0: return "Zero"
+        o = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve",
+             "Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"]
+        t = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
+        sc = ["","Thousand","Million","Billion"]
+        def h(num):
+            r = ""
+            if num >= 100: r += o[num//100] + " Hundred"; num %= 100
+            if num and r: r += " "
+            if num >= 20: r += t[num//10]; num %= 10
+            if num and r: r += " "
+            if num > 0: r += o[num]
+            return r.strip()
+        ip = int(n)
+        dp = min(int(round((n - ip) * 100)), 99)
+        if ip == 0: w = "Zero"
+        else:
+            w = ""; i = 0
+            while ip > 0:
+                ck = ip % 1000
+                if ck:
+                    cw = h(ck)
+                    if sc[i]: cw += " " + sc[i]
+                    w = cw + (" " + w if w else "")
+                ip //= 1000; i += 1
+        if dp: w += f" and {dp:02d}/100"
+        return "AED " + w + " Only"
+
+    els.append(Spacer(1, 3*mm))
+    ab = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=13))]], colWidths=[W])
+    ab.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
+    els.append(ab)
+
+    if q["notes"]:
+        els.append(Spacer(1, 3*mm))
+        nb = Table([[Paragraph(f"<b>Notes:</b> {q['notes']}", S("NW", fontSize=9, textColor=C4, leading=13))]], colWidths=[W])
+        nb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("BOX",(0,0),(-1,-1),0.5,C3),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
+        els.append(nb)
+
+    if q["terms"]:
+        els.append(Spacer(1, 3*mm))
+        tb = Table([[Paragraph(f"<b>Terms & Conditions:</b><br/>{q['terms']}", S("TW", fontSize=9, textColor=C4, leading=13))]], colWidths=[W])
+        tb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#fffbeb")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#fde68a")),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
+        els.append(tb)
+
+    # BANK DETAILS
+    if company and (company["bank_name"] or company["bank_account_name"] or company["bank_account_number"] or company["iban"]):
+        bk_items = []
+        if company["bank_name"]: bk_items.append(("Bank", company["bank_name"]))
+        if company["bank_account_name"]: bk_items.append(("Account", company["bank_account_name"]))
+        if company["bank_account_number"]: bk_items.append(("A/C No.", company["bank_account_number"]))
+        if company["iban"]: bk_items.append(("IBAN", company["iban"]))
+        if company["swift_code"]: bk_items.append(("Swift", company["swift_code"]))
+        if bk_items:
+            els.append(Spacer(1, 2*mm))
+            els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=8, fontName="Helvetica-Bold", textColor=C5, leading=10, spaceAfter=2)))
+            bk_rows = [[Paragraph(f"<font color='#64748b'>{lbl}:</font>", S("_bkl", fontSize=8, textColor=C5, leading=12)), Paragraph(f"<b>{val}</b>", S("_bkv", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=12))] for lbl, val in bk_items]
+            bkt = Table(bk_rows, colWidths=[22*mm, W - 22*mm])
+            bkt.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),1.5),("BOTTOMPADDING",(0,0),(-1,-1),1.5),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+            els.append(bkt)
+
+    # SIGNATURES
+    els.append(Spacer(1, 3*mm))
+    sg = ParagraphStyle("SG", fontSize=9, alignment=TA_CENTER, leading=14)
+    stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
+    sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
+    auth_img = []
+    if os.path.exists(stamp_path):
+        auth_img.append(Image(stamp_path, width=35, height=35))
+    if os.path.exists(sign_path):
+        auth_img.append(Image(sign_path, width=35, height=35))
+    if auth_img:
+        auth_imgs = Table([auth_img], colWidths=[35]*len(auth_img))
+        auth_imgs.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),("ALIGN",(0,0),(-1,-1),"CENTER")]))
+        els.append(auth_imgs)
+    st = Table([
+        [Paragraph("<br/><br/>___________________________<br/><b>Authorized Signatory</b><br/><font size=7 color='#64748b'>AL SAQR TRANSPORT</font>", sg),
+         Paragraph("<br/>", sg)],
+    ], colWidths=[W*0.5, W*0.5])
+    st.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(st)
+
+    doc.build(els)
+    pdf_data = buf.getvalue()
+    buf.close()
+    for f in _logo_tmp_files:
+        try: os.unlink(f)
+        except: pass
+
+    from flask import Response
+    return Response(pdf_data, mimetype="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{q_no}.pdf"'})
+
+@customer_bp.route("/quotation/walkin", methods=["GET", "POST"])
+def quotation_walkin():
+    _ensure_tables()
+    db = _get_db()
+    next_no = _next_quotation_no(db)
+    svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
+    if request.method == "POST":
+        q_date = request.form.get("quotation_date", date.today().isoformat())
+        q_no = request.form.get("quotation_no", "").strip() or next_no
+        customer_name = request.form.get("customer_name", "").strip() or "Walk-in Customer"
+        customer_phone = request.form.get("customer_phone", "").strip() or None
+        customer_email = request.form.get("customer_email", "").strip() or None
+        vat_pct = float(request.form.get("vat_percent", 5))
+        terms = request.form.get("terms", "").strip()
+        notes = request.form.get("notes", "").strip()
+        descs = request.form.getlist("item_desc[]")
+        qtys = request.form.getlist("item_qty[]")
+        rates = request.form.getlist("item_rate[]")
+        items = []
+        sub_total = 0
+        for i in range(len(descs)):
+            desc = descs[i].strip()
+            qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+            rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            if desc or rate > 0:
+                amt = round(qty * rate, 2)
+                sub_total += amt
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt})
+        if not items:
+            flash("At least one line item is required.", "error")
+            db.close()
+            return render_template("customer/quotation_form.html", c=None, q={}, svc_items=svc_items, walkin=True, today=date.today().isoformat(), next_no=next_no)
+        vat_amt = round(sub_total * vat_pct / 100, 2)
+        total = round(sub_total + vat_amt, 2)
+        # Create a temporary customer record for walk-in
+        existing = db.execute("SELECT id FROM customers WHERE customer_name=? AND phone=?", (customer_name, customer_phone or "")).fetchone()
+        if existing:
+            cid = existing["id"]
+        else:
+            code = "WALKIN"
+            cur = db.execute("INSERT INTO customers (customer_name,customer_code,phone,email,status) VALUES (?,?,?,?,?)",
+                (customer_name, code, customer_phone, customer_email, "active"))
+            cid = cur.lastrowid
+            db.execute("UPDATE customers SET customer_code=? WHERE id=?", (f"WCI{cid:04d}", cid))
+        cur = db.execute(
+            """INSERT INTO customer_quotations (customer_id,quotation_no,quotation_date,sub_total,vat_percent,vat_amount,total_amount,status,terms,notes)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (cid, q_no, q_date, sub_total, vat_pct, vat_amt, total, "pending", terms, notes))
+        qid = cur.lastrowid
+        for idx, it in enumerate(items):
+            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
+                (qid, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+        db.commit()
+        db.close()
+        flash(f"Quotation {q_no} created for {customer_name}.", "success")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
+    db.close()
+    return render_template("customer/quotation_form.html", c=None, q={}, svc_items=svc_items, walkin=True, today=date.today().isoformat(), next_no=next_no)
 
 # ─── LPOs ───
 

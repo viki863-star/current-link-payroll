@@ -287,24 +287,34 @@ td .mono-sm { font-size:0.75rem; }
 <div class="profile-card">
     <div class="section-header">
         <h3>Quotations</h3>
-        <a href="{{ url_for('customer.customer_quotation_add', cid=c.id) }}" class="btn btn-primary btn-sm">+ New Quotation</a>
+        <div style="display:flex;gap:6px">
+            <a href="{{ url_for('customer.quotation_walkin') }}" class="btn btn-outline btn-sm">+ Walk-in</a>
+            <a href="{{ url_for('customer.customer_quotation_add', cid=c.id) }}" class="btn btn-primary btn-sm">+ New Quotation</a>
+        </div>
     </div>
     {% if quotations %}
     <div class="table-wrap">
         <table class="smart-table">
-            <thead><tr><th>Date</th><th>Quotation #</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Date</th><th>Quotation #</th><th>Sub Total</th><th>VAT</th><th>Total</th><th>Items</th><th>Status</th><th></th></tr></thead>
             <tbody>
                 {% for q in quotations %}
                 <tr>
                     <td class="mono">{{ q.quotation_date }}</td>
-                    <td class="mono" style="font-weight:600">{{ q.quotation_no or '—' }}</td>
-                    <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(q.amount) if q.amount else '—' }}</td>
+                    <td class="mono" style="font-weight:600"><a href="{{ url_for('customer.customer_quotation_view', cid=c.id, qid=q.id) }}" style="color:var(--primary);text-decoration:none">{{ q.quotation_no or '—' }}</a></td>
+                    <td class="mono">AED {{ "%.0f"|format(q.sub_total or q.amount or 0) }}</td>
+                    <td class="mono">{{ "%.0f"|format(q.vat_amount or 0) }}</td>
+                    <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(q.total_amount or q.amount or 0) }}</td>
+                    <td class="mono" style="color:var(--muted)">{{ q.items_count or '—' }}</td>
                     <td><span class="status-badge {% if q.status == 'approved' %}approved{% elif q.status == 'rejected' %}pending{% else %}active{% endif %}">{{ q.status }}</span></td>
                     <td>
-                        <form method="POST" action="{{ url_for('customer.customer_quotation_delete', cid=c.id, qid=q.id) }}" style="display:inline" onsubmit="return confirm('Delete?')">
+                        <div style="display:flex;gap:4px">
+                        <a href="{{ url_for('customer.customer_quotation_view', cid=c.id, qid=q.id) }}" class="btn btn-xs btn-outline">View</a>
+                        <a href="{{ url_for('customer.customer_quotation_edit', cid=c.id, qid=q.id) }}" class="btn btn-xs btn-outline">Edit</a>
+                        <form method="POST" action="{{ url_for('customer.customer_quotation_delete', cid=c.id, qid=q.id) }}" style="display:inline" onsubmit="return confirm('Delete quotation {{ q.quotation_no }}?')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
                         </form>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
