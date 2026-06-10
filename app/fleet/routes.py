@@ -1294,6 +1294,8 @@ def fleet_staff_profile(staff_id):
         amount = request.form.get("amount", "").strip()
         entry_date = request.form.get("entry_date", "").strip() or date.today().isoformat()
         entry_time = request.form.get("entry_time", "").strip()
+        funding_source = request.form.get("funding_source", "").strip() or "Owner Fund"
+        given_by = request.form.get("given_by", "").strip()
         notes = request.form.get("notes", "").strip()
 
         if not amount:
@@ -1308,7 +1310,7 @@ def fleet_staff_profile(staff_id):
         full_dt = f"{entry_date} {entry_time}" if entry_time else entry_date
         db.execute(
             "INSERT INTO maintenance_staff_advances (advance_no, staff_code, entry_date, funding_source, amount, reference, notes) VALUES (?,?,?,?,?,?,?)",
-            (adv_no, staff_id, full_dt, "Owner Fund", float(amount), session.get("username", "Admin"), notes or ""),
+            (adv_no, staff_id, full_dt, funding_source, float(amount), given_by or session.get("username", "Admin"), notes or ""),
         )
         db.commit()
         flash(f"AED {amount} given to {s['full_name']}.", "success")
@@ -1377,8 +1379,8 @@ def fleet_staff_profile(staff_id):
         d["_date"] = str(a.get("entry_date", ""))
         d["_amount"] = a["amount"]
         d["_source"] = a.get("funding_source", "Advance")
-        d["_notes"] = a.get("notes", a.get("reference", ""))
-        d["_given_by"] = ""
+        d["_notes"] = a.get("notes", "")
+        d["_given_by"] = a.get("reference", "")
         cash_items.append(d)
     cash_items.sort(key=lambda x: x["_date"], reverse=True)
 

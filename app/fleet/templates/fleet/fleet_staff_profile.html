@@ -99,6 +99,18 @@
           <input type="number" name="amount" step="0.01" min="0" required style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem;width:130px">
         </div>
         <div>
+          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Source</label>
+          <select name="funding_source" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+            <option value="Owner Fund">Owner Fund</option>
+            <option value="Office Cash">Office Cash</option>
+            <option value="Direct Payment">Direct Payment</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Given By</label>
+          <input type="text" name="given_by" placeholder="Who gave the cash" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem;width:140px">
+        </div>
+        <div>
           <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Date</label>
           <input type="date" name="entry_date" value="{{ today }}" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
         </div>
@@ -118,14 +130,15 @@
     {% if cash_items %}
     <div class="table-wrap">
       <table class="sp-table">
-        <thead><tr><th>Date</th><th>Amount</th><th>Type</th><th>Details</th><th style="width:90px"></th></tr></thead>
+        <thead><tr><th>Date</th><th>Amount</th><th>Source</th><th>Given By</th><th>Notes</th><th style="width:90px"></th></tr></thead>
         <tbody>
           {% for c in cash_items %}
           <tr>
             <td class="mono">{{ c._date }}</td>
             <td class="mono" style="font-weight:600;color:#16a34a">AED {{ "%.0f"|format(c._amount) }}</td>
-            <td><span class="badge badge-type">Cash</span></td>
-            <td style="color:var(--muted);font-size:0.72rem">{{ c._source }}{% if c._notes %} &middot; {{ c._notes|truncate(50) }}{% endif %}</td>
+            <td><span class="badge badge-type">{{ c._source }}</span></td>
+            <td class="mono" style="color:var(--muted);font-size:0.72rem">{{ c._given_by }}</td>
+            <td style="color:var(--muted);font-size:0.72rem">{{ c._notes|truncate(40) if c._notes else '—' }}</td>
             <td>
               <div class="action-btns">
                 <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) }}" onsubmit="return confirm('Delete this entry?')">
