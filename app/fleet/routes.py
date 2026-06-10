@@ -1335,15 +1335,6 @@ def fleet_staff_receipts(staff_id):
             "INSERT INTO cash_receipts (staff_id, given_by, amount, receipt_date, payment_time, notes) VALUES (?,?,?,?,?,?)",
             (staff_id, given_by, float(amount), receipt_date, payment_time, notes),
         )
-        last = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
-        num = 1
-        if last:
-            num = int(last["advance_no"].split("-")[1]) + 1
-        adv_no = f"ADV-{num:04d}"
-        db.execute(
-            "INSERT INTO maintenance_staff_advances (advance_no, staff_code, entry_date, funding_source, amount, reference, notes) VALUES (?,?,?,?,?,?,?)",
-            (adv_no, staff_id, receipt_date, "Owner Fund", float(amount), given_by, notes or ""),
-        )
         db.commit()
         flash(f"AED {amount} received from {given_by}.", "success")
         return redirect(url_for("fleet.fleet_staff_receipts", staff_id=staff_id))
