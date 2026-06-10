@@ -143,7 +143,7 @@ td .mono-sm { font-size:0.75rem; }
     <div class="section-header">
         <h3>Invoices</h3>
         <div style="display:flex;gap:6px">
-            <a href="{{ url_for('customer.customer_kata', cid=c.id) }}" class="btn btn-outline btn-sm">SOA / Statement</a>
+            <a href="{{ url_for('customer.customer_soa', cid=c.id) }}" class="btn btn-outline btn-sm">SOA / Statement</a>
         <a href="{{ url_for('customer.customer_invoice_add', cid=c.id) }}" class="btn btn-primary btn-sm">+ New Invoice</a>
         </div>
     </div>
