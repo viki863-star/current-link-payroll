@@ -1777,12 +1777,20 @@ def supplier_payment_add(sup_id):
         # Ensure columns exist
         try:
             db.execute("ALTER TABLE supplier_payment_records ADD COLUMN invoice_ids TEXT")
+            db.commit()
         except Exception:
-            pass
+            try:
+                db.rollback()
+            except Exception:
+                pass
         try:
             db.execute("ALTER TABLE supplier_payment_records ADD COLUMN fund_source TEXT DEFAULT 'cash_bank'")
+            db.commit()
         except Exception:
-            pass
+            try:
+                db.rollback()
+            except Exception:
+                pass
 
         # Create one payment record for the batch
         db.execute(
