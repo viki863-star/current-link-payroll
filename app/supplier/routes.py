@@ -1734,9 +1734,13 @@ def supplier_payment_add(sup_id):
         fund_source = request.form.get("fund_source", "cash_bank").strip()
         invoice_ids_str = ",".join(invoice_ids)
 
-        # Ensure column exists
+        # Ensure columns exist
         try:
             db.execute("ALTER TABLE supplier_payment_records ADD COLUMN invoice_ids TEXT")
+        except Exception:
+            pass
+        try:
+            db.execute("ALTER TABLE supplier_payment_records ADD COLUMN fund_source TEXT DEFAULT 'cash_bank'")
         except Exception:
             pass
 
