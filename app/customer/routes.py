@@ -181,10 +181,15 @@ def _ensure_tables():
             quantity REAL DEFAULT 1,
             rate REAL DEFAULT 0,
             amount REAL DEFAULT 0,
+            unit TEXT DEFAULT 'hr',
             sort_order INTEGER DEFAULT 0,
             FOREIGN KEY (quotation_id) REFERENCES customer_quotations(id) ON DELETE CASCADE
         )
     """)
+    try:
+        db.execute("ALTER TABLE customer_quotation_items ADD COLUMN unit TEXT DEFAULT 'hr'")
+    except Exception:
+        pass
     db.execute("""CREATE TABLE IF NOT EXISTS quotation_sequence (last_number INTEGER DEFAULT 0)""")
     db.execute("INSERT INTO quotation_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM quotation_sequence)")
     for col, dtype in [("logo_data", "TEXT"), ("logo_type", "TEXT"), ("theme_color", "TEXT DEFAULT '#0F2B52'"),
@@ -1144,16 +1149,18 @@ def customer_quotation_add(cid):
         descs = request.form.getlist("item_desc[]")
         qtys = request.form.getlist("item_qty[]")
         rates = request.form.getlist("item_rate[]")
+        units = request.form.getlist("item_unit[]")
         items = []
         sub_total = 0
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            unit = units[i].strip() if i < len(units) and units[i].strip() else "hr"
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 sub_total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt})
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
         if not items:
             flash("At least one line item is required.", "error")
             db.close()
@@ -1166,8 +1173,8 @@ def customer_quotation_add(cid):
             (cid, q_no, q_date, sub_total, vat_pct, vat_amt, total, "pending", terms, notes))
         qid = cur.lastrowid
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
-                (qid, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
+                (qid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
             if it["desc"]:
                 try:
                     db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
@@ -1202,16 +1209,18 @@ def customer_quotation_edit(cid, qid):
         descs = request.form.getlist("item_desc[]")
         qtys = request.form.getlist("item_qty[]")
         rates = request.form.getlist("item_rate[]")
+        units = request.form.getlist("item_unit[]")
         new_items = []
         sub_total = 0
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            unit = units[i].strip() if i < len(units) and units[i].strip() else "hr"
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 sub_total += amt
-                new_items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt})
+                new_items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
         if not new_items:
             flash("At least one line item is required.", "error")
             db.close()
@@ -1223,8 +1232,8 @@ def customer_quotation_edit(cid, qid):
             (q_no, q_date, sub_total, vat_pct, vat_amt, total, terms, notes, qid))
         db.execute("DELETE FROM customer_quotation_items WHERE quotation_id=?", (qid,))
         for idx, it in enumerate(new_items):
-            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
-                (qid, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
+                (qid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
         db.commit()
         db.close()
         flash(f"Quotation {q_no} updated.", "success")
@@ -1407,7 +1416,7 @@ def customer_quotation_pdf(cid, qid):
     pad_b = max(1.5, fs * 0.5)
 
     DH = colors.HexColor("#1e293b")
-    cw = [10*mm, 60*mm, 20*mm, 24*mm, 30*mm, 30*mm]
+    cw = [10*mm, 52*mm, 16*mm, 16*mm, 22*mm, 26*mm, 26*mm]
     def _pc(t, **kw):
         kw.setdefault("fontSize", fs)
         kw.setdefault("leading", ldr)
@@ -1416,8 +1425,9 @@ def customer_quotation_pdf(cid, qid):
         Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
         Paragraph("<b>Description</b>", S("_h1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
         Paragraph("<b>Qty</b>", S("_h2", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
-        Paragraph("<b>Rate (AED)</b>", S("_h3", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
-        Paragraph("<b>Amount (AED)</b>", S("_h4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>Unit</b>", S("_hu", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
+        Paragraph("<b>Rate<br/>(AED)</b>", S("_h3", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>Amount<br/>(AED)</b>", S("_h4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
         Paragraph("", S("_h5", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
     ]
     rws = [hdr]
@@ -1426,6 +1436,7 @@ def customer_quotation_pdf(cid, qid):
             _pc(str(idx+1), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(it["description"] or "—"),
             _pc(f"{it['quantity'] or 0:,.2f}", alignment=TA_CENTER),
+            _pc((it['unit'] or 'hr').upper(), alignment=TA_CENTER),
             _pc(f"{it['rate'] or 0:,.3f}", alignment=TA_RIGHT),
             _pc(f"{it['amount'] or 0:,.2f}", alignment=TA_RIGHT),
             _pc("", alignment=TA_RIGHT),
@@ -1513,11 +1524,23 @@ def customer_quotation_pdf(cid, qid):
         nb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("BOX",(0,0),(-1,-1),0.5,C3),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
         els.append(nb)
 
+    # TERMS & CONDITIONS (always shown)
+    els.append(Spacer(1, 3*mm))
+    tc_lines = []
     if q["terms"]:
-        els.append(Spacer(1, 3*mm))
-        tb = Table([[Paragraph(f"<b>Terms & Conditions:</b><br/>{q['terms']}", S("TW", fontSize=9, textColor=C4, leading=13))]], colWidths=[W])
-        tb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#fffbeb")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#fde68a")),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
-        els.append(tb)
+        tc_lines.append(f"<li>{q['terms']}</li>")
+    tc_lines += [
+        "<li>This quotation is valid for 15 days from the date of issue.</li>",
+        "<li>Payment is due within 30 days from the date of invoice.</li>",
+        "<li>Any alteration or cancellation of order must be notified in writing.</li>",
+        "<li>All disputes are subject to Dubai jurisdiction.</li>",
+        "<li>Delivery / service execution as per agreed schedule.</li>",
+        "<li>Rates are exclusive of any applicable taxes unless stated otherwise.</li>",
+    ]
+    tc_html = "<b>Terms &amp; Conditions:</b><br/><ol>" + "".join(tc_lines) + "</ol>"
+    tb = Table([[Paragraph(tc_html, S("TW", fontSize=9, textColor=C4, leading=14))]], colWidths=[W])
+    tb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#fffbeb")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#fde68a")),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
+    els.append(tb)
 
     # BANK DETAILS
     if company and (company["bank_name"] or company["bank_account_name"] or company["bank_account_number"] or company["iban"]):
@@ -1585,16 +1608,18 @@ def quotation_walkin():
         descs = request.form.getlist("item_desc[]")
         qtys = request.form.getlist("item_qty[]")
         rates = request.form.getlist("item_rate[]")
+        units = request.form.getlist("item_unit[]")
         items = []
         sub_total = 0
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            unit = units[i].strip() if i < len(units) and units[i].strip() else "hr"
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 sub_total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt})
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
         if not items:
             flash("At least one line item is required.", "error")
             db.close()
@@ -1617,8 +1642,8 @@ def quotation_walkin():
             (cid, q_no, q_date, sub_total, vat_pct, vat_amt, total, "pending", terms, notes))
         qid = cur.lastrowid
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
-                (qid, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
+                (qid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
         db.commit()
         db.close()
         flash(f"Quotation {q_no} created for {customer_name}.", "success")

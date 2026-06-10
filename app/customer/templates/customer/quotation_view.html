@@ -85,9 +85,10 @@
             <tr>
                 <th style="text-align:center;width:32px">#</th>
                 <th style="text-align:left">Description</th>
-                <th style="text-align:right;width:80px">QTY</th>
-                <th style="text-align:right;width:100px">Rate (AED)</th>
-                <th style="text-align:right;width:110px">Amount (AED)</th>
+                <th style="text-align:right;width:60px">QTY</th>
+                <th style="text-align:center;width:60px">Unit</th>
+                <th style="text-align:right;width:90px">Rate (AED)</th>
+                <th style="text-align:right;width:100px">Amount (AED)</th>
             </tr>
         </thead>
         <tbody>
@@ -96,6 +97,7 @@
                 <td style="text-align:center;font-weight:600;color:#64748b">{{ loop.index }}</td>
                 <td style="font-weight:500;color:#0f172a">{{ it.description or '—' }}</td>
                 <td style="text-align:right;font-family:mono">{{ "{:,.2f}".format(it.quantity) }}</td>
+                <td style="text-align:center;font-family:mono;color:#64748b;font-size:0.75rem;text-transform:uppercase">{{ it.unit or 'hr' }}</td>
                 <td style="text-align:right;font-family:mono">{{ "%.3f" % it.rate }}</td>
                 <td style="text-align:right;font-weight:700;font-family:mono;color:#0f172a">{{ "%.2f" % it.amount }}</td>
             </tr>
@@ -123,12 +125,21 @@
     </div>
     {% endif %}
 
-    {# ─── TERMS & CONDITIONS ─── #}
-    {% if q.terms %}
+    {# ─── TERMS & CONDITIONS (always shown) ─── #}
     <div style="font-size:0.82rem;color:#475569;margin-bottom:16px;padding:14px 18px;background:#fffbeb;border-radius:10px;border:1px solid #fde68a">
-        <strong style="color:#92400e">Terms &amp; Conditions:</strong><br>{{ q.terms }}
+        <strong style="color:#92400e">Terms &amp; Conditions:</strong>
+        <ol style="margin:6px 0 0;padding-left:20px;line-height:1.7">
+            {% if q.terms %}
+            <li>{{ q.terms }}</li>
+            {% endif %}
+            <li>This quotation is valid for 15 days from the date of issue.</li>
+            <li>Payment is due within 30 days from the date of invoice.</li>
+            <li>Any alteration or cancellation of order must be notified in writing.</li>
+            <li>All disputes are subject to Dubai jurisdiction.</li>
+            <li>Delivery / service execution as per agreed schedule.</li>
+            <li>Rates are exclusive of any applicable taxes unless stated otherwise.</li>
+        </ol>
     </div>
-    {% endif %}
 
     {# ─── BANK DETAILS ─── #}
     {% if company and (company.bank_name or company.bank_account_name or company.bank_account_number or company.iban) %}
@@ -140,6 +151,18 @@
             {% if company.bank_account_number %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">A/C No.:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.bank_account_number }}</span></div>{% endif %}
             {% if company.iban %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">IBAN:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.iban }}</span></div>{% endif %}
             {% if company.swift_code %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Swift:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.swift_code }}</span></div>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ─── CONTACT DETAILS ─── #}
+    {% if company and (company.phone_number or company.email or company.trn_no) %}
+    <div style="margin-bottom:14px;padding:12px 15px;background:#fff;border-radius:10px;border:1.5px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+        <h4 style="margin:0 0 8px;font-size:0.6rem;text-transform:uppercase;color:#94a3b8;letter-spacing:0.7px;font-weight:700">Contact Details</h4>
+        <div style="font-size:0.76rem">
+            {% if company.phone_number %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Phone:</span><span style="color:#0f172a;font-weight:500">{{ company.phone_number }}</span></div>{% endif %}
+            {% if company.email %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Email:</span><span style="color:#0f172a;font-weight:500">{{ company.email }}</span></div>{% endif %}
+            {% if company.trn_no %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">TRN:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.trn_no }}</span></div>{% endif %}
         </div>
     </div>
     {% endif %}

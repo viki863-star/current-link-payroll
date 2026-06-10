@@ -5,9 +5,9 @@
 {% block content %}
 <div class="profile-shell" style="max-width:780px;margin:0 auto">
 <style>
-.line-item-row { display:grid; grid-template-columns:1fr 70px 90px 100px 36px; gap:6px; align-items:center; margin-bottom:4px; }
-.line-item-row input { padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; outline:none; }
-.line-item-row input:focus { border-color:var(--primary); }
+.line-item-row { display:grid; grid-template-columns:1fr 56px 72px 80px 100px 36px; gap:6px; align-items:center; margin-bottom:4px; }
+.line-item-row input, .line-item-row select { padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; outline:none; }
+.line-item-row input:focus, .line-item-row select:focus { border-color:var(--primary); }
 .line-item-row .item-amt { font-weight:600; font-size:0.85rem; text-align:right; padding:6px 8px; }
 .line-item-row .btn-remove { width:32px; height:32px; border-radius:6px; border:1px solid #e0e0e0; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#c62828; font-size:1rem; }
 .line-item-row .btn-remove:hover { background:#fee; }
@@ -77,9 +77,10 @@
             </div>
 
             <div style="background:#f8fafc;border-radius:10px;padding:10px;border:1px solid #eef2f6">
-                <div style="display:grid;grid-template-columns:1fr 70px 90px 100px 36px;gap:6px;margin-bottom:6px;padding:0 4px">
+                <div style="display:grid;grid-template-columns:1fr 56px 72px 80px 100px 36px;gap:6px;margin-bottom:6px;padding:0 4px">
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600">Description</span>
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">QTY</span>
+                    <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">Unit</span>
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:right">Rate (AED)</span>
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:right">Amount</span>
                     <span></span>
@@ -90,6 +91,18 @@
                     <div class="line-item-row">
                         <input type="text" name="item_desc[]" value="{{ it.description or '' }}" placeholder="Service description" list="svcItems">
                         <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
+                        <select name="item_unit[]" style="text-align:center;cursor:pointer" onchange="calcTotals()">
+                            <option value="hr" {% if it.unit == 'hr' %}selected{% endif %}>Hr</option>
+                            <option value="trip" {% if it.unit == 'trip' %}selected{% endif %}>Trip</option>
+                            <option value="gln" {% if it.unit == 'gln' %}selected{% endif %}>Gln</option>
+                            <option value="kg" {% if it.unit == 'kg' %}selected{% endif %}>Kg</option>
+                            <option value="day" {% if it.unit == 'day' %}selected{% endif %}>Day</option>
+                            <option value="week" {% if it.unit == 'week' %}selected{% endif %}>Week</option>
+                            <option value="month" {% if it.unit == 'month' %}selected{% endif %}>Month</option>
+                            <option value="pcs" {% if it.unit == 'pcs' %}selected{% endif %}>Pcs</option>
+                            <option value="km" {% if it.unit == 'km' %}selected{% endif %}>Km</option>
+                            <option value="load" {% if it.unit == 'load' %}selected{% endif %}>Load</option>
+                        </select>
                         <input type="number" name="item_rate[]" value="{{ it.rate or 0 }}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
                         <span class="item-amt" id="itemAmt_{{ loop.index0 }}">{{ "%.2f"|format(it.amount) }}</span>
                         <button type="button" class="btn-remove" onclick="removeItem(this)" {% if loop.first %}style="display:none"{% endif %}>&times;</button>
@@ -99,6 +112,18 @@
                     <div class="line-item-row">
                         <input type="text" name="item_desc[]" placeholder="Service description" list="svcItems">
                         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
+                        <select name="item_unit[]" style="text-align:center;cursor:pointer" onchange="calcTotals()">
+                            <option value="hr" selected>Hr</option>
+                            <option value="trip">Trip</option>
+                            <option value="gln">Gln</option>
+                            <option value="kg">Kg</option>
+                            <option value="day">Day</option>
+                            <option value="week">Week</option>
+                            <option value="month">Month</option>
+                            <option value="pcs">Pcs</option>
+                            <option value="km">Km</option>
+                            <option value="load">Load</option>
+                        </select>
                         <input type="number" name="item_rate[]" value="0" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
                         <span class="item-amt" id="itemAmt_0">0.00</span>
                         <button type="button" class="btn-remove" onclick="removeItem(this)" style="display:none">&times;</button>
@@ -125,7 +150,7 @@
         <div style="margin-bottom:16px;padding:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px">
             <div class="form-row">
                 <label class="form-label" style="font-weight:600;color:#92400e">Terms &amp; Conditions</label>
-                <textarea name="terms" class="form-control" rows="3" placeholder="Enter terms and conditions">{{ q.terms or "If you need Quotation for your any other project, please contact us." }}</textarea>
+                <textarea name="terms" class="form-control" rows="3" placeholder="Enter terms and conditions">{{ q.terms or '' }}</textarea>
             </div>
         </div>
 
@@ -143,16 +168,20 @@
 <script>
 let itemCount = {{ (items|length) if edit and items else 1 }};
 
-function addItem(desc, qty, rate) {
+function addItem(desc, qty, rate, unit) {
     const container = document.getElementById('itemsContainer');
     const row = document.createElement('div');
     row.className = 'line-item-row';
     const d = desc || '';
     const q = qty || 1;
     const r = rate || 0;
+    const u = unit || 'hr';
+    const unitOpts = ['hr','trip','gln','kg','day','week','month','pcs','km','load'];
+    const unitHtml = unitOpts.map(uo => `<option value="${uo}" ${u===uo?'selected':''}>${uo.charAt(0).toUpperCase()+uo.slice(1)}</option>`).join('');
     row.innerHTML = `
         <input type="text" name="item_desc[]" value="${d}" placeholder="Service description" list="svcItems">
         <input type="number" name="item_qty[]" value="${q}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
+        <select name="item_unit[]" style="text-align:center;cursor:pointer" onchange="calcTotals()">${unitHtml}</select>
         <input type="number" name="item_rate[]" value="${r}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
         <span class="item-amt" id="itemAmt_${itemCount}">${(q * r).toFixed(2)}</span>
         <button type="button" class="btn-remove" onclick="removeItem(this)">&times;</button>
