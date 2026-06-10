@@ -30,9 +30,6 @@
 
     <form method="POST" id="quotationForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <datalist id="svcItems">
-            {% for s in svc_items %}<option value="{{ s.description }}">{% endfor %}
-        </datalist>
 
         {# ─── Walk-in Customer Fields ─── #}
         {% if walkin %}
@@ -89,7 +86,7 @@
                 {% if edit and items %}
                     {% for it in items %}
                     <div class="line-item-row">
-                        <input type="text" name="item_desc[]" value="{{ it.description or '' }}" placeholder="Service description" list="svcItems">
+                        <input type="text" name="item_desc[]" value="{{ it.description or '' }}" placeholder="Service description">
                         <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
                         <select name="item_unit[]" style="text-align:center;cursor:pointer" onchange="calcTotals()">
                             <option value="hr" {% if it.unit == 'hr' %}selected{% endif %}>Hr</option>
@@ -110,7 +107,7 @@
                     {% endfor %}
                 {% else %}
                     <div class="line-item-row">
-                        <input type="text" name="item_desc[]" placeholder="Service description" list="svcItems">
+                        <input type="text" name="item_desc[]" placeholder="Service description">
                         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
                         <select name="item_unit[]" style="text-align:center;cursor:pointer" onchange="calcTotals()">
                             <option value="hr" selected>Hr</option>
@@ -179,7 +176,7 @@ function addItem(desc, qty, rate, unit) {
     const unitOpts = ['hr','trip','gln','kg','day','week','month','pcs','km','load'];
     const unitHtml = unitOpts.map(uo => `<option value="${uo}" ${u===uo?'selected':''}>${uo.charAt(0).toUpperCase()+uo.slice(1)}</option>`).join('');
     row.innerHTML = `
-        <input type="text" name="item_desc[]" value="${d}" placeholder="Service description" list="svcItems">
+        <input type="text" name="item_desc[]" value="${d}" placeholder="Service description">
         <input type="number" name="item_qty[]" value="${q}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
         <select name="item_unit[]" style="text-align:center;cursor:pointer" onchange="calcTotals()">${unitHtml}</select>
         <input type="number" name="item_rate[]" value="${r}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
