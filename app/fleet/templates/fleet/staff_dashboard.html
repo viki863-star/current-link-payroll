@@ -43,28 +43,6 @@
         </a>
     </div>
 
-    <div class="staff-card" style="margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <h3 style="margin:0;font-size:0.9rem;font-weight:600">Cash Received</h3>
-        </div>
-        {% if cash_receipts %}
-        <div class="staff-timeline">
-            {% for r in cash_receipts[:5] %}
-            <div class="staff-timeline-item">
-                <div class="staff-timeline-dot green"></div>
-                <div class="staff-timeline-content">
-                    <span class="staff-timeline-title">{{ r.given_by }}</span>
-                    <span class="staff-timeline-sub">{{ r.receipt_date }}{% if r.notes %} &middot; {{ r.notes }}{% endif %}</span>
-                </div>
-                <span class="staff-timeline-amount green">+AED {{ "%.0f"|format(r.amount) }}</span>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p style="text-align:center;color:var(--muted);font-size:0.85rem;padding:16px 0">No cash received yet.</p>
-        {% endif %}
-    </div>
-
     <div class="staff-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
             <h3 style="margin:0;font-size:0.9rem;font-weight:600">Recent Jobs</h3>

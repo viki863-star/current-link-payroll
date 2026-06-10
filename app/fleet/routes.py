@@ -812,27 +812,6 @@ def _migrate_old_staff_entries(db):
         JOIN technicians t ON t.technician_code = fs.staff_id
     """).fetchall()
     for s in synced:
-        old_cash = db.execute("""
-            SELECT cr.* FROM cash_receipts cr
-            LEFT JOIN maintenance_staff_advances msa
-                ON msa.staff_code = cr.staff_id
-                AND msa.amount = cr.amount
-                AND msa.entry_date = cr.receipt_date
-                AND msa.reference = cr.given_by
-            WHERE cr.staff_id = ? AND msa.id IS NULL
-        """, (s["staff_id"],)).fetchall()
-        for c in old_cash:
-            last = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
-            num = 1
-            if last:
-                num = int(last["advance_no"].split("-")[1]) + 1
-            adv_no = f"ADV-{num:04d}"
-            db.execute("""
-                INSERT INTO maintenance_staff_advances
-                (advance_no, staff_code, entry_date, funding_source, amount, reference, notes)
-                VALUES (?, ?, ?, 'Owner Fund', ?, ?, ?)
-            """, (adv_no, s["staff_id"], c["receipt_date"], c["amount"], c["given_by"], c["notes"] or ""))
-
         old_jobs = db.execute("""
             SELECT mj.* FROM maintenance_jobs mj
             LEFT JOIN maintenance_papers mp
@@ -938,31 +917,6 @@ def _import_field_staff_from_sqlite(db):
         except Exception:
             pass
     if old_jobs:
-        db.commit()
-
-    try:
-        old_cash = sdb.execute("SELECT * FROM cash_receipts").fetchall()
-    except Exception:
-        old_cash = []
-
-    for c in old_cash:
-        last_adv = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
-        num = 1
-        if last_adv:
-            parts = last_adv["advance_no"].split("-")
-            if len(parts) == 2 and parts[1].isdigit():
-                num = int(parts[1]) + 1
-        adv_no = f"ADV-{num:04d}"
-        try:
-            db.execute("""
-                INSERT INTO maintenance_staff_advances
-                (advance_no, staff_code, entry_date, funding_source, amount, reference, notes)
-                VALUES (?, ?, ?, 'Owner Fund', ?, ?, ?)
-            """, (adv_no, c["staff_id"], c["receipt_date"], c["amount"],
-                  c["given_by"], c["notes"] or ""))
-        except Exception:
-            pass
-    if old_cash:
         db.commit()
 
     try:
@@ -1254,7 +1208,7 @@ def fleet_staff_delete(staff_id):
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
     # Nullify references so submitted data is preserved
-    for tbl, col in [("maintenance_jobs", "staff_id"), ("maintenance_papers", "technician_code"), ("maintenance_staff_advances", "staff_code"), ("cash_receipts", "staff_id")]:
+    for tbl, col in [("maintenance_jobs", "staff_id"), ("maintenance_papers", "technician_code"), ("maintenance_staff_advances", "staff_code")]:
         try:
             db.execute(f"UPDATE {tbl} SET {col}='' WHERE {col}=?", (staff_id,))
         except Exception:
@@ -1308,64 +1262,6 @@ def fleet_staff_edit(staff_id):
 
 
 # ── ADMIN: Cash Receipts ────────────────────────────────────────
-
-@fleet_bp.route("/fleet/staff/<staff_id>/receipts", methods=["GET", "POST"])
-@_login_required("admin")
-def fleet_staff_receipts(staff_id):
-    _touch_admin_workspace("fleet")
-    ensure_fleet_tables()
-    db = open_db()
-    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
-    if not s:
-        flash("Staff not found.", "error")
-        return redirect(url_for("fleet.fleet_staff_list"))
-
-    if request.method == "POST":
-        given_by = request.form.get("given_by", "").strip()
-        amount = request.form.get("amount", "").strip()
-        receipt_date = request.form.get("receipt_date", "").strip() or date.today().isoformat()
-        payment_time = request.form.get("payment_time", "").strip() or None
-        notes = request.form.get("notes", "").strip()
-
-        if not given_by or not amount:
-            flash("Given by and amount are required.", "error")
-            return redirect(url_for("fleet.fleet_staff_receipts", staff_id=staff_id))
-
-        db.execute(
-            "INSERT INTO cash_receipts (staff_id, given_by, amount, receipt_date, payment_time, notes) VALUES (?,?,?,?,?,?)",
-            (staff_id, given_by, float(amount), receipt_date, payment_time, notes),
-        )
-        last = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
-        num = 1
-        if last:
-            num = int(last["advance_no"].split("-")[1]) + 1
-        adv_no = f"ADV-{num:04d}"
-        db.execute(
-            "INSERT INTO maintenance_staff_advances (advance_no, staff_code, entry_date, funding_source, amount, reference, notes) VALUES (?,?,?,?,?,?,?)",
-            (adv_no, staff_id, receipt_date, "Owner Fund", float(amount), given_by, notes or ""),
-        )
-        db.commit()
-        flash(f"AED {amount} received from {given_by}.", "success")
-        return redirect(url_for("fleet.fleet_staff_receipts", staff_id=staff_id))
-
-    receipts = db.execute(
-        "SELECT * FROM cash_receipts WHERE staff_id = ? ORDER BY receipt_date DESC", (staff_id,)
-    ).fetchall()
-    total = sum(r["amount"] for r in receipts)
-    return render_template("fleet/fleet_staff_receipts.html", s=s, receipts=receipts, total=total)
-
-
-@fleet_bp.route("/fleet/staff/<staff_id>/receipts/<int:receipt_id>/delete", methods=["POST"])
-@_login_required("admin")
-def fleet_staff_receipt_delete(staff_id, receipt_id):
-    _touch_admin_workspace("fleet")
-    db = open_db()
-    r = db.execute("SELECT * FROM cash_receipts WHERE id = ? AND staff_id = ?", (receipt_id, staff_id)).fetchone()
-    if r:
-        db.execute("DELETE FROM cash_receipts WHERE id = ?", (receipt_id,))
-        db.commit()
-        flash("Receipt deleted.", "success")
-    return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
 
 
 @fleet_bp.route("/fleet/staff/<staff_id>/advances/<int:advance_id>/delete", methods=["POST"])
@@ -1449,33 +1345,6 @@ def fleet_staff_profile(staff_id):
         (staff_id,),
     ).fetchall()
 
-    # Sync any unsynced cash_receipts into advances so they appear on profile
-    unsynced = db.execute("""
-        SELECT cr.* FROM cash_receipts cr
-        LEFT JOIN maintenance_staff_advances msa
-            ON msa.staff_code = cr.staff_id
-            AND msa.amount = cr.amount
-            AND msa.entry_date = cr.receipt_date
-            AND msa.reference = cr.given_by
-        WHERE cr.staff_id = ? AND msa.id IS NULL
-    """, (staff_id,)).fetchall()
-    for c in unsynced:
-        last = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
-        num = 1
-        if last:
-            num = int(last["advance_no"].split("-")[1]) + 1
-        adv_no = f"ADV-{num:04d}"
-        db.execute(
-            "INSERT INTO maintenance_staff_advances (advance_no, staff_code, entry_date, funding_source, amount, reference, notes) VALUES (?,?,?,?,?,?,?)",
-            (adv_no, staff_id, c["receipt_date"], "Owner Fund", c["amount"], c["given_by"], c["notes"] or ""),
-        )
-    db.commit()
-    # Re-fetch after sync
-    advances = db.execute(
-        "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
-        (staff_id,),
-    ).fetchall()
-
     cash_items = []
     for a in advances:
         d = dict(a)
@@ -1524,9 +1393,6 @@ def fleet_staff_delete_data(staff_id):
             db.execute("DELETE FROM maintenance_paper_lines WHERE paper_no = ?", (pn,))
         db.execute("DELETE FROM maintenance_papers WHERE technician_code = ?", (staff_id,))
         deleted.append("Maintenance Papers")
-    if "receipts" in types:
-        db.execute("DELETE FROM cash_receipts WHERE staff_id = ?", (staff_id,))
-        deleted.append("Cash Receipts")
     db.commit()
     if deleted:
         flash(f"Deleted: {', '.join(deleted)} for {s['full_name']}.", "success")
@@ -1568,9 +1434,6 @@ def fleet_staff_delete_items(staff_id):
         elif prefix == "advance":
             db.execute("DELETE FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (record_id, staff_id))
             deleted.append(f"advance #{record_id}")
-        elif prefix == "receipt":
-            db.execute("DELETE FROM cash_receipts WHERE id = ? AND staff_id = ?", (record_id, staff_id))
-            deleted.append(f"receipt #{record_id}")
     db.commit()
     if deleted:
         flash(f"Deleted {len(deleted)} item(s): {', '.join(deleted[:10])}{'...' if len(deleted) > 10 else ''}", "success")
