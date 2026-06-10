@@ -49,7 +49,7 @@
             </div>
             {% endif %}
             <div style="padding-top:{% if company and company.logo_data %}4px{% else %}0{% endif %}">
-                <h2 style="font-size:1.4rem;font-weight:800">{{ company.company_name if company else "CURRENT LINK TRANSPORT" }}</h2>
+                <h2 style="font-size:1.4rem;font-weight:800">CURRENT LINK TRANSPORT AND GENERAL CONTRACTING</h2>
                 <div class="detail" style="font-size:0.78rem;margin-top:4px">{{ company.address if company else "Dubai, UAE" }}</div>
                 <div class="detail" style="font-size:0.78rem">Phone: {{ company.phone_number or "+971" if company else "+971" }} &middot; Email: {{ company.email if company else "info@example.ae" }}</div>
                 <div class="detail" style="font-size:0.78rem;font-weight:700">TRN: {{ company.trn_no if company else "XXXXXXXXXX" }}</div>

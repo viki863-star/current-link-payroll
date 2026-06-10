@@ -1289,7 +1289,7 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     basis_labels = {"trip": "Trip", "hour": "Hour", "daily": "Daily", "weekly": "Weekly", "monthly": "Monthly", "kg": "Kg", "gallon": "Gallon", "lump": "Lump Sum", "fixed": "Fixed", "other": "Other"}
     total_amt = lpo["amount"] or 0
 
-    cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT") or "CURRENT LINK TRANSPORT"
+    cn = "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
     c_addr = (company["address"] if company else "") or ""
     c_trn = (company["trn_no"] if company else "XXXXXXXXXX") or "XXXXXXXXXX"
     c_ph = (company["phone_number"] if company else "") or ""
@@ -1636,7 +1636,7 @@ def supplier_quotation_pdf(sup_id, q_id):
     basis_labels = {"trip": "Trip", "hour": "Hour", "daily": "Daily", "weekly": "Weekly", "monthly": "Monthly", "kg": "Kg", "gallon": "Gallon", "lump": "Lump Sum", "fixed": "Fixed", "other": "Other"}
     total_amt = q["amount"] or 0
 
-    cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT") or "CURRENT LINK TRANSPORT"
+    cn = "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
     c_addr = (company["address"] if company else "") or ""
     c_trn = (company["trn_no"] if company else "XXXXXXXXXX") or "XXXXXXXXXX"
     c_ph = (company["phone_number"] if company else "") or ""

@@ -598,7 +598,7 @@ def customer_invoice_pdf(cid, iid):
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64748b"); C6 = colors.HexColor("#dc2626")
 
-    cn = company["company_name"] if company else "CURRENT LINK TRANSPORT"
+    cn = "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""
@@ -1310,7 +1310,7 @@ def customer_quotation_pdf(cid, qid):
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64748b"); C6 = colors.HexColor("#dc2626")
 
-    cn = company["company_name"] if company else "CURRENT LINK TRANSPORT"
+    cn = "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""
@@ -1583,7 +1583,7 @@ def customer_quotation_pdf(cid, qid):
         auth_imgs.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),("ALIGN",(0,0),(-1,-1),"CENTER")]))
         els.append(auth_imgs)
     st = Table([
-        [Paragraph("<br/><br/>___________________________<br/><b>Authorized Signatory</b><br/><font size=7 color='#64748b'>AL SAQR TRANSPORT</font>", sg),
+        [Paragraph("<br/><br/>___________________________<br/><b>Authorized Signatory</b><br/><font size=7 color='#64748b'>" + cn + "</font>", sg),
          Paragraph("<br/>", sg)],
     ], colWidths=[W*0.5, W*0.5])
     st.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))

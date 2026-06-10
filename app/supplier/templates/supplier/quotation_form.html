@@ -62,7 +62,7 @@
                     <label class="form-label">Contact Details</label>
                     {% set default_contact %}
 Contact Person: Mr. Nasrullah<br>
-{% if company %}{{ company.company_name }}<br>{% if company.phone_number %}Phone: {{ company.phone_number }}{% endif %}{% if company.email %} | Email: {{ company.email }}{% endif %}<br>{% if company.address %}{{ company.address }}{% endif %}<br>TRN: {{ company.trn_no or '—' }}{% endif %}
+{% if company %}CURRENT LINK TRANSPORT AND GENERAL CONTRACTING<br>{% if company.phone_number %}Phone: {{ company.phone_number }}{% endif %}{% if company.email %} | Email: {{ company.email }}{% endif %}<br>{% if company.address %}{{ company.address }}{% endif %}<br>TRN: {{ company.trn_no or '—' }}{% endif %}
                     {% endset %}
                     <textarea name="contact_details" class="form-control" rows="3" placeholder="Company contact details displayed on quotation">{{ quotation.contact_details or default_contact }}</textarea>
                 </div>
