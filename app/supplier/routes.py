@@ -256,6 +256,15 @@ def _ensure_tables():
         except Exception:
             db.rollback()
 
+    for col, dtype in [("invoice_ids", "TEXT"), ("fund_source", "TEXT DEFAULT 'cash_bank'")]:
+        try:
+            db.execute(f"ALTER TABLE supplier_payment_records ADD COLUMN {col} {dtype}")
+            db.commit()
+        except Exception:
+            db.rollback()
+
+    db.close()
+
     for col, dtype in [("deduct_from_balance", "INTEGER DEFAULT 0")]:
         try:
             db.execute(f"ALTER TABLE supplier_loans ADD COLUMN {col} {dtype}")
