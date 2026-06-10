@@ -2041,11 +2041,11 @@ def supplier_loans_list(sup_id):
 
 
 # ═══════════════════════════════════════════════════════════
-# KATA (Running Statement)
+# SOA (Statement of Account)
 # ═══════════════════════════════════════════════════════════
 
-@supplier_bp.route("/<int:sup_id>/kata")
-def supplier_kata(sup_id):
+@supplier_bp.route("/<int:sup_id>/soa")
+def supplier_soa(sup_id):
     _ensure_tables()
     db = _get_db()
     s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()

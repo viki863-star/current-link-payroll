@@ -1866,10 +1866,10 @@ def customer_doc_delete(cid, did):
     flash("Document deleted.", "success")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="documents"))
 
-# ─── KATA / STATEMENT ───
+# ─── SOA / STATEMENT ───
 
-@customer_bp.route("/<int:cid>/kata")
-def customer_kata(cid):
+@customer_bp.route("/<int:cid>/soa")
+def customer_soa(cid):
     _ensure_tables()
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))

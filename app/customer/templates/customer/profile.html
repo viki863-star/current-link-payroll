@@ -92,7 +92,7 @@ td .mono-sm { font-size:0.75rem; }
     <a href="?tab=quotations" class="tab-btn {% if active_tab == 'quotations' %}is-active{% endif %}">Quotations</a>
     <a href="?tab=lpos" class="tab-btn {% if active_tab == 'lpos' %}is-active{% endif %}">LPOs</a>
     <a href="?tab=documents" class="tab-btn {% if active_tab == 'documents' %}is-active{% endif %}">Documents</a>
-    <a href="{{ url_for('customer.customer_kata', cid=c.id) }}" class="tab-btn">Kata</a>
+    <a href="{{ url_for('customer.customer_soa', cid=c.id) }}" class="tab-btn">SOA</a>
 </div>
 
 {# ═══════ OVERVIEW ═══════ #}
@@ -133,7 +133,7 @@ td .mono-sm { font-size:0.75rem; }
         <a href="{{ url_for('customer.customer_quotation_add', cid=c.id) }}" class="btn btn-outline btn-sm">+ Quotation</a>
         <a href="{{ url_for('customer.customer_lpo_add', cid=c.id) }}" class="btn btn-outline btn-sm">+ LPO</a>
         <a href="{{ url_for('customer.customer_doc_add', cid=c.id) }}" class="btn btn-outline btn-sm">+ Document</a>
-        <a href="{{ url_for('customer.customer_kata', cid=c.id) }}" class="btn btn-outline btn-sm">View Kata</a>
+        <a href="{{ url_for('customer.customer_soa', cid=c.id) }}" class="btn btn-outline btn-sm">SOA</a>
     </div>
 </div>
 
