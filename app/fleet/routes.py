@@ -1449,6 +1449,33 @@ def fleet_staff_profile(staff_id):
         (staff_id,),
     ).fetchall()
 
+    # Sync any unsynced cash_receipts into advances so they appear on profile
+    unsynced = db.execute("""
+        SELECT cr.* FROM cash_receipts cr
+        LEFT JOIN maintenance_staff_advances msa
+            ON msa.staff_code = cr.staff_id
+            AND msa.amount = cr.amount
+            AND msa.entry_date = cr.receipt_date
+            AND msa.reference = cr.given_by
+        WHERE cr.staff_id = ? AND msa.id IS NULL
+    """, (staff_id,)).fetchall()
+    for c in unsynced:
+        last = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
+        num = 1
+        if last:
+            num = int(last["advance_no"].split("-")[1]) + 1
+        adv_no = f"ADV-{num:04d}"
+        db.execute(
+            "INSERT INTO maintenance_staff_advances (advance_no, staff_code, entry_date, funding_source, amount, reference, notes) VALUES (?,?,?,?,?,?,?)",
+            (adv_no, staff_id, c["receipt_date"], "Owner Fund", c["amount"], c["given_by"], c["notes"] or ""),
+        )
+    db.commit()
+    # Re-fetch after sync
+    advances = db.execute(
+        "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
+        (staff_id,),
+    ).fetchall()
+
     cash_items = []
     for a in advances:
         d = dict(a)
