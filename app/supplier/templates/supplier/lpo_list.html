@@ -2,7 +2,7 @@
 {% block title %}LPOs{% endblock %}
 {% block page_title %}LPOs{% endblock %}
 
-{% set LPO_TYPE_LABELS = {'trip':'Trip','hour':'Hour','monthly':'Monthly','fixed':'Fixed','other':'Other'} %}
+{% set LPO_TYPE_LABELS = {'trip':'Trip','hour':'Hour','daily':'Daily','weekly':'Weekly','monthly':'Monthly','kg':'Kg','gallon':'Gallon','lump':'Lump','fixed':'Fixed','other':'Other'} %}
 
 {% block content %}
 <div class="profile-shell">
@@ -28,11 +28,16 @@
                         <td class="mono" style="font-size:0.75rem">{{ lpo.quotation_no or '—' }}</td>
                         <td><span class="status-badge {% if lpo.status == 'closed' %}active{% else %}pending{% endif %}">{{ lpo.status }}</span></td>
                         <td style="display:flex;gap:4px">
+                            <a href="{{ url_for('supplier.supplier_lpo_edit', sup_id=s.id, lpo_id=lpo.id) }}" class="act-btn edit" title="Edit">✏️</a>
                             <a href="{{ url_for('supplier.supplier_lpo_pdf', sup_id=s.id, lpo_id=lpo.id) }}" class="btn btn-xs btn-primary" target="_blank">PDF</a>
                             {% if lpo.status == 'open' %}
                             <form method="POST" action="{{ url_for('supplier.supplier_lpo_close', sup_id=s.id, lpo_id=lpo.id) }}" style="display:inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-xs btn-outline">Close</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('supplier.supplier_lpo_delete', sup_id=s.id, lpo_id=lpo.id) }}" style="display:inline" onsubmit="return confirm('Delete this LPO?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="act-btn del" title="Delete">🗑️</button>
                             </form>
                             {% endif %}
                         </td>

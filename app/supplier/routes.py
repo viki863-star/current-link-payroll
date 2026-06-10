@@ -1047,7 +1047,12 @@ def supplier_invoice_delete(sup_id, inv_id):
 LPO_TYPES = [
     ("trip", "Trip Basis"),
     ("hour", "Hour Basis"),
+    ("daily", "Daily"),
+    ("weekly", "Weekly"),
     ("monthly", "Monthly"),
+    ("kg", "Kg"),
+    ("gallon", "Gallon"),
+    ("lump", "Lump Sum"),
     ("fixed", "Fixed Amount"),
     ("other", "Other"),
 ]
@@ -1201,7 +1206,7 @@ def supplier_lpo_delete(sup_id, lpo_id):
     except Exception as e:
         db.rollback()
         flash(f"Error deleting LPO: {e}", "error")
-    return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="lpos"))
+    return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
 
 
 @supplier_bp.route("/<int:sup_id>/lpos/<int:lpo_id>/close", methods=["POST"])
@@ -1271,7 +1276,7 @@ def supplier_lpo_pdf(sup_id, lpo_id):
 
     type_labels = dict(LPO_TYPES)
     lpo_type_str = type_labels.get(lpo["lpo_type"], lpo["lpo_type"] or "Fixed Amount")
-    basis_labels = {"trip": "Trip", "hour": "Hour", "monthly": "Monthly", "fixed": "Fixed", "other": "Other"}
+    basis_labels = {"trip": "Trip", "hour": "Hour", "daily": "Daily", "weekly": "Weekly", "monthly": "Monthly", "kg": "Kg", "gallon": "Gallon", "lump": "Lump Sum", "fixed": "Fixed", "other": "Other"}
     total_amt = lpo["amount"] or 0
 
     cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT") or "CURRENT LINK TRANSPORT"
