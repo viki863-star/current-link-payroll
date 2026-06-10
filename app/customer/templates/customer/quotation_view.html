@@ -169,6 +169,10 @@
     <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
         <a href="{{ url_for('customer.customer_quotation_edit', cid=c.id, qid=q.id) }}" class="btn btn-outline">Edit</a>
         <a href="{{ url_for('customer.customer_quotation_pdf', cid=c.id, qid=q.id) }}" class="btn btn-primary" target="_blank">Download PDF</a>
+        <form method="POST" action="{{ url_for('customer.customer_quotation_delete', cid=c.id, qid=q.id) }}" style="display:inline" onsubmit="return confirm('Delete quotation {{ q.quotation_no }}?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline" style="color:#e65100">Delete</button>
+        </form>
         <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='quotations') }}" class="btn btn-outline">&larr; Back</a>
     </div>
 </div>
