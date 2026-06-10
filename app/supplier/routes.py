@@ -263,8 +263,6 @@ def _ensure_tables():
         except Exception:
             db.rollback()
 
-    db.close()
-
     for col, dtype in [("deduct_from_balance", "INTEGER DEFAULT 0")]:
         try:
             db.execute(f"ALTER TABLE supplier_loans ADD COLUMN {col} {dtype}")
