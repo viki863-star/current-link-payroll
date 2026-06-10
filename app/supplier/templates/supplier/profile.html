@@ -133,14 +133,13 @@
   ('earnings', '💰', 'Earnings'),
   ('payments','💳', 'Payments'),
   ('lpos',    '📄', 'LPOs'),
-  ('soa',     '📊', 'SOA'),
   ('loans',   '🏦', 'Loans'),
 ] %}
 <div class="sp-tabs-bar">
   {% for key, icon, label in tabs %}
   <a href="?tab={{ key }}" class="sp-tab {% if active_tab == key %}act{% endif %}"><span class="tab-ic">{{ icon }}</span> {{ label }}</a>
   {% endfor %}
-   <a href="{{ url_for('supplier.supplier_soa', sup_id=s.id) }}" class="sp-tab"><span class="tab-ic">📋</span> SOA</a>
+   <a href="{{ url_for('supplier.supplier_soa', sup_id=s.id) }}" class="sp-tab"><span class="tab-ic">📊</span> SOA</a>
 </div>
 
 {# ═══════════════════════════════════════════════════ #}
