@@ -4,8 +4,9 @@
 
 {% block content %}
 <div class="profile-shell">
-    <div style="margin-bottom:16px">
+    <div style="margin-bottom:16px;display:flex;gap:8px;align-items:center">
         <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" class="btn btn-outline btn-sm">&larr; Back to Profile</a>
+        <a href="{{ url_for('supplier.supplier_soa_pdf', sup_id=s.id) }}" class="btn btn-primary btn-sm" style="margin-left:auto" target="_blank">Download PDF</a>
     </div>
 
     <div class="profile-card">

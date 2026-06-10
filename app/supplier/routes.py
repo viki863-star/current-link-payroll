@@ -2132,6 +2132,245 @@ def supplier_soa(sup_id):
     )
 
 
+@supplier_bp.route("/<int:sup_id>/soa/pdf")
+def supplier_soa_pdf(sup_id):
+    _ensure_tables()
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from io import BytesIO
+    import tempfile, os, base64
+
+    db = _get_db()
+    s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    if not s:
+        flash("Supplier not found.", "error")
+        return redirect(url_for("supplier.supplier_list"))
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+
+    ledger = []
+    for inv in db.execute(
+        "SELECT id, invoice_date as dt, invoice_no as ref, total_amount as amt, status FROM supplier_invoices WHERE supplier_id = ?",
+        (sup_id,),
+    ).fetchall():
+        ledger.append({"date": inv["dt"], "type": "Invoice", "ref": inv["ref"], "dr": 0, "cr": inv["amt"]})
+    for exp in db.execute(
+        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type FROM supplier_expenses WHERE supplier_id = ?",
+        (sup_id,),
+    ).fetchall():
+        ledger.append({"date": exp["dt"], "type": "Expense", "ref": exp["ref"], "dr": 0, "cr": exp["amt"]})
+    for pay in db.execute(
+        "SELECT id, payment_date as dt, payment_method as ref, amount as amt FROM supplier_payment_records WHERE supplier_id = ?",
+        (sup_id,),
+    ).fetchall():
+        ledger.append({"date": pay["dt"], "type": "Payment", "ref": pay["ref"], "dr": pay["amt"], "cr": 0})
+
+    ledger.sort(key=lambda x: x["date"])
+    running = 0
+    for row in ledger:
+        running += row["cr"] - row["dr"]
+        row["bal"] = round(running, 2)
+    db.close()
+
+    total_cr = sum(r["cr"] for r in ledger)
+    total_dr = sum(r["dr"] for r in ledger)
+    closing = round(total_cr - total_dr, 2)
+
+    _logo_tmp_files = []
+    buf = BytesIO()
+    LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 15*mm
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = A4[0] - LM - RM
+
+    tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
+    try: TH = colors.HexColor(tc)
+    except: TH = colors.HexColor("#1a3a5c")
+    BG = colors.HexColor("#f4f6f9"); WH = colors.white; C3 = colors.HexColor("#d1d5db")
+    C4 = colors.HexColor("#111827"); C5 = colors.HexColor("#6b7280")
+
+    def F(name, **kw):
+        kw.setdefault("fontSize", 8); kw.setdefault("leading", 12)
+        return ParagraphStyle(name, **kw)
+
+    def C(t, **kw):
+        kw.setdefault("alignment", TA_CENTER)
+        return Paragraph(str(t), F("_C", **kw))
+    def R(t, **kw):
+        kw.setdefault("alignment", TA_RIGHT)
+        return Paragraph(str(t), F("_R", **kw))
+    def L(t, **kw):
+        kw.setdefault("textColor", C5)
+        return Paragraph(str(t), F("_L", **kw))
+
+    els = []
+    cn = company["company_name"] if company else "COMPANY"
+    trn = company["trn_no"] or "—" if company else "—"
+
+    logo = None; LW = 0
+    if company and company["logo_data"]:
+        try:
+            lb = base64.b64decode(company["logo_data"])
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            f.write(lb); f.close()
+            logo = Image(f.name, width=50, height=50)
+            LW = 50
+            _logo_tmp_files.append(f.name)
+        except: pass
+
+    cl = [f"<font size=11><b>{cn}</b></font>"]
+    addr = company["address"] or ""; ph = company["phone_number"] or ""; em = company["email"] or ""
+    parts = [x for x in [addr] if x]
+    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != f"TRN: —"]
+    if parts or cparts:
+        info = " &middot; ".join(parts + cparts)
+        cl.append(f"<font size=6.5 color='#6b7280'>{info}</font>")
+    co_p = Paragraph("<br/>".join(cl), F("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
+    if logo:
+        lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm])
+        lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    else:
+        lh = co_p
+    rh = Paragraph(
+        f"<b>STATEMENT<br/>OF ACCOUNT</b>",
+        F("TI", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
+    ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
+    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ht)
+    els.append(Spacer(1, 2*mm))
+    hr = Table([[""]], colWidths=[W], rowHeights=[2])
+    hr.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(hr)
+    els.append(Spacer(1, 4*mm))
+
+    # ── Supplier Info ──
+    sinfo = [
+        [Paragraph("<b>Supplier</b>", F("_cl", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11)),
+         Paragraph(f"<b>{s['supplier_name']}</b>", F("_cv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12))],
+    ]
+    if s["trn"]: sinfo.append([Paragraph("TRN", F("_l", fontSize=7.5, textColor=C5, leading=10)), Paragraph(s["trn"], F("_v", fontSize=8.5, textColor=C4, leading=11))])
+    if s["address"]: sinfo.append([Paragraph("Address", F("_l", fontSize=7.5, textColor=C5, leading=10)), Paragraph(s["address"], F("_v", fontSize=8.5, textColor=C4, leading=11))])
+    if s["phone"]: sinfo.append([Paragraph("Phone", F("_l", fontSize=7.5, textColor=C5, leading=10)), Paragraph(s["phone"], F("_v", fontSize=8.5, textColor=C4, leading=11))])
+    st_info = Table(sinfo, colWidths=[50, W - 50])
+    st_info.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),1),("BOTTOMPADDING",(0,0),(-1,-1),1),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(st_info)
+
+    # ── Summary ──
+    els.append(Spacer(1, 3*mm))
+    sdata = [[
+        Paragraph(f"<b>Total Credited (Owed)</b><br/><font size=10 color='#e65100'>AED {total_cr:,.2f}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Total Paid</b><br/><font size=10 color='#1a7d1a'>AED {total_dr:,.2f}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Balance</b><br/><font size=10 color='#c62828'>AED {closing if closing > 0 else 0:,.2f}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Transactions</b><br/><font size=10>{len(ledger)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+    ]]
+    st_sum = Table(sdata, colWidths=[W/4, W/4, W/4, W/4])
+    st_sum.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),8), ("BOTTOMPADDING",(0,0),(-1,-1),8),
+        ("LEFTPADDING",(0,0),(-1,-1),5), ("RIGHTPADDING",(0,0),(-1,-1),5),
+        ("BACKGROUND",(0,0),(-1,-1),BG),
+    ]))
+    els.append(st_sum)
+    els.append(Spacer(1, 3*mm))
+
+    # ── Statement Table ──
+    colw = [50, 65, W - 50 - 65 - 65 - 75, 65, 75]
+    hdr = [
+        Paragraph("<b>Date</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph("<b>Description</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+        Paragraph("<b>Dr (AED)</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph("<b>Cr (AED)</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph("<b>Balance (AED)</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+    ]
+    rws = [hdr]
+    rws.append([
+        Paragraph("", F("_o", fontSize=7, leading=10)),
+        Paragraph("Opening Balance", F("_ol", fontSize=7, textColor=C5, leading=10)),
+        Paragraph("", F("_o")), Paragraph("", F("_o")),
+        Paragraph("<b>0.00</b>", F("_ob", fontSize=7, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=10)),
+    ])
+    for e in ledger:
+        bal_val = e.get("bal",0) or 0
+        bal_display = "0.00" if bal_val <= 0 else f"{bal_val:,.2f}"
+        bal_color = "#e65100" if bal_val > 0 else "#1a7d1a"
+        rws.append([
+            Paragraph(str(e["date"]), F("_d", fontSize=7, leading=10)),
+            Paragraph(f"{e['type']}: {e['ref']}", F("_r", fontSize=7, textColor=C4, leading=10)),
+            Paragraph(f"<b>{e['dr']:,.2f}</b>" if e['dr'] else '<font color="#ccc">—</font>', F("_dr", fontSize=7, textColor="#1a7d1a" if e['dr'] else C5, alignment=TA_RIGHT, leading=10)),
+            Paragraph(f"<b>{e['cr']:,.2f}</b>" if e['cr'] else '<font color="#ccc">—</font>', F("_cr", fontSize=7, textColor="#e65100" if e['cr'] else C5, alignment=TA_RIGHT, leading=10)),
+            Paragraph(f"<b>{bal_display}</b>", F("_bl", fontSize=7, fontName="Helvetica-Bold", textColor=bal_color, alignment=TA_RIGHT, leading=10)),
+        ])
+    rws.append([
+        Paragraph("<b>Closing Balance</b>", F("_cb", fontSize=8, fontName="Helvetica-Bold", textColor=WH, leading=11)),
+        Paragraph("", F("_x", fontSize=7, leading=10)),
+        Paragraph(f"<b>{total_dr:,.2f}</b>", F("_cd", fontSize=8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=11)),
+        Paragraph(f"<b>{total_cr:,.2f}</b>", F("_cc", fontSize=8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=11)),
+        Paragraph(f"<b>{(closing if closing > 0 else 0):,.2f}</b>", F("_ccl", fontSize=8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=11)),
+    ])
+    it = Table(rws, colWidths=colw, repeatRows=1)
+    it.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
+        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
+        ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
+        ("FONTNAME",(0,-1),(-1,-1),"Helvetica-Bold"),
+        ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
+    ]))
+    els.append(it)
+
+    # ── Signatures ──
+    els.append(Spacer(1, 8*mm))
+    s_sg = ParagraphStyle("SSG", fontSize=9, alignment=TA_CENTER, leading=14)
+    s_stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
+    s_sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
+    s_auth_cells = []
+    s_auth_cells.append(Paragraph("_________________________", s_sg))
+    if os.path.exists(s_stamp_path):
+        s_auth_cells.append(Image(s_stamp_path, width=40, height=40))
+    if os.path.exists(s_sign_path):
+        s_auth_cells.append(Image(s_sign_path, width=40, height=40))
+    s_auth_cells.append(Paragraph("<b>Authorized Signatory</b>", s_sg))
+    s_auth_cell = Table([[c] for c in s_auth_cells], colWidths=[W*0.35])
+    s_auth_cell.setStyle(TableStyle([
+        ("ALIGN",(0,0),(-1,-1),"CENTER"),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("TOPPADDING",(0,0),(-1,-1),0),
+        ("BOTTOMPADDING",(0,0),(-1,-1),2),
+    ]))
+    soa_sig = Table([[
+        s_auth_cell,
+        C("", fontSize=4),
+        Paragraph("", s_sg),
+    ]], colWidths=[W*0.35, W*0.30, W*0.35])
+    soa_sig.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("LINEABOVE",(0,0),(0,0),0.5,C5), ("LINEABOVE",(2,0),(2,0),0.5,C5),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
+    els.append(soa_sig)
+
+    # ── Footer ──
+    els.append(Spacer(1, 8*mm))
+    fh = Table([[""]], colWidths=[W], rowHeights=[0.5])
+    fh.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(fh)
+    els.append(Spacer(1, 2*mm))
+    ft_txt = "This is a computer-generated Statement of Account."
+    els.append(Paragraph(f"<font size=7 color='#6b7280'>{ft_txt}</font>", F("_ft", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
+
+    doc.build(els)
+    for fp in _logo_tmp_files:
+        try: os.unlink(fp)
+        except: pass
+    buf.seek(0)
+    return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=f"SOA_{s['supplier_code'] or sup_id}.pdf")
+
+
 # ═══════════════════════════════════════════════════════════
 # DELETE
 # ═══════════════════════════════════════════════════════════
