@@ -1728,7 +1728,7 @@ def supplier_payment_add(sup_id):
 
         if not amount:
             flash("Payment amount is required.", "error")
-            return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS)
+            return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS, today=date.today().isoformat())
 
         amount_f = float(amount)
         fund_source = request.form.get("fund_source", "cash_bank").strip()
@@ -1762,7 +1762,7 @@ def supplier_payment_add(sup_id):
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
 
 
-    return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS)
+    return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS, today=date.today().isoformat())
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1819,7 +1819,7 @@ def supplier_payment_edit(sup_id, pay_id):
         notes = request.form.get("notes", "").strip()
         if not amount:
             flash("Payment amount is required.", "error")
-            return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS)
+            return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS, today=date.today().isoformat())
         amount_f = float(amount)
         inv_id_val = int(invoice_id) if invoice_id.isdigit() else None
         fund_source = request.form.get("fund_source", "cash_bank").strip()
@@ -1832,7 +1832,7 @@ def supplier_payment_edit(sup_id, pay_id):
         flash("Payment updated.", "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
 
-    return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS)
+    return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS, today=date.today().isoformat())
 
 
 @supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/delete", methods=["POST"])
