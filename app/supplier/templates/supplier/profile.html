@@ -249,7 +249,10 @@
     'amount': e.amount, 'status': e.status or 'approved',
     'edit_url': url_for('supplier.supplier_expense_edit', sup_id=s.id, exp_id=e.id),
     'delete_url': url_for('supplier.supplier_expense_delete', sup_id=s.id, exp_id=e.id),
-    'del_csrf': csrf_token()
+    'del_csrf': csrf_token(),
+    'has_attachment': e.receipt_data is not none and e.receipt_data != '',
+    'attachment_url': url_for('supplier.supplier_expense_attachment', exp_id=e.id),
+    'attachment_name': e.receipt_name or ''
   }) %}
 {% endfor %}
 {% set all_earnings = all_earnings|sort(attribute='date') %}

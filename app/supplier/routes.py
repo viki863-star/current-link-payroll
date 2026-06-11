@@ -1046,6 +1046,23 @@ def supplier_invoice_attachment(inv_id):
     )
 
 
+@supplier_bp.route("/expenses/<int:exp_id>/attachment")
+def supplier_expense_attachment(exp_id):
+    db = _get_db()
+    exp = db.execute("SELECT * FROM supplier_expenses WHERE id = ?", (exp_id,)).fetchone()
+
+    if not exp or not exp["receipt_data"]:
+        flash("Attachment not found.", "error")
+        return redirect(url_for("supplier.supplier_dashboard"))
+    data = base64.b64decode(exp["receipt_data"])
+    return send_file(
+        BytesIO(data),
+        mimetype=exp["receipt_type"] or "application/octet-stream",
+        as_attachment=True,
+        download_name=exp["receipt_name"] or f"expense_{exp_id}",
+    )
+
+
 @supplier_bp.route("/<int:sup_id>/invoices/<int:inv_id>/delete", methods=["POST"])
 def supplier_invoice_delete(sup_id, inv_id):
     _ensure_tables()
@@ -2027,9 +2044,22 @@ def supplier_expense_edit(sup_id, exp_id):
             flash("Category is required.", "error")
             return render_template("supplier/expense_form.html", s=s, exp=exp)
 
+        try:
+            receipt_name = exp["receipt_name"]
+            receipt_data = exp["receipt_data"]
+            receipt_type = exp["receipt_type"]
+        except Exception:
+            receipt_name = receipt_data = receipt_type = None
+        if "receipt" in request.files:
+            file = request.files["receipt"]
+            if file.filename:
+                receipt_name = file.filename
+                receipt_data = base64.b64encode(file.read()).decode("utf-8")
+                receipt_type = file.content_type
+
         db.execute(
-            "UPDATE supplier_expenses SET expense_date=?, amount=?, category=?, description=?, earning_type=?, quantity=?, rate=?, vehicle_no=? WHERE id=?",
-            (expense_date, amount, category, description, earning_type, qty_f, rate_f, vehicle_no or None, exp_id),
+            "UPDATE supplier_expenses SET expense_date=?, amount=?, category=?, description=?, earning_type=?, quantity=?, rate=?, vehicle_no=?, receipt_name=?, receipt_data=?, receipt_type=? WHERE id=?",
+            (expense_date, amount, category, description, earning_type, qty_f, rate_f, vehicle_no or None, receipt_name, receipt_data, receipt_type, exp_id),
         )
         db.commit()
         flash("Earning updated.", "success")

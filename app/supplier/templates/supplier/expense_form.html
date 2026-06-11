@@ -117,8 +117,10 @@
         <input type="file" name="receipt" class="form-control">
       </div>
 
-      {% if exp and exp.receipt_name %}
-      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:8px">Current: {{ exp.receipt_name }}</div>
+      {% if exp and exp.receipt_data %}
+      <div style="font-size:0.78rem;margin-bottom:8px">
+        Current: <a href="{{ url_for('supplier.supplier_expense_attachment', exp_id=exp.id) }}" target="_blank" style="color:var(--primary)">{{ exp.receipt_name or 'View attachment' }}</a>
+      </div>
       {% endif %}
 
       <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px;padding:10px">{{ 'Update' if exp else 'Save' }} Earning</button>
