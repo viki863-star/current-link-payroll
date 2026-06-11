@@ -6984,7 +6984,7 @@ def register_routes(app: Flask) -> None:
         statement = _owner_fund_statement(db, reverse=False, filters=filters)
         view_incoming, view_outgoing, view_net, view_closing = _owner_fund_view_totals(statement)
         output_dir = Path(app.config["GENERATED_DIR"]) / "owner_fund"
-        company_profile = _company_profile_values(db)
+        company_profile = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
         pdf_path = generate_owner_fund_pdf(
             statement,
             {

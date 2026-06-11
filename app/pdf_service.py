@@ -854,7 +854,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     filters = filters or {}
-    cp = company_profile or {}
+    cp = dict(company_profile) if company_profile else {}
 
     def _active_filter_text():
         parts = []
