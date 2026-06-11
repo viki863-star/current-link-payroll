@@ -1320,146 +1320,153 @@ def fleet_staff_advance_edit(staff_id, advance_id):
 @fleet_bp.route("/fleet/staff/<staff_id>/profile", methods=["GET", "POST"])
 @_login_required("admin")
 def fleet_staff_profile(staff_id):
-    _touch_admin_workspace("fleet")
-    ensure_fleet_tables()
-    db = open_db()
-    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
-    if not s:
-        flash("Staff not found.", "error")
-        return redirect(url_for("fleet.fleet_staff_list"))
+    import traceback
+    try:
+        _touch_admin_workspace("fleet")
+        ensure_fleet_tables()
+        db = open_db()
+        s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+        if not s:
+            flash("Staff not found.", "error")
+            return redirect(url_for("fleet.fleet_staff_list"))
 
-    if request.method == "POST":
-        amount = request.form.get("amount", "").strip()
-        entry_date = request.form.get("entry_date", "").strip() or date.today().isoformat()
-        entry_time = request.form.get("entry_time", "").strip()
-        funding_source = request.form.get("funding_source", "").strip() or "Owner Fund"
-        given_by = request.form.get("given_by", "").strip()
-        notes = request.form.get("notes", "").strip()
+        if request.method == "POST":
+            amount = request.form.get("amount", "").strip()
+            entry_date = request.form.get("entry_date", "").strip() or date.today().isoformat()
+            entry_time = request.form.get("entry_time", "").strip()
+            funding_source = request.form.get("funding_source", "").strip() or "Owner Fund"
+            given_by = request.form.get("given_by", "").strip()
+            notes = request.form.get("notes", "").strip()
 
-        if not amount:
-            flash("Amount is required.", "error")
+            if not amount:
+                flash("Amount is required.", "error")
+                return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+
+            last = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
+            num = 1
+            if last:
+                num = int(last["advance_no"].split("-")[1]) + 1
+            adv_no = f"ADV-{num:04d}"
+            full_dt = f"{entry_date} {entry_time}" if entry_time else entry_date
+            db.execute(
+                "INSERT INTO maintenance_staff_advances (advance_no, staff_code, entry_date, funding_source, amount, reference, notes) VALUES (?,?,?,?,?,?,?)",
+                (adv_no, staff_id, full_dt, funding_source, float(amount), given_by or session.get("username", "Admin"), notes or ""),
+            )
+            db.commit()
+            flash(f"AED {amount} given to {s['full_name']}.", "success")
             return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
 
-        last = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
-        num = 1
-        if last:
-            num = int(last["advance_no"].split("-")[1]) + 1
-        adv_no = f"ADV-{num:04d}"
-        full_dt = f"{entry_date} {entry_time}" if entry_time else entry_date
-        db.execute(
-            "INSERT INTO maintenance_staff_advances (advance_no, staff_code, entry_date, funding_source, amount, reference, notes) VALUES (?,?,?,?,?,?,?)",
-            (adv_no, staff_id, full_dt, funding_source, float(amount), given_by or session.get("username", "Admin"), notes or ""),
-        )
-        db.commit()
-        flash(f"AED {amount} given to {s['full_name']}.", "success")
-        return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+        month_filter = request.args.get("month", "")
+        today_str = date.today().isoformat()
+        current_month = today_str[:7]
+        filter_month = month_filter[:7] if month_filter else ""
+        display_month = filter_month or current_month
 
-    month_filter = request.args.get("month", "")
-    today_str = date.today().isoformat()
-    current_month = today_str[:7]
-    filter_month = month_filter[:7] if month_filter else ""
-    display_month = filter_month or current_month
+        card_received = db.execute(
+            "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ?",
+            (staff_id, display_month),
+        ).fetchone()["t"] or 0
 
-    card_received = db.execute(
-        "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ?",
-        (staff_id, display_month),
-    ).fetchone()["t"] or 0
+        card_jobs = db.execute(
+            "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved' AND substr(created_at,1,7) = ?",
+            (staff_id, display_month),
+        ).fetchone()["t"] or 0
 
-    card_jobs = db.execute(
-        "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved' AND substr(created_at,1,7) = ?",
-        (staff_id, display_month),
-    ).fetchone()["t"] or 0
+        card_papers = db.execute(
+            "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status = 'Approved' AND substr(mp.created_at,1,7) = ?",
+            (staff_id, display_month),
+        ).fetchone()["t"] or 0
 
-    card_papers = db.execute(
-        "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status = 'Approved' AND substr(mp.created_at,1,7) = ?",
-        (staff_id, display_month),
-    ).fetchone()["t"] or 0
+        card_spent = float(card_jobs) + float(card_papers)
+        card_balance = card_received - card_spent
 
-    card_spent = float(card_jobs) + float(card_papers)
-    card_balance = card_received - card_spent
+        jobs = db.execute("""
+            SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
+            LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
+            WHERE mj.staff_id = ? ORDER BY mj.created_at DESC
+        """, (staff_id,)).fetchall()
 
-    jobs = db.execute("""
-        SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
-        LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
-        WHERE mj.staff_id = ? ORDER BY mj.created_at DESC
-    """, (staff_id,)).fetchall()
+        raw_papers = db.execute("""
+            SELECT mp.id, mp.paper_no, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
+                   mp.total_amount AS amount, mp.work_summary AS description,
+                   mp.review_status AS status, mp.notes AS admin_notes,
+                   mp.created_at, 'Maintenance' AS category
+            FROM maintenance_papers mp
+            LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
+            WHERE mp.technician_code = ?
+            ORDER BY mp.created_at DESC
+        """, (staff_id,)).fetchall()
 
-    raw_papers = db.execute("""
-        SELECT mp.id, mp.paper_no, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
-               mp.total_amount AS amount, mp.work_summary AS description,
-               mp.review_status AS status, mp.notes AS admin_notes,
-               mp.created_at, 'Maintenance' AS category
-        FROM maintenance_papers mp
-        LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
-        WHERE mp.technician_code = ?
-        ORDER BY mp.created_at DESC
-    """, (staff_id,)).fetchall()
+        items = []
+        for j in jobs:
+            d = dict(j)
+            d["_type"] = "job"
+            d["_id"] = f"job_{j['id']}"
+            items.append(d)
+        for p in raw_papers:
+            d = dict(p)
+            if isinstance(d.get("created_at"), datetime):
+                d["created_at"] = d["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+            d["_type"] = "paper"
+            d["_id"] = f"paper_{p['id']}"
+            items.append(d)
+        items.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
 
-    items = []
-    for j in jobs:
-        d = dict(j)
-        d["_type"] = "job"
-        d["_id"] = f"job_{j['id']}"
-        items.append(d)
-    for p in raw_papers:
-        d = dict(p)
-        if isinstance(d.get("created_at"), datetime):
-            d["created_at"] = d["created_at"].strftime("%Y-%m-%d %H:%M:%S")
-        d["_type"] = "paper"
-        d["_id"] = f"paper_{p['id']}"
-        items.append(d)
-    items.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
+        if filter_month:
+            advances = db.execute(
+                "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ? ORDER BY entry_date DESC",
+                (staff_id, filter_month),
+            ).fetchall()
+        else:
+            advances = db.execute(
+                "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
+                (staff_id,),
+            ).fetchall()
 
-    if filter_month:
-        advances = db.execute(
-            "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ? ORDER BY entry_date DESC",
-            (staff_id, filter_month),
-        ).fetchall()
-    else:
-        advances = db.execute(
-            "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
+        cash_items = []
+        for a in advances:
+            d = dict(a)
+            d["_type"] = "advance"
+            d["_id"] = f"advance_{a['id']}"
+            d["_date"] = str(a.get("entry_date", ""))
+            d["_amount"] = a["amount"]
+            d["_source"] = a.get("funding_source", "Advance")
+            d["_notes"] = a.get("notes", "")
+            d["_given_by"] = a.get("reference", "")
+            cash_items.append(d)
+        cash_items.sort(key=lambda x: x["_date"], reverse=True)
+
+        months = db.execute(
+            "SELECT DISTINCT substr(entry_date,1,7) AS m FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY m DESC",
             (staff_id,),
         ).fetchall()
 
-    cash_items = []
-    for a in advances:
-        d = dict(a)
-        d["_type"] = "advance"
-        d["_id"] = f"advance_{a['id']}"
-        d["_date"] = str(a.get("entry_date", ""))
-        d["_amount"] = a["amount"]
-        d["_source"] = a.get("funding_source", "Advance")
-        d["_notes"] = a.get("notes", "")
-        d["_given_by"] = a.get("reference", "")
-        cash_items.append(d)
-    cash_items.sort(key=lambda x: x["_date"], reverse=True)
+        # Month name for display
+        import calendar
+        ym = display_month.split("-")
+        month_name = f"{calendar.month_name[int(ym[1])]} {ym[0]}" if len(ym) == 2 else display_month
 
-    months = db.execute(
-        "SELECT DISTINCT substr(entry_date,1,7) AS m FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY m DESC",
-        (staff_id,),
-    ).fetchall()
-
-    # Month name for display
-    import calendar
-    ym = display_month.split("-")
-    month_name = f"{calendar.month_name[int(ym[1])]} {ym[0]}" if len(ym) == 2 else display_month
-
-    return render_template(
-        "fleet/fleet_staff_profile.html",
-        s=s,
-        card_received=card_received,
-        card_spent=card_spent,
-        card_balance=card_balance,
-        month_name=month_name,
-        is_filtered=bool(filter_month),
-        items=items,
-        cash_items=cash_items,
-        months=[r["m"] for r in months],
-        filter_month=filter_month,
-        current_month=current_month,
-        today=date.today().isoformat(),
-        now=datetime.now(),
-    )
+        return render_template(
+            "fleet/fleet_staff_profile.html",
+            s=s,
+            card_received=card_received,
+            card_spent=card_spent,
+            card_balance=card_balance,
+            month_name=month_name,
+            is_filtered=bool(filter_month),
+            items=items,
+            cash_items=cash_items,
+            months=[r["m"] for r in months],
+            filter_month=filter_month,
+            current_month=current_month,
+            today=date.today().isoformat(),
+            now=datetime.now(),
+        )
+    except Exception as e:
+        tb = traceback.format_exc()
+        current_app.logger.error("Profile error for %s:\n%s", staff_id, tb)
+        flash(f"Error: {e}", "error")
+        return redirect(url_for("fleet.fleet_staff_list"))
 
 
 @fleet_bp.route("/fleet/staff/<staff_id>/advances/pdf")
