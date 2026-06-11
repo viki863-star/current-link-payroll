@@ -290,6 +290,16 @@ def _ensure_tables():
             except Exception:
                 pass
 
+    for col, dtype in [("cheque_number", "TEXT"), ("cheque_date", "TEXT")]:
+        try:
+            db.execute(f"ALTER TABLE supplier_payment_records ADD COLUMN {col} {dtype}")
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
     for col, dtype in [("deduct_from_balance", "INTEGER DEFAULT 0")]:
         try:
             db.execute(f"ALTER TABLE supplier_loans ADD COLUMN {col} {dtype}")
@@ -2272,6 +2282,8 @@ def supplier_payment_add(sup_id):
         payment_method = request.form.get("payment_method", "Cash").strip()
         reference_no = request.form.get("reference_no", "").strip()
         notes = request.form.get("notes", "").strip()
+        cheque_number = request.form.get("cheque_number", "").strip()
+        cheque_date = request.form.get("cheque_date", "").strip()
 
         if not amount:
             flash("Payment amount is required.", "error")
@@ -2283,47 +2295,25 @@ def supplier_payment_add(sup_id):
         expense_ids_str = ",".join(expense_ids)
 
         # Ensure columns exist
-        try:
-            db.execute("ALTER TABLE supplier_payment_records ADD COLUMN invoice_ids TEXT")
-            db.commit()
-        except Exception:
-            try: db.rollback()
-            except Exception: pass
-        try:
-            db.execute("ALTER TABLE supplier_payment_records ADD COLUMN fund_source TEXT DEFAULT 'cash_bank'")
-            db.commit()
-        except Exception:
-            try: db.rollback()
-            except Exception: pass
-        try:
-            db.execute("ALTER TABLE supplier_payment_records ADD COLUMN expense_ids TEXT")
-            db.commit()
-        except Exception:
-            try: db.rollback()
-            except Exception: pass
-        try:
-            db.execute("ALTER TABLE supplier_expenses ADD COLUMN payment_date TEXT")
-            db.commit()
-        except Exception:
-            try: db.rollback()
-            except Exception: pass
-        try:
-            db.execute("ALTER TABLE supplier_expenses ADD COLUMN payment_method TEXT")
-            db.commit()
-        except Exception:
-            try: db.rollback()
-            except Exception: pass
-        try:
-            db.execute("ALTER TABLE supplier_expenses ADD COLUMN payment_ref TEXT")
-            db.commit()
-        except Exception:
-            try: db.rollback()
-            except Exception: pass
+        for col,dtype in [("invoice_ids","TEXT"),("fund_source","TEXT DEFAULT 'cash_bank'"),("expense_ids","TEXT"),("cheque_number","TEXT"),("cheque_date","TEXT")]:
+            try:
+                db.execute(f"ALTER TABLE supplier_payment_records ADD COLUMN {col} {dtype}")
+                db.commit()
+            except:
+                try: db.rollback()
+                except: pass
+        for col,dtype in [("payment_date","TEXT"),("payment_method","TEXT"),("payment_ref","TEXT")]:
+            try:
+                db.execute(f"ALTER TABLE supplier_expenses ADD COLUMN {col} {dtype}")
+                db.commit()
+            except:
+                try: db.rollback()
+                except: pass
 
         # Create one payment record for the batch
         db.execute(
-            "INSERT INTO supplier_payment_records (supplier_id, invoice_id, invoice_ids, expense_ids, payment_date, amount, payment_method, reference_no, notes, fund_source) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (sup_id, None, invoice_ids_str, expense_ids_str, payment_date, amount_f, payment_method, reference_no, notes, fund_source),
+            "INSERT INTO supplier_payment_records (supplier_id, invoice_id, invoice_ids, expense_ids, payment_date, amount, payment_method, reference_no, notes, fund_source, cheque_number, cheque_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (sup_id, None, invoice_ids_str, expense_ids_str, payment_date, amount_f, payment_method, reference_no, notes, fund_source, cheque_number or None, cheque_date or None),
         )
 
         # Mark all selected invoices as paid
@@ -2388,6 +2378,40 @@ def supplier_payment_voucher(sup_id, pay_id):
     return render_template("supplier/payment_voucher.html", s=s, pay=pay, inv=inv, invoices=invoices, company=company, today=date.today().isoformat())
 
 
+@supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/cheque")
+def supplier_cheque_print(sup_id, pay_id):
+    _ensure_tables()
+    db = _get_db()
+    s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    pay = db.execute("SELECT * FROM supplier_payment_records WHERE id = ? AND supplier_id = ?", (pay_id, sup_id)).fetchone()
+    if not s or not pay:
+        flash("Payment not found.", "error")
+        return redirect(url_for("supplier.supplier_profile", sup_id=sup_id))
+    try:
+        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    except Exception:
+        company = None
+
+    def num_to_words(n):
+        if n == 0: return "Zero"
+        ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"]
+        tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
+        def cvt(x):
+            if x < 20: return ones[x]
+            if x < 100: return tens[x//10] + (" " + ones[x%10] if x%10 else "")
+            if x < 1000: return ones[x//100] + " Hundred" + (" " + cvt(x%100) if x%100 else "")
+            if x < 100000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
+            return cvt(x//100000) + " Lakh" + (" " + cvt(x%100000) if x%100000 else "")
+        ip = int(n); dp = round((n - ip) * 100)
+        w = cvt(ip)
+        if dp: w += f" and {dp}/100"
+        return w
+
+    amt = pay["amount"] or 0
+    amount_words = num_to_words(amt)
+    return render_template("supplier/cheque_print.html", s=s, pay=pay, company=company, amount_words=amount_words)
+
+
 @supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/edit", methods=["GET", "POST"])
 def supplier_payment_edit(sup_id, pay_id):
     _ensure_tables()
@@ -2444,11 +2468,13 @@ def supplier_payment_edit(sup_id, pay_id):
             if eid:
                 db.execute("UPDATE supplier_expenses SET status='paid', payment_date=?, payment_method=?, payment_ref=? WHERE id=?", (payment_date, payment_method, reference_no, eid))
 
+        cheque_number = request.form.get("cheque_number", "").strip()
+        cheque_date = request.form.get("cheque_date", "").strip()
         invoice_ids_str = ",".join(invoice_ids)
         expense_ids_str = ",".join(expense_ids)
         db.execute(
-            "UPDATE supplier_payment_records SET payment_date=?, amount=?, invoice_id=NULL, invoice_ids=?, expense_ids=?, payment_method=?, reference_no=?, notes=?, fund_source=? WHERE id=?",
-            (payment_date, amount_f, invoice_ids_str, expense_ids_str, payment_method, reference_no, notes, fund_source, pay_id),
+            "UPDATE supplier_payment_records SET payment_date=?, amount=?, invoice_id=NULL, invoice_ids=?, expense_ids=?, payment_method=?, reference_no=?, notes=?, fund_source=?, cheque_number=?, cheque_date=? WHERE id=?",
+            (payment_date, amount_f, invoice_ids_str, expense_ids_str, payment_method, reference_no, notes, fund_source, cheque_number or None, cheque_date or None, pay_id),
         )
         db.commit()
         flash("Payment updated.", "success")

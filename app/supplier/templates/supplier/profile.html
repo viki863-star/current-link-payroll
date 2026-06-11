@@ -279,7 +279,12 @@
           <td>{{ p.payment_method }}</td>
           <td class="mono">{{ p.reference_no or '-' }}</td>
           <td style="font-size:0.8rem;max-width:120px;overflow:hidden;text-overflow:ellipsis">{{ p.notes or '' }}</td>
-          <td><a href="{{ url_for('supplier.supplier_payment_voucher', sup_id=s.id, pay_id=p.id) }}" class="btn btn-xs btn-primary" target="_blank">PDF</a></td>
+          <td>
+            <a href="{{ url_for('supplier.supplier_payment_voucher', sup_id=s.id, pay_id=p.id) }}" class="btn btn-xs btn-primary" target="_blank">PDF</a>
+            {% if p.payment_method == 'Cheque' %}
+            <a href="{{ url_for('supplier.supplier_cheque_print', sup_id=s.id, pay_id=p.id) }}" class="btn btn-xs btn-secondary" target="_blank" style="background:#1a3a5c;color:#fff">Cheque</a>
+            {% endif %}
+          </td>
           <td>
             <div style="display:flex;gap:4px">
               <a href="{{ url_for('supplier.supplier_payment_edit', sup_id=s.id, pay_id=p.id) }}" class="btn btn-xs btn-outline">Edit</a>

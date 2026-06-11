@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Cheque — {{ pay.cheque_number }}</title>
+<style>
+{% set cm = 37.8 %}
+{% set cw = 197 %}
+{% set ch = 98 %}
+@page {
+  size: {{ cw }}mm {{ ch }}mm;
+  margin: 0;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  width: {{ cw }}mm;
+  height: {{ ch }}mm;
+  font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+.cheque-container {
+  width: {{ cw }}mm;
+  height: {{ ch }}mm;
+  position: relative;
+}
+
+/* ── DATE ── */
+.date-field {
+  position: absolute;
+  left: 142mm;
+  top: 25mm;
+  font-size: 11pt;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: #000;
+  white-space: nowrap;
+}
+
+/* ── PAY AGAINST (SUPPLIER NAME) ── */
+.payee-field {
+  position: absolute;
+  left: 35mm;
+  top: 42mm;
+  font-size: 14pt;
+  font-weight: 700;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: #000;
+  max-width: 130mm;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── AMOUNT IN WORDS ── */
+.words-line1 {
+  position: absolute;
+  left: 20mm;
+  top: 52mm;
+  font-size: 11pt;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: #000;
+  max-width: 155mm;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.words-line2 {
+  position: absolute;
+  left: 20mm;
+  top: 62mm;
+  font-size: 11pt;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: #000;
+  max-width: 155mm;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* ── AMOUNT FIGURE BOX ── */
+.figure-box {
+  position: absolute;
+  left: 150mm;
+  top: 52mm;
+  width: 40mm;
+  height: 10mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.figure-box span {
+  font-size: 18pt;
+  font-weight: 700;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: #000;
+}
+
+/* ── TEST MARKERS ── */
+{% if request.args.get('test') %}
+.crosshair {
+  position: absolute;
+  background: #ccc;
+}
+.crosshair.h { width:10mm; height:0.3mm; }
+.crosshair.v { width:0.3mm; height:10mm; }
+.crosshair-label {
+  position: absolute;
+  font-size: 6pt;
+  color: #999;
+}
+{% endif %}
+</style>
+</head>
+<body>
+<div class="cheque-container">
+
+  {# ── DATE ── #}
+  {% set d = pay.cheque_date or pay.payment_date %}
+  {% if d %}
+  <div class="date-field">{{ d }}</div>
+  {% endif %}
+
+  {# ── PAYEE ── #}
+  <div class="payee-field">{{ s.supplier_name }}</div>
+
+  {# ── AMOUNT IN WORDS ── #}
+  {% set amt = pay.amount|float %}
+  <div class="words-line1">
+    AED {{ amount_words }} Only
+  </div>
+
+  {# ── AMOUNT FIGURES ── #}
+  <div class="figure-box">
+    <span>{{ "%.2f"|format(amt) }}</span>
+  </div>
+
+  {# ── TEST ALIGNMENT MARKERS ── #}
+  {% if request.args.get('test') %}
+  <div class="crosshair h" style="left:142mm;top:25mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:142mm;top:25mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:142mm;top:22mm;transform:translateX(-50%)">DATE</div>
+
+  <div class="crosshair h" style="left:35mm;top:42mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:35mm;top:42mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:35mm;top:39mm;transform:translateX(-50%)">PAYEE</div>
+
+  <div class="crosshair h" style="left:20mm;top:52mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:20mm;top:52mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:20mm;top:49mm;transform:translateX(-50%)">WORDS</div>
+
+  <div class="crosshair h" style="left:150mm;top:52mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:150mm;top:52mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:150mm;top:49mm;transform:translateX(-50%)">BOX</div>
+  {% endif %}
+
+</div>
+
+<script>
+window.onload = function() {
+  setTimeout(function() { window.print(); }, 500);
+};
+</script>
+</body>
+</html>

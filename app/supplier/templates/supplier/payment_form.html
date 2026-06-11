@@ -92,7 +92,7 @@
       <div class="pf-grid-2">
         <div class="pf-row">
           <label>Payment Method</label>
-          <select name="payment_method" class="form-control">
+          <select name="payment_method" class="form-control" id="paymentMethod" onchange="toggleChequeFields()">
             {% for m in ['Cash','Bank Transfer','Cheque','Card'] %}
             <option value="{{ m }}" {{ 'selected' if pay and pay.payment_method == m else '' }}>{{ m }}</option>
             {% endfor %}
@@ -103,6 +103,25 @@
           <input type="text" name="reference_no" class="form-control" placeholder="Optional" value="{{ pay.reference_no or '' }}">
         </div>
       </div>
+
+      <div id="chequeFields" class="pf-grid-2" style="display:none">
+        <div class="pf-row">
+          <label>Cheque Number *</label>
+          <input type="text" name="cheque_number" class="form-control" placeholder="e.g. 123456" value="{{ pay.cheque_number or '' }}">
+        </div>
+        <div class="pf-row">
+          <label>Cheque Date</label>
+          <input type="date" name="cheque_date" class="form-control" value="{{ pay.cheque_date or pay.payment_date or '' }}">
+        </div>
+      </div>
+
+      <script>
+      function toggleChequeFields() {
+        var el = document.getElementById('chequeFields');
+        el.style.display = document.getElementById('paymentMethod').value === 'Cheque' ? 'grid' : 'none';
+      }
+      toggleChequeFields();
+      </script>
 
       <div class="pf-row">
         <label>Fund Source</label>
