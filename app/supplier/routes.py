@@ -18,6 +18,7 @@ from . import supplier_bp
 from app import csrf
 
 from ..database import open_db
+from ..routes import _next_reference_code
 
 
 MAINTENANCE_CATEGORIES = [
@@ -1211,8 +1212,9 @@ def supplier_lpo_add(sup_id):
 
     quotations = db.execute("SELECT * FROM supplier_quotations WHERE supplier_id=? ORDER BY quotation_date DESC", (sup_id,)).fetchall()
     company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    suggested_lpo = _next_reference_code(db, "supplier_lpos", "lpo_no", "LPO")
 
-    return render_template("supplier/lpo_form.html", s=s, company=company, lpo={}, lpo_types=LPO_TYPES, quotations=quotations, qitems=[])
+    return render_template("supplier/lpo_form.html", s=s, company=company, lpo={}, lpo_types=LPO_TYPES, quotations=quotations, qitems=[], suggested_lpo=suggested_lpo)
 
 
 @supplier_bp.route("/<int:sup_id>/lpos/<int:lpo_id>/edit", methods=["GET", "POST"])

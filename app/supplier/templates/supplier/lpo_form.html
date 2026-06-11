@@ -45,8 +45,22 @@
           <div class="lpo-grid">
             <div class="lpo-field">
               <label>LPO Number *</label>
-              <input type="text" name="lpo_no" value="{{ lpo.lpo_no or '' }}" class="form-control" required placeholder="e.g. LPO-2024-001">
+              <div style="display:flex;gap:6px;align-items:center">
+                <input type="text" name="lpo_no" id="lpo_no" value="{{ lpo.lpo_no or suggested_lpo or '' }}" class="form-control" required style="flex:1" placeholder="e.g. LPO-2024-001">
+                <label style="font-size:10px;white-space:nowrap;display:flex;align-items:center;gap:4px;cursor:pointer">
+                  <input type="checkbox" id="manual_lpo" onchange="toggleLpoInput()" {{ 'checked' if lpo.lpo_no else '' }}>
+                  Manual
+                </label>
+              </div>
             </div>
+            <script>
+            function toggleLpoInput() {
+              var inp = document.getElementById('lpo_no');
+              inp.readOnly = !document.getElementById('manual_lpo').checked;
+              if (!inp.readOnly) inp.focus();
+            }
+            toggleLpoInput();
+            </script>
             <div class="lpo-field">
               <label>Date *</label>
               <input type="date" name="lpo_date" value="{{ lpo.lpo_date or '' }}" class="form-control" required>
