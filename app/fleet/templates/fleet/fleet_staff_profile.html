@@ -167,9 +167,8 @@
       if (!month) { document.getElementById('filter_from').value = ''; document.getElementById('filter_to').value = ''; return; }
       var parts = month.split('-');
       var y = parseInt(parts[0]), m = parseInt(parts[1]);
-      var first = new Date(y, m-1, 2);
-      var last = new Date(y, m, 1);
-      document.getElementById('filter_from').value = first.toISOString().slice(0,10);
+      document.getElementById('filter_from').value = y+'-'+(m<10?'0':'')+m+'-01';
+      var last = new Date(y, m, 0);
       document.getElementById('filter_to').value = last.toISOString().slice(0,10);
     }
     function applyFilter() {
@@ -178,8 +177,8 @@
       var to = document.getElementById('filter_to').value;
       var p = [];
       if (month) p.push('month='+month);
-      if (from) p.push('date_from='+from);
-      if (to) p.push('date_to='+to);
+      if (!month && from) p.push('date_from='+from);
+      if (!month && to) p.push('date_to='+to);
       window.location = '?'+p.join('&');
     }
     </script>

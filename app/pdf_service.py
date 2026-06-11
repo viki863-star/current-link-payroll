@@ -3056,30 +3056,14 @@ def generate_field_staff_advances_pdf(staff, advances, jobs_data, papers_data, t
     els.append(st)
     els.append(Spacer(1, 4*mm))
 
-    # Build job links per month
-    job_links = []
-    for j in jobs_data:
-        plate = j.get("plate_no") or j.get("vehicle_id") or ""
-        url = f"{base_url}/fleet/vehicles/{plate}?tab=jobs&highlight={j['id']}"
-        job_links.append(f'<a href="{url}"><font color="#1C568B"><u>{plate}</u></font></a>')
-    for p in papers_data:
-        vid = p.get("vehicle_id") or ""
-        url = f"{base_url}/fleet/vehicles/{vid}"
-        job_links.append(f'<a href="{url}"><font color="#1C568B"><u>{vid}</u></font></a>')
-    # Limit displayed links to avoid overflow
-    display_links = job_links[:5]
-    if len(job_links) > 5:
-        display_links.append(f"<font color='#667A95'>+{len(job_links)-5} more</font>")
-
-    # Table header — add Jobs column
-    colw = [30, 45, 32, 32, W - 30 - 45 - 32 - 32 - 120 - 50, 120, 50]
+    # Table header
+    colw = [40, 60, 45, 40, W - 40 - 60 - 45 - 40 - 55, 55]
     hdr = [
         Paragraph("<b>Date</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph("<b>Reference</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
         Paragraph("<b>Source</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph("<b>Given By</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph("<b>Notes</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        Paragraph("<b>Jobs</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
         Paragraph("<b>Amount</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
     ]
     rws = [hdr]
@@ -3090,20 +3074,18 @@ def generate_field_staff_advances_pdf(staff, advances, jobs_data, papers_data, t
         gb = a.get("reference", "")
         nt = a.get("notes", "")
         amt = float(a.get("amount", 0))
-        jobs_html = ", ".join(display_links) if display_links else '<font color="#cccccc">—</font>'
         rws.append([
             Paragraph(d, F("_d", fontSize=6.5, leading=9)),
             Paragraph(ref, F("_r", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, leading=9)),
             Paragraph(src, F("_s", fontSize=6.5, alignment=TA_CENTER, leading=9)),
             Paragraph(gb, F("_g", fontSize=6.5, textColor=C5, leading=9)),
             Paragraph(nt[:60] if nt else "-", F("_n", fontSize=6.2, textColor=C5, leading=9)),
-            Paragraph(jobs_html, F("_j", fontSize=6.2, textColor=C5, leading=9)),
             Paragraph(f"<b>{amt:,.2f}</b>", F("_a", fontSize=6.5, textColor=rl_colors.HexColor("#16a34a"), alignment=TA_RIGHT, leading=9)),
         ])
     # Total row
     rws.append([
         Paragraph("<b>Total</b>", F("_tb", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, leading=10)),
-        Paragraph("", F("_x")), Paragraph("", F("_x")), Paragraph("", F("_x")), Paragraph("", F("_x")), Paragraph("", F("_x")),
+        Paragraph("", F("_x")), Paragraph("", F("_x")), Paragraph("", F("_x")), Paragraph("", F("_x")),
         Paragraph(f"<b>{total_given:,.2f}</b>", F("_tt", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
     ])
     it = Table(rws, colWidths=colw, repeatRows=1)
