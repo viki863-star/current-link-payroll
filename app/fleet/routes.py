@@ -1363,18 +1363,18 @@ def fleet_staff_profile(staff_id):
         display_month = filter_month or current_month
 
         card_received = db.execute(
-            "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ?",
-            (staff_id, display_month),
+            "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?",
+            (staff_id,),
         ).fetchone()["t"] or 0
 
         card_jobs = db.execute(
-            "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved' AND substr(CAST(created_at AS TEXT),1,7) = ?",
-            (staff_id, display_month),
+            "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'",
+            (staff_id,),
         ).fetchone()["t"] or 0
 
         card_papers = db.execute(
-            "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status = 'Approved' AND substr(CAST(mp.created_at AS TEXT),1,7) = ?",
-            (staff_id, display_month),
+            "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status = 'Approved'",
+            (staff_id,),
         ).fetchone()["t"] or 0
 
         card_spent = float(card_jobs) + float(card_papers)
@@ -1441,10 +1441,7 @@ def fleet_staff_profile(staff_id):
             (staff_id,),
         ).fetchall()
 
-        # Month name for display
-        import calendar
-        ym = display_month.split("-")
-        month_name = f"{calendar.month_name[int(ym[1])]} {ym[0]}" if len(ym) == 2 else display_month
+        month_name = "All Time"
 
         return render_template(
             "fleet/fleet_staff_profile.html",
