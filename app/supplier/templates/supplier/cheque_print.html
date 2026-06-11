@@ -27,7 +27,7 @@ html, body {
 .date-field {
   position: absolute;
   left: 142mm;
-  top: 25mm;
+  top: 21mm;
   font-size: 11pt;
   font-family: 'Segoe UI', Arial, sans-serif;
   color: #000;
@@ -38,7 +38,7 @@ html, body {
 .payee-field {
   position: absolute;
   left: 35mm;
-  top: 42mm;
+  top: 38mm;
   font-size: 14pt;
   font-weight: 700;
   font-family: 'Segoe UI', Arial, sans-serif;
@@ -53,7 +53,7 @@ html, body {
 .words-line1 {
   position: absolute;
   left: 20mm;
-  top: 52mm;
+  top: 48mm;
   font-size: 11pt;
   font-family: 'Segoe UI', Arial, sans-serif;
   color: #000;
@@ -64,7 +64,7 @@ html, body {
 .words-line2 {
   position: absolute;
   left: 20mm;
-  top: 62mm;
+  top: 58mm;
   font-size: 11pt;
   font-family: 'Segoe UI', Arial, sans-serif;
   color: #000;
@@ -131,17 +131,17 @@ html, body {
 
   {# ── TEST ALIGNMENT MARKERS ── #}
   {% if request.args.get('test') %}
-  <div class="crosshair h" style="left:142mm;top:25mm;transform:translateX(-5mm)"></div>
-  <div class="crosshair v" style="left:142mm;top:25mm;transform:translateY(-5mm)"></div>
-  <div class="crosshair-label" style="left:142mm;top:22mm;transform:translateX(-50%)">DATE</div>
+  <div class="crosshair h" style="left:142mm;top:21mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:142mm;top:21mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:142mm;top:18mm;transform:translateX(-50%)">DATE</div>
 
-  <div class="crosshair h" style="left:35mm;top:42mm;transform:translateX(-5mm)"></div>
-  <div class="crosshair v" style="left:35mm;top:42mm;transform:translateY(-5mm)"></div>
-  <div class="crosshair-label" style="left:35mm;top:39mm;transform:translateX(-50%)">PAYEE</div>
+  <div class="crosshair h" style="left:35mm;top:38mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:35mm;top:38mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:35mm;top:35mm;transform:translateX(-50%)">PAYEE</div>
 
-  <div class="crosshair h" style="left:20mm;top:52mm;transform:translateX(-5mm)"></div>
-  <div class="crosshair v" style="left:20mm;top:52mm;transform:translateY(-5mm)"></div>
-  <div class="crosshair-label" style="left:20mm;top:49mm;transform:translateX(-50%)">WORDS</div>
+  <div class="crosshair h" style="left:20mm;top:48mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:20mm;top:48mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:20mm;top:45mm;transform:translateX(-50%)">WORDS</div>
 
   <div class="crosshair h" style="left:150mm;top:52mm;transform:translateX(-5mm)"></div>
   <div class="crosshair v" style="left:150mm;top:52mm;transform:translateY(-5mm)"></div>
