@@ -1303,10 +1303,21 @@ def fleet_staff_advance_edit(staff_id, advance_id):
             flash("Amount is required.", "error")
             return render_template("fleet/fleet_advance_edit.html", s=s, a=a, today=date.today().isoformat(), now=datetime.now())
 
+        try:
+            attachment_name = a["attachment_name"]; attachment_data = a["attachment_data"]; attachment_type = a["attachment_type"]
+        except Exception:
+            attachment_name = attachment_data = attachment_type = None
+        if "attachment" in request.files:
+            f = request.files["attachment"]
+            if f and f.filename:
+                attachment_name = f.filename
+                attachment_data = base64.b64encode(f.read()).decode("utf-8")
+                attachment_type = f.content_type
+
         full_dt = f"{entry_date} {entry_time}" if entry_time else entry_date
         db.execute(
-            "UPDATE maintenance_staff_advances SET amount=?, entry_date=?, funding_source=?, reference=?, notes=? WHERE id=?",
-            (float(amount), full_dt, funding_source, given_by or session.get("username", "Admin"), notes or "", advance_id),
+            "UPDATE maintenance_staff_advances SET amount=?, entry_date=?, funding_source=?, reference=?, notes=?, attachment_name=?, attachment_data=?, attachment_type=? WHERE id=?",
+            (float(amount), full_dt, funding_source, given_by or session.get("username", "Admin"), notes or "", attachment_name, attachment_data, attachment_type, advance_id),
         )
         db.commit()
         flash("Advance updated.", "success")
@@ -1328,6 +1339,15 @@ def fleet_staff_profile(staff_id):
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
 
+    # Ensure attachment columns exist
+    for col in ["attachment_name", "attachment_data", "attachment_type"]:
+        try:
+            db.execute(f"ALTER TABLE maintenance_staff_advances ADD COLUMN {col} TEXT")
+            db.commit()
+        except Exception:
+            try: db.rollback()
+            except Exception: pass
+
     if request.method == "POST":
         amount = request.form.get("amount", "").strip()
         entry_date = request.form.get("entry_date", "").strip() or date.today().isoformat()
@@ -1340,6 +1360,14 @@ def fleet_staff_profile(staff_id):
             flash("Amount is required.", "error")
             return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
 
+        attachment_name = None; attachment_data = None; attachment_type = None
+        if "attachment" in request.files:
+            f = request.files["attachment"]
+            if f and f.filename:
+                attachment_name = f.filename
+                attachment_data = base64.b64encode(f.read()).decode("utf-8")
+                attachment_type = f.content_type
+
         last = db.execute("SELECT advance_no FROM maintenance_staff_advances ORDER BY id DESC LIMIT 1").fetchone()
         num = 1
         if last:
@@ -1347,16 +1375,26 @@ def fleet_staff_profile(staff_id):
         adv_no = f"ADV-{num:04d}"
         full_dt = f"{entry_date} {entry_time}" if entry_time else entry_date
         db.execute(
-            "INSERT INTO maintenance_staff_advances (advance_no, staff_code, entry_date, funding_source, amount, reference, notes) VALUES (?,?,?,?,?,?,?)",
-            (adv_no, staff_id, full_dt, funding_source, float(amount), given_by or session.get("username", "Admin"), notes or ""),
+            "INSERT INTO maintenance_staff_advances (advance_no, staff_code, entry_date, funding_source, amount, reference, notes, attachment_name, attachment_data, attachment_type) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (adv_no, staff_id, full_dt, funding_source, float(amount), given_by or session.get("username", "Admin"), notes or "", attachment_name, attachment_data, attachment_type),
         )
         db.commit()
         flash(f"AED {amount} given to {s['full_name']}.", "success")
         return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
 
+    month_filter = request.args.get("month", "")
+    today_str = date.today().isoformat()
+    current_month = today_str[:7]
+    filter_month = month_filter[:7] if month_filter else ""
+
     total_received = db.execute(
         "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?",
         (staff_id,),
+    ).fetchone()["t"] or 0
+
+    month_received = db.execute(
+        "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ?",
+        (staff_id, current_month),
     ).fetchone()["t"] or 0
 
     total_jobs_approved = db.execute(
@@ -1404,10 +1442,16 @@ def fleet_staff_profile(staff_id):
         items.append(d)
     items.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
 
-    advances = db.execute(
-        "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
-        (staff_id,),
-    ).fetchall()
+    if filter_month:
+        advances = db.execute(
+            "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ? ORDER BY entry_date DESC",
+            (staff_id, filter_month),
+        ).fetchall()
+    else:
+        advances = db.execute(
+            "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
+            (staff_id,),
+        ).fetchall()
 
     cash_items = []
     for a in advances:
@@ -1419,20 +1463,83 @@ def fleet_staff_profile(staff_id):
         d["_source"] = a.get("funding_source", "Advance")
         d["_notes"] = a.get("notes", "")
         d["_given_by"] = a.get("reference", "")
+        try: d["_has_attachment"] = bool(a.get("attachment_data"))
+        except Exception: d["_has_attachment"] = False
         cash_items.append(d)
     cash_items.sort(key=lambda x: x["_date"], reverse=True)
+
+    # Available months for filter dropdown
+    months = db.execute(
+        "SELECT DISTINCT substr(entry_date,1,7) AS m FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY m DESC",
+        (staff_id,),
+    ).fetchall()
 
     return render_template(
         "fleet/fleet_staff_profile.html",
         s=s,
         total_received=total_received,
+        month_received=month_received,
         total_spent=total_spent,
         balance=balance,
         items=items,
         cash_items=cash_items,
+        months=[r["m"] for r in months],
+        filter_month=filter_month,
+        current_month=current_month,
         today=date.today().isoformat(),
         now=datetime.now(),
     )
+
+
+@fleet_bp.route("/fleet/staff/<staff_id>/advances/<int:advance_id>/attachment")
+@_login_required("admin")
+def fleet_staff_advance_attachment(staff_id, advance_id):
+    import base64
+    from io import BytesIO
+    db = open_db()
+    a = db.execute("SELECT attachment_data, attachment_name, attachment_type FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (advance_id, staff_id)).fetchone()
+    if not a:
+        flash("Attachment not found.", "error")
+        return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+    try:
+        data = base64.b64decode(a["attachment_data"])
+    except Exception:
+        flash("Invalid attachment data.", "error")
+        return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+    dl = request.args.get("download", "0") == "1"
+    return send_file(
+        BytesIO(data),
+        mimetype=a["attachment_type"] or "application/octet-stream",
+        as_attachment=dl,
+        download_name=a["attachment_name"] or f"advance_{advance_id}",
+    )
+
+
+@fleet_bp.route("/fleet/staff/<staff_id>/advances/pdf")
+@_login_required("admin")
+def fleet_staff_advances_pdf(staff_id):
+    from app.pdf_service import generate_field_staff_advances_pdf
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    if not s:
+        flash("Staff not found.", "error")
+        return redirect(url_for("fleet.fleet_staff_list"))
+    filter_month = request.args.get("month", "")
+    if filter_month:
+        advances = db.execute("SELECT * FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ? ORDER BY entry_date DESC", (staff_id, filter_month)).fetchall()
+    else:
+        advances = db.execute("SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC", (staff_id,)).fetchall()
+    total = sum(a["amount"] for a in advances) if advances else 0
+    from pathlib import Path
+    from flask import current_app
+    output_dir = Path(current_app.config["GENERATED_DIR"]) / "staff_advances"
+    import os
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    pdf_path = generate_field_staff_advances_pdf(s, advances, total, filter_month, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company)
+    relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
+    return redirect(url_for("generated_file", filename=relative_path))
 
 
 @fleet_bp.route("/fleet/staff/<staff_id>/delete-data", methods=["POST"])

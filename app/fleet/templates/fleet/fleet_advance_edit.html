@@ -10,15 +10,15 @@
   <div class="profile-card" style="padding:20px">
     <h3 style="margin:0 0 4px;font-size:1rem;font-weight:700">{{ s.full_name }}</h3>
     <p style="margin:0 0 16px;font-size:0.78rem;color:var(--muted)">{{ s.staff_id }}</p>
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div style="margin-bottom:12px">
         <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Amount (AED)</label>
-        <input type="number" name="amount" step="0.01" min="0" required value="{{ a.amount }}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+        <input type="number" name="amount" step="0.01" min="0" required value="{{ a.amount }}" class="form-control">
       </div>
       <div style="margin-bottom:12px">
         <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Source</label>
-        <select name="funding_source" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+        <select name="funding_source" class="form-control">
           <option value="Owner Fund" {{ 'selected' if a.funding_source == 'Owner Fund' }}>Owner Fund</option>
           <option value="Office Cash" {{ 'selected' if a.funding_source == 'Office Cash' }}>Office Cash</option>
           <option value="Direct Payment" {{ 'selected' if a.funding_source == 'Direct Payment' }}>Direct Payment</option>
@@ -26,19 +26,29 @@
       </div>
       <div style="margin-bottom:12px">
         <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Given By</label>
-        <input type="text" name="given_by" value="{{ a.reference or '' }}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+        <input type="text" name="given_by" value="{{ a.reference or '' }}" class="form-control">
       </div>
       <div style="margin-bottom:12px">
         <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Date</label>
-        <input type="date" name="entry_date" value="{{ (a.entry_date or '')[:10] }}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+        <input type="date" name="entry_date" value="{{ (a.entry_date or '')[:10] }}" class="form-control">
       </div>
       <div style="margin-bottom:12px">
         <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Time</label>
-        <input type="time" name="entry_time" value="{{ (a.entry_date or '')[11:16] }}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+        <input type="time" name="entry_time" value="{{ (a.entry_date or '')[11:16] }}" class="form-control">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Attachment</label>
+        {% if a.attachment_name %}
+        <div style="margin-bottom:6px;font-size:0.78rem">
+          Current: <a href="{{ url_for('fleet.fleet_staff_advance_attachment', staff_id=s.staff_id, advance_id=a.id) }}" target="_blank">{{ a.attachment_name }}</a>
+        </div>
+        {% endif %}
+        <input type="file" name="attachment" class="form-control" style="padding:6px;font-size:0.78rem">
+        <small style="color:var(--muted);font-size:0.65rem">Upload to replace existing file</small>
       </div>
       <div style="margin-bottom:16px">
         <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Notes</label>
-        <input type="text" name="notes" value="{{ a.notes or '' }}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+        <input type="text" name="notes" value="{{ a.notes or '' }}" class="form-control">
       </div>
       <div style="display:flex;gap:8px">
         <button type="submit" class="btn btn-sm btn-primary">Update</button>

@@ -637,6 +637,8 @@ def _migrate_old_supplier_data():
 def supplier_dashboard():
     try:
         _ensure_tables()
+        from ..routes import _touch_admin_workspace
+        _touch_admin_workspace("suppliers")
         db = _get_db()
 
         suppliers = db.execute("SELECT * FROM suppliers ORDER BY supplier_name").fetchall()
@@ -645,25 +647,62 @@ def supplier_dashboard():
         with_inv = sum(1 for s in suppliers if s["supplier_type"] == "with_invoice")
         without_inv = sum(1 for s in suppliers if s["supplier_type"] == "without_invoice")
 
+        total_invoiced = db.execute(
+            "SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices"
+        ).fetchone()[0] or 0
+
         total_outstanding = db.execute(
             "SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices WHERE status IN ('pending','approved')"
+        ).fetchone()[0] or 0
+
+        paid_total = db.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records"
+        ).fetchone()[0] or 0
+
+        inv_count = db.execute(
+            "SELECT COUNT(*) FROM supplier_invoices"
         ).fetchone()[0]
 
         recent_invoices = db.execute(
             """SELECT si.*, s.supplier_name FROM supplier_invoices si
                JOIN suppliers s ON s.id = si.supplier_id
-               ORDER BY si.created_at DESC LIMIT 5"""
+               ORDER BY si.created_at DESC LIMIT 8"""
         ).fetchall()
+
+        recent_payments = db.execute(
+            """SELECT p.*, s.supplier_name FROM supplier_payment_records p
+               JOIN suppliers s ON p.supplier_id = s.id
+               ORDER BY p.created_at DESC LIMIT 6"""
+        ).fetchall()
+
+        monthly_trend = db.execute("""
+            SELECT substr(invoice_date,1,7) AS mon,
+                   COUNT(*) AS cnt, COALESCE(SUM(total_amount),0) AS tot
+            FROM supplier_invoices GROUP BY mon ORDER BY mon DESC LIMIT 12
+        """).fetchall()
+
+        top_suppliers = db.execute("""
+            SELECT s.id, s.supplier_name, COUNT(si.id) AS inv_cnt,
+                   COALESCE(SUM(si.total_amount),0) AS total
+            FROM suppliers s
+            LEFT JOIN supplier_invoices si ON si.supplier_id = s.id
+            GROUP BY s.id ORDER BY total DESC LIMIT 5
+        """).fetchall()
 
         return render_template(
             "supplier/dashboard.html",
-            suppliers=suppliers,
             total=total,
             active=active,
             with_invoice_count=with_inv,
             without_invoice_count=without_inv,
+            total_invoiced=total_invoiced,
             total_outstanding=total_outstanding,
+            paid_total=paid_total,
+            inv_count=inv_count,
             recent_invoices=recent_invoices,
+            recent_payments=recent_payments,
+            monthly_trend=monthly_trend,
+            top_suppliers=top_suppliers,
         )
     except Exception as e:
         import traceback

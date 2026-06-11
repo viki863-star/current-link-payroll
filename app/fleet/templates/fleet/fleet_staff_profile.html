@@ -23,18 +23,26 @@
 .sp-section { margin-bottom:20px; }
 .sp-section-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
 .sp-section-title { font-size:0.95rem; font-weight:700; margin:0; display:flex; align-items:center; gap:8px; }
-.sp-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
-.sp-table th { text-align:left; padding:8px 10px; font-size:0.62rem; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; color:var(--muted); background:rgba(0,0,0,0.02); border-bottom:1px solid var(--line); }
-.sp-table td { padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
-.sp-table tr:last-child td { border-bottom:none; }
-.sp-table .action-btns { display:flex; gap:4px; }
-.sp-table .action-btns a, .sp-table .action-btns button { padding:4px 8px; border-radius:6px; font-size:0.65rem; font-weight:600; text-decoration:none; border:none; cursor:pointer; transition:opacity 0.1s; }
-.sp-table .action-btns a:hover, .sp-table .action-btns button:hover { opacity:0.75; }
-.sp-empty { padding:30px; text-align:center; color:var(--muted); font-size:0.85rem; }
+.sp-filter-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px; padding:12px 16px; background:var(--surface); border:1px solid var(--line); border-radius:12px; }
+.sp-filter-bar select, .sp-filter-bar .btn-sm { font-size:0.82rem; }
+.smart-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+.smart-table th { text-align:left; padding:9px 12px; font-size:0.62rem; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:#64748b; border-bottom:2px solid #e2e8f0; background:transparent; }
+.smart-table th.r, .smart-table td.r { text-align:right; }
+.smart-table th.c, .smart-table td.c { text-align:center; }
+.smart-table td { padding:8px 12px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.smart-table tbody tr { transition:background 0.12s; }
+.smart-table tbody tr:last-child td { border-bottom:none; }
+.smart-table tbody tr:hover { background:#f0f4fe; }
+.attach-link { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:6px; font-size:0.65rem; font-weight:600; text-decoration:none; transition:all 0.12s; color:var(--primary); background:#eef2ff; }
+.attach-link:hover { background:#dde4ff; }
 @media(max-width:600px){
   .sp-cards { grid-template-columns:1fr; gap:10px; }
   .sp-card { padding:16px; }
   .sp-card-val { font-size:1.2rem; }
+  .sp-filter-bar { flex-direction:column; align-items:stretch; }
+  .sp-filter-bar select { width:100%; }
+  .smart-table { font-size:0.72rem; }
+  .smart-table th, .smart-table td { padding:6px 8px; }
 }
 </style>
 
@@ -51,7 +59,7 @@
     </div>
   </div>
 
-  {# ═══ 3 CARDS ═══ #}
+  {# ═══ KPI CARDS ═══ #}
   <div class="sp-cards">
     <div class="sp-card" style="background:linear-gradient(145deg,#22c55e,#16a34a);box-shadow:0 8px 25px rgba(34,197,94,0.3)">
       <div class="sp-card-shine"></div>
@@ -82,69 +90,106 @@
     </div>
   </div>
 
-  {# ═══ SECTIONS ═══ #}
-
+  {# ═══ CASH GIVEN SECTION ═══ #}
   <div class="profile-card sp-section">
     <div class="sp-section-head">
       <h3 class="sp-section-title">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-        Cash Given to Staff <span class="badge badge-dept">{{ cash_items|length }}</span>
+        Cash Given to Staff
       </h3>
+      <div style="font-size:0.75rem;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>This month: <strong style="color:#16a34a">AED {{ "%.0f"|format(month_received) }}</strong></span>
+        <span class="badge badge-dept">{{ cash_items|length }} entries</span>
+      </div>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;padding:12px;background:rgba(0,0,0,0.02);border-radius:12px;margin-bottom:12px">
-      <form method="POST" action="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;width:100%">
+
+    {# ═══ GIVE CASH FORM ═══ #}
+    <div style="padding:14px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #bbf7d0;border-radius:12px;margin-bottom:14px">
+      <form method="POST" enctype="multipart/form-data" action="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:end">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div>
-          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Amount (AED)</label>
-          <input type="number" name="amount" step="0.01" min="0" required style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem;width:130px">
+        <div style="min-width:100px;flex:1">
+          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Amount (AED)</label>
+          <input type="number" name="amount" step="0.01" min="0" required class="form-control" style="font-size:0.85rem;width:100%" placeholder="0.00">
         </div>
-        <div>
-          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Source</label>
-          <select name="funding_source" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
+        <div style="min-width:120px">
+          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Source</label>
+          <select name="funding_source" class="form-control" style="font-size:0.82rem">
             <option value="Owner Fund">Owner Fund</option>
             <option value="Office Cash">Office Cash</option>
             <option value="Direct Payment">Direct Payment</option>
           </select>
         </div>
-        <div>
-          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Given By</label>
-          <input type="text" name="given_by" placeholder="Who gave the cash" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem;width:140px">
+        <div style="min-width:110px">
+          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Given By</label>
+          <input type="text" name="given_by" class="form-control" style="font-size:0.82rem;width:100%" placeholder="Who gave">
+        </div>
+        <div style="min-width:90px">
+          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Date</label>
+          <input type="date" name="entry_date" value="{{ today }}" class="form-control" style="font-size:0.82rem">
+        </div>
+        <div style="min-width:80px">
+          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Time</label>
+          <input type="time" name="entry_time" value="{{ now.strftime('%H:%M') }}" class="form-control" style="font-size:0.82rem">
+        </div>
+        <div style="min-width:100px">
+          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Attachment</label>
+          <input type="file" name="attachment" class="form-control" style="font-size:0.78rem;padding:4px 6px">
+        </div>
+        <div style="min-width:120px;flex:1">
+          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Notes</label>
+          <input type="text" name="notes" class="form-control" style="font-size:0.82rem;width:100%" placeholder="Optional">
         </div>
         <div>
-          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Date</label>
-          <input type="date" name="entry_date" value="{{ today }}" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
-        </div>
-        <div>
-          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Time</label>
-          <input type="time" name="entry_time" value="{{ now.strftime('%H:%M') }}" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem">
-        </div>
-        <div style="flex:1;min-width:120px">
-          <label style="display:block;font-size:0.65rem;font-weight:600;margin-bottom:3px;color:var(--muted)">Notes</label>
-          <input type="text" name="notes" placeholder="Optional" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem;width:100%">
-        </div>
-        <div>
-          <button type="submit" class="btn btn-sm btn-primary" style="padding:6px 16px">Give Cash</button>
+          <button type="submit" class="btn btn-primary btn-sm" style="padding:8px 16px">&#43; Give Cash</button>
         </div>
       </form>
     </div>
+
+    {# ═══ FILTER BAR ═══ #}
+    <div class="sp-filter-bar">
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Filter by month:</label>
+      <select onchange="window.location='?month='+this.value" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;min-width:140px">
+        <option value="">All months</option>
+        {% for m in months %}
+        <option value="{{ m }}" {{ 'selected' if filter_month == m }}>{{ m }}</option>
+        {% endfor %}
+      </select>
+      {% if filter_month %}
+      <a href="?" class="btn btn-sm btn-outline">Clear</a>
+      {% endif %}
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <span style="font-size:0.72rem;color:var(--muted)">Showing: <strong>{{ cash_items|length }}</strong> entries</span>
+        <a href="{{ url_for('fleet.fleet_staff_advances_pdf', staff_id=s.staff_id, month=filter_month) }}" class="btn btn-sm btn-primary" target="_blank">&#128196; PDF Report</a>
+      </div>
+    </div>
+
+    {# ═══ ADVANCES TABLE ═══ #}
     {% if cash_items %}
     <div class="table-wrap">
-      <table class="sp-table">
-        <thead><tr><th>Date</th><th>Amount</th><th>Source</th><th>Given By</th><th>Notes</th><th style="width:90px"></th></tr></thead>
+      <table class="smart-table">
+        <thead><tr><th>Date</th><th>Amount</th><th>Source</th><th>Given By</th><th>Notes</th><th>File</th><th></th></tr></thead>
         <tbody>
           {% for c in cash_items %}
           <tr>
             <td class="mono">{{ c._date }}</td>
-            <td class="mono" style="font-weight:600;color:#16a34a">AED {{ "%.0f"|format(c._amount) }}</td>
+            <td class="mono" style="font-weight:700;color:#16a34a">AED {{ "%.0f"|format(c._amount) }}</td>
             <td><span class="badge badge-type">{{ c._source }}</span></td>
             <td class="mono" style="color:var(--muted);font-size:0.72rem">{{ c._given_by }}</td>
-            <td style="color:var(--muted);font-size:0.72rem">{{ c._notes|truncate(40) if c._notes else '—' }}</td>
+            <td style="color:var(--muted);font-size:0.72rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c._notes or '—' }}</td>
             <td>
-              <div class="action-btns">
-                <a href="{{ url_for('fleet.fleet_staff_advance_edit', staff_id=s.staff_id, advance_id=c.id) }}" style="background:#e3f0ff;color:var(--primary)">Edit</a>
-                <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) }}" onsubmit="return confirm('Delete this entry?')">
+              {% if c._has_attachment %}
+              <a href="{{ url_for('fleet.fleet_staff_advance_attachment', staff_id=s.staff_id, advance_id=c.id) }}" class="attach-link" title="View" target="_blank">&#128065;</a>
+              <a href="{{ url_for('fleet.fleet_staff_advance_attachment', staff_id=s.staff_id, advance_id=c.id) }}?download=1" class="attach-link" title="Download">&#128206;</a>
+              {% else %}
+              <span style="color:#ccc;font-size:0.65rem">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display:flex;gap:4px;flex-wrap:nowrap">
+                <a href="{{ url_for('fleet.fleet_staff_advance_edit', staff_id=s.staff_id, advance_id=c.id) }}" class="btn btn-xs btn-outline">Edit</a>
+                <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) }}" style="display:inline" onsubmit="return confirm('Delete this entry?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" style="background:#ffebee;color:#c62828">Del</button>
+                  <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
                 </form>
               </div>
             </td>
@@ -153,9 +198,16 @@
         </tbody>
       </table>
     </div>
+    {% else %}
+    <div class="sp-empty">
+      <p style="color:var(--muted);margin:0;padding:30px;text-align:center">
+        {% if filter_month %}No entries for {{ filter_month }}.{% else %}No cash given yet. Use the form above to give cash.{% endif %}
+      </p>
+    </div>
     {% endif %}
   </div>
 
+  {# ═══ JOBS & PAPERS SECTION ═══ #}
   {% if items %}
   <div class="profile-card sp-section">
     <div class="sp-section-head">
@@ -165,20 +217,20 @@
       </h3>
     </div>
     <div class="table-wrap">
-      <table class="sp-table">
-        <thead><tr><th>Date</th><th>Vehicle</th><th>Amount</th><th>Type</th><th>Status</th><th style="width:90px"></th></tr></thead>
+      <table class="smart-table">
+        <thead><tr><th>Date</th><th>Vehicle</th><th class="r">Amount</th><th>Type</th><th>Status</th><th></th></tr></thead>
         <tbody>
           {% for item in items %}
           <tr>
             <td class="mono">{{ (item.created_at or '')|string|truncate(10, True, '') }}</td>
             <td>{% if item._type == 'job' %}<a href="/fleet/vehicles/{{ item.vehicle_id }}?tab=jobs&highlight={{ item.id }}" style="color:var(--primary);text-decoration:none;font-weight:600">{{ item.vehicle_id }}</a>{% else %}{{ item.vehicle_id or '-' }}{% endif %}</td>
-            <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(item.amount|float) }}</td>
+            <td class="r mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(item.amount|float) }}</td>
             <td><span class="badge badge-type">{{ 'Job' if item._type == 'job' else 'Paper' }}</span></td>
             <td><span class="status-badge {{ item.status|lower }}">{{ item.status }}</span></td>
             <td>
-              <div class="action-btns">
+              <div style="display:flex;gap:4px">
                 {% if item._type == 'job' %}
-                <a href="{{ url_for('fleet.fleet_job_edit', job_id=item.id) }}" style="background:#e3f0ff;color:var(--primary)">Edit</a>
+                <a href="{{ url_for('fleet.fleet_job_edit', job_id=item.id) }}" class="btn btn-xs btn-outline">Edit</a>
                 {% else %}
                 <span style="font-size:0.6rem;color:var(--muted)">—</span>
                 {% endif %}
@@ -190,9 +242,7 @@
       </table>
     </div>
   </div>
-  {% endif %}
-
-  {% if not items %}
+  {% else %}
   <div class="profile-card" style="text-align:center;padding:40px">
     <p style="color:var(--muted);margin:0">No activity for this staff member yet.</p>
   </div>
