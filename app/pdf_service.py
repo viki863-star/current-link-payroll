@@ -969,16 +969,16 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
     els.append(Spacer(1, 3*mm))
 
     # ═══ STATEMENT TABLE ═══
-    colw = [30, 20, 35, 30, W - 30 - 20 - 35 - 30 - 35 - 35 - 40, 35, 35, 40]
+    colw = [35, 22, 40, 35, W - 35 - 22 - 40 - 35 - 45 - 45 - 50, 45, 45, 50]
     hdr = [
-        Paragraph("<b>Date</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
-        Paragraph("<b>Month</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
-        Paragraph("<b>Reference</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        Paragraph("<b>Type</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
-        Paragraph("<b>Details</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        Paragraph("<b>In (AED)</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-        Paragraph("<b>Out (AED)</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-        Paragraph("<b>Balance (AED)</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        Paragraph("<b>Date</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph("<b>Month</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph("<b>Reference</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        Paragraph("<b>Type</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph("<b>Details</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        Paragraph("<b>In (AED)</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        Paragraph("<b>Out (AED)</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        Paragraph("<b>Balance (AED)</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
     ]
     rws = [hdr]
     # Opening balance row
