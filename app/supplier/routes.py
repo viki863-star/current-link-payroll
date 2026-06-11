@@ -1038,10 +1038,11 @@ def supplier_invoice_attachment(inv_id):
         flash("Attachment not found.", "error")
         return redirect(url_for("supplier.supplier_dashboard"))
     data = base64.b64decode(inv["attachment_data"])
+    dl = request.args.get("download", "0") == "1"
     return send_file(
         BytesIO(data),
         mimetype=inv["attachment_type"] or "application/octet-stream",
-        as_attachment=True,
+        as_attachment=dl,
         download_name=inv["attachment_name"] or f"invoice_{inv_id}",
     )
 
@@ -1055,10 +1056,11 @@ def supplier_expense_attachment(exp_id):
         flash("Attachment not found.", "error")
         return redirect(url_for("supplier.supplier_dashboard"))
     data = base64.b64decode(exp["receipt_data"])
+    dl = request.args.get("download", "0") == "1"
     return send_file(
         BytesIO(data),
         mimetype=exp["receipt_type"] or "application/octet-stream",
-        as_attachment=True,
+        as_attachment=dl,
         download_name=exp["receipt_name"] or f"expense_{exp_id}",
     )
 

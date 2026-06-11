@@ -274,7 +274,8 @@
           <td class="c">
             <div class="act-group">
               {% if r.has_attachment %}
-              <a href="{{ r.attachment_url }}" class="act-btn" title="{{ r.attachment_name }}">📎</a>
+              <a href="{{ r.attachment_url }}" class="act-btn" title="View {{ r.attachment_name }}">👁️</a>
+              <a href="{{ r.attachment_url }}?download=1" class="act-btn" title="Download {{ r.attachment_name }}">📎</a>
               {% endif %}
               <a href="{{ r.edit_url }}" class="act-btn edit" title="Edit">✏️</a>
               <form method="POST" action="{{ r.delete_url }}" style="display:inline" onsubmit="return confirm('Delete this entry?')">
