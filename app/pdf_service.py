@@ -3254,7 +3254,8 @@ def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, outpu
         amt = float(j.get("amount", 0))
         has_att = bool(j.get("attachment_data"))
         if has_att:
-            att_link = f'<a href="{base_url}/fleet/attachment/{j["id"]}"><font color="#1C568B"><u>See Page</u></font></a>'
+            att_name = j.get("attachment_name") or "View"
+            att_link = f'<a href="{base_url}/fleet/attachment/{j["id"]}">{att_name}</a>'
         else:
             att_link = '<font color="#cccccc">—</font>'
         rws.append([
@@ -3263,7 +3264,7 @@ def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, outpu
             Paragraph(f"<b>{amt:,.2f}</b>", F("_a", fontSize=6.5, textColor=rl_colors.HexColor("#e65100"), alignment=TA_RIGHT, leading=9)),
             Paragraph(cat, F("_c", fontSize=6.5, alignment=TA_CENTER, leading=9)),
             Paragraph(desc, F("_det", fontSize=6.2, textColor=C5, leading=9)),
-            Paragraph(att_link, F("_at", fontSize=6.5, alignment=TA_CENTER, leading=9)),
+            Paragraph(att_link, F("_at", fontSize=6.5, textColor=rl_colors.HexColor("#1C568B"), alignment=TA_CENTER, leading=9)),
         ])
     # Total row
     rws.append([
