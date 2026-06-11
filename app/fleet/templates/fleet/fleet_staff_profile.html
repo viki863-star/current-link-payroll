@@ -141,21 +141,48 @@
 
     {# ═══ FILTER BAR ═══ #}
     <div class="sp-filter-bar">
-      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Filter by month:</label>
-      <select onchange="window.location='?month='+this.value" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;min-width:140px">
-        <option value="">Current month</option>
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Month:</label>
+      <select id="filter_month" onchange="setMonthRange(this.value)" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;min-width:120px">
+        <option value="">All</option>
         {% for m in months %}
         <option value="{{ m }}" {{ 'selected' if filter_month == m }}>{{ m }}</option>
         {% endfor %}
       </select>
-      {% if filter_month %}
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">From:</label>
+      <input type="date" id="filter_from" value="{{ date_from }}" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">To:</label>
+      <input type="date" id="filter_to" value="{{ date_to }}" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+      <button onclick="applyFilter()" class="btn btn-sm btn-primary" style="padding:6px 12px">Filter</button>
+      {% if filter_month or date_from or date_to %}
       <a href="?" class="btn btn-sm btn-outline">Clear</a>
       {% endif %}
       <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
         <span style="font-size:0.72rem;color:var(--muted)">Showing: <strong>{{ cash_items|length }}</strong> entries</span>
-        <a href="{{ url_for('fleet.fleet_staff_advances_pdf', staff_id=s.staff_id, month=filter_month) }}" class="btn btn-sm btn-primary" target="_blank">&#128196; PDF Report</a>
+        <a href="{{ url_for('fleet.fleet_staff_advances_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to) }}" class="btn btn-sm btn-primary" target="_blank">&#128196; Cash PDF</a>
+        <a href="{{ url_for('fleet.fleet_staff_jobs_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to) }}" class="btn btn-sm btn-primary" target="_blank" style="background:#e65100">&#128196; Jobs PDF</a>
       </div>
     </div>
+    <script>
+    function setMonthRange(month) {
+      if (!month) { document.getElementById('filter_from').value = ''; document.getElementById('filter_to').value = ''; return; }
+      var parts = month.split('-');
+      var y = parseInt(parts[0]), m = parseInt(parts[1]);
+      var first = new Date(y, m-1, 2);
+      var last = new Date(y, m, 1);
+      document.getElementById('filter_from').value = first.toISOString().slice(0,10);
+      document.getElementById('filter_to').value = last.toISOString().slice(0,10);
+    }
+    function applyFilter() {
+      var month = document.getElementById('filter_month').value;
+      var from = document.getElementById('filter_from').value;
+      var to = document.getElementById('filter_to').value;
+      var p = [];
+      if (month) p.push('month='+month);
+      if (from) p.push('date_from='+from);
+      if (to) p.push('date_to='+to);
+      window.location = '?'+p.join('&');
+    }
+    </script>
 
     {# ═══ ADVANCES TABLE ═══ #}
     {% if cash_items %}

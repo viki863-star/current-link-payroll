@@ -1357,10 +1357,11 @@ def fleet_staff_profile(staff_id):
             return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
 
         month_filter = request.args.get("month", "")
+        date_from = request.args.get("date_from", "")
+        date_to = request.args.get("date_to", "")
         today_str = date.today().isoformat()
         current_month = today_str[:7]
         filter_month = month_filter[:7] if month_filter else ""
-        display_month = filter_month or current_month
 
         card_received = db.execute(
             "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?",
@@ -1380,22 +1381,39 @@ def fleet_staff_profile(staff_id):
         card_spent = float(card_jobs) + float(card_papers)
         card_balance = card_received - card_spent
 
-        jobs = db.execute("""
+        # Build date-filter WHERE clause
+        date_where = ""
+        date_params = []
+        if date_from:
+            date_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) >= ?"
+            date_params.append(date_from)
+        if date_to:
+            date_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
+            date_params.append(date_to)
+        jobs = db.execute(f"""
             SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
             LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
-            WHERE mj.staff_id = ? ORDER BY mj.created_at DESC
-        """, (staff_id,)).fetchall()
+            WHERE mj.staff_id = ?{date_where} ORDER BY mj.created_at DESC
+        """, (staff_id, *date_params)).fetchall()
 
-        raw_papers = db.execute("""
+        paper_where = ""
+        paper_params = []
+        if date_from:
+            paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,10) >= ?"
+            paper_params.append(date_from)
+        if date_to:
+            paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,10) <= ?"
+            paper_params.append(date_to)
+        raw_papers = db.execute(f"""
             SELECT mp.id, mp.paper_no, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
                    mp.total_amount AS amount, mp.work_summary AS description,
                    mp.review_status AS status, mp.notes AS admin_notes,
                    mp.created_at, 'Maintenance' AS category
             FROM maintenance_papers mp
             LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
-            WHERE mp.technician_code = ?
+            WHERE mp.technician_code = ?{paper_where}
             ORDER BY mp.created_at DESC
-        """, (staff_id,)).fetchall()
+        """, (staff_id, *paper_params)).fetchall()
 
         items = []
         for j in jobs:
@@ -1412,16 +1430,17 @@ def fleet_staff_profile(staff_id):
             items.append(d)
         items.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
 
-        if filter_month:
-            advances = db.execute(
-                "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ? ORDER BY entry_date DESC",
-                (staff_id, filter_month),
-            ).fetchall()
-        else:
-            advances = db.execute(
-                "SELECT * FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY entry_date DESC",
-                (staff_id,),
-            ).fetchall()
+        adv_where = ""
+        adv_params = []
+        if date_from:
+            adv_where += " AND substr(entry_date,1,10) >= ?"
+            adv_params.append(date_from)
+        if date_to:
+            adv_where += " AND substr(entry_date,1,10) <= ?"
+            adv_params.append(date_to)
+        advances = db.execute(f"""
+            SELECT * FROM maintenance_staff_advances WHERE staff_code = ?{adv_where} ORDER BY entry_date DESC
+        """, (staff_id, *adv_params)).fetchall()
 
         cash_items = []
         for a in advances:
@@ -1455,6 +1474,8 @@ def fleet_staff_profile(staff_id):
             cash_items=cash_items,
             months=[r["m"] for r in months],
             filter_month=filter_month,
+            date_from=date_from,
+            date_to=date_to,
             current_month=current_month,
             today=date.today().isoformat(),
             now=datetime.now(),
@@ -1480,28 +1501,55 @@ def fleet_staff_advances_pdf(staff_id):
             flash("Staff not found.", "error")
             return redirect(url_for("fleet.fleet_staff_list"))
         filter_month = request.args.get("month", "")
-        display_month = filter_month[:7] if filter_month else date.today().isoformat()[:7]
+        date_from = request.args.get("date_from", "")
+        date_to = request.args.get("date_to", "")
+        date_params = []
+        where_adv = ""
         if filter_month:
-            advances = db.execute("SELECT * FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ? ORDER BY entry_date DESC", (staff_id, filter_month)).fetchall()
-        else:
-            advances = db.execute("SELECT * FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ? ORDER BY entry_date DESC", (staff_id, display_month)).fetchall()
+            where_adv += " AND substr(entry_date,1,7) = ?"
+            date_params.append(filter_month[:7])
+        if date_from:
+            where_adv += " AND substr(entry_date,1,10) >= ?"
+            date_params.append(date_from)
+        if date_to:
+            where_adv += " AND substr(entry_date,1,10) <= ?"
+            date_params.append(date_to)
+        if not date_params:
+            where_adv = " AND substr(entry_date,1,7) = ?"
+            date_params.append(date.today().isoformat()[:7])
+        advances = db.execute(f"SELECT * FROM maintenance_staff_advances WHERE staff_code = ?{where_adv} ORDER BY entry_date DESC", (staff_id, *date_params)).fetchall()
         total = sum(a["amount"] for a in advances) if advances else 0
 
-        # Fetch jobs/papers for this staff in the same period for clickable PDF links
-        jobs_data = db.execute("""
+        # Jobs/papers filter same period
+        jp_where = ""
+        jp_params = []
+        if filter_month:
+            jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,7) = ?"
+            jp_params.append(filter_month[:7])
+        if date_from:
+            jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) >= ?"
+            jp_params.append(date_from)
+        if date_to:
+            jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
+            jp_params.append(date_to)
+        if not jp_params:
+            jp_where = " AND substr(CAST(mj.created_at AS TEXT),1,7) = ?"
+            jp_params.append(date.today().isoformat()[:7])
+        jobs_data = db.execute(f"""
             SELECT mj.id, mj.vehicle_id, mj.amount, mj.created_at, v.plate_no
             FROM maintenance_jobs mj
             LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
-            WHERE mj.staff_id = ? AND mj.status = 'approved' AND substr(CAST(mj.created_at AS TEXT),1,7) = ?
+            WHERE mj.staff_id = ? AND mj.status = 'approved'{jp_where}
             ORDER BY mj.created_at DESC
-        """, (staff_id, display_month)).fetchall()
-        papers_data = db.execute("""
+        """, (staff_id, *jp_params)).fetchall()
+        pp_where = jp_where.replace("mj.created_at", "mp.created_at")
+        papers_data = db.execute(f"""
             SELECT mp.id, vm.vehicle_no AS vehicle_id, mp.total_amount AS amount, mp.created_at
             FROM maintenance_papers mp
             LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
-            WHERE mp.technician_code = ? AND mp.review_status = 'Approved' AND substr(CAST(mp.created_at AS TEXT),1,7) = ?
+            WHERE mp.technician_code = ? AND mp.review_status = 'Approved'{pp_where}
             ORDER BY mp.created_at DESC
-        """, (staff_id, display_month)).fetchall()
+        """, (staff_id, *jp_params)).fetchall()
 
         from pathlib import Path
         from flask import current_app
@@ -1533,21 +1581,25 @@ def fleet_staff_jobs_pdf(staff_id):
             flash("Staff not found.", "error")
             return redirect(url_for("fleet.fleet_staff_list"))
         filter_month = request.args.get("month", "")
-        display_month = filter_month[:7] if filter_month else ""
-        if display_month:
-            jobs = db.execute("""
-                SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
-                LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
-                WHERE mj.staff_id = ? AND substr(CAST(mj.created_at AS TEXT),1,7) = ?
-                ORDER BY mj.created_at DESC
-            """, (staff_id, display_month)).fetchall()
-        else:
-            jobs = db.execute("""
-                SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
-                LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
-                WHERE mj.staff_id = ?
-                ORDER BY mj.created_at DESC
-            """, (staff_id,)).fetchall()
+        date_from = request.args.get("date_from", "")
+        date_to = request.args.get("date_to", "")
+        jp_where = ""
+        jp_params = []
+        if filter_month:
+            jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,7) = ?"
+            jp_params.append(filter_month[:7])
+        if date_from:
+            jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) >= ?"
+            jp_params.append(date_from)
+        if date_to:
+            jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
+            jp_params.append(date_to)
+        jobs = db.execute(f"""
+            SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
+            LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
+            WHERE mj.staff_id = ?{jp_where}
+            ORDER BY mj.created_at DESC
+        """, (staff_id, *jp_params)).fetchall()
         total_amount = sum(j["amount"] for j in jobs) if jobs else 0
         from pathlib import Path
         from flask import current_app
