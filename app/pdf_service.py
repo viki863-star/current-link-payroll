@@ -969,20 +969,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
     els.append(Spacer(1, 3*mm))
 
     # ═══ STATEMENT TABLE ═══
-    colw = [42, 38, 58, 38, W - 42 - 38 - 58 - 38 - 60 - 70, 60, 70]
-    hdr = [
-        Paragraph("<b>Date</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
-        Paragraph("<b>Month</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
-        Paragraph("<b>Reference</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
-        Paragraph("<b>Type</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
-        Paragraph("<b>Details</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
-        Paragraph("<b>In (AED)</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-        Paragraph("<b>Out (AED)</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-    ]
-    # Balance column in header and data
-    # Actually the customer SOA has Balance column too. Let me add it.
-    # Redo the header with 8 columns including Balance
-    colw = [38, 32, 50, 32, W - 38 - 32 - 50 - 32 - 55 - 55 - 60, 55, 55, 60]
+    colw = [30, 20, 35, 30, W - 30 - 20 - 35 - 30 - 35 - 35 - 40, 35, 35, 40]
     hdr = [
         Paragraph("<b>Date</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph("<b>Month</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),

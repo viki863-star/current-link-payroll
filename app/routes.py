@@ -6984,6 +6984,7 @@ def register_routes(app: Flask) -> None:
         statement = _owner_fund_statement(db, reverse=False, filters=filters)
         view_incoming, view_outgoing, view_net, view_closing = _owner_fund_view_totals(statement)
         output_dir = Path(app.config["GENERATED_DIR"]) / "owner_fund"
+        company_profile = _company_profile_values(db)
         pdf_path = generate_owner_fund_pdf(
             statement,
             {
@@ -6998,6 +6999,7 @@ def register_routes(app: Flask) -> None:
             str(output_dir),
             app.config["STATIC_ASSETS_DIR"],
             filters=filters,
+            company_profile=company_profile,
         )
         _mirror_generated_file(app, pdf_path)
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
