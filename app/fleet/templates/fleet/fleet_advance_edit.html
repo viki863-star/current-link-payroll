@@ -10,7 +10,7 @@
   <div class="profile-card" style="padding:20px">
     <h3 style="margin:0 0 4px;font-size:1rem;font-weight:700">{{ s.full_name }}</h3>
     <p style="margin:0 0 16px;font-size:0.78rem;color:var(--muted)">{{ s.staff_id }}</p>
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div style="margin-bottom:12px">
         <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Amount (AED)</label>
@@ -35,16 +35,6 @@
       <div style="margin-bottom:12px">
         <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Time</label>
         <input type="time" name="entry_time" value="{{ (a.entry_date or '')[11:16] }}" class="form-control">
-      </div>
-      <div style="margin-bottom:12px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Attachment</label>
-        {% if a.attachment_name %}
-        <div style="margin-bottom:6px;font-size:0.78rem">
-          Current: <a href="{{ url_for('fleet.fleet_staff_advance_attachment', staff_id=s.staff_id, advance_id=a.id) }}" target="_blank">{{ a.attachment_name }}</a>
-        </div>
-        {% endif %}
-        <input type="file" name="attachment" class="form-control" style="padding:6px;font-size:0.78rem">
-        <small style="color:var(--muted);font-size:0.65rem">Upload to replace existing file</small>
       </div>
       <div style="margin-bottom:16px">
         <label style="display:block;font-size:0.72rem;font-weight:600;margin-bottom:4px;color:var(--muted)">Notes</label>

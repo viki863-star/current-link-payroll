@@ -33,8 +33,6 @@
 .smart-table tbody tr { transition:background 0.12s; }
 .smart-table tbody tr:last-child td { border-bottom:none; }
 .smart-table tbody tr:hover { background:#f0f4fe; }
-.attach-link { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:6px; font-size:0.65rem; font-weight:600; text-decoration:none; transition:all 0.12s; color:var(--primary); background:#eef2ff; }
-.attach-link:hover { background:#dde4ff; }
 @media(max-width:600px){
   .sp-cards { grid-template-columns:1fr; gap:10px; }
   .sp-card { padding:16px; }
@@ -59,7 +57,7 @@
     </div>
   </div>
 
-  {# ═══ KPI CARDS ═══ #}
+  {# ═══ KPI CARDS — Always shows {{ month_name }} data ═══ #}
   <div class="sp-cards">
     <div class="sp-card" style="background:linear-gradient(145deg,#22c55e,#16a34a);box-shadow:0 8px 25px rgba(34,197,94,0.3)">
       <div class="sp-card-shine"></div>
@@ -67,8 +65,8 @@
         <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" width="16" height="16"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
       </div>
       <div class="sp-card-label light">Receive Cash</div>
-      <div class="sp-card-val light">AED {{ "%.0f"|format(total_received) }}</div>
-      <div class="sp-card-sub light">Total Cash Received</div>
+      <div class="sp-card-val light">AED {{ "%.0f"|format(card_received) }}</div>
+      <div class="sp-card-sub light">{{ month_name }}</div>
     </div>
     <div class="sp-card" style="background:linear-gradient(145deg,#ef4444,#dc2626);box-shadow:0 8px 25px rgba(239,68,68,0.3)">
       <div class="sp-card-shine"></div>
@@ -76,17 +74,17 @@
         <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
       </div>
       <div class="sp-card-label light">Spent</div>
-      <div class="sp-card-val light">AED {{ "%.0f"|format(total_spent) }}</div>
-      <div class="sp-card-sub light">Approved jobs</div>
+      <div class="sp-card-val light">AED {{ "%.0f"|format(card_spent) }}</div>
+      <div class="sp-card-sub light">{{ month_name }}</div>
     </div>
-    <div class="sp-card" style="background:linear-gradient(145deg,{{ '#22c55e' if balance >= 0 else '#dc2626' }},{{ '#16a34a' if balance >= 0 else '#b91c1c' }});box-shadow:0 8px 25px rgba({{ '34,197,94' if balance >= 0 else '220,38,38' }},0.3)">
+    <div class="sp-card" style="background:linear-gradient(145deg,{{ '#22c55e' if card_balance >= 0 else '#dc2626' }},{{ '#16a34a' if card_balance >= 0 else '#b91c1c' }});box-shadow:0 8px 25px rgba({{ '34,197,94' if card_balance >= 0 else '220,38,38' }},0.3)">
       <div class="sp-card-shine"></div>
       <div class="sp-card-icon" style="background:rgba(255,255,255,0.12);width:32px;height:32px;border-radius:8px;display:grid;place-items:center">
         <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       </div>
-      <div class="sp-card-label light">{{ 'Available' if balance >= 0 else 'Due' }}</div>
-      <div class="sp-card-val light">AED {{ "%.0f"|format(balance|abs) }}</div>
-      <div class="sp-card-sub light">{{ 'Available balance' if balance >= 0 else 'Extra amount used' }}</div>
+      <div class="sp-card-label light">{{ 'Available' if card_balance >= 0 else 'Due' }}</div>
+      <div class="sp-card-val light">AED {{ "%.0f"|format(card_balance|abs) }}</div>
+      <div class="sp-card-sub light">{{ month_name }}</div>
     </div>
   </div>
 
@@ -98,14 +96,14 @@
         Cash Given to Staff
       </h3>
       <div style="font-size:0.75rem;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span>This month: <strong style="color:#16a34a">AED {{ "%.0f"|format(month_received) }}</strong></span>
+        <span>{{ month_name }}: <strong style="color:#16a34a">AED {{ "%.0f"|format(card_received) }}</strong></span>
         <span class="badge badge-dept">{{ cash_items|length }} entries</span>
       </div>
     </div>
 
     {# ═══ GIVE CASH FORM ═══ #}
     <div style="padding:14px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #bbf7d0;border-radius:12px;margin-bottom:14px">
-      <form method="POST" enctype="multipart/form-data" action="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:end">
+      <form method="POST" action="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:end">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div style="min-width:100px;flex:1">
           <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Amount (AED)</label>
@@ -131,10 +129,6 @@
           <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Time</label>
           <input type="time" name="entry_time" value="{{ now.strftime('%H:%M') }}" class="form-control" style="font-size:0.82rem">
         </div>
-        <div style="min-width:100px">
-          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Attachment</label>
-          <input type="file" name="attachment" class="form-control" style="font-size:0.78rem;padding:4px 6px">
-        </div>
         <div style="min-width:120px;flex:1">
           <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Notes</label>
           <input type="text" name="notes" class="form-control" style="font-size:0.82rem;width:100%" placeholder="Optional">
@@ -149,7 +143,7 @@
     <div class="sp-filter-bar">
       <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Filter by month:</label>
       <select onchange="window.location='?month='+this.value" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;min-width:140px">
-        <option value="">All months</option>
+        <option value="">Current month</option>
         {% for m in months %}
         <option value="{{ m }}" {{ 'selected' if filter_month == m }}>{{ m }}</option>
         {% endfor %}
@@ -167,7 +161,7 @@
     {% if cash_items %}
     <div class="table-wrap">
       <table class="smart-table">
-        <thead><tr><th>Date</th><th>Amount</th><th>Source</th><th>Given By</th><th>Notes</th><th>File</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Amount</th><th>Source</th><th>Given By</th><th>Notes</th><th></th></tr></thead>
         <tbody>
           {% for c in cash_items %}
           <tr>
@@ -175,15 +169,7 @@
             <td class="mono" style="font-weight:700;color:#16a34a">AED {{ "%.0f"|format(c._amount) }}</td>
             <td><span class="badge badge-type">{{ c._source }}</span></td>
             <td class="mono" style="color:var(--muted);font-size:0.72rem">{{ c._given_by }}</td>
-            <td style="color:var(--muted);font-size:0.72rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c._notes or '—' }}</td>
-            <td>
-              {% if c._has_attachment %}
-              <a href="{{ url_for('fleet.fleet_staff_advance_attachment', staff_id=s.staff_id, advance_id=c.id) }}" class="attach-link" title="View" target="_blank">&#128065;</a>
-              <a href="{{ url_for('fleet.fleet_staff_advance_attachment', staff_id=s.staff_id, advance_id=c.id) }}?download=1" class="attach-link" title="Download">&#128206;</a>
-              {% else %}
-              <span style="color:#ccc;font-size:0.65rem">—</span>
-              {% endif %}
-            </td>
+            <td style="color:var(--muted);font-size:0.72rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c._notes or '—' }}</td>
             <td>
               <div style="display:flex;gap:4px;flex-wrap:nowrap">
                 <a href="{{ url_for('fleet.fleet_staff_advance_edit', staff_id=s.staff_id, advance_id=c.id) }}" class="btn btn-xs btn-outline">Edit</a>
@@ -201,7 +187,7 @@
     {% else %}
     <div class="sp-empty">
       <p style="color:var(--muted);margin:0;padding:30px;text-align:center">
-        {% if filter_month %}No entries for {{ filter_month }}.{% else %}No cash given yet. Use the form above to give cash.{% endif %}
+        {% if filter_month %}No entries for {{ filter_month }}.{% else %}No entries for {{ month_name }}.{% endif %}
       </p>
     </div>
     {% endif %}
