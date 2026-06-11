@@ -5,25 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Cheque — {{ pay.cheque_number }}</title>
 <style>
-{% set cm = 37.8 %}
-{% set cw = 197 %}
-{% set ch = 98 %}
 @page {
-  size: {{ cw }}mm {{ ch }}mm;
+  size: A4 landscape;
   margin: 0;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
-body {
-  width: {{ cw }}mm;
-  height: {{ ch }}mm;
+html, body {
+  width: 297mm;
+  height: 210mm;
   font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
-  position: relative;
-  overflow: hidden;
 }
-.cheque-container {
-  width: {{ cw }}mm;
-  height: {{ ch }}mm;
-  position: relative;
+.cheque-wrapper {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 197mm;
+  height: 98mm;
 }
 
 /* ── DATE ── */
@@ -37,7 +34,7 @@ body {
   white-space: nowrap;
 }
 
-/* ── PAY AGAINST (SUPPLIER NAME) ── */
+/* ── PAYEE ── */
 .payee-field {
   position: absolute;
   left: 35mm;
@@ -96,22 +93,21 @@ body {
 
 /* ── TEST MARKERS ── */
 {% if request.args.get('test') %}
-.crosshair {
-  position: absolute;
-  background: #ccc;
-}
+.crosshair { position: absolute; background: #ccc; }
 .crosshair.h { width:10mm; height:0.3mm; }
 .crosshair.v { width:0.3mm; height:10mm; }
-.crosshair-label {
-  position: absolute;
-  font-size: 6pt;
-  color: #999;
-}
+.crosshair-label { position: absolute; font-size: 6pt; color: #999; }
 {% endif %}
+
+/* ── HIDE ON SCREEN, ONLY PRINT ── */
+@media screen {
+  body { background: #ddd; display:flex; align-items:flex-start; justify-content:flex-start; padding:20mm; }
+  .cheque-wrapper { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.2); position: relative; }
+}
 </style>
 </head>
 <body>
-<div class="cheque-container">
+<div class="cheque-wrapper">
 
   {# ── DATE ── #}
   {% set d = pay.cheque_date or pay.payment_date %}
@@ -156,7 +152,7 @@ body {
 
 <script>
 window.onload = function() {
-  setTimeout(function() { window.print(); }, 500);
+  setTimeout(function() { window.print(); }, 600);
 };
 </script>
 </body>
