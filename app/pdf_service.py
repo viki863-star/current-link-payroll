@@ -969,24 +969,24 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
     els.append(Spacer(1, 3*mm))
 
     # ═══ STATEMENT TABLE ═══
-    colw = [32, 16, 55, 28, W - 32 - 16 - 55 - 28 - 40 - 40 - 48, 40, 40, 48]
+    colw = [38, 22, 55, 34, W - 38 - 22 - 55 - 34 - 42 - 42 - 50, 42, 42, 50]
     hdr = [
-        Paragraph("<b>Date</b>", F("_h", fontSize=5.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=8)),
-        Paragraph("<b>Month</b>", F("_h", fontSize=5.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=8)),
-        Paragraph("<b>Reference</b>", F("_h", fontSize=5.5, fontName="Helvetica-Bold", textColor=WH, leading=8)),
-        Paragraph("<b>Type</b>", F("_h", fontSize=5.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=8)),
-        Paragraph("<b>Details</b>", F("_h", fontSize=5.5, fontName="Helvetica-Bold", textColor=WH, leading=8)),
-        Paragraph("<b>In (AED)</b>", F("_h", fontSize=5.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
-        Paragraph("<b>Out (AED)</b>", F("_h", fontSize=5.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
-        Paragraph("<b>Balance (AED)</b>", F("_h", fontSize=5.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
+        Paragraph("<b>Date</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph("<b>Month</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph("<b>Reference</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        Paragraph("<b>Type</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph("<b>Details</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        Paragraph("<b>In (AED)</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        Paragraph("<b>Out (AED)</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        Paragraph("<b>Balance (AED)</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
     ]
     rws = [hdr]
     # Opening balance row
     rws.append([
-        Paragraph("", F("_o", fontSize=5.5, leading=8)), Paragraph("", F("_o")),
-        Paragraph("", F("_o")), Paragraph("Opening Balance", F("_ol", fontSize=5.5, textColor=C5, leading=8)),
+        Paragraph("", F("_o", fontSize=6.5, leading=9)), Paragraph("", F("_o")),
+        Paragraph("", F("_o")), Paragraph("Opening Balance", F("_ol", fontSize=6.5, textColor=C5, leading=9)),
         Paragraph("", F("_o")), Paragraph("", F("_o")), Paragraph("", F("_o")),
-        Paragraph("<b>0.00</b>", F("_ob", fontSize=5.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=8)),
+        Paragraph("<b>0.00</b>", F("_ob", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=9)),
     ])
     for row in table_rows:
         d = str(row.get("entry_date", ""))
@@ -1003,26 +1003,26 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
         bal_c = "#c62828" if bal_v > 0 else "#1a7d1a" if bal_v < 0 else C4
 
         rws.append([
-            Paragraph(d, F("_d", fontSize=5.5, leading=8)),
-            Paragraph(f"<font color='{C5}'>{month}</font>" if month else "", F("_m", fontSize=5.5, textColor=C5, leading=8)),
-            Paragraph(ref, F("_r", fontSize=5.5, fontName="Helvetica-Bold", textColor=C4, leading=8)),
-            Paragraph(f"<font color=\"{'#1a56db' if movement in ('IN','Incoming') else '#c62828' if movement in ('OUT','Outgoing') else '#e65100'}\">{movement}</font>", F("_t", fontSize=5.5, alignment=TA_CENTER, leading=8)),
-            Paragraph(det, F("_det", fontSize=5.5, textColor=C5, leading=8)),
-            Paragraph(f"<b>{inv:,.2f}</b>" if inv else '<font color="#cccccc">—</font>', F("_dr", fontSize=5.5, textColor="#1a7d1a" if inv else C5, alignment=TA_RIGHT, leading=8)),
-            Paragraph(f"<b>{outv:,.2f}</b>" if outv else '<font color="#cccccc">—</font>', F("_cr", fontSize=5.5, textColor="#c62828" if outv else C5, alignment=TA_RIGHT, leading=8)),
-            Paragraph(f"<b>{bal_disp}</b>", F("_bl", fontSize=5.5, fontName="Helvetica-Bold", textColor=bal_c, alignment=TA_RIGHT, leading=8)),
+            Paragraph(d, F("_d", fontSize=6.5, leading=9)),
+            Paragraph(f"<font color='{C5}'>{month}</font>" if month else "", F("_m", fontSize=6, textColor=C5, leading=9)),
+            Paragraph(ref, F("_r", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, leading=9)),
+            Paragraph(f"<font color=\"{'#1a56db' if movement in ('IN','Incoming') else '#c62828' if movement in ('OUT','Outgoing') else '#e65100'}\">{movement}</font>", F("_t", fontSize=6.5, alignment=TA_CENTER, leading=9)),
+            Paragraph(det, F("_det", fontSize=6.2, textColor=C5, leading=9)),
+            Paragraph(f"<b>{inv:,.2f}</b>" if inv else '<font color="#cccccc">—</font>', F("_dr", fontSize=6.5, textColor="#1a7d1a" if inv else C5, alignment=TA_RIGHT, leading=9)),
+            Paragraph(f"<b>{outv:,.2f}</b>" if outv else '<font color="#cccccc">—</font>', F("_cr", fontSize=6.5, textColor="#c62828" if outv else C5, alignment=TA_RIGHT, leading=9)),
+            Paragraph(f"<b>{bal_disp}</b>", F("_bl", fontSize=6.5, fontName="Helvetica-Bold", textColor=bal_c, alignment=TA_RIGHT, leading=9)),
         ])
 
     # Closing row
     rws.append([
-        Paragraph("<b>Closing Balance</b>", F("_cb", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        Paragraph("", F("_x", fontSize=5.5, leading=8)),
+        Paragraph("<b>Closing Balance</b>", F("_cb", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+        Paragraph("", F("_x", fontSize=6.5, leading=9)),
         Paragraph("", F("_x")),
         Paragraph("", F("_x")),
         Paragraph("", F("_x")),
-        Paragraph(f"<b>{total_in:,.2f}</b>", F("_ct", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-        Paragraph(f"<b>{total_out:,.2f}</b>", F("_ct", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-        Paragraph(f"<b>{closing_bal:,.2f}</b>", F("_ccl", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        Paragraph(f"<b>{total_in:,.2f}</b>", F("_ct", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph(f"<b>{total_out:,.2f}</b>", F("_ct", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph(f"<b>{closing_bal:,.2f}</b>", F("_ccl", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
     ])
 
     it = Table(rws, colWidths=colw, repeatRows=1)
