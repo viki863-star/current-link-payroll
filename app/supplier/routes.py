@@ -1313,6 +1313,7 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     from reportlab.lib.units import cm
     from io import BytesIO
     import base64
+    from datetime import datetime
 
     _ensure_tables()
     db = _get_db()
@@ -1333,27 +1334,17 @@ def supplier_lpo_pdf(sup_id, lpo_id):
 
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
-        leftMargin=2*cm, rightMargin=2*cm,
-        topMargin=1.5*cm, bottomMargin=1.5*cm)
-    avail = A4[0] - 4*cm  # ~146mm
+        leftMargin=1.8*cm, rightMargin=1.8*cm,
+        topMargin=1.2*cm, bottomMargin=1.2*cm)
+    avail_w = A4[0] - 3.6*cm
 
     NAVY = colors.HexColor("#1a3a5c")
-    LINE = colors.HexColor("#e2e8f0")
-    MUTED = colors.HexColor("#94a3b8")
-    DARK = colors.HexColor("#0f172a")
-
-    # Styles
-    s_hdr = ParagraphStyle("hdr", fontSize=11, fontName="Helvetica-Bold", textColor=NAVY, leading=14)
-    s_hdr_sm = ParagraphStyle("hsm", fontSize=7.5, textColor=MUTED, leading=10)
-    s_title = ParagraphStyle("tit", fontSize=16, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=18)
-    s_info = ParagraphStyle("inf", fontSize=9, textColor=DARK, leading=12, spaceAfter=2)
-    s_info_lbl = ParagraphStyle("ibl", fontSize=7, textColor=colors.HexColor("#64748b"), leading=9, spaceAfter=0)
-    s_sec = ParagraphStyle("sec", fontSize=10, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f2b52"), leading=12, spaceAfter=4, spaceBefore=8)
-    s_cell = ParagraphStyle("cel", fontSize=8, leading=10, spaceAfter=0)
-    s_cell_b = ParagraphStyle("celb", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_CENTER)
-    s_cell_r = ParagraphStyle("celr", fontSize=8, leading=10, spaceAfter=0, alignment=TA_RIGHT)
-    s_sign = ParagraphStyle("sgn", fontSize=8, alignment=TA_CENTER, leading=10, textColor=DARK)
-    s_foot = ParagraphStyle("fot", fontSize=6.5, textColor=MUTED, alignment=TA_CENTER, leading=8)
+    LINE = colors.HexColor("#dce1e8")
+    MUTED = colors.HexColor("#8896a8")
+    DARK = colors.HexColor("#1e293b")
+    ACCENT = colors.HexColor("#2563eb")
+    LIGHT_BG = colors.HexColor("#f8f9fb")
+    WHITE = colors.white
 
     type_labels = dict(LPO_TYPES)
     lpo_type_str = type_labels.get(lpo["lpo_type"], lpo["lpo_type"] or "Fixed Amount")
@@ -1369,98 +1360,181 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     logo_img = None
     if company and company.get("logo_data"):
         try:
-            logo_img = RLImage(BytesIO(base64.b64decode(company["logo_data"])), width=22*mm, height=22*mm)
+            logo_img = RLImage(BytesIO(base64.b64decode(company["logo_data"])), width=20*mm, height=20*mm)
         except Exception:
             logo_img = None
 
     els = []
 
-    # ── HEADER ──
-    co_lines = []
-    if c_addr: co_lines.append("<font size=7>" + c_addr + "</font>")
-    parts = []
-    if c_ph: parts.append("Phone: " + c_ph)
-    if c_em: parts.append("Email: " + c_em)
-    if parts: co_lines.append("<font size=7>" + " &middot; ".join(parts) + "</font>")
-    co_lines.append("<font size=7><b>TRN:</b> " + c_trn + "</font>")
-    co_html = cn + "<br/>" + "<br/>".join(co_lines)
+    # ═══════════════════════════════════════════════════════
+    #  HEADER
+    # ═══════════════════════════════════════════════════════
+    company_info = "<font size=11><b>" + cn + "</b></font>"
+    addr_parts = []
+    if c_addr: addr_parts.append(c_addr)
+    if c_ph: addr_parts.append("Tel: " + c_ph)
+    if c_em: addr_parts.append(c_em)
+    if addr_parts:
+        company_info += "<br/><font size=7 color='#556b82'>" + " | ".join(addr_parts) + "</font>"
+    company_info += "<br/><font size=7 color='#556b82'><b>TRN:</b> " + c_trn + "</font>"
+
+    title_block = (
+        "<font size=18 color='#1a3a5c'><b>LOCAL PURCHASE ORDER</b></font><br/>"
+        "<font size=7 color='#8896a8'>LPO NO:  </font>"
+        "<font size=11 color='#1a3a5c'><b>" + lpo['lpo_no'] + "</b></font>"
+    )
+
     if logo_img:
-        hdr_data = [[logo_img, Paragraph(co_html, s_hdr), Paragraph("LOCAL PURCHASE ORDER<br/><font size=8>LPO #: <b>" + lpo['lpo_no'] + "</b></font>", s_title)]]
-        hdr_tbl = Table(hdr_data, colWidths=[2.2*cm, None, None])
+        hdr_data = [[logo_img, Paragraph(company_info, ParagraphStyle("ci", fontSize=9, leading=12, textColor=DARK)),
+                     Paragraph(title_block, ParagraphStyle("tb", alignment=TA_RIGHT, leading=20))]]
+        hdr_tbl = Table(hdr_data, colWidths=[20*mm, None, 75*mm])
     else:
-        hdr_data = [[Paragraph(co_html, s_hdr), Paragraph("LOCAL PURCHASE ORDER<br/><font size=8>LPO #: <b>" + lpo['lpo_no'] + "</b></font>", s_title)]]
-        hdr_tbl = Table(hdr_data, colWidths=[None, None])
+        hdr_data = [[Paragraph(company_info, ParagraphStyle("ci", fontSize=9, leading=12, textColor=DARK)),
+                     Paragraph(title_block, ParagraphStyle("tb", alignment=TA_RIGHT, leading=20))]]
+        hdr_tbl = Table(hdr_data, colWidths=[None, 75*mm])
     hdr_tbl.setStyle(TableStyle([
-        ("VALIGN", (0,0), (-1,-1), "TOP"),
-        ("LINEBELOW", (0,0), (-1,0), 2.5, NAVY),
-        ("TOPPADDING", (0,0), (-1,-1), 0),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-        ("LEFTPADDING", (0,0), (-1,-1), 0),
-        ("RIGHTPADDING", (0,0), (-1,-1), 0),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LINEBELOW", (0, 0), (-1, 0), 2.5, NAVY),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
     ]))
     els.append(hdr_tbl)
-    els.append(Spacer(1, 3*mm))
+    els.append(Spacer(1, 3.5*mm))
 
-    # ── INFO section as simple table ──
-    els.append(Paragraph("LPO INFORMATION", s_sec))
-    info_rows = [
-        [Paragraph("LPO Number", s_info_lbl), Paragraph(lpo['lpo_no'], s_info),
-         Paragraph("Date", s_info_lbl), Paragraph(lpo['lpo_date'], s_info),
-         Paragraph("Basis / Type", s_info_lbl), Paragraph(lpo_type_str, s_info)],
-        [Paragraph("Quotation", s_info_lbl), Paragraph((quotation['quotation_no'] if quotation else "-"), s_info),
-         Paragraph("Supplier", s_info_lbl), Paragraph(s['supplier_name'], s_info),
-         Paragraph("Status", s_info_lbl), Paragraph("<font color='#e65100'><b>" + lpo['status'].upper() + "</b></font>", s_info)],
+    # ═══════════════════════════════════════════════════════
+    #  TWO-COLUMN INFO SECTION
+    # ═══════════════════════════════════════════════════════
+    lbl_style = ParagraphStyle("lbl", fontSize=6.5, textColor=MUTED, leading=8, spaceAfter=0)
+    val_style = ParagraphStyle("val", fontSize=9, textColor=DARK, leading=12, spaceAfter=2)
+
+    # Left column: Supplier details
+    sup_lines = [
+        Paragraph("<b>SUPPLIER</b>", ParagraphStyle("sh", fontSize=9, fontName="Helvetica-Bold", textColor=NAVY, leading=11, spaceAfter=3)),
+        Paragraph("Name", lbl_style), Paragraph(s["supplier_name"], val_style),
     ]
-    info_tbl = Table(info_rows, colWidths=[None, None, None, None, None, None])
+    if s.get("address"): sup_lines += [Paragraph("Address", lbl_style), Paragraph(s["address"], val_style)]
+    if s.get("trn"): sup_lines += [Paragraph("TRN", lbl_style), Paragraph(s["trn"], val_style)]
+    if s.get("phone"): sup_lines += [Paragraph("Phone", lbl_style), Paragraph(s["phone"], val_style)]
+    if s.get("email"): sup_lines += [Paragraph("Email", lbl_style), Paragraph(s["email"], val_style)]
+    sup_lines.append(Spacer(1, 1*mm))
+    if s.get("payment_terms"):
+        sup_lines += [Paragraph("Payment Terms", lbl_style), Paragraph(s["payment_terms"], val_style)]
+
+    sup_cell = Table([[x] for x in sup_lines], colWidths=[None])
+    sup_cell.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
+    # Right column: LPO details
+    lpo_lines = [
+        Paragraph("<b>LPO DETAILS</b>", ParagraphStyle("sh", fontSize=9, fontName="Helvetica-Bold", textColor=NAVY, leading=11, spaceAfter=3)),
+        Paragraph("LPO No", lbl_style), Paragraph(lpo["lpo_no"], val_style),
+        Paragraph("Date", lbl_style), Paragraph(lpo["lpo_date"], val_style),
+        Paragraph("Basis / Type", lbl_style), Paragraph(lpo_type_str, val_style),
+    ]
+    if quotation:
+        lpo_lines += [Paragraph("Quotation Ref", lbl_style),
+                      Paragraph(quotation["quotation_no"], val_style)]
+    lpo_lines += [
+        Paragraph("Status", lbl_style),
+        Paragraph("<font color='#c2410c'><b>" + lpo["status"].upper() + "</b></font>",
+                   ParagraphStyle("sv", fontSize=9, leading=12, spaceAfter=2)),
+    ]
+    lpo_cell = Table([[x] for x in lpo_lines], colWidths=[None])
+    lpo_cell.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
+    info_tbl = Table([[sup_cell, lpo_cell]], colWidths=[avail_w * 0.48, avail_w * 0.52])
     info_tbl.setStyle(TableStyle([
-        ("VALIGN", (0,0), (-1,-1), "TOP"),
-        ("BOX", (0,0), (-1,-1), 0.5, LINE),
-        ("INNERGRID", (0,0), (-1,-1), 0.3, LINE),
-        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f8fafc")),
-        ("TOPPADDING", (0,0), (-1,-1), 3),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
-        ("LEFTPADDING", (0,0), (-1,-1), 5),
-        ("RIGHTPADDING", (0,0), (-1,-1), 5),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("BOX", (0, 0), (-1, -1), 0.5, LINE),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
     ]))
     els.append(info_tbl)
+    els.append(Spacer(1, 4*mm))
+
+    # ═══════════════════════════════════════════════════════
+    #  ITEMS TABLE
+    # ═══════════════════════════════════════════════════════
+    s_sec = ParagraphStyle("sec", fontSize=9, fontName="Helvetica-Bold", textColor=NAVY, leading=11, spaceAfter=4)
+    els.append(Paragraph("SERVICE / WORK ITEMS", s_sec))
+
+    col_w = [
+        10*mm,   # #
+        avail_w - 10*mm - 18*mm - 16*mm - 22*mm - 22*mm,  # Description (remaining)
+        18*mm,   # QTY
+        16*mm,   # Basis
+        22*mm,   # Rate
+        22*mm,   # Amount
+    ]
+
+    b9 = ParagraphStyle("b9", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_CENTER)
+    b9l = ParagraphStyle("b9l", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0)
+    c9 = ParagraphStyle("c9", fontSize=8, leading=10, spaceAfter=0)
+    c9r = ParagraphStyle("c9r", fontSize=8, leading=10, spaceAfter=0, alignment=TA_RIGHT)
+
+    i_hdr = [
+        Paragraph("#", b9), Paragraph("Description", ParagraphStyle("b9hl", fontSize=8, fontName="Helvetica-Bold", leading=10, textColor=WHITE, spaceAfter=0)),
+        Paragraph("QTY", b9), Paragraph("Basis", ParagraphStyle("b9h", fontSize=8, fontName="Helvetica-Bold", leading=10, textColor=WHITE, spaceAfter=0, alignment=TA_CENTER)),
+        Paragraph("Rate (AED)", b9), Paragraph("Amount", b9),
+    ]
+    i_rows = [i_hdr]
+    alt_bg = colors.HexColor("#f4f6f9")
+    for idx, it in enumerate(items):
+        bg = alt_bg if idx % 2 == 1 else WHITE
+        i_rows.append([
+            Paragraph(str(idx + 1), ParagraphStyle("cn", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_CENTER)),
+            Paragraph(it["description"], c9),
+            Paragraph(str(it["qty"]), b9),
+            Paragraph(basis_labels.get(it["basis_type"], it["basis_type"]), ParagraphStyle("cx", fontSize=8, leading=10, spaceAfter=0, alignment=TA_CENTER)),
+            Paragraph(f"{it['day_rate'] or 0:,.2f}", c9r),
+            Paragraph(f"{it['amount'] or 0:,.2f}", ParagraphStyle("crb", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_RIGHT)),
+        ])
+
+    i_rows.append([
+        Paragraph("", c9),
+        Paragraph("<b>TOTAL</b>", ParagraphStyle("ttl", fontSize=10, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=13, textColor=DARK)),
+        Paragraph("", c9), Paragraph("", c9), Paragraph("", c9),
+        Paragraph(f"<b>{total_amt:,.2f}</b>",
+                   ParagraphStyle("ttv", fontSize=11, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=14)),
+    ])
+
+    i_tbl = Table(i_rows, colWidths=col_w, repeatRows=1)
+    i_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BOX", (0, 0), (-1, -1), 0.5, LINE),
+        ("INNERGRID", (0, 0), (-1, -2), 0.3, LINE),
+        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+        ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
+        ("BACKGROUND", (0, -1), (-1, -1), LIGHT_BG),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    for idx in range(1, len(i_rows) - 1):
+        if idx % 2 == 1:
+            i_tbl.setStyle(TableStyle([("BACKGROUND", (0, idx), (-1, idx), alt_bg)]))
+    els.append(i_tbl)
     els.append(Spacer(1, 3*mm))
 
-    # ── ITEMS TABLE ──
-    els.append(Paragraph("SERVICE / WORK ITEMS", s_sec))
-    i_hdr = [Paragraph("<b>#</b>", s_cell_b), Paragraph("<b>Description</b>", s_cell),
-             Paragraph("<b>QTY</b>", s_cell_b), Paragraph("<b>Basis</b>", s_cell),
-             Paragraph("<b>Rate (AED)</b>", s_cell_b), Paragraph("<b>Amount</b>", s_cell_b)]
-    i_rows = [i_hdr]
-    for idx, it in enumerate(items):
-        i_rows.append([
-            Paragraph(str(idx+1), s_cell_b), Paragraph(it["description"], s_cell),
-            Paragraph(str(it["qty"]), s_cell_b),
-            Paragraph(basis_labels.get(it["basis_type"], it["basis_type"]), s_cell),
-            Paragraph(f"{it['day_rate'] or 0:,.2f}", s_cell_r),
-            Paragraph(f"{it['amount'] or 0:,.2f}", ParagraphStyle("cr3", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_RIGHT)),
-        ])
-    i_rows.append([
-        Paragraph("", s_cell), Paragraph("<b>TOTAL</b>", ParagraphStyle("tl", fontSize=10, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=13)),
-        Paragraph("", s_cell), Paragraph("", s_cell), Paragraph("", s_cell),
-        Paragraph(f"<b>{total_amt:,.2f}</b>", ParagraphStyle("tv", fontSize=11, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=14)),
-    ])
-    i_tbl = Table(i_rows, colWidths=[None]*6, repeatRows=1)
-    i_tbl.setStyle(TableStyle([
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("BOX", (0,0), (-1,-1), 0.5, LINE),
-        ("INNERGRID", (0,0), (-1,-2), 0.3, LINE),
-        ("BACKGROUND", (0,0), (-1,0), NAVY),
-        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
-        ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f0f4f8")),
-        ("TOPPADDING", (0,0), (-1,-1), 3),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
-        ("LEFTPADDING", (0,0), (-1,-1), 4),
-        ("RIGHTPADDING", (0,0), (-1,-1), 4),
-    ]))
-    els.append(i_tbl)
-    els.append(Spacer(1, 2*mm))
-
-    # ── TOTAL & AMOUNT IN WORDS ──
+    # ═══════════════════════════════════════════════════════
+    #  TOTAL & AMOUNT IN WORDS
+    # ═══════════════════════════════════════════════════════
     def num_to_words(n):
         if n == 0: return "Zero Only"
         ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
@@ -1478,71 +1552,113 @@ def supplier_lpo_pdf(sup_id, lpo_id):
         if dp: w += f" and {dp}/100"
         return "AED " + w + " Only"
 
-    # Simple bordered boxes for total and words
-    total_p = Paragraph("Total: AED " + f"{total_amt:,.2f}", ParagraphStyle("tb", fontSize=13, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=16))
-    total_box = Table([[total_p]], colWidths=[None])
-    total_box.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f0f4f8")),
-        ("BOX", (0,0), (-1,-1), 0.5, colors.HexColor("#dde4ec")),
-        ("TOPPADDING", (0,0), (-1,-1), 5), ("BOTTOMPADDING", (0,0), (-1,-1), 5),
-        ("LEFTPADDING", (0,0), (-1,-1), 10), ("RIGHTPADDING", (0,0), (-1,-1), 10),
+    summary_data = [
+        [Paragraph("Total Amount (AED)", ParagraphStyle("tsl", fontSize=8, textColor=MUTED, leading=10, spaceAfter=0)),
+         Paragraph(f"<b>{total_amt:,.2f}</b>",
+                   ParagraphStyle("tsv", fontSize=14, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=17))],
+        [Paragraph("Amount in Words", ParagraphStyle("awl", fontSize=8, textColor=MUTED, leading=10, spaceAfter=0)),
+         Paragraph(f"<b>{num_to_words(total_amt)}</b>",
+                   ParagraphStyle("awv", fontSize=8.5, textColor=DARK, leading=11, alignment=TA_RIGHT))],
+    ]
+    summary_tbl = Table(summary_data, colWidths=[avail_w * 0.55, avail_w * 0.45])
+    summary_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BOX", (0, 0), (-1, -1), 0.5, LINE),
+        ("INNERGRID", (0, 0), (-1, -1), 0.3, LINE),
+        ("BACKGROUND", (0, 0), (-1, -1), LIGHT_BG),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
     ]))
-    els.append(total_box)
-    els.append(Spacer(1, 2*mm))
+    els.append(summary_tbl)
+    els.append(Spacer(1, 4*mm))
 
-    words_p = Paragraph("<b>Amount in Words:</b> " + num_to_words(total_amt), ParagraphStyle("wrds", fontSize=8.5, textColor=colors.HexColor("#64748b"), leading=11))
-    words_box = Table([[words_p]], colWidths=[None])
-    words_box.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f8fafc")),
-        ("BOX", (0,0), (-1,-1), 0.5, LINE),
-        ("TOPPADDING", (0,0), (-1,-1), 4), ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-        ("LEFTPADDING", (0,0), (-1,-1), 8), ("RIGHTPADDING", (0,0), (-1,-1), 8),
-    ]))
-    els.append(words_box)
-    els.append(Spacer(1, 3*mm))
-
-    # ── NOTES & TERMS ──
+    # ═══════════════════════════════════════════════════════
+    #  NOTES / SPECIAL TERMS
+    # ═══════════════════════════════════════════════════════
     desc_text = lpo["description"] or ""
     notes_text = lpo["notes"] or ""
     if desc_text or notes_text:
-        els.append(Paragraph("DESCRIPTION &amp; TERMS", s_sec))
+        els.append(Paragraph("NOTES &amp; SPECIAL TERMS", s_sec))
         if desc_text:
-            els.append(Paragraph("<b>Scope / Notes</b><br/>" + desc_text, ParagraphStyle("nts", fontSize=8, textColor=colors.HexColor("#334155"), leading=11, spaceAfter=4)))
+            els.append(Paragraph(desc_text, ParagraphStyle("nts", fontSize=8, textColor=DARK, leading=11, spaceAfter=4, leftIndent=4)))
         if notes_text:
-            els.append(Paragraph("<b>Special Terms</b><br/>" + notes_text, ParagraphStyle("stn", fontSize=8, textColor=colors.HexColor("#334155"), leading=11, spaceAfter=4)))
+            els.append(Paragraph(notes_text, ParagraphStyle("stn", fontSize=8, textColor=DARK, leading=11, spaceAfter=4, leftIndent=4)))
+        els.append(Spacer(1, 2*mm))
 
-    # ── Standard Terms ──
-    els.append(Spacer(1, 2*mm))
+    # ═══════════════════════════════════════════════════════
+    #  STANDARD TERMS & CONDITIONS
+    # ═══════════════════════════════════════════════════════
+    els.append(Paragraph("TERMS &amp; CONDITIONS", s_sec))
     std_terms = [
-        "Payment as per agreed payment terms.",
-        "VAT @ 5% will be charged separately as per UAE Federal Law.",
-        "This LPO is valid for 30 days from the date of issue.",
-        "Services/goods must be delivered as per the specifications mentioned above.",
-        "Any changes or amendments to this LPO require written confirmation.",
-        "Delivery location: As per agreement.",
+        "Payment shall be made as per agreed payment terms mentioned above.",
+        "Value Added Tax (VAT) at 5% will be charged separately as per UAE Federal Tax Authority regulations.",
+        "This Local Purchase Order is valid for 30 days from the date of issue.",
+        "Services / Goods must be delivered in accordance with the specifications and quantities mentioned in this LPO.",
+        "Any changes, modifications, or amendments to this LPO shall require prior written confirmation from both parties.",
+        "Delivery location and schedule shall be as mutually agreed between the parties.",
+        "The supplier shall provide all necessary documentation including valid VAT invoice upon delivery.",
+        "Discrepancies or claims regarding this LPO must be raised within 5 working days of receipt.",
     ]
-    t_html = "<b>Terms &amp; Conditions</b><br/>" + "<br/>".join([chr(8226) + " " + t for t in std_terms])
-    els.append(Paragraph(t_html, ParagraphStyle("st", fontSize=7.5, textColor=colors.HexColor("#64748b"), leading=11, leftIndent=6)))
+    terms_data = []
+    for i, t in enumerate(std_terms):
+        terms_data.append([
+            Paragraph(f"{i+1}.", ParagraphStyle("tn", fontSize=7.5, textColor=MUTED, leading=10, spaceAfter=1, alignment=TA_RIGHT)),
+            Paragraph(t, ParagraphStyle("tt", fontSize=7.5, textColor=DARK, leading=10, spaceAfter=1)),
+        ])
+    terms_tbl = Table(terms_data, colWidths=[8*mm, avail_w - 8*mm])
+    terms_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    els.append(terms_tbl)
+    els.append(Spacer(1, 6*mm))
 
-    # ── SIGNATURES ──
-    els.append(Spacer(1, 5*mm))
-    sig_rows = [[
-        Paragraph("_________________________<br/><b>Company Sign &amp; Stamp</b><br/><font size=7>Date: _____/_____/_____</font>", s_sign),
-        Paragraph("", s_sign),
-        Paragraph("_________________________<br/><b>Supplier Sign &amp; Stamp</b><br/><font size=7>Date: _____/_____/_____</font>", s_sign),
+    # ═══════════════════════════════════════════════════════
+    #  SIGNATURES
+    # ═══════════════════════════════════════════════════════
+    els.append(Paragraph("AUTHORIZATION", ParagraphStyle("as", fontSize=9, fontName="Helvetica-Bold", textColor=NAVY, leading=11, spaceAfter=4)))
+
+    sig_style = ParagraphStyle("sg", fontSize=8, alignment=TA_CENTER, leading=11, textColor=DARK, spaceAfter=0)
+
+    sig_data = [[
+        Table([
+            [Spacer(1, 8*mm)],
+            [Paragraph("_" * 30, ParagraphStyle("sl", fontSize=8, textColor=MUTED, alignment=TA_CENTER, leading=4))],
+            [Paragraph("<b>COMPANY SIGNATURE &amp; STAMP</b>", sig_style)],
+            [Paragraph("Name: _______________________", sig_style)],
+            [Paragraph("Date: _______________________", sig_style)],
+        ], colWidths=[70*mm]),
+        Table([
+            [Spacer(1, 8*mm)],
+            [Paragraph("_" * 30, ParagraphStyle("sl", fontSize=8, textColor=MUTED, alignment=TA_CENTER, leading=4))],
+            [Paragraph("<b>SUPPLIER SIGNATURE &amp; STAMP</b>", sig_style)],
+            [Paragraph("Name: _______________________", sig_style)],
+            [Paragraph("Date: _______________________", sig_style)],
+        ], colWidths=[70*mm]),
     ]]
-    sig_tbl = Table(sig_rows, colWidths=[None, 20, None])
+    sig_tbl = Table(sig_data, colWidths=[avail_w * 0.5, avail_w * 0.5])
     sig_tbl.setStyle(TableStyle([
-        ("VALIGN", (0,0), (-1,-1), "TOP"),
-        ("LINEABOVE", (0,0), (0,0), 0.5, colors.HexColor("#999")),
-        ("LINEABOVE", (2,0), (2,0), 0.5, colors.HexColor("#999")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
     ]))
     els.append(sig_tbl)
+    els.append(Spacer(1, 6*mm))
 
-    # ── FOOTER ──
-    els.append(Spacer(1, 4*mm))
-    els.append(Paragraph("This is a computer-generated document. No signature required for electronic transmission.", s_foot))
-    els.append(Paragraph("Generated on: " + datetime.now().strftime("%d-%b-%Y %H:%M"), ParagraphStyle("gn", fontSize=6, textColor=colors.HexColor("#aaa"), alignment=TA_CENTER, leading=8, spaceAfter=0)))
+    # ═══════════════════════════════════════════════════════
+    #  FOOTER
+    # ═══════════════════════════════════════════════════════
+    els.append(Paragraph(
+        "This is a computer-generated document and does not require a physical signature for electronic transmission.",
+        ParagraphStyle("fot", fontSize=6.5, textColor=MUTED, alignment=TA_CENTER, leading=8)))
+    els.append(Paragraph(
+        "Generated on: " + datetime.now().strftime("%d-%b-%Y %I:%M %p"),
+        ParagraphStyle("gn", fontSize=6, textColor=colors.HexColor("#b0b8c4"), alignment=TA_CENTER, leading=7, spaceAfter=0)))
 
     doc.build(els)
     pdf_data = buf.getvalue()
