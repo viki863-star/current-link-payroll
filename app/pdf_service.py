@@ -841,24 +841,25 @@ def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: st
 
 
 def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir: str, filters=None, company_profile: dict | None = None) -> str:
+    import os, tempfile
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors as rl_colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = Path(output_dir) / f"owner-fund-kata_{timestamp}.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    pdf = canvas.Canvas(str(output_path), pagesize=A4)
     filters = filters or {}
-
-    table_left = 16 * mm
-    table_width = 178 * mm
-    row_height = 6.8 * mm
-    bottom_limit = 48 * mm
-    header_bottom = PAGE_HEIGHT - 52 * mm
-    rows_per_page = max(1, int((PAGE_HEIGHT - header_bottom - bottom_limit - 30 * mm) // row_height))
+    cp = company_profile or {}
 
     def _active_filter_text():
         parts = []
         if filters.get("month"):
-            parts.append(f"Period: {format_month_label(filters['month'])}")
+            parts.append(f"Period: {filters['month']}")
         if filters.get("movement") and filters["movement"] != "All":
             parts.append(f"Type: {filters['movement']}")
         if filters.get("search"):
@@ -866,149 +867,233 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
         return " | ".join(parts)
 
     filter_text = _active_filter_text()
-    table_rows = list(statement_rows) if statement_rows else [
-        {
-            "entry_date": "-",
-            "movement": "-",
-            "reference": "No matching rows",
-            "party": "-",
-            "details": "No owner fund movement matched the current filter.",
-            "incoming": 0.0,
-            "outgoing": 0.0,
-            "balance": float(totals.get("closing_balance", totals.get("balance", 0.0))),
-        }
-    ]
-    pages = [table_rows[index : index + rows_per_page] for index in range(0, len(table_rows), rows_per_page)] or [table_rows]
-    total_pages = len(pages)
+    table_rows = list(statement_rows) if statement_rows else []
 
     closing_bal = float(totals.get("closing_balance", totals.get("balance", 0.0)))
     opening_bal = closing_bal - float(totals.get("incoming", 0)) + float(totals.get("outgoing", 0))
+    total_in = float(totals["incoming"])
+    total_out = float(totals["outgoing"])
 
-    def _draw_soa_header():
-        _draw_header(pdf, assets_dir, company_profile)
-        pdf.setFillColor(BLUE_DARK)
-        pdf.setFont("Helvetica-Bold", 16)
-        pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 56 * mm, "Owner Fund Statement of Account")
-        if filter_text:
-            pdf.setFillColor(MUTED)
-            pdf.setFont("Helvetica", 7.5)
-            pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 61 * mm, filter_text)
+    LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 15*mm
+    buf = BytesIO()
+    doc = SimpleDocTemplate(str(output_path), pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = A4[0] - LM - RM
 
-    def _draw_summary_cards(page_number: int):
-        card_y = PAGE_HEIGHT - 76 * mm
-        card_w = 41 * mm
-        card_h = 16 * mm
-        gap = 4 * mm
-        start_x = 16 * mm
+    tc = cp.get("theme_color") or "#1a3a5c"
+    try: TH = rl_colors.HexColor(tc)
+    except: TH = rl_colors.HexColor("#1a3a5c")
+    BG = rl_colors.HexColor("#f4f6f9"); WH = rl_colors.white
+    C3 = rl_colors.HexColor("#d1d5db"); C4 = rl_colors.HexColor("#111827")
+    C5 = rl_colors.HexColor("#6b7280"); CG = rl_colors.HexColor("#1a7d1a")
+    CR = rl_colors.HexColor("#c62828"); CO = rl_colors.HexColor("#e65100")
 
-        items = [
-            ("Opening Balance", format_currency(opening_bal), SOFT, TEXT, LINE),
-            ("Total Incoming", f"AED {format_currency(float(totals['incoming']))}", colors.HexColor("#E8F5E9"), GREEN, colors.HexColor("#C8E6C9")),
-            ("Total Outgoing", f"AED {format_currency(float(totals['outgoing']))}", colors.HexColor("#FFEBEE"), RED, colors.HexColor("#FFCDD2")),
-            ("Closing Balance", f"AED {format_currency(closing_bal)}", colors.HexColor("#FFF8E1"), ORANGE, colors.HexColor("#FFE082")),
-        ]
+    def F(name, **kw):
+        kw.setdefault("fontSize", 8); kw.setdefault("leading", 12)
+        return ParagraphStyle(name, **kw)
 
-        for i, (label, value, bg, tc, bc) in enumerate(items):
-            x = start_x + i * (card_w + gap)
-            pdf.setFillColor(bg)
-            pdf.roundRect(x, card_y, card_w, card_h, 3 * mm, fill=1, stroke=0)
-            pdf.setStrokeColor(bc)
-            pdf.roundRect(x, card_y, card_w, card_h, 3 * mm, fill=0, stroke=1)
-            pdf.setFillColor(MUTED)
-            pdf.setFont("Helvetica-Bold", 6.5)
-            pdf.drawString(x + 3 * mm, card_y + 11.5 * mm, label.upper())
-            pdf.setFillColor(tc)
-            val, vsize = _fit_text(pdf, value, "Helvetica-Bold", 9, card_w - 6 * mm, min_size=6.5)
-            pdf.setFont("Helvetica-Bold", vsize)
-            pdf.drawString(x + 3 * mm, card_y + 3.5 * mm, val)
+    def C(t, **kw):
+        kw.setdefault("alignment", TA_CENTER)
+        return Paragraph(str(t), F("_C", **kw))
+    def R(t, **kw):
+        kw.setdefault("alignment", TA_RIGHT)
+        return Paragraph(str(t), F("_R", **kw))
 
-        overall_incoming = totals.get("overall_incoming")
-        overall_outgoing = totals.get("overall_outgoing")
-        overall_balance = totals.get("overall_balance")
-        if overall_incoming is not None and overall_outgoing is not None and overall_balance is not None:
-            note = (
-                f"Overall: In AED {format_currency(float(overall_incoming))}  "
-                f"Out AED {format_currency(float(overall_outgoing))}  "
-                f"Balance AED {format_currency(float(overall_balance))}"
-            )
-        else:
-            note = "Running balance as per filtered view."
-        pdf.setFillColor(MUTED)
-        pdf.setFont("Helvetica", 6.8)
-        pdf.drawString(16 * mm, card_y - 4.5 * mm, note)
-        pdf.drawRightString(194 * mm, card_y - 4.5 * mm, f"Page {page_number} / {total_pages}")
+    els = []
+    cn = cp.get("company_name") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    trn = cp.get("trn_no") or "—"
 
-    def _draw_table(page_rows, page_number: int):
-        _draw_soa_header()
-        _draw_summary_cards(page_number)
+    # ═══ HEADER (matches customer SOA style) ═══
+    logo = None; LW = 0
+    if cp.get("logo_data"):
+        try:
+            lb = base64.b64decode(cp["logo_data"])
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            f.write(lb); f.close()
+            logo = Image(f.name, width=50, height=50)
+            LW = 50
+        except: pass
 
-        table_top = PAGE_HEIGHT - 99 * mm
-        _draw_table_header(
-            pdf,
-            table_top,
-            ["Date", "Description", "Reference", "In (AED)", "Out (AED)", "Balance (AED)"],
-            [18, 36, 70, 130, 154, 178],
-        )
+    cl = [f"<font size=11><b>{cn}</b></font>"]
+    addr = cp.get("address") or ""; ph = cp.get("phone_number") or ""; em = cp.get("email") or ""
+    parts_l = [x for x in [addr] if x]
+    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != "TRN: —"]
+    if parts_l or cparts:
+        info = " &middot; ".join(parts_l + cparts)
+        cl.append(f"<font size=6.5 color='#6b7280'>{info}</font>")
+    co_p = Paragraph("<br/>".join(cl), F("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
+    if logo:
+        lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm])
+        lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    else:
+        lh = co_p
+    rh = Paragraph(
+        "<b>STATEMENT<br/>OF ACCOUNT</b>",
+        F("TI", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
+    ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
+    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ht)
+    els.append(Spacer(1, 2*mm))
+    hr = Table([[""]], colWidths=[W], rowHeights=[2])
+    hr.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(hr)
+    els.append(Spacer(1, 4*mm))
 
-        y = table_top - 6.7 * mm
-        for index, row in enumerate(page_rows):
-            if index % 2 == 0:
-                pdf.setFillColor(SOFT)
-                pdf.roundRect(table_left, y - 2.4 * mm, table_width, 6.2 * mm, 1.8 * mm, fill=1, stroke=0)
+    # ═══ FUND INFO ═══
+    finfo = [
+        [Paragraph("<b>Fund</b>", F("_fl", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11)),
+         Paragraph("<b>Owner Fund</b>", F("_fv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12))],
+    ]
+    if filter_text:
+        finfo.append([Paragraph("Filter", F("_l", fontSize=7.5, textColor=C5, leading=10)), Paragraph(filter_text, F("_v", fontSize=8.5, textColor=C4, leading=11))])
+    ft = Table(finfo, colWidths=[50, W - 50])
+    ft.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),1),("BOTTOMPADDING",(0,0),(-1,-1),1),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ft)
 
-            pdf.setFillColor(TEXT)
-            pdf.setFont("Helvetica", 7.2)
-            pdf.drawString(18 * mm, y, format_date_label(row["entry_date"]))
+    # ═══ SUMMARY CARDS ═══
+    els.append(Spacer(1, 3*mm))
+    sdata = [[
+        Paragraph(f"<b>Opening Balance</b><br/><font size=10 color='#1a3a5c'>AED {opening_bal:,.2f}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Total Incoming</b><br/><font size=10 color='#1a7d1a'>AED {total_in:,.2f}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Total Outgoing</b><br/><font size=10 color='#c62828'>AED {total_out:,.2f}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Closing Balance</b><br/><font size=10 color='#e65100'>AED {closing_bal:,.2f}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+    ]]
+    st = Table(sdata, colWidths=[W/4, W/4, W/4, W/4])
+    st.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),8), ("BOTTOMPADDING",(0,0),(-1,-1),8),
+        ("LEFTPADDING",(0,0),(-1,-1),5), ("RIGHTPADDING",(0,0),(-1,-1),5),
+        ("BACKGROUND",(0,0),(-1,-1),BG),
+    ]))
+    els.append(st)
+    els.append(Spacer(1, 3*mm))
 
-            details_value = str(row["details"] or "-")
-            if row.get("party") and row["party"] != "-":
-                details_value = f"{row['party']} | {details_value}"
-            det, dsize = _fit_text(pdf, details_value, "Helvetica", 7, 32 * mm, min_size=6)
-            pdf.setFont("Helvetica", dsize)
-            pdf.drawString(36 * mm, y, det)
+    # ═══ STATEMENT TABLE ═══
+    colw = [42, 38, 58, 38, W - 42 - 38 - 58 - 38 - 60 - 70, 60, 70]
+    hdr = [
+        Paragraph("<b>Date</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph("<b>Month</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph("<b>Reference</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+        Paragraph("<b>Type</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph("<b>Details</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+        Paragraph("<b>In (AED)</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph("<b>Out (AED)</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+    ]
+    # Balance column in header and data
+    # Actually the customer SOA has Balance column too. Let me add it.
+    # Redo the header with 8 columns including Balance
+    colw = [38, 32, 50, 32, W - 38 - 32 - 50 - 32 - 55 - 55 - 60, 55, 55, 60]
+    hdr = [
+        Paragraph("<b>Date</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph("<b>Month</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph("<b>Reference</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        Paragraph("<b>Type</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph("<b>Details</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        Paragraph("<b>In (AED)</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        Paragraph("<b>Out (AED)</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        Paragraph("<b>Balance (AED)</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+    ]
+    rws = [hdr]
+    # Opening balance row
+    rws.append([
+        Paragraph("", F("_o", fontSize=6.5, leading=9)), Paragraph("", F("_o")),
+        Paragraph("", F("_o")), Paragraph("Opening Balance", F("_ol", fontSize=6.5, textColor=C5, leading=9)),
+        Paragraph("", F("_o")), Paragraph("", F("_o")), Paragraph("", F("_o")),
+        Paragraph("<b>0.00</b>", F("_ob", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=9)),
+    ])
+    for row in table_rows:
+        d = str(row.get("entry_date", ""))
+        month = d[:7] if d and len(d) >= 7 else ""
+        movement = row.get("movement") or "-"
+        ref = str(row.get("reference", "")) or "-"
+        det = str(row.get("details", "")) or "-"
+        if row.get("party") and row["party"] != "-":
+            det = f"{row['party']} | {det}"
+        inv = float(row.get("incoming", 0))
+        outv = float(row.get("outgoing", 0))
+        bal_v = float(row.get("balance", 0))
+        bal_disp = f"{bal_v:,.2f}"
+        bal_c = "#c62828" if bal_v > 0 else "#1a7d1a" if bal_v < 0 else C4
 
-            ref_text, ref_size = _fit_text(pdf, str(row["reference"]), "Helvetica-Bold", 7, 56 * mm, min_size=6)
-            pdf.setFont("Helvetica-Bold", ref_size)
-            pdf.drawString(70 * mm, y, ref_text)
+        rws.append([
+            Paragraph(d, F("_d", fontSize=6.5, leading=9)),
+            Paragraph(f"<font color='{C5}'>{month}</font>" if month else "", F("_m", fontSize=6, textColor=C5, leading=9)),
+            Paragraph(ref, F("_r", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, leading=9)),
+            Paragraph(f"<font color=\"{'#1a56db' if movement in ('IN','Incoming') else '#c62828' if movement in ('OUT','Outgoing') else '#e65100'}\">{movement}</font>", F("_t", fontSize=6.5, alignment=TA_CENTER, leading=9)),
+            Paragraph(det, F("_det", fontSize=6.2, textColor=C5, leading=9)),
+            Paragraph(f"<b>{inv:,.2f}</b>" if inv else '<font color="#cccccc">—</font>', F("_dr", fontSize=6.5, textColor="#1a7d1a" if inv else C5, alignment=TA_RIGHT, leading=9)),
+            Paragraph(f"<b>{outv:,.2f}</b>" if outv else '<font color="#cccccc">—</font>', F("_cr", fontSize=6.5, textColor="#c62828" if outv else C5, alignment=TA_RIGHT, leading=9)),
+            Paragraph(f"<b>{bal_disp}</b>", F("_bl", fontSize=6.5, fontName="Helvetica-Bold", textColor=bal_c, alignment=TA_RIGHT, leading=9)),
+        ])
 
-            incoming_val = float(row["incoming"])
-            outgoing_val = float(row["outgoing"])
-            bal_val = float(row["balance"])
+    # Closing row
+    rws.append([
+        Paragraph("<b>Closing Balance</b>", F("_cb", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+        Paragraph("", F("_x", fontSize=6.5, leading=9)),
+        Paragraph("", F("_x")),
+        Paragraph("", F("_x")),
+        Paragraph("", F("_x")),
+        Paragraph(f"<b>{total_in:,.2f}</b>", F("_ct", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph(f"<b>{total_out:,.2f}</b>", F("_ct", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph(f"<b>{closing_bal:,.2f}</b>", F("_ccl", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+    ])
 
-            pdf.setFont("Helvetica-Bold", 7.2)
-            if incoming_val > 0:
-                pdf.setFillColor(GREEN)
-                pdf.drawRightString(146 * mm, y, format_currency(incoming_val))
-            else:
-                pdf.setFillColor(MUTED)
-                pdf.drawRightString(146 * mm, y, "-")
+    it = Table(rws, colWidths=colw, repeatRows=1)
+    it.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
+        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
+        ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
+        ("FONTNAME",(0,-1),(-1,-1),"Helvetica-Bold"),
+        ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
+    ]))
+    els.append(it)
 
-            if outgoing_val > 0:
-                pdf.setFillColor(RED)
-                pdf.drawRightString(170 * mm, y, format_currency(outgoing_val))
-            else:
-                pdf.setFillColor(MUTED)
-                pdf.drawRightString(170 * mm, y, "-")
+    # ═══ SIGNATURES ═══
+    els.append(Spacer(1, 8*mm))
+    s_sg = ParagraphStyle("SSG", fontSize=9, alignment=TA_CENTER, leading=14)
+    s_stamp_path = os.path.join(assets_dir, 'Stamp.png')
+    s_sign_path = os.path.join(assets_dir, 'Sign (1).png')
+    s_auth_cells = []
+    s_auth_cells.append(Paragraph("_________________________", s_sg))
+    if os.path.exists(s_stamp_path):
+        s_auth_cells.append(Image(s_stamp_path, width=40, height=40))
+    if os.path.exists(s_sign_path):
+        s_auth_cells.append(Image(s_sign_path, width=40, height=40))
+    s_auth_cells.append(Paragraph("<b>Authorized Signatory</b>", s_sg))
+    s_auth_cell = Table([[c] for c in s_auth_cells], colWidths=[W*0.35])
+    s_auth_cell.setStyle(TableStyle([
+        ("ALIGN",(0,0),(-1,-1),"CENTER"),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("TOPPADDING",(0,0),(-1,-1),0),
+        ("BOTTOMPADDING",(0,0),(-1,-1),2),
+    ]))
+    soa_sig = Table([[
+        s_auth_cell,
+        C("", fontSize=4),
+        Paragraph("", s_sg),
+    ]], colWidths=[W*0.35, W*0.30, W*0.35])
+    soa_sig.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("LINEABOVE",(0,0),(0,0),0.5,C5), ("LINEABOVE",(2,0),(2,0),0.5,C5),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
+    els.append(soa_sig)
 
-            if bal_val < 0:
-                pdf.setFillColor(RED)
-            elif bal_val > 0:
-                pdf.setFillColor(GREEN)
-            else:
-                pdf.setFillColor(MUTED)
-            pdf.drawRightString(194 * mm, y, format_currency(bal_val))
-            y -= row_height
+    # ═══ FOOTER ═══
+    els.append(Spacer(1, 8*mm))
+    fh = Table([[""]], colWidths=[W], rowHeights=[0.5])
+    fh.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(fh)
+    els.append(Spacer(1, 2*mm))
+    ft_txt = "This is a computer-generated Statement of Account."
+    if filter_text:
+        ft_txt += f" | {filter_text}"
+    els.append(Paragraph(ft_txt, F("_ft", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
 
-        pdf.setFillColor(MUTED)
-        pdf.setFont("Helvetica", 6.8)
-        pdf.drawString(16 * mm, 38 * mm, "Amounts in AED (UAE Dirhams)")
-        _draw_footer_banner(pdf, assets_dir, True, company_profile)
-        pdf.showPage()
-
-    for page_number, page_rows in enumerate(pages, start=1):
-        _draw_table(page_rows, page_number)
-
-    pdf.save()
+    doc.build(els)
     return str(output_path)
 
 
