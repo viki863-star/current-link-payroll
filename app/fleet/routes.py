@@ -1472,47 +1472,54 @@ def fleet_staff_profile(staff_id):
 @fleet_bp.route("/fleet/staff/<staff_id>/advances/pdf")
 @_login_required("admin")
 def fleet_staff_advances_pdf(staff_id):
-    from app.pdf_service import generate_field_staff_advances_pdf
-    _touch_admin_workspace("fleet")
-    ensure_fleet_tables()
-    db = open_db()
-    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
-    if not s:
-        flash("Staff not found.", "error")
-        return redirect(url_for("fleet.fleet_staff_list"))
-    filter_month = request.args.get("month", "")
-    display_month = filter_month[:7] if filter_month else date.today().isoformat()[:7]
-    if filter_month:
-        advances = db.execute("SELECT * FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ? ORDER BY entry_date DESC", (staff_id, filter_month)).fetchall()
-    else:
-        advances = db.execute("SELECT * FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ? ORDER BY entry_date DESC", (staff_id, display_month)).fetchall()
-    total = sum(a["amount"] for a in advances) if advances else 0
+    import traceback
+    try:
+        from app.pdf_service import generate_field_staff_advances_pdf
+        _touch_admin_workspace("fleet")
+        ensure_fleet_tables()
+        db = open_db()
+        s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+        if not s:
+            flash("Staff not found.", "error")
+            return redirect(url_for("fleet.fleet_staff_list"))
+        filter_month = request.args.get("month", "")
+        display_month = filter_month[:7] if filter_month else date.today().isoformat()[:7]
+        if filter_month:
+            advances = db.execute("SELECT * FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ? ORDER BY entry_date DESC", (staff_id, filter_month)).fetchall()
+        else:
+            advances = db.execute("SELECT * FROM maintenance_staff_advances WHERE staff_code = ? AND substr(entry_date,1,7) = ? ORDER BY entry_date DESC", (staff_id, display_month)).fetchall()
+        total = sum(a["amount"] for a in advances) if advances else 0
 
-    # Fetch jobs/papers for this staff in the same period for clickable PDF links
-    jobs_data = db.execute("""
-        SELECT mj.id, mj.vehicle_id, mj.amount, mj.created_at, v.plate_no
-        FROM maintenance_jobs mj
-        LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
-        WHERE mj.staff_id = ? AND mj.status = 'approved' AND substr(CAST(mj.created_at AS TEXT),1,7) = ?
-        ORDER BY mj.created_at DESC
-    """, (staff_id, display_month)).fetchall()
-    papers_data = db.execute("""
-        SELECT mp.id, vm.vehicle_no AS vehicle_id, mp.total_amount AS amount, mp.created_at
-        FROM maintenance_papers mp
-        LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
-        WHERE mp.technician_code = ? AND mp.review_status = 'Approved' AND substr(CAST(mp.created_at AS TEXT),1,7) = ?
-        ORDER BY mp.created_at DESC
-    """, (staff_id, display_month)).fetchall()
+        # Fetch jobs/papers for this staff in the same period for clickable PDF links
+        jobs_data = db.execute("""
+            SELECT mj.id, mj.vehicle_id, mj.amount, mj.created_at, v.plate_no
+            FROM maintenance_jobs mj
+            LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
+            WHERE mj.staff_id = ? AND mj.status = 'approved' AND substr(CAST(mj.created_at AS TEXT),1,7) = ?
+            ORDER BY mj.created_at DESC
+        """, (staff_id, display_month)).fetchall()
+        papers_data = db.execute("""
+            SELECT mp.id, vm.vehicle_no AS vehicle_id, mp.total_amount AS amount, mp.created_at
+            FROM maintenance_papers mp
+            LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
+            WHERE mp.technician_code = ? AND mp.review_status = 'Approved' AND substr(CAST(mp.created_at AS TEXT),1,7) = ?
+            ORDER BY mp.created_at DESC
+        """, (staff_id, display_month)).fetchall()
 
-    from pathlib import Path
-    from flask import current_app
-    output_dir = Path(current_app.config["GENERATED_DIR"]) / "staff_advances"
-    import os
-    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
-    base_url = request.host_url.rstrip("/")
-    pdf_path = generate_field_staff_advances_pdf(s, advances, jobs_data, papers_data, total, filter_month, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
-    relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
-    return redirect(url_for("generated_file", filename=relative_path))
+        from pathlib import Path
+        from flask import current_app
+        output_dir = Path(current_app.config["GENERATED_DIR"]) / "staff_advances"
+        import os
+        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        base_url = request.host_url.rstrip("/")
+        pdf_path = generate_field_staff_advances_pdf(s, advances, jobs_data, papers_data, total, filter_month, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
+        relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
+        return redirect(url_for("generated_file", filename=relative_path))
+    except Exception as e:
+        tb = traceback.format_exc()
+        current_app.logger.error("Profile PDF error for %s:\n%s", staff_id, tb)
+        flash(f"PDF Error: {e}", "error")
+        return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
 
 
 @fleet_bp.route("/fleet/staff/<staff_id>/delete-data", methods=["POST"])
