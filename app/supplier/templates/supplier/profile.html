@@ -6,96 +6,40 @@
 {% set is_cash = s.supplier_type == 'without_invoice' %}
 {% set loan_net = loan_given - loan_recovered %}
 {% set show_overview = active_tab in ('overview', '') %}
-{% set pri = '#e65100' if is_cash else 'var(--primary)' %}
 
-<div class="sp-wrap" style="max-width:1100px;margin:0 auto">
+
+<div class="profile-shell">
 <style>
-:root { --sp-pri:{{ pri }}; }
-.sp-hdr { background:#fff; border:2px solid var(--line); border-radius:14px; padding:20px 26px; display:flex; align-items:center; gap:18px; margin-bottom:16px; position:relative; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
-.sp-hdr::before { content:''; position:absolute; top:0; left:0; width:100%; height:4px; background:linear-gradient(90deg,var(--sp-pri),#8880); }
-.sp-hdr-av { width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.15rem; font-weight:700; color:#fff; background:var(--sp-pri); flex-shrink:0; }
-.sp-hdr-body { flex:1; min-width:0; }
-.sp-hdr-body h1 { margin:0; font-size:1.2rem; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.sp-hdr-body .sp-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.78rem; color:var(--muted); margin-top:4px; }
-.sp-hdr-act { flex-shrink:0; display:flex; gap:8px; }
+.profile-shell { --accent: var(--primary); }
+.profile-header { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 24px; display:flex; align-items:center; gap:18px; position:relative; overflow:hidden; margin-bottom:16px; }
+.profile-header::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:var(--accent); }
+.profile-avatar { flex-shrink:0; }
+.profile-avatar .avatar { width:64px; height:64px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; font-weight:700; color:#fff; background:var(--accent); }
+.profile-meta { flex:1; min-width:0; }
+.profile-meta h1 { font-size:1.35rem; font-weight:700; margin:0 0 4px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.profile-meta .badge-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.8rem; color:var(--muted); }
+.profile-meta .contact-row { font-size:0.82rem; color:var(--muted); margin-top:4px; }
+.profile-actions { flex-shrink:0; display:flex; gap:6px; }
 
-/* ── Tabs ── */
-.sp-tabs-bar { display:flex; gap:4px; margin-bottom:16px; background:#f1f3f6; border-radius:12px; padding:4px; overflow-x:auto; }
-.sp-tab { flex-shrink:0; padding:9px 18px; font-size:0.78rem; font-weight:600; color:#334155; text-decoration:none; border-radius:8px; transition:all 0.18s; white-space:nowrap; display:flex; align-items:center; gap:5px; }
-.sp-tab:hover { color:var(--sp-pri); background:rgba(0,0,0,0.04); }
-.sp-tab.act { background:#fff; color:var(--sp-pri) !important; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
-.sp-tab .tab-ic { font-size:0.95rem; }
+.kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:16px; }
+.kpi-card { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 12px; text-align:center; transition:box-shadow 0.2s; }
+.kpi-card:hover { box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.kpi-card .kpi-label { font-size:0.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
+.kpi-card .kpi-value { font-size:1.15rem; font-weight:700; }
 
-/* ── KPI Cards ── */
-.sp-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
-.sp-k { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 14px; text-align:center; transition:box-shadow 0.2s, transform 0.15s; position:relative; overflow:hidden; }
-.sp-k:hover { box-shadow:0 4px 16px rgba(0,0,0,0.07); transform:translateY(-1px); }
-.sp-k::before { content:''; position:absolute; top:0; left:0; width:100%; height:3px; }
-.sp-k.k1::before { background:var(--primary); }
-.sp-k.k2::before { background:var(--green); }
-.sp-k.k3::before { background:#e65100; }
-.sp-k.k4::before { background:linear-gradient(90deg,var(--primary),var(--green)); }
-.sp-k .sp-ki { font-size:1.3rem; margin-bottom:4px; }
-.sp-k .sp-kl { font-size:0.6rem; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; font-weight:700; margin-bottom:5px; }
-.sp-k .sp-kv { font-size:1.25rem; font-weight:700; letter-spacing:-0.3px; }
+.tab-bar { display:flex; gap:3px; margin-bottom:16px; background:#f0f2f5; border-radius:12px; padding:4px; overflow-x:auto; }
+.tab-btn { flex-shrink:0; padding:8px 14px; font-size:0.8rem; font-weight:600; color:#666; text-decoration:none; border-radius:8px; transition:all 0.15s; white-space:nowrap; }
+.tab-btn:hover { color:var(--primary); background:rgba(28,86,139,0.06); }
+.tab-btn.is-active { background:#fff; color:var(--primary) !important; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
 
-/* ── Chart ── */
+.section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.section-header h3 { margin:0; font-size:0.95rem; font-weight:600; }
+
 .chart-wrap { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 22px; margin-bottom:18px; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
 .chart-wrap h4 { margin:0 0 12px; font-size:0.72rem; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; display:flex; align-items:center; gap:6px; }
 
-/* ── Overview Card Grid ── */
 .sp-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
-.sp-card { background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
-.sp-card-h { padding:14px 18px; border-bottom:1px solid var(--line); font-size:0.8rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:8px; }
-.sp-card-h .count { margin-left:auto; font-size:0.68rem; color:#64748b; font-weight:500; background:#f1f4f9; padding:2px 10px; border-radius:20px; }
-.sp-card-b { padding:0; }
-.sp-card-b table { width:100%; border-collapse:collapse; font-size:0.8rem; }
-.sp-card-b td { padding:10px 14px; border-bottom:1px solid #f1f5f9; }
-.sp-card-b tr:last-child td { border-bottom:none; }
-.sp-card-b tr:hover { background:#f8fafc; }
 
-/* ── Tab Container Cards ── */
-.sec-card { background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
-.sec-card-h { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; }
-.sec-card-h h3 { margin:0; font-size:0.82rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px; }
-.sec-card-h .badge { margin-left:auto; }
-.sec-card-b { padding:0; }
-
-/* ── Smart Table ── */
-.sec-table { width:100%; border-collapse:collapse; }
-.sec-table thead { background:linear-gradient(135deg,#1a2a3a,#0f172a); }
-.sec-table th { padding:10px 14px; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#F7931E; font-weight:700; white-space:nowrap; text-align:left; }
-.sec-table th.r, .sec-table td.r { text-align:right; }
-.sec-table th.c, .sec-table td.c { text-align:center; }
-.sec-table td { padding:10px 14px; font-size:0.82rem; border-bottom:1px solid #f1f5f9; color:#000; vertical-align:middle; }
-.sec-table tbody tr { transition:background 0.12s; }
-.sec-table tbody tr:last-child td { border-bottom:none; }
-.sec-table tbody tr:hover { background:#f0f4fe; }
-
-/* ── Action Icon Buttons ── */
-.act-group { display:flex; gap:2px; justify-content:center; align-items:center; }
-.act-btn { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; border:none; background:transparent; cursor:pointer; font-size:0.82rem; text-decoration:none; transition:all 0.12s; color:#64748b; padding:0; }
-.act-btn:hover { background:#f1f5f9; color:#0f172a; }
-.act-btn.edit:hover { background:#eef2ff; color:var(--primary); }
-.act-btn.del:hover { background:#fef2f2; color:#dc2626; }
-.act-btn.pdf { background:var(--primary); color:#fff; border-radius:5px; width:auto; padding:0 8px; font-size:0.62rem; font-weight:600; text-transform:uppercase; height:24px; }
-.act-btn.pdf:hover { opacity:0.9; background:var(--primary); }
-.act-btn.sm { width:auto; padding:0 8px; font-size:0.6rem; font-weight:600; height:24px; border-radius:5px; text-transform:uppercase; letter-spacing:0.3px; }
-.act-btn.sm.inv { background:#166534; color:#fff; }
-.act-btn.sm.inv:hover { background:#15803d; }
-.act-btn.sm.cls { border:1px solid #cbd5e1; color:#475569; background:#fff; }
-.act-btn.sm.cls:hover { background:#f1f5f9; }
-
-/* ── Action Bar ── */
-.action-bar { display:flex; justify-content:flex-end; gap:8px; margin-bottom:14px; }
-
-/* ── Empty State ── */
-.empty-state { text-align:center; padding:40px 20px; color:#64748b; font-size:0.85rem; }
-.empty-state .empty-ic { font-size:2rem; margin-bottom:8px; opacity:0.5; }
-.empty-state a { color:var(--sp-pri); font-weight:600; text-decoration:none; }
-.empty-state a:hover { text-decoration:underline; }
-
-/* ── Loans Summary ── */
 .loan-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:16px 20px; }
 .ls-item { text-align:center; padding:8px 0; border-right:1px solid #eef2f6; }
 .ls-item:last-child { border-right:none; }
@@ -103,43 +47,41 @@
 .ls-item .ls-val { font-size:1.1rem; font-weight:700; }
 
 .r { text-align:right; } .c { text-align:center; }
-@media (max-width:700px) { .sp-grid-2 { grid-template-columns:1fr; } .sp-kpis { grid-template-columns:repeat(2,1fr); } .loan-summary { grid-template-columns:1fr; } .ls-item { border-right:none; border-bottom:1px solid #eef2f6; padding:10px 0; } .ls-item:last-child { border-bottom:none; } }
+.empty-state a { color:var(--primary); text-decoration:underline; }
+@media (max-width:700px) { .sp-grid-2 { grid-template-columns:1fr; } .kpi-grid { grid-template-columns:repeat(2,1fr); } .loan-summary { grid-template-columns:1fr; } .ls-item { border-right:none; border-bottom:1px solid #eef2f6; padding:10px 0; } .ls-item:last-child { border-bottom:none; } }
 </style>
 
 {# ─── Supplier Header ─── #}
-<div class="sp-hdr">
-  <div class="sp-hdr-av">{{ s.supplier_name[:2]|upper }}</div>
-  <div class="sp-hdr-body">
+<div class="profile-header">
+  <div class="profile-avatar">
+    <div class="avatar">{{ s.supplier_name[:2]|upper }}</div>
+  </div>
+  <div class="profile-meta">
     <h1>{{ s.supplier_name }}
       <span class="badge badge-dept" style="font-size:0.68rem">{{ 'With Invoice' if not is_cash else 'Cash' }}</span>
       <span class="status-badge {{ s.status|lower }}">{{ s.status }}</span>
     </h1>
-    <div class="sp-row">
+    <div class="badge-row">
       <span class="badge badge-type">{{ s.category or 'Uncategorized' }}</span>
       <span class="mono">{{ s.supplier_code }}</span>
-      {% if s.phone %} · {{ s.phone }}{% endif %}
-      {% if s.trn %} · TRN: {{ s.trn }}{% endif %}
+      {% if s.phone %}<span class="dot">·</span><span>{{ s.phone }}</span>{% endif %}
+      {% if s.trn %}<span class="dot">·</span><span>TRN: <span class="mono">{{ s.trn }}</span></span>{% endif %}
     </div>
   </div>
-  <div class="sp-hdr-act">
-    <a href="{{ url_for('supplier.supplier_edit', sup_id=s.id) }}" class="btn btn-primary btn-sm">Edit</a>
-    <a href="{{ url_for('supplier.supplier_list') }}" class="btn btn-outline btn-sm">Back</a>
+  <div class="profile-actions">
+    <a href="{{ url_for('supplier.supplier_edit', sup_id=s.id) }}" class="btn btn-primary btn-sm">&#9998; Edit</a>
+    <a href="{{ url_for('supplier.supplier_list') }}" class="btn btn-outline btn-sm">&#8592; All</a>
   </div>
 </div>
 
 {# ─── Tabs Bar ─── #}
-{% set tabs = [
-  ('',      '📊', 'Overview'),
-  ('earnings', '💰', 'Earnings'),
-  ('payments','💳', 'Payments'),
-  ('lpos',    '📄', 'LPOs'),
-  ('loans',   '🏦', 'Loans'),
-] %}
-<div class="sp-tabs-bar">
-  {% for key, icon, label in tabs %}
-  <a href="?tab={{ key }}" class="sp-tab {% if active_tab == key %}act{% endif %}"><span class="tab-ic">{{ icon }}</span> {{ label }}</a>
-  {% endfor %}
-   <a href="{{ url_for('supplier.supplier_soa', sup_id=s.id) }}" class="sp-tab"><span class="tab-ic">📊</span> SOA</a>
+<div class="tab-bar">
+  <a href="?tab=" class="tab-btn {% if active_tab == '' %}is-active{% endif %}">Overview</a>
+  <a href="?tab=earnings" class="tab-btn {% if active_tab == 'earnings' %}is-active{% endif %}">Earnings</a>
+  <a href="?tab=payments" class="tab-btn {% if active_tab == 'payments' %}is-active{% endif %}">Payments</a>
+  <a href="?tab=lpos" class="tab-btn {% if active_tab == 'lpos' %}is-active{% endif %}">LPOs</a>
+  <a href="?tab=loans" class="tab-btn {% if active_tab == 'loans' %}is-active{% endif %}">Loans</a>
+  <a href="{{ url_for('supplier.supplier_soa', sup_id=s.id) }}" class="tab-btn">SOA</a>
 </div>
 
 {# ═══════════════════════════════════════════════════ #}
@@ -147,26 +89,26 @@
 {# ═══════════════════════════════════════════════════ #}
 {% if show_overview %}
 
-<div class="sp-kpis">
-  <div class="sp-k k1">
-    <div class="sp-ki">💰</div>
-    <div class="sp-kl">Total Earnings</div>
-    <div class="sp-kv" style="color:var(--primary)">{{ "%.0f"|format(inv_total + expense_total) }}</div>
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-label">Total Earnings</div>
+    <div class="kpi-value" style="color:var(--primary)">{{ "%.0f"|format(inv_total + expense_total) }}</div>
   </div>
-  <div class="sp-k k2">
-    <div class="sp-ki">✅</div>
-    <div class="sp-kl">Paid</div>
-    <div class="sp-kv" style="color:var(--green)">{{ "%.0f"|format(paid_total) }}</div>
+  <div class="kpi-card">
+    <div class="kpi-label">Paid</div>
+    <div class="kpi-value" style="color:var(--green)">{{ "%.0f"|format(paid_total) }}</div>
   </div>
-  <div class="sp-k k3">
-    <div class="sp-ki">🏦</div>
-    <div class="sp-kl">Qarz Balance</div>
-    <div class="sp-kv" style="color:{% if loan_net > 0 %}#e65100{% else %}var(--green){% endif %}">{{ "%.0f"|format(loan_net) }}</div>
+  <div class="kpi-card">
+    <div class="kpi-label">Qarz Balance</div>
+    <div class="kpi-value" style="color:{% if loan_net > 0 %}#dc2626{% else %}var(--green){% endif %}">{{ "%.0f"|format(loan_net) }}</div>
   </div>
-  <div class="sp-k k4">
-    <div class="sp-ki">⚖️</div>
-    <div class="sp-kl">Net Balance</div>
-    <div class="sp-kv" style="color:{% if net_balance > 0 %}#e65100{% else %}var(--green){% endif %}">{{ "%.0f"|format(net_balance) }}</div>
+  <div class="kpi-card">
+    <div class="kpi-label">Net Balance</div>
+    <div class="kpi-value" style="color:{% if net_balance > 0 %}#dc2626{% else %}var(--green){% endif %}">{{ "%.0f"|format(net_balance) }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Invoices</div>
+    <div class="kpi-value" style="color:var(--primary)">{{ invoices|length }}</div>
   </div>
 </div>
 
@@ -178,39 +120,41 @@
 {% endif %}
 
 <div class="sp-grid-2">
-  <div class="sp-card">
-    <div class="sp-card-h">📄 Recent Invoices <span class="count">{{ invoices|length }}</span></div>
-    <div class="sp-card-b">
-      {% if invoices %}
-      <table>
+  <div class="profile-card" style="margin:0">
+    <h3 style="margin:0 0 10px;font-size:0.95rem">Recent Invoices</h3>
+    {% if invoices %}
+    <table class="smart-table">
+      <thead><tr><th>Invoice #</th><th>Date</th><th class="r">Amount</th><th>Status</th></tr></thead>
+      <tbody>
         {% for inv in invoices[:5] %}
         <tr>
-          <td style="font-weight:600">{{ inv.invoice_no }}</td>
-          <td style="color:#64748b;font-size:0.75rem">{{ inv.invoice_date }}</td>
-          <td class="r" style="font-weight:600;font-family:mono">{{ "%.0f"|format(inv.total_amount) }}</td>
-          <td style="width:10px"><span class="status-badge {{ 'active' if inv.status == 'approved' else 'pending' }}" style="font-size:0.6rem">{{ inv.status }}</span></td>
+          <td class="mono" style="font-weight:600">{{ inv.invoice_no }}</td>
+          <td class="mono">{{ inv.invoice_date }}</td>
+          <td class="r mono" style="font-weight:600">{{ "%.0f"|format(inv.total_amount) }}</td>
+          <td><span class="status-badge {{ 'active' if inv.status == 'approved' else 'pending' }}" style="font-size:0.6rem">{{ inv.status }}</span></td>
         </tr>
         {% endfor %}
-      </table>
-      {% else %}<div class="empty-state"><div class="empty-ic">📄</div>No invoices yet</div>{% endif %}
-    </div>
+      </tbody>
+    </table>
+    {% else %}<p class="empty-state" style="margin:0">No invoices yet.</p>{% endif %}
   </div>
-  <div class="sp-card">
-    <div class="sp-card-h">💳 Recent Payments <span class="count">{{ payments|length }}</span></div>
-    <div class="sp-card-b">
-      {% if payments %}
-      <table>
+  <div class="profile-card" style="margin:0">
+    <h3 style="margin:0 0 10px;font-size:0.95rem">Recent Payments</h3>
+    {% if payments %}
+    <table class="smart-table">
+      <thead><tr><th class="r">Amount</th><th>Date</th><th>Method</th><th>Reference</th></tr></thead>
+      <tbody>
         {% for p in payments[:5] %}
         <tr>
-          <td style="font-weight:600;color:var(--green);font-family:mono">{{ "%.0f"|format(p.amount) }}</td>
-          <td style="color:#64748b;font-size:0.75rem">{{ p.payment_date }}</td>
-          <td style="font-size:0.75rem;color:#64748b">{{ p.payment_method }}</td>
-          <td style="font-size:0.75rem;color:#64748b;max-width:80px;overflow:hidden;text-overflow:ellipsis">{{ p.reference_no or '' }}</td>
+          <td class="r mono" style="font-weight:600;color:var(--green)">{{ "%.0f"|format(p.amount) }}</td>
+          <td class="mono">{{ p.payment_date }}</td>
+          <td>{{ p.payment_method }}</td>
+          <td class="mono" style="font-size:0.75rem;color:var(--muted)">{{ p.reference_no or '' }}</td>
         </tr>
         {% endfor %}
-      </table>
-      {% else %}<div class="empty-state"><div class="empty-ic">💳</div>No payments yet</div>{% endif %}
-    </div>
+      </tbody>
+    </table>
+    {% else %}<p class="empty-state" style="margin:0">No payments yet.</p>{% endif %}
   </div>
 </div>
 
@@ -257,12 +201,14 @@
 {% endfor %}
 {% set all_earnings = all_earnings|sort(attribute='date') %}
 
-<div class="sec-card">
-  <div class="sec-card-h"><h3>💰 All Earnings</h3></div>
-  <div class="sec-card-b">
-    {% if all_earnings %}
-    <table class="sec-table">
-      <thead><tr><th>Date</th><th>Type</th><th>Details</th><th class="r">Amount</th><th>Status</th><th class="c">Actions</th></tr></thead>
+<div class="profile-card">
+  <div class="section-header">
+    <h3>All Earnings</h3>
+  </div>
+  {% if all_earnings %}
+  <div class="table-wrap">
+    <table class="smart-table">
+      <thead><tr><th>Date</th><th>Type</th><th>Details</th><th class="r">Amount</th><th>Status</th><th></th></tr></thead>
       <tbody>
         {% for r in all_earnings %}
         <tr>
@@ -271,16 +217,16 @@
           <td style="font-size:0.82rem">{{ r.detail }}</td>
           <td class="r mono" style="font-weight:700">{{ "%.0f"|format(r.amount) }}</td>
           <td><span class="status-badge {{ 'active' if r.status == 'approved' or r.status == 'paid' else 'pending' }}" style="font-size:0.6rem">{{ r.status }}</span></td>
-          <td class="c">
-            <div class="act-group">
+          <td>
+            <div style="display:flex;gap:4px">
               {% if r.has_attachment %}
-              <a href="{{ r.attachment_url }}" class="act-btn" title="View {{ r.attachment_name }}">👁️</a>
-              <a href="{{ r.attachment_url }}?download=1" class="act-btn" title="Download {{ r.attachment_name }}">📎</a>
+              <a href="{{ r.attachment_url }}" class="btn btn-xs btn-outline" title="View">👁️</a>
+              <a href="{{ r.attachment_url }}?download=1" class="btn btn-xs btn-outline" title="Download">📎</a>
               {% endif %}
-              <a href="{{ r.edit_url }}" class="act-btn edit" title="Edit">✏️</a>
+              <a href="{{ r.edit_url }}" class="btn btn-xs btn-outline">Edit</a>
               <form method="POST" action="{{ r.delete_url }}" style="display:inline" onsubmit="return confirm('Delete this entry?')">
                 <input type="hidden" name="csrf_token" value="{{ r.del_csrf }}">
-                <button type="submit" class="act-btn del" title="Delete">🗑️</button>
+                <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
               </form>
             </div>
           </td>
@@ -288,10 +234,8 @@
         {% endfor %}
       </tbody>
     </table>
-    {% else %}
-    <div class="empty-state"><div class="empty-ic">💰</div>No earnings recorded yet.<br><a href="{{ url_for('supplier.supplier_expense_add', sup_id=s.id) }}">Add first earning</a></div>
-    {% endif %}
   </div>
+  {% else %}<p class="empty-state">No earnings recorded yet. <a href="{{ url_for('supplier.supplier_expense_add', sup_id=s.id) }}">Add first earning</a>.</p>{% endif %}
 </div>
 
 {# ═══════════════════════════════════════════════════ #}
@@ -302,11 +246,11 @@
   <a href="{{ url_for('supplier.supplier_payment_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Record Payment</a>
 </div>
 
-<div class="sec-card" style="margin-bottom:16px">
+<div class="profile-card" style="margin-bottom:16px">
   <div class="loan-summary">
     <div class="ls-item">
       <div class="ls-lbl">Total Invoiced</div>
-      <div class="ls-val" style="color:#1c568b">{{ "%.0f"|format(inv_total + expense_total) }}</div>
+      <div class="ls-val" style="color:var(--primary)">{{ "%.0f"|format(inv_total + expense_total) }}</div>
     </div>
     <div class="ls-item">
       <div class="ls-lbl">Total Paid</div>
@@ -314,17 +258,19 @@
     </div>
     <div class="ls-item">
       <div class="ls-lbl">Outstanding</div>
-      <div class="ls-val" style="color:{% if net_balance > 0 %}#e65100{% else %}var(--green){% endif %}">{{ "%.0f"|format(net_balance) }}</div>
+      <div class="ls-val" style="color:{% if net_balance > 0 %}#dc2626{% else %}var(--green){% endif %}">{{ "%.0f"|format(net_balance) }}</div>
     </div>
   </div>
 </div>
 
 {% if payments %}
-<div class="sec-card">
-  <div class="sec-card-h"><h3>💳 Payment History</h3></div>
-  <div class="sec-card-b">
-    <table class="sec-table">
-      <thead><tr><th>Date</th><th class="r">Amount</th><th>Method</th><th>Reference</th><th>Notes</th><th>Voucher</th><th class="c">Actions</th></tr></thead>
+<div class="profile-card">
+  <div class="section-header">
+    <h3>Payment History</h3>
+  </div>
+  <div class="table-wrap">
+    <table class="smart-table">
+      <thead><tr><th>Date</th><th class="r">Amount</th><th>Method</th><th>Reference</th><th>Notes</th><th>Voucher</th><th></th></tr></thead>
       <tbody>
         {% for p in payments %}
         <tr>
@@ -333,13 +279,13 @@
           <td>{{ p.payment_method }}</td>
           <td class="mono">{{ p.reference_no or '-' }}</td>
           <td style="font-size:0.8rem;max-width:120px;overflow:hidden;text-overflow:ellipsis">{{ p.notes or '' }}</td>
-          <td><a href="{{ url_for('supplier.supplier_payment_voucher', sup_id=s.id, pay_id=p.id) }}" class="act-btn pdf" target="_blank">PDF</a></td>
-          <td class="c">
-            <div class="act-group">
-              <a href="{{ url_for('supplier.supplier_payment_edit', sup_id=s.id, pay_id=p.id) }}" class="act-btn edit" title="Edit">✏️</a>
+          <td><a href="{{ url_for('supplier.supplier_payment_voucher', sup_id=s.id, pay_id=p.id) }}" class="btn btn-xs btn-primary" target="_blank">PDF</a></td>
+          <td>
+            <div style="display:flex;gap:4px">
+              <a href="{{ url_for('supplier.supplier_payment_edit', sup_id=s.id, pay_id=p.id) }}" class="btn btn-xs btn-outline">Edit</a>
               <form method="POST" action="{{ url_for('supplier.supplier_payment_delete', sup_id=s.id, pay_id=p.id) }}" style="display:inline" onsubmit="return confirm('Delete this payment?')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="act-btn del" title="Delete">🗑️</button>
+                <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
               </form>
             </div>
           </td>
@@ -350,7 +296,7 @@
   </div>
 </div>
 {% else %}
-<div class="empty-state"><div class="empty-ic">💳</div>No payments recorded yet.<br><a href="{{ url_for('supplier.supplier_payment_add', sup_id=s.id) }}">Record first payment</a></div>
+<p class="empty-state">No payments recorded yet. <a href="{{ url_for('supplier.supplier_payment_add', sup_id=s.id) }}">Record first payment</a>.</p>
 {% endif %}
 
 {# ═══════════════════════════════════════════════════ #}
@@ -363,14 +309,17 @@
 </div>
 
 {% if lpos %}
-<div class="sec-card">
-  <div class="sec-card-h"><h3>📄 Purchase Orders (LPOs)</h3>
-    {% set open_lpos = lpos|selectattr('status','equalto','open')|list %}
-    <span class="badge badge-dept">{{ open_lpos|length }} Open</span>
+<div class="profile-card">
+  <div class="section-header">
+    <h3>Purchase Orders (LPOs)</h3>
+    <div style="display:flex;gap:6px">
+      {% set open_lpos = lpos|selectattr('status','equalto','open')|list %}
+      <span class="badge badge-dept">{{ open_lpos|length }} Open</span>
+    </div>
   </div>
-  <div class="sec-card-b">
-    <table class="sec-table">
-      <thead><tr><th>LPO #</th><th>Date</th><th>Basis</th><th class="r">Amount</th><th class="c">Invoices</th><th>Status</th><th class="c">Actions</th></tr></thead>
+  <div class="table-wrap">
+    <table class="smart-table">
+      <thead><tr><th>LPO #</th><th>Date</th><th>Basis</th><th class="r">Amount</th><th class="c">Invoices</th><th>Status</th><th></th></tr></thead>
       <tbody>
         {% for lpo in lpos %}
         <tr>
@@ -380,19 +329,19 @@
           <td class="r mono" style="font-weight:700">{{ "%.0f"|format(lpo.amount) }}</td>
           <td class="c mono">{{ lpo.inv_count or 0 }}</td>
           <td><span class="status-badge {% if lpo.status == 'closed' %}active{% else %}pending{% endif %}">{{ lpo.status }}</span></td>
-          <td class="c">
-            <div class="act-group">
-              <a href="{{ url_for('supplier.supplier_lpo_edit', sup_id=s.id, lpo_id=lpo.id) }}" class="act-btn edit" title="Edit">✏️</a>
+          <td>
+            <div style="display:flex;gap:4px">
+              <a href="{{ url_for('supplier.supplier_lpo_edit', sup_id=s.id, lpo_id=lpo.id) }}" class="btn btn-xs btn-outline">Edit</a>
               <form method="POST" action="{{ url_for('supplier.supplier_lpo_delete', sup_id=s.id, lpo_id=lpo.id) }}" style="display:inline" onsubmit="return confirm('Delete this LPO?')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="act-btn del" title="Delete">🗑️</button>
+                <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
               </form>
-              <a href="{{ url_for('supplier.supplier_lpo_pdf', sup_id=s.id, lpo_id=lpo.id) }}" class="act-btn pdf" target="_blank">PDF</a>
+              <a href="{{ url_for('supplier.supplier_lpo_pdf', sup_id=s.id, lpo_id=lpo.id) }}" class="btn btn-xs btn-primary" target="_blank">PDF</a>
               {% if lpo.status == 'open' %}
-              <a href="{{ url_for('supplier.supplier_invoice_add', sup_id=s.id) }}?lpo_id={{ lpo.id }}" class="act-btn sm inv">+INV</a>
+              <a href="{{ url_for('supplier.supplier_invoice_add', sup_id=s.id) }}?lpo_id={{ lpo.id }}" class="btn btn-xs btn-outline" style="background:#166534;color:#fff;border-color:#166534">+INV</a>
               <form method="POST" action="{{ url_for('supplier.supplier_lpo_close', sup_id=s.id, lpo_id=lpo.id) }}" style="display:inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="act-btn sm cls">Close</button>
+                <button class="btn btn-xs btn-outline">Close</button>
               </form>
               {% endif %}
             </div>
@@ -404,7 +353,7 @@
   </div>
 </div>
 {% else %}
-<div class="empty-state"><div class="empty-ic">📄</div>No LPOs issued yet.<br><a href="{{ url_for('supplier.supplier_lpo_add', sup_id=s.id) }}">Issue first LPO</a></div>
+<p class="empty-state">No LPOs issued yet. <a href="{{ url_for('supplier.supplier_lpo_add', sup_id=s.id) }}">Issue first LPO</a>.</p>
 {% endif %}
 
 {# ═══════════════════════════════════════════════════ #}
@@ -425,16 +374,16 @@
 {% set ledger = ledger|sort(attribute='date') %}
 {% set running = namespace(val=0) %}
 
-<div class="sec-card">
-  <div class="sec-card-h">
-    <h3>📊 Statement of Account</h3>
-    <div style="margin-left:auto;font-size:0.82rem;font-weight:600">
-      Balance: <span style="color:{% if net_balance > 0 %}#e65100{% else %}var(--green){% endif %}">{{ "%.0f"|format(net_balance) }}</span>
+<div class="profile-card">
+  <div class="section-header">
+    <h3>Statement of Account</h3>
+    <div style="font-size:0.82rem;font-weight:600">
+      Balance: <span style="color:{% if net_balance > 0 %}#dc2626{% else %}var(--green){% endif %}">{{ "%.0f"|format(net_balance) }}</span>
     </div>
   </div>
-  <div class="sec-card-b">
-    {% if ledger %}
-    <table class="sec-table">
+  {% if ledger %}
+  <div class="table-wrap">
+    <table class="smart-table">
       <thead><tr><th>Date</th><th>Description</th><th class="r">Debit</th><th class="r">Credit</th><th class="r">Balance</th></tr></thead>
       <tbody>
         {% for row in ledger %}
@@ -449,10 +398,8 @@
         {% endfor %}
       </tbody>
     </table>
-    {% else %}
-    <div class="empty-state"><div class="empty-ic">📊</div>No transactions yet.</div>
-    {% endif %}
   </div>
+  {% else %}<p class="empty-state">No transactions yet.</p>{% endif %}
 </div>
 
 {# ═══════════════════════════════════════════════════ #}
@@ -463,7 +410,7 @@
   <a href="{{ url_for('supplier.supplier_loan_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ New Loan Entry</a>
 </div>
 
-<div class="sec-card" style="margin-bottom:16px">
+<div class="profile-card" style="margin-bottom:16px">
   <div class="loan-summary">
     <div class="ls-item">
       <div class="ls-lbl">Total Given</div>
@@ -481,36 +428,38 @@
 </div>
 
 {% if loans %}
-<div class="sec-card">
-  <div class="sec-card-h"><h3>🏦 Loan History</h3></div>
-  <div class="sec-card-b">
-      <table class="sec-table">
-        <thead><tr><th>Date</th><th>Type</th><th class="r">Amount</th><th>Method</th><th>Reference</th><th>Notes</th><th class="c">Actions</th></tr></thead>
-        <tbody>
-          {% for l in loans %}
-          <tr>
-            <td class="mono">{{ l.entry_date }}</td>
-            <td><span class="status-badge {{ 'approved' if l.loan_type == 'given' else 'active' }}">{{ 'Given' if l.loan_type == 'given' else 'Recovered' }}</span></td>
-            <td class="r mono" style="font-weight:700">{{ "%.0f"|format(l.amount) }}</td>
-            <td>{{ l.payment_method }}</td>
-            <td class="mono">{{ l.reference_no or '-' }}</td>
-            <td style="font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis">{{ l.notes or '' }}</td>
-            <td class="c">
-              <div class="act-group">
-                <a href="{{ url_for('supplier.supplier_loan_edit', sup_id=s.id, loan_id=l.id) }}" class="act-btn edit" title="Edit">✏️</a>
-                <form method="POST" action="{{ url_for('supplier.supplier_loan_delete', sup_id=s.id, loan_id=l.id) }}" style="display:inline" onsubmit="return confirm('Delete this loan entry?')">
-                  <button class="act-btn del" title="Delete">🗑️</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-      </tbody>
-    </table>
+<div class="profile-card">
+  <div class="section-header">
+    <h3>Loan History</h3>
+  </div>
+  <div class="table-wrap">
+    <table class="smart-table">
+      <thead><tr><th>Date</th><th>Type</th><th class="r">Amount</th><th>Method</th><th>Reference</th><th>Notes</th><th></th></tr></thead>
+      <tbody>
+        {% for l in loans %}
+        <tr>
+          <td class="mono">{{ l.entry_date }}</td>
+          <td><span class="status-badge {{ 'approved' if l.loan_type == 'given' else 'active' }}">{{ 'Given' if l.loan_type == 'given' else 'Recovered' }}</span></td>
+          <td class="r mono" style="font-weight:700">{{ "%.0f"|format(l.amount) }}</td>
+          <td>{{ l.payment_method }}</td>
+          <td class="mono">{{ l.reference_no or '-' }}</td>
+          <td style="font-size:0.8rem;max-width:140px;overflow:hidden;text-overflow:ellipsis">{{ l.notes or '' }}</td>
+          <td>
+            <div style="display:flex;gap:4px">
+              <a href="{{ url_for('supplier.supplier_loan_edit', sup_id=s.id, loan_id=l.id) }}" class="btn btn-xs btn-outline">Edit</a>
+              <form method="POST" action="{{ url_for('supplier.supplier_loan_delete', sup_id=s.id, loan_id=l.id) }}" style="display:inline" onsubmit="return confirm('Delete this loan entry?')">
+                <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+  </table>
   </div>
 </div>
 {% else %}
-<div class="empty-state"><div class="empty-ic">🏦</div>No loans recorded.<br><a href="{{ url_for('supplier.supplier_loan_add', sup_id=s.id) }}">Add first loan entry</a></div>
+<p class="empty-state">No loans recorded. <a href="{{ url_for('supplier.supplier_loan_add', sup_id=s.id) }}">Add first loan entry</a>.</p>
 {% endif %}
 
 {% endif %}

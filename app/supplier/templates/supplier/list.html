@@ -4,19 +4,17 @@
 
 {% block content %}
 <style>
-.sl-wrap { max-width:1100px; margin:0 auto; }
-.sl-toolbar { background:#fff; border:2px solid var(--line); border-radius:12px; padding:16px 20px; margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+.sl-wrap { max-width:1000px; margin:0 auto; }
+.sl-toolbar { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 20px; margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .sl-search { flex:1; min-width:200px; position:relative; }
 .sl-search input { padding-left:34px; font-size:0.85rem; width:100%; }
 .sl-search .ic { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:#64748b; font-size:0.85rem; pointer-events:none; }
 .sl-actions { display:flex; gap:8px; align-items:center; margin-left:auto; }
-.sl-card { background:#fff; border:2px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+.sl-card { background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
 .sl-card-h { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; }
-.sl-card-h h3 { margin:0; font-size:0.85rem; font-weight:700; color:#0f172a; }
-.sl-card-h .count { margin-left:auto; font-size:0.68rem; color:#64748b; font-weight:500; background:#f1f4f9; padding:2px 12px; border-radius:20px; }
+.sl-card-h h3 { margin:0; font-size:0.95rem; font-weight:600; color:#0f172a; }
 .sl-table { width:100%; border-collapse:collapse; }
-.sl-table thead { background:linear-gradient(135deg,#1a2a3a,#0f172a); }
-.sl-table th { padding:10px 14px; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.5px; color:#F7931E; font-weight:700; white-space:nowrap; text-align:left; }
+.sl-table th { padding:10px 14px; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; font-weight:600; white-space:nowrap; text-align:left; border-bottom:2px solid #e2e8f0; }
 .sl-table th.c, .sl-table td.c { text-align:center; }
 .sl-table td { padding:10px 14px; font-size:0.82rem; border-bottom:1px solid #f1f5f9; color:#000; vertical-align:middle; }
 .sl-table tbody tr { transition:background 0.12s; }
@@ -26,11 +24,6 @@
 .sl-table tbody tr.deleted-row:hover { background:#f0f0f0; }
 .sl-table .num { text-align:center; font-size:0.78rem; color:#000; font-weight:600; width:36px; }
 .sl-table .mono { font-family:Consolas,'Courier New',monospace; }
-.act-group { display:flex; gap:2px; justify-content:center; align-items:center; }
-.act-btn { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; border:none; background:transparent; cursor:pointer; font-size:0.82rem; text-decoration:none; transition:all 0.12s; color:#64748b; padding:0; }
-.act-btn:hover { background:#f1f5f9; color:#0f172a; }
-.act-btn.edit:hover { background:#eef2ff; color:var(--primary); }
-.act-btn.del:hover { background:#fef2f2; color:#dc2626; }
 @media (max-width:700px) { .sl-toolbar { flex-direction:column; align-items:stretch; } .sl-actions { margin-left:0; justify-content:flex-end; } }
 </style>
 
@@ -90,31 +83,31 @@
               <td><a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" style="font-weight:600;color:#0f172a;text-decoration:none">{{ s.supplier_name }}</a></td>
               <td class="mono" style="font-size:0.8rem;color:#000">{{ s.phone or '—' }}</td>
               <td class="mono" style="font-size:0.8rem;color:#000">{{ s.trn or '—' }}</td>
-              <td>{% if s.is_deleted %}<span class="badge-del">Deleted</span>{% else %}<span class="badge-act">Active</span>{% endif %}</td>
+              <td>{% if s.is_deleted %}<span class="status-badge pending">Deleted</span>{% else %}<span class="status-badge active">Active</span>{% endif %}</td>
               <td class="c">
+                <div style="display:flex;gap:4px;justify-content:center">
                 {% if s.is_deleted %}
                 <form method="POST" action="{{ url_for('supplier.supplier_restore', sup_id=s.id) }}" style="display:inline">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="act-btn edit" title="Restore" style="color:#2563eb">↩</button>
+                  <button class="btn btn-xs btn-outline" style="color:#2563eb">Restore</button>
                 </form>
                 {% else %}
                 <form method="POST" action="{{ url_for('supplier.supplier_delete', sup_id=s.id) }}" style="display:inline" onsubmit="return confirm('Move {{ s.supplier_name }} to trash?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="act-btn del" title="Delete">🗑️</button>
+                  <button class="btn btn-xs btn-outline" style="color:#c62828">Delete</button>
                 </form>
                 {% endif %}
+                </div>
               </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
         {% else %}
-        <div class="sl-empty">
-          <div class="ic">📋</div>
-          <p>No suppliers found.{% if q or typ or show_all %} <a href="{{ url_for('supplier.supplier_list') }}" style="color:var(--primary);font-weight:600">Clear filters</a>{% endif %}</p>
-        </div>
+        <p class="empty-state" style="margin:0;padding:50px">
+          No suppliers found.{% if q or typ or show_all %} <a href="{{ url_for('supplier.supplier_list') }}">Clear filters</a>{% endif %}
+        </p>
         {% endif %}
-      </div>
     </div>
   </form>
 </div>
