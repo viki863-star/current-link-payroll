@@ -1368,12 +1368,12 @@ def fleet_staff_profile(staff_id):
         ).fetchone()["t"] or 0
 
         card_jobs = db.execute(
-            "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved' AND substr(created_at,1,7) = ?",
+            "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved' AND substr(CAST(created_at AS TEXT),1,7) = ?",
             (staff_id, display_month),
         ).fetchone()["t"] or 0
 
         card_papers = db.execute(
-            "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status = 'Approved' AND substr(mp.created_at,1,7) = ?",
+            "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status = 'Approved' AND substr(CAST(mp.created_at AS TEXT),1,7) = ?",
             (staff_id, display_month),
         ).fetchone()["t"] or 0
 
@@ -1493,14 +1493,14 @@ def fleet_staff_advances_pdf(staff_id):
         SELECT mj.id, mj.vehicle_id, mj.amount, mj.created_at, v.plate_no
         FROM maintenance_jobs mj
         LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
-        WHERE mj.staff_id = ? AND mj.status = 'approved' AND substr(mj.created_at,1,7) = ?
+        WHERE mj.staff_id = ? AND mj.status = 'approved' AND substr(CAST(mj.created_at AS TEXT),1,7) = ?
         ORDER BY mj.created_at DESC
     """, (staff_id, display_month)).fetchall()
     papers_data = db.execute("""
         SELECT mp.id, vm.vehicle_no AS vehicle_id, mp.total_amount AS amount, mp.created_at
         FROM maintenance_papers mp
         LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
-        WHERE mp.technician_code = ? AND mp.review_status = 'Approved' AND substr(mp.created_at,1,7) = ?
+        WHERE mp.technician_code = ? AND mp.review_status = 'Approved' AND substr(CAST(mp.created_at AS TEXT),1,7) = ?
         ORDER BY mp.created_at DESC
     """, (staff_id, display_month)).fetchall()
 
