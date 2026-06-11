@@ -3063,13 +3063,16 @@ def generate_field_staff_advances_pdf(staff, advances, jobs_data, papers_data, t
         url = f"{base_url}/fleet/vehicles/{plate}?tab=jobs&highlight={j['id']}"
         job_links.append(f'<a href="{url}"><font color="#1C568B"><u>{plate}</u></font></a>')
     for p in papers_data:
-        # Papers don't have a direct view page, link to vehicle profile
         vid = p.get("vehicle_id") or ""
         url = f"{base_url}/fleet/vehicles/{vid}"
         job_links.append(f'<a href="{url}"><font color="#1C568B"><u>{vid}</u></font></a>')
+    # Limit displayed links to avoid overflow
+    display_links = job_links[:5]
+    if len(job_links) > 5:
+        display_links.append(f"<font color='#667A95'>+{len(job_links)-5} more</font>")
 
     # Table header — add Jobs column
-    colw = [35, 55, 40, 40, W - 35 - 55 - 40 - 40 - 65 - 60, 65, 60]
+    colw = [30, 45, 32, 32, W - 30 - 45 - 32 - 32 - 120 - 50, 120, 50]
     hdr = [
         Paragraph("<b>Date</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph("<b>Reference</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
@@ -3087,7 +3090,7 @@ def generate_field_staff_advances_pdf(staff, advances, jobs_data, papers_data, t
         gb = a.get("reference", "")
         nt = a.get("notes", "")
         amt = float(a.get("amount", 0))
-        jobs_html = ", ".join(job_links) if job_links else '<font color="#cccccc">—</font>'
+        jobs_html = ", ".join(display_links) if display_links else '<font color="#cccccc">—</font>'
         rws.append([
             Paragraph(d, F("_d", fontSize=6.5, leading=9)),
             Paragraph(ref, F("_r", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, leading=9)),
