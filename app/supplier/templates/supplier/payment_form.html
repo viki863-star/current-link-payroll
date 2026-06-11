@@ -44,31 +44,45 @@
 
       <div class="pf-row">
         <label>Invoices (select one or more)</label>
-        <div class="inv-checklist" style="max-height:200px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fafafa">
+        <div class="inv-checklist" style="max-height:180px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fafafa">
           {% for inv in invoices %}
           <label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;font-size:0.82rem">
-            <input type="checkbox" name="invoice_ids" value="{{ inv.id }}" class="inv-check" data-amount="{{ inv.total_amount }}">
+            <input type="checkbox" name="invoice_ids" value="{{ inv.id }}" class="pay-check" data-amount="{{ inv.total_amount }}">
             <span style="flex:1">{{ inv.invoice_no }} — AED {{ "%.0f"|format(inv.total_amount) }}</span>
           </label>
           {% else %}
           <div class="empty-state" style="padding:16px 0;font-size:0.82rem">No unpaid invoices.</div>
           {% endfor %}
         </div>
+      </div>
+
+      <div class="pf-row">
+        <label>Earnings / Expenses (select one or more)</label>
+        <div class="inv-checklist" style="max-height:180px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fafafa">
+          {% for exp in expenses %}
+          <label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;font-size:0.82rem">
+            <input type="checkbox" name="expense_ids" value="{{ exp.id }}" class="pay-check" data-amount="{{ exp.amount }}">
+            <span style="flex:1">{{ exp.description or exp.category }} — AED {{ "%.2f"|format(exp.amount) }}</span>
+          </label>
+          {% else %}
+          <div class="empty-state" style="padding:16px 0;font-size:0.82rem">No unpaid earnings/expenses.</div>
+          {% endfor %}
+        </div>
         <div style="margin-top:6px;font-size:0.8rem;color:var(--muted);display:flex;justify-content:space-between">
-          <span>Selected: <strong id="invCount">0</strong> invoices</span>
+          <span>Selected: <strong id="payCount">0</strong> items</span>
           <span>Total: <strong id="selectedTotal">AED 0.00</strong></span>
         </div>
       </div>
 
       <script>
       document.addEventListener('DOMContentLoaded', function() {
-        var checks = document.querySelectorAll('.inv-check');
+        var checks = document.querySelectorAll('.pay-check');
         function updateTotal() {
           var count = 0, total = 0;
           checks.forEach(function(c) {
             if (c.checked) { count++; total += parseFloat(c.dataset.amount || 0); }
           });
-          document.getElementById('invCount').textContent = count;
+          document.getElementById('payCount').textContent = count;
           document.getElementById('selectedTotal').textContent = 'AED ' + total.toFixed(2);
         }
         checks.forEach(function(c) { c.addEventListener('change', updateTotal); });

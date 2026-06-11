@@ -118,7 +118,15 @@ def _ensure_tables():
             receipt_name TEXT,
             receipt_data TEXT,
             receipt_type TEXT,
+            earning_type TEXT DEFAULT 'fixed',
+            quantity {real_type},
+            rate {real_type},
+            vehicle_no TEXT,
+            fund_source TEXT DEFAULT 'cash_bank',
             status TEXT NOT NULL DEFAULT 'pending',
+            payment_date TEXT,
+            payment_method TEXT,
+            payment_ref TEXT,
             approved_by TEXT,
             approved_at TEXT,
             created_at TEXT NOT NULL DEFAULT {now_val},
@@ -129,6 +137,9 @@ def _ensure_tables():
             {id_col},
             supplier_id INTEGER NOT NULL,
             invoice_id INTEGER,
+            invoice_ids TEXT,
+            expense_ids TEXT,
+            fund_source TEXT DEFAULT 'cash_bank',
             payment_date TEXT NOT NULL,
             amount {real_type} NOT NULL,
             payment_method TEXT NOT NULL DEFAULT 'Cash',
@@ -2059,44 +2070,71 @@ def supplier_payment_add(sup_id):
         (sup_id,),
     ).fetchall()
 
+    unpaid_expenses = db.execute(
+        "SELECT id, description, amount, category, earning_type FROM supplier_expenses WHERE supplier_id = ? AND status IN ('pending','approved') ORDER BY expense_date",
+        (sup_id,),
+    ).fetchall()
+
     if request.method == "POST":
         payment_date = request.form.get("payment_date", "").strip() or date.today().isoformat()
         amount = request.form.get("amount", "").strip()
         invoice_ids = request.form.getlist("invoice_ids")
+        expense_ids = request.form.getlist("expense_ids")
         payment_method = request.form.get("payment_method", "Cash").strip()
         reference_no = request.form.get("reference_no", "").strip()
         notes = request.form.get("notes", "").strip()
 
         if not amount:
             flash("Payment amount is required.", "error")
-            return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS, today=date.today().isoformat())
+            return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, expenses=unpaid_expenses, methods=PAYMENT_METHODS, today=date.today().isoformat())
 
         amount_f = float(amount)
         fund_source = request.form.get("fund_source", "cash_bank").strip()
         invoice_ids_str = ",".join(invoice_ids)
+        expense_ids_str = ",".join(expense_ids)
 
         # Ensure columns exist
         try:
             db.execute("ALTER TABLE supplier_payment_records ADD COLUMN invoice_ids TEXT")
             db.commit()
         except Exception:
-            try:
-                db.rollback()
-            except Exception:
-                pass
+            try: db.rollback()
+            except Exception: pass
         try:
             db.execute("ALTER TABLE supplier_payment_records ADD COLUMN fund_source TEXT DEFAULT 'cash_bank'")
             db.commit()
         except Exception:
-            try:
-                db.rollback()
-            except Exception:
-                pass
+            try: db.rollback()
+            except Exception: pass
+        try:
+            db.execute("ALTER TABLE supplier_payment_records ADD COLUMN expense_ids TEXT")
+            db.commit()
+        except Exception:
+            try: db.rollback()
+            except Exception: pass
+        try:
+            db.execute("ALTER TABLE supplier_expenses ADD COLUMN payment_date TEXT")
+            db.commit()
+        except Exception:
+            try: db.rollback()
+            except Exception: pass
+        try:
+            db.execute("ALTER TABLE supplier_expenses ADD COLUMN payment_method TEXT")
+            db.commit()
+        except Exception:
+            try: db.rollback()
+            except Exception: pass
+        try:
+            db.execute("ALTER TABLE supplier_expenses ADD COLUMN payment_ref TEXT")
+            db.commit()
+        except Exception:
+            try: db.rollback()
+            except Exception: pass
 
         # Create one payment record for the batch
         db.execute(
-            "INSERT INTO supplier_payment_records (supplier_id, invoice_id, invoice_ids, payment_date, amount, payment_method, reference_no, notes, fund_source) VALUES (?,?,?,?,?,?,?,?,?)",
-            (sup_id, None, invoice_ids_str, payment_date, amount_f, payment_method, reference_no, notes, fund_source),
+            "INSERT INTO supplier_payment_records (supplier_id, invoice_id, invoice_ids, expense_ids, payment_date, amount, payment_method, reference_no, notes, fund_source) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (sup_id, None, invoice_ids_str, expense_ids_str, payment_date, amount_f, payment_method, reference_no, notes, fund_source),
         )
 
         # Mark all selected invoices as paid
@@ -2108,14 +2146,27 @@ def supplier_payment_add(sup_id):
                     (payment_date, payment_method, reference_no, inv_id),
                 )
 
+        # Mark all selected expenses as paid
+        for exp_id_str in expense_ids:
+            exp_id = int(exp_id_str.strip()) if exp_id_str.strip().isdigit() else None
+            if exp_id:
+                db.execute(
+                    "UPDATE supplier_expenses SET status='paid', payment_date=?, payment_method=?, payment_ref=? WHERE id=?",
+                    (payment_date, payment_method, reference_no, exp_id),
+                )
+
         db.commit()
 
         inv_count = len(invoice_ids)
-        flash(f"Payment of AED {amount_f:.2f} recorded against {inv_count} invoice(s).", "success")
+        exp_count = len(expense_ids)
+        parts = []
+        if inv_count: parts.append(f"{inv_count} invoice(s)")
+        if exp_count: parts.append(f"{exp_count} earning(s)")
+        flash(f"Payment of AED {amount_f:.2f} recorded against {' and '.join(parts)}.", "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
 
 
-    return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, methods=PAYMENT_METHODS, today=date.today().isoformat())
+    return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, expenses=unpaid_expenses, methods=PAYMENT_METHODS, today=date.today().isoformat())
 
 
 # ═══════════════════════════════════════════════════════════
@@ -2163,29 +2214,58 @@ def supplier_payment_edit(sup_id, pay_id):
         (sup_id,),
     ).fetchall()
 
+    unpaid_expenses = db.execute(
+        "SELECT id, description, amount, category, earning_type FROM supplier_expenses WHERE supplier_id = ? AND status IN ('pending','approved') ORDER BY expense_date",
+        (sup_id,),
+    ).fetchall()
+
     if request.method == "POST":
         payment_date = request.form.get("payment_date", "").strip() or date.today().isoformat()
         amount = request.form.get("amount", "").strip()
-        invoice_id = request.form.get("invoice_id", "").strip()
+        invoice_ids = request.form.getlist("invoice_ids")
+        expense_ids = request.form.getlist("expense_ids")
         payment_method = request.form.get("payment_method", "Cash").strip()
         reference_no = request.form.get("reference_no", "").strip()
         notes = request.form.get("notes", "").strip()
         if not amount:
             flash("Payment amount is required.", "error")
-            return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS, today=date.today().isoformat())
+            return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, expenses=unpaid_expenses, methods=PAYMENT_METHODS, today=date.today().isoformat())
         amount_f = float(amount)
-        inv_id_val = int(invoice_id) if invoice_id.isdigit() else None
         fund_source = request.form.get("fund_source", "cash_bank").strip()
 
+        # Unlink old invoices/expenses
+        if pay.get("invoice_ids"):
+            for iid in pay["invoice_ids"].split(","):
+                iid = iid.strip()
+                if iid:
+                    db.execute("UPDATE supplier_invoices SET status='approved', payment_date=NULL, payment_method=NULL, payment_ref=NULL WHERE id=? AND status='paid'", (iid,))
+        if pay.get("invoice_id"):
+            db.execute("UPDATE supplier_invoices SET status='approved', payment_date=NULL, payment_method=NULL, payment_ref=NULL WHERE id=? AND status='paid'", (pay["invoice_id"],))
+        if pay.get("expense_ids"):
+            for eid in pay["expense_ids"].split(","):
+                eid = eid.strip()
+                if eid:
+                    db.execute("UPDATE supplier_expenses SET status='approved', payment_date=NULL, payment_method=NULL, payment_ref=NULL WHERE id=? AND status='paid'", (eid,))
+
+        # Link new invoices/expenses
+        for iid in invoice_ids:
+            if iid:
+                db.execute("UPDATE supplier_invoices SET status='paid', payment_date=?, payment_method=?, payment_ref=? WHERE id=?", (payment_date, payment_method, reference_no, iid))
+        for eid in expense_ids:
+            if eid:
+                db.execute("UPDATE supplier_expenses SET status='paid', payment_date=?, payment_method=?, payment_ref=? WHERE id=?", (payment_date, payment_method, reference_no, eid))
+
+        invoice_ids_str = ",".join(invoice_ids)
+        expense_ids_str = ",".join(expense_ids)
         db.execute(
-            "UPDATE supplier_payment_records SET payment_date=?, amount=?, invoice_id=?, payment_method=?, reference_no=?, notes=?, fund_source=? WHERE id=?",
-            (payment_date, amount_f, inv_id_val, payment_method, reference_no, notes, fund_source, pay_id),
+            "UPDATE supplier_payment_records SET payment_date=?, amount=?, invoice_id=NULL, invoice_ids=?, expense_ids=?, payment_method=?, reference_no=?, notes=?, fund_source=? WHERE id=?",
+            (payment_date, amount_f, invoice_ids_str, expense_ids_str, payment_method, reference_no, notes, fund_source, pay_id),
         )
         db.commit()
         flash("Payment updated.", "success")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="payments"))
 
-    return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, methods=PAYMENT_METHODS, today=date.today().isoformat())
+    return render_template("supplier/payment_form.html", s=s, pay=pay, invoices=unpaid, expenses=unpaid_expenses, methods=PAYMENT_METHODS, today=date.today().isoformat())
 
 
 @supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/delete", methods=["POST"])
@@ -2195,8 +2275,19 @@ def supplier_payment_delete(sup_id, pay_id):
     try:
         pay = db.execute("SELECT * FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id)).fetchone()
         db.execute("DELETE FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id))
-        if pay and pay["invoice_id"]:
-            db.execute("UPDATE supplier_invoices SET status='approved', payment_date=NULL, payment_method=NULL, payment_ref=NULL WHERE id=?", (pay["invoice_id"],))
+        if pay:
+            # Revert invoices
+            for iid in (pay.get("invoice_ids") or "").split(","):
+                iid = iid.strip()
+                if iid:
+                    db.execute("UPDATE supplier_invoices SET status='approved', payment_date=NULL, payment_method=NULL, payment_ref=NULL WHERE id=? AND status='paid'", (iid,))
+            if pay.get("invoice_id"):
+                db.execute("UPDATE supplier_invoices SET status='approved', payment_date=NULL, payment_method=NULL, payment_ref=NULL WHERE id=? AND status='paid'", (pay["invoice_id"],))
+            # Revert expenses
+            for eid in (pay.get("expense_ids") or "").split(","):
+                eid = eid.strip()
+                if eid:
+                    db.execute("UPDATE supplier_expenses SET status='approved', payment_date=NULL, payment_method=NULL, payment_ref=NULL WHERE id=? AND status='paid'", (eid,))
         db.commit()
         flash("Payment deleted.", "info")
     except Exception as e:
