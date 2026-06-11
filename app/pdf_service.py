@@ -3254,8 +3254,7 @@ def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, outpu
         amt = float(j.get("amount", 0))
         has_att = bool(j.get("attachment_data"))
         if has_att:
-            att_name = j.get("attachment_name") or "View"
-            att_link = f'<a href="{base_url}/fleet/attachment/{j["id"]}">{att_name}</a>'
+            att_link = f'<a href="{base_url}/fleet/attachment/{j["id"]}">See Page</a>'
         else:
             att_link = '<font color="#cccccc">—</font>'
         rws.append([
