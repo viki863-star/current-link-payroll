@@ -3154,3 +3154,169 @@ def generate_field_staff_advances_pdf(staff, advances, jobs_data, papers_data, t
 
     doc.build(els)
     return path
+
+
+def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, output_dir, assets_dir, company_profile=None, base_url=""):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors as rl_colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    import os, tempfile
+
+    os.makedirs(output_dir, exist_ok=True)
+    filename = f"staff_jobs_{staff['staff_id']}_{filter_month or 'all'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    path = os.path.join(output_dir, filename)
+
+    doc = SimpleDocTemplate(path, pagesize=A4,
+                            leftMargin=15*mm, rightMargin=15*mm,
+                            topMargin=15*mm, bottomMargin=15*mm)
+    W = A4[0] - 30*mm
+    els = []
+    WH = rl_colors.white
+    TH = rl_colors.HexColor("#1C568B")
+    C4 = rl_colors.HexColor("#1F2937")
+    C5 = rl_colors.HexColor("#667A95")
+    BG = rl_colors.HexColor("#F6F9FD")
+
+    def F(name, fontSize=8, fontName="Helvetica", textColor=C4, alignment=TA_LEFT, leading=None):
+        return ParagraphStyle(name, fontSize=fontSize, fontName=fontName, textColor=textColor, alignment=alignment, leading=leading or fontSize*1.3)
+
+    cp = dict(company_profile) if company_profile else {}
+    logo = None; LW = 0
+    if cp.get("logo_data"):
+        try:
+            lb = base64.b64decode(cp["logo_data"])
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            f.write(lb); f.close()
+            logo = Image(f.name, width=50, height=50)
+            LW = 50
+        except Exception:
+            pass
+    cn = cp.get("company_name") or staff["full_name"] if staff else "Field Staff"
+    trn = f"TRN: {cp['trn_no']}" if cp.get("trn_no") else ""
+    addr = cp.get("address") or ""
+    ph = cp.get("phone_number") or ""
+
+    co_p = Paragraph(
+        f"<b>{cn}</b><br/>"
+        f"<font size=7 color='#667A95'>{addr}<br/>{ph}{' | '+trn if trn else ''}</font>",
+        F("_co", fontSize=8.5, fontName="Helvetica-Bold", textColor=C4, leading=10)
+    )
+    lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm]) if logo else Table([[co_p]], colWidths=[W*0.65])
+    lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+
+    title = f"Job Entries Statement" + (f" — {filter_month}" if filter_month else "")
+    rh = Paragraph(f"<b>{title}</b><br/><font size=7 color='#667A95'>Staff: {staff['full_name']} ({staff['staff_id']})</font>", F("_rh", fontSize=10, fontName="Helvetica-Bold", textColor=TH, alignment=TA_RIGHT, leading=12))
+    ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
+    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ht)
+    els.append(Spacer(1, 2*mm))
+    hr = Table([[""]], colWidths=[W], rowHeights=[0.5])
+    hr.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(hr)
+    els.append(Spacer(1, 4*mm))
+
+    # Summary
+    sdata = [[
+        Paragraph(f"<b>Total Jobs</b><br/><font size=10 color='#1a3a5c'>{len(jobs)}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Total Amount</b><br/><font size=10 color='#e65100'>AED {total_amount:,.2f}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Period</b><br/><font size=10 color='#1a3a5c'>{filter_month or 'All Time'}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+    ]]
+    st = Table(sdata, colWidths=[W/3, W/3, W/3])
+    st.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BOX",(0,0),(-1,-1),0.5, rl_colors.HexColor("#D7E2EF")),
+        ("INNERGRID",(0,0),(-1,-1),0.3, rl_colors.HexColor("#D7E2EF")),
+        ("TOPPADDING",(0,0),(-1,-1),8), ("BOTTOMPADDING",(0,0),(-1,-1),8),
+        ("BACKGROUND",(0,0),(-1,-1), rl_colors.HexColor("#F6F9FD")),
+    ]))
+    els.append(st)
+    els.append(Spacer(1, 4*mm))
+
+    # Table
+    colw = [50, 55, 45, 40, W - 50 - 55 - 45 - 40 - 50, 50]
+    hdr = [
+        Paragraph("<b>Date</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph("<b>Vehicle</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        Paragraph("<b>Amount</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        Paragraph("<b>Category</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph("<b>Description</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        Paragraph("<b>Attachment</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+    ]
+    rws = [hdr]
+    for j in jobs:
+        d = str(j.get("created_at", ""))[:10]
+        veh = j.get("vehicle_id", "")
+        cat = j.get("category", "")
+        desc = j.get("description", "") or "-"
+        amt = float(j.get("amount", 0))
+        has_att = bool(j.get("attachment_data"))
+        if has_att:
+            att_link = f'<a href="{base_url}/fleet/attachment/{j["id"]}"><font color="#1C568B"><u>See Page</u></font></a>'
+        else:
+            att_link = '<font color="#cccccc">—</font>'
+        rws.append([
+            Paragraph(d, F("_d", fontSize=6.5, leading=9)),
+            Paragraph(veh, F("_v", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, leading=9)),
+            Paragraph(f"<b>{amt:,.2f}</b>", F("_a", fontSize=6.5, textColor=rl_colors.HexColor("#e65100"), alignment=TA_RIGHT, leading=9)),
+            Paragraph(cat, F("_c", fontSize=6.5, alignment=TA_CENTER, leading=9)),
+            Paragraph(desc, F("_det", fontSize=6.2, textColor=C5, leading=9)),
+            Paragraph(att_link, F("_at", fontSize=6.5, alignment=TA_CENTER, leading=9)),
+        ])
+    # Total row
+    rws.append([
+        Paragraph("<b>Total</b>", F("_tb", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+        Paragraph("", F("_x")),
+        Paragraph(f"<b>{total_amount:,.2f}</b>", F("_tt", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph("", F("_x")), Paragraph("", F("_x")), Paragraph("", F("_x")),
+    ])
+    it = Table(rws, colWidths=colw, repeatRows=1)
+    it.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
+        ("BOX",(0,0),(-1,-1),0.5, rl_colors.HexColor("#D7E2EF")),
+        ("INNERGRID",(0,0),(-1,-1),0.3, rl_colors.HexColor("#D7E2EF")),
+        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
+        ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
+        ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
+    ]))
+    els.append(it)
+
+    # Footer
+    els.append(Spacer(1, 10*mm))
+    s_sg = ParagraphStyle("SSG", fontSize=9, alignment=TA_CENTER, leading=14)
+    s_stamp_path = os.path.join(assets_dir, 'Stamp.png')
+    s_sign_path = os.path.join(assets_dir, 'Sign (1).png')
+    s_auth_cells = []
+    s_auth_cells.append(Paragraph("_________________________", s_sg))
+    if os.path.exists(s_stamp_path):
+        try:
+            s_auth_cells.append(Image(s_stamp_path, width=40, height=40))
+        except Exception:
+            s_auth_cells.append(Paragraph("<br/>", s_sg))
+    else:
+        s_auth_cells.append(Paragraph("<br/>", s_sg))
+    s_auth_cells.append(Paragraph("<b>Authorised Signatory</b>", s_sg))
+    s_auth_cells.append(Paragraph(f"<font size=6 color='#667A95'>Generated: {datetime.now().strftime('%d-%b-%Y %H:%M')}</font>",
+                                  ParagraphStyle("SSG2", fontSize=6, alignment=TA_CENTER, leading=8)))
+    s_auth_cell = Table([[c] for c in s_auth_cells], colWidths=[W*0.35])
+    s_auth_cell.setStyle(TableStyle([("ALIGN",(0,0),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+                                     ("TOPPADDING",(0,0),(-1,-1),1),("BOTTOMPADDING",(0,0),(-1,-1),1)]))
+    if os.path.exists(s_sign_path):
+        try:
+            els.append(Table([[
+                Paragraph(f"<font size=7 color='#667A95'>Prepared by: Admin</font>",
+                          ParagraphStyle("PREP", fontSize=7, alignment=TA_LEFT, leading=9)),
+                s_auth_cell,
+                Image(s_sign_path, width=55, height=20),
+            ]], colWidths=[W*0.35, W*0.30, W*0.35]))
+        except Exception:
+            els.append(s_auth_cell)
+    else:
+        els.append(s_auth_cell)
+
+    doc.build(els)
+    return path

@@ -1519,6 +1519,51 @@ def fleet_staff_advances_pdf(staff_id):
         return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
 
 
+@fleet_bp.route("/fleet/staff/<staff_id>/jobs/pdf")
+@_login_required("admin")
+def fleet_staff_jobs_pdf(staff_id):
+    import traceback
+    try:
+        from app.pdf_service import generate_field_staff_jobs_pdf
+        _touch_admin_workspace("fleet")
+        ensure_fleet_tables()
+        db = open_db()
+        s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+        if not s:
+            flash("Staff not found.", "error")
+            return redirect(url_for("fleet.fleet_staff_list"))
+        filter_month = request.args.get("month", "")
+        display_month = filter_month[:7] if filter_month else ""
+        if display_month:
+            jobs = db.execute("""
+                SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
+                LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
+                WHERE mj.staff_id = ? AND substr(CAST(mj.created_at AS TEXT),1,7) = ?
+                ORDER BY mj.created_at DESC
+            """, (staff_id, display_month)).fetchall()
+        else:
+            jobs = db.execute("""
+                SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
+                LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
+                WHERE mj.staff_id = ?
+                ORDER BY mj.created_at DESC
+            """, (staff_id,)).fetchall()
+        total_amount = sum(j["amount"] for j in jobs) if jobs else 0
+        from pathlib import Path
+        from flask import current_app
+        output_dir = Path(current_app.config["GENERATED_DIR"]) / "staff_jobs"
+        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        base_url = request.host_url.rstrip("/")
+        pdf_path = generate_field_staff_jobs_pdf(s, jobs, total_amount, filter_month, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
+        relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
+        return redirect(url_for("generated_file", filename=relative_path))
+    except Exception as e:
+        tb = traceback.format_exc()
+        current_app.logger.error("Jobs PDF error for %s:\n%s", staff_id, tb)
+        flash(f"PDF Error: {e}", "error")
+        return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
+
+
 @fleet_bp.route("/fleet/staff/<staff_id>/delete-data", methods=["POST"])
 @_login_required("admin")
 def fleet_staff_delete_data(staff_id):
