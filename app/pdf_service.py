@@ -969,7 +969,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
     els.append(Spacer(1, 3*mm))
 
     # ═══ STATEMENT TABLE ═══
-    colw = [35, 22, 40, 35, W - 35 - 22 - 40 - 35 - 45 - 45 - 50, 45, 45, 50]
+    colw = [28, 18, 55, 32, W - 28 - 18 - 55 - 32 - 45 - 45 - 50, 45, 45, 50]
     hdr = [
         Paragraph("<b>Date</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph("<b>Month</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
