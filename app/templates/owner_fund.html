@@ -3,226 +3,275 @@
 {% block page_title %}Owner Fund{% endblock %}
 
 {% block content %}
-<div class="profile-shell">
 <style>
-.of-stat { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center; transition:box-shadow 0.15s; }
-.of-stat:hover { box-shadow:0 2px 12px rgba(0,0,0,0.06); }
-.of-stat .lbl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
-.of-stat .val { font-size:1.4rem; font-weight:700; margin-top:6px; }
+.of-shell{max-width:1100px;margin:0 auto}
+.of-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.of-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 16px;text-align:center}
+.of-card .lb{font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px}
+.of-card .vl{font-size:1.5rem;font-weight:700;margin-top:6px}
+.form-section{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px}
+.form-section h3{margin:0 0 12px;font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.form-section h3 .badge{font-size:0.58rem;font-weight:600;padding:2px 8px;border-radius:20px}
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.form-row .fg{display:flex;flex-direction:column}
+.form-row .fg label{font-size:0.68rem;font-weight:600;color:var(--muted);margin-bottom:3px}
+.form-row .fg input,.form-row .fg select,.form-row .fg textarea{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;background:var(--bg)}
+.form-row .fg textarea{resize:vertical}
+.form-actions{display:flex;gap:6px;align-items:flex-end}
+.form-actions button{padding:7px 18px}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:700px){.twocol{grid-template-columns:1fr}}
 </style>
 
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-    <div class="of-stat">
-        <div class="lbl">Incoming</div>
-        <div class="val" style="color:var(--green)">AED {{ "%.2f"|format(view_incoming) }}</div>
-    </div>
-    <div class="of-stat">
-        <div class="lbl">Used</div>
-        <div class="val" style="color:#e65100">AED {{ "%.2f"|format(view_outgoing) }}</div>
-    </div>
-    <div class="of-stat">
-        <div class="lbl">Net</div>
-        <div class="val" style="color:var(--primary)">AED {{ "%.2f"|format(view_net) }}</div>
-    </div>
-    <div class="of-stat">
-        <div class="lbl">Closing Balance</div>
-        <div class="val" style="color:#c62828">AED {{ "%.2f"|format(view_closing if statement else balance) }}</div>
-    </div>
-</div>
+<div class="of-shell">
+  {# ═══ STATS ═══ #}
+  <div class="of-grid">
+    <div class="of-card"><div class="lb">Incoming</div><div class="vl" style="color:var(--green)">AED {{ "%.2f"|format(view_incoming) }}</div></div>
+    <div class="of-card"><div class="lb">Used</div><div class="vl" style="color:#e65100">AED {{ "%.2f"|format(view_outgoing) }}</div></div>
+    <div class="of-card"><div class="lb">Net</div><div class="vl" style="color:var(--primary)">AED {{ "%.2f"|format(view_net) }}</div></div>
+    <div class="of-card"><div class="lb">Closing Balance</div><div class="vl" style="color:#c62828">AED {{ "%.2f"|format(view_closing if statement else balance) }}</div></div>
+  </div>
 
-<div class="profile-card" style="margin-bottom:16px">
-    <div class="section-header">
-        <h3>Filter</h3>
-        <a href="{{ pdf_url }}" class="btn btn-primary btn-sm">Download PDF</a>
+  {# ═══ FILTER + PDF ═══ #}
+  <div class="form-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <h3 style="margin:0;font-size:0.88rem;font-weight:700">Filter &amp; Export</h3>
+      <a href="{{ pdf_url }}" class="btn btn-primary btn-sm">Download PDF</a>
     </div>
-    <form method="get" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px">
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Month</label>
-            <input type="month" name="month" value="{{ filters.month }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Movement</label>
-            <select name="movement" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-                {% for item in movement_options %}
-                    <option value="{{ item }}" {% if filters.movement == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Search</label>
-            <input type="search" name="search" value="{{ filters.search }}" placeholder="Owner, driver, details..." style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div style="display:flex;align-items:flex-end;gap:6px">
-            <button type="submit" class="btn btn-sm" style="padding:6px 16px">Apply</button>
-            <a href="{{ url_for('owner_fund') }}" class="btn btn-sm btn-outline" style="padding:6px 12px">Clear</a>
-        </div>
+    <form method="get" class="form-row">
+      <div class="fg">
+        <label>Month</label>
+        <input type="month" name="month" value="{{ filters.month }}">
+      </div>
+      <div class="fg">
+        <label>Movement</label>
+        <select name="movement">
+          {% for item in movement_options %}
+            <option value="{{ item }}" {% if filters.movement == item %}selected{% endif %}>{{ item }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg">
+        <label>Search</label>
+        <input type="search" name="search" value="{{ filters.search }}" placeholder="Owner, driver, details...">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-sm">Apply</button>
+        <a href="{{ url_for('owner_fund') }}" class="btn btn-sm btn-outline">Clear</a>
+      </div>
     </form>
-</div>
+  </div>
 
-{% if can_edit %}
-<div class="profile-card" style="margin-bottom:16px">
-    <div class="section-header">
-        <h3>{% if values.entry_id %}Edit Entry{% else %}New Entry{% endif %}</h3>
-    </div>
-    <form method="post" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px">
+  {% if can_edit %}
+  {# ═══ TWO-FORM LAYOUT ═══ #}
+  <div class="twocol">
+    {# ── MONEY IN ── #}
+    <div class="form-section" style="border-left:4px solid var(--green)">
+      <h3>
+        <svg viewBox="0 0 20 20" fill="none" stroke="var(--green)" stroke-width="2" width="16" height="16"><path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/><path d="M10 6v8M6 10h8"/></svg>
+        Money In
+        <span class="badge" style="background:#22c55e33;color:#16a34a;font-size:0.58rem">Owner Deposit</span>
+      </h3>
+      <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="entry_id" value="{{ values.entry_id }}">
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Owner Name</label>
-            <input type="text" name="owner_name" value="{{ values.owner_name }}" required style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Date</label>
-            <input type="date" name="entry_date" value="{{ values.entry_date }}" required style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Amount</label>
-            <input type="number" step="0.01" min="0" name="amount" value="{{ values.amount }}" required style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Received By</label>
-            <input type="text" name="received_by" value="{{ values.received_by }}" placeholder="Waqar / Office" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Method</label>
-            <select name="payment_method" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-                {% for item in ["Cash", "Bank", "Cheque", "Other"] %}
-                    <option value="{{ item }}" {% if values.payment_method == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
+        <input type="hidden" name="entry_id" value="{{ values.entry_id if values.transaction_type == 'IN' else '' }}">
+        <input type="hidden" name="transaction_type" value="IN">
+        <div class="form-row">
+          <div class="fg">
+            <label>Owner Name *</label>
+            <input type="text" name="owner_name" value="{{ values.owner_name if values.transaction_type == 'IN' else '' }}" required placeholder="e.g. Mr. Nasrullah">
+          </div>
+          <div class="fg">
+            <label>Date *</label>
+            <input type="date" name="entry_date" value="{{ values.entry_date if values.transaction_type == 'IN' else today }}" required>
+          </div>
+          <div class="fg">
+            <label>Amount (AED) *</label>
+            <input type="number" step="0.01" min="0" name="amount" value="{{ values.amount if values.transaction_type == 'IN' else '' }}" required placeholder="0.00">
+          </div>
+          <div class="fg">
+            <label>Received By</label>
+            <input type="text" name="received_by" value="{{ values.received_by if values.transaction_type == 'IN' else '' }}" placeholder="Waqar / Office">
+          </div>
+          <div class="fg">
+            <label>Method</label>
+            <select name="payment_method">
+              {% for item in ["Cash", "Bank", "Cheque", "Other"] %}
+                <option value="{{ item }}" {% if values.transaction_type == 'IN' and values.payment_method == item %}selected{% endif %}>{{ item }}</option>
+              {% endfor %}
             </select>
+          </div>
+          <div class="fg" style="grid-column:1/-1">
+            <label>Details / Notes</label>
+            <textarea name="details" rows="1" placeholder="Optional notes">{{ values.details if values.transaction_type == 'IN' else '' }}</textarea>
+          </div>
         </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Type</label>
-            <select name="transaction_type" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-                <option value="IN" {% if values.transaction_type == 'IN' %}selected{% endif %}>IN (Money In)</option>
-                <option value="OUT" {% if values.transaction_type == 'OUT' %}selected{% endif %}>OUT (Money Out)</option>
+        <div style="margin-top:10px;display:flex;gap:6px">
+          <button class="btn btn-primary btn-sm" type="submit" style="background:var(--green);border-color:var(--green)">Record Money In</button>
+          {% if values.entry_id and values.transaction_type == 'IN' %}<a href="{{ url_for('owner_fund') }}" class="btn btn-sm btn-outline">Cancel</a>{% endif %}
+        </div>
+      </form>
+    </div>
+
+    {# ── MONEY OUT ── #}
+    <div class="form-section" style="border-left:4px solid #e65100">
+      <h3>
+        <svg viewBox="0 0 20 20" fill="none" stroke="#e65100" stroke-width="2" width="16" height="16"><path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/><path d="M10 6v8M14 10H6"/></svg>
+        Money Out
+        <span class="badge" style="background:#e6510033;color:#e65100;font-size:0.58rem">Owner Expense</span>
+      </h3>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="entry_id" value="{{ values.entry_id if values.transaction_type == 'OUT' else '' }}">
+        <input type="hidden" name="transaction_type" value="OUT">
+        <div class="form-row">
+          <div class="fg">
+            <label>Category *</label>
+            <select name="owner_name" required>
+              <option value="">— Select —</option>
+              {% for cat in ["Office Expense", "Given to Driver", "Given to Supplier", "Given to Staff", "Materials", "Vehicle Expense", "Other"] %}
+                <option value="{{ cat }}" {% if values.transaction_type == 'OUT' and values.owner_name == cat %}selected{% endif %}>{{ cat }}</option>
+              {% endfor %}
             </select>
+          </div>
+          <div class="fg">
+            <label>Date *</label>
+            <input type="date" name="entry_date" value="{{ values.entry_date if values.transaction_type == 'OUT' else today }}" required>
+          </div>
+          <div class="fg">
+            <label>Amount (AED) *</label>
+            <input type="number" step="0.01" min="0" name="amount" value="{{ values.amount if values.transaction_type == 'OUT' else '' }}" required placeholder="0.00">
+          </div>
+          <div class="fg">
+            <label>Paid To / Recipient</label>
+            <input type="text" name="received_by" value="{{ values.received_by if values.transaction_type == 'OUT' else '' }}" placeholder="Person or company name">
+          </div>
+          <div class="fg">
+            <label>Payment Method</label>
+            <select name="payment_method">
+              {% for item in ["Cash", "Bank", "Cheque", "Other"] %}
+                <option value="{{ item }}" {% if values.transaction_type == 'OUT' and values.payment_method == item %}selected{% endif %}>{{ item }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="fg" style="grid-column:1/-1">
+            <label>Details / Purpose *</label>
+            <textarea name="details" rows="1" required placeholder="What is this for? e.g. Office chair, gave to Ahmed for delivery">{{ values.details if values.transaction_type == 'OUT' else '' }}</textarea>
+          </div>
         </div>
-        <div style="grid-column:1/-1">
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Details</label>
-            <textarea name="details" rows="2" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">{{ values.details }}</textarea>
+        <div style="margin-top:10px;display:flex;gap:6px">
+          <button class="btn btn-primary btn-sm" type="submit" style="background:#e65100;border-color:#e65100">Record Money Out</button>
+          {% if values.entry_id and values.transaction_type == 'OUT' %}<a href="{{ url_for('owner_fund') }}" class="btn btn-sm btn-outline">Cancel</a>{% endif %}
         </div>
-        <div style="grid-column:1/-1;display:flex;gap:6px">
-            <button class="btn btn-primary btn-sm" type="submit">{{ 'Update' if values.entry_id else 'Save' }}</button>
-            {% if values.entry_id %}<a href="{{ url_for('owner_fund') }}" class="btn btn-outline btn-sm">Cancel</a>{% endif %}
-        </div>
-    </form>
-</div>
-{% else %}
-<div class="profile-card" style="margin-bottom:16px;background:#fff8e1;border-color:#ffe082">
-    <p style="margin:0;font-size:0.85rem;color:#795548">Owner login read-only. You can view the statement and download PDF.</p>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div class="form-section" style="background:#fff8e1;border-color:#ffe082">
+    <p style="margin:0;font-size:0.85rem;color:#795548">Owner view is read-only. You can view the statement and download PDF.</p>
     <a href="{{ pdf_url }}" class="btn btn-primary btn-sm" style="margin-top:8px">Open PDF</a>
-</div>
-{% endif %}
+  </div>
+  {% endif %}
 
-<div class="profile-card" style="margin-bottom:16px">
-    <div class="section-header">
-        <h3>Entries</h3>
-        {% if can_edit %}
-        <form method="post" action="{{ url_for('clear_all_owner_fund') }}" onsubmit="return confirm('Clear ALL owner fund history? This cannot be undone.');" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-sm btn-outline" type="submit" style="color:#e65100">Clear All History</button>
-        </form>
-        {% endif %}
-    </div>
-    {% if entries %}
+  {# ═══ RECENT ENTRIES ═══ #}
+  {% if entries %}
+  <div class="form-section">
+    <h3>Recent Entries</h3>
     <div class="table-wrap">
-        <table class="smart-table">
-            <thead><tr><th>Date</th><th>Owner</th><th>Type</th><th>Amount</th><th>Received By</th><th>Method</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
-            <tbody>
-                {% for item in entries %}
-                <tr>
-                    <td class="mono">{{ item.entry_date }}</td>
-                    <td style="font-weight:600">{{ item.owner_name }}</td>
-                    <td><span class="badge" style="background:{% if item.transaction_type == 'IN' %}#22c55e33;color:#16a34a{% else %}#e6510033;color:#e65100{% endif %}">{{ item.transaction_type or 'IN' }}</span></td>
-                    <td class="mono" style="font-weight:600">AED {{ "%.2f"|format(item.amount) }}</td>
-                    <td>{{ item.received_by or '-' }}</td>
-                    <td>{{ item.payment_method or '-' }}</td>
-                    {% if can_edit %}
-                    <td>
-                        <div style="display:flex;gap:4px">
-                            <a href="{{ url_for('owner_fund', edit=item.id) }}" class="btn btn-xs btn-outline">&#9998;</a>
-                            <form method="post" action="{{ url_for('delete_owner_fund_entry', entry_id=item.id) }}" onsubmit="return confirm('Delete this entry?');" style="display:inline">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button class="btn btn-xs btn-outline" type="submit" style="color:#e65100">&#10005;</button>
-                            </form>
-                        </div>
-                    </td>
-                    {% endif %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+      <table class="smart-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Received By / Paid To</th><th>Method</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for item in entries %}
+          <tr>
+            <td class="mono">{{ item.entry_date }}</td>
+            <td><span class="badge" style="background:{% if item.transaction_type == 'IN' %}#22c55e33;color:#16a34a{% else %}#e6510033;color:#e65100{% endif %}">{{ item.transaction_type }}</span></td>
+            <td style="font-weight:600">{{ item.owner_name }}</td>
+            <td class="mono" style="font-weight:600">AED {{ "%.2f"|format(item.amount) }}</td>
+            <td>{{ item.received_by or '-' }}</td>
+            <td>{{ item.payment_method or '-' }}</td>
+            {% if can_edit %}
+            <td>
+              <div style="display:flex;gap:4px">
+                <a href="{{ url_for('owner_fund', edit=item.id) }}" class="btn btn-xs btn-outline">&#9998;</a>
+                <form method="post" action="{{ url_for('delete_owner_fund_entry', entry_id=item.id) }}" onsubmit="return confirm('Delete this entry?');" style="display:inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-xs btn-outline" type="submit" style="color:#e65100">&#10005;</button>
+                </form>
+              </div>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    {% else %}<p class="empty-state">No entries yet.</p>{% endif %}
-</div>
+  </div>
+  {% endif %}
 
-{% if sup_funds %}
-<div class="profile-card" style="margin-bottom:16px">
-    <div class="section-header">
-        <h3>Supplier Owner Fund</h3>
-    </div>
+  {# ═══ SUPPLIER OWNER FUND ═══ #}
+  {% if sup_funds %}
+  <div class="form-section">
+    <h3>Supplier Owner Fund</h3>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
-        <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Deposits</div>
-            <div style="font-size:1rem;font-weight:700;color:var(--green)">AED {{ "%.0f"|format(sup_deposits) }}</div>
-        </div>
-        <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Withdrawals</div>
-            <div style="font-size:1rem;font-weight:700;color:#e65100">AED {{ "%.0f"|format(sup_withdrawals) }}</div>
-        </div>
-        <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Utilized</div>
-            <div style="font-size:1rem;font-weight:700;color:#c62828">AED {{ "%.0f"|format(sup_used) }}</div>
-        </div>
-        <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Balance</div>
-            <div style="font-size:1rem;font-weight:700;color:var(--primary)">AED {{ "%.0f"|format(sup_balance) }}</div>
-        </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Deposits</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--green)">AED {{ "%.0f"|format(sup_deposits) }}</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Withdrawals</div>
+        <div style="font-size:1rem;font-weight:700;color:#e65100">AED {{ "%.0f"|format(sup_withdrawals) }}</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Utilized</div>
+        <div style="font-size:1rem;font-weight:700;color:#c62828">AED {{ "%.0f"|format(sup_used) }}</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Balance</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--primary)">AED {{ "%.0f"|format(sup_balance) }}</div>
+      </div>
     </div>
     <div class="table-wrap">
-        <table class="smart-table">
-            <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Description</th></tr></thead>
-            <tbody>
-                {% for f in sup_funds %}
-                <tr>
-                    <td class="mono">{{ f.fund_date }}</td>
-                    <td><span class="badge" style="background:{% if f.transaction_type == 'deposit' %}#22c55e33;color:#16a34a{% else %}#e6510033;color:#e65100{% endif %}">{{ f.transaction_type }}</span></td>
-                    <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(f.amount) }}</td>
-                    <td style="font-size:0.78rem">{{ f.description or '-' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+      <table class="smart-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Description</th></tr></thead>
+        <tbody>
+          {% for f in sup_funds %}
+          <tr>
+            <td class="mono">{{ f.fund_date }}</td>
+            <td><span class="badge" style="background:{% if f.transaction_type == 'deposit' %}#22c55e33;color:#16a34a{% else %}#e6510033;color:#e65100{% endif %}">{{ f.transaction_type }}</span></td>
+            <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(f.amount) }}</td>
+            <td style="font-size:0.78rem">{{ f.description or '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-</div>
-{% endif %}
+  </div>
+  {% endif %}
 
-{% if statement %}
-<div class="profile-card">
-    <div class="section-header">
-        <h3>Statement (Kata)</h3>
-    </div>
+  {# ═══ FULL STATEMENT ═══ #}
+  {% if statement %}
+  <div class="form-section">
+    <h3>Statement of Account (Kata)</h3>
     <div class="table-wrap">
-        <table class="smart-table">
-            <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Party</th><th>Details</th><th>Incoming</th><th>Outgoing</th><th>Balance</th></tr></thead>
-            <tbody>
-                {% for item in statement %}
-                <tr>
-                    <td class="mono">{{ item.entry_date }}</td>
-                    <td>{{ item.movement }}</td>
-                    <td class="mono">{{ item.reference }}</td>
-                    <td>{{ item.party }}</td>
-                    <td style="font-size:0.78rem">{{ item.details }}</td>
-                    <td class="mono" style="color:var(--green);font-weight:600">{% if item.incoming %}AED {{ "%.2f"|format(item.incoming) }}{% endif %}</td>
-                    <td class="mono" style="color:#e65100;font-weight:600">{% if item.outgoing %}AED {{ "%.2f"|format(item.outgoing) }}{% endif %}</td>
-                    <td class="mono" style="font-weight:700">AED {{ "%.2f"|format(item.balance) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+      <table class="smart-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Party</th><th>Details</th><th>Incoming</th><th>Outgoing</th><th>Balance</th></tr></thead>
+        <tbody>
+          {% for item in statement %}
+          <tr>
+            <td class="mono">{{ item.entry_date }}</td>
+            <td>{{ item.movement }}</td>
+            <td class="mono">{{ item.reference }}</td>
+            <td>{{ item.party }}</td>
+            <td style="font-size:0.78rem">{{ item.details }}</td>
+            <td class="mono" style="color:var(--green);font-weight:600">{% if item.incoming %}AED {{ "%.2f"|format(item.incoming) }}{% endif %}</td>
+            <td class="mono" style="color:#e65100;font-weight:600">{% if item.outgoing %}AED {{ "%.2f"|format(item.outgoing) }}{% endif %}</td>
+            <td class="mono" style="font-weight:700">AED {{ "%.2f"|format(item.balance) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-</div>
-{% endif %}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

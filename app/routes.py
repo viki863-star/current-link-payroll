@@ -6916,6 +6916,7 @@ def register_routes(app: Flask) -> None:
                 sup_deposits=sup_deposits, sup_withdrawals=sup_withdrawals, sup_net=sup_net,
                 sup_payments=sup_payments, sup_expenses=sup_expenses, sup_loans=sup_loans,
                 sup_used=sup_used, sup_balance=sup_balance, sup_funds=sup_funds,
+                today=date.today().isoformat(),
             )
         except Exception as e:
             current_app.logger.error("Owner Fund error: %s", e, exc_info=True)
