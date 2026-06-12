@@ -1571,7 +1571,7 @@ def fleet_staff_advances_pdf(staff_id):
         import os
         company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
         base_url = request.host_url.rstrip("/")
-        pdf_path = generate_field_staff_advances_pdf(s, advances, jobs_data, papers_data, total, filter_month, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
+        pdf_path = generate_field_staff_advances_pdf(s, advances, jobs_data, papers_data, total, filter_month, date_from, date_to, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
         relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
     except Exception as e:
@@ -1621,7 +1621,7 @@ def fleet_staff_jobs_pdf(staff_id):
         output_dir = Path(current_app.config["GENERATED_DIR"]) / "staff_jobs"
         company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
         base_url = request.host_url.rstrip("/")
-        pdf_path = generate_field_staff_jobs_pdf(s, jobs, total_amount, filter_month, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
+        pdf_path = generate_field_staff_jobs_pdf(s, jobs, total_amount, filter_month, date_from, date_to, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
         relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
     except Exception as e:
