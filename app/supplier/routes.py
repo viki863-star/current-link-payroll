@@ -2371,11 +2371,20 @@ def supplier_payment_voucher(sup_id, pay_id):
                 ids,
             ).fetchall()
     inv = db.execute("SELECT * FROM supplier_invoices WHERE id = ?", (pay["invoice_id"],)).fetchone() if pay["invoice_id"] else None
+    expense_rows = []
+    if pay.get("expense_ids"):
+        ids = [x.strip() for x in pay["expense_ids"].split(",") if x.strip().isdigit()]
+        if ids:
+            placeholders = ",".join("?" * len(ids))
+            expense_rows = db.execute(
+                f"SELECT id, description, amount, earning_type, category FROM supplier_expenses WHERE id IN ({placeholders})",
+                ids,
+            ).fetchall()
     try:
         company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     except Exception:
         company = None
-    return render_template("supplier/payment_voucher.html", s=s, pay=pay, inv=inv, invoices=invoices, company=company, today=date.today().isoformat())
+    return render_template("supplier/payment_voucher.html", s=s, pay=pay, inv=inv, invoices=invoices, expense_rows=expense_rows, company=company, today=date.today().isoformat())
 
 
 @supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/cheque")

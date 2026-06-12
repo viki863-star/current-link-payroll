@@ -114,6 +114,13 @@ body { font-family:'Segoe UI',Arial,sans-serif; font-size:13px; color:#0f172a; l
           </span>
           {% elif inv %}
           <br><span style="color:#64748b;font-size:0.78rem">Invoice: {{ inv.invoice_no }} ({{ inv.invoice_date }})</span>
+          {% elif expense_rows %}
+          <br><span style="color:#64748b;font-size:0.78rem">
+            Against expenses:
+            {% for exp in expense_rows %}
+            {{ exp.description or exp.category or 'Expense' }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </span>
           {% endif %}
           {% if pay.notes %}<br><span style="color:#64748b;font-size:0.78rem">{{ pay.notes }}</span>{% endif %}
         </td>
