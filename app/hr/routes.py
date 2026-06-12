@@ -1082,7 +1082,9 @@ def employee_edit(employee_id):
                 uploaded_photo = save_employee_photo(
                     current_app._get_current_object(), employee_id,
                     values["full_name"], request.files.get("photo_file"))
-            except Exception:
+            except Exception as exc:
+                import logging
+                logging.warning(f"DEBUG photo upload failed: {exc}")
                 uploaded_photo = None
 
             db.execute(
