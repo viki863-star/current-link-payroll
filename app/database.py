@@ -1794,6 +1794,9 @@ REQUIRED_COLUMNS = {
         "last_login_at": "TIMESTAMP",
         "updated_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
     },
+    "employees": {
+        "updated_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    },
     "supplier_vouchers": {
         "source_type": "TEXT NOT NULL DEFAULT 'Timesheet'",
         "source_reference": "TEXT",
