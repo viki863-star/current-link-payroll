@@ -751,22 +751,40 @@ def employee_salary_slip(employee_id):
                             )
                             slip_id = existing_slip["id"]
                         else:
-                            db.execute(
-                                """
-                                INSERT INTO salary_slips (
-                                    driver_id, salary_store_id, salary_month, source_filter,
-                                    total_deductions, available_advance, remaining_advance,
-                                    salary_after_deduction, actual_paid_amount,
-                                    company_balance_due, payment_source, paid_by, net_payable, pdf_path
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                """,
-                                (eid, selected_salary["id"], selected_salary["salary_month"], "",
-                                 deduction_amount, available_advance, remaining_advance,
-                                 salary_after_deduction, 0.0, salary_after_deduction,
-                                 values["payment_source"], values["paid_by"] or None,
-                                 salary_after_deduction, ""),
-                            )
-                            slip_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+                            if db.backend == "postgres":
+                                result = db.execute(
+                                    """
+                                    INSERT INTO salary_slips (
+                                        driver_id, salary_store_id, salary_month, source_filter,
+                                        total_deductions, available_advance, remaining_advance,
+                                        salary_after_deduction, actual_paid_amount,
+                                        company_balance_due, payment_source, paid_by, net_payable, pdf_path
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+                                    """,
+                                    (eid, selected_salary["id"], selected_salary["salary_month"], "",
+                                     deduction_amount, available_advance, remaining_advance,
+                                     salary_after_deduction, 0.0, salary_after_deduction,
+                                     values["payment_source"], values["paid_by"] or None,
+                                     salary_after_deduction, ""),
+                                )
+                                slip_id = result.fetchone()["id"]
+                            else:
+                                db.execute(
+                                    """
+                                    INSERT INTO salary_slips (
+                                        driver_id, salary_store_id, salary_month, source_filter,
+                                        total_deductions, available_advance, remaining_advance,
+                                        salary_after_deduction, actual_paid_amount,
+                                        company_balance_due, payment_source, paid_by, net_payable, pdf_path
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    """,
+                                    (eid, selected_salary["id"], selected_salary["salary_month"], "",
+                                     deduction_amount, available_advance, remaining_advance,
+                                     salary_after_deduction, 0.0, salary_after_deduction,
+                                     values["payment_source"], values["paid_by"] or None,
+                                     salary_after_deduction, ""),
+                                )
+                                slip_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
 
                         slip_row = db.execute("SELECT * FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
                         driver_display = {"driver_id": eid, "full_name": employee["full_name"],
