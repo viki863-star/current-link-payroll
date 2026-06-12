@@ -37,6 +37,7 @@
             </p>
             <p class="profile-id mono">
                 <strong>{{ v.job_count }}</strong> jobs &middot; AED <strong>{{ "%.0f"|format(v.total_cost) }}</strong> total
+                {% if fuel_total_amount > 0 %} &middot; <span style="color:#e65100">Fuel AED {{ "%.0f"|format(fuel_total_amount) }}</span>{% endif %}
                 {% if v.current_driver %} &middot; Driver: {{ v.current_driver.full_name }}{% endif %}
             </p>
         </div>
@@ -110,6 +111,10 @@
                     <div style="background:#f8fafd;border-radius:8px;padding:12px;text-align:center">
                         <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Total Cost</div>
                         <div style="font-size:1.1rem;font-weight:700;color:#e65100">AED {{ "%.0f"|format(v.total_cost) }}</div>
+                    </div>
+                    <div style="background:#f8fafd;border-radius:8px;padding:12px;text-align:center">
+                        <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Fuel Cost</div>
+                        <div style="font-size:1.1rem;font-weight:700;color:#ff8a1f">AED {{ "%.0f"|format(fuel_total_amount) }}</div>
                     </div>
                 </div>
             </div>

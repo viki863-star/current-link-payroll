@@ -158,7 +158,17 @@ def _vehicle_full(plate_no):
         (plate_no,),
     ).fetchone()["t"] or 0
     v["job_count"] = job_count + paper_count
-    v["total_cost"] = float(total_cost) + float(paper_cost)
+    fuel_cost = 0
+    try:
+        fuel_cost = float(
+            db.execute(
+                "SELECT COALESCE(SUM(total_amount),0) AS t FROM fuel_entries WHERE vehicle_plate = ?",
+                (plate_no,),
+            ).fetchone()["t"] or 0
+        )
+    except Exception:
+        pass
+    v["total_cost"] = float(total_cost) + float(paper_cost) + fuel_cost
     return v
 
 
