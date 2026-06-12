@@ -243,7 +243,7 @@ def fleet_dashboard():
         LEFT JOIN (SELECT staff_code, SUM(amount) AS total_adv FROM maintenance_staff_advances GROUP BY staff_code) adv ON adv.staff_code = fs.staff_id
         LEFT JOIN (SELECT staff_id, SUM(amount) AS total_jobs FROM maintenance_jobs WHERE status = 'approved' GROUP BY staff_id) mj ON mj.staff_id = fs.staff_id
         LEFT JOIN (SELECT technician_code, SUM(total_amount) AS total_papers FROM maintenance_papers WHERE review_status='Approved' GROUP BY technician_code) mp ON mp.technician_code = fs.staff_id
-        WHERE fs.staff_id IS NOT NULL AND fs.staff_id != ''
+        WHERE fs.staff_id IS NOT NULL AND fs.staff_id != '' AND fs.staff_id != 'admin'
         ORDER BY fs.full_name
     """).fetchall()
 
