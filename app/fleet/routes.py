@@ -1573,7 +1573,7 @@ def fleet_staff_advances_pdf(staff_id):
         base_url = request.host_url.rstrip("/")
         pdf_path = generate_field_staff_advances_pdf(s, advances, jobs_data, papers_data, total, filter_month, date_from, date_to, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
         relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
-        return redirect(url_for("generated_file", filename=relative_path))
+        return redirect(url_for("public_file", filename=relative_path))
     except Exception as e:
         tb = traceback.format_exc()
         current_app.logger.error("Profile PDF error for %s:\n%s", staff_id, tb)
@@ -1623,7 +1623,7 @@ def fleet_staff_jobs_pdf(staff_id):
         base_url = request.host_url.rstrip("/")
         pdf_path = generate_field_staff_jobs_pdf(s, jobs, total_amount, filter_month, date_from, date_to, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
         relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
-        return redirect(url_for("generated_file", filename=relative_path))
+        return redirect(url_for("public_file", filename=relative_path))
     except Exception as e:
         tb = traceback.format_exc()
         current_app.logger.error("Jobs PDF error for %s:\n%s", staff_id, tb)

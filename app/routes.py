@@ -8687,6 +8687,16 @@ def register_routes(app: Flask) -> None:
         flash("Requested file is no longer available.", "error")
         return redirect(url_for(_role_home_endpoint()))
 
+    @app.get("/public/<path:filename>")
+    def public_file(filename: str):
+        allowed_prefixes = ("staff_advances/", "staff_jobs/")
+        if not filename.startswith(allowed_prefixes):
+            abort(404)
+        target = Path(app.config["GENERATED_DIR"]) / filename
+        if target.exists():
+            return send_file(target, as_attachment=False)
+        abort(404)
+
 
 def _login_required(*roles):
     def decorator(view):
