@@ -73,6 +73,14 @@ def ensure_fleet_tables():
         )
     """)
     db.commit()
+    # Fix existing fuel expenses — change earning_type from 'trip' to 'Fuel'
+    try:
+        db.execute(
+            "UPDATE supplier_expenses SET earning_type = 'Fuel' WHERE category = 'Fuel' AND earning_type = 'trip'"
+        )
+        db.commit()
+    except Exception:
+        pass
 
 
 def _migrate_vehicle_master(db):
@@ -1948,6 +1956,7 @@ def fuel_add():
             flash("Supplier not found.", "error")
             return redirect(url_for("fleet.fuel_add"))
         total = round(gallons * rate, 2)
+        fuel_desc = f"{gallons} GLN × {rate} = AED {total} — {vehicle_plate}"
         if db.backend == "postgres":
             fuel_result = db.execute(
                 """INSERT INTO fuel_entries (vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes)
@@ -1957,8 +1966,8 @@ def fuel_add():
             fuel_id = fuel_result.fetchone()[0]
             exp_result = db.execute(
                 """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
-                   VALUES (?, ?, ?, 'Fuel', ?, 'trip', ?, ?, ?, 'approved') RETURNING id""",
-                (supplier["id"], entry_date, total, notes or f"Fuel for {vehicle_plate}", gallons, rate, vehicle_plate),
+                   VALUES (?, ?, ?, 'Fuel', ?, 'Fuel', ?, ?, ?, 'approved') RETURNING id""",
+                (supplier["id"], entry_date, total, notes or fuel_desc, gallons, rate, vehicle_plate),
             )
             expense_id = exp_result.fetchone()[0]
         else:
@@ -1970,8 +1979,8 @@ def fuel_add():
             fuel_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
             db.execute(
                 """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
-                   VALUES (?, ?, ?, 'Fuel', ?, 'trip', ?, ?, ?, 'approved')""",
-                (supplier["id"], entry_date, total, notes or f"Fuel for {vehicle_plate}", gallons, rate, vehicle_plate),
+                   VALUES (?, ?, ?, 'Fuel', ?, 'Fuel', ?, ?, ?, 'approved')""",
+                (supplier["id"], entry_date, total, notes or fuel_desc, gallons, rate, vehicle_plate),
             )
             expense_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
         db.execute("UPDATE fuel_entries SET source_expense_id = ? WHERE id = ?", (expense_id, fuel_id))
@@ -2015,10 +2024,11 @@ def fuel_edit(entry_id):
         )
         # Update linked supplier_expenses
         if entry["source_expense_id"]:
+            fuel_desc = f"{gallons} GLN × {rate} = AED {total} — {vehicle_plate}"
             db.execute(
-                """UPDATE supplier_expenses SET expense_date=?, amount=?, quantity=?, rate=?, vehicle_no=?, description=?
+                """UPDATE supplier_expenses SET expense_date=?, amount=?, quantity=?, rate=?, vehicle_no=?, description=?, earning_type=?, category=?
                    WHERE id=?""",
-                (entry_date, total, gallons, rate, vehicle_plate, notes or f"Fuel for {vehicle_plate}", entry["source_expense_id"]),
+                (entry_date, total, gallons, rate, vehicle_plate, notes or fuel_desc, 'Fuel', 'Fuel', entry["source_expense_id"]),
             )
         db.commit()
         flash("Fuel entry updated.", "success")
