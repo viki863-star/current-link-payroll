@@ -56,6 +56,22 @@ def ensure_fleet_tables():
             notes TEXT
         )
     """)
+    real_type = "REAL"
+    db.execute(f"""
+        CREATE TABLE IF NOT EXISTS fuel_entries (
+            {id_col},
+            vehicle_plate TEXT NOT NULL,
+            entry_date TEXT NOT NULL,
+            gallons {real_type} NOT NULL,
+            rate_per_gallon {real_type} NOT NULL,
+            total_amount {real_type} NOT NULL,
+            supplier_id INTEGER,
+            supplier_name TEXT NOT NULL,
+            notes TEXT,
+            source_expense_id INTEGER,
+            created_at TEXT DEFAULT {default_ts}
+        )
+    """)
     db.commit()
 
 
@@ -456,6 +472,14 @@ def vehicle_profile(plate_no):
         (plate_no,),
     ).fetchall()
 
+    fuel_entries = db.execute(
+        "SELECT * FROM fuel_entries WHERE vehicle_plate = ? ORDER BY entry_date DESC, id DESC",
+        (plate_no,),
+    ).fetchall()
+    fuel_total_gallons = sum(f["gallons"] for f in fuel_entries) if fuel_entries else 0
+    fuel_total_amount = sum(f["total_amount"] for f in fuel_entries) if fuel_entries else 0
+    suppliers = db.execute("SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name").fetchall()
+
     return render_template(
         "fleet/vehicle_profile.html",
         v=v,
@@ -467,6 +491,11 @@ def vehicle_profile(plate_no):
         combined_jobs=combined,
         all_drivers=_all_employees_drivers(),
         documents=documents,
+        fuel_entries=fuel_entries,
+        fuel_total_gallons=fuel_total_gallons,
+        fuel_total_amount=fuel_total_amount,
+        suppliers=suppliers,
+        date=date,
     )
 
 
@@ -1860,8 +1889,212 @@ def fleet_attachment(job_id):
 
 
 # ═════════════════════════════════════════════════════════════════
-# ADMIN: Edit / Delete Jobs
+# FUEL MANAGEMENT
 # ═════════════════════════════════════════════════════════════════
+
+@fleet_bp.route("/fleet/fuel")
+@_login_required("admin")
+def fuel_list():
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    vehicle_filter = request.args.get("vehicle", "")
+    month_filter = request.args.get("month", "")
+    params = []
+    where = ""
+    if vehicle_filter:
+        where += " AND fe.vehicle_plate = ?"
+        params.append(vehicle_filter)
+    if month_filter:
+        where += " AND substr(fe.entry_date,1,7) = ?"
+        params.append(month_filter)
+    entries = db.execute(f"""
+        SELECT fe.* FROM fuel_entries fe
+        WHERE 1=1{where}
+        ORDER BY fe.entry_date DESC, fe.id DESC
+    """, params).fetchall()
+    vehicles = db.execute("SELECT plate_no FROM vehicles ORDER BY plate_no").fetchall()
+    total_gallons = sum(e["gallons"] for e in entries) if entries else 0
+    total_amount = sum(e["total_amount"] for e in entries) if entries else 0
+    return render_template(
+        "fleet/fuel_list.html",
+        entries=entries,
+        vehicles=vehicles,
+        vehicle_filter=vehicle_filter,
+        month_filter=month_filter,
+        total_gallons=total_gallons,
+        total_amount=total_amount,
+    )
+
+
+@fleet_bp.route("/fleet/fuel/add", methods=["GET", "POST"])
+@_login_required("admin")
+def fuel_add():
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    if request.method == "POST":
+        vehicle_plate = request.form.get("vehicle_plate", "").strip()
+        entry_date = request.form.get("entry_date", "").strip()
+        gallons = float(request.form.get("gallons", 0) or 0)
+        rate = float(request.form.get("rate_per_gallon", 0) or 0)
+        supplier_id = request.form.get("supplier_id", "").strip()
+        notes = request.form.get("notes", "").strip()
+        if not vehicle_plate or not entry_date or gallons <= 0 or rate <= 0 or not supplier_id:
+            flash("Please fill all required fields.", "error")
+            return redirect(url_for("fleet.fuel_add"))
+        supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
+        if not supplier:
+            flash("Supplier not found.", "error")
+            return redirect(url_for("fleet.fuel_add"))
+        total = round(gallons * rate, 2)
+        if db.backend == "postgres":
+            fuel_result = db.execute(
+                """INSERT INTO fuel_entries (vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+                (vehicle_plate, entry_date, gallons, rate, total, supplier["id"], supplier["supplier_name"], notes),
+            )
+            fuel_id = fuel_result.fetchone()[0]
+            exp_result = db.execute(
+                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
+                   VALUES (?, ?, ?, 'Fuel', ?, 'trip', ?, ?, ?, 'approved') RETURNING id""",
+                (supplier["id"], entry_date, total, notes or f"Fuel for {vehicle_plate}", gallons, rate, vehicle_plate),
+            )
+            expense_id = exp_result.fetchone()[0]
+        else:
+            db.execute(
+                """INSERT INTO fuel_entries (vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (vehicle_plate, entry_date, gallons, rate, total, supplier["id"], supplier["supplier_name"], notes),
+            )
+            fuel_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+            db.execute(
+                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
+                   VALUES (?, ?, ?, 'Fuel', ?, 'trip', ?, ?, ?, 'approved')""",
+                (supplier["id"], entry_date, total, notes or f"Fuel for {vehicle_plate}", gallons, rate, vehicle_plate),
+            )
+            expense_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        db.execute("UPDATE fuel_entries SET source_expense_id = ? WHERE id = ?", (expense_id, fuel_id))
+        db.commit()
+        flash(f"Fuel entry added: {gallons} GLN × {rate} = AED {total}", "success")
+        return redirect(url_for("fleet.fuel_list"))
+    vehicles = db.execute("SELECT plate_no FROM vehicles ORDER BY plate_no").fetchall()
+    suppliers = db.execute("SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name").fetchall()
+    return render_template("fleet/fuel_form.html", vehicles=vehicles, suppliers=suppliers, entry=None)
+
+
+@fleet_bp.route("/fleet/fuel/<int:entry_id>/edit", methods=["GET", "POST"])
+@_login_required("admin")
+def fuel_edit(entry_id):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    entry = db.execute("SELECT * FROM fuel_entries WHERE id = ?", (entry_id,)).fetchone()
+    if not entry:
+        flash("Fuel entry not found.", "error")
+        return redirect(url_for("fleet.fuel_list"))
+    if request.method == "POST":
+        vehicle_plate = request.form.get("vehicle_plate", "").strip()
+        entry_date = request.form.get("entry_date", "").strip()
+        gallons = float(request.form.get("gallons", 0) or 0)
+        rate = float(request.form.get("rate_per_gallon", 0) or 0)
+        supplier_id = request.form.get("supplier_id", "").strip()
+        notes = request.form.get("notes", "").strip()
+        if not vehicle_plate or not entry_date or gallons <= 0 or rate <= 0 or not supplier_id:
+            flash("Please fill all required fields.", "error")
+            return redirect(url_for("fleet.fuel_edit", entry_id=entry_id))
+        supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
+        if not supplier:
+            flash("Supplier not found.", "error")
+            return redirect(url_for("fleet.fuel_edit", entry_id=entry_id))
+        total = round(gallons * rate, 2)
+        db.execute(
+            """UPDATE fuel_entries SET vehicle_plate=?, entry_date=?, gallons=?, rate_per_gallon=?, total_amount=?, supplier_id=?, supplier_name=?, notes=?
+               WHERE id=?""",
+            (vehicle_plate, entry_date, gallons, rate, total, supplier["id"], supplier["supplier_name"], notes, entry_id),
+        )
+        # Update linked supplier_expenses
+        if entry["source_expense_id"]:
+            db.execute(
+                """UPDATE supplier_expenses SET expense_date=?, amount=?, quantity=?, rate=?, vehicle_no=?, description=?
+                   WHERE id=?""",
+                (entry_date, total, gallons, rate, vehicle_plate, notes or f"Fuel for {vehicle_plate}", entry["source_expense_id"]),
+            )
+        db.commit()
+        flash("Fuel entry updated.", "success")
+        return redirect(url_for("fleet.fuel_list"))
+    vehicles = db.execute("SELECT plate_no FROM vehicles ORDER BY plate_no").fetchall()
+    suppliers = db.execute("SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name").fetchall()
+    return render_template("fleet/fuel_form.html", vehicles=vehicles, suppliers=suppliers, entry=entry)
+
+
+@fleet_bp.route("/fleet/fuel/<int:entry_id>/delete", methods=["POST"])
+@_login_required("admin")
+def fuel_delete(entry_id):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    entry = db.execute("SELECT * FROM fuel_entries WHERE id = ?", (entry_id,)).fetchone()
+    if not entry:
+        flash("Fuel entry not found.", "error")
+        return redirect(url_for("fleet.fuel_list"))
+    if entry["source_expense_id"]:
+        db.execute("DELETE FROM supplier_expenses WHERE id = ?", (entry["source_expense_id"],))
+    db.execute("DELETE FROM fuel_entries WHERE id = ?", (entry_id,))
+    db.commit()
+    flash("Fuel entry deleted.", "info")
+    return redirect(url_for("fleet.fuel_list"))
+
+
+@fleet_bp.route("/fleet/fuel/supplier/<int:supplier_id>")
+@_login_required("admin")
+def fuel_supplier_statement(supplier_id):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
+    if not supplier:
+        flash("Supplier not found.", "error")
+        return redirect(url_for("fleet.fuel_list"))
+    month_filter = request.args.get("month", "")
+    date_from = request.args.get("date_from", "")
+    date_to = request.args.get("date_to", "")
+    params = [supplier_id]
+    where = ""
+    if month_filter:
+        where += " AND substr(fe.entry_date,1,7) = ?"
+        params.append(month_filter[:7])
+    else:
+        if date_from:
+            where += " AND fe.entry_date >= ?"
+            params.append(date_from)
+        if date_to:
+            where += " AND fe.entry_date <= ?"
+            params.append(date_to)
+    entries = db.execute(f"""
+        SELECT fe.* FROM fuel_entries fe
+        WHERE fe.supplier_id = ?{where}
+        ORDER BY fe.entry_date DESC, fe.id DESC
+    """, params).fetchall()
+    total_gallons = sum(e["gallons"] for e in entries) if entries else 0
+    total_amount = sum(e["total_amount"] for e in entries) if entries else 0
+    return render_template(
+        "fleet/fuel_supplier_statement.html",
+        supplier=supplier,
+        entries=entries,
+        month_filter=month_filter,
+        date_from=date_from,
+        date_to=date_to,
+        total_gallons=total_gallons,
+        total_amount=total_amount,
+    )
+
+
+@fleet_bp.route("/fleet/fuel/supplier/<int:supplier_id>/pdf")
+@_login_required("admin")
+def fuel_supplier_statement_pdf(supplier_id):
+    flash("PDF coming soon.", "info")
+    return redirect(url_for("fleet.fuel_supplier_statement", supplier_id=supplier_id))
 
 @fleet_bp.route("/fleet/jobs/<int:job_id>/edit", methods=["GET", "POST"])
 @_login_required("admin")

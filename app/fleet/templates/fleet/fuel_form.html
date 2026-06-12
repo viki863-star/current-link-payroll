@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if entry else 'Add' }} Fuel Entry{% endblock %}
+{% block page_title %}{{ 'Edit' if entry else 'Add' }} Fuel Entry{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block content %}
+<div class="profile-shell" style="max-width:640px;margin:0 auto">
+  <div class="profile-card">
+    <h3 style="margin:0 0 16px;font-size:0.95rem">{{ 'Edit' if entry else 'New' }} Fuel Entry</h3>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row">
+        <label class="form-label">Vehicle *</label>
+        <select name="vehicle_plate" class="form-control" required>
+          <option value="">— Select —</option>
+          {% for v in vehicles %}
+          <option value="{{ v.plate_no }}" {{ 'selected' if entry and entry.vehicle_plate == v.plate_no }}>{{ v.plate_no }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Date *</label>
+        <input type="date" name="entry_date" class="form-control" value="{{ entry.entry_date if entry else '' }}" required>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Gallons *</label>
+          <input type="number" name="gallons" step="0.01" min="0" class="form-control" value="{{ entry.gallons if entry else '' }}" placeholder="0" required>
+        </div>
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Rate per Gallon *</label>
+          <input type="number" name="rate_per_gallon" step="0.001" min="0" class="form-control" value="{{ entry.rate_per_gallon if entry else '' }}" placeholder="0" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Supplier *</label>
+        <select name="supplier_id" class="form-control" required>
+          <option value="">— Select —</option>
+          {% for s in suppliers %}
+          <option value="{{ s.id }}" {{ 'selected' if entry and entry.supplier_id == s.id }}>{{ s.supplier_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Notes</label>
+        <input type="text" name="notes" class="form-control" value="{{ entry.notes if entry else '' }}" placeholder="Optional">
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button type="submit" class="btn btn-primary">{{ 'Update' if entry else 'Add' }} Entry</button>
+        <a href="{{ url_for('fleet.fuel_list') }}" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

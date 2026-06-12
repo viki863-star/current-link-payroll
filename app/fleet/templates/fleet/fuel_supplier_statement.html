@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Fuel Statement — {{ supplier.supplier_name }}{% endblock %}
+{% block page_title %}Fuel Statement{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block content %}
+<style>
+.fs-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+.fs-toolbar input, .fs-toolbar select { padding:6px 10px; border:1px solid var(--line); border-radius:8px; font-size:0.82rem; }
+</style>
+<div class="profile-shell">
+  <div class="profile-header" style="border-left:4px solid #e65100">
+    <div class="profile-info">
+      <h1 style="font-size:1.4rem">{{ supplier.supplier_name }}</h1>
+      <p class="profile-badge">Fuel Statement of Account</p>
+    </div>
+    <div class="profile-actions">
+      <a href="{{ url_for('fleet.fuel_supplier_statement_pdf', supplier_id=supplier.id, month=month_filter, date_from=date_from, date_to=date_to) }}" class="btn btn-primary" target="_blank">&#128196; PDF</a>
+      <a href="{{ url_for('fleet.fuel_list') }}" class="btn btn-outline">← Fuel List</a>
+    </div>
+  </div>
+
+  <div class="profile-card" style="margin-top:1rem">
+    <form method="GET" class="fs-toolbar">
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Month:</label>
+      <input type="month" name="month" value="{{ month_filter }}">
+      <span style="font-size:0.72rem;color:var(--muted)">or</span>
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">From:</label>
+      <input type="date" name="date_from" value="{{ date_from }}">
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">To:</label>
+      <input type="date" name="date_to" value="{{ date_to }}">
+      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+      {% if month_filter or date_from or date_to %}
+      <a href="?" class="btn btn-sm btn-outline">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="profile-card" style="margin-top:1rem">
+    {% if entries %}
+    <div class="table-wrap">
+      <table class="smart-table">
+        <thead><tr><th>Date</th><th>Vehicle</th><th class="r">Gallons</th><th class="r">Rate/GLN</th><th class="r">Total AED</th><th>Notes</th></tr></thead>
+        <tbody>
+          {% for e in entries %}
+          <tr>
+            <td class="mono">{{ e.entry_date }}</td>
+            <td><a href="{{ url_for('fleet.vehicle_profile', plate_no=e.vehicle_plate) }}?tab=fuel" style="color:var(--primary);text-decoration:none;font-weight:600">{{ e.vehicle_plate }}</a></td>
+            <td class="r mono" style="font-weight:600">{{ "%.2f"|format(e.gallons) }}</td>
+            <td class="r mono">{{ "%.3f"|format(e.rate_per_gallon) }}</td>
+            <td class="r mono" style="font-weight:700;color:#e65100">{{ "%.2f"|format(e.total_amount) }}</td>
+            <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--muted)">{{ e.notes or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px;padding:12px;background:#f8fafd;border-radius:8px;display:flex;justify-content:space-between">
+      <span><strong>Total Entries:</strong> {{ entries|length }}</span>
+      <span><strong>Total Gallons:</strong> {{ "%.2f"|format(total_gallons) }}</span>
+      <span><strong>Total Amount:</strong> AED {{ "%.2f"|format(total_amount) }}</span>
+    </div>
+    {% else %}
+    <p class="empty-state" style="padding:40px;text-align:center;color:var(--muted)">No fuel entries for this period.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Fuel Entries{% endblock %}
+{% block page_title %}Fuel Management{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block content %}
+<style>
+.fe-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+.fe-toolbar select, .fe-toolbar input { padding:6px 10px; border:1px solid var(--line); border-radius:8px; font-size:0.82rem; }
+.fe-toolbar a, .fe-toolbar button { white-space:nowrap; }
+</style>
+<div class="profile-shell">
+  <div class="profile-header" style="border-left:4px solid #e65100">
+    <div class="profile-info">
+      <h1 style="font-size:1.4rem">⛽ Fuel Entries</h1>
+      <p class="profile-badge">Manage fuel purchases for all vehicles</p>
+    </div>
+    <div class="profile-actions">
+      <a href="{{ url_for('fleet.fuel_add') }}" class="btn btn-primary">+ Add Fuel Entry</a>
+      <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline">← Vehicles</a>
+    </div>
+  </div>
+
+  <div class="profile-card" style="margin-top:1rem">
+    <form method="GET" class="fe-toolbar">
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Vehicle:</label>
+      <select name="vehicle">
+        <option value="">All</option>
+        {% for v in vehicles %}
+        <option value="{{ v.plate_no }}" {{ 'selected' if vehicle_filter == v.plate_no }}>{{ v.plate_no }}</option>
+        {% endfor %}
+      </select>
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Month:</label>
+      <input type="month" name="month" value="{{ month_filter }}">
+      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+      {% if vehicle_filter or month_filter %}
+      <a href="?" class="btn btn-sm btn-outline">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="profile-card" style="margin-top:1rem">
+    {% if entries %}
+    <div class="table-wrap">
+      <table class="smart-table">
+        <thead><tr><th>Date</th><th>Vehicle</th><th class="r">Gallons</th><th class="r">Rate/GLN</th><th class="r">Total AED</th><th>Supplier</th><th>Notes</th><th></th></tr></thead>
+        <tbody>
+          {% for e in entries %}
+          <tr>
+            <td class="mono">{{ e.entry_date }}</td>
+            <td><strong><a href="{{ url_for('fleet.vehicle_profile', plate_no=e.vehicle_plate) }}?tab=fuel" style="color:var(--primary);text-decoration:none">{{ e.vehicle_plate }}</a></strong></td>
+            <td class="r mono" style="font-weight:600">{{ "%.2f"|format(e.gallons) }}</td>
+            <td class="r mono">{{ "%.3f"|format(e.rate_per_gallon) }}</td>
+            <td class="r mono" style="font-weight:700;color:#e65100">{{ "%.2f"|format(e.total_amount) }}</td>
+            <td>
+              <a href="{{ url_for('fleet.fuel_supplier_statement', supplier_id=e.supplier_id) }}" style="color:var(--primary);text-decoration:none">{{ e.supplier_name }}</a>
+            </td>
+            <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--muted)">{{ e.notes or '—' }}</td>
+            <td>
+              <div style="display:flex;gap:4px">
+                <a href="{{ url_for('fleet.fuel_edit', entry_id=e.id) }}" class="btn btn-xs btn-outline">Edit</a>
+                <form method="post" action="{{ url_for('fleet.fuel_delete', entry_id=e.id) }}" style="display:inline" onsubmit="return confirm('Delete fuel entry for {{ e.vehicle_plate }} on {{ e.entry_date }}?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px;padding:12px;background:#f8fafd;border-radius:8px;display:flex;justify-content:space-between">
+      <span><strong>Total Gallons:</strong> {{ "%.2f"|format(total_gallons) }}</span>
+      <span><strong>Total Amount:</strong> AED {{ "%.2f"|format(total_amount) }}</span>
+    </div>
+    {% else %}
+    <p class="empty-state" style="padding:40px;text-align:center;color:var(--muted)">No fuel entries found.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
