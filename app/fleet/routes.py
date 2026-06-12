@@ -1385,14 +1385,14 @@ def fleet_staff_profile(staff_id):
         date_where = ""
         date_params = []
         if filter_month:
-            date_where += " AND substr(CAST(mj.created_at AS TEXT),1,7) = ?"
+            date_where += " AND STRFTIME('%Y-%m', mj.created_at) = ?"
             date_params.append(filter_month)
         else:
             if date_from:
-                date_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) >= ?"
+                date_where += " AND DATE(mj.created_at) >= ?"
                 date_params.append(date_from)
             if date_to:
-                date_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
+                date_where += " AND DATE(mj.created_at) <= ?"
                 date_params.append(date_to)
         jobs = db.execute(f"""
             SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
@@ -1403,14 +1403,14 @@ def fleet_staff_profile(staff_id):
         paper_where = ""
         paper_params = []
         if filter_month:
-            paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,7) = ?"
+            paper_where += " AND STRFTIME('%Y-%m', mp.created_at) = ?"
             paper_params.append(filter_month)
         else:
             if date_from:
-                paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,10) >= ?"
+                paper_where += " AND DATE(mp.created_at) >= ?"
                 paper_params.append(date_from)
             if date_to:
-                paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,10) <= ?"
+                paper_where += " AND DATE(mp.created_at) <= ?"
                 paper_params.append(date_to)
         raw_papers = db.execute(f"""
             SELECT mp.id, mp.paper_no, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
@@ -1441,14 +1441,14 @@ def fleet_staff_profile(staff_id):
         adv_where = ""
         adv_params = []
         if filter_month:
-            adv_where += " AND substr(entry_date,1,7) = ?"
+            adv_where += " AND STRFTIME('%Y-%m', entry_date) = ?"
             adv_params.append(filter_month)
         else:
             if date_from:
-                adv_where += " AND substr(entry_date,1,10) >= ?"
+                adv_where += " AND DATE(entry_date) >= ?"
                 adv_params.append(date_from)
             if date_to:
-                adv_where += " AND substr(entry_date,1,10) <= ?"
+                adv_where += " AND DATE(entry_date) <= ?"
                 adv_params.append(date_to)
         advances = db.execute(f"""
             SELECT * FROM maintenance_staff_advances WHERE staff_code = ?{adv_where} ORDER BY entry_date DESC
@@ -1468,7 +1468,7 @@ def fleet_staff_profile(staff_id):
         cash_items.sort(key=lambda x: x["_date"], reverse=True)
 
         months = db.execute(
-            "SELECT DISTINCT substr(entry_date,1,7) AS m FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY m DESC",
+            "SELECT DISTINCT STRFTIME('%Y-%m', entry_date) AS m FROM maintenance_staff_advances WHERE staff_code = ? ORDER BY m DESC",
             (staff_id,),
         ).fetchall()
 
@@ -1518,17 +1518,17 @@ def fleet_staff_advances_pdf(staff_id):
         date_params = []
         where_adv = ""
         if filter_month:
-            where_adv += " AND substr(entry_date,1,7) = ?"
+            where_adv += " AND STRFTIME('%Y-%m', entry_date) = ?"
             date_params.append(filter_month[:7])
         else:
             if date_from:
-                where_adv += " AND substr(entry_date,1,10) >= ?"
+                where_adv += " AND DATE(entry_date) >= ?"
                 date_params.append(date_from)
             if date_to:
-                where_adv += " AND substr(entry_date,1,10) <= ?"
+                where_adv += " AND DATE(entry_date) <= ?"
                 date_params.append(date_to)
         if not date_params:
-            where_adv = " AND substr(entry_date,1,7) = ?"
+            where_adv = " AND STRFTIME('%Y-%m', entry_date) = ?"
             date_params.append(date.today().isoformat()[:7])
         advances = db.execute(f"SELECT * FROM maintenance_staff_advances WHERE staff_code = ?{where_adv} ORDER BY entry_date DESC", (staff_id, *date_params)).fetchall()
         total = sum(a["amount"] for a in advances) if advances else 0
@@ -1537,17 +1537,17 @@ def fleet_staff_advances_pdf(staff_id):
         jp_where = ""
         jp_params = []
         if filter_month:
-            jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,7) = ?"
+            jp_where += " AND STRFTIME('%Y-%m', mj.created_at) = ?"
             jp_params.append(filter_month[:7])
         else:
             if date_from:
-                jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) >= ?"
+                jp_where += " AND DATE(mj.created_at) >= ?"
                 jp_params.append(date_from)
             if date_to:
-                jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
+                jp_where += " AND DATE(mj.created_at) <= ?"
                 jp_params.append(date_to)
         if not jp_params:
-            jp_where = " AND substr(CAST(mj.created_at AS TEXT),1,7) = ?"
+            jp_where = " AND STRFTIME('%Y-%m', mj.created_at) = ?"
             jp_params.append(date.today().isoformat()[:7])
         jobs_data = db.execute(f"""
             SELECT mj.id, mj.vehicle_id, mj.amount, mj.created_at, v.plate_no
@@ -1600,14 +1600,14 @@ def fleet_staff_jobs_pdf(staff_id):
         jp_where = ""
         jp_params = []
         if filter_month:
-            jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,7) = ?"
+            jp_where += " AND STRFTIME('%Y-%m', mj.created_at) = ?"
             jp_params.append(filter_month[:7])
         else:
             if date_from:
-                jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) >= ?"
+                jp_where += " AND DATE(mj.created_at) >= ?"
                 jp_params.append(date_from)
             if date_to:
-                jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
+                jp_where += " AND DATE(mj.created_at) <= ?"
                 jp_params.append(date_to)
         jobs = db.execute(f"""
             SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
