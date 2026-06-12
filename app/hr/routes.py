@@ -1068,6 +1068,9 @@ def employee_edit(employee_id):
         values = employee_form_data()
         values["employee_id"] = employee_id
         errors = validate_employee_form(values)
+        import logging
+        logging.warning(f"DEBUG employee_edit POST: join_date from form = '{request.form.get('join_date', '')}'")
+        logging.warning(f"DEBUG employee_edit POST: join_date in values = '{values.get('join_date', '')}'")
         if errors:
             for err in errors:
                 flash(err, "error")
