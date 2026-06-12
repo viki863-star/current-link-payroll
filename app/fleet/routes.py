@@ -1842,7 +1842,6 @@ def fleet_job_reject(job_id):
 # ── Serve Attachment ────────────────────────────────────────────
 
 @fleet_bp.route("/fleet/attachment/<int:job_id>")
-@_login_required("admin")
 def fleet_attachment(job_id):
     db = open_db()
     job = db.execute("SELECT attachment_data, attachment_name, attachment_type FROM maintenance_jobs WHERE id = ?", (job_id,)).fetchone()
