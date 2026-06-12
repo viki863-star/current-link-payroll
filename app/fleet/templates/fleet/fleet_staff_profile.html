@@ -140,19 +140,19 @@
     </div>
 
     {# ═══ FILTER BAR ═══ #}
-    <div class="sp-filter-bar">
+    <form method="GET" class="sp-filter-bar" action="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}">
       <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Month:</label>
-      <select id="filter_month" onchange="setMonthRange(this.value)" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;min-width:120px">
+      <select id="filter_month" name="month" onchange="setMonthRange(this.value)" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;min-width:120px">
         <option value="">All</option>
         {% for m in months %}
         <option value="{{ m }}" {{ 'selected' if filter_month == m }}>{{ m }}</option>
         {% endfor %}
       </select>
       <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">From:</label>
-      <input type="date" id="filter_from" value="{{ date_from }}" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+      <input type="date" id="filter_from" name="date_from" value="{{ date_from }}" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
       <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">To:</label>
-      <input type="date" id="filter_to" value="{{ date_to }}" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-      <button onclick="applyFilter()" class="btn btn-sm btn-primary" style="padding:6px 12px">Filter</button>
+      <input type="date" id="filter_to" name="date_to" value="{{ date_to }}" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+      <button type="submit" class="btn btn-sm btn-primary" style="padding:6px 12px">Filter</button>
       {% if filter_month or date_from or date_to %}
       <a href="?" class="btn btn-sm btn-outline">Clear</a>
       {% endif %}
@@ -161,7 +161,7 @@
         <a href="{{ url_for('fleet.fleet_staff_advances_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to) }}" class="btn btn-sm btn-primary" target="_blank">&#128196; Cash PDF</a>
         <a href="{{ url_for('fleet.fleet_staff_jobs_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to) }}" class="btn btn-sm btn-primary" target="_blank" style="background:#e65100">&#128196; Jobs PDF</a>
       </div>
-    </div>
+    </form>
     <script>
     function setMonthRange(month) {
       if (!month) { document.getElementById('filter_from').value = ''; document.getElementById('filter_to').value = ''; return; }
@@ -170,16 +170,6 @@
       document.getElementById('filter_from').value = y+'-'+(m<10?'0':'')+m+'-01';
       var last = new Date(y, m, 0);
       document.getElementById('filter_to').value = last.toISOString().slice(0,10);
-    }
-    function applyFilter() {
-      var month = document.getElementById('filter_month').value;
-      var from = document.getElementById('filter_from').value;
-      var to = document.getElementById('filter_to').value;
-      var p = [];
-      if (month) p.push('month='+month);
-      if (!month && from) p.push('date_from='+from);
-      if (!month && to) p.push('date_to='+to);
-      window.location = '?'+p.join('&');
     }
     </script>
 
