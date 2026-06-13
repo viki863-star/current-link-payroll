@@ -8464,7 +8464,8 @@ html {
 
 .page-content {
     flex: 1;
-    padding: 24px 28px;
+    padding: 24px 28px 40px;
+    min-height: calc(100vh - 140px);
 }
 
 .db-shell {
