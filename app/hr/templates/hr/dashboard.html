@@ -49,7 +49,7 @@
         <div class="kpi-card">
             <div class="kpi-icon" style="color:var(--green)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
             <div class="kpi-title">Payroll (Active)</div>
-            <div class="kpi-number" style="color:var(--green);font-size:1.05rem">AED {{ "{:,.0f}"|format(payroll_amount) }}</div>
+            <div class="kpi-number" style="color:var(--green);font-size:1.05rem">AED {{ "{:,.0f}".format(payroll_amount) }}</div>
             <div class="kpi-sub">{{ stored_this_month }} entries this month</div>
         </div>
         <div class="kpi-card">
