@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block body_class %}driver-portal-page{% endblock %}
+
 {% block shell_header %}
 <header class="dp-header">
   <div class="dp-header-inner">
@@ -15,10 +17,12 @@
 </header>
 {% endblock %}
 
+{% block shell_footer %}{% endblock %}
+
 {% block content %}
 <div class="dp-shell">
 
-  {# ═══ Driver Info Card ═══ #}
+  {# Driver Info Card #}
   <div class="dp-profile">
     <div class="dp-avatar">
       {% if photo_url %}
@@ -38,7 +42,7 @@
     <span class="dp-status {{ driver.status|lower }}">{{ driver.status }}</span>
   </div>
 
-  {# ═══ Quick Stats ═══ #}
+  {# Quick Stats #}
   <div class="dp-stats">
     <div class="dp-stat">
       <span class="dp-stat-value">{{ "%.2f"|format(month_hours) }}</span>
@@ -58,7 +62,7 @@
     </div>
   </div>
 
-  {# ═══ Timesheet Entry ═══ #}
+  {# Timesheet Entry #}
   <div class="dp-card" id="timesheet-entry">
     <div class="dp-card-head">
       <span class="dp-card-step">1</span>
@@ -85,7 +89,7 @@
     </form>
   </div>
 
-  {# ═══ Monthly Overview + Calendar ═══ #}
+  {# Monthly Overview + Calendar #}
   <div class="dp-card" id="timesheet-calendar">
     <div class="dp-card-head">
       <span class="dp-card-step">2</span>
@@ -107,12 +111,12 @@
       <span><span class="dp-legend-dot missing"></span> Missing</span>
     </div>
     <div class="dp-card-actions">
-      <a href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank" class="dp-btn dp-btn-outline">📄 Monthly Statement</a>
-      <a href="{{ url_for('driver_timesheet_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank" class="dp-btn dp-btn-outline">📄 Timesheet PDF</a>
+      <a href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank" class="dp-btn dp-btn-outline">Monthly Statement</a>
+      <a href="{{ url_for('driver_timesheet_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank" class="dp-btn dp-btn-outline">Timesheet PDF</a>
     </div>
   </div>
 
-  {# ═══ Recent Hours ═══ #}
+  {# Recent Hours #}
   <div class="dp-card">
     <div class="dp-card-head">
       <span class="dp-card-step">3</span>
@@ -140,7 +144,7 @@
     {% endif %}
   </div>
 
-  {# ═══ Salary Slips ═══ #}
+  {# Salary Slips #}
   <div class="dp-card" id="salary-slips">
     <div class="dp-card-head">
       <span class="dp-card-step">4</span>
@@ -170,7 +174,7 @@
     {% endif %}
   </div>
 
-  {# ═══ Monthly Statement ═══ #}
+  {# Monthly Statement #}
   <div class="dp-card" id="driver-transactions">
     <div class="dp-card-head">
       <span class="dp-card-step">5</span>
@@ -222,6 +226,16 @@
 </div>
 
 <style>
+body.driver-portal-page .main-content {
+  padding-top: 0;
+  margin-left: 0;
+  max-width: 100%;
+  width: 100%;
+}
+body.driver-portal-page .page-content {
+  padding: 0;
+}
+
 .dp-header {
   position:sticky;top:0;z-index:100;
   background:#0f2b52;color:#fff;
@@ -229,7 +243,7 @@
 }
 .dp-header-inner {
   display:flex;align-items:center;justify-content:space-between;
-  max-width:640px;margin:0 auto;padding:14px 16px;
+  max-width:800px;margin:0 auto;padding:14px 20px;
 }
 .dp-brand { display:flex;align-items:center;gap:8px;font-weight:700;font-size:1rem; }
 .dp-logout {
@@ -241,8 +255,11 @@
 .dp-logout:hover { background:rgba(255,255,255,0.1);color:#fff; }
 
 .dp-shell {
-  max-width:640px;margin:0 auto;padding:16px;
+  max-width:800px;margin:0 auto;padding:20px;
   display:grid;gap:16px;
+}
+@media (max-width:600px) {
+  .dp-shell { padding:12px;gap:12px; }
 }
 
 .dp-profile {
@@ -277,6 +294,9 @@
 
 .dp-stats {
   display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;
+}
+@media (max-width:400px) {
+  .dp-stats { grid-template-columns:1fr 1fr; }
 }
 .dp-stat {
   background:#fff;border-radius:10px;padding:12px 8px;text-align:center;
@@ -417,5 +437,16 @@
 .dp-paper-item strong { color:#0f172a;font-size:0.8rem; }
 .dp-paper-item small { display:block;color:#94a3b8;font-size:0.7rem; }
 .dp-paper-item span { color:#64748b; }
+
+@media (max-width:600px) {
+  .dp-header-inner { padding:12px 14px; }
+  .dp-card-head { padding:12px 14px; }
+  .dp-card-head h3 { font-size:0.82rem; }
+  .dp-form { padding:14px; }
+  .dp-calendar { padding:10px 12px;gap:3px; }
+  .dp-day { padding:4px 1px;font-size:0.65rem; }
+  .dp-statement-grid { padding:12px; }
+  .dp-table th, .dp-table td { padding:8px 10px;font-size:0.74rem; }
+}
 </style>
 {% endblock %}
