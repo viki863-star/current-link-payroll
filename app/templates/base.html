@@ -197,7 +197,19 @@
             {% block content %}{% endblock %}
         </div>
 
-        {% block shell_footer %}{% endblock %}
+        {% block shell_footer %}
+        <footer class="site-footer">
+            <div class="site-footer-bar">
+                <div class="site-footer-inner">
+                    <span class="site-footer-name">
+                        <strong>{{ config["COMPANY_NAME"] }}</strong>
+                        &mdash; {{ config.get("COMPANY_SUBTITLE", "Transport & General Contracting") }}
+                    </span>
+                    <span class="site-footer-copy">Internal ERP &copy; {{ config["COMPANY_NAME"] }} 2026</span>
+                </div>
+            </div>
+        </footer>
+        {% endblock %}
     </div>
 </div>
 
