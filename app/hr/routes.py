@@ -40,9 +40,13 @@ def ensure_employees_table():
     db = open_db()
     backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
 
-    schema = EMPLOYEE_SCHEMA_POSTGRES if backend == "postgres" else EMPLOYEE_SCHEMA
-    db.executescript(schema)
-    db.commit()
+    try:
+        schema = EMPLOYEE_SCHEMA_POSTGRES if backend == "postgres" else EMPLOYEE_SCHEMA
+        db.executescript(schema)
+        db.commit()
+    except Exception as e:
+        import traceback
+        current_app.logger.error("ensure_employees_table schema error: %s\n%s", e, traceback.format_exc())
 
     try:
         sync_drivers_to_employees(db)
@@ -160,8 +164,10 @@ def hr_dashboard():
             recent_employees=recent,
         )
     except Exception as e:
-        current_app.logger.error("HR dashboard error: %s | type=%s", e, type(e).__name__, exc_info=True)
-        flash(f"HR Dashboard error: {e}", "error")
+        import traceback
+        tb = traceback.format_exc()
+        current_app.logger.error("HR dashboard error: %s | type=%s\n%s", e, type(e).__name__, tb)
+        flash(f"HR Dashboard error: {type(e).__name__}: {e}", "error")
         return redirect(url_for("dashboard"))
 
 
