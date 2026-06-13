@@ -63,8 +63,8 @@ def validate_employee_form(form):
 
     if not form.get("employee_id"):
         errors.append("Employee ID is required.")
-    elif not re.match(r"^[A-Z0-9\-]+$", form["employee_id"]):
-        errors.append("Employee ID must contain only letters, numbers, and hyphens.")
+    elif not re.match(r"^[A-Z0-9\- ]+$", form["employee_id"]):
+        errors.append("Employee ID must contain only letters, numbers, hyphens, and spaces.")
 
     if not form.get("full_name"):
         errors.append("Full name is required.")
