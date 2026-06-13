@@ -37,15 +37,28 @@
             <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Loan No</label>
             <input type="text" name="loan_no" value="{{ values.loan_no }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
         </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Party</label>
-            <select name="party_code" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-                <option value="">Select</option>
-                {% for party in parties %}
-                <option value="{{ party.party_code }}" {% if values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }}</option>
-                {% endfor %}
-            </select>
-        </div>
+<div>
+    <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Party</label>
+    <select name="party_code" id="party_code" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem" onchange="toggleOtherParty(this)">
+        <option value="">Select</option>
+        {% for party in parties %}
+        <option value="{{ party.party_code }}" {% if values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }}</option>
+        {% endfor %}
+        <option value="__other__" {% if values.party_code == '__other__' %}selected{% endif %}>Other (Manual Entry)</option>
+    </select>
+    <input type="text" name="other_party_name" id="other_party_name" value="{{ values.other_party_name }}" placeholder="Enter party name" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;margin-top:4px;display:none">
+</div>
+<script>
+function toggleOtherParty(sel) {
+    var otherInput = document.getElementById('other_party_name');
+    otherInput.style.display = sel.value === '__other__' ? 'block' : 'none';
+    if (sel.value !== '__other__') otherInput.value = '';
+}
+(function() {
+    var sel = document.getElementById('party_code');
+    if (sel.value === '__other__') toggleOtherParty(sel);
+})();
+</script>
         <div>
             <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Type</label>
             <select name="loan_type" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">

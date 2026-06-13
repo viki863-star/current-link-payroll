@@ -10084,6 +10084,7 @@ def _default_loan_form(db=None):
         "original_loan_no": "",
         "loan_no": _next_reference_code(db, "loan_entries", "loan_no", "LOAN"),
         "party_code": "",
+        "other_party_name": "",
         "entry_date": date.today().isoformat(),
         "loan_type": LOAN_TYPE_OPTIONS[0],
         "amount": "",
@@ -10704,6 +10705,7 @@ def _loan_form_data(request):
         "original_loan_no": request.form.get("original_loan_no", "").strip().upper(),
         "loan_no": request.form.get("loan_no", "").strip().upper(),
         "party_code": request.form.get("party_code", "").strip().upper(),
+        "other_party_name": request.form.get("other_party_name", "").strip(),
         "entry_date": request.form.get("entry_date", "").strip(),
         "loan_type": request.form.get("loan_type", LOAN_TYPE_OPTIONS[0]).strip() or LOAN_TYPE_OPTIONS[0],
         "amount": request.form.get("amount", "").strip(),
@@ -15155,6 +15157,16 @@ def _prepare_payment_payload(invoice, values):
 def _prepare_loan_payload(db, values):
     if not values["loan_no"]:
         values["loan_no"] = _next_reference_code(db, "loan_entries", "loan_no", "LOAN")
+    if values.get("party_code") == "__OTHER__":
+        if not values.get("other_party_name", "").strip():
+            raise ValidationError("Enter the party name for manual entry.")
+        name = values["other_party_name"].strip()
+        code = _next_reference_code(db, "parties", "party_code", "OTH")
+        db.execute(
+            "INSERT INTO parties (party_code, party_name, party_kind, party_roles, status) VALUES (?, ?, ?, ?, ?)",
+            (code, name, "Individual", "Individual", "Active"),
+        )
+        values["party_code"] = code
     _validate_party_reference(db, values["party_code"])
     entry_date = _validate_date_text(values["entry_date"], "Loan date")
     amount = _parse_decimal(values["amount"], "Loan amount", required=True, minimum=0.01)
