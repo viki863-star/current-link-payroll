@@ -38,10 +38,11 @@
       <option value="with_invoice" {% if typ == 'with_invoice' %}selected{% endif %}>With Invoice</option>
       <option value="without_invoice" {% if typ == 'without_invoice' %}selected{% endif %}>Cash</option>
     </select>
-    <label class="toggle-trash">
-      <input type="checkbox" id="showDeleted" onchange="doSearch()" {% if show_all %}checked{% endif %}>
-      Show deleted
-    </label>
+    <div style="display:flex;gap:6px;align-items:center">
+      <a href="{{ url_for('supplier.supplier_list', status='blocked') }}" class="btn btn-xs {{ 'btn-primary' if status_filter == 'blocked' else 'btn-outline' }}">Blocked</a>
+      <a href="{{ url_for('supplier.supplier_list', status='deleted') }}" class="btn btn-xs {{ 'btn-primary' if status_filter == 'deleted' else 'btn-outline' }}">Deleted</a>
+      <a href="{{ url_for('supplier.supplier_list') }}" class="btn btn-xs {{ 'btn-primary' if not status_filter else 'btn-outline' }}">Active</a>
+    </div>
     <div class="sl-actions">
       <a href="{{ url_for('supplier.supplier_add') }}" class="btn btn-primary btn-sm">+ Add Supplier</a>
     </div>
@@ -83,7 +84,7 @@
               <td><a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" style="font-weight:600;color:#0f172a;text-decoration:none">{{ s.supplier_name }}</a></td>
               <td class="mono" style="font-size:0.8rem;color:#000">{{ s.phone or '—' }}</td>
               <td class="mono" style="font-size:0.8rem;color:#000">{{ s.trn or '—' }}</td>
-              <td>{% if s.is_deleted %}<span class="status-badge pending">Deleted</span>{% else %}<span class="status-badge active">Active</span>{% endif %}</td>
+              <td>{% if s.is_deleted %}<span class="status-badge pending">Deleted</span>{% elif s.status == 'Inactive' %}<span class="status-badge pending">Blocked</span>{% else %}<span class="status-badge active">Active</span>{% endif %}</td>
               <td class="c">
                 <div style="display:flex;gap:4px;justify-content:center">
                 {% if s.is_deleted %}
@@ -91,8 +92,8 @@
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-xs btn-outline" style="color:#2563eb">Restore</button>
                 </form>
-                {% else %}
-                <form method="POST" action="{{ url_for('supplier.supplier_delete', sup_id=s.id) }}" style="display:inline" onsubmit="return confirm('Move {{ s.supplier_name }} to trash?')">
+                {% elif s.status == 'Inactive' %}
+                <form method="POST" action="{{ url_for('supplier.supplier_delete', sup_id=s.id) }}" style="display:inline" onsubmit="return confirm('Permanently delete {{ s.supplier_name }} and ALL linked data?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-xs btn-outline" style="color:#c62828">Delete</button>
                 </form>
@@ -125,11 +126,10 @@ function updateBulk() {
 function doSearch() {
   var q = document.getElementById('searchInput').value;
   var typ = document.getElementById('typeFilter').value;
-  var show = document.getElementById('showDeleted').checked ? 'all' : '';
   var params = [];
   if (q) params.push('q=' + encodeURIComponent(q));
   if (typ) params.push('type=' + encodeURIComponent(typ));
-  if (show) params.push('show=' + show);
+  {% if status_filter %}params.push('status={{ status_filter }}');{% endif %}
   window.location.href = '{{ url_for("supplier.supplier_list") }}' + (params.length ? '?' + params.join('&') : '');
 }
 </script>

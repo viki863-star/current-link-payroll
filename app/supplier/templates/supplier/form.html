@@ -133,10 +133,6 @@
 
       {% if is_edit %}
       <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" class="btn btn-outline" style="width:100%;margin-top:6px;display:block;text-align:center">Cancel</a>
-      <form method="post" action="{{ url_for('supplier.supplier_delete', sup_id=s.id) }}" onsubmit="return confirm('Delete {{ s.supplier_name }} and ALL linked data? This cannot be undone.');" style="margin-top:10px">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-danger" style="width:100%">Delete Supplier</button>
-      </form>
       {% endif %}
     </form>
   </div>

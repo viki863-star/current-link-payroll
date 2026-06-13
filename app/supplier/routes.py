@@ -731,11 +731,16 @@ def supplier_list():
     db = _get_db()
     q = request.args.get("q", "").strip()
     typ = request.args.get("type", "")
+    status_filter = request.args.get("status", "").strip().lower()
     show_all = request.args.get("show", "") == "all"
     sql = "SELECT * FROM suppliers"
     params = []
     conditions = []
-    if not show_all:
+    if status_filter == "blocked":
+        conditions.append("COALESCE(is_deleted,0) = 0 AND status = 'Inactive'")
+    elif status_filter == "deleted":
+        conditions.append("COALESCE(is_deleted,0) = 1")
+    elif not show_all:
         conditions.append("COALESCE(is_deleted,0) = 0")
     if q:
         conditions.append(
@@ -751,7 +756,7 @@ def supplier_list():
     sql += " ORDER BY COALESCE(is_deleted,0), supplier_name"
     suppliers = db.execute(sql, params).fetchall()
 
-    return render_template("supplier/list.html", suppliers=suppliers, q=q, typ=typ, show_all=show_all)
+    return render_template("supplier/list.html", suppliers=suppliers, q=q, typ=typ, status_filter=status_filter)
 
 
 # ═══════════════════════════════════════════════════════════
