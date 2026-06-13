@@ -110,7 +110,7 @@ def sync_drivers_to_employees(db):
                     department, designation, join_date, basic_salary, ot_rate,
                     photo_name, photo_data, photo_content_type, status, termination_date,
                     remarks, shift, created_at
-                ) VALUES (?, ?, ?, 'Driver', 'Transport', 'Driver', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+                ) VALUES (?, ?, ?, 'Driver', 'Transport', 'Driver', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
                 """,
                 (emp_id, name, phone, duty_start, salary, ot,
                  photo_name, photo_data, photo_ct, status, termination_date, remarks, shift, created),
