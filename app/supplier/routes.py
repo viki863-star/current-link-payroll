@@ -732,7 +732,6 @@ def supplier_list():
     q = request.args.get("q", "").strip()
     typ = request.args.get("type", "")
     status_filter = request.args.get("status", "").strip().lower()
-    show_all = request.args.get("show", "") == "all"
     sql = "SELECT * FROM suppliers"
     params = []
     conditions = []
@@ -740,8 +739,8 @@ def supplier_list():
         conditions.append("COALESCE(is_deleted,0) = 0 AND status = 'Inactive'")
     elif status_filter == "deleted":
         conditions.append("COALESCE(is_deleted,0) = 1")
-    elif not show_all:
-        conditions.append("COALESCE(is_deleted,0) = 0")
+    else:
+        conditions.append("COALESCE(is_deleted,0) = 0 AND status = 'Active'")
     if q:
         conditions.append(
             "(supplier_name LIKE ? OR supplier_code LIKE ? OR phone LIKE ? OR email LIKE ?)"
