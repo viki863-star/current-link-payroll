@@ -167,7 +167,7 @@ def hr_dashboard():
         import traceback
         tb = traceback.format_exc()
         current_app.logger.error("HR dashboard error: %s | type=%s\n%s", e, type(e).__name__, tb)
-        flash(f"HR Dashboard error: {type(e).__name__}: {e}", "error")
+        flash(f"HR Dashboard error: {type(e).__name__}: {e}\n\nTraceback:\n{tb[:2000]}", "error")
         return redirect(url_for("dashboard"))
 
 
