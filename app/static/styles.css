@@ -780,6 +780,7 @@ html::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
    FOOTER UPGRADE
    ====================================================================== */
 .site-footer {
+    margin-top: auto;
     width: 100%;
 }
 .site-footer-banner {
@@ -8154,14 +8155,14 @@ html {
 .main-content {
     flex: 1;
     margin-left: var(--sidebar-w);
-    display: grid;
-    grid-template-rows: 1fr auto;
-    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
     max-width: calc(100% - var(--sidebar-w));
     overflow-x: hidden;
     width: calc(100% - var(--sidebar-w));
     padding-top: 60px;
+    min-height: 100vh;
 }
 
 .topbar {
@@ -8462,6 +8463,7 @@ html {
 }
 
 .page-content {
+    flex: 1;
     padding: 24px 28px 40px;
 }
 
