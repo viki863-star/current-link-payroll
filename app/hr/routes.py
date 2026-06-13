@@ -1203,8 +1203,8 @@ def employee_edit(employee_id):
 
             try:
                 db.execute(
-                    "UPDATE drivers SET basic_salary=?, ot_rate=?, duty_start=?, shift=?, full_name=?, phone_number=? WHERE driver_id=?",
-                    (salary, ot_rate, values["join_date"], values["shift"] or "Morning", values["full_name"], values["phone_number"] or None, employee_id),
+                    "UPDATE drivers SET basic_salary=?, ot_rate=?, duty_start=?, shift=?, full_name=?, phone_number=?, status=? WHERE driver_id=?",
+                    (salary, ot_rate, values["join_date"], values["shift"] or "Morning", values["full_name"], values["phone_number"] or None, values["status"], employee_id),
                 )
                 db.commit()
             except Exception:
