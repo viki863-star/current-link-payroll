@@ -328,7 +328,7 @@ def vehicle_list():
     except Exception as e:
         current_app.logger.error("Fleet error: %s", e, exc_info=True)
         flash("An error occurred loading the fleet dashboard.", "error")
-        return redirect(url_for("fleet.fleet_dashboard"))
+        return redirect(url_for("dashboard"))
 
 
 # ── Add Vehicle ─────────────────────────────────────────────────

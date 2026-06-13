@@ -94,7 +94,7 @@ def settings():
     except Exception as e:
         logger.exception("Settings page error")
         flash(f"Error loading settings: {e}", "error")
-        return redirect(url_for("core.settings"))
+        return redirect(url_for("dashboard"))
 
 
 @core_bp.route("/settings/download-db-backup")
