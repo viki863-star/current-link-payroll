@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS drivers (
     photo_data TEXT,
     photo_content_type TEXT,
     status TEXT NOT NULL DEFAULT 'Active',
+    termination_date TEXT,
     remarks TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -909,6 +910,7 @@ CREATE TABLE IF NOT EXISTS drivers (
     photo_data TEXT,
     photo_content_type TEXT,
     status TEXT NOT NULL DEFAULT 'Active',
+    termination_date TEXT,
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -1743,6 +1745,7 @@ REQUIRED_COLUMNS = {
         "pin_hash": "TEXT",
         "photo_data": "TEXT",
         "photo_content_type": "TEXT",
+        "termination_date": "TEXT",
     },
     "driver_transactions": {
         "given_by": "TEXT",

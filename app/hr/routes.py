@@ -305,15 +305,16 @@ def employee_new():
             """
             INSERT INTO drivers (
                 driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
-                basic_salary, ot_rate, duty_start, photo_name, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                basic_salary, ot_rate, duty_start, photo_name, status, termination_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(driver_id) DO UPDATE SET
                 full_name=excluded.full_name,
                 phone_number=excluded.phone_number,
                 shift=excluded.shift,
                 basic_salary=excluded.basic_salary,
                 ot_rate=excluded.ot_rate,
-                status=excluded.status
+                status=excluded.status,
+                termination_date=excluded.termination_date
             """,
             (
                 values["employee_id"], values["full_name"], values["phone_number"] or None,
@@ -321,7 +322,7 @@ def employee_new():
                 values.get("vehicle_type", "Car") or "Car", salary, ot_rate,
                 values["join_date"] or None,
                 uploaded_photo["photo_name"] if uploaded_photo else None,
-                values["status"],
+                values["status"], values["termination_date"] or None,
             ),
         )
 
