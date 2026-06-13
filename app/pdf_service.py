@@ -534,7 +534,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
                 pdf,
                 {
                     "previous_balance": format_currency(opening_balance),
-                    "salary": format_currency(base_salary_total),
+                    "salary": format_currency(total_salary),
                     "extra": format_currency(total_extra),
                     "total_salary": format_currency(total_salary_with_balance),
                     "received_total": format_currency(received_not_deducted_total),
@@ -2507,97 +2507,20 @@ def _draw_kata_driver_summary(pdf: canvas.Canvas, driver) -> None:
 
 
 def _draw_kata_paper_summary(pdf: canvas.Canvas, summary, month_label: str, driver_id: str) -> None:
-    box_x = 16 * mm
-    box_y = PAGE_HEIGHT - 170 * mm
-    box_w = 178 * mm
-    box_h = 62 * mm
-    left_w = 72 * mm
-    center_w = 54 * mm
+    start_x = 16 * mm
+    y = PAGE_HEIGHT - 164 * mm
+    gap = 4 * mm
+    box_w = (178 * mm - gap * 3) / 4
+    box_h = 18 * mm
 
-    pdf.setFillColor(colors.white)
-    pdf.roundRect(box_x, box_y, box_w, box_h, 4 * mm, fill=1, stroke=0)
-    pdf.setStrokeColor(LINE)
-    pdf.roundRect(box_x, box_y, box_w, box_h, 4 * mm, fill=0, stroke=1)
-
-    pdf.setFillColor(BLUE_SOFT)
-    pdf.roundRect(box_x, box_y + box_h - 9 * mm, box_w, 9 * mm, 4 * mm, fill=1, stroke=0)
-    pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 8.8)
-    pdf.drawString(box_x + 4 * mm, box_y + box_h - 5.8 * mm, f"MONTHLY STATEMENT | {month_label}")
-    pdf.drawRightString(box_x + box_w - 4 * mm, box_y + box_h - 5.8 * mm, f"Driver ID {driver_id}")
-
-    pdf.setFont("Helvetica-Bold", 6.9)
-    pdf.setFillColor(MUTED)
-    pdf.drawString(box_x + 4 * mm, box_y + box_h - 11.4 * mm, "SALARY SUMMARY")
-    pdf.drawString(box_x + left_w + 4 * mm, box_y + box_h - 11.4 * mm, "REMAINING SALARY")
-    right_heading_x = box_x + left_w + center_w + 4 * mm
-    pdf.drawString(right_heading_x, box_y + box_h - 11.4 * mm, "RECEIVED NOT YET")
-    pdf.drawString(right_heading_x, box_y + box_h - 14.8 * mm, "DEDUCTED")
-
-    pdf.setStrokeColor(LINE)
-    pdf.line(box_x + left_w, box_y + 4 * mm, box_x + left_w, box_y + box_h - 11 * mm)
-    pdf.line(box_x + left_w + center_w, box_y + 4 * mm, box_x + left_w + center_w, box_y + box_h - 11 * mm)
-
-    row_y = box_y + box_h - 17 * mm
-    left_rows = [
-        ("Previous Balance", summary["previous_balance"]),
-        ("Salary", summary["salary"]),
-        ("Extra / OT", summary["extra"]),
-        ("Total Salary", summary["total_salary"]),
-    ]
-    for label, value in left_rows:
-        pdf.setFillColor(TEXT)
-        pdf.setFont("Helvetica-Bold", 7.8)
-        pdf.drawString(box_x + 4 * mm, row_y, label)
-        pdf.setFont("Helvetica-Bold", 8.2)
-        pdf.drawRightString(box_x + left_w - 4 * mm, row_y, f"AED {value}")
-        row_y -= 6 * mm
-
-    center_x = box_x + left_w + 3 * mm
-    center_y = box_y + 24 * mm
-    inner_w = center_w - 6 * mm
-    inner_h = 20 * mm
-    pdf.setFillColor(BLUE)
-    pdf.roundRect(center_x, center_y, inner_w, inner_h, 3 * mm, fill=1, stroke=0)
-    pdf.setFillColor(colors.white)
-    pdf.setFont("Helvetica-Bold", 7.2)
-    pdf.drawCentredString(center_x + inner_w / 2, center_y + inner_h - 5.8 * mm, "REMAINING SALARY")
-    pdf.setFont("Helvetica-Bold", 12.4)
-    pdf.drawCentredString(center_x + inner_w / 2, center_y + inner_h - 12.5 * mm, f"AED {summary['remaining_salary']}")
-
-    meta_y = box_y + 14 * mm
-    meta_left = box_x + left_w + 5 * mm
-    meta_right = meta_left + center_w - 10 * mm
-    for label, value in [
-        ("Total Salary", summary["total_salary"]),
-        ("Not Yet Deducted", summary["received_total"]),
-    ]:
-        pdf.setFillColor(TEXT)
-        pdf.setFont("Helvetica-Bold", 6.8)
-        pdf.drawString(meta_left, meta_y, label)
-        pdf.drawRightString(meta_right, meta_y, f"AED {value}")
-        meta_y -= 5 * mm
-
-    right_x = box_x + left_w + center_w + 4 * mm
-    right_y = box_y + box_h - 17.5 * mm
-    for detail in summary.get("received_rows", [])[:3]:
-        pdf.setFillColor(TEXT)
-        line = f"{format_date_label(detail['date'])} | {detail['reason']}"
-        fitted, size = _fit_text(pdf, line, "Helvetica-Bold", 6.1, box_x + box_w - right_x - 4 * mm, min_size=5.5)
-        pdf.setFont("Helvetica-Bold", size)
-        pdf.drawString(right_x, right_y, fitted)
-        pdf.drawRightString(box_x + box_w - 4 * mm, right_y, f"AED {detail['amount']}")
-        detail_text, detail_size = _fit_text(pdf, detail["paid_by"], "Helvetica", 5.9, box_x + box_w - right_x - 4 * mm, min_size=5.3)
-        pdf.setFont("Helvetica", detail_size)
-        pdf.setFillColor(MUTED)
-        pdf.drawString(right_x, right_y - 3.2 * mm, detail_text)
-        right_y -= 7.4 * mm
-    pdf.setStrokeColor(LINE)
-    pdf.line(right_x, box_y + 10 * mm, box_x + box_w - 4 * mm, box_y + 10 * mm)
-    pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 7.0)
-    pdf.drawString(right_x, box_y + 6 * mm, "Total Received")
-    pdf.drawRightString(box_x + box_w - 4 * mm, box_y + 6 * mm, f"AED {summary['received_total']}")
+    _draw_stat_box(pdf, start_x, y, box_w, box_h, "PREVIOUS BALANCE", f"AED {summary['previous_balance']}",
+                    fill_color=colors.white, text_color=BLUE, border_color=LINE)
+    _draw_stat_box(pdf, start_x + (box_w + gap), y, box_w, box_h, "SALARY + OT", f"AED {summary['salary']}",
+                    fill_color=colors.white, text_color=GREEN, border_color=LINE)
+    _draw_stat_box(pdf, start_x + 2 * (box_w + gap), y, box_w, box_h, "RECEIVED", f"AED {summary['received_total']}",
+                    fill_color=colors.white, text_color=ORANGE, border_color=LINE)
+    _draw_stat_box(pdf, start_x + 3 * (box_w + gap), y, box_w, box_h, "REMAINING SALARY", f"AED {summary['remaining_salary']}",
+                    fill_color=BLUE, text_color=colors.white, border_color=BLUE)
 
 
 def _draw_kata_closed_rows(pdf: canvas.Canvas, entries, month_label: str) -> None:
@@ -2650,12 +2573,16 @@ def _draw_kata_statement_table(pdf: canvas.Canvas, entries, top=None) -> None:
     _draw_table_header(
         pdf,
         top,
-        ["Date", "Amount", "Given By", "Details"],
-        [18, 50, 88, 130],
+        ["Date", "Type", "Reference", "Details", "Incoming", "Outgoing", "Balance"],
+        [18, 30, 44, 70, 118, 140, 162],
     )
+
+    def _entry_type(sg):
+        return {0: "Salary", 1: "Advance", 2: "Deduction", 3: "Payment", 4: "Closing"}.get(sg, "")
 
     y = top - 7 * mm
     row_height = 7.8 * mm
+    running = 0.0
     for index, item in enumerate(entries[:20]):
         if index % 2 == 0:
             pdf.setFillColor(SOFT)
@@ -2664,26 +2591,52 @@ def _draw_kata_statement_table(pdf: canvas.Canvas, entries, top=None) -> None:
         pdf.setFont("Helvetica", 8.4)
         pdf.drawString(18 * mm, y, format_date_label(item["date"]))
 
+        etype = _entry_type(item.get("sort_group", 1))
+        pdf.setFont("Helvetica", 7.6)
+        pdf.drawString(30 * mm, y, etype)
+
+        ref_text, ref_size = _fit_text(pdf, str(item.get("paid_by", "-")), "Helvetica", 7.4, 22 * mm, min_size=6.4)
+        pdf.setFont("Helvetica", ref_size)
+        pdf.drawString(44 * mm, y, ref_text)
+
+        detail_text, detail_size = _fit_text(pdf, str(item.get("reason", "-")), "Helvetica", 7.8, 44 * mm, min_size=6.6)
+        pdf.setFont("Helvetica", detail_size)
+        pdf.drawString(70 * mm, y, detail_text)
+
+        amount = float(item.get("amount", 0.0))
+        sg = item.get("sort_group", 1)
+        is_incoming = sg == 0
+        incoming = amount if is_incoming else 0.0
+        outgoing = amount if not is_incoming and sg >= 1 else 0.0
+        running = max(running + incoming - outgoing, 0.0) if sg >= 0 else running + incoming
+
         pdf.setFont("Helvetica-Bold", 8.4)
-        pdf.drawRightString(75 * mm, y, format_currency(item["amount"]))
+        if incoming > 0:
+            pdf.setFillColor(GREEN)
+            pdf.drawRightString(140 * mm, y, format_currency(incoming))
+        else:
+            pdf.setFillColor(ORANGE)
+            pdf.drawRightString(162 * mm, y, format_currency(outgoing))
 
-        who_text, who_size = _fit_text(pdf, item["paid_by"], "Helvetica-Bold", 8.2, 36 * mm, min_size=6.8)
-        pdf.setFont("Helvetica-Bold", who_size)
-        pdf.drawString(88 * mm, y, who_text)
-
-        purpose_text, purpose_size = _fit_text(pdf, item["reason"], "Helvetica-Bold", 8.2, 58 * mm, min_size=6.8)
-        pdf.setFont("Helvetica-Bold", purpose_size)
-        pdf.drawString(130 * mm, y, purpose_text)
+        pdf.setFillColor(BLUE_DARK)
+        pdf.drawRightString(194 * mm, y, format_currency(item.get("balance_after", running)))
         y -= row_height
         if y < 44 * mm:
             break
     if entries:
         pdf.setStrokeColor(LINE)
         pdf.line(16 * mm, y + 2 * mm, 194 * mm, y + 2 * mm)
-        pdf.setFont("Helvetica-Bold", 8.4)
+        total_in = sum(float(item["amount"]) for item in entries if item.get("sort_group") == 0)
+        total_out = sum(float(item["amount"]) for item in entries if item.get("sort_group", 1) >= 1)
+        pdf.setFont("Helvetica-Bold", 8)
         pdf.setFillColor(BLUE_DARK)
-        pdf.drawString(18 * mm, y - 3 * mm, "Total")
-        pdf.drawRightString(75 * mm, y - 3 * mm, format_currency(sum(float(item["amount"]) for item in entries)))
+        pdf.drawString(18 * mm, y - 3 * mm, "Totals")
+        pdf.setFillColor(GREEN)
+        pdf.drawRightString(140 * mm, y - 3 * mm, format_currency(total_in))
+        pdf.setFillColor(ORANGE)
+        pdf.drawRightString(162 * mm, y - 3 * mm, format_currency(total_out))
+        pdf.setFillColor(BLUE_DARK)
+        pdf.drawRightString(194 * mm, y - 3 * mm, format_currency(max(total_in - total_out, 0.0)))
 
 
 def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str = "", show_top_rule: bool = True, company_profile: dict | None = None) -> None:
