@@ -2908,27 +2908,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/suppliers", methods=["GET"])
     @_login_required("admin")
     def suppliers():
-        supplier_mode = "Normal"
-        _touch_admin_workspace(_supplier_mode_workspace_key(supplier_mode))
-        db = open_db()
-        query = request.args.get("q", "").strip()
-        edit_party_code = request.args.get("edit", "").strip().upper()
-        if edit_party_code:
-            return redirect(url_for("admin_supplier_register", mode=supplier_mode, edit=edit_party_code))
-
-        context = _supplier_cards_context(db, supplier_mode, query=query)
-        context.update(
-            {
-                "desk_title": "Online Supplier Desk",
-                "supplier_type_label": "Online Supplier",
-                "toolbar_links": [
-                    {"label": "Register Online Supplier", "href": url_for("admin_supplier_register", mode=supplier_mode), "primary": True},
-                ],
-                "empty_title": "No Online Suppliers Found",
-                "empty_copy": "Add your first online supplier to get started.",
-            }
-        )
-        return render_template("supplier_mode_cards.html", **context)
+        return redirect(url_for("supplier.supplier_dashboard"))
 
     @app.route("/suppliers/admin/register", methods=["GET", "POST"])
     @_login_required("admin")
