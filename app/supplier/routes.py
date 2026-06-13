@@ -3017,10 +3017,10 @@ def supplier_delete(sup_id):
     s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
-    else:
-        db.execute("DELETE FROM suppliers WHERE id = ?", (sup_id,))
-        db.commit()
-        flash(f"Supplier {s['supplier_name']} permanently deleted.", "info")
+        return redirect(url_for("supplier.supplier_list"))
+    db.execute("UPDATE suppliers SET is_deleted=1, status='Deleted' WHERE id = ?", (sup_id,))
+    db.commit()
+    flash(f"Supplier {s['supplier_name']} moved to trash.", "info")
     return redirect(url_for("supplier.supplier_list"))
 
 @supplier_bp.route("/<int:sup_id>/restore", methods=["POST"])
