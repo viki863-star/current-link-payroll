@@ -127,6 +127,13 @@ def hr_dashboard():
             trend_months.append(ym)
             trend_counts.append(cnt)
 
+        # ── Active drivers payroll amount this month ──
+        payroll_row = db.execute(
+            "SELECT COALESCE(SUM(ss.net_salary), 0) AS total FROM salary_store ss JOIN employees e ON e.employee_id = ss.driver_id WHERE ss.salary_month = ? AND LOWER(e.status) = 'active'",
+            (_current_month_value(),),
+        ).fetchone()
+        payroll_amount = payroll_row["total"] if payroll_row else 0
+
         # ── Recent employees ──
         recent = db.execute(
             "SELECT employee_id, full_name, employee_type, department, join_date, status FROM employees ORDER BY id DESC LIMIT 5"
@@ -144,6 +151,7 @@ def hr_dashboard():
             on_leave=on_leave,
             terminated=terminated,
             stored_this_month=stored_this_month,
+            payroll_amount=payroll_amount,
             advances_pending=advances_pending,
             departments=departments,
             employee_types=employee_types_dict,
@@ -171,6 +179,16 @@ def employee_list():
     department_filter = request.args.get("department", "").strip()
     employee_type_filter = request.args.get("type", "").strip()
 
+    status_counts = db.execute(
+        "SELECT LOWER(status) AS st, COUNT(*) AS c FROM employees GROUP BY LOWER(status)"
+    ).fetchall()
+    total_active = sum(r["c"] for r in status_counts if r["st"] == "active")
+    total_inactive = sum(r["c"] for r in status_counts if r["st"] in ("inactive", "on leave"))
+    total_terminated = sum(r["c"] for r in status_counts if r["st"] == "terminated")
+
+    if not status_filter:
+        status_filter = "Active"
+
     where_sql, params = employee_search_filter(query, status_filter, department_filter, employee_type_filter)
 
     employees = db.execute(
@@ -194,10 +212,6 @@ def employee_list():
     all_departments = employee_departments(db)
     all_types = employee_types(db)
 
-    total = len(employees)
-    active = sum(1 for e in employees if (e["status"] or "").lower() == "active")
-    inactive = total - active
-
     return render_template(
         "hr/employee_list.html",
         employees=employees,
@@ -208,9 +222,9 @@ def employee_list():
         departments=all_departments,
         employee_types=all_types,
         status_options=STATUS_OPTIONS,
-        total=total,
-        active_count=active,
-        inactive_count=inactive,
+        total_active=total_active,
+        total_inactive=total_inactive,
+        total_terminated=total_terminated,
     )
 
 

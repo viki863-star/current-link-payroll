@@ -5,9 +5,27 @@
 
 {% block content %}
 <div class="list-shell">
+    {# ─── Status Tabs ─── #}
+    <div class="tab-bar">
+        <a href="{{ url_for('hr.employee_list', q=query, department=department_filter, type=employee_type_filter, status='Active') }}" class="tab-link {% if status_filter == 'Active' or not status_filter %}is-active{% endif %}">
+            Active <span class="tab-count">{{ total_active }}</span>
+        </a>
+        <a href="{{ url_for('hr.employee_list', q=query, department=department_filter, type=employee_type_filter, status='Inactive') }}" class="tab-link {% if status_filter == 'Inactive' %}is-active{% endif %}">
+            Inactive <span class="tab-count">{{ total_inactive }}</span>
+        </a>
+        <a href="{{ url_for('hr.employee_list', q=query, department=department_filter, type=employee_type_filter, status='Terminated') }}" class="tab-link {% if status_filter == 'Terminated' %}is-active{% endif %}">
+            Terminated <span class="tab-count">{{ total_terminated }}</span>
+        </a>
+        <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <a href="{{ url_for('hr.employee_list_excel', q=query, status=status_filter, department=department_filter, type=employee_type_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128194; Excel</a>
+            <a href="{{ url_for('hr.employee_list_pdf', q=query, status=status_filter, department=department_filter, type=employee_type_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128196; PDF</a>
+        </span>
+    </div>
+
     {# ─── Filter Bar ─── #}
-    <div class="filter-bar">
+    <div class="filter-bar" style="border-top:none;border-radius:0 0 12px 12px;margin-top:0">
         <form method="GET" class="filter-bar-form">
+            <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="text" name="q" value="{{ query }}" placeholder="Type name, ID..." class="search-input">
             <select name="department" class="filter-select">
                 <option value="">All Departments</option>
@@ -21,12 +39,6 @@
                 <option value="{{ t }}" {% if employee_type_filter == t %}selected{% endif %}>{{ t }}</option>
                 {% endfor %}
             </select>
-            <select name="status" class="filter-select">
-                <option value="">All Status</option>
-                {% for s in status_options %}
-                <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
-                {% endfor %}
-            </select>
             <button type="submit" class="btn btn-primary btn-sm">Search</button>
             <a href="{{ url_for('hr.employee_list') }}" class="btn btn-outline btn-sm">Clear</a>
             <a href="{{ url_for('hr.employee_new') }}" class="btn btn-primary add-btn">
@@ -34,16 +46,6 @@
                 Add
             </a>
         </form>
-    </div>
-
-    <div class="kpi-mini-row">
-        <span class="kpi-mini">Total: <strong>{{ total }}</strong></span>
-        <span class="kpi-mini active">Active: <strong>{{ active_count }}</strong></span>
-        <span class="kpi-mini inactive">Inactive: <strong>{{ inactive_count }}</strong></span>
-        <span style="margin-left:auto;display:flex;gap:6px">
-            <a href="{{ url_for('hr.employee_list_excel', q=query, status=status_filter, department=department_filter, type=employee_type_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128194; Excel</a>
-            <a href="{{ url_for('hr.employee_list_pdf', q=query, status=status_filter, department=department_filter, type=employee_type_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128196; PDF</a>
-        </span>
     </div>
 
     <div class="table-wrap">
@@ -108,4 +110,15 @@
         </table>
     </div>
 </div>
+
+<style>
+.tab-count {
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:20px;height:18px;padding:0 6px;border-radius:9px;
+    background:rgba(28,86,139,0.1);color:var(--primary);font-size:0.65rem;font-weight:700;
+}
+.tab-link.is-active .tab-count {
+    background:var(--primary);color:#fff;
+}
+</style>
 {% endblock %}
