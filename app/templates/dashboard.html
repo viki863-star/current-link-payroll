@@ -22,19 +22,19 @@
   <div class="kpi-grid">
     <div class="kpi-card" style="--accent:#2563eb">
       <div class="kpi-top">
-        <span class="kpi-label">Total Drivers</span>
+        <span class="kpi-label">Drivers</span>
         <span class="kpi-icon" style="background:rgba(37,99,235,0.1)">👥</span>
       </div>
       <div class="kpi-value">{{ total_drivers }}</div>
-      <div class="kpi-foot">{{ active_drivers }} active</div>
+      <div class="kpi-foot">{{ active_drivers }} active · {{ total_drivers - active_drivers }} inactive</div>
     </div>
     <div class="kpi-card" style="--accent:#059669">
       <div class="kpi-top">
-        <span class="kpi-label">Payroll Pool</span>
+        <span class="kpi-label">Payroll Pool (Active)</span>
         <span class="kpi-icon" style="background:rgba(5,150,105,0.1)">💰</span>
       </div>
       <div class="kpi-value">AED {{ "{:,}".format(total_payroll|int) }}</div>
-      <div class="kpi-foot">{{ stored_this_month }} this month</div>
+      <div class="kpi-foot">{{ stored_this_month }} stored this month</div>
     </div>
     <div class="kpi-card" style="--accent:#7c3aed">
       <div class="kpi-top">
@@ -57,8 +57,8 @@
         <span class="kpi-label">Fleet</span>
         <span class="kpi-icon" style="background:rgba(8,145,178,0.1)">🚛</span>
       </div>
-      <div class="kpi-value">{{ vehicle_chart|length if vehicle_chart else 0 }}</div>
-      <div class="kpi-foot">vehicle types</div>
+      <div class="kpi-value">{{ total_vehicles }}</div>
+      <div class="kpi-foot">{{ vehicle_chart|length if vehicle_chart else 0 }} vehicle types</div>
     </div>
     <div class="kpi-card" style="--accent:#d97706">
       <div class="kpi-top">
