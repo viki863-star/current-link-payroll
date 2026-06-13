@@ -68,53 +68,29 @@
         </div>
     </div>
 
-    <div class="st-summary">
-      <div class="st-card">
-        <span class="st-label">Previous Balance</span>
-        <strong class="st-value">AED {{ "%.2f"|format(kata_summary.previous_balance) }}</strong>
-      </div>
-      <div class="st-card st-plus">
-        <span class="st-label">Salary + OT</span>
-        <strong class="st-value">AED {{ "%.2f"|format(kata_summary.salary_total or kata_summary.salary_amount) }}</strong>
-      </div>
-      <div class="st-card st-minus">
-        <span class="st-label">Received</span>
-        <strong class="st-value">AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</strong>
-      </div>
-      <div class="st-card st-hero">
-        <span class="st-label">Remaining Salary</span>
-        <strong class="st-value">AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</strong>
-      </div>
-    </div>
-
-    <div class="st-equation">
-      <span>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</span>
-      <span>−</span>
-      <span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span>
-      <span>=</span>
-      <span class="st-eq-result">AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</span>
+    <div class="of-grid" style="margin-bottom:18px">
+      <div class="of-card"><div class="lb">Previous Balance</div><div class="vl" style="color:var(--primary)">AED {{ "%.2f"|format(kata_summary.previous_balance) }}</div></div>
+      <div class="of-card"><div class="lb">Salary + OT</div><div class="vl" style="color:var(--green)">AED {{ "%.2f"|format(kata_summary.salary_total or kata_summary.salary_amount) }}</div></div>
+      <div class="of-card"><div class="lb">Received</div><div class="vl" style="color:#e65100">AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</div></div>
+      <div class="of-card"><div class="lb">Remaining</div><div class="vl" style="color:#c62828">AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</div></div>
     </div>
 
     {% if kata_entries %}
-    <div class="st-table-wrap">
-      <table class="st-table">
+    <div class="table-wrap">
+      <table class="smart-table">
         <thead>
-          <tr><th>Date</th><th>Description</th><th>Reference</th><th>Amount (AED)</th><th>Balance (AED)</th></tr>
+          <tr><th>Date</th><th>Type</th><th>Reference</th><th>Details</th><th>Incoming</th><th>Outgoing</th><th>Balance</th></tr>
         </thead>
         <tbody>
           {% for item in kata_entries %}
-          <tr class="st-row-{{ item.entry_kind }}">
-            <td class="st-date">{{ item.date }}</td>
-            <td class="st-desc">{{ item.reason or item.details or '-' }}</td>
-            <td class="st-ref">{{ item.paid_by or '-' }}</td>
-            {% if item.entry_kind == 'salary' %}
-              <td class="st-amount st-positive">{{ "%.2f"|format(item.amount) }}</td>
-            {% elif item.entry_kind == 'opening' %}
-              <td class="st-amount">—</td>
-            {% else %}
-              <td class="st-amount st-negative">{{ "%.2f"|format(item.amount) }}</td>
-            {% endif %}
-            <td class="st-balance">{{ "%.2f"|format(item.balance_after) }}</td>
+          <tr>
+            <td class="mono">{{ item.date }}</td>
+            <td>{{ item.entry_kind|capitalize }}</td>
+            <td class="mono">{{ item.paid_by or '-' }}</td>
+            <td style="font-size:0.78rem">{{ item.reason or item.details or '-' }}</td>
+            <td class="mono" style="color:var(--green);font-weight:600">{% if item.entry_kind == 'salary' %}AED {{ "%.2f"|format(item.amount) }}{% endif %}</td>
+            <td class="mono" style="color:#e65100;font-weight:600">{% if item.entry_kind == 'transaction' %}AED {{ "%.2f"|format(item.amount) }}{% endif %}</td>
+            <td class="mono" style="font-weight:700">AED {{ "%.2f"|format(item.balance_after) }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -379,50 +355,11 @@
     font-size: 0.92rem;
 }
 
-.st-summary {
-    display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:18px;
-}
-@media (max-width:500px) { .st-summary { grid-template-columns:1fr 1fr; } }
-.st-card {
-    background:#fff;border:1px solid #eef2f6;border-radius:10px;padding:14px 12px;text-align:center;
-}
-.st-label {
-    display:block;font-size:0.6rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;
-    color:#94a3b8;margin-bottom:4px;
-}
-.st-value { display:block;font-size:1.1rem;font-weight:800;color:#0f172a; }
-.st-plus .st-value { color:#16a34a; }
-.st-minus .st-value { color:#e65100; }
-.st-hero {
-    background:linear-gradient(135deg,#0f2b52,#1a4a7a);border-color:#0f2b52;
-}
-.st-hero .st-label { color:rgba(255,255,255,0.7); }
-.st-hero .st-value { color:#fff;font-size:1.2rem; }
-
-.st-equation {
-    display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;
-    padding:0 0 18px;font-size:0.78rem;color:#64748b;
-}
-.st-equation span { color:#475569; }
-.st-eq-result { font-weight:800;color:#0f2b52;font-size:0.9rem; }
-
-.st-table-wrap { overflow-x:auto;margin-bottom:12px; }
-.st-table { width:100%;border-collapse:collapse;font-size:0.82rem; }
-.st-table th {
-    text-align:left;padding:10px 12px;font-size:0.68rem;font-weight:600;
-    color:#64748b;text-transform:uppercase;letter-spacing:0.03em;
-    background:#f8fafc;border-bottom:1px solid #eef2f6;
-}
-.st-table td { padding:10px 12px;border-bottom:1px solid #f4f6f8;color:#0f172a; }
-.st-table tbody tr:last-child td { border-bottom:none; }
-.st-date { font-family:monospace;font-size:0.78rem; }
-.st-desc { max-width:240px; }
-.st-ref { color:#64748b;font-size:0.78rem; }
-.st-amount { font-weight:700;font-family:monospace;text-align:right;white-space:nowrap; }
-.st-positive { color:#16a34a; }
-.st-negative { color:#e65100; }
-.st-balance { font-weight:700;font-family:monospace;text-align:right;white-space:nowrap;color:#0f2b52; }
-.st-row-opening td { background:#f8fafc;font-style:italic;color:#64748b; }
+.of-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.of-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 16px;text-align:center}
+.of-card .lb{font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px}
+.of-card .vl{font-size:1.5rem;font-weight:700;margin-top:6px}
+@media (max-width:500px) { .of-grid { grid-template-columns:1fr 1fr; } }
 
 @media (max-width: 820px) {
     .statement-identity-card {
@@ -446,9 +383,6 @@
         padding-left: 16px;
         padding-right: 16px;
     }
-
-    .st-summary { margin-bottom:14px; }
-    .st-table th, .st-table td { padding:8px 10px;font-size:0.76rem; }
 }
 </style>
 {% endblock %}
