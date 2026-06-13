@@ -1164,7 +1164,7 @@ def employee_edit(employee_id):
                     photo_content_type=COALESCE(?, photo_content_type),
                     status=?, termination_date=?, remarks=?,
                     updated_at=CURRENT_TIMESTAMP
-                WHERE employee_id=?
+                WHERE UPPER(employee_id)=?
                 """,
                 (
                     values["full_name"], values["phone_number"], values["email"] or None,
@@ -1209,7 +1209,7 @@ def employee_edit(employee_id):
 
             try:
                 db.execute(
-                    "UPDATE drivers SET basic_salary=?, ot_rate=?, duty_start=?, shift=?, full_name=?, phone_number=?, status=?, termination_date=? WHERE driver_id=?",
+                    "UPDATE drivers SET basic_salary=?, ot_rate=?, duty_start=?, shift=?, full_name=?, phone_number=?, status=?, termination_date=? WHERE UPPER(driver_id)=?",
                     (salary, ot_rate, values["join_date"], values["shift"] or "Morning", values["full_name"], values["phone_number"] or None, values["status"], values["termination_date"] or None, employee_id),
                 )
                 db.commit()
