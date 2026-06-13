@@ -1083,8 +1083,7 @@ def employee_edit(employee_id):
                     current_app._get_current_object(), employee_id,
                     values["full_name"], request.files.get("photo_file"))
             except Exception as exc:
-                import logging
-                logging.warning(f"DEBUG photo upload failed: {exc}")
+                flash(f"Photo upload failed: {exc}", "error")
                 uploaded_photo = None
 
             db.execute(
@@ -1180,6 +1179,126 @@ def employee_edit(employee_id):
         vehicles=vehicles,
         assigned_vehicle=assigned_vehicle,
     )
+
+
+@hr_bp.route("/hr/employees/download/excel")
+@_login_required("admin")
+def employee_list_excel():
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+
+    query = request.args.get("q", "").strip()
+    status_filter = request.args.get("status", "").strip()
+    department_filter = request.args.get("department", "").strip()
+    employee_type_filter = request.args.get("type", "").strip()
+
+    where_sql, params = employee_search_filter(query, status_filter, department_filter, employee_type_filter)
+
+    employees = db.execute(
+        f"""
+        SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
+               e.department, e.designation, e.join_date, e.basic_salary, e.status,
+               COALESCE(
+                   (SELECT v.plate_no FROM vehicle_assignments va
+                    JOIN vehicles v ON v.plate_no = va.vehicle_id
+                    WHERE va.driver_id = e.employee_id
+                    ORDER BY va.id DESC LIMIT 1),
+                   (SELECT d.vehicle_no FROM drivers d WHERE d.driver_id = e.employee_id LIMIT 1)
+               ) AS plate_no
+        FROM employees e
+        {where_sql}
+        ORDER BY e.full_name ASC
+        """,
+        params,
+    ).fetchall()
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from io import BytesIO
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Employees"
+
+    hf = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+    hfill = PatternFill("solid", fgColor="1a3a5c")
+    center = Alignment(horizontal="center", vertical="center")
+    thin = Side(style="thin", color="d8e4f5")
+    border = Border(top=thin, left=thin, right=thin, bottom=thin)
+
+    heads = ["Employee ID", "Full Name", "Phone", "Email", "Type", "Department", "Designation", "Join Date", "Salary (AED)", "Vehicle", "Status"]
+    for ci, h in enumerate(heads, 1):
+        c = ws.cell(row=1, column=ci, value=h)
+        c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
+
+    for ri, emp in enumerate(employees, 2):
+        vals = [emp["employee_id"], emp["full_name"], emp["phone_number"] or "", emp["email"] or "",
+                emp["employee_type"], emp["department"], emp["designation"],
+                emp["join_date"], emp["basic_salary"] or 0, emp["plate_no"] or "", emp["status"] or ""]
+        for ci, v in enumerate(vals, 1):
+            c = ws.cell(row=ri, column=ci, value=v)
+            c.border = border
+            if ci == 9:
+                c.number_format = '#,##0.00'
+                c.alignment = Alignment(horizontal="right", vertical="center")
+
+    ws.column_dimensions["A"].width = 16
+    ws.column_dimensions["B"].width = 28
+    ws.column_dimensions["C"].width = 18
+    ws.column_dimensions["D"].width = 26
+    ws.column_dimensions["E"].width = 14
+    ws.column_dimensions["F"].width = 16
+    ws.column_dimensions["G"].width = 16
+    ws.column_dimensions["H"].width = 14
+    ws.column_dimensions["I"].width = 16
+    ws.column_dimensions["J"].width = 14
+    ws.column_dimensions["K"].width = 12
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name="employees.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@hr_bp.route("/hr/employees/download/pdf")
+@_login_required("admin")
+def employee_list_pdf():
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+
+    query = request.args.get("q", "").strip()
+    status_filter = request.args.get("status", "").strip()
+    department_filter = request.args.get("department", "").strip()
+    employee_type_filter = request.args.get("type", "").strip()
+
+    where_sql, params = employee_search_filter(query, status_filter, department_filter, employee_type_filter)
+
+    employees = db.execute(
+        f"""
+        SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
+               e.department, e.designation, e.join_date, e.basic_salary, e.status
+        FROM employees e
+        {where_sql}
+        ORDER BY e.full_name ASC
+        """,
+        params,
+    ).fetchall()
+
+    try:
+        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company_profile = dict(company) if company else None
+    except Exception:
+        company_profile = None
+
+    from ..pdf_service import _generate_employee_list_pdf
+    from pathlib import Path
+    from flask import current_app
+
+    output_dir = Path(current_app.config["GENERATED_DIR"]) / "temp"
+    pdf_path = _generate_employee_list_pdf(employees, str(output_dir), company_profile)
+    return send_file(pdf_path, as_attachment=True, download_name="employees.pdf", mimetype="application/pdf")
 
 
 @hr_bp.app_template_global()

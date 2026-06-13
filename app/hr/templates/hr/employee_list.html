@@ -40,6 +40,10 @@
         <span class="kpi-mini">Total: <strong>{{ total }}</strong></span>
         <span class="kpi-mini active">Active: <strong>{{ active_count }}</strong></span>
         <span class="kpi-mini inactive">Inactive: <strong>{{ inactive_count }}</strong></span>
+        <span style="margin-left:auto;display:flex;gap:6px">
+            <a href="{{ url_for('hr.employee_list_excel', q=query, status=status_filter, department=department_filter, type=employee_type_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128194; Excel</a>
+            <a href="{{ url_for('hr.employee_list_pdf', q=query, status=status_filter, department=department_filter, type=employee_type_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128196; PDF</a>
+        </span>
     </div>
 
     <div class="table-wrap">
@@ -61,9 +65,9 @@
                 <tr class="emp-row" onclick="window.location='{{ url_for('hr.employee_detail', employee_id=emp.employee_id) }}'">
                     <td class="emp-cell">
                         <div class="emp-avatar-mini">
-                            {% set photo = emp.photo_url or '' %}
-                            {% if photo %}
-                            <img src="{{ photo }}" alt="" class="emp-avatar-img">
+                            {% set p_url = employee_photo_url(emp) %}
+                            {% if p_url %}
+                            <img src="{{ p_url }}" alt="" class="emp-avatar-img">
                             {% else %}
                             <div class="emp-avatar-letter">{{ emp.full_name[:1]|upper }}</div>
                             {% endif %}

@@ -3140,6 +3140,76 @@ def generate_field_staff_advances_pdf(staff, advances, jobs_data, papers_data, t
     return path
 
 
+def _generate_employee_list_pdf(employees, output_dir: str, company_profile: dict | None = None) -> str:
+    from datetime import date
+    output_path = Path(output_dir) / f"employees_{date.today().isoformat()}.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    company = company_profile or {}
+    cn = company.get("company_name") or "Current Link Transport"
+
+    doc = SimpleDocTemplate(
+        str(output_path), pagesize=A4,
+        leftMargin=15*mm, rightMargin=15*mm,
+        topMargin=20*mm, bottomMargin=15*mm,
+    )
+
+    W = 180*mm
+    styles = getSampleStyleSheet()
+    styleN = styles["Normal"]
+
+    els = []
+
+    els.append(Paragraph(
+        f"<font size=14><b>{cn}</b></font>",
+        ParagraphStyle("Title", fontSize=14, alignment=TA_CENTER, spaceAfter=2*mm),
+    ))
+    els.append(Paragraph(
+        "<font size=10>Employee Directory</font>",
+        ParagraphStyle("Sub", fontSize=10, alignment=TA_CENTER, spaceAfter=5*mm),
+    ))
+    els.append(Paragraph(
+        f"<font size=8 color='#666'>Generated on: {date.today().isoformat()} &mdash; Total: {len(employees)} employees</font>",
+        ParagraphStyle("Meta", fontSize=8, alignment=TA_CENTER, spaceAfter=8*mm),
+    ))
+
+    data = [["#", "ID", "Name", "Phone", "Type", "Dept", "Designation", "Join Date", "Salary", "Status"]]
+    for i, emp in enumerate(employees, 1):
+        data.append([
+            str(i),
+            emp["employee_id"],
+            emp["full_name"],
+            emp["phone_number"] or "-",
+            emp["employee_type"],
+            emp["department"],
+            emp["designation"],
+            emp["join_date"],
+            f'{emp["basic_salary"] or 0:,.0f}',
+            emp["status"] or "",
+        ])
+
+    col_w = [8*mm, 22*mm, 36*mm, 24*mm, 18*mm, 20*mm, 22*mm, 18*mm, 18*mm, 16*mm]
+    t = Table(data, colWidths=col_w, repeatRows=1)
+    t.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 7),
+        ("FONTSIZE", (0, 0), (-1, 0), 7.5),
+        ("BACKGROUND", (0, 0), (-1, 0), Color(0.1, 0.23, 0.36)),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("ALIGN", (0, 0), (0, -1), "CENTER"),
+        ("ALIGN", (8, 0), (8, -1), "RIGHT"),
+        ("ALIGN", (7, 0), (7, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.4, Color(0.85, 0.88, 0.92)),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, Color(0.96, 0.97, 0.99)]),
+        ("TOPPADDING", (0, 0), (-1, -1), 3*mm),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3*mm),
+    ]))
+    els.append(t)
+
+    doc.build(els)
+    return str(output_path)
+
 def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, date_from, date_to, output_dir, assets_dir, company_profile=None, base_url=""):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
