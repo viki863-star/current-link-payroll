@@ -25,8 +25,11 @@
         <span class="kpi-label">Drivers</span>
         <span class="kpi-icon" style="background:rgba(37,99,235,0.1)">👥</span>
       </div>
-      <div class="kpi-value">{{ total_drivers }}</div>
-      <div class="kpi-foot">{{ active_drivers }} active · {{ total_drivers - active_drivers - terminated_drivers }} inactive</div>
+      <div class="kpi-value">{{ total_drivers - terminated_drivers }}</div>
+      <div class="kpi-foot" style="display:flex;gap:12px;margin-top:6px">
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e"></span>{{ active_drivers }} active</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#94a3b8"></span>{{ total_drivers - active_drivers - terminated_drivers }} inactive</span>
+      </div>
     </div>
     <div class="kpi-card" style="--accent:#059669">
       <div class="kpi-top">
