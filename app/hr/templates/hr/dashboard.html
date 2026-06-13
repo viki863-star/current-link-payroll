@@ -3,9 +3,7 @@
 {% block body_class %}dashboard-body{% endblock %}
 {% block page_title %}HR &amp; Employees{% endblock %}
 
-{% block head %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.min.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% block content %}
 <style>
 .chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem; }
 .chart-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; padding:16px; }
@@ -17,9 +15,9 @@
 .recent-table .emp-name { font-weight:600; color:#0f172a; }
 .recent-table .emp-sub { color:#94a3b8; font-size:0.7rem; }
 </style>
-{% endblock %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 
-{% block content %}
 <div class="db-shell">
     <div class="db-header">
         <h1>HR &amp; Employees</h1>
@@ -142,70 +140,49 @@ document.addEventListener('DOMContentLoaded', function() {
     var colorRed = '#ef4444';
     var colorAmber = '#f59e0b';
 
-    // Department Chart
     var deptCtx = document.getElementById('deptChart');
     if (deptCtx) {
         new Chart(deptCtx, {
             type: 'doughnut',
             data: {
                 labels: [{% for d in departments %}'{{ d|e }}',{% endfor %}],
-                datasets: [{
-                    data: [{% for d in departments %}{{ departments[d] }},{% endfor %}],
-                    backgroundColor: colors.slice(0, {{ departments|length }}),
-                    borderWidth: 0
-                }]
+                datasets: [{ data: [{% for d in departments %}{{ departments[d] }},{% endfor %}], backgroundColor: colors.slice(0, {{ departments|length }}), borderWidth: 0 }]
             },
             options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
         });
     }
 
-    // Type Chart
     var typeCtx = document.getElementById('typeChart');
     if (typeCtx) {
         new Chart(typeCtx, {
             type: 'doughnut',
             data: {
                 labels: [{% for t in employee_types %}'{{ t|e }}',{% endfor %}],
-                datasets: [{
-                    data: [{% for t in employee_types %}{{ employee_types[t] }},{% endfor %}],
-                    backgroundColor: [colorGreen, colorOrange, '#7b1fa2', '#0ea5e9'],
-                    borderWidth: 0
-                }]
+                datasets: [{ data: [{% for t in employee_types %}{{ employee_types[t] }},{% endfor %}], backgroundColor: [colorGreen, colorOrange, '#7b1fa2', '#0ea5e9'], borderWidth: 0 }]
             },
             options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
         });
     }
 
-    // Salary Store Trend
     var trendCtx = document.getElementById('trendChart');
     if (trendCtx) {
         new Chart(trendCtx, {
             type: 'bar',
             data: {
                 labels: [{% for m in trend_months %}'{{ m }}',{% endfor %}],
-                datasets: [{
-                    label: 'Entries',
-                    data: [{% for c in trend_counts %}{{ c }},{% endfor %}],
-                    backgroundColor: '#1a3a5c',
-                    borderRadius: 4
-                }]
+                datasets: [{ label: 'Entries', data: [{% for c in trend_counts %}{{ c }},{% endfor %}], backgroundColor: '#1a3a5c', borderRadius: 4 }]
             },
             options: { responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } }, plugins:{ legend:{ display:false } } }
         });
     }
 
-    // Status Overview
     var statusCtx = document.getElementById('statusChart');
     if (statusCtx) {
         new Chart(statusCtx, {
             type: 'pie',
             data: {
                 labels: ['Active', 'On Leave', 'Inactive'],
-                datasets: [{
-                    data: [{{ active_count }}, {{ on_leave }}, {{ terminated + inactive_count - on_leave }}],
-                    backgroundColor: [colorGreen, colorAmber, colorRed],
-                    borderWidth: 0
-                }]
+                datasets: [{ data: [{{ active_count }}, {{ on_leave }}, {{ terminated + inactive_count - on_leave }}], backgroundColor: [colorGreen, colorAmber, colorRed], borderWidth: 0 }]
             },
             options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
         });
