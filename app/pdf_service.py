@@ -1003,100 +1003,201 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
 
 
 def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: str, assets_dir: str, company_profile: dict | None = None) -> str:
+    from reportlab.platypus import SimpleDocTemplate, Paragraph as PlParagraph, Spacer, Table as PlTable, TableStyle as PlTableStyle, Image as PlImage
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    import os, tempfile
+
     normalized_month = format_month_label(month_value) if month_value else ""
     file_suffix = f"transactions-{month_value}" if month_value else "transactions"
     output_path = Path(output_dir) / f"{driver['driver_id']}_{file_suffix}.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    pdf = canvas.Canvas(str(output_path), pagesize=A4)
-    _draw_header(pdf, assets_dir, company_profile)
-    _draw_title(pdf, "Outstanding Advances Statement", normalized_month)
+    LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 15*mm
+    doc = SimpleDocTemplate(str(output_path), pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = A4[0] - LM - RM
 
-    box_w = 86 * mm; box_h = 42 * mm; box_y = PAGE_HEIGHT - 116 * mm
-    basic_sal = float(driver.get("basic_salary", 0))
-    _draw_invoice_party_box(pdf, 16 * mm, box_y, box_w, box_h, "EMPLOYEE",
-        driver.get("full_name", "-"), f"ID: {driver.get('driver_id', '-')}",
-        f"Nationality: {driver.get('nationality', '-')}",
-        f"Basic: AED {format_currency(basic_sal)}",
-        f"Month: {normalized_month}")
+    cp = dict(company_profile) if company_profile else {}
+    tc = cp.get("theme_color") or "#1a3a5c"
+    try: TH = colors.HexColor(tc)
+    except: TH = colors.HexColor("#1a3a5c")
+    BG = colors.HexColor("#f4f6f9"); WH = colors.white
+    C3 = colors.HexColor("#d1d5db"); C4 = colors.HexColor("#111827")
+    C5 = colors.HexColor("#6b7280")
 
-    cleared_count = sum(1 for a in advances if float(a.get("deducted", 0)) >= float(a.get("amount", 0)))
-    total_out = sum(float(a.get("amount", 0)) - float(a.get("deducted", 0)) for a in advances)
-    _draw_invoice_party_box(pdf, 108 * mm, box_y, box_w, box_h, "STATEMENT TYPE",
-        "Outstanding Advances Only",
-        f"{len(advances)} transaction(s), {cleared_count} cleared",
-        f"Total Outstanding: AED {format_currency(total_out)}",
-        "", f"Month: {normalized_month}")
+    def F(name, **kw):
+        kw.setdefault("fontSize", 8); kw.setdefault("leading", 12)
+        return ParagraphStyle(name, **kw)
+    def C(t, **kw):
+        kw.setdefault("alignment", TA_CENTER)
+        return PlParagraph(str(t), F("_C", **kw))
+    def R(t, **kw):
+        kw.setdefault("alignment", TA_RIGHT)
+        return PlParagraph(str(t), F("_R", **kw))
 
-    table_top = PAGE_HEIGHT - 163 * mm
-    _draw_table_header(pdf, table_top, ["Date", "Amount", "Given By", "Details", "Remaining"], [18, 52, 80, 105, 190])
+    els = []
+    cn = cp.get("company_name") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    trn = cp.get("trn_no") or "—"
 
-    y = table_top - 7 * mm
-    row_height = 7.2 * mm
-    max_body = int((table_top - 50 * mm) / row_height)
-    visible = advances[:max(max_body, 0)]
-    for i, a in enumerate(visible):
-        if i % 2 == 0:
-            pdf.setFillColor(SOFT)
-            pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.1 * mm, 1.8 * mm, fill=1, stroke=0)
-        pdf.setFillColor(TEXT)
-        pdf.setFont("Helvetica", 7.8)
-        pdf.drawString(18 * mm, y, str(a.get("entry_date", ""))[:10])
-        pdf.setFont("Helvetica-Bold", 7.8)
-        pdf.drawRightString(78 * mm, y, f"AED {format_currency(float(a.get('amount', 0)))}")
-        pdf.setFont("Helvetica", 7.8)
-        pdf.drawString(84 * mm, y, (a.get("given_by") or "-")[:14])
-        pdf.drawString(110 * mm, y, (a.get("details") or "-")[:18])
-        rem = float(a.get("amount", 0)) - float(a.get("deducted", 0))
-        pdf.setFillColor(colors.HexColor("#D32F2F") if rem > 0 else TEXT)
-        pdf.drawRightString(192 * mm, y, f"AED {format_currency(rem)}")
-        pdf.setFillColor(TEXT)
-        y -= row_height
+    # ═══ HEADER ═══
+    logo = None; LW = 0
+    if cp.get("logo_data"):
+        try:
+            lb = base64.b64decode(cp["logo_data"])
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            f.write(lb); f.close()
+            logo = PlImage(f.name, width=50, height=50)
+            LW = 50
+        except: pass
 
-    min_rows = 6
-    filler_idx = len(visible)
-    while filler_idx < min_rows and y >= 50 * mm:
-        if filler_idx % 2 == 0:
-            pdf.setFillColor(colors.white)
-            pdf.roundRect(16 * mm, y - 2.4 * mm, 178 * mm, 6.1 * mm, 1.8 * mm, fill=1, stroke=0)
-        pdf.setStrokeColor(LINE)
-        pdf.line(16 * mm, y - 2.2 * mm, 194 * mm, y - 2.2 * mm)
-        y -= row_height
-        filler_idx += 1
+    cl = [f"<font size=11><b>{cn}</b></font>"]
+    addr = cp.get("address") or ""; ph = cp.get("phone_number") or ""; em = cp.get("email") or ""
+    parts_l = [x for x in [addr] if x]
+    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != "TRN: —"]
+    if parts_l or cparts:
+        info = " &middot; ".join(parts_l + cparts)
+        cl.append(f"<font size=6.5 color='#6b7280'>{info}</font>")
+    co_p = PlParagraph("<br/>".join(cl), F("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
+    if logo:
+        lh = PlTable([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm])
+        lh.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    else:
+        lh = co_p
+    rh = PlParagraph("<b>STATEMENT<br/>OF ACCOUNT</b>", F("TI", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
+    ht = PlTable([[lh, rh]], colWidths=[W*0.65, W*0.35])
+    ht.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ht)
+    els.append(Spacer(1, 2*mm))
+    hr = PlTable([[""]], colWidths=[W], rowHeights=[2])
+    hr.setStyle(PlTableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(hr)
+    els.append(Spacer(1, 4*mm))
 
-    summary_y = 43 * mm
+    # ═══ FUND INFO ═══
+    finfo = [
+        [PlParagraph("<b>Fund</b>", F("_fl", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11)),
+         PlParagraph(f"<b>Outstanding Advances — {normalized_month}</b>", F("_fv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12))],
+        [PlParagraph("Employee", F("_l", fontSize=7.5, textColor=C5, leading=10)),
+         PlParagraph(f"{driver.get('full_name','-')} ({driver.get('driver_id','-')})", F("_v", fontSize=8.5, textColor=C4, leading=11))],
+    ]
+    ft = PlTable(finfo, colWidths=[50, W - 50])
+    ft.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),1),("BOTTOMPADDING",(0,0),(-1,-1),1),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ft)
+
+    # ═══ SUMMARY CARDS ═══
+    els.append(Spacer(1, 3*mm))
     total_amt = sum(float(a.get("amount", 0)) for a in advances)
     total_ded = sum(float(a.get("deducted", 0)) for a in advances)
-    _draw_stat_box(pdf, 118 * mm, summary_y + 30 * mm, 76 * mm, 12 * mm, "TOTAL ADVANCES",
-        f"AED {format_currency(total_amt)}")
-    _draw_stat_box(pdf, 118 * mm, summary_y + 15 * mm, 76 * mm, 12 * mm, "TOTAL DEDUCTED",
-        f"AED {format_currency(total_ded)}", fill_color=SOFT)
-    _draw_stat_box(pdf, 118 * mm, summary_y, 76 * mm, 12 * mm, "OUTSTANDING",
-        f"AED {format_currency(total_out)}",
-        fill_color=colors.HexColor("#D32F2F"), text_color=colors.white, border_color=colors.HexColor("#D32F2F"))
+    total_out = total_amt - total_ded
+    cleared_count = sum(1 for a in advances if float(a.get("deducted", 0)) >= float(a.get("amount", 0)))
+    uncleared_count = len(advances) - cleared_count
+    sdata = [[
+        PlParagraph(f"<b>Total Transactions</b><br/><font size=10 color='#1a3a5c'>{len(advances)}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        PlParagraph(f"<b>Total Advances</b><br/><font size=10 color='#1a7d1a'>AED {format_currency(total_amt)}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        PlParagraph(f"<b>Total Deducted</b><br/><font size=10 color='#c62828'>AED {format_currency(total_ded)}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        PlParagraph(f"<b>Outstanding</b><br/><font size=10 color='#e65100'>AED {format_currency(total_out)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+    ]]
+    st = PlTable(sdata, colWidths=[W/4, W/4, W/4, W/4])
+    st.setStyle(PlTableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),8), ("BOTTOMPADDING",(0,0),(-1,-1),8),
+        ("LEFTPADDING",(0,0),(-1,-1),5), ("RIGHTPADDING",(0,0),(-1,-1),5),
+        ("BACKGROUND",(0,0),(-1,-1),BG),
+    ]))
+    els.append(st)
+    els.append(Spacer(1, 3*mm))
 
-    notes_y = 38 * mm
-    pdf.setFillColor(colors.white)
-    pdf.roundRect(16 * mm, notes_y, 96 * mm, 24 * mm, 4 * mm, fill=1, stroke=0)
-    pdf.setStrokeColor(LINE)
-    pdf.roundRect(16 * mm, notes_y, 96 * mm, 24 * mm, 4 * mm, fill=0, stroke=1)
-    pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 8.2)
-    pdf.drawString(20 * mm, notes_y + 17 * mm, "ADVANCE SUMMARY")
-    summary_lines = [
-        f"Total Transactions: {len(advances)}",
-        f"Fully Cleared: {cleared_count}  |  Partially/Uncleared: {len(advances) - cleared_count}",
+    # ═══ ADVANCES TABLE ═══
+    els.append(PlParagraph("<b>Advance / Transaction Details</b>", F("_atitle", fontSize=8, fontName="Helvetica-Bold", textColor=TH, leading=10)))
+    els.append(Spacer(1, 2*mm))
+
+    adv_colw = [50, 42, 50, W - 50 - 42 - 50 - 50 - 50, 50, 50]
+    adv_hdr = [
+        PlParagraph("<b>Date</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        PlParagraph("<b>Amount</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        PlParagraph("<b>Given By</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        PlParagraph("<b>Details</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        PlParagraph("<b>Deducted</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        PlParagraph("<b>Remaining</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
     ]
-    pdf.setFillColor(TEXT)
-    pdf.setFont("Helvetica", 7.1)
-    for idx, line in enumerate(summary_lines[:2]):
-        pdf.drawString(20 * mm, notes_y + 11.5 * mm - (idx * 4.2 * mm), line)
+    adv_rows = [adv_hdr]
+    t_amt = 0.0; t_ded = 0.0; t_rem = 0.0
+    for a in advances:
+        amt = float(a.get("amount", 0))
+        ded = float(a.get("deducted", 0))
+        rem = amt - ded
+        t_amt += amt; t_ded += ded; t_rem += rem
+        adv_rows.append([
+            PlParagraph(str(a.get("entry_date",""))[:10], F("_ad", fontSize=6.5, leading=9)),
+            PlParagraph(f"<b>{format_currency(amt)}</b>", F("_aa", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=9)),
+            PlParagraph(str(a.get("given_by","-")), F("_ag", fontSize=6.5, textColor=C5, leading=9)),
+            PlParagraph(str(a.get("details","-")), F("_aDet", fontSize=6.2, textColor=C5, leading=9)),
+            PlParagraph(f"<b>{format_currency(ded)}</b>" if ded > 0 else '<font color="#cccccc">—</font>', F("_adr", fontSize=6.5, textColor="#c62828" if ded > 0 else C5, alignment=TA_RIGHT, leading=9)),
+            PlParagraph(f"<b>{format_currency(rem)}</b>" if rem > 0 else '<font color="#cccccc">—</font>', F("_arm", fontSize=6.5, textColor="#e65100" if rem > 0 else C5, alignment=TA_RIGHT, leading=9)),
+        ])
+    # Totals row
+    adv_rows.append([
+        PlParagraph("<b>Totals</b>", F("_atb", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+        PlParagraph(f"<b>{format_currency(t_amt)}</b>", F("_att", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        PlParagraph("", F("_ax")),
+        PlParagraph(f"Cleared: {cleared_count} / Out: {uncleared_count}", F("_ax", fontSize=6.2, textColor=WH, leading=9)),
+        PlParagraph(f"<b>{format_currency(t_ded)}</b>", F("_att", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        PlParagraph(f"<b>{format_currency(t_rem)}</b>", F("_att", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+    ])
+    atbl = PlTable(adv_rows, colWidths=adv_colw, repeatRows=1)
+    atbl.setStyle(PlTableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
+        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
+        ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
+        ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
+    ]))
+    els.append(atbl)
 
-    _draw_small_meta_row(pdf, 20 * mm, notes_y + 3.4 * mm, "Driver ID", driver.get("driver_id", "-"), 50 * mm)
-    _draw_small_meta_row(pdf, 118 * mm, notes_y - 4.8 * mm, "Generated", datetime.now().strftime("%d-%b-%Y %I:%M %p"), 54 * mm)
+    # ═══ SIGNATURES ═══
+    els.append(Spacer(1, 8*mm))
+    s_sg = ParagraphStyle("SSG", fontSize=9, alignment=TA_CENTER, leading=14)
+    s_stamp_path = os.path.join(assets_dir, 'Stamp.png')
+    s_sign_path = os.path.join(assets_dir, 'Sign (1).png')
+    s_auth_cells = []
+    s_auth_cells.append(PlParagraph("_________________________", s_sg))
+    if os.path.exists(s_stamp_path):
+        s_auth_cells.append(PlImage(s_stamp_path, width=40, height=40))
+    if os.path.exists(s_sign_path):
+        s_auth_cells.append(PlImage(s_sign_path, width=40, height=40))
+    s_auth_cells.append(PlParagraph("<b>Authorized Signatory</b>", s_sg))
+    s_auth_cell = PlTable([[c] for c in s_auth_cells], colWidths=[W*0.35])
+    s_auth_cell.setStyle(PlTableStyle([
+        ("ALIGN",(0,0),(-1,-1),"CENTER"),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("TOPPADDING",(0,0),(-1,-1),0),
+        ("BOTTOMPADDING",(0,0),(-1,-1),2),
+    ]))
+    soa_sig = PlTable([[
+        s_auth_cell,
+        C("", fontSize=4),
+        PlParagraph("", s_sg),
+    ]], colWidths=[W*0.35, W*0.30, W*0.35])
+    soa_sig.setStyle(PlTableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("LINEABOVE",(0,0),(0,0),0.5,C5), ("LINEABOVE",(2,0),(2,0),0.5,C5),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
+    els.append(soa_sig)
 
-    _draw_footer_banner(pdf, assets_dir, True, company_profile)
-    pdf.save()
+    # ═══ FOOTER ═══
+    els.append(Spacer(1, 8*mm))
+    fh = PlTable([[""]], colWidths=[W], rowHeights=[0.5])
+    fh.setStyle(PlTableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(fh)
+    els.append(Spacer(1, 2*mm))
+    ft_txt = "This is a computer-generated Outstanding Advances Statement."
+    els.append(PlParagraph(ft_txt, F("_ft", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
+
+    doc.build(els)
     return str(output_path)
 
 
