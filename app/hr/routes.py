@@ -194,7 +194,7 @@ def employee_list():
     employees = db.execute(
         f"""
         SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
-               e.department, e.designation, e.join_date, e.basic_salary, e.status, e.photo_name,
+               e.department, e.designation, e.join_date, e.basic_salary, e.status, e.photo_name, e.termination_date,
                COALESCE(
                    (SELECT v.plate_no FROM vehicle_assignments va
                     JOIN vehicles v ON v.plate_no = va.vehicle_id
@@ -283,8 +283,8 @@ def employee_new():
                 bank_name, bank_account, iban,
                 emergency_contact, emergency_name, address,
                 photo_name, photo_data, photo_content_type,
-                status, remarks
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                status, termination_date, remarks
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 values["employee_id"], values["full_name"], values["phone_number"], values["email"] or None,
@@ -297,7 +297,7 @@ def employee_new():
                 uploaded_photo["photo_name"] if uploaded_photo else None,
                 uploaded_photo["photo_data"] if uploaded_photo else None,
                 uploaded_photo["photo_content_type"] if uploaded_photo else None,
-                values["status"], values["remarks"] or None,
+                values["status"], values["termination_date"] or None, values["remarks"] or None,
             ),
         )
 
@@ -556,6 +556,11 @@ def employee_salary_store(employee_id):
         except ValidationError as exc:
             flash(str(exc), "error")
         else:
+            if employee.get("termination_date"):
+                term_date = employee["termination_date"]
+                if term_date < form["salary_month"] + "-01":
+                    flash(f"Cannot store salary: employee was terminated on {term_date}. Select a month on or before {term_date[:7]}.", "error")
+                    return redirect(url_for("hr.employee_salary_store", employee_id=eid, month=form["salary_month"]))
             action = request.form.get("action", "calculate")
             if action == "save":
                 existing_month_row = db.execute(
@@ -1156,7 +1161,7 @@ def employee_edit(employee_id):
                     photo_name=COALESCE(?, photo_name),
                     photo_data=COALESCE(?, photo_data),
                     photo_content_type=COALESCE(?, photo_content_type),
-                    status=?, remarks=?,
+                    status=?, termination_date=?, remarks=?,
                     updated_at=CURRENT_TIMESTAMP
                 WHERE employee_id=?
                 """,
@@ -1171,7 +1176,7 @@ def employee_edit(employee_id):
                     uploaded_photo["photo_name"] if uploaded_photo else None,
                     uploaded_photo["photo_data"] if uploaded_photo else None,
                     uploaded_photo["photo_content_type"] if uploaded_photo else None,
-                    values["status"], values["remarks"] or None,
+                    values["status"], values["termination_date"] or None, values["remarks"] or None,
                     employee_id,
                 ),
             )
@@ -1203,8 +1208,8 @@ def employee_edit(employee_id):
 
             try:
                 db.execute(
-                    "UPDATE drivers SET basic_salary=?, ot_rate=?, duty_start=?, shift=?, full_name=?, phone_number=?, status=? WHERE driver_id=?",
-                    (salary, ot_rate, values["join_date"], values["shift"] or "Morning", values["full_name"], values["phone_number"] or None, values["status"], employee_id),
+                    "UPDATE drivers SET basic_salary=?, ot_rate=?, duty_start=?, shift=?, full_name=?, phone_number=?, status=?, termination_date=? WHERE driver_id=?",
+                    (salary, ot_rate, values["join_date"], values["shift"] or "Morning", values["full_name"], values["phone_number"] or None, values["status"], values["termination_date"] or None, employee_id),
                 )
                 db.commit()
             except Exception:
@@ -1255,7 +1260,7 @@ def employee_list_excel():
     employees = db.execute(
         f"""
         SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
-               e.department, e.designation, e.join_date, e.basic_salary, e.status,
+               e.department, e.designation, e.join_date, e.basic_salary, e.status, e.termination_date,
                COALESCE(
                    (SELECT v.plate_no FROM vehicle_assignments va
                     JOIN vehicles v ON v.plate_no = va.vehicle_id
@@ -1284,7 +1289,7 @@ def employee_list_excel():
     thin = Side(style="thin", color="d8e4f5")
     border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-    heads = ["Employee ID", "Full Name", "Phone", "Email", "Type", "Department", "Designation", "Join Date", "Salary (AED)", "Vehicle", "Status"]
+    heads = ["Employee ID", "Full Name", "Phone", "Email", "Type", "Department", "Designation", "Join Date", "Salary (AED)", "Vehicle", "Status", "Termination Date"]
     for ci, h in enumerate(heads, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
@@ -1292,7 +1297,8 @@ def employee_list_excel():
     for ri, emp in enumerate(employees, 2):
         vals = [emp["employee_id"], emp["full_name"], emp["phone_number"] or "", emp["email"] or "",
                 emp["employee_type"], emp["department"], emp["designation"],
-                emp["join_date"], emp["basic_salary"] or 0, emp["plate_no"] or "", emp["status"] or ""]
+                emp["join_date"], emp["basic_salary"] or 0, emp["plate_no"] or "", emp["status"] or "",
+                emp["termination_date"] or ""]
         for ci, v in enumerate(vals, 1):
             c = ws.cell(row=ri, column=ci, value=v)
             c.border = border
@@ -1335,7 +1341,7 @@ def employee_list_pdf():
     employees = db.execute(
         f"""
         SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
-               e.department, e.designation, e.join_date, e.basic_salary, e.status
+               e.department, e.designation, e.join_date, e.basic_salary, e.status, e.termination_date
         FROM employees e
         {where_sql}
         ORDER BY e.full_name ASC

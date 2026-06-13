@@ -32,6 +32,7 @@ EMPLOYEE_COLUMNS = """
     photo_data TEXT,
     photo_content_type TEXT,
     status TEXT NOT NULL DEFAULT 'Active',
+    termination_date TEXT,
     remarks TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -79,6 +80,7 @@ def sync_drivers_to_employees(db):
         photo_data = (d.get("photo_data") if "photo_data" in columns else None)
         photo_ct = (d.get("photo_content_type") if "photo_content_type" in columns else None)
         status = (d.get("status") if "status" in columns else "Active") or "Active"
+        termination_date = (d.get("termination_date") if "termination_date" in columns else None)
         remarks = d.get("remarks") if "remarks" in columns else None
         shift = (d.get("shift") if "shift" in columns else "Morning") or "Morning"
         created = d.get("created_at") if "created_at" in columns else None
@@ -94,11 +96,11 @@ def sync_drivers_to_employees(db):
                 UPDATE employees SET
                     full_name=?, phone_number=?, join_date=?, basic_salary=?,
                     ot_rate=?, photo_name=?, photo_data=?, photo_content_type=?,
-                    status=?, remarks=?, shift=?
+                    status=?, termination_date=?, remarks=?, shift=?
                 WHERE employee_id=?
                 """,
                 (name, phone, duty_start, salary, ot,
-                 photo_name, photo_data, photo_ct, status, remarks, shift, emp_id),
+                 photo_name, photo_data, photo_ct, status, termination_date, remarks, shift, emp_id),
             )
         else:
             db.execute(
@@ -106,12 +108,12 @@ def sync_drivers_to_employees(db):
                 INSERT INTO employees (
                     employee_id, full_name, phone_number, employee_type,
                     department, designation, join_date, basic_salary, ot_rate,
-                    photo_name, photo_data, photo_content_type, status, remarks,
-                    shift, created_at
-                ) VALUES (?, ?, ?, 'Driver', 'Transport', 'Driver', ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+                    photo_name, photo_data, photo_content_type, status, termination_date,
+                    remarks, shift, created_at
+                ) VALUES (?, ?, ?, 'Driver', 'Transport', 'Driver', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
                 """,
                 (emp_id, name, phone, duty_start, salary, ot,
-                 photo_name, photo_data, photo_ct, status, remarks, shift, created),
+                 photo_name, photo_data, photo_ct, status, termination_date, remarks, shift, created),
             )
     db.commit()
 

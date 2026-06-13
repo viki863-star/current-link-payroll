@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS employees (
     photo_data TEXT,
     photo_content_type TEXT,
     status TEXT NOT NULL DEFAULT 'Active',
+    termination_date TEXT,
     remarks TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -940,6 +941,7 @@ CREATE TABLE IF NOT EXISTS employees (
     photo_data TEXT,
     photo_content_type TEXT,
     status TEXT NOT NULL DEFAULT 'Active',
+    termination_date TEXT,
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -1796,6 +1798,7 @@ REQUIRED_COLUMNS = {
     },
     "employees": {
         "updated_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "termination_date": "TEXT",
     },
     "supplier_vouchers": {
         "source_type": "TEXT NOT NULL DEFAULT 'Timesheet'",

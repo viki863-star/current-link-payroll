@@ -183,11 +183,15 @@
                 <h3>Status & Notes</h3>
                 <div class="form-group">
                     <label>Status</label>
-                    <select name="status" class="form-control">
+                    <select name="status" class="form-control" id="statusSelect">
                         {% for opt in status_options %}
                         <option value="{{ opt }}" {% if values.status == opt %}selected{% endif %}>{{ opt }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <div class="form-group" id="terminationDateGroup" style="display:none">
+                    <label>Termination Date</label>
+                    <input type="date" name="termination_date" value="{{ values.termination_date or '' }}" class="form-control">
                 </div>
                 <div class="form-group">
                     <label>Address</label>
@@ -228,6 +232,18 @@
             submitBtn.disabled = true;
             submitBtn.textContent = 'Updating...';
         });
+    }
+
+    var statusSel = document.getElementById('statusSelect');
+    var termGroup = document.getElementById('terminationDateGroup');
+    function toggleTerminationDate() {
+        if (statusSel && termGroup) {
+            termGroup.style.display = (statusSel.value === 'Terminated') ? 'block' : 'none';
+        }
+    }
+    if (statusSel) {
+        statusSel.addEventListener('change', toggleTerminationDate);
+        toggleTerminationDate();
     }
 })();
 </script>

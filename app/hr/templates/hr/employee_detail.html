@@ -25,7 +25,7 @@
                 <span class="badge badge-dept">{{ employee.department }}</span>
                 <span class="badge badge-desig">{{ employee.designation }}</span>
             </p>
-            <p class="profile-id mono">{{ employee.employee_id }} &middot; Joined {{ employee.join_date }}</p>
+            <p class="profile-id mono">{{ employee.employee_id }} &middot; Joined {{ employee.join_date }}{% if employee.termination_date %} &middot; Terminated {{ employee.termination_date }}{% endif %}</p>
             <div class="profile-mini-stats">
                 <span><strong>Salary:</strong> <span class="salary-amount">AED {{ "%.0f"|format(employee.basic_salary or 0) }}</span></span>
                 <span><strong>Phone:</strong> {{ employee.phone_number or '-' }}</span>
