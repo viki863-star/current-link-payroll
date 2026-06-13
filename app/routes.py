@@ -4971,7 +4971,7 @@ def register_routes(app: Flask) -> None:
             values=values,
             loan_type_options=LOAN_TYPE_OPTIONS,
             payment_method_options=PAYMENT_METHOD_OPTIONS,
-            parties=_contract_parties(db),
+            parties=_all_parties(db),
             rows=_loan_rows(db),
             summary=_loan_summary(db),
         )
@@ -5048,7 +5048,7 @@ def register_routes(app: Flask) -> None:
             "annual_fees.html",
             values=values,
             fee_type_options=FEE_TYPE_OPTIONS,
-            parties=_contract_parties(db),
+            parties=_all_parties(db),
             rows=_annual_fee_rows(db),
             summary=_annual_fee_summary(db),
         )
@@ -9481,6 +9481,18 @@ def _contract_parties(db):
         ORDER BY CASE WHEN status = 'Active' THEN 0 ELSE 1 END, party_name ASC
         """,
         ("%Supplier%", "%Customer%"),
+    ).fetchall()
+
+
+def _all_parties(db):
+    return db.execute(
+        """
+        SELECT
+            party_code, party_name, party_kind, party_roles, contact_person,
+            phone_number, email, trn_no, trade_license_no, address, notes, status, created_at
+        FROM parties
+        ORDER BY CASE WHEN status = 'Active' THEN 0 ELSE 1 END, party_name ASC
+        """,
     ).fetchall()
 
 
