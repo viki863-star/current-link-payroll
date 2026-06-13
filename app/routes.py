@@ -1828,6 +1828,7 @@ def register_routes(app: Flask) -> None:
         active_drivers = sum(1 for driver in drivers if (driver["status"] or "").lower() == "active")
         total_payroll = sum(driver["basic_salary"] for driver in drivers if (driver["status"] or "").lower() == "active")
         total_vehicles = db.execute("SELECT COUNT(*) FROM vehicles").fetchone()[0] or 0
+        terminated_drivers = sum(1 for driver in drivers if (driver["status"] or "").lower() == "terminated")
         stored_this_month = db.execute(
             "SELECT COUNT(*) FROM salary_store WHERE salary_month = ?",
             (current_month,),
@@ -1950,6 +1951,7 @@ def register_routes(app: Flask) -> None:
             active_drivers=active_drivers,
             total_payroll=total_payroll,
             total_vehicles=total_vehicles,
+            terminated_drivers=terminated_drivers,
             stored_this_month=stored_this_month,
             current_month_label=format_month_label(current_month),
             query=query,
