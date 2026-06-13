@@ -81,7 +81,7 @@ def hr_dashboard():
         db = open_db()
 
         employees = db.execute(
-            "SELECT employee_id, full_name, status FROM employees ORDER BY full_name"
+            "SELECT employee_id, full_name, employee_type, department, status, join_date FROM employees ORDER BY full_name"
         ).fetchall()
 
         total = len(employees)
@@ -97,13 +97,59 @@ def hr_dashboard():
             "SELECT COUNT(*) AS c FROM driver_transactions WHERE txn_type IN ('advance','loan')"
         ).fetchone()["c"] or 0
 
+        # ── Department breakdown ──
+        dept_rows = db.execute(
+            "SELECT department, COUNT(*) AS c FROM employees GROUP BY department ORDER BY c DESC"
+        ).fetchall()
+        departments = {r["department"]: r["c"] for r in dept_rows}
+
+        # ── Type breakdown ──
+        type_rows = db.execute(
+            "SELECT employee_type, COUNT(*) AS c FROM employees GROUP BY employee_type ORDER BY c DESC"
+        ).fetchall()
+        employee_types_dict = {r["employee_type"]: r["c"] for r in type_rows}
+
+        # ── Monthly salary store trend (last 6 months) ──
+        from datetime import date
+        trend_months = []
+        trend_counts = []
+        today = date.today()
+        for i in range(5, -1, -1):
+            m = today.month - i
+            y = today.year
+            if m < 1:
+                m += 12
+                y -= 1
+            ym = f"{y:04d}-{m:02d}"
+            cnt = db.execute(
+                "SELECT COUNT(*) AS c FROM salary_store WHERE salary_month = ?", (ym,)
+            ).fetchone()["c"] or 0
+            trend_months.append(ym)
+            trend_counts.append(cnt)
+
+        # ── Recent employees ──
+        recent = db.execute(
+            "SELECT employee_id, full_name, employee_type, department, join_date, status FROM employees ORDER BY id DESC LIMIT 5"
+        ).fetchall()
+
+        # ── Count by status ──
+        on_leave = sum(1 for e in employees if (e["status"] or "").lower() == "on leave")
+        terminated = sum(1 for e in employees if (e["status"] or "").lower() == "terminated")
+
         return render_template(
             "hr/dashboard.html",
             total=total,
             active_count=active,
             inactive_count=inactive,
+            on_leave=on_leave,
+            terminated=terminated,
             stored_this_month=stored_this_month,
             advances_pending=advances_pending,
+            departments=departments,
+            employee_types=employee_types_dict,
+            trend_months=trend_months,
+            trend_counts=trend_counts,
+            recent_employees=recent,
         )
     except Exception as e:
         current_app.logger.error("HR dashboard error: %s", e, exc_info=True)
@@ -1068,9 +1114,6 @@ def employee_edit(employee_id):
         values = employee_form_data()
         values["employee_id"] = employee_id
         errors = validate_employee_form(values)
-        import logging
-        logging.warning(f"DEBUG employee_edit POST: join_date from form = '{request.form.get('join_date', '')}'")
-        logging.warning(f"DEBUG employee_edit POST: join_date in values = '{values.get('join_date', '')}'")
         if errors:
             for err in errors:
                 flash(err, "error")
