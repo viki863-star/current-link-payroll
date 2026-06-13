@@ -792,30 +792,30 @@ html::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 }
 .site-footer-bar {
     background: linear-gradient(135deg, var(--nv) 0%, var(--nv-dark) 100%);
-    padding: 14px 0;
+    padding: 6px 0;
     border-top: 1px solid rgba(255,255,255,0.06);
 }
 .site-footer-inner {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 10px;
     width: min(1260px, calc(100% - 24px));
     margin: 0 auto;
     flex-wrap: wrap;
 }
 .site-footer-name {
-    font-size: 0.84rem;
-    color: rgba(255,255,255,0.90);
-    font-weight: 500;
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.80);
+    font-weight: 400;
 }
 .site-footer-name strong {
-    font-weight: 800;
+    font-weight: 700;
     color: #fff;
 }
 .site-footer-copy {
-    font-size: 0.78rem;
-    color: rgba(255,255,255,0.55);
+    font-size: 0.62rem;
+    color: rgba(255,255,255,0.45);
 }
 
 /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
