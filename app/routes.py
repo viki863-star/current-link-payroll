@@ -10100,6 +10100,7 @@ def _default_fee_form(db=None):
         "original_fee_no": "",
         "fee_no": _next_reference_code(db, "annual_fee_entries", "fee_no", "FEE"),
         "party_code": "",
+        "other_party_name": "",
         "fee_type": FEE_TYPE_OPTIONS[0],
         "description": "",
         "vehicle_no": "",
@@ -10720,6 +10721,7 @@ def _fee_form_data(request):
         "original_fee_no": request.form.get("original_fee_no", "").strip().upper(),
         "fee_no": request.form.get("fee_no", "").strip().upper(),
         "party_code": request.form.get("party_code", "").strip().upper(),
+        "other_party_name": request.form.get("other_party_name", "").strip(),
         "fee_type": request.form.get("fee_type", FEE_TYPE_OPTIONS[0]).strip() or FEE_TYPE_OPTIONS[0],
         "description": request.form.get("description", "").strip(),
         "vehicle_no": request.form.get("vehicle_no", "").strip(),
@@ -15176,6 +15178,16 @@ def _prepare_loan_payload(db, values):
 def _prepare_fee_payload(db, values):
     if not values["fee_no"]:
         values["fee_no"] = _next_reference_code(db, "annual_fee_entries", "fee_no", "FEE")
+    if values.get("party_code") == "__OTHER__":
+        if not values.get("other_party_name", "").strip():
+            raise ValidationError("Enter the party name for manual entry.")
+        name = values["other_party_name"].strip()
+        code = _next_reference_code(db, "parties", "party_code", "OTH")
+        db.execute(
+            "INSERT INTO parties (party_code, party_name, party_kind, party_roles, status) VALUES (?, ?, ?, ?, ?)",
+            (code, name, "Individual", "Individual", "Active"),
+        )
+        values["party_code"] = code
     _validate_party_reference(db, values["party_code"])
     due_date = _validate_date_text(values["due_date"], "Fee due date")
     annual_amount = _parse_decimal(values["annual_amount"], "Annual amount", required=True, minimum=0.0)
