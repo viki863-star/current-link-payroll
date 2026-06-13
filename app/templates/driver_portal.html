@@ -1,518 +1,421 @@
 {% extends "base.html" %}
 
+{% block shell_header %}
+<header class="dp-header">
+  <div class="dp-header-inner">
+    <div class="dp-brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      <span>Driver Portal</span>
+    </div>
+    <a href="{{ url_for('logout') }}" class="dp-logout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span>Logout</span>
+    </a>
+  </div>
+</header>
+{% endblock %}
+
 {% block content %}
-<section class="card action-panel compact-action-panel portal-panel">
-    <div class="panel-titlebar">
-        <span>{{ config["COMPANY_NAME"] }}</span>
-        <span>Driver Portal</span>
+<div class="dp-shell">
+
+  {# ═══ Driver Info Card ═══ #}
+  <div class="dp-profile">
+    <div class="dp-avatar">
+      {% if photo_url %}
+      <img src="{{ photo_url }}" alt="{{ driver.full_name }}">
+      {% else %}
+      <div class="dp-avatar-placeholder">{{ driver.full_name[:1]|upper }}</div>
+      {% endif %}
     </div>
-
-    <div class="action-grid panel-main-grid">
-        <div class="photo-panel smart-photo-panel">
-            {% if photo_url %}
-                <img class="driver-photo tall-photo" src="{{ photo_url }}" alt="{{ driver.full_name }}">
-            {% else %}
-                <div class="photo-placeholder tall-photo">NO PHOTO</div>
-            {% endif %}
-            <div class="salary-flag stored">{{ selected_month_label }} | Self Service</div>
-        </div>
-
-        <div class="driver-summary smart-summary-box">
-            <h2>{{ driver.full_name }}</h2>
-            <div class="summary-tags smart-tags">
-                <span>ID {{ driver.driver_id }}</span>
-                <span>{{ driver.phone_number or "-" }}</span>
-            </div>
-            <dl class="panel-facts smart-facts">
-                <div><dt>Vehicle No</dt><dd>{{ driver.vehicle_no }}</dd></div>
-                <div><dt>Shift</dt><dd>{{ driver.shift }}</dd></div>
-                <div><dt>Vehicle Type</dt><dd>{{ driver.vehicle_type }}</dd></div>
-                <div><dt>This Month Hours</dt><dd>{{ "%.2f"|format(month_hours) }}</dd></div>
-                <div><dt>Entered Days</dt><dd>{{ timesheet_summary.entered_days }}</dd></div>
-                <div><dt>Missing Days</dt><dd>{{ timesheet_summary.missing_days }}</dd></div>
-                <div><dt>Advance Left</dt><dd>AED {{ "%.2f"|format(outstanding_advance) }}</dd></div>
-                <div><dt>Status</dt><dd>{{ driver.status }}</dd></div>
-            </dl>
-        </div>
+    <div class="dp-profile-body">
+      <h2>{{ driver.full_name }}</h2>
+      <div class="dp-tags">
+        <span class="dp-tag">{{ driver.driver_id }}</span>
+        <span class="dp-tag">{{ driver.vehicle_no or '—' }}</span>
+        <span class="dp-tag">{{ driver.shift }}</span>
+      </div>
     </div>
-</section>
+    <span class="dp-status {{ driver.status|lower }}">{{ driver.status }}</span>
+  </div>
 
-<section class="mobile-shortcuts">
-    <a class="button button-secondary" href="#timesheet-entry">Timesheet</a>
-    <a class="button button-secondary" href="#timesheet-calendar">Month View</a>
-    <a class="button button-secondary" href="#salary-slips">Statements</a>
-    <a class="button button-secondary" href="#driver-transactions">Monthly Statement</a>
-</section>
+  {# ═══ Quick Stats ═══ #}
+  <div class="dp-stats">
+    <div class="dp-stat">
+      <span class="dp-stat-value">{{ "%.2f"|format(month_hours) }}</span>
+      <span class="dp-stat-label">Hours</span>
+    </div>
+    <div class="dp-stat">
+      <span class="dp-stat-value">{{ timesheet_summary.entered_days }}</span>
+      <span class="dp-stat-label">Entered</span>
+    </div>
+    <div class="dp-stat">
+      <span class="dp-stat-value" style="color:{% if timesheet_summary.missing_days > 0 %}#ef4444{% else %]#22c55e{% endif %}">{{ timesheet_summary.missing_days }}</span>
+      <span class="dp-stat-label">Missing</span>
+    </div>
+    <div class="dp-stat">
+      <span class="dp-stat-value">AED {{ "%.0f"|format(outstanding_advance) }}</span>
+      <span class="dp-stat-label">Advance</span>
+    </div>
+  </div>
 
-<section class="detail-layout owner-fund-layout" id="timesheet-entry">
-    <article class="card form-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">1</p>
-                <h2>Timesheet Entry</h2>
-            </div>
+  {# ═══ Timesheet Entry ═══ #}
+  <div class="dp-card" id="timesheet-entry">
+    <div class="dp-card-head">
+      <span class="dp-card-step">1</span>
+      <h3>Timesheet Entry</h3>
+    </div>
+    <form method="post" class="dp-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="selected_month" value="{{ selected_month }}">
+      <div class="dp-form-row">
+        <div class="dp-field">
+          <label>Date</label>
+          <input type="date" name="entry_date" value="{{ values.entry_date }}" required>
         </div>
-        <form method="post" class="entry-form two-column-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="selected_month" value="{{ selected_month }}">
-            <label>
-                <span>Date</span>
-                <input type="date" name="entry_date" value="{{ values.entry_date }}" required>
-            </label>
-            <label>
-                <span>Hours</span>
-                <input type="number" name="work_hours" step="0.01" min="0" value="{{ values.work_hours }}" required>
-            </label>
-            <label class="full-span">
-                <span>Remarks</span>
-                <textarea name="remarks" rows="4">{{ values.remarks }}</textarea>
-            </label>
-            <div class="form-actions">
-                <button class="button" type="submit">Save Timesheet</button>
-            </div>
-        </form>
-    </article>
-
-    <article class="card info-card" id="timesheet-calendar">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">2</p>
-                <h2>Monthly Overview</h2>
-            </div>
+        <div class="dp-field">
+          <label>Hours</label>
+          <input type="number" name="work_hours" step="0.01" min="0" max="24" value="{{ values.work_hours }}" required placeholder="0.00">
         </div>
-        <form method="get" class="filter-grid compact-filter-grid">
-            <label>
-                <span>Month</span>
-                <input type="month" name="month" value="{{ selected_month }}">
-            </label>
-            <div class="form-actions left-actions full-span">
-                <button class="button" type="submit">Open Month</button>
-                <a class="button button-secondary" href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank">Download Monthly Statement</a>
-                <a class="button button-secondary" href="{{ url_for('driver_timesheet_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank">Download Timesheet PDF</a>
-            </div>
-        </form>
-        <div class="timesheet-calendar-grid">
-            {% for item in month_calendar %}
-                <article class="timesheet-day-card {% if item.entered %}entered{% else %}missing{% endif %}">
-                    <span class="timesheet-day-number">{{ item.day }}</span>
-                    <strong>{{ "Entered" if item.entered else "Missing" }}</strong>
-                    <small>{{ "%.2f"|format(item.work_hours) }} hrs</small>
-                    <small>{{ item.remarks or ("No entry" if not item.entered else "-") }}</small>
-                </article>
-            {% endfor %}
-        </div>
-    </article>
-</section>
+      </div>
+      <div class="dp-field">
+        <label>Remarks</label>
+        <textarea name="remarks" rows="2" placeholder="Optional notes...">{{ values.remarks }}</textarea>
+      </div>
+      <button type="submit" class="dp-btn dp-btn-primary">Save Timesheet</button>
+    </form>
+  </div>
 
-<section class="detail-layout owner-fund-layout">
-    <article class="card info-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">3</p>
-                <h2>Recent Hours</h2>
-            </div>
-        </div>
-        {% if recent_timesheets %}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Hours</th>
-                            <th>Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in recent_timesheets %}
-                            <tr>
-                                <td>{{ item.entry_date }}</td>
-                                <td>{{ "%.2f"|format(item.work_hours) }}</td>
-                                <td>{{ item.remarks or "-" }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="muted-text">Abhi timesheet entry nahi bani.</p>
-        {% endif %}
-    </article>
+  {# ═══ Monthly Overview + Calendar ═══ #}
+  <div class="dp-card" id="timesheet-calendar">
+    <div class="dp-card-head">
+      <span class="dp-card-step">2</span>
+      <h3>Monthly Overview</h3>
+      <form method="get" class="dp-month-form">
+        <input type="month" name="month" value="{{ selected_month }}" onchange="this.form.submit()">
+      </form>
+    </div>
+    <div class="dp-calendar">
+      {% for item in month_calendar %}
+      <div class="dp-day {% if item.entered %}dp-day-entered{% else %}dp-day-missing{% endif %}">
+        <span class="dp-day-num">{{ item.day }}</span>
+        <span class="dp-day-hrs">{{ "%.1f"|format(item.work_hours) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="dp-cal-legend">
+      <span><span class="dp-legend-dot entered"></span> Entered</span>
+      <span><span class="dp-legend-dot missing"></span> Missing</span>
+    </div>
+    <div class="dp-card-actions">
+      <a href="{{ url_for('driver_kata_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank" class="dp-btn dp-btn-outline">📄 Monthly Statement</a>
+      <a href="{{ url_for('driver_timesheet_pdf', driver_id=driver.driver_id, month=selected_month) }}" target="_blank" class="dp-btn dp-btn-outline">📄 Timesheet PDF</a>
+    </div>
+  </div>
 
-    <article class="card info-card" id="salary-slips">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">4</p>
-                <h2>Monthly Statements</h2>
-            </div>
-        </div>
-        {% if salary_slips %}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Month</th>
-                            <th>Deduction</th>
-                            <th>Actual Paid</th>
-                            <th>Company Balance</th>
-                            <th>PDF</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in salary_slips %}
-                            <tr>
-                                <td>{{ item.salary_month }}</td>
-                                <td>AED {{ "%.2f"|format(item.total_deductions) }}</td>
-                                <td>AED {{ "%.2f"|format(item.actual_paid_amount or item.net_payable) }}</td>
-                                <td>AED {{ "%.2f"|format(item.company_balance_due or 0) }}</td>
-                                <td><a class="table-link" href="{{ url_for('generated_file', filename=item.pdf_path) }}" target="_blank">Open</a></td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="muted-text">Abhi salary slip available nahi.</p>
-        {% endif %}
-    </article>
-</section>
+  {# ═══ Recent Hours ═══ #}
+  <div class="dp-card">
+    <div class="dp-card-head">
+      <span class="dp-card-step">3</span>
+      <h3>Recent Hours</h3>
+    </div>
+    {% if recent_timesheets %}
+    <div class="dp-table-wrap">
+      <table class="dp-table">
+        <thead>
+          <tr><th>Date</th><th>Hours</th><th>Remarks</th></tr>
+        </thead>
+        <tbody>
+          {% for item in recent_timesheets %}
+          <tr>
+            <td>{{ item.entry_date }}</td>
+            <td><strong>{{ "%.2f"|format(item.work_hours) }}</strong></td>
+            <td>{{ item.remarks or '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="dp-empty">No recent entries.</p>
+    {% endif %}
+  </div>
 
-<section class="detail-layout owner-fund-layout" id="driver-transactions">
-    <article class="card info-card">
-        <div class="section-heading slim-heading">
-            <div>
-                <p class="eyebrow">5</p>
-                <h2>Monthly Statement</h2>
-            </div>
-        </div>
-        <div class="portal-paper-summary statement-three-col">
-            <article class="portal-paper-card">
-                <div class="portal-paper-header">
-                    <span>Salary Summary | {{ kata_summary.month_label }}</span>
-                    <span>Driver ID {{ driver.driver_id }}</span>
-                </div>
-                <div class="portal-paper-lines">
-                    <div class="portal-paper-line"><span>Previous Balance</span><strong>AED {{ "%.2f"|format(kata_summary.previous_balance) }}</strong></div>
-                    <div class="portal-paper-line plus"><span>Salary</span><strong>AED {{ "%.2f"|format(kata_summary.salary_total or kata_summary.salary_amount) }}</strong></div>
-                    <div class="portal-paper-line plus"><span>Extra / OT</span><strong>AED {{ "%.2f"|format(kata_summary.extra_total or 0) }}</strong></div>
-                    <div class="portal-paper-line total"><span>Total Salary</span><strong>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</strong></div>
-                </div>
-            </article>
+  {# ═══ Salary Slips ═══ #}
+  <div class="dp-card" id="salary-slips">
+    <div class="dp-card-head">
+      <span class="dp-card-step">4</span>
+      <h3>Salary Slips</h3>
+    </div>
+    {% if salary_slips %}
+    <div class="dp-table-wrap">
+      <table class="dp-table">
+        <thead>
+          <tr><th>Month</th><th>Deduction</th><th>Paid</th><th>Balance</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for item in salary_slips %}
+          <tr>
+            <td>{{ item.salary_month }}</td>
+            <td>AED {{ "%.2f"|format(item.total_deductions) }}</td>
+            <td>AED {{ "%.2f"|format(item.actual_paid_amount or item.net_payable) }}</td>
+            <td>AED {{ "%.2f"|format(item.company_balance_due or 0) }}</td>
+            <td>{% if item.pdf_path %}<a href="{{ url_for('generated_file', filename=item.pdf_path) }}" target="_blank" class="dp-link">Slip</a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="dp-empty">No salary slips yet.</p>
+    {% endif %}
+  </div>
 
-            <article class="portal-paper-card remaining-card">
-                <div class="portal-paper-header">
-                    <span>Remaining Salary</span>
-                    <span>{{ kata_summary.month_label }}</span>
-                </div>
-                <div class="remaining-salary-box">
-                    <div class="remaining-salary-label">Remaining Salary</div>
-                    <div class="remaining-salary-value">AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</div>
-                </div>
-                <div class="remaining-salary-equation">
-                    <div><span>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</span><small>Total Salary</small></div>
-                    <strong>-</strong>
-                    <div><span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span><small>Not Yet Deducted</small></div>
-                    <strong>=</strong>
-                    <div><span>AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</span><small>Remaining Salary</small></div>
-                </div>
-            </article>
-
-            <article class="portal-paper-card">
-                <div class="portal-paper-header">
-                    <span>Received Not Yet Deducted</span>
-                    <span>Total AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span>
-                </div>
-                <div class="paper-mini-list">
-                    {% if kata_detail_entries %}
-                        {% for item in kata_detail_entries[:6] %}
-                            <div class="paper-mini-row statement-detail-row">
-                                <div class="statement-detail-meta">
-                                    <span class="statement-detail-date">{{ item.date }}</span>
-                                    <small>{{ item.given_by or item.paid_by or "-" }}</small>
-                                </div>
-                                <span>{{ item.details or item.reason or "-" }}</span>
-                                <strong>AED {{ "%.2f"|format(item.amount) }}</strong>
-                            </div>
-                        {% endfor %}
-                        <div class="paper-mini-row statement-total-mini-row">
-                            <span>Total Received</span>
-                            <span></span>
-                            <strong>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</strong>
-                        </div>
-                    {% else %}
-                        <p class="muted-text">No unrecovered cash entries for this month.</p>
-                    {% endif %}
-                </div>
-            </article>
+  {# ═══ Monthly Statement ═══ #}
+  <div class="dp-card" id="driver-transactions">
+    <div class="dp-card-head">
+      <span class="dp-card-step">5</span>
+      <h3>Monthly Statement</h3>
+      <span class="dp-card-badge">{{ selected_month_label }}</span>
+    </div>
+    <div class="dp-statement-grid">
+      <div class="dp-paper">
+        <div class="dp-paper-head">Salary Summary</div>
+        <div class="dp-paper-line"><span>Previous Balance</span><strong>AED {{ "%.2f"|format(kata_summary.previous_balance) }}</strong></div>
+        <div class="dp-paper-line plus"><span>Salary</span><strong>AED {{ "%.2f"|format(kata_summary.salary_total or kata_summary.salary_amount) }}</strong></div>
+        <div class="dp-paper-line plus"><span>Extra / OT</span><strong>AED {{ "%.2f"|format(kata_summary.extra_total or 0) }}</strong></div>
+        <div class="dp-paper-line total"><span>Total Salary</span><strong>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</strong></div>
+      </div>
+      <div class="dp-paper dp-paper-highlight">
+        <div class="dp-paper-head">Remaining Salary</div>
+        <div class="dp-remaining">AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</div>
+        <div class="dp-equation">
+          <span>AED {{ "%.2f"|format(kata_summary.total_salary_with_balance) }}</span>
+          <span>−</span>
+          <span>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</span>
+          <span>=</span>
+          <span class="eq-result">AED {{ "%.2f"|format(kata_summary.remaining_salary) }}</span>
         </div>
+      </div>
+      <div class="dp-paper">
+        <div class="dp-paper-head">Received Not Deducted</div>
+        <div class="dp-paper-total-badge">AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</div>
         {% if kata_detail_entries %}
-            <div class="table-wrap">
-                <table class="kata-month-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>Given By</th>
-                            <th>Details</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in kata_detail_entries %}
-                            <tr>
-                                <td>{{ item.date }}</td>
-                                <td class="kata-amount-cell">AED {{ "%.2f"|format(item.amount) }}</td>
-                                <td class="kata-who-cell">{{ item.given_by or item.paid_by or "-" }}</td>
-                                <td class="kata-purpose-cell">{{ item.details or item.reason or "-" }}</td>
-                            </tr>
-                        {% endfor %}
-                        <tr class="statement-total-row">
-                            <td><strong>Total</strong></td>
-                            <td class="kata-amount-cell"><strong>AED {{ "%.2f"|format(kata_summary.received_not_deducted_total) }}</strong></td>
-                            <td colspan="2"></td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="dp-paper-list">
+          {% for item in kata_detail_entries[:6] %}
+          <div class="dp-paper-item">
+            <div>
+              <strong>{{ item.date }}</strong>
+              <small>{{ item.given_by or item.paid_by or '-' }}</small>
             </div>
+            <span>{{ item.details or item.reason or '-' }}</span>
+            <strong>AED {{ "%.2f"|format(item.amount) }}</strong>
+          </div>
+          {% endfor %}
+        </div>
         {% else %}
-            <p class="muted-text">No unrecovered cash entries for this month.</p>
+        <p class="dp-empty" style="margin-top:12px">No unreceived entries.</p>
         {% endif %}
-    </article>
-</section>
+      </div>
+    </div>
+  </div>
+
+</div>
 
 <style>
-.kata-month-table {
-    font-size: 0.94rem;
+.dp-header {
+  position:sticky;top:0;z-index:100;
+  background:#0f2b52;color:#fff;
+  box-shadow:0 2px 12px rgba(0,0,0,0.12);
 }
-.kata-month-table th,
-.kata-month-table td {
-    padding: 12px 10px;
-    vertical-align: top;
+.dp-header-inner {
+  display:flex;align-items:center;justify-content:space-between;
+  max-width:640px;margin:0 auto;padding:14px 16px;
 }
-.kata-amount-cell,
-.kata-balance-cell,
-.kata-who-cell,
-.kata-purpose-cell {
-    font-weight: 700;
+.dp-brand { display:flex;align-items:center;gap:8px;font-weight:700;font-size:1rem; }
+.dp-logout {
+  display:flex;align-items:center;gap:6px;
+  color:rgba(255,255,255,0.75);text-decoration:none;
+  font-size:0.82rem;font-weight:500;padding:6px 12px;
+  border-radius:8px;transition:all 0.15s;
 }
-.kata-purpose-cell {
-    min-width: 220px;
+.dp-logout:hover { background:rgba(255,255,255,0.1);color:#fff; }
+
+.dp-shell {
+  max-width:640px;margin:0 auto;padding:16px;
+  display:grid;gap:16px;
 }
 
-.portal-paper-summary {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.78fr) minmax(0, 1fr);
-    gap: 14px;
-    margin-bottom: 18px;
+.dp-profile {
+  display:flex;align-items:center;gap:14px;
+  background:#fff;border-radius:14px;
+  padding:16px;border:1px solid #f1f5f9;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  position:relative;
+}
+.dp-avatar { width:52px;height:52px;border-radius:50%;overflow:hidden;flex-shrink:0; }
+.dp-avatar img { width:100%;height:100%;object-fit:cover; }
+.dp-avatar-placeholder {
+  width:100%;height:100%;border-radius:50%;
+  background:linear-gradient(135deg,#1d5c99,#0f2b52);
+  color:#fff;display:grid;place-items:center;font-size:1.3rem;font-weight:800;
+}
+.dp-profile-body { flex:1;min-width:0; }
+.dp-profile-body h2 { margin:0;font-size:1.05rem;font-weight:700;color:#0f172a; }
+.dp-tags { display:flex;flex-wrap:wrap;gap:4px;margin-top:4px; }
+.dp-tag {
+  font-size:0.68rem;font-weight:600;color:#64748b;
+  background:#f1f5f9;padding:2px 8px;border-radius:4px;
+}
+.dp-status {
+  position:absolute;top:12px;right:12px;
+  font-size:0.65rem;font-weight:700;padding:3px 10px;border-radius:10px;text-transform:uppercase;
+}
+.dp-status.active { background:#dcfce7;color:#16a34a; }
+.dp-status.inactive { background:#f1f5f9;color:#64748b; }
+.dp-status.terminated { background:#fef2f2;color:#dc2626; }
+.dp-status.on.leave { background:#fef3c7;color:#d97706; }
+
+.dp-stats {
+  display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;
+}
+.dp-stat {
+  background:#fff;border-radius:10px;padding:12px 8px;text-align:center;
+  border:1px solid #f1f5f9;box-shadow:0 1px 2px rgba(0,0,0,0.03);
+}
+.dp-stat-value { display:block;font-size:1.15rem;font-weight:800;color:#0f172a;line-height:1.2; }
+.dp-stat-label { display:block;font-size:0.65rem;font-weight:600;color:#94a3b8;margin-top:2px;text-transform:uppercase; }
+
+.dp-card {
+  background:#fff;border-radius:14px;border:1px solid #f1f5f9;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow:hidden;
+}
+.dp-card-head {
+  display:flex;align-items:center;gap:10px;
+  padding:14px 16px;border-bottom:1px solid #f8fafc;
+}
+.dp-card-step {
+  width:22px;height:22px;border-radius:50%;
+  background:linear-gradient(135deg,#1d5c99,#0f2b52);
+  color:#fff;font-size:0.7rem;font-weight:700;
+  display:grid;place-items:center;flex-shrink:0;
+}
+.dp-card-head h3 { margin:0;font-size:0.88rem;font-weight:700;color:#0f172a;flex:1; }
+.dp-card-badge { font-size:0.65rem;font-weight:600;color:#64748b;background:#f1f5f9;padding:2px 8px;border-radius:4px; }
+.dp-card-actions { display:flex;gap:8px;padding:12px 16px 16px;flex-wrap:wrap; }
+
+.dp-month-form { margin-left:auto; }
+.dp-month-form input[type=month] {
+  font-size:0.78rem;padding:4px 8px;border:1px solid #e2e8f0;
+  border-radius:6px;color:#0f172a;background:#fff;
 }
 
-.portal-paper-card {
-    padding: 18px;
-    border-radius: 18px;
-    border: 1px solid rgba(21, 51, 93, 0.10);
-    background:
-        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,249,253,0.98)),
-        repeating-linear-gradient(
-            180deg,
-            transparent 0,
-            transparent 31px,
-            rgba(38, 86, 142, 0.06) 31px,
-            rgba(38, 86, 142, 0.06) 32px
-        );
+.dp-form { padding:16px;display:grid;gap:12px; }
+.dp-form-row { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+@media (max-width:400px) { .dp-form-row { grid-template-columns:1fr; } }
+.dp-field { display:grid;gap:4px; }
+.dp-field label { font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.03em; }
+.dp-field input,.dp-field textarea {
+  padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;
+  font-size:0.88rem;color:#0f172a;background:#fff;outline:none;
+  transition:border-color 0.15s;
+}
+.dp-field input:focus,.dp-field textarea:focus { border-color:#1d5c99;box-shadow:0 0 0 3px rgba(29,92,153,0.1); }
+.dp-field textarea { resize:vertical;min-height:60px;font-family:inherit; }
+
+.dp-btn {
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:10px 20px;border-radius:8px;font-size:0.82rem;font-weight:600;
+  border:none;cursor:pointer;text-decoration:none;transition:all 0.15s;
+}
+.dp-btn-primary { background:#1d5c99;color:#fff; }
+.dp-btn-primary:hover { background:#174d80; }
+.dp-btn-outline { background:#fff;color:#1d5c99;border:1.5px solid #1d5c99; }
+.dp-btn-outline:hover { background:#f0f5fb; }
+
+.dp-calendar {
+  display:grid;grid-template-columns:repeat(7,1fr);gap:4px;
+  padding:12px 16px;
+}
+.dp-day {
+  display:grid;gap:2px;text-align:center;
+  padding:6px 2px;border-radius:8px;font-size:0.72rem;
+}
+.dp-day-entered { background:#f0fdf4; }
+.dp-day-missing { background:#fef2f2; }
+.dp-day-num { font-weight:700;color:#0f172a; }
+.dp-day-hrs { font-size:0.6rem;color:#94a3b8; }
+.dp-cal-legend {
+  display:flex;gap:16px;padding:0 16px 12px;font-size:0.72rem;color:#64748b;
+}
+.dp-legend-dot { display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px; }
+.dp-legend-dot.entered { background:#22c55e; }
+.dp-legend-dot.missing { background:#ef4444; }
+
+.dp-table-wrap { overflow-x:auto; }
+.dp-table { width:100%;border-collapse:collapse;font-size:0.8rem; }
+.dp-table th {
+  text-align:left;padding:10px 12px;font-size:0.68rem;font-weight:600;
+  color:#64748b;text-transform:uppercase;letter-spacing:0.03em;
+  background:#f8fafc;border-bottom:1px solid #f1f5f9;
+}
+.dp-table td { padding:10px 12px;border-bottom:1px solid #fafbfc;color:#0f172a; }
+.dp-table tr:last-child td { border-bottom:none; }
+.dp-link { color:#1d5c99;font-weight:600;text-decoration:none; }
+.dp-link:hover { text-decoration:underline; }
+.dp-empty { text-align:center;padding:24px 16px;color:#94a3b8;font-size:0.82rem; }
+
+.dp-statement-grid {
+  display:grid;grid-template-columns:1fr;gap:12px;padding:16px;
+}
+@media (min-width:600px) {
+  .dp-statement-grid { grid-template-columns:1fr 1fr; }
+  .dp-statement-grid > .dp-paper-highlight { grid-column:span 2; }
 }
 
-.portal-paper-header {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 14px;
-    padding-bottom: 10px;
-    border-bottom: 1px dashed rgba(21, 51, 93, 0.18);
-    color: var(--primary);
-    font-size: 0.84rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+.dp-paper {
+  background:#fff;border:1px solid #eef2f6;border-radius:12px;padding:16px;
 }
-
-.portal-paper-lines {
-    display: grid;
-    gap: 10px;
+.dp-paper-highlight {
+  background:linear-gradient(135deg,#0f2b52,#1a4a7a);border-color:#0f2b52;
 }
-
-.paper-mini-list {
-    display: grid;
-    gap: 8px;
-    margin-top: 14px;
+.dp-paper-head {
+  font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
+  color:#1d5c99;margin-bottom:12px;padding-bottom:8px;
+  border-bottom:1px dashed rgba(29,92,153,0.15);
 }
+.dp-paper-highlight .dp-paper-head { color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.15); }
+.dp-paper-line { display:flex;justify-content:space-between;padding:6px 0;font-size:0.82rem; }
+.dp-paper-line span { color:#475569;font-weight:500; }
+.dp-paper-line strong { color:#0f172a;font-weight:700; }
+.dp-paper-line.plus strong { color:#1d5c99; }
+.dp-paper-line.total { border-top:1px solid #eef2f6;margin-top:4px;padding-top:10px; }
+.dp-paper-line.total strong { font-size:0.95rem; }
 
-.paper-mini-row {
-    display: grid;
-    grid-template-columns: 88px minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: start;
-    padding-bottom: 8px;
-    border-bottom: 1px dashed rgba(21, 51, 93, 0.14);
-    font-size: 0.92rem;
+.dp-paper-highlight .dp-paper-line span { color:rgba(255,255,255,0.7); }
+.dp-paper-highlight .dp-paper-line strong { color:#fff; }
+.dp-paper-highlight .dp-paper-line.total { border-color:rgba(255,255,255,0.15); }
+
+.dp-remaining {
+  font-size:1.8rem;font-weight:800;color:#fff;text-align:center;padding:8px 0 12px;
 }
-
-.paper-mini-row span {
-    color: var(--primary-dark);
+.dp-equation {
+  display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;
+  font-size:0.78rem;padding-top:10px;border-top:1px solid rgba(255,255,255,0.15);
 }
+.dp-equation span { color:rgba(255,255,255,0.7); }
+.dp-equation .eq-result { font-weight:800;color:#fff;font-size:0.88rem; }
 
-.paper-mini-row strong {
-    color: var(--primary);
-    white-space: nowrap;
+.dp-paper-total-badge {
+  text-align:center;font-size:1.1rem;font-weight:800;color:#1d5c99;padding:4px 0 8px;
 }
-
-.remaining-card {
-    display: grid;
-    align-content: start;
+.dp-paper-list { display:grid;gap:6px; }
+.dp-paper-item {
+  display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;
+  padding:6px 0;border-bottom:1px dotted #eef2f6;font-size:0.78rem;
 }
-
-.remaining-salary-box {
-    padding: 18px;
-    border-radius: 18px;
-    background: linear-gradient(180deg, #1d5c99, #173f66);
-    color: #fff;
-    text-align: center;
-    box-shadow: 0 14px 28px rgba(23, 63, 102, 0.22);
-}
-
-.remaining-salary-label {
-    font-size: 0.82rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    opacity: 0.88;
-}
-
-.remaining-salary-value {
-    margin-top: 10px;
-    font-size: 2rem;
-    font-weight: 800;
-    line-height: 1.1;
-}
-
-.remaining-salary-formula {
-    margin-top: 10px;
-    font-size: 0.9rem;
-    opacity: 0.92;
-}
-
-.remaining-salary-equation {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
-    gap: 10px;
-    align-items: center;
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px dashed rgba(21, 51, 93, 0.14);
-}
-
-.remaining-salary-equation div {
-    display: grid;
-    gap: 4px;
-    text-align: center;
-}
-
-.remaining-salary-equation span {
-    color: var(--primary-dark);
-    font-size: 1rem;
-    font-weight: 800;
-}
-
-.remaining-salary-equation small {
-    color: var(--muted-text);
-    font-size: 0.8rem;
-    line-height: 1.25;
-}
-
-.remaining-salary-equation strong {
-    color: var(--primary);
-    font-size: 1.15rem;
-}
-
-.portal-paper-line {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
-    align-items: center;
-}
-
-.portal-paper-line span {
-    color: var(--primary-dark);
-    font-weight: 700;
-}
-
-.portal-paper-line strong {
-    color: var(--primary-dark);
-    font-size: 1.02rem;
-}
-
-.portal-paper-line.plus strong { color: #1d5c99; }
-.portal-paper-line.minus strong { color: #b96d0f; }
-
-.portal-paper-line.total,
-.portal-paper-line.balance {
-    padding-top: 10px;
-    border-top: 1px solid rgba(21, 51, 93, 0.12);
-}
-
-.portal-paper-line.balance strong {
-    color: #0f5f46;
-    font-size: 1.12rem;
-}
-
-.statement-detail-row {
-    grid-template-columns: 118px minmax(0, 1fr) auto;
-}
-
-.statement-detail-meta {
-    display: grid;
-    gap: 3px;
-}
-
-.statement-detail-date {
-    color: var(--primary-dark);
-    font-weight: 700;
-}
-
-.statement-detail-meta small {
-    color: var(--muted-text);
-    font-size: 0.78rem;
-    line-height: 1.3;
-}
-
-.statement-total-mini-row {
-    padding-top: 10px;
-    border-top: 1px solid rgba(21, 51, 93, 0.14);
-    border-bottom: 0;
-}
-
-.statement-total-mini-row span,
-.statement-total-mini-row strong {
-    font-weight: 800;
-}
-
-.statement-total-row td {
-    border-top: 1px solid rgba(21, 51, 93, 0.14);
-    background: rgba(238, 244, 251, 0.55);
-}
-@media (max-width: 720px) {
-    .portal-paper-summary {
-        grid-template-columns: 1fr;
-    }
-
-    .remaining-salary-equation,
-    .statement-detail-row {
-        grid-template-columns: 1fr;
-    }
-
-    .kata-month-table {
-        font-size: 0.88rem;
-    }
-    .kata-month-table th,
-    .kata-month-table td {
-        padding: 10px 8px;
-    }
-}
+.dp-paper-item:last-child { border-bottom:none; }
+.dp-paper-item strong { color:#0f172a;font-size:0.8rem; }
+.dp-paper-item small { display:block;color:#94a3b8;font-size:0.7rem; }
+.dp-paper-item span { color:#64748b; }
 </style>
 {% endblock %}
