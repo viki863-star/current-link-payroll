@@ -160,8 +160,8 @@ def hr_dashboard():
             recent_employees=recent,
         )
     except Exception as e:
-        current_app.logger.error("HR dashboard error: %s", e, exc_info=True)
-        flash("An error occurred loading the HR dashboard. Please try again.", "error")
+        current_app.logger.error("HR dashboard error: %s | type=%s", e, type(e).__name__, exc_info=True)
+        flash(f"HR Dashboard error: {e}", "error")
         return redirect(url_for("dashboard"))
 
 
