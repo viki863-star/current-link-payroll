@@ -20,8 +20,6 @@
 .sl-table tbody tr { transition:background 0.12s; }
 .sl-table tbody tr:last-child td { border-bottom:none; }
 .sl-table tbody tr:hover { background:#f0f4fe; }
-.sl-table tbody tr.deleted-row { opacity:0.7; background:#fafafa; }
-.sl-table tbody tr.deleted-row:hover { background:#f0f0f0; }
 .sl-table .num { text-align:center; font-size:0.78rem; color:#000; font-weight:600; width:36px; }
 .sl-table .mono { font-family:Consolas,'Courier New',monospace; }
 @media (max-width:700px) { .sl-toolbar { flex-direction:column; align-items:stretch; } .sl-actions { margin-left:0; justify-content:flex-end; } }
@@ -39,90 +37,71 @@
       <option value="without_invoice" {% if typ == 'without_invoice' %}selected{% endif %}>Cash</option>
     </select>
     <div style="display:flex;gap:6px;align-items:center">
+      <a href="{{ url_for('supplier.supplier_list') }}" class="btn btn-xs {{ 'btn-primary' if not status_filter else 'btn-outline' }}">Active</a>
       <a href="{{ url_for('supplier.supplier_list', status='blocked') }}" class="btn btn-xs {{ 'btn-primary' if status_filter == 'blocked' else 'btn-outline' }}">Blocked</a>
       <a href="{{ url_for('supplier.supplier_list', status='deleted') }}" class="btn btn-xs {{ 'btn-primary' if status_filter == 'deleted' else 'btn-outline' }}">Deleted</a>
-      <a href="{{ url_for('supplier.supplier_list') }}" class="btn btn-xs {{ 'btn-primary' if not status_filter else 'btn-outline' }}">Active</a>
     </div>
     <div class="sl-actions">
       <a href="{{ url_for('supplier.supplier_add') }}" class="btn btn-primary btn-sm">+ Add Supplier</a>
     </div>
   </div>
 
-  <form method="POST" action="{{ url_for('supplier.supplier_bulk_delete') }}" id="bulkForm" onsubmit="return confirm('Move selected suppliers to trash?')">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-    <div class="sl-card">
-      <div class="sl-card-h">
-        <h3>📋 All Suppliers</h3>
-        <span class="count">{{ suppliers|length }} total</span>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span id="selCount" style="font-size:0.78rem;color:#64748b"></span>
-          <button type="submit" class="btn btn-outline btn-xs" id="bulkDelBtn" style="display:none;color:#dc2626">Trash Selected</button>
-        </div>
-      </div>
-      <div style="padding:0">
-        {% if suppliers %}
-        <table class="sl-table">
-          <thead>
-            <tr>
-              <th class="c" style="width:32px"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>
-              <th class="c" style="width:36px">#</th>
-              <th>Party Code</th>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>TRN</th>
-              <th>Status</th>
-              <th class="c" style="width:90px">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for s in suppliers %}
-            <tr class="{% if s.is_deleted %}deleted-row{% endif %}">
-              <td class="c"><input type="checkbox" name="selected_ids[]" value="{{ s.id }}" class="select-row" onchange="updateBulk()"></td>
-              <td class="num">{{ loop.index }}</td>
-              <td class="mono" style="font-weight:600;color:var(--primary)">{{ s.supplier_code }}</td>
-              <td><a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" style="font-weight:600;color:#0f172a;text-decoration:none">{{ s.supplier_name }}</a></td>
-              <td class="mono" style="font-size:0.8rem;color:#000">{{ s.phone or '—' }}</td>
-              <td class="mono" style="font-size:0.8rem;color:#000">{{ s.trn or '—' }}</td>
-              <td>{% if s.is_deleted %}<span class="status-badge pending">Deleted</span>{% elif s.status == 'Inactive' %}<span class="status-badge pending">Blocked</span>{% else %}<span class="status-badge active">Active</span>{% endif %}</td>
-              <td class="c">
-                <div style="display:flex;gap:4px;justify-content:center">
-                {% if s.is_deleted %}
-                <form method="POST" action="{{ url_for('supplier.supplier_restore', sup_id=s.id) }}" style="display:inline">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn btn-xs btn-outline" style="color:#2563eb">Restore</button>
-                </form>
-                {% elif s.status == 'Inactive' %}
-                <form method="POST" action="{{ url_for('supplier.supplier_delete', sup_id=s.id) }}" style="display:inline" onsubmit="return confirm('Permanently delete {{ s.supplier_name }} and ALL linked data?')">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn btn-xs btn-outline" style="color:#c62828">Delete</button>
-                </form>
-                {% endif %}
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <p class="empty-state" style="margin:0;padding:50px">
-          No suppliers found.{% if q or typ or show_all %} <a href="{{ url_for('supplier.supplier_list') }}">Clear filters</a>{% endif %}
-        </p>
-        {% endif %}
+  <div class="sl-card">
+    <div class="sl-card-h">
+      <h3>📋 {% if status_filter == 'blocked' %}Blocked Suppliers{% elif status_filter == 'deleted' %}Deleted Suppliers{% else %}Active Suppliers{% endif %}</h3>
+      <span class="count">{{ suppliers|length }} total</span>
     </div>
-  </form>
+    <div style="padding:0">
+      {% if suppliers %}
+      <table class="sl-table">
+        <thead>
+          <tr>
+            <th class="c" style="width:36px">#</th>
+            <th>Party Code</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>TRN</th>
+            <th>Status</th>
+            <th class="c" style="width:90px">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in suppliers %}
+          <tr>
+            <td class="num">{{ loop.index }}</td>
+            <td class="mono" style="font-weight:600;color:var(--primary)">{{ s.supplier_code }}</td>
+            <td><a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" style="font-weight:600;color:#0f172a;text-decoration:none">{{ s.supplier_name }}</a></td>
+            <td class="mono" style="font-size:0.8rem;color:#000">{{ s.phone or '—' }}</td>
+            <td class="mono" style="font-size:0.8rem;color:#000">{{ s.trn or '—' }}</td>
+            <td>{% if s.is_deleted %}<span class="status-badge pending">Deleted</span>{% elif s.status == 'Inactive' %}<span class="status-badge pending">Blocked</span>{% else %}<span class="status-badge active">Active</span>{% endif %}</td>
+            <td class="c">
+              <div style="display:flex;gap:4px;justify-content:center">
+              {% if s.is_deleted %}
+              <form method="POST" action="{{ url_for('supplier.supplier_restore', sup_id=s.id) }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-xs btn-outline" style="color:#2563eb">Restore</button>
+              </form>
+              {% elif s.status == 'Inactive' %}
+              <form method="POST" action="{{ url_for('supplier.supplier_delete', sup_id=s.id) }}" style="display:inline" onsubmit="return confirm('Permanently delete {{ s.supplier_name }}?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-xs btn-outline" style="color:#c62828">Delete</button>
+              </form>
+              {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty-state" style="margin:0;padding:50px">
+        No suppliers found.{% if q or typ %} <a href="{{ url_for('supplier.supplier_list') }}">Clear filters</a>{% endif %}
+      </p>
+      {% endif %}
+  </div>
 </div>
 
 <script>
-function toggleAll(master) {
-  document.querySelectorAll('.select-row').forEach(function(c){c.checked=master.checked});
-  updateBulk();
-}
-function updateBulk() {
-  var n = document.querySelectorAll('.select-row:checked').length;
-  document.getElementById('selCount').textContent = n ? n + ' selected' : '';
-  document.getElementById('bulkDelBtn').style.display = n ? 'inline-block' : 'none';
-}
 function doSearch() {
   var q = document.getElementById('searchInput').value;
   var typ = document.getElementById('typeFilter').value;
