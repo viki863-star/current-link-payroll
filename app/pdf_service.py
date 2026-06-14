@@ -1357,8 +1357,6 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
         movement = row.get("movement") or "-"
         ref = str(row.get("reference", "")) or "-"
         det = str(row.get("details", "")) or "-"
-        if row.get("party") and row["party"] != "-":
-            det = f"{row['party']} | {det}"
         inv = float(row.get("incoming", 0))
         outv = float(row.get("outgoing", 0))
         bal_v = float(row.get("balance", 0))

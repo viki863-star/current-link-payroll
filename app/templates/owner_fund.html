@@ -262,14 +262,13 @@
     <h3>Statement of Account (Kata)</h3>
     <div class="table-wrap">
       <table class="smart-table">
-        <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Party</th><th>Details</th><th>Incoming</th><th>Outgoing</th><th>Balance</th></tr></thead>
+        <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Details</th><th>Incoming</th><th>Outgoing</th><th>Balance</th></tr></thead>
         <tbody>
           {% for item in statement %}
           <tr>
             <td class="mono">{{ item.entry_date }}</td>
             <td>{{ item.movement }}</td>
             <td class="mono">{{ item.reference }}</td>
-            <td>{{ item.party }}</td>
             <td style="font-size:0.78rem">{{ item.details }}</td>
             <td class="mono" style="color:var(--green);font-weight:600">{% if item.incoming %}AED {{ "%.2f"|format(item.incoming) }}{% endif %}</td>
             <td class="mono" style="color:#e65100;font-weight:600">{% if item.outgoing %}AED {{ "%.2f"|format(item.outgoing) }}{% endif %}</td>
