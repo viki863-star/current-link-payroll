@@ -16455,9 +16455,9 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         rows.append(
             {
                 "entry_date": entry["payment_date"],
-                "reference": f"Salary Slip / {driver_name}",
+                "reference": "Salary Slip",
                 "party": entry["paid_by"] or "-",
-                "details": f"Salary {entry['salary_month']}{veh}",
+                "details": f"{driver_name} | Salary {entry['salary_month']}{veh}",
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"] or 0.0),
                 "movement": "Outgoing",
@@ -16485,9 +16485,9 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         rows.append(
             {
                 "entry_date": entry["payment_date"],
-                "reference": f"Salary Slip / {driver_name}",
+                "reference": "Salary Slip",
                 "party": entry["paid_by"] or "-",
-                "details": f"Salary {entry['salary_month']}{veh}",
+                "details": f"{driver_name} | Salary {entry['salary_month']}{veh}",
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"] or 0.0),
                 "movement": "Outgoing",
