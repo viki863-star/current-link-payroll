@@ -1290,7 +1290,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
     else:
         lh = co_p
     rh = Paragraph(
-        "<b>STATEMENT<br/>OF ACCOUNT</b>",
+        "<b>OWNER FUND<br/>STATEMENT</b>",
         F("TI", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
     ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
     ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
@@ -1303,7 +1303,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
 
     # ═══ FUND INFO ═══
     finfo = [
-        [Paragraph("<b>Fund</b>", F("_fl", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11)),
+        [Paragraph("<b>Account</b>", F("_fl", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11)),
          Paragraph("<b>Owner Fund</b>", F("_fv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12))],
     ]
     if filter_text:
