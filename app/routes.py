@@ -16442,7 +16442,8 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     for entry in db.execute(
         """
         SELECT salary_payments.payment_date, salary_payments.driver_id, salary_payments.paid_by,
-               salary_payments.amount, salary_payments.salary_month, drivers.full_name
+               salary_payments.amount, salary_payments.salary_month, drivers.full_name,
+               drivers.vehicle_no
         FROM salary_payments
         LEFT JOIN drivers ON drivers.driver_id = salary_payments.driver_id
         WHERE salary_payments.payment_source = 'Owner Fund'
@@ -16450,12 +16451,13 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         """
     ).fetchall():
         driver_name = entry["full_name"] or entry["driver_id"]
+        veh = f" | Vehicle {entry['vehicle_no']}" if entry.get("vehicle_no") else ""
         rows.append(
             {
                 "entry_date": entry["payment_date"],
                 "reference": f"Salary Slip / {driver_name}",
                 "party": entry["paid_by"] or "-",
-                "details": f"Salary {entry['salary_month']}",
+                "details": f"Salary {entry['salary_month']}{veh}",
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"] or 0.0),
                 "movement": "Outgoing",
@@ -16464,7 +16466,8 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     for entry in db.execute(
         """
         SELECT DATE(salary_slips.generated_at) AS payment_date, salary_slips.driver_id, salary_slips.paid_by,
-               salary_slips.net_payable AS amount, salary_slips.salary_month, drivers.full_name
+               salary_slips.net_payable AS amount, salary_slips.salary_month, drivers.full_name,
+               drivers.vehicle_no
         FROM salary_slips
         LEFT JOIN drivers ON drivers.driver_id = salary_slips.driver_id
         WHERE salary_slips.payment_source = 'Owner Fund'
@@ -16478,12 +16481,13 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         """
     ).fetchall():
         driver_name = entry["full_name"] or entry["driver_id"]
+        veh = f" | Vehicle {entry['vehicle_no']}" if entry.get("vehicle_no") else ""
         rows.append(
             {
                 "entry_date": entry["payment_date"],
                 "reference": f"Salary Slip / {driver_name}",
                 "party": entry["paid_by"] or "-",
-                "details": f"Salary {entry['salary_month']}",
+                "details": f"Salary {entry['salary_month']}{veh}",
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"] or 0.0),
                 "movement": "Outgoing",
