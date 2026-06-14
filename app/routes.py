@@ -7853,6 +7853,7 @@ def register_routes(app: Flask) -> None:
                     salary_month=salary_row["salary_month"],
                 )
                 statement_totals = _recalculate_salary_statement(db, statement_row, salary_row, payment_rows)
+                dr2 = db.execute("SELECT vehicle_no, photo_name, photo_data, photo_content_type FROM drivers WHERE driver_id=?", (driver_id,)).fetchone()
                 pdf_path = generate_salary_slip_pdf(
                     driver,
                     salary_row,
@@ -7866,6 +7867,9 @@ def register_routes(app: Flask) -> None:
                         "payment_source": payment_rows[-1]["payment_source"] if payment_rows else "",
                         "paid_by": payment_rows[-1]["paid_by"] if payment_rows else "",
                         "net_payable": statement_totals["actual_paid_amount"],
+                        "_vehicle_no": (dr2["vehicle_no"] or "") if dr2 else "",
+                        "_photo_name": (dr2["photo_name"] or "") if dr2 else "",
+                        "_photo_data": (dr2["photo_data"] or "") if dr2 else "",
                     },
                     str(_driver_output_dir(app, driver_id, driver=driver) / "salary_slips"),
                     app.config["STATIC_ASSETS_DIR"],
@@ -8411,16 +8415,20 @@ def register_routes(app: Flask) -> None:
                             )
                             statement_totals = _recalculate_salary_statement(db, existing_slip, selected_salary, payment_rows)
                             latest_payment = payment_rows[-1] if payment_rows else None
+                            dr = db.execute("SELECT vehicle_no, photo_name, photo_data, photo_content_type FROM drivers WHERE driver_id=?", (driver_id,)).fetchone()
                             slip_payload = {
-                                "available_advance": available_advance,
-                                "deduction_amount": deduction_amount,
+                                "available_advance": float(statement_row["available_advance"] or 0.0),
+                                "deduction_amount": float(statement_row["total_deductions"] or 0.0),
                                 "remaining_advance": statement_totals["remaining_advance"],
                                 "salary_after_deduction": statement_totals["salary_after_deduction"],
                                 "actual_paid_amount": statement_totals["actual_paid_amount"],
                                 "company_balance_due": statement_totals["company_balance_due"],
-                                "payment_source": (latest_payment["payment_source"] if latest_payment else "") or "",
-                                "paid_by": (latest_payment["paid_by"] if latest_payment else "") or "",
+                                "payment_source": payment_rows[-1]["payment_source"] if payment_rows else "",
+                                "paid_by": payment_rows[-1]["paid_by"] if payment_rows else "",
                                 "net_payable": statement_totals["actual_paid_amount"],
+                                "_vehicle_no": (dr["vehicle_no"] or "") if dr else "",
+                                "_photo_name": (dr["photo_name"] or "") if dr else "",
+                                "_photo_data": (dr["photo_data"] or "") if dr else "",
                             }
                             pdf_path = generate_salary_slip_pdf(
                                 driver,
@@ -18079,6 +18087,7 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         salary_month=salary_row["salary_month"],
     )
     latest_payment = payment_rows[-1] if payment_rows else None
+    dr = db.execute("SELECT vehicle_no, photo_name, photo_data, photo_content_type FROM drivers WHERE driver_id=?", (slip["driver_id"],)).fetchone()
     slip_payload = {
         "available_advance": float(slip["available_advance"]),
         "deduction_amount": float(slip["total_deductions"]),
@@ -18089,6 +18098,9 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         "payment_source": (latest_payment["payment_source"] if latest_payment else slip["payment_source"]) or PAYMENT_SOURCES[0],
         "paid_by": (latest_payment["paid_by"] if latest_payment else slip["paid_by"]) or "",
         "net_payable": _salary_slip_amounts(slip)["actual_paid_amount"],
+        "_vehicle_no": (dr["vehicle_no"] or "") if dr else "",
+        "_photo_name": (dr["photo_name"] or "") if dr else "",
+        "_photo_data": (dr["photo_data"] or "") if dr else "",
     }
     output_dir = _driver_output_dir(app, slip["driver_id"], driver=driver) / "salary_slips"
     pdf_path = generate_salary_slip_pdf(

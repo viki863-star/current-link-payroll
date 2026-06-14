@@ -275,7 +275,7 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
         pdf.drawString(16*mm, 50*mm, f"FOOTER ERROR: {e}")
     pdf.setFillColor(colors.HexColor("#94a3b8"))
     pdf.setFont("Helvetica", 5)
-    pdf.drawString(10*mm, 10*mm, f"vehicle_no={driver.get('vehicle_no','?')} photo_data={'Y' if driver.get('photo_data') else 'N'} photo_name={driver.get('photo_name','?')} _vfb={driver.get('_vehicle_no_fb','?')}")
+    pdf.drawString(10*mm, 10*mm, f"V={driver.get('vehicle_no','?')} Vfb={driver.get('_vehicle_no_fb','?')} Vp={slip_payload.get('_vehicle_no','?')} Pd={'Y' if driver.get('photo_data') else 'N'} Pn={driver.get('photo_name','?')} Pf={'Y' if slip_payload.get('_photo_data') else 'N'} Pnf={slip_payload.get('_photo_name','?')}")
     pdf.showPage()
     pdf.save()
     return str(output_path)
@@ -2523,6 +2523,7 @@ def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -
     summary_y = 181 * mm
     summary_w = 116 * mm
     summary_h = 47 * mm
+    _v = slip_payload.get("_vehicle_no") or ""
 
     pdf.setFillColor(colors.white)
     pdf.roundRect(summary_x, summary_y, summary_w, summary_h, 5 * mm, fill=1, stroke=0)
@@ -2538,7 +2539,7 @@ def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -
     left_rows = [
         ("Driver Name", driver["full_name"]),
         ("Driver ID", driver["driver_id"]),
-        ("Vehicle Number", driver.get("vehicle_no") or driver.get("_vehicle_no_fb") or "-"),
+        ("Vehicle Number", driver.get("vehicle_no") or driver.get("_vehicle_no_fb") or _v or "-"),
         ("Join Date", format_date_label(driver["duty_start"])),
     ]
     right_rows = [
@@ -2672,7 +2673,8 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
     pdf.roundRect(card_x, card_y, card_w, card_h, 4 * mm, fill=1, stroke=0)
     pdf.setStrokeColor(LINE)
     pdf.roundRect(card_x, card_y, card_w, card_h, 4 * mm, fill=0, stroke=1)
-    if not _draw_driver_photo(pdf, driver, generated_dir, card_x + 2.5 * mm, card_y + 2.5 * mm, card_w - 5 * mm, card_h - 5 * mm):
+    _dl = {"photo_data": slip_payload.get("_photo_data") or "", "photo_name": slip_payload.get("_photo_name") or ""}
+    if not _draw_driver_photo(pdf, driver, generated_dir, card_x + 2.5 * mm, card_y + 2.5 * mm, card_w - 5 * mm, card_h - 5 * mm, _dl):
         pdf.setFillColor(MUTED)
         pdf.setFont("Helvetica-Bold", 9)
         pdf.drawCentredString(card_x + card_w / 2, card_y + card_h / 2, "NO PHOTO")
@@ -2823,8 +2825,9 @@ def _draw_timesheet_footer(pdf: canvas.Canvas, driver, summary, assets_dir: str,
     _draw_footer_banner(pdf, assets_dir, True, company_profile)
 
 
-def _draw_driver_photo(pdf: canvas.Canvas, driver, generated_dir: str, x: float, y: float, w: float, h: float) -> bool:
-    raw = driver.get("photo_data") or ""
+def _draw_driver_photo(pdf: canvas.Canvas, driver, generated_dir: str, x: float, y: float, w: float, h: float, _dl: dict | None = None) -> bool:
+    _dl = _dl or {}
+    raw = driver.get("photo_data") or _dl.get("photo_data") or ""
     if raw:
         try:
             image = ImageReader(BytesIO(base64.b64decode(raw)))
@@ -2833,7 +2836,7 @@ def _draw_driver_photo(pdf: canvas.Canvas, driver, generated_dir: str, x: float,
         except Exception:
             pass
 
-    raw = driver.get("photo_name") or ""
+    raw = driver.get("photo_name") or _dl.get("photo_name") or ""
     if raw:
         photo_path = Path(generated_dir) / raw
         if photo_path.exists():
