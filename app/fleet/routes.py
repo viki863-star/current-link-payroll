@@ -395,6 +395,7 @@ def vehicle_edit(plate_no):
     drivers = _all_employees_drivers()
 
     if request.method == "POST":
+        new_plate = request.form.get("plate_no", "").strip().upper()
         vehicle_type = request.form.get("vehicle_type", "").strip()
         model = request.form.get("model", "").strip()
         year = request.form.get("year", "").strip()
@@ -404,13 +405,27 @@ def vehicle_edit(plate_no):
         status = request.form.get("status", "").strip()
         notes = request.form.get("notes", "").strip()
 
-        db.execute(
-            "UPDATE vehicles SET vehicle_type=?, model=?, year=?, ownership_type=?, partner_name=?, partner_percent=?, status=?, notes=? WHERE plate_no=?",
-            (vehicle_type, model, int(year) if year else None, ownership_type, partner_name if ownership_type == "Partnership" else None, float(partner_percent) if partner_percent and ownership_type == "Partnership" else None, status, notes, plate_no),
-        )
+        if not new_plate:
+            flash("Plate number is required.", "error")
+            return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, page_title="Edit Vehicle", submit_label="Save Changes")
+
+        if new_plate != plate_no:
+            existing = db.execute("SELECT plate_no FROM vehicles WHERE plate_no = ?", (new_plate,)).fetchone()
+            if existing:
+                flash(f"Plate number {new_plate} already exists.", "error")
+                return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, page_title="Edit Vehicle", submit_label="Save Changes")
+            db.execute(
+                "UPDATE vehicles SET plate_no=?, vehicle_type=?, model=?, year=?, ownership_type=?, partner_name=?, partner_percent=?, status=?, notes=? WHERE plate_no=?",
+                (new_plate, vehicle_type, model, int(year) if year else None, ownership_type, partner_name if ownership_type == "Partnership" else None, float(partner_percent) if partner_percent and ownership_type == "Partnership" else None, status, notes, plate_no),
+            )
+        else:
+            db.execute(
+                "UPDATE vehicles SET vehicle_type=?, model=?, year=?, ownership_type=?, partner_name=?, partner_percent=?, status=?, notes=? WHERE plate_no=?",
+                (vehicle_type, model, int(year) if year else None, ownership_type, partner_name if ownership_type == "Partnership" else None, float(partner_percent) if partner_percent and ownership_type == "Partnership" else None, status, notes, plate_no),
+            )
         db.commit()
         flash("Vehicle updated.", "success")
-        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
+        return redirect(url_for("fleet.vehicle_profile", plate_no=new_plate))
 
     return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, page_title="Edit Vehicle", submit_label="Save Changes")
 
