@@ -2473,18 +2473,20 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
         except Exception:
             pass
 
+    cy = header_y + header_h / 2
+
     c_name = company.get("company_name") or "CURRENT LINK TRANSPORT"
     pdf.setFillColor(BLUE_DARK)
     cname_text, cname_size = _fit_text(pdf, c_name, "Helvetica-Bold", 13, text_area_w, min_size=9)
     pdf.setFont("Helvetica-Bold", cname_size)
-    pdf.drawString(text_x, header_y + header_h - 8 * mm, cname_text)
+    pdf.drawString(text_x, cy + 10 * mm, cname_text)
 
     addr = company.get("address") or ""
     if addr:
         pdf.setFillColor(MUTED)
         addr_text, addr_size = _fit_text(pdf, addr, "Helvetica", 7.5, text_area_w, min_size=5.5)
         pdf.setFont("Helvetica", addr_size)
-        pdf.drawString(text_x, header_y + header_h - 15.5 * mm, addr_text)
+        pdf.drawString(text_x, cy + 1 * mm, addr_text)
 
     trn = company.get("trn_no") or ""
     phone = company.get("phone_number") or ""
@@ -2495,7 +2497,7 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
         pdf.setFillColor(BLUE_DARK)
         ltext, lsize = _fit_text(pdf, left_parts[0], "Helvetica-Bold", 7.5, text_area_w * 0.4, min_size=5.5)
         pdf.setFont("Helvetica-Bold", lsize)
-        pdf.drawString(text_x, header_y + 7.5 * mm, ltext)
+        pdf.drawString(text_x, cy - 8 * mm, ltext)
         offset = pdf.stringWidth(ltext, "Helvetica-Bold", lsize) + 6 * mm
     else:
         offset = 0
@@ -2504,7 +2506,7 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
         contact_str = " | ".join(right_parts)
         ctext, csize = _fit_text(pdf, contact_str, "Helvetica", 7.5, text_area_w * 0.5 - offset, min_size=5.5)
         pdf.setFont("Helvetica", csize)
-        pdf.drawString(text_x + offset, header_y + 7.5 * mm, ctext)
+        pdf.drawString(text_x + offset, cy - 8 * mm, ctext)
 
     pdf.setFillColor(BLUE)
     pdf.rect(header_x + 4 * mm, header_y + 4 * mm, header_w - 8 * mm, 1.5 * mm, fill=1, stroke=0)
