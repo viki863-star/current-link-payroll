@@ -2431,10 +2431,11 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
 
 def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict | None = None) -> None:
     header_x = 15 * mm
-    header_y = PAGE_HEIGHT - 45 * mm
+    header_y = PAGE_HEIGHT - 48 * mm
     header_w = 180 * mm
-    header_h = 39 * mm
+    header_h = 42 * mm
     company = company_profile or {}
+    text_area_w = header_w - 10 * mm
 
     logo_data = company.get("logo_data")
     logo_type = company.get("logo_type")
@@ -2450,8 +2451,8 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
             logo_binary = base64.b64decode(logo_data)
             logo_buf = BytesIO(logo_binary)
             logo_img = ImageReader(logo_buf)
-            target_h = 34 * mm
-            target_w = 34 * mm
+            target_h = 36 * mm
+            target_w = 36 * mm
             pdf.drawImage(
                 logo_img,
                 header_x + 3 * mm,
@@ -2459,40 +2460,49 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
                 width=target_w, height=target_h,
                 preserveAspectRatio=True, mask="auto",
             )
-            text_x = header_x + 42 * mm
+            text_x = header_x + 44 * mm
+            text_area_w = header_w - 50 * mm
         except Exception:
             pass
 
+    c_name = company.get("company_name") or "Current Link Transport"
+    cname_text, cname_size = _fit_text(pdf, c_name, "Helvetica-Bold", 12, text_area_w, min_size=8)
     pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(text_x, header_y + 26 * mm, (company.get("company_name") or "Current Link Transport")[:50])
+    pdf.setFont("Helvetica-Bold", cname_size)
+    pdf.drawString(text_x, header_y + header_h - 8 * mm, cname_text)
 
     pdf.setFillColor(MUTED)
-    pdf.setFont("Helvetica", 7)
-    c_addr = (company.get("address") or "")[:65]
-    if c_addr:
-        pdf.drawString(text_x, header_y + 18 * mm, c_addr)
+    addr_text, addr_size = _fit_text(pdf, company.get("address") or "", "Helvetica", 7, text_area_w, min_size=5.5)
+    pdf.setFont("Helvetica", addr_size)
+    pdf.drawString(text_x, header_y + header_h - 15 * mm, addr_text)
 
     trn = company.get("trn_no") or "-"
-    pdf.drawString(text_x, header_y + 12 * mm, f"TRN: {trn}")
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 7)
+    trn_text, trn_size = _fit_text(pdf, f"TRN: {trn}", "Helvetica-Bold", 7, text_area_w * 0.5, min_size=5.5)
+    pdf.setFont("Helvetica-Bold", trn_size)
+    pdf.drawString(text_x, header_y + 8 * mm, trn_text)
 
-    contact_parts = [company.get("phone_number") or "", company.get("email") or ""]
-    c_contact = " | ".join(p for p in contact_parts if p)
+    contact_parts = [p for p in [company.get("phone_number") or "", company.get("email") or ""] if p]
+    c_contact = " | ".join(contact_parts)
     if c_contact:
-        pdf.drawString(text_x, header_y + 6.5 * mm, c_contact)
+        contact_text, contact_size = _fit_text(pdf, c_contact, "Helvetica", 7, text_area_w * 0.5, min_size=5.5)
+        pdf.setFont("Helvetica", contact_size)
+        cw = pdf.stringWidth(trn_text, "Helvetica-Bold", trn_size) if trn_text else 0
+        pdf.drawString(text_x + cw + 8 * mm, header_y + 8 * mm, contact_text)
 
     pdf.setFillColor(BLUE)
-    pdf.rect(15 * mm, PAGE_HEIGHT - 46 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
+    pdf.rect(15 * mm, PAGE_HEIGHT - 49 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
 
 
 def _draw_title(pdf: canvas.Canvas, title: str, subtitle: str = "") -> None:
     pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 17)
-    pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 60 * mm, title)
+    pdf.setFont("Helvetica-Bold", 16)
+    pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 62 * mm, title)
     if subtitle:
         pdf.setFillColor(MUTED)
-        pdf.setFont("Helvetica", 8)
-        pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 65.5 * mm, subtitle)
+        pdf.setFont("Helvetica", 7.5)
+        pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 67 * mm, subtitle)
 
 
 def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -> None:
@@ -2641,6 +2651,7 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
 
 
 def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: str, generated_dir: str, payment_rows, company_profile: dict | None = None) -> None:
+    # ═══ PHOTO CARD ═══
     card_x = 16 * mm
     card_y = 38 * mm
     card_w = 44 * mm
@@ -2649,12 +2660,12 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
     pdf.roundRect(card_x, card_y, card_w, card_h, 4 * mm, fill=1, stroke=0)
     pdf.setStrokeColor(LINE)
     pdf.roundRect(card_x, card_y, card_w, card_h, 4 * mm, fill=0, stroke=1)
-
     if not _draw_driver_photo(pdf, driver, generated_dir, card_x + 2.5 * mm, card_y + 2.5 * mm, card_w - 5 * mm, card_h - 5 * mm):
         pdf.setFillColor(MUTED)
         pdf.setFont("Helvetica-Bold", 9)
         pdf.drawCentredString(card_x + card_w / 2, card_y + card_h / 2, "NO PHOTO")
 
+    # ═══ PAYMENT STATUS CARD ═══
     status_x = 66 * mm
     status_y = 38 * mm
     status_w = 60 * mm
@@ -2675,6 +2686,7 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
     _draw_small_meta_row(pdf, status_x + 4 * mm, status_y + 6.7 * mm, "Balance", f"AED {format_currency(float(slip_payload['company_balance_due']))}", 34 * mm)
     _draw_small_meta_row(pdf, status_x + 4 * mm, status_y + 2.2 * mm, "Advance Left", f"AED {format_currency(float(slip_payload['remaining_advance']))}", 28 * mm)
 
+    # ═══ ACKNOWLEDGMENT CARD ═══
     sign_x = 132 * mm
     sign_y = 38 * mm
     sign_w = 63 * mm
@@ -2693,9 +2705,11 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
     pdf.setStrokeColor(BLUE_DARK)
     pdf.line(sign_x + 22 * mm, sign_y + 14.6 * mm, sign_x + 54 * mm, sign_y + 14.6 * mm)
     _draw_paid_stamp(pdf, sign_x + 40 * mm, sign_y + 7.5 * mm)
+
+    # ═══ DISCLAIMER ═══
     pdf.setFillColor(MUTED)
-    pdf.setFont("Helvetica", 7.1)
-    pdf.drawString(16 * mm, 30 * mm, "This is a system-generated salary slip for internal payroll records.")
+    pdf.setFont("Helvetica", 7)
+    pdf.drawString(16 * mm, 31 * mm, "This is a system-generated salary slip for internal payroll records.")
     _draw_footer_banner(pdf, assets_dir, True, company_profile)
 
 
@@ -3002,31 +3016,37 @@ def _draw_kata_statement_table(pdf: canvas.Canvas, entries, top=None) -> None:
 
 def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str = "", show_top_rule: bool = True, company_profile: dict | None = None) -> None:
     company = company_profile or {}
+    footer_w = 180 * mm
+
     if show_top_rule:
         pdf.setFillColor(ORANGE)
-        pdf.rect(15 * mm, 30 * mm, 180 * mm, 1.2 * mm, fill=1, stroke=0)
+        pdf.rect(15 * mm, 30 * mm, footer_w, 1.2 * mm, fill=1, stroke=0)
 
     pdf.setFillColor(colors.white)
-    pdf.roundRect(15 * mm, 8 * mm, 180 * mm, 20 * mm, 4 * mm, fill=1, stroke=0)
+    pdf.roundRect(15 * mm, 8 * mm, footer_w, 22 * mm, 4 * mm, fill=1, stroke=0)
     pdf.setStrokeColor(LINE)
-    pdf.roundRect(15 * mm, 8 * mm, 180 * mm, 20 * mm, 4 * mm, fill=0, stroke=1)
+    pdf.roundRect(15 * mm, 8 * mm, footer_w, 22 * mm, 4 * mm, fill=0, stroke=1)
 
+    c_name = (company.get("company_name") or "Current Link Transport").upper()
+    cname_text, cname_size = _fit_text(pdf, c_name, "Helvetica-Bold", 8, footer_w - 10 * mm, min_size=6)
     pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 8)
-    pdf.drawCentredString(PAGE_WIDTH / 2, 21 * mm, (company.get("company_name") or "Current Link Transport").upper())
+    pdf.setFont("Helvetica-Bold", cname_size)
+    pdf.drawCentredString(PAGE_WIDTH / 2, 22.5 * mm, cname_text)
 
     addr = company.get("address") or ""
     if addr:
+        addr_text, addr_size = _fit_text(pdf, addr, "Helvetica", 6.5, footer_w - 10 * mm, min_size=5)
         pdf.setFillColor(MUTED)
-        pdf.setFont("Helvetica", 6.5)
-        pdf.drawCentredString(PAGE_WIDTH / 2, 15.5 * mm, addr[:80])
+        pdf.setFont("Helvetica", addr_size)
+        pdf.drawCentredString(PAGE_WIDTH / 2, 16.5 * mm, addr_text)
 
-    pdf.setFillColor(MUTED)
-    pdf.setFont("Helvetica", 6.5)
     parts = [p for p in [company.get("phone_number"), company.get("email")] if p]
     contact_str = "  |  ".join(parts) if parts else ""
     if contact_str:
-        pdf.drawCentredString(PAGE_WIDTH / 2, 11 * mm, contact_str)
+        contact_text, contact_size = _fit_text(pdf, contact_str, "Helvetica", 6.5, footer_w - 10 * mm, min_size=5)
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", contact_size)
+        pdf.drawCentredString(PAGE_WIDTH / 2, 11.5 * mm, contact_text)
 
 
 def _draw_label_value_row(pdf: canvas.Canvas, x: float, y: float, label_width: float, value_width: float, label: str, value: str) -> None:
