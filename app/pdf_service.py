@@ -2430,69 +2430,63 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
 
 
 def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict | None = None) -> None:
-    header_x = 15 * mm
-    header_y = PAGE_HEIGHT - 48 * mm
-    header_w = 180 * mm
-    header_h = 42 * mm
     company = company_profile or {}
-    text_area_w = header_w - 10 * mm
+
+    LOGO_SIZE = 14 * mm
+    MARGIN = 15 * mm
+    TOP = PAGE_HEIGHT - MARGIN
+    Y0 = TOP - 4 * mm - LOGO_SIZE
 
     logo_data = company.get("logo_data")
     logo_type = company.get("logo_type")
-
-    pdf.setFillColor(colors.white)
-    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
-    pdf.setStrokeColor(LINE)
-    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=0, stroke=1)
-
-    text_x = header_x + 5 * mm
+    logo_used = False
     if logo_data and logo_type:
         try:
             logo_binary = base64.b64decode(logo_data)
-            logo_buf = BytesIO(logo_binary)
-            logo_img = ImageReader(logo_buf)
-            target_h = 36 * mm
-            target_w = 36 * mm
-            pdf.drawImage(
-                logo_img,
-                header_x + 3 * mm,
-                header_y + (header_h - target_h) / 2,
-                width=target_w, height=target_h,
-                preserveAspectRatio=True, mask="auto",
-            )
-            text_x = header_x + 44 * mm
-            text_area_w = header_w - 50 * mm
+            pdf.drawImage(ImageReader(BytesIO(logo_binary)),
+                          MARGIN, Y0, width=LOGO_SIZE, height=LOGO_SIZE,
+                          preserveAspectRatio=True, mask="auto")
+            logo_used = True
         except Exception:
             pass
 
-    c_name = company.get("company_name") or "Current Link Transport"
-    cname_text, cname_size = _fit_text(pdf, c_name, "Helvetica-Bold", 12, text_area_w, min_size=8)
+    lx = MARGIN + (LOGO_SIZE + 4 * mm if logo_used else 0)
+    lw = 180 * mm - (lx - MARGIN)
+
+    c_name = company.get("company_name") or "CURRENT LINK TRANSPORT"
     pdf.setFillColor(BLUE_DARK)
+    cname_size = 12
+    while cname_size > 8 and pdf.stringWidth(c_name, "Helvetica-Bold", cname_size) > lw:
+        cname_size -= 0.5
     pdf.setFont("Helvetica-Bold", cname_size)
-    pdf.drawString(text_x, header_y + header_h - 8 * mm, cname_text)
+    pdf.drawString(lx, Y0 + 9 * mm, c_name)
 
-    pdf.setFillColor(MUTED)
-    addr_text, addr_size = _fit_text(pdf, company.get("address") or "", "Helvetica", 7, text_area_w, min_size=5.5)
-    pdf.setFont("Helvetica", addr_size)
-    pdf.drawString(text_x, header_y + header_h - 15 * mm, addr_text)
+    line2 = company.get("address") or ""
+    if line2:
+        pdf.setFillColor(MUTED)
+        ls = 7.5
+        while ls > 5.5 and pdf.stringWidth(line2, "Helvetica", ls) > lw:
+            ls -= 0.3
+        pdf.setFont("Helvetica", ls)
+        pdf.drawString(lx, Y0 + 4 * mm, line2)
 
-    trn = company.get("trn_no") or "-"
-    pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 7)
-    trn_text, trn_size = _fit_text(pdf, f"TRN: {trn}", "Helvetica-Bold", 7, text_area_w * 0.5, min_size=5.5)
-    pdf.setFont("Helvetica-Bold", trn_size)
-    pdf.drawString(text_x, header_y + 8 * mm, trn_text)
+    trn = company.get("trn_no") or ""
+    phone = company.get("phone_number") or ""
+    email = company.get("email") or ""
+    parts = [p for p in [phone, email] if p]
+    if trn: parts.insert(0, f"TRN: {trn}")
+    line3 = " | ".join(parts) if parts else ""
+    if line3:
+        pdf.setFillColor(BLUE_DARK)
+        ls2 = 7
+        while ls2 > 5 and pdf.stringWidth(line3, "Helvetica", ls2) > lw:
+            ls2 -= 0.3
+        pdf.setFont("Helvetica", ls2)
+        pdf.drawString(lx, Y0 - 1 * mm, line3)
 
-    contact_parts = [p for p in [company.get("phone_number") or "", company.get("email") or ""] if p]
-    c_contact = " | ".join(contact_parts)
-    if c_contact:
-        contact_text, contact_size = _fit_text(pdf, c_contact, "Helvetica", 7, text_area_w * 0.5, min_size=5.5)
-        pdf.setFont("Helvetica", contact_size)
-        cw = pdf.stringWidth(trn_text, "Helvetica-Bold", trn_size) if trn_text else 0
-        pdf.drawString(text_x + cw + 8 * mm, header_y + 8 * mm, contact_text)
-
+    bar_y = Y0 - 4 * mm
     pdf.setFillColor(BLUE)
-    pdf.rect(15 * mm, PAGE_HEIGHT - 49 * mm, 180 * mm, 1.7 * mm, fill=1, stroke=0)
+    pdf.rect(MARGIN, bar_y, 180 * mm, 1.7 * mm, fill=1, stroke=0)
 
 
 def _draw_title(pdf: canvas.Canvas, title: str, subtitle: str = "") -> None:
@@ -2526,7 +2520,7 @@ def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -
     left_rows = [
         ("Driver Name", driver["full_name"]),
         ("Driver ID", driver["driver_id"]),
-        ("Vehicle Number", driver["vehicle_no"]),
+        ("Vehicle Number", driver.get("vehicle_no") or "-"),
         ("Join Date", format_date_label(driver["duty_start"])),
     ]
     right_rows = [
@@ -2665,31 +2659,10 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
         pdf.setFont("Helvetica-Bold", 9)
         pdf.drawCentredString(card_x + card_w / 2, card_y + card_h / 2, "NO PHOTO")
 
-    # ═══ PAYMENT STATUS CARD ═══
-    status_x = 66 * mm
-    status_y = 38 * mm
-    status_w = 60 * mm
-    status_h = 33 * mm
-    pdf.setFillColor(colors.white)
-    pdf.roundRect(status_x, status_y, status_w, status_h, 4 * mm, fill=1, stroke=0)
-    pdf.setStrokeColor(LINE)
-    pdf.roundRect(status_x, status_y, status_w, status_h, 4 * mm, fill=0, stroke=1)
-    pdf.setFillColor(BLUE_DARK)
-    pdf.setFont("Helvetica-Bold", 8.4)
-    pdf.drawString(status_x + 4 * mm, status_y + 25 * mm, "PAYMENT STATUS")
-    status_label = "PAID" if float(slip_payload["company_balance_due"]) <= 0.001 else "PARTIAL"
-    status_color = GREEN if status_label == "PAID" else ORANGE
-    pdf.setFillColor(status_color)
-    pdf.setFont("Helvetica-Bold", 13.5)
-    pdf.drawString(status_x + 4 * mm, status_y + 17 * mm, status_label)
-    _draw_small_meta_row(pdf, status_x + 4 * mm, status_y + 11.2 * mm, "Paid", f"AED {format_currency(float(slip_payload['actual_paid_amount']))}", 34 * mm)
-    _draw_small_meta_row(pdf, status_x + 4 * mm, status_y + 6.7 * mm, "Balance", f"AED {format_currency(float(slip_payload['company_balance_due']))}", 34 * mm)
-    _draw_small_meta_row(pdf, status_x + 4 * mm, status_y + 2.2 * mm, "Advance Left", f"AED {format_currency(float(slip_payload['remaining_advance']))}", 28 * mm)
-
     # ═══ ACKNOWLEDGMENT CARD ═══
-    sign_x = 132 * mm
+    sign_x = 66 * mm
     sign_y = 38 * mm
-    sign_w = 63 * mm
+    sign_w = 129 * mm
     sign_h = 33 * mm
     pdf.setFillColor(colors.white)
     pdf.roundRect(sign_x, sign_y, sign_w, sign_h, 4 * mm, fill=1, stroke=0)
@@ -2703,8 +2676,8 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
     pdf.drawString(sign_x + 4 * mm, sign_y + 18.8 * mm, f"Driver ID: {driver['driver_id']}")
     pdf.drawString(sign_x + 4 * mm, sign_y + 14.2 * mm, "Signature")
     pdf.setStrokeColor(BLUE_DARK)
-    pdf.line(sign_x + 22 * mm, sign_y + 14.6 * mm, sign_x + 54 * mm, sign_y + 14.6 * mm)
-    _draw_paid_stamp(pdf, sign_x + 40 * mm, sign_y + 7.5 * mm)
+    pdf.line(sign_x + 22 * mm, sign_y + 14.6 * mm, sign_x + 100 * mm, sign_y + 14.6 * mm)
+    _draw_paid_stamp(pdf, sign_x + 80 * mm, sign_y + 7.5 * mm)
 
     # ═══ DISCLAIMER ═══
     pdf.setFillColor(MUTED)
@@ -2833,14 +2806,20 @@ def _draw_timesheet_footer(pdf: canvas.Canvas, driver, summary, assets_dir: str,
 
 
 def _draw_driver_photo(pdf: canvas.Canvas, driver, generated_dir: str, x: float, y: float, w: float, h: float) -> bool:
-    photo_data = driver["photo_data"] if "photo_data" in driver.keys() and driver["photo_data"] else ""
+    photo_data = driver.get("photo_data") or ""
     if photo_data:
         try:
-            image = ImageReader(BytesIO(base64.b64decode(photo_data)))
+            raw = base64.b64decode(photo_data, validate=True)
+            image = ImageReader(BytesIO(raw))
             pdf.drawImage(image, x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
             return True
         except Exception:
-            pass
+            try:
+                image = ImageReader(BytesIO(photo_data.encode() if isinstance(photo_data, str) else photo_data))
+                pdf.drawImage(image, x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
+                return True
+            except Exception:
+                pass
 
     photo_name = driver.get("photo_name", "") or ""
     if not photo_name:
