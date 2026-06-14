@@ -1767,6 +1767,10 @@ def fleet_approvals():
            ORDER BY mj.created_at DESC""",
     ).fetchall()
 
+    pending_total = float(
+        db.execute("SELECT COALESCE(SUM(amount),0) FROM maintenance_jobs WHERE status = 'pending'").fetchone()[0] or 0
+    )
+
     recent_approved = db.execute(
         """SELECT mj.*, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name
            FROM maintenance_jobs mj
@@ -1776,7 +1780,7 @@ def fleet_approvals():
            ORDER BY mj.created_at DESC LIMIT 20""",
     ).fetchall()
 
-    return render_template("fleet/fleet_approvals.html", pending_jobs=pending_jobs, recent_approved=recent_approved)
+    return render_template("fleet/fleet_approvals.html", pending_jobs=pending_jobs, pending_total=pending_total, recent_approved=recent_approved)
 
 
 @fleet_bp.route("/fleet/jobs/approve-all", methods=["POST"])

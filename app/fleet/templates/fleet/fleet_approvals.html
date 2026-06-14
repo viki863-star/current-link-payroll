@@ -10,7 +10,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <h3 style="color:var(--orange);margin:0">
                 <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                Pending Approval ({{ pending_jobs|length }})
+                Pending Approval ({{ pending_jobs|length }}) — Total: AED {{ "{:,.0f}".format(pending_total) }}
             </h3>
             <form method="POST" action="{{ url_for('fleet.fleet_job_approve_all') }}" onsubmit="return confirm('Approve all {{ pending_jobs|length }} pending jobs?')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
