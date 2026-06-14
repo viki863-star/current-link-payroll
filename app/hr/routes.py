@@ -880,6 +880,7 @@ def employee_salary_slip(employee_id):
 
                         generated_dir = current_app.config["GENERATED_DIR"]
                         slip_output_dir = str(Path(generated_dir) / "salary_slips")
+                        _ap = float(salary_after_deduction)
                         pdf_path = generate_salary_slip_pdf(
                             driver_display,
                             selected_salary,
@@ -888,8 +889,8 @@ def employee_salary_slip(employee_id):
                                 "deduction_amount": float(deduction_amount),
                                 "remaining_advance": float(remaining_advance),
                                 "salary_after_deduction": float(salary_after_deduction),
-                                "actual_paid_amount": float(salary_after_deduction),
-                                "company_balance_due": float(salary_after_deduction),
+                                "actual_paid_amount": _ap,
+                                "company_balance_due": max(float(salary_after_deduction) - _ap, 0.0),
                                 "payment_source": values["payment_source"],
                                 "paid_by": values["paid_by"] or "",
                                 "net_payable": float(salary_after_deduction),
