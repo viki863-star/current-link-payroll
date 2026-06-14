@@ -9022,7 +9022,11 @@ def _fetch_driver(db, driver_id: str):
     return db.execute(
         """
         SELECT d.driver_id, d.full_name, d.phone_number,
-               COALESCE(va.vehicle_id, d.vehicle_no) AS vehicle_no,
+               CASE
+                   WHEN va.vehicle_id IS NOT NULL AND va.vehicle_id != '' THEN va.vehicle_id
+                   WHEN d.vehicle_no IS NOT NULL AND d.vehicle_no != '' THEN d.vehicle_no
+                   ELSE NULL
+               END AS vehicle_no,
                d.shift, d.vehicle_type,
                d.basic_salary, d.ot_rate, d.duty_start, d.photo_name, d.photo_data, d.photo_content_type, d.pin_hash, d.status, d.remarks
         FROM drivers d
