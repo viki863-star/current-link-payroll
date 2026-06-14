@@ -395,26 +395,27 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
     els.append(Spacer(1, 3*mm))
 
     # ═══ SUMMARY CARDS ═══
+    net_balance = max(gross - actual_paid, 0.0)
     paid_data = [[
-        Paragraph(f"<b>Paid</b><br/><font size=12 color='#1a7d1a'>AED {format_currency(actual_paid)}</font>",
-                  F("_sp", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         Paragraph(f"<b>Stored</b><br/><font size=12 color='#111827'>AED {format_currency(gross)}</font>",
                   F("_sp", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        Paragraph(f"<b>Balance</b><br/><font size=12 color='#c62828'>AED {format_currency(company_balance_due)}</font>",
+        Paragraph(f"<b>Paid</b><br/><font size=12 color='#1a7d1a'>AED {format_currency(actual_paid)}</font>",
+                  F("_sp", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Net Due</b><br/><font size=12 color='#c62828'>AED {format_currency(net_balance)}</font>",
                   F("_sp", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
     ]]
     pt = Table(paid_data, colWidths=[W/3, W/3, W/3])
     pt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-        ("TOPPADDING",(0,0),(-1,-1),5), ("BOTTOMPADDING",(0,0),(-1,-1),5),
+        ("TOPPADDING",(0,0),(-1,-1),6), ("BOTTOMPADDING",(0,0),(-1,-1),6),
         ("LEFTPADDING",(0,0),(-1,-1),5), ("RIGHTPADDING",(0,0),(-1,-1),5),
         ("BACKGROUND",(0,0),(-1,-1),BG),
     ]))
     els.append(pt)
-    els.append(Spacer(1, 4*mm))
+    els.append(Spacer(1, 6*mm))
 
-    # ═══ PHOTO + STATUS + ACKNOWLEDGMENT ═══
+    # ═══ SIGNATURE SECTION ═══
     photo_img = None
     photo_data = driver.get("photo_data") or ""
     if photo_data:
@@ -422,7 +423,7 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
             pb = base64.b64decode(photo_data)
             pf = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
             pf.write(pb); pf.close()
-            photo_img = PlImage(pf.name, width=40*mm, height=40*mm)
+            photo_img = PlImage(pf.name, width=50*mm, height=50*mm)
         except: pass
     if not photo_img:
         photo_name = driver.get("photo_name", "") or ""
@@ -430,39 +431,28 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
             photo_path = Path(generated_dir) / photo_name
             if photo_path.exists():
                 try:
-                    photo_img = PlImage(str(photo_path), width=40*mm, height=40*mm)
+                    photo_img = PlImage(str(photo_path), width=50*mm, height=50*mm)
                 except: pass
-    photo_cell = photo_img if photo_img else Paragraph("NO PHOTO", F("_np", fontSize=9, textColor=C5, alignment=TA_CENTER, leading=14))
 
-    status_label = "PAID" if company_balance_due <= 0.001 else "PARTIAL"
-    status_color = "#1a7d1a" if status_label == "PAID" else "#e65100"
-    status_cell = Paragraph(
-        f"<b>PAYMENT</b><br/>"
-        f"<font size=13 color='{status_color}'><b>{status_label}</b></font><br/>"
-        f"<font size=7 color='#6b7280'>Paid: AED {format_currency(actual_paid)}</font><br/>"
-        f"<font size=7 color='#6b7280'>Due: AED {format_currency(company_balance_due)}</font>",
-        F("_ps", fontSize=7.5, leading=12, alignment=TA_CENTER))
-
-    sign_cell = Paragraph(
-        f"<b>ACKNOWLEDGMENT</b><br/>"
-        f"<font size=7 color='#6b7280'>{driver['driver_id']}</font><br/>"
-        f"<font size=7 color='#6b7280'>_________________________</font><br/>"
-        f"<font size=7 color='#1a3a5c'><b>PAID</b></font>",
-        F("_ak", fontSize=7.5, leading=12, alignment=TA_CENTER))
-
-    footer_cells = [[photo_cell, status_cell, sign_cell]]
-    fct = Table(footer_cells, colWidths=[W*0.22, W*0.35, W*0.43])
-    fct.setStyle(TableStyle([
+    sig_data = [
+        [photo_img if photo_img else Paragraph("<b>Driver Photo</b>", F("_np", fontSize=8, textColor=C5, alignment=TA_CENTER, leading=10)),
+         Paragraph(f"<b>Authorized Signature</b><br/><font size=7 color='#6b7280'>_________________________</font>",
+                   F("_sg", fontSize=8, leading=14, alignment=TA_CENTER)),
+         Paragraph(f"<b>Driver Signature</b><br/><font size=7 color='#6b7280'>_________________________</font>",
+                   F("_sg", fontSize=8, leading=14, alignment=TA_CENTER))],
+    ]
+    sig_table = Table(sig_data, colWidths=[W*0.25, W*0.375, W*0.375])
+    sig_table.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-        ("TOPPADDING",(0,0),(-1,-1),5), ("BOTTOMPADDING",(0,0),(-1,-1),5),
+        ("BOX",(0,0),(-1,-1),0.5,C3),
+        ("TOPPADDING",(0,0),(-1,-1),8), ("BOTTOMPADDING",(0,0),(-1,-1),8),
         ("LEFTPADDING",(0,0),(-1,-1),5), ("RIGHTPADDING",(0,0),(-1,-1),5),
         ("BACKGROUND",(0,0),(-1,-1),BG),
     ]))
-    els.append(fct)
+    els.append(sig_table)
 
     # ═══ FOOTER ═══
-    els.append(Spacer(1, 5*mm))
+    els.append(Spacer(1, 8*mm))
     fh = Table([[""]], colWidths=[W], rowHeights=[0.5])
     fh.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(fh)
