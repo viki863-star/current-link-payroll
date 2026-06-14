@@ -9021,10 +9021,13 @@ def _normalize_phone(value: str) -> str:
 def _fetch_driver(db, driver_id: str):
     return db.execute(
         """
-        SELECT driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
-               basic_salary, ot_rate, duty_start, photo_name, photo_data, photo_content_type, pin_hash, status, remarks
-        FROM drivers
-        WHERE driver_id = ?
+        SELECT d.driver_id, d.full_name, d.phone_number,
+               COALESCE(va.vehicle_id, d.vehicle_no) AS vehicle_no,
+               d.shift, d.vehicle_type,
+               d.basic_salary, d.ot_rate, d.duty_start, d.photo_name, d.photo_data, d.photo_content_type, d.pin_hash, d.status, d.remarks
+        FROM drivers d
+        LEFT JOIN vehicle_assignments va ON va.driver_id = d.driver_id AND va.is_current = 1
+        WHERE d.driver_id = ?
         """,
         (driver_id,),
     ).fetchone()
