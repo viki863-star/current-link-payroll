@@ -317,60 +317,36 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
     els.append(hr)
     els.append(Spacer(1, 4*mm))
 
-    # ═══ DRIVER INFO SECTION ═══
+    # ═══ DRIVER INFO ═══
     ot_month = salary_row.get("ot_month") or previous_month_value(salary_row["salary_month"])
     driver_info = [
-        [Paragraph("<b>Driver Name</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
+        [Paragraph("<b>Name</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
          Paragraph(f"<b>{driver['full_name']}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11)),
-         Paragraph("<b>Phone</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
-         Paragraph(f"<b>{driver.get('phone_number') or '-'}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11))],
-        [Paragraph("<b>Driver ID</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
-         Paragraph(f"<b>{driver['driver_id']}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11)),
-         Paragraph("<b>Shift</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
-         Paragraph(f"<b>{driver.get('shift') or '-'}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11))],
+         Paragraph("<b>ID</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
+         Paragraph(f"<b>{driver['driver_id']}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11))],
         [Paragraph("<b>Vehicle</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
          Paragraph(f"<b>{driver.get('vehicle_no') or '-'}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11)),
-         Paragraph("<b>Basic Salary</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
-         Paragraph(f"<b>AED {format_currency(float(salary_row['basic_salary']))}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11))],
-        [Paragraph("<b>Pay Period</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
-         Paragraph(f"<b>{format_month_label(salary_row['salary_month'])}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11)),
-         Paragraph("<b>Join Date</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
-         Paragraph(f"<b>{format_date_label(driver.get('duty_start') or '')}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11))],
+         Paragraph("<b>Period</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
+         Paragraph(f"<b>{format_month_label(salary_row['salary_month'])}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11))],
+        [Paragraph("<b>Salary</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
+         Paragraph(f"<b>AED {format_currency(float(salary_row['basic_salary']))}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11)),
+         Paragraph("<b>Shift</b>", F("_dl", fontSize=7.5, textColor=C5, leading=10)),
+         Paragraph(f"<b>{driver.get('shift') or '-'}</b>", F("_dv", fontSize=8.5, textColor=C4, leading=11))],
     ]
-    dt = Table(driver_info, colWidths=[W*0.14, W*0.36, W*0.14, W*0.36])
+    dt = Table(driver_info, colWidths=[W*0.10, W*0.40, W*0.10, W*0.40])
     dt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("TOPPADDING",(0,0),(-1,-1),2.5), ("BOTTOMPADDING",(0,0),(-1,-1),2.5),
         ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
         ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
         ("BACKGROUND",(0,0),(-1,-1),BG),
         ("ROWBACKGROUNDS",(0,0),(-1,-1),[WH, BG]),
     ]))
     els.append(dt)
-    els.append(Spacer(1, 4*mm))
-
-    # ═══ ACTUAL PAID HIGHLIGHT ═══
-    actual_paid = float(slip_payload["actual_paid_amount"])
-    paid_data = [[
-        Paragraph(f"<b>Actual Paid Amount</b><br/><font size=12 color='#1a7d1a'>AED {format_currency(actual_paid)}</font>",
-                  F("_sp", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        Paragraph(f"<b>Stored Salary</b><br/><font size=12 color='#111827'>AED {format_currency(float(salary_row['net_salary']))}</font>",
-                  F("_sp", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        Paragraph(f"<b>Company Balance</b><br/><font size=12 color='#c62828'>AED {format_currency(float(slip_payload['company_balance_due']))}</font>",
-                  F("_sp", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-    ]]
-    pt = Table(paid_data, colWidths=[W/3, W/3, W/3])
-    pt.setStyle(TableStyle([
-        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-        ("TOPPADDING",(0,0),(-1,-1),6), ("BOTTOMPADDING",(0,0),(-1,-1),6),
-        ("LEFTPADDING",(0,0),(-1,-1),5), ("RIGHTPADDING",(0,0),(-1,-1),5),
-        ("BACKGROUND",(0,0),(-1,-1),BG),
-    ]))
-    els.append(pt)
-    els.append(Spacer(1, 4*mm))
+    els.append(Spacer(1, 3*mm))
 
     # ═══ EARNINGS & DEDUCTIONS ═══
+    actual_paid = float(slip_payload["actual_paid_amount"])
     gross = float(salary_row["net_salary"])
     deduction_amount = float(slip_payload["deduction_amount"])
     available_advance = float(slip_payload["available_advance"])
@@ -378,39 +354,30 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
     salary_after_deduction = float(slip_payload["salary_after_deduction"])
     company_balance_due = float(slip_payload["company_balance_due"])
     personal_vehicle_note = (salary_row.get("personal_vehicle_note") or "").strip()
-
-    personal_vehicle_label = "Personal / Vehicle"
-    if personal_vehicle_note:
-        personal_vehicle_label = f"Personal / Vehicle - {personal_vehicle_note}"
     ot_type = salary_row.get("ot_type") or "hours"
-    ot_qty_label = "OT Extra Trips" if ot_type == "trips" else f"OT Hours ({format_month_label(ot_month)})"
-    ot_qty = float(salary_row.get("ot_trips") or 0) if ot_type == "trips" else float(salary_row["ot_hours"])
+    ot_label = f"OT ({format_month_label(ot_month)})" if ot_type == "hours" else "OT (Trips)"
 
     earnings_data = [
         [Paragraph("<b>EARNINGS</b>", F("_eh", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, leading=10)),
-         Paragraph("<b>AMOUNT (AED)</b>", F("_eh", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+         Paragraph("<b>AED</b>", F("_eh", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
          Paragraph("<b>DEDUCTIONS</b>", F("_eh", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, leading=10)),
-         Paragraph("<b>AMOUNT (AED)</b>", F("_eh", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10))],
+         Paragraph("<b>AED</b>", F("_eh", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10))],
         [Paragraph("Basic Salary", F("_er", fontSize=7.5, leading=10)),
          Paragraph(f"{format_currency(float(salary_row['basic_salary']))}", F("_ev", fontSize=7.5, textColor=C4, alignment=TA_RIGHT, leading=10)),
          Paragraph("Available Advance", F("_er", fontSize=7.5, leading=10)),
          Paragraph(f"{format_currency(available_advance)}", F("_ev", fontSize=7.5, textColor=C4, alignment=TA_RIGHT, leading=10))],
-        [Paragraph(ot_qty_label, F("_er", fontSize=7.5, leading=10)),
-         Paragraph(f"{ot_qty:.2f}", F("_ev", fontSize=7.5, textColor=C4, alignment=TA_RIGHT, leading=10)),
+        [Paragraph(ot_label, F("_er", fontSize=7.5, leading=10)),
+         Paragraph(f"{format_currency(float(salary_row['ot_amount']))}", F("_ev", fontSize=7.5, textColor=C4, alignment=TA_RIGHT, leading=10)),
          Paragraph("Advance Deduction", F("_er", fontSize=7.5, leading=10)),
          Paragraph(f"{format_currency(deduction_amount)}", F("_ev", fontSize=7.5, textColor=C4, alignment=TA_RIGHT, leading=10))],
-        [Paragraph("OT Amount", F("_er", fontSize=7.5, leading=10)),
-         Paragraph(f"{format_currency(float(salary_row['ot_amount']))}", F("_ev", fontSize=7.5, textColor=C4, alignment=TA_RIGHT, leading=10)),
+        [Paragraph("Personal / Vehicle", F("_er", fontSize=7.5, leading=10)),
+         Paragraph(f"{format_currency(float(salary_row['personal_vehicle']))}", F("_ev", fontSize=7.5, textColor=C4, alignment=TA_RIGHT, leading=10)),
          Paragraph("Advance Remaining", F("_er", fontSize=7.5, leading=10)),
          Paragraph(f"{format_currency(remaining_advance)}", F("_ev", fontSize=7.5, textColor=C4, alignment=TA_RIGHT, leading=10))],
-        [Paragraph(personal_vehicle_label, F("_er", fontSize=7.5, leading=10)),
-         Paragraph(f"{format_currency(float(salary_row['personal_vehicle']))}", F("_ev", fontSize=7.5, textColor=C4, alignment=TA_RIGHT, leading=10)),
-         Paragraph("Salary After Deduction", F("_er", fontSize=7.5, leading=10)),
-         Paragraph(f"{format_currency(salary_after_deduction)}", F("_ev", fontSize=7.5, textColor=C4, alignment=TA_RIGHT, leading=10))],
         [Paragraph("<b>Stored Salary</b>", F("_et", fontSize=7.5, fontName="Helvetica-Bold", leading=10)),
          Paragraph(f"<b>{format_currency(gross)}</b>", F("_et", fontSize=7.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=10)),
-         Paragraph("<b>Company Balance</b>", F("_et", fontSize=7.5, fontName="Helvetica-Bold", leading=10)),
-         Paragraph(f"<b>{format_currency(company_balance_due)}</b>", F("_et", fontSize=7.5, fontName="Helvetica-Bold", textColor=CR, alignment=TA_RIGHT, leading=10))],
+         Paragraph("<b>Salary After</b>", F("_et", fontSize=7.5, fontName="Helvetica-Bold", leading=10)),
+         Paragraph(f"<b>{format_currency(salary_after_deduction)}</b>", F("_et", fontSize=7.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=10))],
     ]
     et = Table(earnings_data, colWidths=[W*0.24, W*0.26, W*0.24, W*0.26])
     et.setStyle(TableStyle([
@@ -425,10 +392,29 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
         ("BACKGROUND",(2,-1),(3,-1),rl_colors.HexColor("#FFF4E8")),
     ]))
     els.append(et)
+    els.append(Spacer(1, 3*mm))
+
+    # ═══ SUMMARY CARDS ═══
+    paid_data = [[
+        Paragraph(f"<b>Paid</b><br/><font size=12 color='#1a7d1a'>AED {format_currency(actual_paid)}</font>",
+                  F("_sp", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Stored</b><br/><font size=12 color='#111827'>AED {format_currency(gross)}</font>",
+                  F("_sp", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph(f"<b>Balance</b><br/><font size=12 color='#c62828'>AED {format_currency(company_balance_due)}</font>",
+                  F("_sp", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+    ]]
+    pt = Table(paid_data, colWidths=[W/3, W/3, W/3])
+    pt.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),5), ("BOTTOMPADDING",(0,0),(-1,-1),5),
+        ("LEFTPADDING",(0,0),(-1,-1),5), ("RIGHTPADDING",(0,0),(-1,-1),5),
+        ("BACKGROUND",(0,0),(-1,-1),BG),
+    ]))
+    els.append(pt)
     els.append(Spacer(1, 4*mm))
 
-    # ═══ DRIVER PHOTO + PAYMENT STATUS + ACKNOWLEDGMENT ═══
-    # ── Driver Photo (left) ──
+    # ═══ PHOTO + STATUS + ACKNOWLEDGMENT ═══
     photo_img = None
     photo_data = driver.get("photo_data") or ""
     if photo_data:
@@ -436,7 +422,7 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
             pb = base64.b64decode(photo_data)
             pf = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
             pf.write(pb); pf.close()
-            photo_img = PlImage(pf.name, width=45*mm, height=45*mm)
+            photo_img = PlImage(pf.name, width=40*mm, height=40*mm)
         except: pass
     if not photo_img:
         photo_name = driver.get("photo_name", "") or ""
@@ -444,50 +430,44 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
             photo_path = Path(generated_dir) / photo_name
             if photo_path.exists():
                 try:
-                    photo_img = PlImage(str(photo_path), width=45*mm, height=45*mm)
+                    photo_img = PlImage(str(photo_path), width=40*mm, height=40*mm)
                 except: pass
+    photo_cell = photo_img if photo_img else Paragraph("NO PHOTO", F("_np", fontSize=9, textColor=C5, alignment=TA_CENTER, leading=14))
 
-    photo_cell = photo_img if photo_img else Paragraph("<b>NO PHOTO</b>", F("_np", fontSize=9, textColor=C5, alignment=TA_CENTER, leading=14))
-
-    # ── Payment Status (center) ──
     status_label = "PAID" if company_balance_due <= 0.001 else "PARTIAL"
     status_color = "#1a7d1a" if status_label == "PAID" else "#e65100"
     status_cell = Paragraph(
-        f"<b>PAYMENT STATUS</b><br/>"
-        f"<font size=14 color='{status_color}'><b>{status_label}</b></font><br/>"
-        f"<font size=7.5 color='#6b7280'>Paid: AED {format_currency(actual_paid)}</font><br/>"
-        f"<font size=7.5 color='#6b7280'>Balance: AED {format_currency(company_balance_due)}</font><br/>"
-        f"<font size=7.5 color='#6b7280'>Advance Left: AED {format_currency(remaining_advance)}</font>",
+        f"<b>PAYMENT</b><br/>"
+        f"<font size=13 color='{status_color}'><b>{status_label}</b></font><br/>"
+        f"<font size=7 color='#6b7280'>Paid: AED {format_currency(actual_paid)}</font><br/>"
+        f"<font size=7 color='#6b7280'>Due: AED {format_currency(company_balance_due)}</font>",
         F("_ps", fontSize=7.5, leading=12, alignment=TA_CENTER))
 
-    # ── Acknowledgment (right) ──
     sign_cell = Paragraph(
-        f"<b>DRIVER ACKNOWLEDGMENT</b><br/>"
-        f"<font size=7 color='#6b7280'>Driver ID: {driver['driver_id']}</font><br/>"
-        f"<font size=7 color='#6b7280'>Signature</font><br/>"
+        f"<b>ACKNOWLEDGMENT</b><br/>"
+        f"<font size=7 color='#6b7280'>{driver['driver_id']}</font><br/>"
         f"<font size=7 color='#6b7280'>_________________________</font><br/>"
         f"<font size=7 color='#1a3a5c'><b>PAID</b></font>",
         F("_ak", fontSize=7.5, leading=12, alignment=TA_CENTER))
 
     footer_cells = [[photo_cell, status_cell, sign_cell]]
-    fct = Table(footer_cells, colWidths=[W*0.25, W*0.35, W*0.40])
+    fct = Table(footer_cells, colWidths=[W*0.22, W*0.35, W*0.43])
     fct.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-        ("TOPPADDING",(0,0),(-1,-1),6), ("BOTTOMPADDING",(0,0),(-1,-1),6),
+        ("TOPPADDING",(0,0),(-1,-1),5), ("BOTTOMPADDING",(0,0),(-1,-1),5),
         ("LEFTPADDING",(0,0),(-1,-1),5), ("RIGHTPADDING",(0,0),(-1,-1),5),
         ("BACKGROUND",(0,0),(-1,-1),BG),
     ]))
     els.append(fct)
 
-    # ═══ FOOTER (SOA style) ═══
-    els.append(Spacer(1, 6*mm))
+    # ═══ FOOTER ═══
+    els.append(Spacer(1, 5*mm))
     fh = Table([[""]], colWidths=[W], rowHeights=[0.5])
     fh.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(fh)
     els.append(Spacer(1, 2*mm))
-    ft_txt = "This is a system-generated salary slip for internal payroll records."
-    els.append(Paragraph(ft_txt, F("_ft", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
+    els.append(Paragraph("System-generated salary slip", F("_ft", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
 
     doc.build(els)
     return str(output_path)
