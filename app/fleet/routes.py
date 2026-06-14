@@ -424,6 +424,14 @@ def vehicle_edit(plate_no):
                 return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, page_title="Edit Vehicle", submit_label="Save Changes")
             try:
                 db.execute(
+                    "UPDATE maintenance_jobs SET vehicle_id=? WHERE vehicle_id=?",
+                    (new_plate, plate_no),
+                )
+                db.execute(
+                    "UPDATE vehicle_assignments SET vehicle_id=? WHERE vehicle_id=?",
+                    (new_plate, plate_no),
+                )
+                db.execute(
                     "UPDATE vehicles SET plate_no=?, vehicle_type=?, model=?, year=?, ownership_type=?, partner_name=?, partner_percent=?, status=?, notes=? WHERE plate_no=?",
                     (new_plate, vehicle_type, model, int(year) if year else None, ownership_type, partner_name if ownership_type == "Partnership" else None, float(partner_percent) if partner_percent and ownership_type == "Partnership" else None, status, notes, plate_no),
                 )
