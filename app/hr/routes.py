@@ -872,6 +872,12 @@ def employee_salary_slip(employee_id):
                                           "vehicle_no": "", "shift": employee.get("shift", ""),
                                           "duty_start": employee.get("join_date", "")}
 
+                        dr = db.execute("SELECT vehicle_no, photo_name, photo_data, photo_content_type FROM drivers WHERE driver_id=?", (eid,)).fetchone()
+                        if dr:
+                            driver_display["vehicle_no"] = dr["vehicle_no"] or ""
+                            driver_display["photo_data"] = dr["photo_data"] or ""
+                            driver_display["photo_name"] = dr["photo_name"] or ""
+
                         generated_dir = current_app.config["GENERATED_DIR"]
                         slip_output_dir = str(Path(generated_dir) / "salary_slips")
                         pdf_path = generate_salary_slip_pdf(
@@ -887,6 +893,9 @@ def employee_salary_slip(employee_id):
                                 "payment_source": values["payment_source"],
                                 "paid_by": values["paid_by"] or "",
                                 "net_payable": float(salary_after_deduction),
+                                "_vehicle_no": (dr["vehicle_no"] or "") if dr else "",
+                                "_photo_name": (dr["photo_name"] or "") if dr else "",
+                                "_photo_data": (dr["photo_data"] or "") if dr else "",
                             },
                             slip_output_dir,
                             current_app.config["STATIC_ASSETS_DIR"],
