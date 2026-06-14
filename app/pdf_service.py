@@ -253,29 +253,20 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
     _draw_title(
         pdf,
         f"Salary Slip {format_month_label(salary_row['salary_month'])}",
-        "Payroll summary with earnings, deductions and payment details",
+        f"Payslip  |  {format_month_label(salary_row['salary_month'])}",
     )
     try:
         _draw_salary_summary(pdf, driver, salary_row, slip_payload)
-    except Exception as e:
-        pdf.setFillColor(colors.red)
-        pdf.setFont("Helvetica", 7)
-        pdf.drawString(16*mm, 200*mm, f"SUMMARY ERROR: {e}")
+    except Exception:
+        pass
     try:
         _draw_salary_breakdown(pdf, salary_row, slip_payload)
-    except Exception as e:
-        pdf.setFillColor(colors.red)
-        pdf.setFont("Helvetica", 7)
-        pdf.drawString(16*mm, 100*mm, f"BREAKDOWN ERROR: {e}")
+    except Exception:
+        pass
     try:
         _draw_salary_footer(pdf, driver, slip_payload, assets_dir, generated_dir, payment_rows or [], company_profile)
-    except Exception as e:
-        pdf.setFillColor(colors.red)
-        pdf.setFont("Helvetica", 7)
-        pdf.drawString(16*mm, 50*mm, f"FOOTER ERROR: {e}")
-    pdf.setFillColor(colors.HexColor("#94a3b8"))
-    pdf.setFont("Helvetica", 5)
-    pdf.drawString(10*mm, 10*mm, f"V={driver.get('vehicle_no','?')} Vfb={driver.get('_vehicle_no_fb','?')} Vp={slip_payload.get('_vehicle_no','?')} Pd={'Y' if driver.get('photo_data') else 'N'} Pn={driver.get('photo_name','?')} Pf={'Y' if slip_payload.get('_photo_data') else 'N'} Pnf={slip_payload.get('_photo_name','?')}")
+    except Exception:
+        pass
     pdf.showPage()
     pdf.save()
     return str(output_path)
@@ -2595,7 +2586,7 @@ def _draw_salary_breakdown(pdf: canvas.Canvas, salary_row, slip_payload) -> None
     pdf.drawString(x, y + h + 6.5 * mm, "SALARY DETAILS")
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 7.4)
-    pdf.drawString(x + 38 * mm, y + h + 6.5 * mm, "Separate earnings and deductions layout for clean printing")
+    pdf.drawString(x + 38 * mm, y + h + 6.5 * mm, "Earnings & Deductions")
 
     pdf.setFillColor(colors.white)
     pdf.roundRect(x, y, w, h, 5 * mm, fill=1, stroke=0)
@@ -2702,7 +2693,7 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
     # ═══ DISCLAIMER ═══
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 7)
-    pdf.drawString(16 * mm, 31 * mm, "This is a system-generated salary slip for internal payroll records.")
+    pdf.drawString(16 * mm, 31 * mm, "System Generated — Salary Slip")
     _draw_footer_banner(pdf, assets_dir, True, company_profile)
 
 
