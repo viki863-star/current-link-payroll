@@ -311,23 +311,31 @@ def employee_new():
             """
             INSERT INTO drivers (
                 driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
-                basic_salary, ot_rate, duty_start, photo_name, status, termination_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                basic_salary, ot_rate, duty_start, photo_name, photo_data, photo_content_type,
+                status, termination_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(driver_id) DO UPDATE SET
                 full_name=excluded.full_name,
                 phone_number=excluded.phone_number,
                 shift=excluded.shift,
                 basic_salary=excluded.basic_salary,
                 ot_rate=excluded.ot_rate,
+                photo_name=excluded.photo_name,
+                photo_data=excluded.photo_data,
+                photo_content_type=excluded.photo_content_type,
                 status=excluded.status,
                 termination_date=excluded.termination_date
             """,
             (
                 values["employee_id"], values["full_name"], values["phone_number"] or None,
-                values.get("vehicle_id", "") or "", values["shift"] or "Morning",
-                values.get("vehicle_type", "Car") or "Car", salary, ot_rate,
+                values.get("vehicle_id", "") or "",
+                values["shift"] or "Morning",
+                values.get("vehicle_type", "Car") or "Car",
+                salary, ot_rate,
                 values["join_date"] or None,
                 uploaded_photo["photo_name"] if uploaded_photo else None,
+                uploaded_photo["photo_data"] if uploaded_photo else None,
+                uploaded_photo["photo_content_type"] if uploaded_photo else None,
                 values["status"], values["termination_date"] or None,
             ),
         )
@@ -1215,8 +1223,13 @@ def employee_edit(employee_id):
 
             try:
                 db.execute(
-                    "UPDATE drivers SET basic_salary=?, ot_rate=?, duty_start=?, shift=?, full_name=?, phone_number=?, status=?, termination_date=? WHERE UPPER(driver_id)=?",
-                    (salary, ot_rate, values["join_date"], values["shift"] or "Morning", values["full_name"], values["phone_number"] or None, values["status"], values["termination_date"] or None, employee_id),
+                    "UPDATE drivers SET basic_salary=?, ot_rate=?, duty_start=?, shift=?, full_name=?, phone_number=?, photo_name=COALESCE(?, photo_name), photo_data=COALESCE(?, photo_data), photo_content_type=COALESCE(?, photo_content_type), vehicle_no=?, status=?, termination_date=? WHERE UPPER(driver_id)=?",
+                    (salary, ot_rate, values["join_date"], values["shift"] or "Morning", values["full_name"], values["phone_number"] or None,
+                     uploaded_photo["photo_name"] if uploaded_photo else None,
+                     uploaded_photo["photo_data"] if uploaded_photo else None,
+                     uploaded_photo["photo_content_type"] if uploaded_photo else None,
+                     values.get("vehicle_id", "") or "",
+                     values["status"], values["termination_date"] or None, employee_id),
                 )
                 db.commit()
             except Exception:

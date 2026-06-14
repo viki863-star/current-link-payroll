@@ -255,9 +255,27 @@ def generate_salary_slip_pdf(driver, salary_row, slip_payload, output_dir: str, 
         f"Salary Slip {format_month_label(salary_row['salary_month'])}",
         "Payroll summary with earnings, deductions and payment details",
     )
-    _draw_salary_summary(pdf, driver, salary_row, slip_payload)
-    _draw_salary_breakdown(pdf, salary_row, slip_payload)
-    _draw_salary_footer(pdf, driver, slip_payload, assets_dir, generated_dir, payment_rows or [], company_profile)
+    try:
+        _draw_salary_summary(pdf, driver, salary_row, slip_payload)
+    except Exception as e:
+        pdf.setFillColor(colors.red)
+        pdf.setFont("Helvetica", 7)
+        pdf.drawString(16*mm, 200*mm, f"SUMMARY ERROR: {e}")
+    try:
+        _draw_salary_breakdown(pdf, salary_row, slip_payload)
+    except Exception as e:
+        pdf.setFillColor(colors.red)
+        pdf.setFont("Helvetica", 7)
+        pdf.drawString(16*mm, 100*mm, f"BREAKDOWN ERROR: {e}")
+    try:
+        _draw_salary_footer(pdf, driver, slip_payload, assets_dir, generated_dir, payment_rows or [], company_profile)
+    except Exception as e:
+        pdf.setFillColor(colors.red)
+        pdf.setFont("Helvetica", 7)
+        pdf.drawString(16*mm, 50*mm, f"FOOTER ERROR: {e}")
+    pdf.setFillColor(colors.HexColor("#94a3b8"))
+    pdf.setFont("Helvetica", 5)
+    pdf.drawString(10*mm, 10*mm, f"vehicle_no={driver.get('vehicle_no','?')} photo_data={'Y' if driver.get('photo_data') else 'N'} photo_name={driver.get('photo_name','?')} _vfb={driver.get('_vehicle_no_fb','?')}")
     pdf.showPage()
     pdf.save()
     return str(output_path)
