@@ -9027,6 +9027,7 @@ def _fetch_driver(db, driver_id: str):
                    WHEN d.vehicle_no IS NOT NULL AND d.vehicle_no != '' THEN d.vehicle_no
                    ELSE NULL
                END AS vehicle_no,
+               d.vehicle_no AS _vehicle_no_fb,
                d.shift, d.vehicle_type,
                d.basic_salary, d.ot_rate, d.duty_start, d.photo_name, d.photo_data, d.photo_content_type, d.pin_hash, d.status, d.remarks
         FROM drivers d

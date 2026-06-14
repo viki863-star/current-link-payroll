@@ -2520,7 +2520,7 @@ def _draw_salary_summary(pdf: canvas.Canvas, driver, salary_row, slip_payload) -
     left_rows = [
         ("Driver Name", driver["full_name"]),
         ("Driver ID", driver["driver_id"]),
-        ("Vehicle Number", driver.get("vehicle_no") or "-"),
+        ("Vehicle Number", driver.get("vehicle_no") or driver.get("_vehicle_no_fb") or "-"),
         ("Join Date", format_date_label(driver["duty_start"])),
     ]
     right_rows = [
