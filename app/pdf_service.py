@@ -2441,61 +2441,73 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
 def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict | None = None) -> None:
     company = company_profile or {}
 
-    LOGO_SIZE = 14 * mm
-    MARGIN = 15 * mm
-    TOP = PAGE_HEIGHT - MARGIN
-    Y0 = TOP - 4 * mm - LOGO_SIZE
+    header_x = 15 * mm
+    header_y = PAGE_HEIGHT - 50 * mm
+    header_w = 180 * mm
+    header_h = 44 * mm
 
     logo_data = company.get("logo_data")
     logo_type = company.get("logo_type")
-    logo_used = False
+
+    pdf.setFillColor(colors.white)
+    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=0, stroke=1)
+
+    text_x = header_x + 5 * mm
+    text_area_w = header_w - 10 * mm
     if logo_data and logo_type:
         try:
             logo_binary = base64.b64decode(logo_data)
-            pdf.drawImage(ImageReader(BytesIO(logo_binary)),
-                          MARGIN, Y0, width=LOGO_SIZE, height=LOGO_SIZE,
-                          preserveAspectRatio=True, mask="auto")
-            logo_used = True
+            logo_img = ImageReader(BytesIO(logo_binary))
+            target = 34 * mm
+            pdf.drawImage(
+                logo_img,
+                header_x + 3 * mm,
+                header_y + (header_h - target) / 2,
+                width=target, height=target,
+                preserveAspectRatio=True, mask="auto",
+            )
+            text_x = header_x + 42 * mm
+            text_area_w = header_w - 48 * mm
         except Exception:
             pass
 
-    lx = MARGIN + (LOGO_SIZE + 4 * mm if logo_used else 0)
-    lw = 180 * mm - (lx - MARGIN)
-
     c_name = company.get("company_name") or "CURRENT LINK TRANSPORT"
     pdf.setFillColor(BLUE_DARK)
-    cname_size = 12
-    while cname_size > 8 and pdf.stringWidth(c_name, "Helvetica-Bold", cname_size) > lw:
-        cname_size -= 0.5
+    cname_text, cname_size = _fit_text(pdf, c_name, "Helvetica-Bold", 13, text_area_w, min_size=9)
     pdf.setFont("Helvetica-Bold", cname_size)
-    pdf.drawString(lx, Y0 + 9 * mm, c_name)
+    pdf.drawString(text_x, header_y + header_h - 8 * mm, cname_text)
 
-    line2 = company.get("address") or ""
-    if line2:
+    addr = company.get("address") or ""
+    if addr:
         pdf.setFillColor(MUTED)
-        ls = 7.5
-        while ls > 5.5 and pdf.stringWidth(line2, "Helvetica", ls) > lw:
-            ls -= 0.3
-        pdf.setFont("Helvetica", ls)
-        pdf.drawString(lx, Y0 + 4 * mm, line2)
+        addr_text, addr_size = _fit_text(pdf, addr, "Helvetica", 7.5, text_area_w, min_size=5.5)
+        pdf.setFont("Helvetica", addr_size)
+        pdf.drawString(text_x, header_y + header_h - 15.5 * mm, addr_text)
 
     trn = company.get("trn_no") or ""
     phone = company.get("phone_number") or ""
     email = company.get("email") or ""
-    parts = [p for p in [phone, email] if p]
-    if trn: parts.insert(0, f"TRN: {trn}")
-    line3 = " | ".join(parts) if parts else ""
-    if line3:
+    left_parts = [f"TRN: {trn}"] if trn else []
+    right_parts = [p for p in [phone, email] if p]
+    if left_parts:
         pdf.setFillColor(BLUE_DARK)
-        ls2 = 7
-        while ls2 > 5 and pdf.stringWidth(line3, "Helvetica", ls2) > lw:
-            ls2 -= 0.3
-        pdf.setFont("Helvetica", ls2)
-        pdf.drawString(lx, Y0 - 1 * mm, line3)
+        ltext, lsize = _fit_text(pdf, left_parts[0], "Helvetica-Bold", 7.5, text_area_w * 0.4, min_size=5.5)
+        pdf.setFont("Helvetica-Bold", lsize)
+        pdf.drawString(text_x, header_y + 7.5 * mm, ltext)
+        offset = pdf.stringWidth(ltext, "Helvetica-Bold", lsize) + 6 * mm
+    else:
+        offset = 0
+    if right_parts:
+        pdf.setFillColor(BLUE_DARK)
+        contact_str = " | ".join(right_parts)
+        ctext, csize = _fit_text(pdf, contact_str, "Helvetica", 7.5, text_area_w * 0.5 - offset, min_size=5.5)
+        pdf.setFont("Helvetica", csize)
+        pdf.drawString(text_x + offset, header_y + 7.5 * mm, ctext)
 
-    bar_y = Y0 - 4 * mm
     pdf.setFillColor(BLUE)
-    pdf.rect(MARGIN, bar_y, 180 * mm, 1.7 * mm, fill=1, stroke=0)
+    pdf.rect(header_x + 4 * mm, header_y + 4 * mm, header_w - 8 * mm, 1.5 * mm, fill=1, stroke=0)
 
 
 def _draw_title(pdf: canvas.Canvas, title: str, subtitle: str = "") -> None:
@@ -2688,12 +2700,12 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
     pdf.drawString(sign_x + 4 * mm, sign_y + 14.2 * mm, "Signature")
     pdf.setStrokeColor(BLUE_DARK)
     pdf.line(sign_x + 22 * mm, sign_y + 14.6 * mm, sign_x + 100 * mm, sign_y + 14.6 * mm)
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 6.5)
+    pdf.drawString(sign_x + 4 * mm, sign_y + 2.5 * mm, "System Generated — Salary Slip")
     _draw_paid_stamp(pdf, sign_x + 80 * mm, sign_y + 7.5 * mm)
 
     # ═══ DISCLAIMER ═══
-    pdf.setFillColor(MUTED)
-    pdf.setFont("Helvetica", 7)
-    pdf.drawString(16 * mm, 31 * mm, "System Generated — Salary Slip")
     _draw_footer_banner(pdf, assets_dir, True, company_profile)
 
 
