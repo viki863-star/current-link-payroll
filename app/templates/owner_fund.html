@@ -40,6 +40,14 @@
     </div>
     <form method="get" class="form-row">
       <div class="fg">
+        <label>From Date</label>
+        <input type="date" name="date_from" value="{{ filters.get('date_from', '') }}">
+      </div>
+      <div class="fg">
+        <label>To Date</label>
+        <input type="date" name="date_to" value="{{ filters.get('date_to', '') }}">
+      </div>
+      <div class="fg">
         <label>Month</label>
         <input type="month" name="month" value="{{ filters.month }}">
       </div>

@@ -1219,7 +1219,9 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
 
     def _active_filter_text():
         parts = []
-        if filters.get("month"):
+        if filters.get("date_from") and filters.get("date_to"):
+            parts.append(f"Period: {filters['date_from']} to {filters['date_to']}")
+        elif filters.get("month"):
             parts.append(f"Period: {filters['month']}")
         if filters.get("movement") and filters["movement"] != "All":
             parts.append(f"Type: {filters['movement']}")

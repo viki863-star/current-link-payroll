@@ -16368,6 +16368,8 @@ def _owner_fund_filter_values(request):
         "month": _normalize_month(month_value) if month_value else "",
         "movement": request.args.get("movement", "").strip() or request.form.get("movement", "").strip() or OWNER_FUND_MOVEMENT_OPTIONS[0],
         "search": request.args.get("search", "").strip() or request.form.get("search", "").strip(),
+        "date_from": request.args.get("date_from", "").strip() or request.form.get("date_from", "").strip(),
+        "date_to": request.args.get("date_to", "").strip() or request.form.get("date_to", "").strip(),
     }
     if filters["movement"] not in OWNER_FUND_MOVEMENT_OPTIONS:
         filters["movement"] = OWNER_FUND_MOVEMENT_OPTIONS[0]
@@ -16532,8 +16534,14 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     search_text = (filters.get("search") or "").strip().lower()
     month_filter = filters.get("month") or ""
     movement_filter = filters.get("movement") or OWNER_FUND_MOVEMENT_OPTIONS[0]
+    date_from = filters.get("date_from") or ""
+    date_to = filters.get("date_to") or ""
 
     for row in rows:
+        if date_from and str(row["entry_date"]) < date_from:
+            continue
+        if date_to and str(row["entry_date"]) > date_to:
+            continue
         if month_filter and str(row["entry_date"])[:7] != month_filter:
             continue
         if movement_filter != OWNER_FUND_MOVEMENT_OPTIONS[0] and row["movement"] != movement_filter:
