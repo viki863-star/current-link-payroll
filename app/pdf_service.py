@@ -2806,31 +2806,25 @@ def _draw_timesheet_footer(pdf: canvas.Canvas, driver, summary, assets_dir: str,
 
 
 def _draw_driver_photo(pdf: canvas.Canvas, driver, generated_dir: str, x: float, y: float, w: float, h: float) -> bool:
-    photo_data = driver.get("photo_data") or ""
-    if photo_data:
+    raw = driver.get("photo_data") or ""
+    if raw:
         try:
-            raw = base64.b64decode(photo_data, validate=True)
-            image = ImageReader(BytesIO(raw))
+            image = ImageReader(BytesIO(base64.b64decode(raw)))
             pdf.drawImage(image, x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
             return True
         except Exception:
+            pass
+
+    raw = driver.get("photo_name") or ""
+    if raw:
+        photo_path = Path(generated_dir) / raw
+        if photo_path.exists():
             try:
-                image = ImageReader(BytesIO(photo_data.encode() if isinstance(photo_data, str) else photo_data))
-                pdf.drawImage(image, x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
+                pdf.drawImage(str(photo_path), x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
                 return True
             except Exception:
                 pass
-
-    photo_name = driver.get("photo_name", "") or ""
-    if not photo_name:
-        return False
-
-    photo_path = Path(generated_dir) / photo_name
-    if not photo_path.exists():
-        return False
-
-    pdf.drawImage(str(photo_path), x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
-    return True
+    return False
 
 
 def _draw_table_header(pdf: canvas.Canvas, top: float, headers, x_positions) -> None:
