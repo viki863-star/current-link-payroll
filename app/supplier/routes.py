@@ -2677,13 +2677,16 @@ def supplier_soa(sup_id):
 
     # Invoices — increase balance (we owe supplier)
     for inv in db.execute(
-        "SELECT id, invoice_date as dt, invoice_no as ref, total_amount as amt, status FROM supplier_invoices WHERE supplier_id = ?",
+        "SELECT id, invoice_date as dt, invoice_no as ref, total_amount as amt, vat_amount, subtotal, description, status FROM supplier_invoices WHERE supplier_id = ?",
         (sup_id,),
     ).fetchall():
+        parts = [f"Invoice: {inv['ref']}", inv['status']]
+        if inv['description']:
+            parts.insert(1, inv['description'])
         ledger.append({
             "date": inv["dt"],
             "type": "invoice",
-            "description": f"Invoice: {inv['ref']} ({inv['status']})",
+            "description": " — ".join(parts),
             "debit": 0,
             "credit": inv["amt"],
             "ref": inv["ref"],
@@ -2691,14 +2694,19 @@ def supplier_soa(sup_id):
 
     # Expenses — increase balance
     for exp in db.execute(
-        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate FROM supplier_expenses WHERE supplier_id = ?",
+        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no, notes FROM supplier_expenses WHERE supplier_id = ?",
         (sup_id,),
     ).fetchall():
-        desc = f"Expense: {exp['ref']}"
         if exp["earning_type"] == "trip":
-            desc = f"Trip: {exp['quantity']} x {exp['rate']} ({exp['ref']})"
+            desc = f"Trip: {exp['quantity']} x {exp['rate']}"
         elif exp["earning_type"] == "hour":
-            desc = f"Hours: {exp['quantity']} x {exp['rate']} ({exp['ref']})"
+            desc = f"Hours: {exp['quantity']} x {exp['rate']}"
+        else:
+            desc = f"Expense: {exp['ref']}"
+        if exp["vehicle_no"]:
+            desc += f" [{exp['vehicle_no']}]"
+        if exp["notes"]:
+            desc += f" — {exp['notes']}"
         ledger.append({
             "date": exp["dt"],
             "type": "expense",
@@ -2710,19 +2718,24 @@ def supplier_soa(sup_id):
 
     # Payments — decrease balance
     for pay in db.execute(
-        """SELECT pr.id, pr.payment_date as dt, pr.amount as amt, pr.payment_method as ref, pr.invoice_id, inv.invoice_no
+        """SELECT pr.id, pr.payment_date as dt, pr.amount as amt, pr.payment_method as ref,
+                  pr.reference_no, pr.notes, pr.invoice_id, inv.invoice_no
            FROM supplier_payment_records pr
            LEFT JOIN supplier_invoices inv ON inv.id = pr.invoice_id
            WHERE pr.supplier_id = ?""",
         (sup_id,),
     ).fetchall():
-        desc = f"Payment ({pay['ref']})"
+        parts = [f"Payment: {pay['ref']}"]
+        if pay["reference_no"]:
+            parts.append(pay["reference_no"])
         if pay["invoice_no"]:
-            desc += f" → {pay['invoice_no']}"
+            parts.append(f"→ {pay['invoice_no']}")
+        if pay["notes"]:
+            parts.append(pay["notes"])
         ledger.append({
             "date": pay["dt"],
             "type": "payment",
-            "description": desc,
+            "description": " — ".join(parts),
             "debit": pay["amt"],
             "credit": 0,
             "ref": pay["ref"],
