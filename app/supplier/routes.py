@@ -2677,12 +2677,13 @@ def supplier_soa(sup_id):
 
     # Invoices — increase balance (we owe supplier)
     for inv in db.execute(
-        "SELECT id, invoice_date as dt, invoice_no as ref, total_amount as amt, vat_amount, subtotal, description, status FROM supplier_invoices WHERE supplier_id = ?",
+        "SELECT id, invoice_date as dt, invoice_no as ref, total_amount as amt, vat_amount, description, status FROM supplier_invoices WHERE supplier_id = ?",
         (sup_id,),
     ).fetchall():
-        parts = [f"Invoice: {inv['ref']}", inv['status']]
+        parts = [f"Invoice: {inv['ref']}"]
         if inv['description']:
-            parts.insert(1, inv['description'])
+            parts.append(inv['description'])
+        parts.append(inv['status'])
         ledger.append({
             "date": inv["dt"],
             "type": "invoice",
