@@ -1407,6 +1407,8 @@ def employee_current_vehicle(employee_id):
             legacy = d.execute("SELECT vehicle_no FROM drivers WHERE driver_id = ? LIMIT 1", (employee_id,)).fetchone()
             if legacy and legacy["vehicle_no"]:
                 row = d.execute("SELECT plate_no AS vehicle_id, NULL AS assigned_from, plate_no, vehicle_type, model FROM vehicles WHERE plate_no = ? LIMIT 1", (legacy["vehicle_no"],)).fetchone()
+                if not row:
+                    row = {"vehicle_id": legacy["vehicle_no"], "assigned_from": "", "plate_no": legacy["vehicle_no"], "vehicle_type": "", "model": ""}
         d.close()
         return dict(row) if row else None
     except Exception:

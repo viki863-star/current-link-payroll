@@ -31,7 +31,7 @@
                 <span><strong>Phone:</strong> {{ employee.phone_number or '-' }}</span>
                 {% if employee.employee_type == 'Driver' %}
                 {% set veh = employee_current_vehicle(employee.employee_id) %}
-                <span><strong>Vehicle:</strong> {% if veh %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ veh.vehicle_id }}</span>{% if veh.model %} ({{ veh.model }}){% endif %} <span style="font-size:0.7rem;color:var(--muted)">since {{ veh.assigned_from }}</span>{% else %}<span style="color:var(--muted)">—</span>{% endif %}</span>
+                <span><strong>Vehicle:</strong> {% if veh %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ veh.vehicle_id }}</span>{% if veh.model %} ({{ veh.model }}){% endif %}{% if veh.assigned_from %} <span style="font-size:0.7rem;color:var(--muted)">since {{ veh.assigned_from }}</span>{% endif %}{% else %}<span style="color:var(--muted)">—</span>{% endif %}</span>
                 {% endif %}
             </div>
         </div>
