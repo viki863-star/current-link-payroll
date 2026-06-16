@@ -2695,7 +2695,7 @@ def supplier_soa(sup_id):
 
     # Expenses — increase balance
     for exp in db.execute(
-        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no, notes FROM supplier_expenses WHERE supplier_id = ?",
+        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no, description FROM supplier_expenses WHERE supplier_id = ?",
         (sup_id,),
     ).fetchall():
         if exp["earning_type"] == "trip":
@@ -2706,8 +2706,8 @@ def supplier_soa(sup_id):
             desc = f"Expense: {exp['ref']}"
         if exp["vehicle_no"]:
             desc += f" [{exp['vehicle_no']}]"
-        if exp["notes"]:
-            desc += f" — {exp['notes']}"
+        if exp["description"]:
+            desc += f" — {exp['description']}"
         ledger.append({
             "date": exp["dt"],
             "type": "expense",
