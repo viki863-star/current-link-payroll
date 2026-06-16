@@ -348,6 +348,27 @@ def register_routes(app: Flask) -> None:
 
         return render_template("login.html", selected_role=selected_role)
 
+    @app.route("/accounts-login", methods=["GET", "POST"])
+    def accounts_login():
+        if _current_role() == "accounts":
+            return redirect(url_for("accounts_home"))
+        error = ""
+        if request.method == "POST":
+            pwd = request.form.get("password", "").strip()
+            expected = os.environ.get("ACCOUNTS_PASSWORD") or "accounts123"
+            if pwd == expected:
+                _set_session("accounts", display_name="Accounts")
+                session["admin_workspace"] = "accounts"
+                return redirect(url_for("accounts_home"))
+            error = "Invalid password."
+        return render_template("accounts-login.html", error=error)
+
+    @app.get("/accounts")
+    def accounts_home():
+        if _current_role() != "accounts":
+            return redirect(url_for("accounts_login"))
+        return redirect(url_for("supplier.supplier_list"))
+
     @app.get("/logout")
     def logout():
         session.clear()
@@ -8851,6 +8872,8 @@ def _role_home_endpoint() -> str:
         return "supplier_portal"
     if role == "technician":
         return "technician_portal"
+    if role == "accounts":
+        return "accounts_home"
     return "login"
 
 

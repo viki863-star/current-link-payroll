@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounts Portal — Current Link</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260531a') }}">
+    <style>
+        body { background:#f1f5f9; display:flex; align-items:center; justify-content:center; min-height:100vh; font-family:'Inter',sans-serif; margin:0; }
+        .al-wrap { background:#fff; border-radius:16px; padding:40px; width:360px; max-width:90vw; box-shadow:0 20px 60px rgba(0,0,0,0.08); text-align:center; }
+        .al-logo { width:60px; height:60px; border-radius:14px; background:#0F2B52; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:1.6rem; font-weight:800; color:#F7931E; }
+        .al-title { font-size:1.1rem; font-weight:700; color:#0F2B52; margin:0 0 4px; }
+        .al-sub { font-size:0.8rem; color:#6b7280; margin:0 0 24px; }
+        .al-field { width:100%; padding:12px 14px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:0.9rem; outline:none; box-sizing:border-box; transition:border-color 0.15s; }
+        .al-field:focus { border-color:#F7931E; }
+        .al-btn { width:100%; padding:12px; border:none; border-radius:10px; background:#0F2B52; color:#fff; font-size:0.9rem; font-weight:600; cursor:pointer; margin-top:16px; transition:background 0.15s; }
+        .al-btn:hover { background:#1a3d6e; }
+        .al-error { color:#dc2626; font-size:0.8rem; margin:8px 0 0; }
+    </style>
+</head>
+<body>
+    <div class="al-wrap">
+        <div class="al-logo">CL</div>
+        <h1 class="al-title">Accounts Portal</h1>
+        <p class="al-sub">Supplier &amp; Customer Management</p>
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="al-field" type="password" name="password" placeholder="Enter accounts password" autocomplete="off">
+            {% if error %}<p class="al-error">{{ error }}</p>{% endif %}
+            <button class="al-btn" type="submit">Sign In</button>
+        </form>
+    </div>
+</body>
+</html>

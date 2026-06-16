@@ -11,7 +11,7 @@ def require_admin():
     if not role:
         flash("Please sign in first.", "error")
         return redirect(url_for("login"))
-    if role != "admin":
+    if role != "admin" and role != "accounts":
         flash("You do not have access to that page.", "error")
         return redirect(url_for("login"))
 
