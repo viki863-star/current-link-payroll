@@ -2787,20 +2787,37 @@ def supplier_soa_pdf(sup_id):
 
     ledger = []
     for inv in db.execute(
-        "SELECT id, invoice_date as dt, invoice_no as ref, total_amount as amt, status FROM supplier_invoices WHERE supplier_id = ?",
+        "SELECT id, invoice_date as dt, invoice_no as ref, total_amount as amt, description, status FROM supplier_invoices WHERE supplier_id = ?",
         (sup_id,),
     ).fetchall():
-        ledger.append({"date": inv["dt"], "type": "Invoice", "ref": inv["ref"], "dr": 0, "cr": inv["amt"]})
+        parts = [f"Invoice: {inv['ref']}"]
+        if inv['description']:
+            parts.append(inv['description'])
+        parts.append(inv['status'])
+        ledger.append({"date": inv["dt"], "type": "Invoice", "ref": " — ".join(parts), "dr": 0, "cr": inv["amt"]})
     for exp in db.execute(
-        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type FROM supplier_expenses WHERE supplier_id = ?",
+        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no FROM supplier_expenses WHERE supplier_id = ?",
         (sup_id,),
     ).fetchall():
-        ledger.append({"date": exp["dt"], "type": "Expense", "ref": exp["ref"], "dr": 0, "cr": exp["amt"]})
+        if exp["earning_type"] == "trip":
+            d = f"Trip: {exp['quantity']} x {exp['rate']}"
+        elif exp["earning_type"] == "hour":
+            d = f"Hours: {exp['quantity']} x {exp['rate']}"
+        else:
+            d = f"Expense: {exp['ref']}"
+        if exp["vehicle_no"]:
+            d += f" [{exp['vehicle_no']}]"
+        ledger.append({"date": exp["dt"], "type": "Expense", "ref": d, "dr": 0, "cr": exp["amt"]})
     for pay in db.execute(
-        "SELECT id, payment_date as dt, payment_method as ref, amount as amt FROM supplier_payment_records WHERE supplier_id = ?",
+        "SELECT id, payment_date as dt, payment_method as ref, amount as amt, reference_no, notes, invoice_id FROM supplier_payment_records WHERE supplier_id = ?",
         (sup_id,),
     ).fetchall():
-        ledger.append({"date": pay["dt"], "type": "Payment", "ref": pay["ref"], "dr": pay["amt"], "cr": 0})
+        parts = [f"Payment: {pay['ref']}"]
+        if pay["reference_no"]:
+            parts.append(pay["reference_no"])
+        if pay["notes"]:
+            parts.append(pay["notes"])
+        ledger.append({"date": pay["dt"], "type": "Payment", "ref": " — ".join(parts), "dr": pay["amt"], "cr": 0})
 
     ledger.sort(key=lambda x: x["date"])
     running = 0
@@ -2911,7 +2928,7 @@ def supplier_soa_pdf(sup_id):
     els.append(Spacer(1, 3*mm))
 
     # ── Statement Table ──
-    colw = [50, 65, W - 50 - 65 - 65 - 75, 65, 75]
+    colw = [50, W - 50 - 55 - 55 - 65, 55, 55, 65]
     hdr = [
         Paragraph("<b>Date</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
         Paragraph("<b>Description</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),

@@ -61,7 +61,7 @@
                     {% for row in ledger %}
                     <tr style="{% if 'Separate' in row.description %}opacity:0.6{% endif %}">
                         <td class="mono">{{ row.date }}</td>
-                        <td style="font-size:0.82rem;word-break:break-word">{{ row.description }}</td>
+                        <td style="font-size:0.82rem;word-break:break-word;text-align:center">{{ row.description }}</td>
                         <td class="mono" style="text-align:right;color:var(--green)">
                             {% if row.debit > 0 %}{{ "%.0f"|format(row.debit) }}{% endif %}
                         </td>
