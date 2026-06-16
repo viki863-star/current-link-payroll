@@ -1341,7 +1341,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
     els.append(Spacer(1, 3*mm))
 
     # ═══ STATEMENT TABLE ═══
-    colw = [55, 38, 55, 50, W - 55 - 38 - 55 - 50 - 42 - 42 - 50, 42, 42, 50]
+    colw = [55, 38, 55, 50, W - 55 - 38 - 55 - 50 - 55 - 55 - 65, 55, 55, 65]
     hdr = [
         Paragraph("<b>Date</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph("<b>Month</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
@@ -1358,7 +1358,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
         Paragraph("", F("_o", fontSize=6.5, leading=9)), Paragraph("", F("_o")),
         Paragraph("", F("_o")), Paragraph("Opening Balance", F("_ol", fontSize=6.5, textColor=C5, leading=9)),
         Paragraph("", F("_o")), Paragraph("", F("_o")), Paragraph("", F("_o")),
-        Paragraph("<b>0.00</b>", F("_ob", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=9)),
+        Paragraph(f"<b>{opening_bal:,.2f}</b>", F("_ob", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=9)),
     ])
     for row in table_rows:
         d = str(row.get("entry_date", ""))
@@ -1390,8 +1390,8 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
         Paragraph("", F("_x")),
         Paragraph("", F("_x")),
         Paragraph("", F("_x")),
-        Paragraph(f"<b>{total_in:,.2f}</b>", F("_ct", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-        Paragraph(f"<b>{total_out:,.2f}</b>", F("_ct", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph(f"<b>{total_in:,.2f}</b>" if total_in else '<font color="rgba(255,255,255,0.35)">—</font>', F("_ct", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph(f"<b>{total_out:,.2f}</b>" if total_out else '<font color="rgba(255,255,255,0.35)">—</font>', F("_ct", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
         Paragraph(f"<b>{closing_bal:,.2f}</b>", F("_ccl", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
     ])
 
