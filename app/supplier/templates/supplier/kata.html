@@ -42,15 +42,15 @@
         <div class="table-wrap">
             <table class="smart-table" style="table-layout:fixed">
                 <colgroup>
-                    <col style="width:70px">
-                    <col>
-                    <col style="width:70px">
-                    <col style="width:70px">
                     <col style="width:80px">
+                    <col>
+                    <col style="width:65px">
+                    <col style="width:65px">
+                    <col style="width:75px">
                 </colgroup>
                 <thead>
                     <tr>
-                        <th>Date</th>
+                        <th style="text-align:center">Date</th>
                         <th style="text-align:center">Description</th>
                         <th style="text-align:right">Debit</th>
                         <th style="text-align:right">Credit</th>
@@ -60,15 +60,15 @@
                 <tbody>
                     {% for row in ledger %}
                     <tr style="{% if 'Separate' in row.description %}opacity:0.6{% endif %}">
-                        <td class="mono">{{ row.date }}</td>
-                        <td style="font-size:0.82rem;word-break:break-word;text-align:center">{{ row.description }}</td>
-                        <td class="mono" style="text-align:right;color:var(--green)">
+                        <td class="mono" style="text-align:center;white-space:nowrap">{{ row.date }}</td>
+                        <td style="font-size:0.82rem;padding:4px 6px;text-align:center">{{ row.description }}</td>
+                        <td class="mono" style="text-align:right;color:var(--green);white-space:nowrap">
                             {% if row.debit > 0 %}{{ "%.0f"|format(row.debit) }}{% endif %}
                         </td>
-                        <td class="mono" style="text-align:right;color:#e65100">
+                        <td class="mono" style="text-align:right;color:#e65100;white-space:nowrap">
                             {% if row.credit > 0 %}{{ "%.0f"|format(row.credit) }}{% endif %}
                         </td>
-                        <td class="mono" style="text-align:right;font-weight:600;color:{% if row.balance > 0 %}#e65100{% else %}var(--green){% endif %}">
+                        <td class="mono" style="text-align:right;font-weight:600;white-space:nowrap;color:{% if row.balance > 0 %}#e65100{% else %}var(--green){% endif %}">
                             {% if 'Separate' in row.description %}-{% else %}{{ "%.0f"|format(row.balance) }}{% endif %}
                         </td>
                     </tr>
