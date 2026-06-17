@@ -3021,7 +3021,7 @@ def supplier_soa_pdf(sup_id):
         try: os.unlink(fp)
         except: pass
     buf.seek(0)
-    return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=f"SOA_{s['supplier_code'] or sup_id}.pdf")
+    return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=f"SOA_{s['supplier_name']}.pdf")
 
 
 # ═══════════════════════════════════════════════════════════
