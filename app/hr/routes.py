@@ -18,7 +18,7 @@ from ..routes import (
     _advance_summary, _outstanding_advance, _timesheet_total_for_month,
     _calculate_salary_preview, _default_salary_form, _salary_form_from_row,
     _salary_preview_from_row, format_month_label, _driver_month_calendar,
-    _timesheet_month_summary, _driver_kata_month_data,
+    _timesheet_month_summary, _driver_kata_month_data, _regenerate_kata_for_driver,
     SALARY_MODE_OPTIONS, PAYMENT_SOURCES
 )
 from . import hr_bp
@@ -678,24 +678,14 @@ def employee_salary_store_delete(employee_id, store_id):
         if row is None:
             flash("Salary store not found.", "error")
         else:
-            slip = db.execute(
-                "SELECT id FROM salary_slips WHERE salary_store_id = ? AND driver_id = ? LIMIT 1",
-                (store_id, eid),
-            ).fetchone()
-            if slip:
-                flash("Cannot delete: salary slip already generated for this month. Delete the slip first.", "error")
-            else:
-                pay = db.execute(
-                    "SELECT id FROM salary_payments WHERE salary_store_id = ? AND driver_id = ? LIMIT 1",
-                    (store_id, eid),
-                ).fetchone()
-                if pay:
-                    flash("Cannot delete: salary payment exists for this store. Delete the payment first.", "error")
-                else:
-                    db.execute("DELETE FROM salary_store WHERE id = ? AND driver_id = ?", (store_id, eid))
-                    _audit_log(db, "employee_salary_store_deleted", entity_type="salary_store", entity_id=f"{eid}:{row['salary_month']}")
-                    db.commit()
-                    flash(f"Salary store for {row['salary_month']} deleted.", "success")
+            db.execute("DELETE FROM salary_payments WHERE salary_store_id = ? AND driver_id = ?", (store_id, eid))
+            db.execute("DELETE FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (store_id, eid))
+            db.execute("DELETE FROM salary_store WHERE id = ? AND driver_id = ?", (store_id, eid))
+            _audit_log(db, "employee_salary_store_deleted", entity_type="salary_store", entity_id=f"{eid}:{row['salary_month']}")
+            db.commit()
+            from flask import current_app
+            _regenerate_kata_for_driver(current_app._get_current_object(), db, {"driver_id": eid})
+            flash(f"Salary store for {row['salary_month']} deleted.", "success")
     except Exception as ex:
         flash(f"Error deleting salary store: {ex}", "error")
     return redirect(url_for("hr.employee_salary_store", employee_id=eid))
