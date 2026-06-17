@@ -2293,6 +2293,10 @@ def supplier_payment_add(sup_id):
             flash("Payment amount is required.", "error")
             return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, expenses=unpaid_expenses, methods=PAYMENT_METHODS, today=date.today().isoformat())
 
+        if not notes:
+            flash("Details / description is required for this payment.", "error")
+            return render_template("supplier/payment_form.html", s=s, pay={}, invoices=unpaid, expenses=unpaid_expenses, methods=PAYMENT_METHODS, today=date.today().isoformat())
+
         amount_f = float(amount)
         fund_source = request.form.get("fund_source", "cash_bank").strip()
         invoice_ids_str = ",".join(invoice_ids)
@@ -2683,7 +2687,6 @@ def supplier_soa(sup_id):
         parts = [f"Invoice: {inv['ref']}"]
         if inv['description']:
             parts.append(inv['description'])
-        parts.append(inv['status'])
         ledger.append({
             "date": inv["dt"],
             "type": "invoice",
@@ -2793,7 +2796,6 @@ def supplier_soa_pdf(sup_id):
         parts = [f"Invoice: {inv['ref']}"]
         if inv['description']:
             parts.append(inv['description'])
-        parts.append(inv['status'])
         ledger.append({"date": inv["dt"], "type": "Invoice", "ref": " — ".join(parts), "dr": 0, "cr": inv["amt"]})
     for exp in db.execute(
         "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no FROM supplier_expenses WHERE supplier_id = ?",
