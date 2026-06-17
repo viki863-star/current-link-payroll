@@ -684,7 +684,8 @@ def employee_salary_store_delete(employee_id, store_id):
             _audit_log(db, "employee_salary_store_deleted", entity_type="salary_store", entity_id=f"{eid}:{row['salary_month']}")
             db.commit()
             from flask import current_app
-            _regenerate_kata_for_driver(current_app._get_current_object(), db, {"driver_id": eid})
+            driver_row = db.execute("SELECT driver_id, full_name FROM drivers WHERE driver_id = ?", (eid,)).fetchone()
+            _regenerate_kata_for_driver(current_app._get_current_object(), db, dict(driver_row) if driver_row else {"driver_id": eid, "full_name": eid})
             flash(f"Salary store for {row['salary_month']} deleted.", "success")
     except Exception as ex:
         flash(f"Error deleting salary store: {ex}", "error")
