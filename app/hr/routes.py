@@ -664,30 +664,40 @@ def employee_salary_store(employee_id):
 def employee_salary_store_delete(employee_id, store_id):
     _touch_admin_workspace("hr")
     ensure_employees_table()
-    db = open_db()
-    employee = _fetch_employee(db, employee_id)
-    if employee is None:
-        flash("Employee not found.", "error")
-        return redirect(url_for("hr.employee_list"))
-    eid = employee["employee_id"]
-    row = db.execute(
-        "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
-        (store_id, eid),
-    ).fetchone()
-    if row is None:
-        flash("Salary store not found.", "error")
-    else:
-        slip = db.execute(
-            "SELECT id FROM salary_slips WHERE salary_store_id = ? AND driver_id = ? LIMIT 1",
+    try:
+        db = open_db()
+        employee = _fetch_employee(db, employee_id)
+        if employee is None:
+            flash("Employee not found.", "error")
+            return redirect(url_for("hr.employee_list"))
+        eid = employee["employee_id"]
+        row = db.execute(
+            "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
             (store_id, eid),
         ).fetchone()
-        if slip:
-            flash("Cannot delete: salary slip already generated for this month. Delete the slip first.", "error")
+        if row is None:
+            flash("Salary store not found.", "error")
         else:
-            db.execute("DELETE FROM salary_store WHERE id = ? AND driver_id = ?", (store_id, eid))
-            _audit_log(db, "employee_salary_store_deleted", entity_type="salary_store", entity_id=f"{eid}:{row['salary_month']}")
-            db.commit()
-            flash(f"Salary store for {row['salary_month']} deleted.", "success")
+            slip = db.execute(
+                "SELECT id FROM salary_slips WHERE salary_store_id = ? AND driver_id = ? LIMIT 1",
+                (store_id, eid),
+            ).fetchone()
+            if slip:
+                flash("Cannot delete: salary slip already generated for this month. Delete the slip first.", "error")
+            else:
+                pay = db.execute(
+                    "SELECT id FROM salary_payments WHERE salary_store_id = ? AND driver_id = ? LIMIT 1",
+                    (store_id, eid),
+                ).fetchone()
+                if pay:
+                    flash("Cannot delete: salary payment exists for this store. Delete the payment first.", "error")
+                else:
+                    db.execute("DELETE FROM salary_store WHERE id = ? AND driver_id = ?", (store_id, eid))
+                    _audit_log(db, "employee_salary_store_deleted", entity_type="salary_store", entity_id=f"{eid}:{row['salary_month']}")
+                    db.commit()
+                    flash(f"Salary store for {row['salary_month']} deleted.", "success")
+    except Exception as ex:
+        flash(f"Error deleting salary store: {ex}", "error")
     return redirect(url_for("hr.employee_salary_store", employee_id=eid))
 
 
