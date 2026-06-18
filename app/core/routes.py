@@ -106,24 +106,28 @@ def download_db_backup():
     backup_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+    backup_path = None
     try:
         if backend == "postgres":
-            import subprocess
-            pg_dump = os.environ.get("PG_DUMP_PATH", "pg_dump")
-            db_url = current_app.config.get("DATABASE_URL", "")
-            if not db_url:
-                raise RuntimeError("No DATABASE_URL configured")
-            backup_path = backup_dir / f"db_backup_{ts}.sql"
-            subprocess.run([pg_dump, db_url, "-f", str(backup_path)], check=True)
+            import subprocess, shutil
+            pg_path = shutil.which(os.environ.get("PG_DUMP_PATH", "pg_dump"))
+            if pg_path:
+                db_url = current_app.config.get("DATABASE_URL", "")
+                if not db_url:
+                    raise RuntimeError("No DATABASE_URL configured")
+                backup_path = backup_dir / f"db_backup_{ts}.sql"
+                subprocess.run([pg_path, db_url, "-f", str(backup_path)], check=True)
+            else:
+                raise RuntimeError("pg_dump not found on this server")
         else:
-            from app.backup_service import _database_path
-            db_path = _database_path(current_app._get_current_object())
-            if not db_path.exists():
-                raise RuntimeError(f"Database file not found: {db_path}")
-            backup_path = backup_dir / f"db_backup_{ts}.db"
-            import shutil
-            shutil.copy2(db_path, backup_path)
-        return send_file(str(backup_path), as_attachment=True, download_name=backup_path.name)
-    except Exception as e:
-        flash(f"Backup failed: {e}", "error")
-        return redirect(url_for("core.settings"))
+            raise RuntimeError("not postgres")
+    except Exception:
+        from app.backup_service import _database_path
+        db_path = _database_path(current_app._get_current_object())
+        if not db_path.exists():
+            flash(f"Database file not found: {db_path}", "error")
+            return redirect(url_for("core.settings"))
+        backup_path = backup_dir / f"db_backup_{ts}.db"
+        import shutil
+        shutil.copy2(db_path, backup_path)
+    return send_file(str(backup_path), as_attachment=True, download_name=backup_path.name)
