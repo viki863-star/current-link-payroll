@@ -1035,6 +1035,50 @@ def employee_salary_slip_delete(employee_id, store_id):
     return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
 
 
+@hr_bp.route("/hr/employees/<employee_id>/salary-slip/<int:store_id>/deduction-statement")
+@_login_required("admin")
+def employee_deduction_statement(employee_id, store_id):
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    employee = _fetch_employee(db, employee_id)
+    if employee is None:
+        flash("Employee not found.", "error")
+        return redirect(url_for("hr.employee_list"))
+    eid = employee["employee_id"]
+    salary_store_row = db.execute("SELECT * FROM salary_store WHERE id = ? AND driver_id = ?", (store_id, eid)).fetchone()
+    if not salary_store_row:
+        flash("Salary store not found.", "error")
+        return redirect(url_for("hr.employee_salary_slip", employee_id=eid))
+    slip = db.execute("SELECT * FROM salary_slips WHERE salary_store_id = ? AND driver_id = ? ORDER BY id DESC LIMIT 1", (store_id, eid)).fetchone()
+    if not slip:
+        flash("Salary slip not found. Generate slip first.", "error")
+        return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
+    driver_display = {"driver_id": eid, "full_name": employee["full_name"], "basic_salary": employee["basic_salary"] or 0}
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    company_profile = dict(company) if company else None
+    # Get deducted transactions
+    deducted = db.execute(
+        """SELECT dt.*, sd.amount_deducted
+           FROM salary_slip_deductions sd
+           JOIN driver_transactions dt ON dt.id = sd.driver_transaction_id
+           WHERE sd.salary_slip_id = ?""",
+        (slip["id"],),
+    ).fetchall()
+    from ..pdf_service import generate_deduction_statement_pdf
+    pdf_path = generate_deduction_statement_pdf(
+        driver_display, salary_store_row, slip, deducted,
+        str(Path(current_app.config["GENERATED_DIR"]) / "salary_slips"),
+        current_app.config["STATIC_ASSETS_DIR"],
+        company_profile=company_profile,
+    )
+    if pdf_path:
+        rel = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
+        return redirect(url_for("generated_file", filename=rel))
+    flash("Could not generate deduction statement.", "error")
+    return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
+
+
 # ── Employee Kata ────────────────────────────────────────────────
 
 @hr_bp.route("/hr/employees/<employee_id>/kata")

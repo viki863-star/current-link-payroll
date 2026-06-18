@@ -3719,3 +3719,173 @@ def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, date_
 
     doc.build(els)
     return path
+
+
+def generate_deduction_statement_pdf(driver, salary_store_row, slip_row, deducted_transactions, output_dir: str, assets_dir: str, company_profile: dict | None = None) -> str:
+    from reportlab.platypus import SimpleDocTemplate, Paragraph as PlParagraph, Spacer, Table as PlTable, TableStyle as PlTableStyle, Image as PlImage
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    import os, tempfile
+
+    month_value = str(slip_row.get("salary_month", ""))
+    output_path = Path(output_dir) / f"{driver['driver_id']}_deduction_{month_value}.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 15*mm
+    doc = SimpleDocTemplate(str(output_path), pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = A4[0] - LM - RM
+
+    cp = dict(company_profile) if company_profile else {}
+    tc = cp.get("theme_color") or "#1a3a5c"
+    try: TH = colors.HexColor(tc)
+    except: TH = colors.HexColor("#1a3a5c")
+    BG = colors.HexColor("#f4f6f9"); WH = colors.white
+    C3 = colors.HexColor("#d1d5db"); C4 = colors.HexColor("#111827"); C5 = colors.HexColor("#6b7280")
+
+    def F(name, **kw):
+        kw.setdefault("fontSize", 8); kw.setdefault("leading", 12)
+        return ParagraphStyle(name, **kw)
+
+    els = []
+    cn = cp.get("company_name") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    trn = cp.get("trn_no") or "—"
+
+    logo = None; LW = 0
+    if cp.get("logo_data"):
+        try:
+            lb = base64.b64decode(cp["logo_data"])
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            f.write(lb); f.close()
+            logo = PlImage(f.name, width=50, height=50)
+            LW = 50
+        except: pass
+
+    cl = [f"<font size=11><b>{cn}</b></font>"]
+    addr = cp.get("address") or ""; ph = cp.get("phone_number") or ""; em = cp.get("email") or ""
+    parts_l = [x for x in [addr] if x]
+    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != "TRN: —"]
+    if parts_l or cparts:
+        info = " &middot; ".join(parts_l + cparts)
+        cl.append(f"<font size=6.5 color='#6b7280'>{info}</font>")
+    co_p = PlParagraph("<br/>".join(cl), F("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
+    if logo:
+        lh = PlTable([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm])
+        lh.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    else:
+        lh = co_p
+    rh = PlParagraph("<b>DEDUCTION<br/>STATEMENT</b>", F("TI", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
+    ht = PlTable([[lh, rh]], colWidths=[W*0.65, W*0.35])
+    ht.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ht)
+    els.append(Spacer(1, 2*mm))
+    hr = PlTable([[""]], colWidths=[W], rowHeights=[2])
+    hr.setStyle(PlTableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(hr)
+    els.append(Spacer(1, 4*mm))
+
+    finfo = [
+        [PlParagraph("<b>Driver</b>", F("_fl", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11)),
+         PlParagraph(f"<b>{driver.get('full_name','-')} ({driver.get('driver_id','-')})</b>", F("_fv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12))],
+        [PlParagraph("Month", F("_l", fontSize=7.5, textColor=C5, leading=10)),
+         PlParagraph(format_month_label(month_value), F("_v", fontSize=8.5, textColor=C4, leading=11))],
+    ]
+    ft = PlTable(finfo, colWidths=[50, W - 50])
+    ft.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),1),("BOTTOMPADDING",(0,0),(-1,-1),1),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ft)
+    els.append(Spacer(1, 4*mm))
+
+    total_ded = float(slip_row.get("total_deductions") or 0)
+    salary_after = float(slip_row.get("salary_after_deduction") or 0)
+    net_sal = float(salary_store_row.get("net_salary") or 0) if salary_store_row else 0
+    sdata = [[
+        PlParagraph(f"<b>Net Salary</b><br/><font size=10 color='#1a3a5c'>AED {format_currency(net_sal)}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        PlParagraph(f"<b>Total Deducted</b><br/><font size=10 color='#c62828'>AED {format_currency(total_ded)}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        PlParagraph(f"<b>Net Received</b><br/><font size=10 color='#1a7d1a'>AED {format_currency(salary_after)}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        PlParagraph(f"<b>Transactions</b><br/><font size=10>{len(deducted_transactions)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+    ]]
+    st = PlTable(sdata, colWidths=[W/4, W/4, W/4, W/4])
+    st.setStyle(PlTableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),8), ("BOTTOMPADDING",(0,0),(-1,-1),8),
+        ("LEFTPADDING",(0,0),(-1,-1),5), ("RIGHTPADDING",(0,0),(-1,-1),5),
+        ("BACKGROUND",(0,0),(-1,-1),BG),
+    ]))
+    els.append(st)
+    els.append(Spacer(1, 4*mm))
+
+    els.append(PlParagraph("<b>Deducted Transactions</b>", F("_ttitle", fontSize=8, fontName="Helvetica-Bold", textColor=TH, leading=10)))
+    els.append(Spacer(1, 2*mm))
+    dcolw = [42, 42, W - 42 - 42 - 50, 50]
+    dhdr = [
+        PlParagraph("<b>Date</b>", F("_dh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+        PlParagraph("<b>Amount</b>", F("_dh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        PlParagraph("<b>Details</b>", F("_dh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        PlParagraph("<b>Deducted</b>", F("_dh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+    ]
+    drows = [dhdr]
+    total_txn_amt = 0.0
+    for dt in deducted_transactions:
+        amt = float(dt.get("amount", 0))
+        ded = float(dt.get("amount_deducted", amt))
+        total_txn_amt += ded
+        drows.append([
+            PlParagraph(str(dt.get("entry_date", ""))[:10], F("_dd", fontSize=6.5, leading=9)),
+            PlParagraph(f"<b>{format_currency(amt)}</b>", F("_da", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=9)),
+            PlParagraph(str(dt.get("details", "-")), F("_dDet", fontSize=6.2, textColor=C5, leading=9)),
+            PlParagraph(f"<b>{format_currency(ded)}</b>", F("_ddr", fontSize=6.5, fontName="Helvetica-Bold", textColor="#c62828", alignment=TA_RIGHT, leading=9)),
+        ])
+    drows.append([
+        PlParagraph("<b>Total</b>", F("_dtb", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+        PlParagraph("", F("_dx")),
+        PlParagraph("", F("_dx")),
+        PlParagraph(f"<b>{format_currency(total_txn_amt)}</b>", F("_dtt", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+    ])
+    dtbl = PlTable(drows, colWidths=dcolw, repeatRows=1)
+    dtbl.setStyle(PlTableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
+        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
+        ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
+        ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
+    ]))
+    els.append(dtbl)
+    els.append(Spacer(1, 4*mm))
+
+    calc = [
+        [PlParagraph("Net Salary", F("_cl", fontSize=7.5, leading=10)), PlParagraph(f"AED {format_currency(net_sal)}", F("_cr", fontSize=7.5, alignment=TA_RIGHT, leading=10))],
+        [PlParagraph("Total Deducted", F("_cl", fontSize=7.5, textColor="#c62828", leading=10)), PlParagraph(f"-AED {format_currency(total_ded)}", F("_cr", fontSize=7.5, textColor="#c62828", alignment=TA_RIGHT, leading=10))],
+        [PlParagraph("<b>Net Received by Driver</b>", F("_cl", fontSize=8, fontName="Helvetica-Bold", textColor="#1a7d1a", leading=11)), PlParagraph(f"<b>AED {format_currency(salary_after)}</b>", F("_cr", fontSize=8, fontName="Helvetica-Bold", textColor="#1a7d1a", alignment=TA_RIGHT, leading=11))],
+    ]
+    ct = PlTable(calc, colWidths=[W*0.6, W*0.4])
+    ct.setStyle(PlTableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
+        ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
+        ("BACKGROUND",(2,0),(2,0),BG),
+    ]))
+    els.append(ct)
+
+    els.append(Spacer(1, 8*mm))
+    s_sg = ParagraphStyle("SSG", fontSize=9, alignment=TA_CENTER, leading=14)
+    s_auth_cells = []
+    s_auth_cells.append(PlParagraph("_________________________", s_sg))
+    s_stamp_path = os.path.join(assets_dir, 'Stamp.png')
+    s_sign_path = os.path.join(assets_dir, 'Sign (1).png')
+    if os.path.exists(s_stamp_path):
+        s_auth_cells.append(PlImage(s_stamp_path, width=40, height=40))
+    if os.path.exists(s_sign_path):
+        s_auth_cells.append(PlImage(s_sign_path, width=40, height=40))
+    s_auth_cells.append(PlParagraph("<b>Authorized Signatory</b>", s_sg))
+    s_auth_cell = PlTable([[c] for c in s_auth_cells], colWidths=[W*0.35])
+    s_auth_cell.setStyle(PlTableStyle([("ALIGN",(0,0),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
+    els.append(s_auth_cell)
+
+    els.append(Spacer(1, 6*mm))
+    els.append(PlParagraph("This is a computer-generated Deduction Statement.", F("_ft", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
+
+    doc.build(els)
+    return str(output_path)
