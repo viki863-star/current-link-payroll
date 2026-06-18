@@ -849,11 +849,12 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     els.append(Spacer(1, 3*mm))
     unpaid_sal_total = sum(float(r.get("net_salary") or 0) for r in (unpaid_salary_rows or []))
     txn_total_all = sum(float(a.get("amount", 0)) for a in advances)
+    net_balance = max(unpaid_sal_total - txn_total_all, 0.0)
     sdata = [[
         PlParagraph(f"<b>Total Advances</b><br/><font size=10 color='#c62828'>AED {format_currency(txn_total_all)}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         PlParagraph(f"<b>Store Salary</b><br/><font size=10 color='#1a7d1a'>AED {format_currency(unpaid_sal_total)}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         PlParagraph(f"<b>Deducted</b><br/><font size=10 color='#1a3a5c'>AED {format_currency(this_deduction)}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        PlParagraph(f"<b>Balance</b><br/><font size=10 color='#e65100'>AED {format_currency(prev_remaining)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        PlParagraph(f"<b>Remaining</b><br/><font size=10 color='#e65100'>AED {format_currency(net_balance)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
     ]]
     st = PlTable(sdata, colWidths=[W/4, W/4, W/4, W/4])
     st.setStyle(PlTableStyle([
@@ -875,32 +876,27 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     # ── LEFT: ADVANCES / TRANSACTIONS TABLE ──
     left_title = PlParagraph("<b>Transactions (Advances Received)</b>", F("_ltitle", fontSize=7.5, fontName="Helvetica-Bold", textColor=TH, leading=10))
     
-    txn_colw = [35, 35, left_w - 35 - 35 - 42, 42]
+    txn_colw = [42, left_w - 42 - 42, 42]
     txn_hdr = [
         PlParagraph("<b>Date</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=8)),
-        PlParagraph("<b>Amt</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
         PlParagraph("<b>Details</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, leading=8)),
-        PlParagraph("<b>Balance</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
+        PlParagraph("<b>Amount</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
     ]
     txn_rows = [txn_hdr]
-    running_bal = float(prev_remaining)
     txn_total = 0.0
     for a in advances:
         amt = float(a.get("amount", 0))
         txn_total += amt
-        running_bal += amt
         txn_rows.append([
             PlParagraph(str(a.get("entry_date", ""))[:10], F("_td", fontSize=6, leading=8)),
+            PlParagraph(str(a.get("details", "-"))[:40], F("_tDet", fontSize=5.8, textColor=C5, leading=8)),
             PlParagraph(f"<b>{format_currency(amt)}</b>", F("_ta", fontSize=6, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=8)),
-            PlParagraph(str(a.get("details", "-"))[:30], F("_tDet", fontSize=5.8, textColor=C5, leading=8)),
-            PlParagraph(f"<b>{format_currency(running_bal)}</b>", F("_tb", fontSize=6, fontName="Helvetica-Bold", textColor="#e65100" if running_bal > 0 else "#1a7d1a", alignment=TA_RIGHT, leading=8)),
         ])
     # Total row
     txn_rows.append([
-        PlParagraph("<b>Total Advances</b>", F("_ttb", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        PlParagraph(f"<b>{format_currency(txn_total)}</b>", F("_ttt", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        PlParagraph("<b>Total</b>", F("_ttb", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
         PlParagraph("", F("_tx")),
-        PlParagraph(f"<b>{format_currency(running_bal)}</b>", F("_ttb", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        PlParagraph(f"<b>{format_currency(txn_total)}</b>", F("_ttt", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
     ])
     txn_tbl = PlTable(txn_rows, colWidths=txn_colw, repeatRows=1)
     txn_tbl.setStyle(PlTableStyle([
