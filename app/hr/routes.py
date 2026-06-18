@@ -746,6 +746,8 @@ def employee_salary_slip(employee_id):
         "payment_source": PAYMENT_SOURCES[0],
         "paid_by": "",
         "payment_notes": "",
+        "deduction_mode": "select",  # "select" or "manual"
+        "selected_txn_ids": [],
     }
 
     if selected_salary_id:
@@ -768,16 +770,73 @@ def employee_salary_slip(employee_id):
             if existing_slip:
                 values["deduction_amount"] = f"{float(existing_slip['total_deductions']):.2f}"
 
+    # Load driver transactions for selection
+    driver_txns = db.execute(
+        "SELECT * FROM driver_transactions WHERE driver_id = ? ORDER BY entry_date ASC",
+        (eid,),
+    ).fetchall()
+
+    # For each transaction, compute how much has been deducted already
+    deducted_txn_ids = set()
+    for txn in driver_txns:
+        already = float(db.execute(
+            "SELECT COALESCE(SUM(amount_deducted), 0) FROM salary_slip_deductions WHERE driver_transaction_id = ?",
+            (txn["id"],),
+        ).fetchone()[0])
+        remaining = float(txn["amount"]) - already
+        txn["_already_deducted"] = already
+        txn["_remaining"] = max(remaining, 0.0)
+        txn["_is_fully_deducted"] = remaining <= 0.001
+        if txn["_is_fully_deducted"]:
+            deducted_txn_ids.add(txn["id"])
+
+    # If existing slip, pre-select its linked transactions
+    selected_txn_ids = set()
+    if existing_slip:
+        linked = db.execute(
+            "SELECT driver_transaction_id FROM salary_slip_deductions WHERE salary_slip_id = ?",
+            (existing_slip["id"],),
+        ).fetchall()
+        selected_txn_ids = {r["driver_transaction_id"] for r in linked}
+
     if request.method == "POST":
         selected_salary_id = request.form.get("salary_store_id", "").strip()
+        deduction_mode = request.form.get("deduction_mode", "select").strip()
+        selected_txn_ids_raw = request.form.getlist("selected_txn_ids")
+        manual_amount = request.form.get("manual_amount", "0").strip() or "0"
         values = {
-            "deduction_amount": request.form.get("deduction_amount", "0").strip() or "0",
+            "deduction_amount": "0.00",
             "payment_date": request.form.get("payment_date", date.today().isoformat()).strip() or date.today().isoformat(),
             "actual_paid_amount": request.form.get("actual_paid_amount", "").strip(),
             "payment_source": request.form.get("payment_source", PAYMENT_SOURCES[0]).strip() or PAYMENT_SOURCES[0],
             "paid_by": request.form.get("paid_by", "").strip(),
             "payment_notes": request.form.get("payment_notes", "").strip(),
+            "deduction_mode": deduction_mode,
+            "selected_txn_ids": selected_txn_ids_raw,
         }
+
+        if deduction_mode == "select":
+            # Sum selected transaction amounts (based on remaining, not full amount)
+            deduction_amount = 0.0
+            selected_ids_int = []
+            for txn_id_str in selected_txn_ids_raw:
+                if txn_id_str.strip().isdigit():
+                    txn_id = int(txn_id_str.strip())
+                    txn = db.execute("SELECT * FROM driver_transactions WHERE id = ? AND driver_id = ?", (txn_id, eid)).fetchone()
+                    if txn:
+                        already = float(db.execute(
+                            "SELECT COALESCE(SUM(amount_deducted), 0) FROM salary_slip_deductions WHERE driver_transaction_id = ?",
+                            (txn["id"],),
+                        ).fetchone()[0])
+                        remaining = float(txn["amount"]) - already
+                        if remaining > 0.001:
+                            deduction_amount += remaining
+                            selected_ids_int.append(txn_id)
+            values["deduction_amount"] = f"{deduction_amount:.2f}"
+            values["selected_txn_ids"] = [str(x) for x in selected_ids_int]
+        else:
+            deduction_amount = float(manual_amount) if manual_amount else 0.0
+            selected_ids_int = []
 
         if not selected_salary_id:
             flash("Select a stored salary month first.", "error")
@@ -867,6 +926,23 @@ def employee_salary_slip(employee_id):
                                 )
                                 slip_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
 
+                        # Save linked transactions to salary_slip_deductions
+                        db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip_id,))
+                        if deduction_mode == "select" and selected_ids_int:
+                            for txn_id in selected_ids_int:
+                                txn = db.execute("SELECT * FROM driver_transactions WHERE id = ? AND driver_id = ?", (txn_id, eid)).fetchone()
+                                if txn:
+                                    already = float(db.execute(
+                                        "SELECT COALESCE(SUM(amount_deducted), 0) FROM salary_slip_deductions WHERE driver_transaction_id = ?",
+                                        (txn["id"],),
+                                    ).fetchone()[0])
+                                    remaining = max(float(txn["amount"]) - already, 0.0)
+                                    if remaining > 0.001:
+                                        db.execute(
+                                            "INSERT INTO salary_slip_deductions (salary_slip_id, driver_transaction_id, amount_deducted) VALUES (?,?,?)",
+                                            (slip_id, txn["id"], remaining),
+                                        )
+
                         slip_row = db.execute("SELECT * FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
                         driver_display = {"driver_id": eid, "full_name": employee["full_name"],
                                           "basic_salary": employee["basic_salary"] or 0,
@@ -927,6 +1003,8 @@ def employee_salary_slip(employee_id):
         slip_available_advance=available_advance,
         slip_advance_summary=advance_summary,
         slip_store_ids=slip_store_ids,
+        slip_driver_txns=driver_txns,
+        slip_selected_txn_ids=selected_txn_ids,
     )
 
 
@@ -948,6 +1026,7 @@ def employee_salary_slip_delete(employee_id, store_id):
     if slip is None:
         flash("Salary slip not found.", "error")
     else:
+        db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip["id"],))
         db.execute("DELETE FROM salary_slips WHERE id = ?", (slip["id"],))
         _audit_log(db, "employee_salary_slip_deleted", entity_type="salary_slip",
                     entity_id=f"{eid}:{slip['salary_month']}")
@@ -998,6 +1077,7 @@ def employee_kata(employee_id):
     kata_prev_remaining = 0.0
     kata_this_deduction = 0.0
     kata_remaining = 0.0
+    deduction_history = []
 
     if selected_month:
         active_entries, closed_entries, summary_ret = _driver_kata_month_data(db, eid, selected_month)
@@ -1035,21 +1115,34 @@ def employee_kata(employee_id):
         kata_this_deduction = this_deduction
         kata_remaining = remaining_after
 
-        deduction_left = prev_deductions + this_deduction
+        # Build actual deduction data per transaction from salary_slip_deductions
+        txn_deducted_map = {}
+        deducted_rows = db.execute(
+            """
+            SELECT sd.driver_transaction_id, sd.amount_deducted, ss.salary_month
+            FROM salary_slip_deductions sd
+            JOIN salary_slips ss ON ss.id = sd.salary_slip_id
+            WHERE ss.driver_id = ?
+            """,
+            (eid,),
+        ).fetchall()
+        for dr in deducted_rows:
+            txn_id = dr["driver_transaction_id"]
+            if txn_id not in txn_deducted_map:
+                txn_deducted_map[txn_id] = {"total": 0.0, "slips": []}
+            txn_deducted_map[txn_id]["total"] += float(dr["amount_deducted"])
+            txn_deducted_map[txn_id]["slips"].append(dr["salary_month"])
+
+        # Compute remaining deduction (from old-style lump sums not tracked per transaction)
+        old_style_deductions = max(prev_deductions + this_deduction - sum(d["total"] for d in txn_deducted_map.values()), 0.0)
+        remaining_deduction = old_style_deductions
+
         for a in all_advances:
             amt = float(a["amount"])
-            if deduction_left <= 0:
-                kata_advances.append({
-                    "entry_date": a["entry_date"],
-                    "amount": amt,
-                    "source": a["source"],
-                    "given_by": a["given_by"],
-                    "details": a["details"],
-                    "remaining": amt,
-                    "deducted": 0.0,
-                    "status": "outstanding",
-                })
-            elif deduction_left >= amt:
+            txn_id = a["id"]
+            already_deducted = txn_deducted_map.get(txn_id, {}).get("total", 0.0)
+            if already_deducted >= amt - 0.001:
+                # Fully deducted via actual tracking
                 kata_advances.append({
                     "entry_date": a["entry_date"],
                     "amount": amt,
@@ -1059,20 +1152,50 @@ def employee_kata(employee_id):
                     "remaining": 0.0,
                     "deducted": amt,
                     "status": "cleared",
+                    "deducted_in": txn_deducted_map.get(txn_id, {}).get("slips", []),
                 })
-                deduction_left -= amt
             else:
+                not_deducted_yet = max(amt - already_deducted, 0.0)
+                # Apply remaining old-style deduction FIFO
+                if remaining_deduction <= 0:
+                    ded = already_deducted
+                    rem = not_deducted_yet
+                    status = "cleared" if rem <= 0.001 else "outstanding"
+                elif remaining_deduction >= not_deducted_yet:
+                    ded = amt
+                    rem = 0.0
+                    status = "cleared"
+                    remaining_deduction -= not_deducted_yet
+                else:
+                    ded = already_deducted + remaining_deduction
+                    rem = not_deducted_yet - remaining_deduction
+                    status = "cleared" if rem <= 0.001 else "partial" if remaining_deduction > 0 else "outstanding"
+                    remaining_deduction = 0.0
                 kata_advances.append({
                     "entry_date": a["entry_date"],
                     "amount": amt,
                     "source": a["source"],
                     "given_by": a["given_by"],
                     "details": a["details"],
-                    "remaining": amt - deduction_left,
-                    "deducted": deduction_left,
-                    "status": "partial",
+                    "remaining": max(amt - ded, 0.0),
+                    "deducted": ded,
+                    "status": status,
+                    "deducted_in": txn_deducted_map.get(txn_id, {}).get("slips", []),
                 })
-                deduction_left = 0.0
+
+        # Deduction history for display
+        deduction_history = db.execute(
+            """
+            SELECT sd.*, dt.amount as txn_amount, dt.details as txn_details, dt.entry_date as txn_date,
+                   ss.salary_month, ss.salary_store_id
+            FROM salary_slip_deductions sd
+            JOIN driver_transactions dt ON dt.id = sd.driver_transaction_id
+            JOIN salary_slips ss ON ss.id = sd.salary_slip_id
+            WHERE ss.driver_id = ?
+            ORDER BY ss.salary_month DESC, sd.created_at DESC
+            """,
+            (eid,),
+        ).fetchall()
 
     pdf_url = None
     transactions_pdf_url = None
@@ -1127,6 +1250,7 @@ def employee_kata(employee_id):
         kata_prev_remaining=kata_prev_remaining,
         kata_this_deduction=kata_this_deduction,
         kata_remaining=kata_remaining,
+        kata_deduction_history=deduction_history,
         kata_pdf_url=pdf_url,
         kata_transactions_pdf_url=transactions_pdf_url,
     )

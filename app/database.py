@@ -174,6 +174,16 @@ CREATE TABLE IF NOT EXISTS salary_slips (
     FOREIGN KEY(salary_store_id) REFERENCES salary_store(id)
 );
 
+CREATE TABLE IF NOT EXISTS salary_slip_deductions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    salary_slip_id INTEGER NOT NULL,
+    driver_transaction_id INTEGER NOT NULL,
+    amount_deducted REAL NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(salary_slip_id) REFERENCES salary_slips(id) ON DELETE CASCADE,
+    FOREIGN KEY(driver_transaction_id) REFERENCES driver_transactions(id)
+);
+
 CREATE TABLE IF NOT EXISTS salary_payments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     driver_id TEXT NOT NULL,
@@ -1019,6 +1029,16 @@ CREATE TABLE IF NOT EXISTS salary_slips (
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(driver_id) REFERENCES drivers(driver_id),
     FOREIGN KEY(salary_store_id) REFERENCES salary_store(id)
+);
+
+CREATE TABLE IF NOT EXISTS salary_slip_deductions (
+    id BIGSERIAL PRIMARY KEY,
+    salary_slip_id BIGINT NOT NULL,
+    driver_transaction_id BIGINT NOT NULL,
+    amount_deducted DOUBLE PRECISION NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(salary_slip_id) REFERENCES salary_slips(id) ON DELETE CASCADE,
+    FOREIGN KEY(driver_transaction_id) REFERENCES driver_transactions(id)
 );
 
 CREATE TABLE IF NOT EXISTS salary_payments (
