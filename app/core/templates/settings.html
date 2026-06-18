@@ -231,9 +231,9 @@
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:0.75rem">
             <span style="background:rgba(255,255,255,.08);border-radius:6px;padding:4px 10px">DB: {{ backup_summary.database_path if backup_summary else 'N/A' }}</span>
             <span style="background:rgba(255,255,255,.08);border-radius:6px;padding:4px 10px">Free: {{ backup_summary.free_disk_space if backup_summary else 'N/A' }}</span>
-            <span style="background:rgba(255,255,255,.08);border-radius:6px;padding:4px 10px">Daily: {{ backup_summary.latest_daily.split('/')[-1] if backup_summary and backup_summary.latest_daily else 'None' }}</span>
-            <span style="background:rgba(255,255,255,.08);border-radius:6px;padding:4px 10px">Weekly: {{ backup_summary.latest_weekly.split('/')[-1] if backup_summary and backup_summary.latest_weekly else 'None' }}</span>
-            <span style="background:rgba(255,255,255,.08);border-radius:6px;padding:4px 10px">Monthly: {{ backup_summary.latest_monthly.split('/')[-1] if backup_summary and backup_summary.latest_monthly else 'None' }}</span>
+            <span style="background:rgba(255,255,255,.08);border-radius:6px;padding:4px 10px">Daily: {{ backup_summary.latest_daily.name if backup_summary and backup_summary.latest_daily else 'None' }}</span>
+            <span style="background:rgba(255,255,255,.08);border-radius:6px;padding:4px 10px">Weekly: {{ backup_summary.latest_weekly.name if backup_summary and backup_summary.latest_weekly else 'None' }}</span>
+            <span style="background:rgba(255,255,255,.08);border-radius:6px;padding:4px 10px">Monthly: {{ backup_summary.latest_monthly.name if backup_summary and backup_summary.latest_monthly else 'None' }}</span>
         </div>
     </div>
 
