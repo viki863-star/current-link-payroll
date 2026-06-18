@@ -1210,8 +1210,14 @@ def employee_kata(employee_id):
         company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
         company_profile = dict(company) if company else None
 
+        # All salary store rows that don't have a generated slip yet
+        unpaid_salary_rows = db.execute(
+            "SELECT ss.* FROM salary_store ss WHERE ss.driver_id = ? AND ss.id NOT IN (SELECT DISTINCT salary_store_id FROM salary_slips WHERE driver_id = ?) ORDER BY ss.salary_month ASC",
+            (eid, eid),
+        ).fetchall()
+
         pdf_path = generate_simple_kata_pdf(
-            driver_display, salary_row, kata_advances,
+            driver_display, salary_row, unpaid_salary_rows, kata_advances,
             kata_prev_remaining, kata_this_deduction, kata_remaining,
             selected_month,
             str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
