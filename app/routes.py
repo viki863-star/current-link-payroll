@@ -2083,11 +2083,7 @@ def register_routes(app: Flask) -> None:
     @app.get("/admin/backups")
     @_login_required("admin")
     def admin_backups():
-        _touch_admin_workspace("universal")
-        return render_template(
-            "admin_backups.html",
-            backup_summary=backup_status_summary(app),
-        )
+        return redirect(url_for("core.settings"))
 
     @app.post("/admin/backups/create")
     @_login_required("admin")
