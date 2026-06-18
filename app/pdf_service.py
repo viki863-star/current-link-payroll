@@ -916,10 +916,9 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     # ── RIGHT: ALL UNPAID SALARY STORE ROWS ──
     right_title = PlParagraph("<b>Store Salary (Not Yet Run)</b>", F("_rtitle", fontSize=7.5, fontName="Helvetica-Bold", textColor=TH, leading=10))
     
-    sal_colw = [right_w * 0.55, right_w * 0.25, right_w * 0.20]
+    sal_colw = [right_w * 0.55, right_w * 0.45]
     sal_hdr = [
         PlParagraph("<b>Month</b>", F("_sh2", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, leading=8)),
-        PlParagraph("<b>Component</b>", F("_sh2", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, leading=8)),
         PlParagraph("<b>Amount</b>", F("_sh2", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
     ]
     sal_rows = [sal_hdr]
@@ -927,58 +926,21 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     if unpaid_salary_rows:
         for sr in unpaid_salary_rows:
             month = str(sr.get("salary_month", ""))
-            basic = float(sr.get("basic_salary") or 0)
-            personal = float(sr.get("personal_vehicle") or 0)
-            pnote = str(sr.get("personal_vehicle_note") or "")
-            ot_amt = float(sr.get("ot_amount") or 0)
-            ot_m = str(sr.get("ot_month") or "-")
-            ot_type = sr.get("ot_type") or "hours"
             net = float(sr.get("net_salary") or 0)
-
-            # Month header row
             sal_rows.append([
                 PlParagraph(f"<b>{month}</b>", F("_smh", fontSize=6, fontName="Helvetica-Bold", textColor=C4, leading=8)),
-                PlParagraph("", F("_sd2", fontSize=6, leading=8)),
-                PlParagraph("", F("_sd2", fontSize=6, leading=8)),
+                PlParagraph(f"<b>{format_currency(net)}</b>", F("_sa2", fontSize=6, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=8)),
             ])
-            if basic > 0:
-                sal_rows.append([
-                    PlParagraph("", F("_sd2", fontSize=6, leading=8)),
-                    PlParagraph("Basic", F("_sd2", fontSize=6, leading=8)),
-                    PlParagraph(f"<b>{format_currency(basic)}</b>", F("_sa2", fontSize=6, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=8)),
-                ])
-            if personal > 0:
-                lbl = f"Personal" if not pnote else f"Personal({pnote})"
-                sal_rows.append([
-                    PlParagraph("", F("_sd2", fontSize=6, leading=8)),
-                    PlParagraph(lbl, F("_sd2", fontSize=6, leading=8)),
-                    PlParagraph(f"<b>{format_currency(personal)}</b>", F("_sa2", fontSize=6, textColor="#1a7d1a", alignment=TA_RIGHT, leading=8)),
-                ])
-            if ot_amt > 0:
-                otlbl = "OT Trips" if ot_type == "trips" else f"OT"
-                sal_rows.append([
-                    PlParagraph("", F("_sd2", fontSize=6, leading=8)),
-                    PlParagraph(otlbl, F("_sd2", fontSize=6, leading=8)),
-                    PlParagraph(f"<b>{format_currency(ot_amt)}</b>", F("_sa2", fontSize=6, textColor="#1a7d1a", alignment=TA_RIGHT, leading=8)),
-                ])
-            if net > 0:
-                sal_rows.append([
-                    PlParagraph("", F("_sd2", fontSize=6, leading=8, fontName="Helvetica-Bold")),
-                    PlParagraph(f"<b>Net</b>", F("_sd2", fontSize=6, fontName="Helvetica-Bold", textColor=C4, leading=8)),
-                    PlParagraph(f"<b>{format_currency(net)}</b>", F("_sa2", fontSize=6, fontName="Helvetica-Bold", textColor="#1a3a5c", alignment=TA_RIGHT, leading=8)),
-                ])
             sal_grand_total += net
     else:
         sal_rows.append([
             PlParagraph("—", F("_sd2", fontSize=6, textColor=C5, leading=8)),
-            PlParagraph("No unpaid salary", F("_sd2", fontSize=6, textColor=C5, leading=8)),
             PlParagraph("", F("_sd2", fontSize=6, leading=8)),
         ])
 
     # Grand total row
     sal_rows.append([
         PlParagraph("<b>Total Store Salary</b>", F("_st2", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        PlParagraph("", F("_st2", fontSize=6.5, leading=9)),
         PlParagraph(f"<b>{format_currency(sal_grand_total)}</b>", F("_stv2", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
     ])
 
