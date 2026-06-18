@@ -966,20 +966,9 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
         sal_total += prev_remaining
     # Total row
     sal_rows.append([
-        PlParagraph("<b>Total</b>", F("_st2", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        PlParagraph("<b>Total Salary</b>", F("_st2", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
         PlParagraph(f"<b>{format_currency(sal_total)}</b>", F("_stv2", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
     ])
-    # Deduction row
-    if this_deduction > 0:
-        sal_rows.append([
-            PlParagraph("<b>Deducted</b>", F("_sded", fontSize=6, fontName="Helvetica-Bold", textColor="#c62828", leading=8)),
-            PlParagraph(f"<b>-{format_currency(this_deduction)}</b>", F("_sdedv", fontSize=6, fontName="Helvetica-Bold", textColor="#c62828", alignment=TA_RIGHT, leading=8)),
-        ])
-    if remaining > 0:
-        sal_rows.append([
-            PlParagraph("<b>Remaining</b>", F("_srem", fontSize=6, fontName="Helvetica-Bold", textColor="#e65100", leading=8)),
-            PlParagraph(f"<b>{format_currency(remaining)}</b>", F("_sremv", fontSize=6, fontName="Helvetica-Bold", textColor="#e65100", alignment=TA_RIGHT, leading=8)),
-        ])
 
     sal_tbl = PlTable(sal_rows, colWidths=sal_colw, repeatRows=1)
     sal_tbl.setStyle(PlTableStyle([
