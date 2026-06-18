@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 import shutil
 import zipfile
+import os, subprocess
 
 
 BACKUP_LIMITS = {
@@ -13,44 +14,82 @@ BACKUP_LIMITS = {
 }
 
 
+def _database_source(app):
+    backend = app.config.get("DATABASE_BACKEND", "sqlite")
+    if backend == "postgres":
+        dump_dir = _backup_dir(app, "daily")
+        dump_path = dump_dir / f"pg_dump_{_timestamp()}.sql"
+        pg_dump = shutil.which(os.environ.get("PG_DUMP_PATH", "pg_dump"))
+        if not pg_dump:
+            return _error_result("pg_dump not found for PostgreSQL backup")
+        db_url = app.config.get("DATABASE_URL", "")
+        if not db_url:
+            return _error_result("No DATABASE_URL configured")
+        subprocess.run([pg_dump, db_url, "-f", str(dump_path)], check=True)
+        return {"ok": True, "path": dump_path, "type": "sql"}
+    db_path = _database_path(app)
+    if not db_path.exists():
+        return _error_result(f"Database file was not found at {db_path}")
+    return {"ok": True, "path": db_path, "type": "sqlite"}
+
+
 def create_daily_backup(app=None):
     app = _resolve_app(app)
-    database_path = _database_path(app)
-    if not database_path.exists():
-        return _error_result(f"Database file was not found at {database_path}")
+    db_source = _database_source(app)
+    if not db_source["ok"]:
+        return db_source
 
     backup_dir = _backup_dir(app, "daily")
-    filename = f"current_link_daily_db_{_timestamp()}.db"
+    ts = _timestamp()
+    if db_source["type"] == "sql":
+        filename = f"current_link_daily_db_{ts}.sql"
+    else:
+        filename = f"current_link_daily_db_{ts}.db"
     target = backup_dir / filename
-    shutil.copy2(database_path, target)
+    shutil.copy2(db_source["path"], target)
+    if db_source["type"] == "sql":
+        try:
+            Path(db_source["path"]).unlink()
+        except OSError:
+            pass
     cleanup_old_backups(app)
     return _success_result(target, f"Daily database backup created at {target}")
 
 
 def create_weekly_backup(app=None):
     app = _resolve_app(app)
-    database_path = _database_path(app)
-    if not database_path.exists():
-        return _error_result(f"Database file was not found at {database_path}")
+    db_source = _database_source(app)
+    if not db_source["ok"]:
+        return db_source
 
     generated_dir = Path(app.config["GENERATED_DIR"])
     backup_dir = _backup_dir(app, "weekly")
     archive_path = backup_dir / f"current_link_weekly_full_{_timestamp()}.zip"
-    _write_full_archive(archive_path, database_path, generated_dir, include_metadata=False)
+    _write_full_archive(archive_path, db_source["path"], generated_dir, include_metadata=False)
+    if db_source["type"] == "sql":
+        try:
+            Path(db_source["path"]).unlink()
+        except OSError:
+            pass
     cleanup_old_backups(app)
     return _success_result(archive_path, f"Weekly full backup created at {archive_path}")
 
 
 def create_monthly_backup(app=None):
     app = _resolve_app(app)
-    database_path = _database_path(app)
-    if not database_path.exists():
-        return _error_result(f"Database file was not found at {database_path}")
+    db_source = _database_source(app)
+    if not db_source["ok"]:
+        return db_source
 
     generated_dir = Path(app.config["GENERATED_DIR"])
     backup_dir = _backup_dir(app, "monthly")
     archive_path = backup_dir / f"current_link_monthly_full_{_timestamp()}.zip"
-    _write_full_archive(archive_path, database_path, generated_dir, include_metadata=True)
+    _write_full_archive(archive_path, db_source["path"], generated_dir, include_metadata=True)
+    if db_source["type"] == "sql":
+        try:
+            Path(db_source["path"]).unlink()
+        except OSError:
+            pass
     cleanup_old_backups(app)
     return _success_result(archive_path, f"Monthly full backup created at {archive_path}")
 
@@ -70,13 +109,16 @@ def cleanup_old_backups(app=None):
     app = _resolve_app(app)
     for kind, keep_count in BACKUP_LIMITS.items():
         backup_dir = _backup_dir(app, kind)
-        pattern = {
-            "daily": "current_link_daily_db_*.db",
-            "weekly": "current_link_weekly_full_*.zip",
-            "monthly": "current_link_monthly_full_*.zip",
+        patterns = {
+            "daily": ["current_link_daily_db_*.db", "current_link_daily_db_*.sql"],
+            "weekly": ["current_link_weekly_full_*.zip"],
+            "monthly": ["current_link_monthly_full_*.zip"],
         }[kind]
+        files = []
+        for pat in patterns:
+            files.extend(backup_dir.glob(pat))
         files = sorted(
-            backup_dir.glob(pattern),
+            files,
             key=lambda item: item.stat().st_mtime,
             reverse=True,
         )
@@ -91,7 +133,7 @@ def cleanup_old_backups(app=None):
 def ensure_daily_backup_for_today(app=None):
     app = _resolve_app(app)
     if (app.config.get("DATABASE_BACKEND") or "sqlite") != "sqlite":
-        return _error_result("Automatic daily DB backup is only available for local SQLite mode.")
+        return _create_daily_pg_backup(app)
 
     backup_dir = _backup_dir(app, "daily")
     today_prefix = f"current_link_daily_db_{datetime.now().strftime('%Y-%m-%d')}_"
@@ -101,19 +143,26 @@ def ensure_daily_backup_for_today(app=None):
     return create_daily_backup(app)
 
 
+def _create_daily_pg_backup(app):
+    return create_daily_backup(app)
+
+
 def latest_backup_file(kind: str, app=None) -> Path | None:
     app = _resolve_app(app)
     normalized = (kind or "").strip().lower()
     if normalized not in BACKUP_LIMITS:
         return None
     backup_dir = _backup_dir(app, normalized)
-    pattern = {
-        "daily": "current_link_daily_db_*.db",
-        "weekly": "current_link_weekly_full_*.zip",
-        "monthly": "current_link_monthly_full_*.zip",
+    patterns = {
+        "daily": ["current_link_daily_db_*.db", "current_link_daily_db_*.sql"],
+        "weekly": ["current_link_weekly_full_*.zip"],
+        "monthly": ["current_link_monthly_full_*.zip"],
     }[normalized]
+    files = []
+    for pat in patterns:
+        files.extend(backup_dir.glob(pat))
     files = sorted(
-        backup_dir.glob(pattern),
+        files,
         key=lambda item: item.stat().st_mtime,
         reverse=True,
     )
