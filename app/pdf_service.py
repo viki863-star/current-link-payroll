@@ -864,7 +864,70 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
     els.append(st)
     els.append(Spacer(1, 3*mm))
 
-    # ═══ SALARY BREAKDOWN TABLE ═══
+    # ═══ TWO-COLUMN LAYOUT: TRANSACTIONS (LEFT) + SALARY (RIGHT) ═══
+    left_w = W * 0.55
+    right_w = W * 0.45
+    gap = 4*mm
+    col_w = [left_w, gap, right_w]
+
+    # ── LEFT: ADVANCES / TRANSACTIONS TABLE ──
+    left_title = PlParagraph("<b>Transactions (Advances Received)</b>", F("_ltitle", fontSize=7.5, fontName="Helvetica-Bold", textColor=TH, leading=10))
+    
+    txn_colw = [35, 35, left_w - 35 - 35 - 42, 42]
+    txn_hdr = [
+        PlParagraph("<b>Date</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=8)),
+        PlParagraph("<b>Amt</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
+        PlParagraph("<b>Details</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, leading=8)),
+        PlParagraph("<b>Balance</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
+    ]
+    txn_rows = [txn_hdr]
+    running_bal = float(prev_remaining)
+    txn_total = 0.0
+    # Opening balance row
+    txn_rows.append([
+        PlParagraph("", F("_td", fontSize=6, leading=8)),
+        PlParagraph("", F("_td", fontSize=6, leading=8)),
+        PlParagraph("Opening Balance", F("_td", fontSize=6, textColor=C5, leading=8)),
+        PlParagraph(f"<b>{format_currency(running_bal)}</b>", F("_tb", fontSize=6, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=8)),
+    ])
+    for a in advances:
+        amt = float(a.get("amount", 0))
+        txn_total += amt
+        running_bal += amt
+        txn_rows.append([
+            PlParagraph(str(a.get("entry_date", ""))[:10], F("_td", fontSize=6, leading=8)),
+            PlParagraph(f"<b>{format_currency(amt)}</b>", F("_ta", fontSize=6, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=8)),
+            PlParagraph(str(a.get("details", "-"))[:30], F("_tDet", fontSize=5.8, textColor=C5, leading=8)),
+            PlParagraph(f"<b>{format_currency(running_bal)}</b>", F("_tb", fontSize=6, fontName="Helvetica-Bold", textColor="#e65100" if running_bal > 0 else "#1a7d1a", alignment=TA_RIGHT, leading=8)),
+        ])
+    # Total row
+    txn_rows.append([
+        PlParagraph("<b>Total</b>", F("_ttb", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        PlParagraph(f"<b>{format_currency(txn_total)}</b>", F("_ttt", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        PlParagraph("", F("_tx")),
+        PlParagraph(f"<b>{format_currency(running_bal)}</b>", F("_ttb", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+    ])
+    txn_tbl = PlTable(txn_rows, colWidths=txn_colw, repeatRows=1)
+    txn_tbl.setStyle(PlTableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
+        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+        ("TOPPADDING",(0,0),(-1,-1),1.5), ("BOTTOMPADDING",(0,0),(-1,-1),1.5),
+        ("LEFTPADDING",(0,0),(-1,-1),2), ("RIGHTPADDING",(0,0),(-1,-1),2),
+        ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
+        ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
+    ]))
+
+    # ── RIGHT: SALARY BREAKDOWN TABLE ──
+    right_title = PlParagraph("<b>Salary / Earnings</b>", F("_rtitle", fontSize=7.5, fontName="Helvetica-Bold", textColor=TH, leading=10))
+    
+    sal_total = 0.0
+    sal_colw = [right_w * 0.62, right_w * 0.38]
+    sal_hdr = [
+        PlParagraph("<b>Component</b>", F("_sh2", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, leading=8)),
+        PlParagraph("<b>Amount</b>", F("_sh2", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
+    ]
+    sal_rows = [sal_hdr]
     if salary_row:
         basic = float(salary_row.get("basic_salary") or 0)
         personal = float(salary_row.get("personal_vehicle") or 0)
@@ -872,100 +935,88 @@ def generate_simple_kata_pdf(driver, salary_row, advances, prev_remaining, this_
         ot_amt = float(salary_row.get("ot_amount") or 0)
         ot_month = str(salary_row.get("ot_month") or "-")
         ot_type = (salary_row or {}).get("ot_type") or "hours"
+        net_sal = float(salary_row.get("net_salary") or 0)
 
-        sal_colw = [W*0.65, W*0.35]
-        sal_hdr = [
-            PlParagraph("<b>Salary Component</b>", F("_sh", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-            PlParagraph("<b>Amount (AED)</b>", F("_sh", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-        ]
-        sal_rows = [sal_hdr]
-        sal_rows.append([
-            PlParagraph("Basic Salary", F("_sd", fontSize=6.5, leading=9)),
-            PlParagraph(f"<b>{format_currency(basic)}</b>", F("_sa", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=9)),
-        ])
+        if basic > 0:
+            sal_rows.append([
+                PlParagraph("Basic Salary", F("_sd2", fontSize=6, leading=8)),
+                PlParagraph(f"<b>{format_currency(basic)}</b>", F("_sa2", fontSize=6, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=8)),
+            ])
+            sal_total += basic
         if personal > 0:
-            label = f"Personal Expense ({personal_note})" if personal_note else "Personal Expense"
+            label = f"Personal ({personal_note})" if personal_note else "Personal Expense"
             sal_rows.append([
-                PlParagraph(label, F("_sd", fontSize=6.5, leading=9)),
-                PlParagraph(f"<b>{format_currency(personal)}</b>", F("_sa", fontSize=6.5, textColor="#1a7d1a", alignment=TA_RIGHT, leading=9)),
+                PlParagraph(label, F("_sd2", fontSize=6, leading=8)),
+                PlParagraph(f"<b>{format_currency(personal)}</b>", F("_sa2", fontSize=6, textColor="#1a7d1a", alignment=TA_RIGHT, leading=8)),
             ])
+            sal_total += personal
         if ot_amt > 0:
-            ot_label = "OT Extra Trips" if ot_type == "trips" else f"OT Hours ({ot_month})"
+            ot_label = "OT Trips" if ot_type == "trips" else f"OT ({ot_month})"
             sal_rows.append([
-                PlParagraph(ot_label, F("_sd", fontSize=6.5, leading=9)),
-                PlParagraph(f"<b>{format_currency(ot_amt)}</b>", F("_sa", fontSize=6.5, textColor="#1a7d1a", alignment=TA_RIGHT, leading=9)),
+                PlParagraph(ot_label, F("_sd2", fontSize=6, leading=8)),
+                PlParagraph(f"<b>{format_currency(ot_amt)}</b>", F("_sa2", fontSize=6, textColor="#1a7d1a", alignment=TA_RIGHT, leading=8)),
             ])
+            sal_total += ot_amt
+    # Add any previous remaining as brought forward
+    if prev_remaining > 0:
         sal_rows.append([
-            PlParagraph("<b>Net Salary</b>", F("_st", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
-            PlParagraph(f"<b>{format_currency(net_sal)}</b>", F("_stv", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+            PlParagraph("Previous Balance", F("_sd2", fontSize=6, leading=8)),
+            PlParagraph(f"<b>{format_currency(prev_remaining)}</b>", F("_sa2", fontSize=6, textColor="#1a3a5c", alignment=TA_RIGHT, leading=8)),
         ])
-        stbl = PlTable(sal_rows, colWidths=sal_colw, repeatRows=1)
-        stbl.setStyle(PlTableStyle([
-            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-            ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
-            ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-            ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
-            ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
-            ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
-            ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
-        ]))
-        els.append(stbl)
-        els.append(Spacer(1, 3*mm))
-
-    # ═══ ADVANCES TABLE ═══
-    els.append(PlParagraph("<b>Advance / Transaction Details</b>", F("_atitle", fontSize=8, fontName="Helvetica-Bold", textColor=TH, leading=10)))
-    els.append(Spacer(1, 2*mm))
-
-    adv_colw = [50, 42, 50, W - 50 - 42 - 50 - 50 - 50, 50, 50]
-    adv_hdr = [
-        PlParagraph("<b>Date</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
-        PlParagraph("<b>Amount</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-        PlParagraph("<b>Given By</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        PlParagraph("<b>Details</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        PlParagraph("<b>Deducted</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-        PlParagraph("<b>Remaining</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-    ]
-    adv_rows = [adv_hdr]
-    total_adv_amount = 0.0
-    total_ded = 0.0
-    total_rem = 0.0
-    for a in advances:
-        amt = float(a.get("amount", 0))
-        ded = float(a.get("deducted", 0))
-        rem = float(a.get("remaining", 0))
-        total_adv_amount += amt
-        total_ded += ded
-        total_rem += rem
-        adv_rows.append([
-            PlParagraph(str(a.get("entry_date",""))[:10], F("_ad", fontSize=6.5, leading=9)),
-            PlParagraph(f"<b>{format_currency(amt)}</b>", F("_aa", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=9)),
-            PlParagraph(str(a.get("given_by","-")), F("_ag", fontSize=6.5, textColor=C5, leading=9)),
-            PlParagraph(str(a.get("details","-")), F("_aDet", fontSize=6.2, textColor=C5, leading=9)),
-            PlParagraph(f"<b>{format_currency(ded)}</b>" if ded > 0 else '<font color="#cccccc">—</font>', F("_adr", fontSize=6.5, textColor="#c62828" if ded > 0 else C5, alignment=TA_RIGHT, leading=9)),
-            PlParagraph(f"<b>{format_currency(rem)}</b>" if rem > 0 else '<font color="#cccccc">—</font>', F("_arm", fontSize=6.5, textColor="#e65100" if rem > 0 else C5, alignment=TA_RIGHT, leading=9)),
-        ])
-    # Totals row
-    cleared = sum(1 for a in advances if float(a.get("remaining", 0)) <= 0)
-    outstanding = len(advances) - cleared
-    adv_rows.append([
-        PlParagraph("<b>Totals</b>", F("_atb", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
-        PlParagraph(f"<b>{format_currency(total_adv_amount)}</b>", F("_att", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-        PlParagraph("", F("_ax")),
-        PlParagraph(f"Cleared: {cleared} / Out: {outstanding}", F("_ax", fontSize=6.2, textColor=WH, leading=9)),
-        PlParagraph(f"<b>{format_currency(total_ded)}</b>", F("_att", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-        PlParagraph(f"<b>{format_currency(total_rem)}</b>", F("_att", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        sal_total += prev_remaining
+    # Total row
+    sal_rows.append([
+        PlParagraph("<b>Total</b>", F("_st2", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        PlParagraph(f"<b>{format_currency(sal_total)}</b>", F("_stv2", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
     ])
-    atbl = PlTable(adv_rows, colWidths=adv_colw, repeatRows=1)
-    atbl.setStyle(PlTableStyle([
+    # Deduction row
+    if this_deduction > 0:
+        sal_rows.append([
+            PlParagraph("<b>Deducted</b>", F("_sded", fontSize=6, fontName="Helvetica-Bold", textColor="#c62828", leading=8)),
+            PlParagraph(f"<b>-{format_currency(this_deduction)}</b>", F("_sdedv", fontSize=6, fontName="Helvetica-Bold", textColor="#c62828", alignment=TA_RIGHT, leading=8)),
+        ])
+    if remaining > 0:
+        sal_rows.append([
+            PlParagraph("<b>Remaining</b>", F("_srem", fontSize=6, fontName="Helvetica-Bold", textColor="#e65100", leading=8)),
+            PlParagraph(f"<b>{format_currency(remaining)}</b>", F("_sremv", fontSize=6, fontName="Helvetica-Bold", textColor="#e65100", alignment=TA_RIGHT, leading=8)),
+        ])
+
+    sal_tbl = PlTable(sal_rows, colWidths=sal_colw, repeatRows=1)
+    sal_tbl.setStyle(PlTableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
         ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
-        ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
+        ("TOPPADDING",(0,0),(-1,-1),1.5), ("BOTTOMPADDING",(0,0),(-1,-1),1.5),
+        ("LEFTPADDING",(0,0),(-1,-1),2), ("RIGHTPADDING",(0,0),(-1,-1),2),
         ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
         ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
     ]))
-    els.append(atbl)
+
+    # Combine both sides into two-column layout
+    left_content = [left_title, Spacer(1, 1.5*mm), txn_tbl]
+    right_content = [right_title, Spacer(1, 1.5*mm), sal_tbl]
+    
+    # Build left side table
+    left_table = PlTable([[c] for c in left_content], colWidths=[left_w])
+    left_table.setStyle(PlTableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),0),
+    ]))
+    right_table = PlTable([[c] for c in right_content], colWidths=[right_w])
+    right_table.setStyle(PlTableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),0),
+    ]))
+
+    two_col = PlTable([[left_table, Spacer(1, gap), right_table]], colWidths=col_w)
+    two_col.setStyle(PlTableStyle([
+        ("VALIGN",(0,0),(-1,-1),"TOP"),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),0),
+    ]))
+    els.append(two_col)
 
     # ═══ SIGNATURES ═══
     els.append(Spacer(1, 8*mm))
