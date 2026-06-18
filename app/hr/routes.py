@@ -837,6 +837,7 @@ def employee_salary_slip(employee_id):
         else:
             deduction_amount = float(manual_amount) if manual_amount else 0.0
             selected_ids_int = []
+            values["deduction_amount"] = f"{deduction_amount:.2f}"
 
         if not selected_salary_id:
             flash("Select a stored salary month first.", "error")
