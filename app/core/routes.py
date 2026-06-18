@@ -90,7 +90,13 @@ def settings():
             return redirect(url_for("core.settings"))
         company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
         db.close()
-        return render_template("settings.html", company=company)
+        backup_summary = {}
+        try:
+            from app.backup_service import backup_status_summary
+            backup_summary = backup_status_summary()
+        except Exception:
+            pass
+        return render_template("settings.html", company=company, backup_summary=backup_summary)
     except Exception as e:
         logger.exception("Settings page error")
         flash(f"Error loading settings: {e}", "error")

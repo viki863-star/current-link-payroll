@@ -202,15 +202,103 @@
         </div>
     </div>
 
-    {# ─── Backup Section ─── #}
-    <div class="stng-card">
-        <h3>Database Backup</h3>
-        <div class="desc">Download the latest server database backup.</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <a href="{{ url_for('core.download_db_backup') }}" class="btn btn-primary" style="padding:8px 18px">
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M10 3v14"/><path d="M3 10l7 7 7-7"/></svg>
-                Download Backup
-            </a>
+    {# ─── Backup Center ─── #}
+    <div class="stng-card" style="background:linear-gradient(135deg,#0a1628 0%,#17345e 100%);color:#fff;border:none">
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between">
+            <div>
+                <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#ffcc78">Data Safety</div>
+                <h3 style="margin:6px 0 4px;font-size:1.3rem;color:#fff">Backup Center</h3>
+                <p style="margin:0;font-size:0.78rem;color:rgba(255,255,255,.7);max-width:600px">Create database snapshots, full ZIP archives with generated files, and sync to local PC.</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <form method="post" action="{{ url_for('create_admin_backup') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="kind" value="daily">
+                    <button type="submit" style="border:0;border-radius:10px;padding:8px 14px;font-weight:700;font-size:0.78rem;background:#255f99;color:#fff;cursor:pointer">Create DB Backup Now</button>
+                </form>
+                <form method="post" action="{{ url_for('create_admin_backup') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="kind" value="weekly">
+                    <button type="submit" style="border:0;border-radius:10px;padding:8px 14px;font-weight:700;font-size:0.78rem;background:#f7931e;color:#fff;cursor:pointer">Create Full Backup ZIP</button>
+                </form>
+                <form method="post" action="{{ url_for('sync_pc_mirror_now') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" style="border:0;border-radius:10px;padding:8px 14px;font-weight:700;font-size:0.78rem;background:#2CB15C;color:#fff;cursor:pointer">Sync Full PC Copy</button>
+                </form>
+                <form method="post" action="{{ url_for('backup_supplier_data') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" style="border:0;border-radius:10px;padding:8px 14px;font-weight:700;font-size:0.78rem;background:#9C27B0;color:#fff;cursor:pointer">Backup Supplier Data</button>
+                </form>
+                <a href="{{ url_for('download_latest_backup') }}" style="display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:8px 14px;font-weight:700;font-size:0.78rem;background:rgba(255,255,255,.15);color:#fff;text-decoration:none">Download Latest Backup</a>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:16px">
+            <div style="background:rgba(255,255,255,.08);border-radius:12px;padding:14px">
+                <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)">Database Path</div>
+                <div style="margin-top:6px;font-weight:600;font-size:0.82rem;word-break:break-word">{{ backup_summary.database_path if backup_summary else 'N/A' }}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.08);border-radius:12px;padding:14px">
+                <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)">Generated Folder</div>
+                <div style="margin-top:6px;font-weight:600;font-size:0.82rem;word-break:break-word">{{ backup_summary.generated_dir if backup_summary else 'N/A' }}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.08);border-radius:12px;padding:14px">
+                <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)">Backup Folder</div>
+                <div style="margin-top:6px;font-weight:600;font-size:0.82rem;word-break:break-word">{{ backup_summary.backup_root if backup_summary else 'Disabled' }}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.08);border-radius:12px;padding:14px">
+                <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)">Free Disk Space</div>
+                <div style="margin-top:6px;font-weight:600;font-size:0.82rem">{{ backup_summary.free_disk_space if backup_summary else 'N/A' }}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.08);border-radius:12px;padding:14px">
+                <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)">PC Mirror Target</div>
+                <div style="margin-top:6px;font-weight:600;font-size:0.82rem;word-break:break-word">{{ backup_summary.pc_mirror_root if backup_summary and backup_summary.pc_mirror_root else 'Not configured' }}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.08);border-radius:12px;padding:14px">
+                <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)">Latest PC Sync Log</div>
+                <div style="margin-top:6px;font-weight:600;font-size:0.82rem;word-break:break-word">{{ backup_summary.latest_pc_sync if backup_summary and backup_summary.latest_pc_sync else 'No PC sync yet' }}</div>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-top:16px">
+            <div style="background:rgba(255,255,255,.06);border-radius:14px;padding:16px">
+                <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#ffcc78">Latest Backup Files</div>
+                <div style="font-weight:700;font-size:0.9rem;margin:6px 0 12px;color:rgba(255,255,255,.9)">Available restore points</div>
+                <div style="display:grid;gap:10px">
+                    <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:12px">
+                        <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)">Latest Daily</div>
+                        <div style="margin-top:4px;font-weight:600;font-size:0.8rem;word-break:break-word">{{ backup_summary.latest_daily if backup_summary and backup_summary.latest_daily else 'No daily backup yet' }}</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:12px">
+                        <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)">Latest Weekly</div>
+                        <div style="margin-top:4px;font-weight:600;font-size:0.8rem;word-break:break-word">{{ backup_summary.latest_weekly if backup_summary and backup_summary.latest_weekly else 'No weekly backup yet' }}</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:12px">
+                        <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)">Latest Monthly</div>
+                        <div style="margin-top:4px;font-weight:600;font-size:0.8rem;word-break:break-word">{{ backup_summary.latest_monthly if backup_summary and backup_summary.latest_monthly else 'No monthly backup yet' }}</div>
+                    </div>
+                </div>
+            </div>
+            <div style="background:rgba(255,255,255,.06);border-radius:14px;padding:16px">
+                <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#ffcc78">Backup Policy</div>
+                <div style="font-weight:700;font-size:0.9rem;margin:6px 0 12px;color:rgba(255,255,255,.9)">Retention rules</div>
+                <div style="display:grid;gap:8px">
+                    <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:11px">
+                        <div style="font-weight:700;font-size:0.8rem">Daily</div>
+                        <div style="margin-top:3px;font-size:0.72rem;color:rgba(255,255,255,.7)">{{ backup_summary.policy.daily if backup_summary else 'Daily DB only, last 7' }}</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:11px">
+                        <div style="font-weight:700;font-size:0.8rem">Weekly</div>
+                        <div style="margin-top:3px;font-size:0.72rem;color:rgba(255,255,255,.7)">{{ backup_summary.policy.weekly if backup_summary else 'Weekly full ZIP, last 4' }}</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:11px">
+                        <div style="font-weight:700;font-size:0.8rem">Monthly</div>
+                        <div style="margin-top:3px;font-size:0.72rem;color:rgba(255,255,255,.7)">{{ backup_summary.policy.monthly if backup_summary else 'Monthly full ZIP, last 12' }}</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:11px">
+                        <div style="font-weight:700;font-size:0.8rem">PC Mirror</div>
+                        <div style="margin-top:3px;font-size:0.72rem;color:rgba(255,255,255,.7)">{{ backup_summary.policy.pc_mirror if backup_summary else 'Nightly end-of-day PC copy with fresh DB snapshot' }}</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
