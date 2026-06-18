@@ -105,16 +105,25 @@ def download_db_backup():
     backup_dir = Path(current_app.config.get("GENERATED_DIR", "generated")) / "backups"
     backup_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_path = backup_dir / f"db_backup_{ts}.sql"
+    backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
     try:
-        import subprocess
-        pg_dump = os.environ.get("PG_DUMP_PATH", "pg_dump")
-        db_url = current_app.config.get("DATABASE_URL", "")
-        if db_url:
+        if backend == "postgres":
+            import subprocess
+            pg_dump = os.environ.get("PG_DUMP_PATH", "pg_dump")
+            db_url = current_app.config.get("DATABASE_URL", "")
+            if not db_url:
+                raise RuntimeError("No DATABASE_URL configured")
+            backup_path = backup_dir / f"db_backup_{ts}.sql"
             subprocess.run([pg_dump, db_url, "-f", str(backup_path)], check=True)
         else:
-            raise RuntimeError("No DATABASE_URL configured")
-        return send_file(str(backup_path), as_attachment=True, download_name=f"currentlink_backup_{ts}.sql")
+            from app.backup_service import _database_path
+            db_path = _database_path(current_app._get_current_object())
+            if not db_path.exists():
+                raise RuntimeError(f"Database file not found: {db_path}")
+            backup_path = backup_dir / f"db_backup_{ts}.db"
+            import shutil
+            shutil.copy2(db_path, backup_path)
+        return send_file(str(backup_path), as_attachment=True, download_name=backup_path.name)
     except Exception as e:
         flash(f"Backup failed: {e}", "error")
         return redirect(url_for("core.settings"))
