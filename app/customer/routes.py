@@ -166,6 +166,12 @@ def _ensure_tables():
             db.execute(f"ALTER TABLE customer_lpos ADD COLUMN {col} {dtype}")
         except Exception:
             pass
+    for col in ["vehicle_no"]:
+        for tbl in ["lpo_items", "customer_so_items", "customer_invoice_items"]:
+            try:
+                db.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} TEXT")
+            except Exception:
+                pass
     db.execute("""
         CREATE TABLE IF NOT EXISTS customer_service_orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -450,6 +456,7 @@ def customer_invoice_add(cid):
         qtys = request.form.getlist("item_qty[]")
         units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
+        vehicles = request.form.getlist("item_vehicle[]")
         items = []
         sub_total = 0
         for i in range(len(descs)):
@@ -457,10 +464,11 @@ def customer_invoice_add(cid):
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 sub_total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
         if not items:
             flash("At least one line item is required.", "error")
             db.close()
@@ -472,8 +480,8 @@ def customer_invoice_add(cid):
             (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes))
         inv_id = c_inv.lastrowid
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
-                (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
+                (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
             if it["desc"]:
                 try:
                     db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
@@ -559,6 +567,7 @@ def customer_invoice_edit(cid, iid):
         qtys = request.form.getlist("item_qty[]")
         units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
+        vehicles = request.form.getlist("item_vehicle[]")
         new_items = []
         sub_total = 0
         for i in range(len(descs)):
@@ -566,10 +575,11 @@ def customer_invoice_edit(cid, iid):
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 sub_total += amt
-                new_items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+                new_items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
         if not new_items:
             flash("At least one line item is required.", "error")
             db.close()
@@ -581,8 +591,8 @@ def customer_invoice_edit(cid, iid):
             (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, iid))
         db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
         for idx, it in enumerate(new_items):
-            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
-                (iid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
+                (iid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
             if it["desc"]:
                 try:
                     db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
@@ -1762,23 +1772,25 @@ def customer_lpo_add(cid):
         qtys = request.form.getlist("item_qty[]")
         units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
+        vehicles = request.form.getlist("item_vehicle[]")
         total = 0; items = []
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
         total = round(total, 2)
         cur = db.execute("INSERT INTO customer_lpos (customer_id,lpo_no,lpo_date,amount,status,service_order_no,notes,file_data,file_type) VALUES (?,?,?,?,?,?,?,?,?)",
             (cid, lpo_no, lpo_date, total, status, so_no, notes, file_data, file_type))
         lpo_id = cur.lastrowid
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
-                (lpo_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+            db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
+                (lpo_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
         db.commit()
         db.close()
         flash("LPO added.", "success")
@@ -1814,6 +1826,7 @@ def customer_lpo_edit(cid, lid):
         qtys = request.form.getlist("item_qty[]")
         units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
+        vehicles = request.form.getlist("item_vehicle[]")
         total = 0
         items = []
         for i in range(len(descs)):
@@ -1821,17 +1834,18 @@ def customer_lpo_edit(cid, lid):
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
         total = round(total, 2)
         db.execute("UPDATE customer_lpos SET lpo_no=?,lpo_date=?,amount=?,status=?,service_order_no=?,notes=?,file_data=?,file_type=? WHERE id=?",
             (lpo_no, lpo_date, total, status, so_no, notes, file_data, file_type, lid))
         db.execute("DELETE FROM lpo_items WHERE lpo_id=?", (lid,))
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
-                (lid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+            db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
+                (lid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
         db.commit()
         db.close()
         flash("LPO updated.", "success")
@@ -1871,7 +1885,7 @@ def customer_lpo_close(cid, lid):
 def customer_lpo_items(cid, lid):
     _ensure_tables()
     db = _get_db()
-    items = db.execute("SELECT id,description,quantity,rate,amount,unit_type FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
+    items = db.execute("SELECT id,description,quantity,rate,amount,unit_type,vehicle_no FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
     lpo = db.execute("SELECT lpo_no,lpo_date FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
     db.close()
     if not lpo:
@@ -1879,14 +1893,14 @@ def customer_lpo_items(cid, lid):
     return jsonify({
         "lpo_no": lpo["lpo_no"],
         "lpo_date": lpo["lpo_date"],
-        "items": [{"id": r["id"], "description": r["description"], "quantity": r["quantity"], "rate": r["rate"], "amount": r["amount"], "unit_type": r["unit_type"]} for r in items]
+        "items": [{"id": r["id"], "description": r["description"], "quantity": r["quantity"], "rate": r["rate"], "amount": r["amount"], "unit_type": r["unit_type"], "vehicle_no": r["vehicle_no"]} for r in items]
     })
 
 @customer_bp.route("/<int:cid>/so/<int:sid>/items")
 def customer_so_items(cid, sid):
     _ensure_tables()
     db = _get_db()
-    items = db.execute("SELECT id,description,quantity,rate,amount,unit_type FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
+    items = db.execute("SELECT id,description,quantity,rate,amount,unit_type,vehicle_no FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
     so = db.execute("SELECT so_no,so_date FROM customer_service_orders WHERE id=? AND customer_id=?", (sid, cid)).fetchone()
     db.close()
     if not so:
@@ -1894,7 +1908,7 @@ def customer_so_items(cid, sid):
     return jsonify({
         "so_no": so["so_no"],
         "so_date": so["so_date"],
-        "items": [{"id": r["id"], "description": r["description"], "quantity": r["quantity"], "rate": r["rate"], "amount": r["amount"], "unit_type": r["unit_type"]} for r in items]
+        "items": [{"id": r["id"], "description": r["description"], "quantity": r["quantity"], "rate": r["rate"], "amount": r["amount"], "unit_type": r["unit_type"], "vehicle_no": r["vehicle_no"]} for r in items]
     })
 
 @customer_bp.route("/<int:cid>/lpo/<int:lid>/file")
@@ -1942,24 +1956,28 @@ def customer_so_add(cid):
         qtys = request.form.getlist("item_qty[]")
         units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
+        vehicles = request.form.getlist("item_vehicle[]")
         total = 0; items = []
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
         total = round(total, 2)
         cur = db.execute("INSERT INTO customer_service_orders (customer_id,so_no,so_date,amount,status,notes) VALUES (?,?,?,?,?,?)",
             (cid, so_no, so_date, total, status, notes))
         so_id = cur.lastrowid
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO customer_so_items (so_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
-                (so_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
-        # auto-generate invoice from SO items
+            db.execute("INSERT INTO customer_so_items (so_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
+                (so_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
+        db.commit()
+        db.close()
+        flash("Service Order added.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="service_orders"))
     db.close()
     return render_template("customer/so_form.html", c=c, so={}, items=[], today=date.today().isoformat())
@@ -1984,23 +2002,25 @@ def customer_so_edit(cid, sid):
         qtys = request.form.getlist("item_qty[]")
         units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
+        vehicles = request.form.getlist("item_vehicle[]")
         total = 0; items = []
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
         total = round(total, 2)
         db.execute("UPDATE customer_service_orders SET so_no=?,so_date=?,amount=?,status=?,notes=? WHERE id=?",
             (so_no, so_date, total, status, notes, sid))
         db.execute("DELETE FROM customer_so_items WHERE so_id=?", (sid,))
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO customer_so_items (so_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
-                (sid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+            db.execute("INSERT INTO customer_so_items (so_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
+                (sid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
         db.commit()
         db.close()
         flash("Service Order updated.", "success")
