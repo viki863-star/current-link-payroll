@@ -30,9 +30,7 @@
 
     <form method="POST" id="invoiceForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <datalist id="svcItems">
-            {% for s in svc_items %}<option value="{{ s.description }}">{% endfor %}
-        </datalist>
+
 
         {# ─── Invoice Details ─── #}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
@@ -101,7 +99,7 @@
                 {% if edit and items %}
                     {% for it in items %}
                     <div class="line-item-row">
-                        <input type="text" name="item_desc[]" value="{{ it.description or '' }}" placeholder="Service description" style="width:100%" list="svcItems">
+                        <input type="text" name="item_desc[]" value="{{ it.description or '' }}" placeholder="Service description" style="width:100%" >
                         <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
                         <input type="text" name="item_unit[]" value="{{ it.unit or 'hour' }}" readonly style="width:100%;text-align:center;background:#f0f2f5;font-size:0.7rem;border:none;font-weight:600">
                         <input type="number" name="item_rate[]" value="{{ it.rate or 0 }}" min="0" step="any" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
@@ -111,7 +109,7 @@
                     {% endfor %}
                 {% else %}
                     <div class="line-item-row">
-                        <input type="text" name="item_desc[]" placeholder="Service description" style="width:100%" list="svcItems">
+                        <input type="text" name="item_desc[]" placeholder="Service description" style="width:100%" >
                         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
                         <input type="text" name="item_unit[]" value="hour" readonly style="width:100%;text-align:center;background:#f0f2f5;font-size:0.7rem;border:none;font-weight:600">
                         <input type="number" name="item_rate[]" value="0" min="0" step="any" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
@@ -159,7 +157,7 @@ function addItem(desc, qty, rate, unit) {
     const r = rate || 0;
     const u = unit || 'hour';
     row.innerHTML = `
-        <input type="text" name="item_desc[]" value="${d}" placeholder="Service description" list="svcItems">
+        <input type="text" name="item_desc[]" value="${d}" placeholder="Service description" >
         <input type="number" name="item_qty[]" value="${q}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
         <input type="text" name="item_unit[]" value="${u}" readonly style="text-align:center;background:#f0f2f5;font-size:0.7rem;border:none;font-weight:600">
         <input type="number" name="item_rate[]" value="${r}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
