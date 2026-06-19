@@ -1779,28 +1779,9 @@ def customer_lpo_add(cid):
         for idx, it in enumerate(items):
             db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
                 (lpo_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
-        # auto-generate invoice from LPO items
-        if items and lpo_no:
-            next_no = _next_invoice_no(db)
-            inv_no = next_no
-            vat_pct = 5
-            vat_amt_ = round(total * vat_pct / 100, 2)
-            total_ = round(total + vat_amt_, 2)
-            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,notes)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                (cid, inv_no, lpo_date, total, vat_pct, vat_amt_, total_, lpo_no, lpo_date, so_no, f"Auto-generated from LPO {lpo_no}. {notes}" if notes else f"Auto-generated from LPO {lpo_no}"))
-            inv_id = c_inv.lastrowid
-            for idx, it in enumerate(items):
-                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
-                    (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
-                if it["desc"]:
-                    try:
-                        db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
-                    except Exception:
-                        pass
         db.commit()
         db.close()
-        flash("LPO added. Invoice auto-generated.", "success")
+        flash("LPO added.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
     db.close()
     return render_template("customer/lpo_form.html", c=c, lpo={}, items=[], today=date.today().isoformat())
@@ -1901,6 +1882,21 @@ def customer_lpo_items(cid, lid):
         "items": [{"id": r["id"], "description": r["description"], "quantity": r["quantity"], "rate": r["rate"], "amount": r["amount"], "unit_type": r["unit_type"]} for r in items]
     })
 
+@customer_bp.route("/<int:cid>/so/<int:sid>/items")
+def customer_so_items(cid, sid):
+    _ensure_tables()
+    db = _get_db()
+    items = db.execute("SELECT id,description,quantity,rate,amount,unit_type FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
+    so = db.execute("SELECT so_no,so_date FROM customer_service_orders WHERE id=? AND customer_id=?", (sid, cid)).fetchone()
+    db.close()
+    if not so:
+        return jsonify([])
+    return jsonify({
+        "so_no": so["so_no"],
+        "so_date": so["so_date"],
+        "items": [{"id": r["id"], "description": r["description"], "quantity": r["quantity"], "rate": r["rate"], "amount": r["amount"], "unit_type": r["unit_type"]} for r in items]
+    })
+
 @customer_bp.route("/<int:cid>/lpo/<int:lid>/file")
 def customer_lpo_file(cid, lid):
     db = _get_db()
@@ -1963,27 +1959,7 @@ def customer_so_add(cid):
         for idx, it in enumerate(items):
             db.execute("INSERT INTO customer_so_items (so_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
                 (so_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
-        # auto-generate invoice
-        if items and so_no:
-            next_no = _next_invoice_no(db)
-            vat_pct = 5
-            vat_amt_ = round(total * vat_pct / 100, 2)
-            total_ = round(total + vat_amt_, 2)
-            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,so_no,notes)
-                VALUES (?,?,?,?,?,?,?,?,?)""",
-                (cid, next_no, so_date, total, vat_pct, vat_amt_, total_, so_no, f"Auto-generated from Service Order {so_no}. {notes}" if notes else f"Auto-generated from Service Order {so_no}"))
-            inv_id = c_inv.lastrowid
-            for idx, it in enumerate(items):
-                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
-                    (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
-                if it["desc"]:
-                    try:
-                        db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
-                    except Exception:
-                        pass
-        db.commit()
-        db.close()
-        flash("Service Order added. Invoice auto-generated.", "success")
+        # auto-generate invoice from SO items
         return redirect(url_for("customer.customer_profile", cid=cid, tab="service_orders"))
     db.close()
     return render_template("customer/so_form.html", c=c, so={}, items=[], today=date.today().isoformat())

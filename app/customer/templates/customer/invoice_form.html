@@ -67,7 +67,7 @@
             </div>
             <div>
                 <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Service Order</label>
-                <select name="so_id" id="soSelect" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                <select name="so_id" id="soSelect" onchange="loadSoItems()" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
                     <option value="">— Select SO —</option>
                     {% for s in sos %}
                     <option value="{{ s.id }}" {% if selected_so_id == s.id %}selected{% endif %}>{{ s.so_no or '—' }} | {{ s.so_date }} | AED {{ "%.0f"|format(s.amount) if s.amount else '0' }}</option>
@@ -208,6 +208,25 @@ function loadLpoItems() {
         .then(data => {
             if (!data || !data.items || data.items.length === 0) return;
             document.getElementById('lpoDate').value = data.lpo_date || '';
+            const container = document.getElementById('itemsContainer');
+            container.innerHTML = '';
+            itemCount = 0;
+            data.items.forEach(it => {
+                addItem(it.description, it.quantity, it.rate, it.unit_type);
+            });
+            calcTotals();
+        })
+        .catch(() => {});
+}
+
+function loadSoItems() {
+    const sel = document.getElementById('soSelect');
+    const sid = sel.value;
+    if (!sid) return;
+    fetch('{{ url_for("customer.customer_so_items", cid=c.id, sid=999) }}'.replace('999', sid))
+        .then(r => r.json())
+        .then(data => {
+            if (!data || !data.items || data.items.length === 0) return;
             const container = document.getElementById('itemsContainer');
             container.innerHTML = '';
             itemCount = 0;
