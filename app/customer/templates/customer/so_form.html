@@ -1,61 +1,51 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Edit' if edit else 'Add' }} LPO{% endblock %}
-{% block page_title %}Customer LPO{% endblock %}
+{% block title %}{{ 'Edit' if edit else 'New' }} Service Order{% endblock %}
+{% block page_title %}Service Order — {{ c.customer_name }}{% endblock %}
 
 {% block content %}
 <div class="profile-shell" style="max-width:700px;margin:0 auto">
 <style>
-.lpo-item-row { display:grid; grid-template-columns:1fr 70px 110px 90px 100px 36px; gap:6px; align-items:center; margin-bottom:4px; }
-.lpo-item-row input, .lpo-item-row select { padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; outline:none; }
-.lpo-item-row input:focus, .lpo-item-row select:focus { border-color:var(--primary); }
-.lpo-item-row .item-amt { font-weight:600; font-size:0.85rem; text-align:right; padding:6px 8px; }
-.lpo-item-row .btn-remove { width:32px; height:32px; border-radius:6px; border:1px solid #e0e0e0; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#c62828; font-size:1rem; }
-.lpo-item-row .btn-remove:hover { background:#fee; }
+.so-item-row { display:grid; grid-template-columns:1fr 70px 110px 90px 100px 36px; gap:6px; align-items:center; margin-bottom:4px; }
+.so-item-row input, .so-item-row select { padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; outline:none; }
+.so-item-row input:focus, .so-item-row select:focus { border-color:var(--primary); }
+.so-item-row .item-amt { font-weight:600; font-size:0.85rem; text-align:right; padding:6px 8px; }
+.so-item-row .btn-remove { width:32px; height:32px; border-radius:6px; border:1px solid #e0e0e0; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#c62828; font-size:1rem; }
+.so-item-row .btn-remove:hover { background:#fee; }
 </style>
 
 <div class="profile-card">
     <div style="margin-bottom:14px">
-        <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='lpos') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='service_orders') }}" class="btn btn-outline btn-sm">&larr; Back</a>
     </div>
-    <h3>{{ 'Edit' if edit else 'New' }} LPO (Customer Purchase Order)</h3>
+    <h3>{{ 'Edit' if edit else 'New' }} Service Order</h3>
     <p style="color:var(--muted);font-size:0.85rem">Customer: <strong>{{ c.customer_name }}</strong></p>
 
-    <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
+    <form method="POST" style="margin-top:16px">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        {# ─── LPO Details ─── #}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
             <div class="form-row">
-                <label class="form-label">LPO Date</label>
-                <input type="date" name="lpo_date" class="form-control" value="{{ lpo.lpo_date or today }}">
+                <label class="form-label">SO Date</label>
+                <input type="date" name="so_date" class="form-control" value="{{ so.so_date or today }}">
             </div>
             <div class="form-row">
-                <label class="form-label">LPO No.</label>
-                <input type="text" name="lpo_no" class="form-control" value="{{ lpo.lpo_no or '' }}" placeholder="Customer PO number">
+                <label class="form-label">SO No.</label>
+                <input type="text" name="so_no" class="form-control" value="{{ so.so_no or '' }}" placeholder="Service Order number">
             </div>
             <div class="form-row">
                 <label class="form-label">Status</label>
                 <select name="status" class="form-control">
-                    <option value="pending" {% if lpo.status == 'pending' %}selected{% endif %}>Pending</option>
-                    <option value="approved" {% if lpo.status == 'approved' %}selected{% endif %}>Approved</option>
-                    <option value="closed" {% if lpo.status == 'closed' %}selected{% endif %}>Closed</option>
+                    <option value="pending" {% if so.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="approved" {% if so.status == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="closed" {% if so.status == 'closed' %}selected{% endif %}>Closed</option>
                 </select>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Service Order No.</label>
-                <input type="text" name="service_order_no" class="form-control" value="{{ lpo.service_order_no or '' }}" placeholder="SO-xxx">
-            </div>
-            <div class="form-row">
-                <label class="form-label">LPO PDF (optional)</label>
-                <input type="file" name="lpo_file" accept=".pdf,image/*" class="form-control">
-                {% if lpo.file_data %}<span style="font-size:0.72rem;color:var(--muted)">Current file attached. Upload to replace.</span>{% endif %}
             </div>
         </div>
 
         {# ─── Line Items ─── #}
         <div style="margin-bottom:14px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <h4 style="margin:0;font-size:0.9rem;font-weight:600">LPO Line Items</h4>
+                <h4 style="margin:0;font-size:0.9rem;font-weight:600">Service Items</h4>
                 <button type="button" class="btn btn-outline btn-sm" onclick="addItem()">+ Add Line</button>
             </div>
             <div style="background:#f8fafc;border-radius:10px;padding:10px;border:1px solid #eef2f6">
@@ -70,7 +60,7 @@
                 <div id="itemsContainer">
                 {% if edit and items %}
                     {% for it in items %}
-                    <div class="lpo-item-row">
+                    <div class="so-item-row">
                         <input type="text" name="item_desc[]" value="{{ it.description or '' }}" placeholder="Service description">
                         <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
                         <select name="item_unit[]" class="form-control" onchange="calcTotals()">
@@ -91,7 +81,7 @@
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="lpo-item-row">
+                    <div class="so-item-row">
                         <input type="text" name="item_desc[]" placeholder="Service description">
                         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
                         <select name="item_unit[]" class="form-control" onchange="calcTotals()">
@@ -115,21 +105,20 @@
             </div>
         </div>
 
-        {# ─── Totals ─── #}
         <div style="margin-left:auto;width:280px;border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:16px;background:#f8fafc">
             <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
                 <span>Total Amount</span><span class="mono" id="totalDisplay" style="font-weight:800;font-size:1.1rem;color:var(--primary)">0.00</span>
             </div>
         </div>
 
-        <input type="hidden" name="amount" id="amountHidden" value="{{ lpo.amount or 0 }}">
+        <input type="hidden" name="amount" id="amountHidden" value="{{ so.amount or 0 }}">
 
         <div class="form-row">
             <label class="form-label">Notes</label>
-            <textarea name="notes" class="form-control" rows="2">{{ lpo.notes or '' }}</textarea>
+            <textarea name="notes" class="form-control" rows="2">{{ so.notes or '' }}</textarea>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="margin-top:12px;width:100%;padding:12px">{{ 'Update LPO' if edit else 'Save LPO' }}</button>
+        <button type="submit" class="btn btn-primary" style="margin-top:12px;width:100%;padding:12px">{{ 'Update' if edit else 'Save' }} Service Order</button>
     </form>
 </div>
 </div>
@@ -139,7 +128,7 @@ let itemCount = {{ items|length if edit and items else 1 }};
 function addItem() {
     const container = document.getElementById('itemsContainer');
     const row = document.createElement('div');
-    row.className = 'lpo-item-row';
+    row.className = 'so-item-row';
     row.innerHTML = `
         <input type="text" name="item_desc[]" placeholder="Service description">
         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
@@ -163,20 +152,20 @@ function addItem() {
     itemCount++;
 }
 function removeItem(btn) {
-    const rows = document.querySelectorAll('.lpo-item-row');
+    const rows = document.querySelectorAll('.so-item-row');
     if (rows.length <= 1) return;
-    btn.closest('.lpo-item-row').remove();
+    btn.closest('.so-item-row').remove();
     calcTotals();
 }
 function calcItem(el) {
-    const row = el.closest('.lpo-item-row');
+    const row = el.closest('.so-item-row');
     const qty = parseFloat(row.querySelector('input[name*="item_qty"]').value) || 0;
     const rate = parseFloat(row.querySelector('input[name*="item_rate"]').value) || 0;
     const amt = qty * rate;
     row.querySelector('.item-amt').textContent = amt.toFixed(2);
 }
 function calcTotals() {
-    const rows = document.querySelectorAll('.lpo-item-row');
+    const rows = document.querySelectorAll('.so-item-row');
     let total = 0;
     rows.forEach(row => {
         const qty = parseFloat(row.querySelector('input[name*="item_qty"]').value) || 0;

@@ -161,6 +161,42 @@ def _ensure_tables():
             db.execute(f"ALTER TABLE customer_lpos ADD COLUMN {col} {dtype}")
         except Exception:
             pass
+    for col, dtype in [("service_order_no", "TEXT")]:
+        try:
+            db.execute(f"ALTER TABLE customer_lpos ADD COLUMN {col} {dtype}")
+        except Exception:
+            pass
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS customer_service_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            so_no TEXT,
+            so_date TEXT NOT NULL,
+            amount REAL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (customer_id) REFERENCES customers(id)
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS customer_so_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            so_id INTEGER NOT NULL,
+            description TEXT,
+            quantity REAL NOT NULL DEFAULT 1,
+            rate REAL NOT NULL DEFAULT 0,
+            amount REAL NOT NULL DEFAULT 0,
+            unit_type TEXT NOT NULL DEFAULT 'hour',
+            sort_order INTEGER DEFAULT 0,
+            FOREIGN KEY (so_id) REFERENCES customer_service_orders(id) ON DELETE CASCADE
+        )
+    """)
+    for col, dtype in [("service_order_no", "TEXT"), ("so_no", "TEXT")]:
+        try:
+            db.execute(f"ALTER TABLE customer_invoices ADD COLUMN {col} {dtype}")
+        except Exception:
+            pass
     for col, dtype in [("lpo_id", "INTEGER"), ("unit", "TEXT")]:
         try:
             db.execute(f"ALTER TABLE customer_invoice_items ADD COLUMN {col} {dtype}")
@@ -359,6 +395,7 @@ def customer_profile(cid):
         FROM customer_quotations q WHERE q.customer_id=? ORDER BY q.quotation_date DESC
     """, (cid,)).fetchall()
     lpos = db.execute("SELECT * FROM customer_lpos WHERE customer_id=? ORDER BY lpo_date DESC", (cid,)).fetchall()
+    service_orders = db.execute("SELECT * FROM customer_service_orders WHERE customer_id=? ORDER BY so_date DESC", (cid,)).fetchall()
     docs = db.execute("SELECT * FROM customer_documents WHERE customer_id=? ORDER BY created_at DESC", (cid,)).fetchall()
     credit_notes = db.execute("SELECT * FROM customer_credit_notes WHERE customer_id=? ORDER BY credit_note_date DESC", (cid,)).fetchall()
     total_inv = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices WHERE customer_id=?", (cid,)).fetchone()[0]
@@ -367,7 +404,7 @@ def customer_profile(cid):
     balance = round(total_inv - total_paid - total_cn, 2)
     db.close()
     return render_template("customer/profile.html", c=c, active_tab=tab, invoices=invoices,
-        payments=payments, contracts=contracts, quotations=quotations, lpos=lpos, docs=docs,
+        payments=payments, contracts=contracts, quotations=quotations, lpos=lpos, service_orders=service_orders, docs=docs,
         credit_notes=credit_notes,
         total_inv=total_inv, total_paid=total_paid, total_cn=total_cn, balance=balance)
 
@@ -381,6 +418,7 @@ def customer_invoice_add(cid):
     db = _get_db()
     next_no = _next_invoice_no(db)
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
+    sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
     svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
     if request.method == "POST":
         inv_date = request.form.get("invoice_date", date.today().isoformat())
@@ -389,7 +427,7 @@ def customer_invoice_add(cid):
         if existing:
             flash(f"Invoice number '{inv_no}' already exists. Use a different number.", "error")
             db.close()
-            return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+            return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
         vat_pct = float(request.form.get("vat_percent", 5))
         lpo_id = request.form.get("lpo_id", "").strip()
         lpo_no = None
@@ -400,6 +438,12 @@ def customer_invoice_add(cid):
                 lpo_no = lpo_row["lpo_no"]
                 if not lpo_date:
                     lpo_date = lpo_row["lpo_date"]
+        so_id = request.form.get("so_id", "").strip()
+        so_no = None
+        if so_id:
+            so_row = db.execute("SELECT so_no FROM customer_service_orders WHERE id=? AND customer_id=?", (so_id, cid)).fetchone()
+            if so_row:
+                so_no = so_row["so_no"]
         project_no = request.form.get("project_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
         descs = request.form.getlist("item_desc[]")
@@ -420,12 +464,12 @@ def customer_invoice_add(cid):
         if not items:
             flash("At least one line item is required.", "error")
             db.close()
-            return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+            return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
-        c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,project_no,notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-            (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, project_no, notes))
+        c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes))
         inv_id = c_inv.lastrowid
         for idx, it in enumerate(items):
             db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
@@ -440,7 +484,7 @@ def customer_invoice_add(cid):
         flash(f"Invoice {inv_no} created.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
     db.close()
-    return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+    return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
 
 @customer_bp.route("/service-items/search")
 def service_items_search():
@@ -470,6 +514,7 @@ def customer_invoice_edit(cid, iid):
     inv = db.execute("SELECT * FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     items = db.execute("SELECT * FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
+    sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
     svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
     if not inv:
         db.close()
@@ -480,6 +525,11 @@ def customer_invoice_edit(cid, iid):
         row = db.execute("SELECT id FROM customer_lpos WHERE lpo_no=? AND customer_id=?", (inv["lpo_no"], cid)).fetchone()
         if row:
             selected_lpo_id = row["id"]
+    selected_so_id = None
+    if inv.get("so_no"):
+        row = db.execute("SELECT id FROM customer_service_orders WHERE so_no=? AND customer_id=?", (inv["so_no"], cid)).fetchone()
+        if row:
+            selected_so_id = row["id"]
     if request.method == "POST":
         inv_date = request.form.get("invoice_date", date.today().isoformat())
         inv_no = request.form.get("invoice_no", "").strip() or inv["invoice_no"]
@@ -487,7 +537,7 @@ def customer_invoice_edit(cid, iid):
         if dup:
             flash(f"Invoice number '{inv_no}' already in use.", "error")
             db.close()
-            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id)
+            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id)
         lpo_id = request.form.get("lpo_id", "").strip()
         lpo_no = None
         lpo_date = request.form.get("lpo_date", "").strip() or None
@@ -497,6 +547,12 @@ def customer_invoice_edit(cid, iid):
                 lpo_no = lpo_row["lpo_no"]
                 if not lpo_date:
                     lpo_date = lpo_row["lpo_date"]
+        so_id = request.form.get("so_id", "").strip()
+        so_no = None
+        if so_id:
+            so_row = db.execute("SELECT so_no FROM customer_service_orders WHERE id=? AND customer_id=?", (so_id, cid)).fetchone()
+            if so_row:
+                so_no = so_row["so_no"]
         project_no = request.form.get("project_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
         descs = request.form.getlist("item_desc[]")
@@ -517,12 +573,12 @@ def customer_invoice_edit(cid, iid):
         if not new_items:
             flash("At least one line item is required.", "error")
             db.close()
-            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id)
+            return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id)
         vat_pct = float(request.form.get("vat_percent", 5))
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
-        db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,project_no=?,notes=? WHERE id=?""",
-            (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, project_no, notes, iid))
+        db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,so_no=?,project_no=?,notes=? WHERE id=?""",
+            (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, iid))
         db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
         for idx, it in enumerate(new_items):
             db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
@@ -537,7 +593,7 @@ def customer_invoice_edit(cid, iid):
         flash(f"Invoice {inv_no} updated.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
     db.close()
-    return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id)
+    return render_template("customer/invoice_form.html", c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>")
 def customer_invoice_view(cid, iid):
@@ -1690,25 +1746,23 @@ def customer_lpo_add(cid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
+    _ensure_tables()
     if request.method == "POST":
         lpo_no = request.form.get("lpo_no", "").strip()
         lpo_date = request.form.get("lpo_date", date.today().isoformat())
         status = request.form.get("status", "pending")
+        so_no = request.form.get("service_order_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
-        # file
-        file_data = None
-        file_type = None
+        file_data = None; file_type = None
         file = request.files.get("lpo_file")
         if file and file.filename:
             file_data = base64.b64encode(file.read()).decode("utf-8")
             file_type = file.content_type
-        # calc total from items
         descs = request.form.getlist("item_desc[]")
         qtys = request.form.getlist("item_qty[]")
         units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
-        total = 0
-        items = []
+        total = 0; items = []
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
@@ -1719,15 +1773,34 @@ def customer_lpo_add(cid):
                 total += amt
                 items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
         total = round(total, 2)
-        cur = db.execute("INSERT INTO customer_lpos (customer_id,lpo_no,lpo_date,amount,status,notes,file_data,file_type) VALUES (?,?,?,?,?,?,?,?)",
-            (cid, lpo_no, lpo_date, total, status, notes, file_data, file_type))
+        cur = db.execute("INSERT INTO customer_lpos (customer_id,lpo_no,lpo_date,amount,status,service_order_no,notes,file_data,file_type) VALUES (?,?,?,?,?,?,?,?,?)",
+            (cid, lpo_no, lpo_date, total, status, so_no, notes, file_data, file_type))
         lpo_id = cur.lastrowid
         for idx, it in enumerate(items):
             db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
                 (lpo_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+        # auto-generate invoice from LPO items
+        if items and lpo_no:
+            next_no = _next_invoice_no(db)
+            inv_no = next_no
+            vat_pct = 5
+            vat_amt_ = round(total * vat_pct / 100, 2)
+            total_ = round(total + vat_amt_, 2)
+            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,notes)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                (cid, inv_no, lpo_date, total, vat_pct, vat_amt_, total_, lpo_no, lpo_date, so_no, f"Auto-generated from LPO {lpo_no}. {notes}" if notes else f"Auto-generated from LPO {lpo_no}"))
+            inv_id = c_inv.lastrowid
+            for idx, it in enumerate(items):
+                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
+                    (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+                if it["desc"]:
+                    try:
+                        db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
+                    except Exception:
+                        pass
         db.commit()
         db.close()
-        flash("LPO added.", "success")
+        flash("LPO added. Invoice auto-generated.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
     db.close()
     return render_template("customer/lpo_form.html", c=c, lpo={}, items=[], today=date.today().isoformat())
@@ -1738,6 +1811,7 @@ def customer_lpo_edit(cid, lid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
+    _ensure_tables()
     lpo = db.execute("SELECT * FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
     if not lpo:
         db.close()
@@ -1747,6 +1821,7 @@ def customer_lpo_edit(cid, lid):
         lpo_no = request.form.get("lpo_no", "").strip()
         lpo_date = request.form.get("lpo_date", date.today().isoformat())
         status = request.form.get("status", "pending")
+        so_no = request.form.get("service_order_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
         file_data = lpo["file_data"]
         file_type = lpo["file_type"]
@@ -1770,8 +1845,8 @@ def customer_lpo_edit(cid, lid):
                 total += amt
                 items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
         total = round(total, 2)
-        db.execute("UPDATE customer_lpos SET lpo_no=?,lpo_date=?,amount=?,status=?,notes=?,file_data=?,file_type=? WHERE id=?",
-            (lpo_no, lpo_date, total, status, notes, file_data, file_type, lid))
+        db.execute("UPDATE customer_lpos SET lpo_no=?,lpo_date=?,amount=?,status=?,service_order_no=?,notes=?,file_data=?,file_type=? WHERE id=?",
+            (lpo_no, lpo_date, total, status, so_no, notes, file_data, file_type, lid))
         db.execute("DELETE FROM lpo_items WHERE lpo_id=?", (lid,))
         for idx, it in enumerate(items):
             db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
@@ -1853,6 +1928,136 @@ def customer_lpo_view(cid, lid):
     items = db.execute("SELECT * FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
     db.close()
     return render_template("customer/lpo_view.html", c=c, lpo=lpo, items=items)
+
+# ─── SERVICE ORDERS ───
+
+@customer_bp.route("/<int:cid>/so/add", methods=["GET", "POST"])
+def customer_so_add(cid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    if request.method == "POST":
+        so_no = request.form.get("so_no", "").strip()
+        so_date = request.form.get("so_date", date.today().isoformat())
+        status = request.form.get("status", "pending")
+        notes = request.form.get("notes", "").strip()
+        descs = request.form.getlist("item_desc[]")
+        qtys = request.form.getlist("item_qty[]")
+        units = request.form.getlist("item_unit[]")
+        rates = request.form.getlist("item_rate[]")
+        total = 0; items = []
+        for i in range(len(descs)):
+            desc = descs[i].strip()
+            qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+            unit = units[i] if i < len(units) else "hour"
+            rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            if desc or rate > 0:
+                amt = round(qty * rate, 2)
+                total += amt
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+        total = round(total, 2)
+        cur = db.execute("INSERT INTO customer_service_orders (customer_id,so_no,so_date,amount,status,notes) VALUES (?,?,?,?,?,?)",
+            (cid, so_no, so_date, total, status, notes))
+        so_id = cur.lastrowid
+        for idx, it in enumerate(items):
+            db.execute("INSERT INTO customer_so_items (so_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
+                (so_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+        # auto-generate invoice
+        if items and so_no:
+            next_no = _next_invoice_no(db)
+            vat_pct = 5
+            vat_amt_ = round(total * vat_pct / 100, 2)
+            total_ = round(total + vat_amt_, 2)
+            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,so_no,notes)
+                VALUES (?,?,?,?,?,?,?,?,?)""",
+                (cid, next_no, so_date, total, vat_pct, vat_amt_, total_, so_no, f"Auto-generated from Service Order {so_no}. {notes}" if notes else f"Auto-generated from Service Order {so_no}"))
+            inv_id = c_inv.lastrowid
+            for idx, it in enumerate(items):
+                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
+                    (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+                if it["desc"]:
+                    try:
+                        db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
+                    except Exception:
+                        pass
+        db.commit()
+        db.close()
+        flash("Service Order added. Invoice auto-generated.", "success")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="service_orders"))
+    db.close()
+    return render_template("customer/so_form.html", c=c, so={}, items=[], today=date.today().isoformat())
+
+@customer_bp.route("/<int:cid>/so/<int:sid>/edit", methods=["GET", "POST"])
+def customer_so_edit(cid, sid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    so = db.execute("SELECT * FROM customer_service_orders WHERE id=? AND customer_id=?", (sid, cid)).fetchone()
+    if not so:
+        db.close()
+        flash("Service Order not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="service_orders"))
+    if request.method == "POST":
+        so_no = request.form.get("so_no", "").strip()
+        so_date = request.form.get("so_date", date.today().isoformat())
+        status = request.form.get("status", "pending")
+        notes = request.form.get("notes", "").strip()
+        descs = request.form.getlist("item_desc[]")
+        qtys = request.form.getlist("item_qty[]")
+        units = request.form.getlist("item_unit[]")
+        rates = request.form.getlist("item_rate[]")
+        total = 0; items = []
+        for i in range(len(descs)):
+            desc = descs[i].strip()
+            qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+            unit = units[i] if i < len(units) else "hour"
+            rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+            if desc or rate > 0:
+                amt = round(qty * rate, 2)
+                total += amt
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+        total = round(total, 2)
+        db.execute("UPDATE customer_service_orders SET so_no=?,so_date=?,amount=?,status=?,notes=? WHERE id=?",
+            (so_no, so_date, total, status, notes, sid))
+        db.execute("DELETE FROM customer_so_items WHERE so_id=?", (sid,))
+        for idx, it in enumerate(items):
+            db.execute("INSERT INTO customer_so_items (so_id,description,quantity,rate,amount,unit_type,sort_order) VALUES (?,?,?,?,?,?,?)",
+                (sid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+        db.commit()
+        db.close()
+        flash("Service Order updated.", "success")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="service_orders"))
+    items = db.execute("SELECT * FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
+    db.close()
+    return render_template("customer/so_form.html", c=c, so=so, items=items, edit=True, today=date.today().isoformat())
+
+@customer_bp.route("/<int:cid>/so/<int:sid>/delete", methods=["POST"])
+def customer_so_delete(cid, sid):
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    db.execute("DELETE FROM customer_so_items WHERE so_id=?", (sid,))
+    db.execute("DELETE FROM customer_service_orders WHERE id=? AND customer_id=?", (sid, cid))
+    db.commit(); db.close()
+    flash("Service Order deleted.", "success")
+    return redirect(url_for("customer.customer_profile", cid=cid, tab="service_orders"))
+
+@customer_bp.route("/<int:cid>/so/<int:sid>/view")
+def customer_so_view(cid, sid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    so = db.execute("SELECT * FROM customer_service_orders WHERE id=? AND customer_id=?", (sid, cid)).fetchone()
+    if not so:
+        db.close()
+        flash("Service Order not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="service_orders"))
+    items = db.execute("SELECT * FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
+    db.close()
+    return render_template("customer/so_view.html", c=c, so=so, items=items)
 
 # ─── DOCUMENTS ───
 

@@ -91,6 +91,7 @@ td .mono-sm { font-size:0.75rem; }
     <a href="?tab=contracts" class="tab-btn {% if active_tab == 'contracts' %}is-active{% endif %}">Contracts</a>
     <a href="?tab=quotations" class="tab-btn {% if active_tab == 'quotations' %}is-active{% endif %}">Quotations</a>
     <a href="?tab=lpos" class="tab-btn {% if active_tab == 'lpos' %}is-active{% endif %}">LPOs</a>
+    <a href="?tab=service_orders" class="tab-btn {% if active_tab == 'service_orders' %}is-active{% endif %}">Service Orders</a>
     <a href="?tab=documents" class="tab-btn {% if active_tab == 'documents' %}is-active{% endif %}">Documents</a>
     <a href="{{ url_for('customer.customer_soa', cid=c.id) }}" class="tab-btn">SOA</a>
 </div>
@@ -132,6 +133,7 @@ td .mono-sm { font-size:0.75rem; }
         <a href="{{ url_for('customer.customer_contract_add', cid=c.id) }}" class="btn btn-outline btn-sm">+ Contract</a>
         <a href="{{ url_for('customer.customer_quotation_add', cid=c.id) }}" class="btn btn-outline btn-sm">+ Quotation</a>
         <a href="{{ url_for('customer.customer_lpo_add', cid=c.id) }}" class="btn btn-outline btn-sm">+ LPO</a>
+        <a href="{{ url_for('customer.customer_so_add', cid=c.id) }}" class="btn btn-outline btn-sm">+ Service Order</a>
         <a href="{{ url_for('customer.customer_doc_add', cid=c.id) }}" class="btn btn-outline btn-sm">+ Document</a>
         <a href="{{ url_for('customer.customer_soa', cid=c.id) }}" class="btn btn-outline btn-sm">SOA</a>
     </div>
@@ -334,12 +336,13 @@ td .mono-sm { font-size:0.75rem; }
     {% if lpos %}
     <div class="table-wrap">
         <table class="smart-table">
-            <thead><tr><th>Date</th><th>LPO #</th><th>Amount</th><th>Status</th><th>File</th><th></th></tr></thead>
+            <thead><tr><th>Date</th><th>LPO #</th><th>SO #</th><th>Amount</th><th>Status</th><th>File</th><th></th></tr></thead>
             <tbody>
                 {% for l in lpos %}
                 <tr>
                     <td class="mono">{{ l.lpo_date }}</td>
                     <td class="mono" style="font-weight:600">{{ l.lpo_no or '—' }}</td>
+                    <td class="mono" style="color:var(--muted)">{{ l.service_order_no or '—' }}</td>
                     <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(l.amount) if l.amount else '—' }}</td>
                     <td><span class="status-badge {% if l.status == 'closed' %}active{% else %}pending{% endif %}">{{ l.status }}</span></td>
                     <td>{% if l.file_data %}<a href="{{ url_for('customer.customer_lpo_file', cid=c.id, lid=l.id) }}" class="btn btn-xs btn-outline">PDF</a>{% else %}—{% endif %}</td>
@@ -363,6 +366,42 @@ td .mono-sm { font-size:0.75rem; }
         </table>
     </div>
     {% else %}<p class="empty-state">No LPOs. <a href="{{ url_for('customer.customer_lpo_add', cid=c.id) }}">Add one</a>.</p>{% endif %}
+</div>
+
+{# ═══════ SERVICE ORDERS ═══════ #}
+{% elif active_tab == 'service_orders' %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>Service Orders</h3>
+        <a href="{{ url_for('customer.customer_so_add', cid=c.id) }}" class="btn btn-primary btn-sm">+ New Service Order</a>
+    </div>
+    {% if service_orders %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr><th>Date</th><th>SO #</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for so in service_orders %}
+                <tr>
+                    <td class="mono">{{ so.so_date }}</td>
+                    <td class="mono" style="font-weight:600">{{ so.so_no or '—' }}</td>
+                    <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(so.amount) if so.amount else '—' }}</td>
+                    <td><span class="status-badge {% if so.status == 'closed' %}active{% else %}pending{% endif %}">{{ so.status }}</span></td>
+                    <td style="display:flex;gap:4px">
+                        <a href="{{ url_for('customer.customer_so_view', cid=c.id, sid=so.id) }}" class="btn btn-xs btn-outline">View</a>
+                        {% if so.status != 'closed' %}
+                        <a href="{{ url_for('customer.customer_so_edit', cid=c.id, sid=so.id) }}" class="btn btn-xs btn-outline">Edit</a>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('customer.customer_so_delete', cid=c.id, sid=so.id) }}" style="display:inline" onsubmit="return confirm('Delete Service Order {{ so.so_no }}?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-xs btn-outline" style="color:#c62828">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}<p class="empty-state">No Service Orders. <a href="{{ url_for('customer.customer_so_add', cid=c.id) }}">Create one</a>.</p>{% endif %}
 </div>
 
 {# ═══════ DOCUMENTS ═══════ #}

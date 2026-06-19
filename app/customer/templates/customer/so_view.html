@@ -1,41 +1,35 @@
 {% extends "base.html" %}
-{% block title %}LPO View{% endblock %}
-{% block page_title %}LPO — {{ c.customer_name }}{% endblock %}
+{% block title %}Service Order View{% endblock %}
+{% block page_title %}Service Order — {{ c.customer_name }}{% endblock %}
 
 {% block content %}
 <div class="profile-shell" style="max-width:700px;margin:0 auto">
 <div class="profile-card">
     <div style="margin-bottom:14px">
-        <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='lpos') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+        <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='service_orders') }}" class="btn btn-outline btn-sm">&larr; Back</a>
     </div>
 
     <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">
         <div>
-            <h3 style="margin:0 0 4px">LPO Details</h3>
+            <h3 style="margin:0 0 4px">Service Order Details</h3>
             <p style="color:var(--muted);font-size:0.82rem;margin:0">Customer: <strong>{{ c.customer_name }}</strong></p>
         </div>
-        <span class="status-badge {% if lpo.status == 'closed' %}active{% else %}pending{% endif %}">{{ lpo.status }}</span>
+        <span class="status-badge {% if so.status == 'closed' %}active{% else %}pending{% endif %}">{{ so.status }}</span>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6;margin-bottom:16px">
         <div>
-            <span style="font-size:0.72rem;color:var(--muted)">LPO No.</span>
-            <div style="font-weight:600">{{ lpo.lpo_no or '—' }}</div>
+            <span style="font-size:0.72rem;color:var(--muted)">SO No.</span>
+            <div style="font-weight:600">{{ so.so_no or '—' }}</div>
         </div>
         <div>
-            <span style="font-size:0.72rem;color:var(--muted)">LPO Date</span>
-            <div class="mono">{{ lpo.lpo_date }}</div>
+            <span style="font-size:0.72rem;color:var(--muted)">SO Date</span>
+            <div class="mono">{{ so.so_date }}</div>
         </div>
-        {% if lpo.service_order_no %}
-        <div>
-            <span style="font-size:0.72rem;color:var(--muted)">Service Order No.</span>
-            <div style="font-weight:600">{{ lpo.service_order_no }}</div>
-        </div>
-        {% endif %}
     </div>
 
     {% if items %}
-    <h4 style="font-size:0.9rem;font-weight:600;margin:0 0 8px">Line Items</h4>
+    <h4 style="font-size:0.9rem;font-weight:600;margin:0 0 8px">Service Items</h4>
     <div class="table-wrap" style="margin-bottom:16px">
         <table class="smart-table">
             <thead>
@@ -54,7 +48,7 @@
                     <td>{{ loop.index }}</td>
                     <td>{{ it.description or '—' }}</td>
                     <td style="text-align:center">{{ it.quantity }}</td>
-                    <td style="text-align:center">{{ 'Per Hour' if it.unit_type == 'hour' else 'Per Trip' }}</td>
+                    <td style="text-align:center">{{ it.unit_type }}</td>
                     <td style="text-align:right">{{ "%.2f"|format(it.rate) }}</td>
                     <td style="text-align:right;font-weight:600">{{ "%.2f"|format(it.amount) }}</td>
                 </tr>
@@ -63,20 +57,16 @@
             <tfoot>
                 <tr>
                     <td colspan="5" style="text-align:right;font-weight:700;font-size:1rem">Total</td>
-                    <td style="text-align:right;font-weight:800;font-size:1rem;color:var(--primary)">AED {{ "%.2f"|format(lpo.amount or 0) }}</td>
+                    <td style="text-align:right;font-weight:800;font-size:1rem;color:var(--primary)">AED {{ "%.2f"|format(so.amount or 0) }}</td>
                 </tr>
             </tfoot>
         </table>
     </div>
     {% endif %}
 
-    {% if lpo.file_data %}
-    <a href="{{ url_for('customer.customer_lpo_file', cid=c.id, lid=lpo.id) }}" class="btn btn-outline btn-sm">Download LPO PDF</a>
-    {% endif %}
-
-    {% if lpo.notes %}
+    {% if so.notes %}
     <div style="margin-top:14px;padding:12px;background:#fef9e7;border-radius:8px;font-size:0.85rem">
-        <strong style="font-size:0.72rem;color:var(--muted)">Notes:</strong><br>{{ lpo.notes }}
+        <strong style="font-size:0.72rem;color:var(--muted)">Notes:</strong><br>{{ so.notes }}
     </div>
     {% endif %}
 </div>

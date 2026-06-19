@@ -51,7 +51,7 @@
             </div>
         </div>
 
-        {# ─── LPO Reference ─── #}
+        {# ─── LPO / SO Reference ─── #}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
             <div>
                 <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">LPO (Customer PO)</label>
@@ -64,6 +64,15 @@
                     </select>
                     <input type="date" name="lpo_date" id="lpoDate" value="{{ inv.lpo_date or '' }}" style="width:140px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
                 </div>
+            </div>
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Service Order</label>
+                <select name="so_id" id="soSelect" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                    <option value="">— Select SO —</option>
+                    {% for s in sos %}
+                    <option value="{{ s.id }}" {% if selected_so_id == s.id %}selected{% endif %}>{{ s.so_no or '—' }} | {{ s.so_date }} | AED {{ "%.0f"|format(s.amount) if s.amount else '0' }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div>
                 <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Project No.</label>
