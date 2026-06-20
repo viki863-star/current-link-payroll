@@ -4,23 +4,66 @@
 {% block page_title %}Cheque Report{% endblock %}
 
 {% block content %}
-<div class="db-shell">
-    <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px;">
+<style>
+.cr-shell{max-width:1200px;margin:0 auto}
+.cr-header{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px}
+.cr-header h1{margin:8px 0 10px;font-size:36px;line-height:1;color:#17345e}
+.cr-filter-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.cr-filter-form select,.cr-filter-form input{padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem}
+.cr-filter-form label{font-size:.78rem;font-weight:600}
+.cr-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:700px){.cr-stats{grid-template-columns:repeat(2,1fr)}}
+.cr-stat{background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center;transition:box-shadow .2s}
+.cr-stat:hover{box-shadow:0 4px 12px rgba(0,0,0,.06)}
+.cr-stat .lb{font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px}
+.cr-stat .vl{font-size:1.5rem;font-weight:700;margin-top:6px}
+.cr-tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid #eef3fa;padding-bottom:0}
+.cr-tab{padding:10px 20px;border:0;background:none;font-size:.85rem;font-weight:600;color:#7b92b6;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.cr-tab:hover{color:#17345e}
+.cr-tab.active{color:#17345e;border-bottom-color:#f7931e}
+.cr-pdf-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.cr-pdf-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border:0;border-radius:8px;color:#fff;font-weight:700;text-decoration:none;font-size:.82rem;transition:opacity .2s}
+.cr-pdf-btn:hover{opacity:.85}
+.cr-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+@media(max-width:800px){.cr-charts{grid-template-columns:1fr}}
+.cr-chart-box{background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px}
+.cr-chart-box h3{margin:0 0 14px;font-size:.82rem;font-weight:700;color:#17345e;text-transform:uppercase;letter-spacing:.06em}
+.cr-table-wrap{background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow-x:auto}
+.cr-table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:700px}
+.cr-table th{padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;text-align:left;background:#f5f8fe}
+.cr-table td{padding:10px 14px;border-top:1px solid #eef3fa}
+.cr-table tfoot td{background:#f5f8fe;font-weight:700;padding:12px 14px}
+.cr-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.72rem;font-weight:700}
+.pie-wrap{display:flex;align-items:center;gap:16px}
+.pie{width:100px;height:100px;border-radius:50%;flex-shrink:0}
+.pie-leg{flex:1}
+.pie-leg-item{display:flex;align-items:center;gap:8px;font-size:.78rem;margin-bottom:4px}
+.pie-leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.bar-chart{display:flex;align-items:flex-end;gap:4px;height:120px;padding-top:10px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.bar{width:100%;max-width:28px;border-radius:4px 4px 0 0;min-height:2px;transition:height .4s}
+.bar-label{font-size:.55rem;color:#7b92b6;margin-top:4px;white-space:nowrap;transform:rotate(-45deg);transform-origin:left top}
+.bar-val{font-size:.55rem;font-weight:700;color:#17345e;margin-bottom:2px}
+</style>
+
+<div class="cr-shell">
+    {# ═══ HEADER ═══ #}
+    <div class="cr-header">
         <div>
             <div style="font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#7b92b6;">Accounts</div>
-            <h1 style="margin:8px 0 10px;font-size:36px;line-height:1;color:#17345e;">Cheque Report</h1>
+            <h1>Cheque Report</h1>
         </div>
-        <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <label style="font-size:.78rem;font-weight:600">Month:
-                <select name="month" style="padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem;margin-left:4px">
+        <form method="get" class="cr-filter-form">
+            <label>Month:
+                <select name="month">
                     <option value="">All</option>
                     {% for m in months %}
                     <option value="{{ m.value }}" {{ 'selected' if selected_month == m.value }}>{{ m.label }}</option>
                     {% endfor %}
                 </select>
             </label>
-            <label style="font-size:.78rem;font-weight:600">Year:
-                <select name="year" style="padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem;margin-left:4px">
+            <label>Year:
+                <select name="year">
                     {% for y in years %}
                     <option value="{{ y }}" {{ 'selected' if selected_year == y|string }}>{{ y }}</option>
                     {% endfor %}
@@ -33,79 +76,154 @@
         </form>
     </div>
 
-    {# ═══ SUMMARY CARDS ═══ #}
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center">
-            <div style="font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px">Total Cheques</div>
-            <div style="font-size:1.5rem;font-weight:700;margin-top:6px;color:#17345e;">{{ entry_count }}</div>
+    {# ═══ STATS CARDS ═══ #}
+    <div class="cr-stats">
+        <div class="cr-stat"><div class="lb">Total Cheques</div><div class="vl" style="color:#17345e">{{ entry_count }}</div></div>
+        <div class="cr-stat"><div class="lb">Supplier Cheques</div><div class="vl" style="color:#2e7d32">{{ supplier_count }}</div></div>
+        <div class="cr-stat"><div class="lb">Customer Cheques</div><div class="vl" style="color:#1565c0">{{ customer_count }}</div></div>
+        <div class="cr-stat"><div class="lb">Total Amount</div><div class="vl" style="color:#f7931e">AED {{ "{:,.2f}".format(total_amount) }}</div></div>
+    </div>
+
+    {# ═══ CHARTS ═══ #}
+    <div class="cr-charts">
+        {# ─── PIE CHART ─── #}
+        <div class="cr-chart-box">
+            <h3>Supplier vs Customer</h3>
+            {% set sup_pct = (supplier_total / total_amount * 100) if total_amount > 0 else 0 %}
+            {% set cust_pct = (customer_total / total_amount * 100) if total_amount > 0 else 0 %}
+            <div class="pie-wrap">
+                <div class="pie" style="background:conic-gradient(#2e7d32 0deg {{ sup_pct }}deg, #1565c0 {{ sup_pct }}deg 360deg)"></div>
+                <div class="pie-leg">
+                    <div class="pie-leg-item"><span class="pie-leg-dot" style="background:#2e7d32"></span> Supplier — AED {{ "{:,.2f}".format(supplier_total) }} ({{ "%.1f"|format(sup_pct) }}%)</div>
+                    <div class="pie-leg-item"><span class="pie-leg-dot" style="background:#1565c0"></span> Customer — AED {{ "{:,.2f}".format(customer_total) }} ({{ "%.1f"|format(cust_pct) }}%)</div>
+                </div>
+            </div>
         </div>
-        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center">
-            <div style="font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px">Supplier Cheques</div>
-            <div style="font-size:1.5rem;font-weight:700;margin-top:6px;color:#2e7d32;">{{ supplier_count }}</div>
-        </div>
-        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center">
-            <div style="font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px">Customer Cheques</div>
-            <div style="font-size:1.5rem;font-weight:700;margin-top:6px;color:#1565c0;">{{ customer_count }}</div>
-        </div>
-        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center">
-            <div style="font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px">Total Amount</div>
-            <div style="font-size:1.5rem;font-weight:700;margin-top:6px;color:#f7931e;">AED {{ "{:,.2f}".format(total_amount) }}</div>
+
+        {# ─── BAR CHART ─── #}
+        <div class="cr-chart-box">
+            <h3>Monthly Cheque Amount — {{ selected_year or 'All Years' }}</h3>
+            {% set max_monthly = monthly_data|max or 1 %}
+            <div class="bar-chart">
+                {% for i in range(12) %}
+                {% set mval = monthly_data[i] %}
+                {% set bar_h = (mval / max_monthly * 100) if max_monthly > 0 else 0 %}
+                <div class="bar-col">
+                    <div class="bar-val">{{ "{:,.0f}".format(mval) if mval > 0 else '' }}</div>
+                    <div class="bar" style="height:{{ bar_h }}%;background:{% if mval > 0 %}#17345e{% else %}#eef3fa{% endif %};opacity:{% if mval > 0 %}1{% else %}.3{% endif %}"></div>
+                    <div class="bar-label">{{ months[i].label[:3] }}</div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </div>
 
-    {# ═══ PDF DOWNLOAD BUTTONS ═══ #}
-    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-        <a href="{{ url_for('cheque_report_pdf', month=selected_month, year=selected_year) }}" target="_blank" style="padding:8px 20px;border:0;border-radius:8px;background:#17345e;color:#fff;font-weight:700;text-decoration:none;font-size:.85rem;">Combined PDF</a>
-        <a href="{{ url_for('cheque_report_supplier_pdf', month=selected_month, year=selected_year) }}" target="_blank" style="padding:8px 20px;border:0;border-radius:8px;background:#2e7d32;color:#fff;font-weight:700;text-decoration:none;font-size:.85rem;">Supplier Cheque PDF</a>
-        <a href="{{ url_for('cheque_report_customer_pdf', month=selected_month, year=selected_year) }}" target="_blank" style="padding:8px 20px;border:0;border-radius:8px;background:#1565c0;color:#fff;font-weight:700;text-decoration:none;font-size:.85rem;">Customer Cheque PDF</a>
+    {# ═══ PDF DOWNLOADS ═══ #}
+    <div class="cr-pdf-bar">
+        <a href="{{ url_for('cheque_report_pdf', month=selected_month, year=selected_year) }}" target="_blank" class="cr-pdf-btn" style="background:#17345e">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M10 1a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 10.586V2a1 1 0 0 1 1-1z"/><path d="M2 13a1 1 0 0 1 1 1v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2a1 1 0 1 1 2 0v2a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3v-2a1 1 0 0 1 1-1z"/></svg>
+            Combined PDF
+        </a>
+        <a href="{{ url_for('cheque_report_supplier_pdf', month=selected_month, year=selected_year) }}" target="_blank" class="cr-pdf-btn" style="background:#2e7d32">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M10 1a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 10.586V2a1 1 0 0 1 1-1z"/><path d="M2 13a1 1 0 0 1 1 1v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2a1 1 0 1 1 2 0v2a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3v-2a1 1 0 0 1 1-1z"/></svg>
+            Supplier PDF
+        </a>
+        <a href="{{ url_for('cheque_report_customer_pdf', month=selected_month, year=selected_year) }}" target="_blank" class="cr-pdf-btn" style="background:#1565c0">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M10 1a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 10.586V2a1 1 0 0 1 1-1z"/><path d="M2 13a1 1 0 0 1 1 1v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2a1 1 0 1 1 2 0v2a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3v-2a1 1 0 0 1 1-1z"/></svg>
+            Customer PDF
+        </a>
     </div>
 
-    {# ═══ DETAIL TABLE ═══ #}
-    <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:700px;">
+    {# ═══ TABS ═══ #}
+    <div class="cr-tabs">
+        <button class="cr-tab active" data-filter="all" onclick="filterTable('all')">All</button>
+        <button class="cr-tab" data-filter="Supplier" onclick="filterTable('Supplier')">Supplier</button>
+        <button class="cr-tab" data-filter="Customer" onclick="filterTable('Customer')">Customer</button>
+    </div>
+
+    {# ═══ TABLE ═══ #}
+    <div class="cr-table-wrap">
+        <table class="cr-table" id="chequeTable">
             <thead>
-                <tr style="background:#f5f8fe;text-align:left">
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">DATE</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">PAYEE</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">TYPE</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">CHEQUE NO</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">CHEQUE DATE</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">AMOUNT (AED)</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">REFERENCE</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">NOTES</th>
+                <tr>
+                    <th>DATE</th>
+                    <th>PAYEE</th>
+                    <th>TYPE</th>
+                    <th>CHEQUE NO</th>
+                    <th>CHEQUE DATE</th>
+                    <th style="text-align:right">AMOUNT (AED)</th>
+                    <th>REFERENCE</th>
+                    <th>NOTES</th>
                 </tr>
             </thead>
             <tbody>
                 {% for e in entries %}
-                <tr style="border-top:1px solid #eef3fa">
-                    <td style="padding:10px 14px;white-space:nowrap;">{{ e.date }}</td>
-                    <td style="padding:10px 14px;color:#17345e;font-weight:600;">{{ e.payee }}</td>
-                    <td style="padding:10px 14px;">
-                        <span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:.72rem;font-weight:700;
-                            {% if e.payee_type == 'Supplier' %}background:#e8f5e9;color:#2e7d32;
-                            {% elif e.payee_type == 'Customer' %}background:#e3f2fd;color:#1565c0;
-                            {% else %}background:#fce4ec;color:#c62828;{% endif %}">{{ e.payee_type }}</span>
+                <tr data-type="{{ e.payee_type }}">
+                    <td style="white-space:nowrap">{{ e.date }}</td>
+                    <td style="color:#17345e;font-weight:600">{{ e.payee }}</td>
+                    <td>
+                        <span class="cr-badge" style="
+                            {% if e.payee_type == 'Supplier' %}background:#e8f5e9;color:#2e7d32
+                            {% elif e.payee_type == 'Customer' %}background:#e3f2fd;color:#1565c0
+                            {% else %}background:#fce4ec;color:#c62828{% endif %}">{{ e.payee_type }}</span>
                     </td>
-                    <td style="padding:10px 14px;font-weight:600;">{{ e.cheque_no or '—' }}</td>
-                    <td style="padding:10px 14px;">{{ e.cheque_date or '—' }}</td>
-                    <td style="padding:10px 14px;text-align:right;font-weight:600;">{{ "{:,.2f}".format(e.amount) }}</td>
-                    <td style="padding:10px 14px;color:#7b92b6;">{{ e.reference or '—' }}</td>
-                    <td style="padding:10px 14px;color:#7b92b6;max-width:200px;overflow:hidden;text-overflow:ellipsis;">{{ e.notes or '—' }}</td>
+                    <td style="font-weight:600">{{ e.cheque_no or '—' }}</td>
+                    <td>{{ e.cheque_date or '—' }}</td>
+                    <td style="text-align:right;font-weight:600">{{ "{:,.2f}".format(e.amount) }}</td>
+                    <td style="color:#7b92b6">{{ e.reference or '—' }}</td>
+                    <td style="color:#7b92b6;max-width:200px;overflow:hidden;text-overflow:ellipsis">{{ e.notes or '—' }}</td>
                 </tr>
                 {% else %}
-                <tr>
-                    <td colspan="8" style="padding:32px;text-align:center;color:#a0b5cf;">No cheque payments found for the selected period.</td>
-                </tr>
+                <tr><td colspan="8" style="padding:32px;text-align:center;color:#a0b5cf">No cheque payments found.</td></tr>
                 {% endfor %}
             </tbody>
             <tfoot>
-                <tr style="background:#f5f8fe;font-weight:700">
-                    <td colspan="5" style="padding:12px 14px;color:#17345e;">TOTAL</td>
-                    <td style="padding:12px 14px;text-align:right;">AED {{ "{:,.2f}".format(total_amount) }}</td>
+                <tr>
+                    <td colspan="5" style="padding:12px 14px;color:#17345e;font-weight:700">TOTAL</td>
+                    <td id="totalFoot" style="padding:12px 14px;text-align:right;font-weight:700">AED {{ "{:,.2f}".format(total_amount) }}</td>
                     <td colspan="2"></td>
                 </tr>
             </tfoot>
         </table>
     </div>
 </div>
+
+<script>
+var entriesData = {{ entries|tojson }};
+var totalAmount = {{ total_amount }};
+
+function filterTable(type) {
+    var rows = document.querySelectorAll('#chequeTable tbody tr');
+    var total = 0;
+    var count = 0;
+
+    document.querySelectorAll('.cr-tab').forEach(function(t) {
+        t.classList.toggle('active', t.getAttribute('data-filter') === type);
+    });
+
+    rows.forEach(function(row) {
+        if (type === 'all' || row.getAttribute('data-type') === type) {
+            row.style.display = '';
+            var amt = parseFloat(row.querySelectorAll('td')[5].textContent.replace(/[^0-9.-]/g, '')) || 0;
+            total += amt;
+            count++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    var foot = document.getElementById('totalFoot');
+    if (type === 'all') {
+        foot.textContent = 'AED ' + totalAmount.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+    } else {
+        foot.textContent = 'AED ' + total.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    // Update count display if needed
+    var countCells = document.querySelectorAll('.cr-stat .vl');
+    if (countCells.length > 0 && type !== 'all') {
+        // Just visual feedback
+    }
+}
+</script>
 {% endblock %}

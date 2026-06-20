@@ -6337,6 +6337,24 @@ def register_routes(app: Flask) -> None:
         total_amount = sum(e["amount"] for e in entries)
         supplier_count = sum(1 for e in entries if e["payee_type"] == "Supplier")
         customer_count = sum(1 for e in entries if e["payee_type"] == "Customer")
+        supplier_total = sum(e["amount"] for e in entries if e["payee_type"] == "Supplier")
+        customer_total = sum(e["amount"] for e in entries if e["payee_type"] == "Customer")
+
+        # Monthly breakdown for chart
+        monthly_data = [0.0] * 12
+        monthly_supplier = [0.0] * 12
+        monthly_customer = [0.0] * 12
+        for e in entries:
+            try:
+                m = int(e["date"].split("-")[1]) - 1
+                if 0 <= m < 12:
+                    monthly_data[m] += e["amount"]
+                    if e["payee_type"] == "Supplier":
+                        monthly_supplier[m] += e["amount"]
+                    elif e["payee_type"] == "Customer":
+                        monthly_customer[m] += e["amount"]
+            except (IndexError, ValueError):
+                pass
 
         months_list = []
         for i in range(1, 13):
@@ -6350,6 +6368,11 @@ def register_routes(app: Flask) -> None:
             entry_count=len(entries),
             supplier_count=supplier_count,
             customer_count=customer_count,
+            supplier_total=supplier_total,
+            customer_total=customer_total,
+            monthly_data=monthly_data,
+            monthly_supplier=monthly_supplier,
+            monthly_customer=monthly_customer,
             selected_month=month,
             selected_year=year,
             months=months_list,
