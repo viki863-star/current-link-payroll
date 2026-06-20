@@ -6451,6 +6451,7 @@ def register_routes(app: Flask) -> None:
         except Exception:
             pass
 
+        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
         db.close()
 
         # 5. Customer payments (payroll DB)
@@ -6477,8 +6478,6 @@ def register_routes(app: Flask) -> None:
 
         entries.sort(key=lambda e: e["date"], reverse=True)
         total_amount = sum(e["amount"] for e in entries)
-
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
 
         buf = BytesIO()
         LM, RM, TM, BM = 15*mm, 15*mm, 15*mm, 15*mm
