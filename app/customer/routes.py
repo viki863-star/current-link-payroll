@@ -529,10 +529,13 @@ def customer_invoice_edit(cid, iid):
         if row:
             selected_lpo_id = row["id"]
     selected_so_id = None
-    if inv.get("so_no"):
-        row = db.execute("SELECT id FROM customer_service_orders WHERE so_no=? AND customer_id=?", (inv["so_no"], cid)).fetchone()
-        if row:
-            selected_so_id = row["id"]
+    try:
+        if inv["so_no"]:
+            row = db.execute("SELECT id FROM customer_service_orders WHERE so_no=? AND customer_id=?", (inv["so_no"], cid)).fetchone()
+            if row:
+                selected_so_id = row["id"]
+    except (KeyError, AttributeError):
+        pass
     if request.method == "POST":
         inv_date = request.form.get("invoice_date", date.today().isoformat())
         inv_no = request.form.get("invoice_no", "").strip() or inv["invoice_no"]
