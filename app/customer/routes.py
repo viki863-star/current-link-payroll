@@ -142,7 +142,7 @@ def _ensure_tables():
         db.commit()
     except Exception:
         pass
-    for col, dtype in [("lpo_no", "TEXT"), ("lpo_date", "TEXT"), ("project_no", "TEXT"),
+    for col, dtype in [("lpo_no", "TEXT"), ("lpo_date", "TEXT"), ("so_no", "TEXT"), ("project_no", "TEXT"),
                        ("invoice_template", "TEXT DEFAULT 'standard'"), ("discount", "REAL DEFAULT 0"),
                        ("ref_no", "TEXT")]:
         try:
@@ -166,12 +166,7 @@ def _ensure_tables():
             db.execute(f"ALTER TABLE customer_lpos ADD COLUMN {col} {dtype}")
         except Exception:
             pass
-    for col in ["vehicle_no"]:
-        for tbl in ["lpo_items", "customer_so_items", "customer_invoice_items"]:
-            try:
-                db.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} TEXT")
-            except Exception:
-                pass
+
     db.execute("""
         CREATE TABLE IF NOT EXISTS customer_service_orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -480,8 +475,8 @@ def customer_invoice_add(cid):
             (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes))
         inv_id = c_inv.lastrowid
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
-                (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
+            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
+                (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
             if it["desc"]:
                 try:
                     db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
@@ -591,8 +586,8 @@ def customer_invoice_edit(cid, iid):
             (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, iid))
         db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
         for idx, it in enumerate(new_items):
-            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
-                (iid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
+            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
+                (iid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
             if it["desc"]:
                 try:
                     db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
