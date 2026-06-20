@@ -33,20 +33,34 @@
         </form>
     </div>
 
-    <div style="display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap;">
-        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;flex:1;min-width:200px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Cheque Amount</div>
-            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#17345e;">AED {{ "{:,.2f}".format(total_amount) }}</div>
+    {# ═══ SUMMARY CARDS ═══ #}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center">
+            <div style="font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px">Total Cheques</div>
+            <div style="font-size:1.5rem;font-weight:700;margin-top:6px;color:#17345e;">{{ entry_count }}</div>
         </div>
-        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;flex:1;min-width:200px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Cheques</div>
-            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#f7931e;">{{ entry_count }}</div>
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center">
+            <div style="font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px">Supplier Cheques</div>
+            <div style="font-size:1.5rem;font-weight:700;margin-top:6px;color:#2e7d32;">{{ supplier_count }}</div>
         </div>
-        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;flex:1;min-width:200px;display:flex;align-items:flex-end;">
-            <a href="{{ url_for('cheque_report_pdf', month=selected_month, year=selected_year) }}" target="_blank" style="padding:8px 20px;border:0;border-radius:8px;background:#c62828;color:#fff;font-weight:700;text-decoration:none;font-size:.85rem;">Download PDF</a>
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center">
+            <div style="font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px">Customer Cheques</div>
+            <div style="font-size:1.5rem;font-weight:700;margin-top:6px;color:#1565c0;">{{ customer_count }}</div>
+        </div>
+        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center">
+            <div style="font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px">Total Amount</div>
+            <div style="font-size:1.5rem;font-weight:700;margin-top:6px;color:#f7931e;">AED {{ "{:,.2f}".format(total_amount) }}</div>
         </div>
     </div>
 
+    {# ═══ PDF DOWNLOAD BUTTONS ═══ #}
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+        <a href="{{ url_for('cheque_report_pdf', month=selected_month, year=selected_year) }}" target="_blank" style="padding:8px 20px;border:0;border-radius:8px;background:#17345e;color:#fff;font-weight:700;text-decoration:none;font-size:.85rem;">Combined PDF</a>
+        <a href="{{ url_for('cheque_report_supplier_pdf', month=selected_month, year=selected_year) }}" target="_blank" style="padding:8px 20px;border:0;border-radius:8px;background:#2e7d32;color:#fff;font-weight:700;text-decoration:none;font-size:.85rem;">Supplier Cheque PDF</a>
+        <a href="{{ url_for('cheque_report_customer_pdf', month=selected_month, year=selected_year) }}" target="_blank" style="padding:8px 20px;border:0;border-radius:8px;background:#1565c0;color:#fff;font-weight:700;text-decoration:none;font-size:.85rem;">Customer Cheque PDF</a>
+    </div>
+
+    {# ═══ DETAIL TABLE ═══ #}
     <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:700px;">
             <thead>
