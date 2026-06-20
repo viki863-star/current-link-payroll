@@ -6202,6 +6202,342 @@ def register_routes(app: Flask) -> None:
             recent_loans=_loan_rows(db, limit=6),
         )
 
+    @app.get("/cheque-report")
+    @_login_required("admin")
+    def cheque_report():
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        month = request.args.get("month", "")
+        year = request.args.get("year", "")
+        if not year:
+            year = str(datetime.now().year)
+
+        entries = []
+
+        # 1. Supplier payment records (legacy)
+        try:
+            rows = db.execute("""
+                SELECT p.payment_date, p.cheque_number, p.cheque_date, p.amount, p.reference_no, p.notes, p.payment_method, s.supplier_name
+                FROM supplier_payment_records p
+                JOIN suppliers s ON s.id = p.supplier_id
+                WHERE p.payment_method = 'Cheque' AND p.cheque_number IS NOT NULL
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["payment_date"], month, year):
+                    entries.append({
+                        "date": r["payment_date"],
+                        "payee": r["supplier_name"],
+                        "payee_type": "Supplier",
+                        "cheque_no": r["cheque_number"] or "",
+                        "cheque_date": r["cheque_date"] or "",
+                        "amount": float(r["amount"] or 0),
+                        "reference": r["reference_no"] or "",
+                        "notes": r["notes"] or "",
+                    })
+        except Exception:
+            pass
+
+        # 2. Supplier payments (newer system)
+        try:
+            rows = db.execute("""
+                SELECT p.entry_date, p.amount, p.reference, p.notes, p.payment_no, pa.party_name
+                FROM supplier_payments p
+                JOIN parties pa ON pa.party_code = p.party_code
+                WHERE p.payment_method = 'Cheque'
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["entry_date"], month, year):
+                    entries.append({
+                        "date": r["entry_date"],
+                        "payee": r["party_name"],
+                        "payee_type": "Supplier",
+                        "cheque_no": r["reference"] or "",
+                        "cheque_date": "",
+                        "amount": float(r["amount"] or 0),
+                        "reference": r["payment_no"] or "",
+                        "notes": r["notes"] or "",
+                    })
+        except Exception:
+            pass
+
+        # 3. Cash supplier payments
+        try:
+            rows = db.execute("""
+                SELECT c.entry_date, c.amount, c.reference, c.notes, c.payment_no, pa.party_name
+                FROM cash_supplier_payments c
+                JOIN parties pa ON pa.party_code = c.party_code
+                WHERE c.payment_method = 'Cheque'
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["entry_date"], month, year):
+                    entries.append({
+                        "date": r["entry_date"],
+                        "payee": r["party_name"],
+                        "payee_type": "Supplier",
+                        "cheque_no": r["reference"] or "",
+                        "cheque_date": "",
+                        "amount": float(r["amount"] or 0),
+                        "reference": r["payment_no"] or "",
+                        "notes": r["notes"] or "",
+                    })
+        except Exception:
+            pass
+
+        # 4. Account payments
+        try:
+            rows = db.execute("""
+                SELECT a.entry_date, a.amount, a.reference, a.notes, a.payment_kind, a.voucher_no, pa.party_name
+                FROM account_payments a
+                JOIN parties pa ON pa.party_code = a.party_code
+                WHERE a.payment_method = 'Cheque'
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["entry_date"], month, year):
+                    entries.append({
+                        "date": r["entry_date"],
+                        "payee": r["party_name"],
+                        "payee_type": "Account",
+                        "cheque_no": r["reference"] or "",
+                        "cheque_date": "",
+                        "amount": float(r["amount"] or 0),
+                        "reference": r["voucher_no"] or "",
+                        "notes": r["notes"] or "",
+                    })
+        except Exception:
+            pass
+
+        db.close()
+
+        # 5. Customer payments (payroll DB)
+        try:
+            pdb = _open_payroll_db()
+            rows = pdb.execute("""
+                SELECT p.payment_date, p.amount, p.reference_no, p.notes, c.customer_name
+                FROM customer_payments p
+                JOIN customers c ON c.id = p.customer_id
+                WHERE p.payment_method = 'Cheque'
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["payment_date"], month, year):
+                    entries.append({
+                        "date": r["payment_date"],
+                        "payee": r["customer_name"],
+                        "payee_type": "Customer",
+                        "cheque_no": r["reference_no"] or "",
+                        "cheque_date": "",
+                        "amount": float(r["amount"] or 0),
+                        "reference": "",
+                        "notes": r["notes"] or "",
+                    })
+            pdb.close()
+        except Exception:
+            pass
+
+        entries.sort(key=lambda e: e["date"], reverse=True)
+        total_amount = sum(e["amount"] for e in entries)
+
+        months_list = []
+        for i in range(1, 13):
+            months_list.append({"value": str(i), "label": datetime(2000, i, 1).strftime("%B")})
+        years_list = list(range(2020, datetime.now().year + 1))
+
+        return render_template(
+            "cheque_report.html",
+            entries=entries,
+            total_amount=total_amount,
+            entry_count=len(entries),
+            selected_month=month,
+            selected_year=year,
+            months=months_list,
+            years=years_list,
+        )
+
+    @app.get("/cheque-report/export/pdf")
+    @_login_required("admin")
+    def cheque_report_pdf():
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.units import mm
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+        from io import BytesIO
+
+        db = open_db()
+        month = request.args.get("month", "")
+        year = request.args.get("year", "")
+        if not year:
+            year = str(datetime.now().year)
+
+        entries = []
+
+        # 1. Supplier payment records (legacy)
+        try:
+            rows = db.execute("""
+                SELECT p.payment_date, p.cheque_number, p.cheque_date, p.amount, p.reference_no, p.notes, s.supplier_name
+                FROM supplier_payment_records p
+                JOIN suppliers s ON s.id = p.supplier_id
+                WHERE p.payment_method = 'Cheque' AND p.cheque_number IS NOT NULL
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["payment_date"], month, year):
+                    entries.append({
+                        "date": r["payment_date"],
+                        "payee": r["supplier_name"],
+                        "type": "Supplier",
+                        "cheque": r["cheque_number"] or "",
+                        "amount": float(r["amount"] or 0),
+                    })
+        except Exception:
+            pass
+
+        # 2. Supplier payments (newer)
+        try:
+            rows = db.execute("""
+                SELECT p.entry_date, p.amount, p.reference, pa.party_name
+                FROM supplier_payments p
+                JOIN parties pa ON pa.party_code = p.party_code
+                WHERE p.payment_method = 'Cheque'
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["entry_date"], month, year):
+                    entries.append({
+                        "date": r["entry_date"],
+                        "payee": r["party_name"],
+                        "type": "Supplier",
+                        "cheque": r["reference"] or "",
+                        "amount": float(r["amount"] or 0),
+                    })
+        except Exception:
+            pass
+
+        # 3. Cash supplier payments
+        try:
+            rows = db.execute("""
+                SELECT c.entry_date, c.amount, c.reference, pa.party_name
+                FROM cash_supplier_payments c
+                JOIN parties pa ON pa.party_code = c.party_code
+                WHERE c.payment_method = 'Cheque'
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["entry_date"], month, year):
+                    entries.append({
+                        "date": r["entry_date"],
+                        "payee": r["party_name"],
+                        "type": "Supplier",
+                        "cheque": r["reference"] or "",
+                        "amount": float(r["amount"] or 0),
+                    })
+        except Exception:
+            pass
+
+        # 4. Account payments
+        try:
+            rows = db.execute("""
+                SELECT a.entry_date, a.amount, a.reference, pa.party_name
+                FROM account_payments a
+                JOIN parties pa ON pa.party_code = a.party_code
+                WHERE a.payment_method = 'Cheque'
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["entry_date"], month, year):
+                    entries.append({
+                        "date": r["entry_date"],
+                        "payee": r["party_name"],
+                        "type": "Account",
+                        "cheque": r["reference"] or "",
+                        "amount": float(r["amount"] or 0),
+                    })
+        except Exception:
+            pass
+
+        db.close()
+
+        # 5. Customer payments (payroll DB)
+        try:
+            pdb = _open_payroll_db()
+            rows = pdb.execute("""
+                SELECT p.payment_date, p.amount, p.reference_no, c.customer_name
+                FROM customer_payments p
+                JOIN customers c ON c.id = p.customer_id
+                WHERE p.payment_method = 'Cheque'
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["payment_date"], month, year):
+                    entries.append({
+                        "date": r["payment_date"],
+                        "payee": r["customer_name"],
+                        "type": "Customer",
+                        "cheque": r["reference_no"] or "",
+                        "amount": float(r["amount"] or 0),
+                    })
+            pdb.close()
+        except Exception:
+            pass
+
+        entries.sort(key=lambda e: e["date"], reverse=True)
+        total_amount = sum(e["amount"] for e in entries)
+
+        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+
+        buf = BytesIO()
+        LM, RM, TM, BM = 15*mm, 15*mm, 15*mm, 15*mm
+        doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+        W = landscape(A4)[0] - LM - RM
+
+        tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
+        try: TH = colors.HexColor(tc)
+        except: TH = colors.HexColor("#1a3a5c")
+        WH = colors.white; C5 = colors.HexColor("#6b7280")
+        ORG = colors.HexColor("#f7931e")
+
+        def F(name, **kw):
+            kw.setdefault("fontSize", 7); kw.setdefault("leading", 10)
+            return ParagraphStyle(name, **kw)
+
+        els = []
+        cn = company["company_name"] if company else "Cheque Report"
+        els.append(Paragraph(f"<b>{cn}</b>", F("T", fontSize=12, textColor=TH, spaceAfter=2)))
+        period = f"Cheque Report — {month and datetime(2000, int(month), 1).strftime('%B') or 'All'} {year}"
+        els.append(Paragraph(period, F("P", fontSize=7, textColor=C5, spaceAfter=10)))
+        els.append(Spacer(1, 3*mm))
+
+        hdr = ["Date", "Payee", "Type", "Cheque No", "Amount"]
+        data = [hdr]
+        for e in entries:
+            data.append([
+                e["date"] or "—",
+                e["payee"],
+                e["type"],
+                e["cheque"] or "—",
+                f"{e['amount']:,.2f}",
+            ])
+        data.append(["", "", "", "TOTAL", f"{total_amount:,.2f}"])
+
+        col_w = [W*0.12, W*0.38, W*0.12, W*0.18, W*0.20]
+        tbl = Table(data, colWidths=col_w, repeatRows=1)
+        tbl.setStyle(TableStyle([
+            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("FONTSIZE", (0,0), (-1,-1), 7),
+            ("BACKGROUND", (0,0), (-1,0), TH),
+            ("TEXTCOLOR", (0,0), (-1,0), WH),
+            ("ALIGN", (0,0), (-1,-1), "LEFT"),
+            ("ALIGN", (3,0), (-1,-1), "RIGHT"),
+            ("ALIGN", (4,0), (-1,-1), "RIGHT"),
+            ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
+            ("TEXTCOLOR", (4,1), (4,-2), ORG),
+            ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f5f8fe")),
+            ("TOPPADDING", (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+            ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#d8e4f5")),
+        ]))
+        els.append(tbl)
+
+        doc.build(els)
+        buf.seek(0)
+        fn = f"Cheque_Report_{month or 'All'}_{year}.pdf"
+        return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=fn)
+
     @app.route("/technicians", methods=["GET", "POST"])
     @_login_required("admin")
     def technicians():
@@ -18488,3 +18824,19 @@ def _recent_generated_files(folder: Path, prefix: str):
         reverse=True,
     )
     return [f"owner_fund/{item.name}" for item in files[:6]]
+
+
+def _matches_month_year(date_str: str, month: str, year: str) -> bool:
+    if not date_str:
+        return False
+    try:
+        parts = date_str.split("-")
+        if len(parts) >= 2:
+            if month and str(int(parts[1])) != month:
+                return False
+            if year and str(int(parts[0])) != year:
+                return False
+            return True
+    except (ValueError, IndexError):
+        pass
+    return False
