@@ -3,242 +3,414 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Company Profile — {{ cp.company_name if cp else 'Current Link Transport & General Contracting LLC SPC' }}</title>
-    <meta name="theme-color" content="{{ cp.theme_color or '#0F2B52' }}">
+    <title>{{ cp.company_name if cp else 'Current Link Transport &amp; General Contracting LLC SPC' }} — Premium Heavy Equipment &amp; Transport Solutions UAE</title>
+    <meta name="description" content="{{ cp.company_name if cp else 'Current Link Transport & General Contracting LLC SPC' }} — UAE's trusted heavy equipment, water tanker, crane, forklift, trailer, grader &amp; excavator rental company. 50+ fleet units. 24/7 support. Licensed SPC.">
+    <meta name="keywords" content="heavy equipment rental UAE, water tanker Abu Dhabi, crane rental, forklift rental, trailer rental, grader rental, excavator rental, construction equipment UAE, Current Link Transport, Mussaffah heavy equipment">
+    <meta name="theme-color" content="{{ cp.theme_color or '#0a1628' }}">
+    <meta property="og:title" content="{{ cp.company_name if cp else 'Current Link Transport & General Contracting LLC SPC' }} — Heavy Equipment &amp; Transport Solutions">
+    <meta property="og:description" content="UAE's trusted heavy equipment, water tanker, crane, forklift, trailer, grader &amp; excavator rental company. 50+ fleet units. Licensed SPC.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.currentlinkgc.com/company-profile">
+    {% if cp and cp.logo_data %}
+    <meta property="og:image" content="data:{{ cp.logo_type or 'image/png' }};base64,{{ cp.logo_data }}">
+    {% else %}
+    <meta property="og:image" content="{{ url_for('static', filename='logo.png', _external=True) }}">
+    {% endif %}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ cp.company_name if cp else 'Current Link Transport & General Contracting LLC SPC' }}">
+    <meta name="twitter:description" content="UAE's trusted heavy equipment rental company. 50+ fleet units. 24/7 support.">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "{{ cp.company_name if cp else 'Current Link Transport & General Contracting LLC SPC' }}",
+      "legalName": "{{ cp.legal_name or 'Current Link Transport & General Contracting LLC SPC' }}",
+      "url": "https://www.currentlinkgc.com",
+      "logo": "{{ url_for('static', filename='logo.png', _external=True) }}",
+      "description": "Heavy equipment, water tanker, crane, forklift, trailer, grader and excavator rental company serving UAE.",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Confident property building, Behind Aramex, First Floor, B-Block - office 102, M9",
+        "addressLocality": "Mussaffah",
+        "addressRegion": "Abu Dhabi",
+        "addressCountry": "AE"
+      },
+      "contactPoint": [
+        {
+          "@type": "ContactPoint",
+          "telephone": "+971-{{ cp.phone_number or '501224963' }}",
+          "contactType": "sales",
+          "availableLanguage": ["English", "Arabic", "Urdu"]
+        }
+      ],
+      "sameAs": [
+        "https://www.currentlinkgc.com"
+      ],
+      "foundingDate": "2015",
+      "areaServed": "AE"
+    }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="icon" href="{{ url_for('static', filename='icon-192.svg') }}">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-html { scroll-behavior:smooth; }
-body { font-family:'Inter',sans-serif; background:#fff; color:#1a2332; -webkit-font-smoothing:antialiased; }
-img { max-width:100%; display:block; }
-a { text-decoration:none; color:inherit; }
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#060d1a;color:#e8edf5;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden;line-height:1.6}
+img{max-width:100%;display:block}
+a{text-decoration:none;color:inherit}
+ul{list-style:none}
 
-/* ── NAV ── */
-.cp-nav { position:fixed; top:0; left:0; right:0; z-index:100; padding:10px 24px; display:flex; align-items:center; gap:12px; background:rgba(15,43,82,0.92); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.06); }
-{% if cp and cp.theme_color %}.cp-nav { background:{{ cp.theme_color }}e8; }
-.cp-cover { background:linear-gradient(160deg,{{ cp.theme_color }} 0%,{{ cp.theme_color }}cc 40%,{{ cp.theme_color }}99 100%); }
-.cp-section-dark { background:linear-gradient(160deg,{{ cp.theme_color }},{{ cp.theme_color }}cc); }
-.cp-service-page { background:linear-gradient(135deg,{{ cp.theme_color }},{{ cp.theme_color }}cc) !important; }
-.cp-footer { background:{{ cp.theme_color }}; }
-{% endif %}
-.cp-nav-logo { display:flex; align-items:center; gap:10px; }
-.cp-nav-video { width:36px; height:36px; border-radius:10px; object-fit:cover; border:2px solid rgba(247,147,30,0.35); }
-.cp-nav-name { font-size:1rem; font-weight:800; color:#fff; letter-spacing:-0.3px; }
-.cp-nav-orange { color:#F7931E; }
-.cp-nav-links { margin-left:auto; display:flex; gap:8px; }
-.cp-nav-links a { padding:6px 14px; border-radius:8px; font-size:0.72rem; font-weight:600; color:rgba(255,255,255,0.7); transition:all 0.15s; }
-.cp-nav-links a:hover { background:rgba(255,255,255,0.06); color:#fff; }
-
-/* ── COVER / LANDING ── */
-.cp-cover { min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; background:linear-gradient(160deg,#091e3b 0%,#0F2B52 40%,#1a3d6e 100%); position:relative; overflow:hidden; padding:60px 20px; }
-.cp-cover::before { content:''; position:absolute; inset:0; background-image:radial-gradient(rgba(255,255,255,0.025) 1px,transparent 1px); background-size:28px 28px; }
-.cp-cover-glow1 { position:absolute; width:600px; height:600px; border-radius:50%; background:radial-gradient(circle,rgba(247,147,30,0.08),transparent 70%); top:-250px; right:-150px; }
-.cp-cover-glow2 { position:absolute; width:500px; height:500px; border-radius:50%; background:radial-gradient(circle,rgba(247,147,30,0.05),transparent 70%); bottom:-200px; left:-120px; }
-.cp-cover-content { position:relative; z-index:2; max-width:900px; }
-
-.cp-cover-profile-card { display:inline-block; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:24px; padding:40px 60px 36px; backdrop-filter:blur(6px); margin-bottom:20px; }
-.cp-cover-logo-wrap { width:120px; height:120px; margin:0 auto 20px; border-radius:20px; overflow:hidden; border:3px solid rgba(247,147,30,0.3); box-shadow:0 0 60px rgba(247,147,30,0.12); }
-.cp-cover-logo-wrap video { width:100%; height:100%; object-fit:cover; }
-.cp-cover-eyebrow { display:inline-block; padding:5px 20px; border-radius:20px; background:rgba(247,147,30,0.1); color:#fbb259; font-size:0.6rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; border:1px solid rgba(247,147,30,0.15); margin-bottom:12px; }
-.cp-cover-title { font-family:'Playfair Display',serif; font-size:3.8rem; font-weight:700; color:#fff; margin:0 0 4px; letter-spacing:-1.5px; line-height:1.05; }
-.cp-cover-sub { font-size:0.9rem; color:rgba(255,255,255,0.5); font-weight:300; letter-spacing:3px; text-transform:uppercase; margin-bottom:2px; }
-.cp-cover-legal { font-size:0.65rem; color:rgba(255,255,255,0.25); margin-top:2px; letter-spacing:1px; }
-.cp-cover-divider { width:50px; height:2px; background:linear-gradient(90deg,#F7931E,#f5a83a); margin:16px auto; border-radius:2px; }
-.cp-cover-desc { color:rgba(255,255,255,0.45); font-size:0.85rem; font-weight:300; max-width:600px; margin:0 auto; line-height:1.6; }
-
-.cp-cover-tagline { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:20px; }
-.cp-cover-tagline span { padding:5px 16px; border-radius:14px; font-size:0.68rem; font-weight:500; background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.5); border:1px solid rgba(255,255,255,0.06); letter-spacing:0.5px; }
-
-.cp-cover-scroll { position:absolute; bottom:28px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,0.2); font-size:0.6rem; letter-spacing:2px; text-transform:uppercase; z-index:2; display:flex; flex-direction:column; align-items:center; gap:6px; }
-
-/* ── SECTION COMMON ── */
-.cp-section { padding:70px 8%; position:relative; }
-.cp-section-dark { background:linear-gradient(160deg,#091e3b,#0F2B52); color:#fff; }
-.cp-section-cream { background:#f8f6f2; }
-.cp-section-white { background:#fff; }
-.cp-section-center { text-align:center; }
-.cp-eyebrow { display:inline-block; padding:3px 14px; border-radius:20px; font-size:0.6rem; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:10px; }
-.cp-eyebrow-orange { background:rgba(247,147,30,0.1); color:#F7931E; }
-.cp-eyebrow-white { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.75); }
-.cp-heading { font-family:'Playfair Display',serif; font-size:2.2rem; font-weight:700; margin:0 0 14px; line-height:1.2; }
-.cp-heading.light { color:#fff; }
-.cp-text { font-size:0.9rem; line-height:1.7; color:#6b7a8f; max-width:680px; }
-.cp-text.light { color:rgba(255,255,255,0.6); }
-.cp-text-center { margin:0 auto; }
-
-/* ── ABOUT ── */
-.cp-about-split { display:grid; grid-template-columns:1fr 1fr; gap:50px; align-items:center; }
-.cp-about-stats { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.cp-about-stat { background:#fff; border:1px solid rgba(21,51,93,0.06); border-radius:14px; padding:24px 16px; text-align:center; }
-.cp-about-stat.dark { background:rgba(15,43,82,0.04); border:none; }
-.cp-about-num { font-size:1.8rem; font-weight:800; margin:0; }
-.cp-about-num.orange { color:#F7931E; }
-.cp-about-stat.dark .cp-about-num { color:#0F2B52; }
-.cp-about-lbl { font-size:0.65rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; }
-.cp-about-lbl.orange { color:#F7931E; }
-.cp-features { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
-.cp-feat { padding:5px 14px; border-radius:8px; font-size:0.72rem; font-weight:600; color:#0F2B52; background:#fff; border:1px solid rgba(21,51,93,0.08); display:flex; align-items:center; gap:5px; }
-.cp-about-sectors { margin-top:16px; }
-.cp-about-sector { display:flex; align-items:center; gap:10px; padding:8px 14px; background:#fff; border-radius:10px; margin-bottom:6px; border:1px solid rgba(21,51,93,0.04); font-size:0.78rem; font-weight:500; color:#1a2332; }
-.cp-about-sector svg { flex-shrink:0; }
-
-/* ── MISSION / VISION / VALUES ── */
-.cp-mv-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-top:24px; }
-.cp-mv-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:16px; padding:28px 22px; text-align:center; }
-.cp-mv-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
-.cp-mv-title { font-size:0.95rem; font-weight:700; color:#fff; margin:0 0 6px; }
-.cp-mv-text { font-size:0.78rem; color:rgba(255,255,255,0.55); line-height:1.6; }
-.cp-mv-text strong { color:rgba(255,255,255,0.85); }
-
-/* ── SERVICE PAGE ── */
-.cp-service-page { min-height:100vh; display:flex; align-items:center; position:relative; overflow:hidden; padding:80px 8%; }
-.cp-service-bg { position:absolute; inset:0; background-size:cover; background-position:center; }
-.cp-service-bg::after { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(9,30,59,0.88) 30%,rgba(15,43,82,0.7) 60%,rgba(0,0,0,0.3) 100%); }
-.cp-service-overlay { position:relative; z-index:2; max-width:700px; color:#fff; }
-.cp-service-num { font-size:0.65rem; font-weight:600; color:rgba(247,147,30,0.7); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
-.cp-service-name-lg { font-family:'Playfair Display',serif; font-size:3rem; font-weight:700; margin:0 0 8px; line-height:1.1; }
-.cp-service-sub { font-size:0.85rem; color:rgba(255,255,255,0.55); margin-bottom:16px; font-weight:300; }
-.cp-service-desc-lg { font-size:0.9rem; line-height:1.7; color:rgba(255,255,255,0.65); max-width:600px; }
-.cp-service-tags-lg { display:flex; flex-wrap:wrap; gap:6px; margin-top:16px; }
-.cp-service-tag-lg { padding:4px 14px; border-radius:14px; font-size:0.7rem; font-weight:600; background:rgba(247,147,30,0.1); color:#fbb259; border:1px solid rgba(247,147,30,0.15); }
-
-/* ── OUR FLEET ── */
-.cp-fleet-intro { text-align:center; max-width:700px; margin:0 auto 36px; }
-.cp-fleet-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; }
-.cp-fleet-card { background:#fff; border:1px solid rgba(21,51,93,0.06); border-radius:16px; padding:24px 20px; text-align:center; transition:box-shadow 0.2s; }
-.cp-fleet-card:hover { box-shadow:0 8px 24px rgba(21,51,93,0.06); }
-.cp-fleet-icon { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
-.cp-fleet-name { font-size:0.9rem; font-weight:700; color:#0F2B52; margin:0 0 2px; }
-.cp-fleet-spec { font-size:0.7rem; color:#7a8aa3; font-weight:500; margin-bottom:10px; }
-.cp-fleet-list { text-align:left; list-style:none; margin-top:8px; }
-.cp-fleet-list li { padding:3px 0; font-size:0.72rem; color:#4a5a73; display:flex; align-items:center; gap:6px; }
-.cp-fleet-list li::before { content:''; width:4px; height:4px; border-radius:50%; background:#F7931E; flex-shrink:0; }
-.cp-fleet-footer { text-align:center; margin-top:28px; font-size:0.8rem; color:#7a8aa3; font-weight:500; }
-.cp-fleet-footer span { color:#F7931E; }
-
-/* ── WHY CHOOSE US / QUALITY ── */
-.cp-why-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-top:24px; }
-.cp-why-card { background:#fff; border:1px solid rgba(21,51,93,0.06); border-radius:16px; padding:28px 22px; text-align:center; }
-.cp-why-card.dark { background:rgba(255,255,255,0.03); border-color:rgba(255,255,255,0.06); }
-.cp-why-card.dark .cp-why-text { color:rgba(255,255,255,0.55); }
-.cp-why-icon { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
-.cp-why-title { font-size:0.9rem; font-weight:700; color:#0F2B52; margin:0 0 6px; }
-.cp-why-card.dark .cp-why-title { color:#fff; }
-.cp-why-text { font-size:0.76rem; line-height:1.6; color:#6b7a8f; }
-
-.cp-why-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:28px; }
-.cp-why-item { text-align:center; padding:16px 10px; background:rgba(247,147,30,0.04); border-radius:12px; border:1px solid rgba(247,147,30,0.08); }
-.cp-why-num { font-size:1.4rem; font-weight:800; color:#F7931E; margin:0; }
-.cp-why-item-label { font-size:0.6rem; font-weight:600; color:#6b7a8f; text-transform:uppercase; letter-spacing:0.3px; margin-top:2px; }
-
-.cp-service-areas { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:18px; }
-.cp-service-area { padding:5px 16px; border-radius:14px; font-size:0.72rem; font-weight:500; color:#0F2B52; background:rgba(247,147,30,0.06); border:1px solid rgba(247,147,30,0.1); }
-
-/* ── MANAGEMENT ── */
-.cp-team { display:grid; grid-template-columns:1fr 1fr; gap:30px; max-width:650px; margin:28px auto 0; }
-.cp-team-card { text-align:center; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:18px; padding:28px 20px 22px; }
-.cp-team-img { width:110px; height:110px; border-radius:50%; object-fit:cover; margin:0 auto 14px; border:3px solid rgba(247,147,30,0.2); }
-.cp-team-name { font-size:1rem; font-weight:700; color:#fff; margin:0; }
-.cp-team-role { font-size:0.78rem; color:#F7931E; font-weight:500; margin-top:2px; }
-.cp-team-bio { font-size:0.72rem; color:rgba(255,255,255,0.4); margin-top:8px; }
-
-/* ── CLIENTS ── */
-.cp-clients { display:flex; flex-wrap:wrap; justify-content:center; gap:24px; margin-top:24px; }
-.cp-client-logo { height:45px; width:auto; object-fit:contain; opacity:0.5; filter:grayscale(1); transition:all 0.2s; }
-.cp-client-logo:hover { opacity:1; filter:grayscale(0); }
-.cp-certs { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:28px; }
-.cp-cert { background:#fff; border:1px solid rgba(21,51,93,0.06); border-radius:12px; padding:10px 16px; font-size:0.74rem; font-weight:600; color:#0F2B52; display:flex; align-items:center; gap:8px; }
-
-/* ── CONTACT ── */
-.cp-contact-grid { display:grid; grid-template-columns:1fr 1fr; gap:30px; margin-top:24px; }
-.cp-contact-item { display:flex; gap:12px; align-items:flex-start; margin-bottom:16px; }
-.cp-contact-icon { width:36px; height:36px; border-radius:10px; background:rgba(247,147,30,0.08); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.cp-contact-lbl { font-size:0.62rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.5px; }
-.cp-contact-val { font-size:0.85rem; font-weight:500; color:#1a2332; }
-.cp-contact-val a { color:#0F2B52; text-decoration:none; transition:color 0.15s; }
-.cp-contact-val a:hover { color:#F7931E; }
-
-/* ── FOOTER ── */
-.cp-footer { text-align:center; padding:24px; background:#091e3b; color:rgba(255,255,255,0.25); font-size:0.65rem; letter-spacing:0.5px; }
-
-/* ── RESPONSIVE ── */
-@media (max-width:768px) {
-  .cp-cover-title { font-size:2.4rem; }
-  .cp-cover-profile-card { padding:28px 20px; }
-  .cp-about-split { grid-template-columns:1fr; gap:30px; }
-  .cp-mv-grid { grid-template-columns:1fr; }
-  .cp-fleet-grid { grid-template-columns:1fr; }
-  .cp-why-grid { grid-template-columns:1fr; }
-  .cp-why-strip { grid-template-columns:1fr 1fr; }
-  .cp-team { grid-template-columns:1fr; }
-  .cp-contact-grid { grid-template-columns:1fr; }
-  .cp-service-name-lg { font-size:2rem; }
+:root{
+  --primary:{{ cp.theme_color or '#0a1628' }};
+  --accent:#F7931E;
+  --accent2:#f5a83a;
+  --accent-glow:rgba(247,147,30,0.15);
+  --glass:rgba(255,255,255,0.04);
+  --glass-border:rgba(255,255,255,0.06);
+  --text-primary:#e8edf5;
+  --text-secondary:rgba(232,237,245,0.55);
+  --text-muted:rgba(232,237,245,0.25);
+  --radius:16px;
+  --radius-sm:10px;
+  --radius-lg:24px;
+  --transition:0.4s cubic-bezier(0.22,1,0.36,1);
 }
 
-@media print {
-  .cp-nav { display:none; }
-  .cp-cover { min-height:100vh; }
-  .cp-section { padding:50px 6%; }
-  .cp-service-page { min-height:80vh; padding:60px 6%; }
-  .cp-fleet-grid { grid-template-columns:1fr 1fr; }
-  .cp-why-grid { grid-template-columns:1fr 1fr; }
-  .cp-why-strip { grid-template-columns:repeat(4,1fr); }
+/* ── PARTICLES ── */
+#particles-canvas{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.4}
+
+/* ── NAV ── */
+.cp-nav{position:fixed;top:0;left:0;right:0;z-index:1000;padding:12px 32px;display:flex;align-items:center;gap:14px;background:rgba(6,13,26,0.6);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);border-bottom:1px solid rgba(255,255,255,0.04);transition:var(--transition)}
+.cp-nav.scrolled{background:rgba(6,13,26,0.92);backdrop-filter:blur(28px) saturate(1.6);-webkit-backdrop-filter:blur(28px) saturate(1.6);border-bottom-color:rgba(247,147,30,0.08);box-shadow:0 4px 40px rgba(0,0,0,0.3)}
+.cp-nav-logo{display:flex;align-items:center;gap:12px;position:relative;z-index:2}
+.cp-nav-media{width:38px;height:38px;border-radius:12px;object-fit:cover;border:2px solid rgba(247,147,30,0.25);transition:var(--transition);box-shadow:0 0 20px rgba(247,147,30,0.08)}
+.cp-nav.scrolled .cp-nav-media{border-color:rgba(247,147,30,0.4);box-shadow:0 0 30px rgba(247,147,30,0.12)}
+.cp-nav-name{font-size:0.95rem;font-weight:800;color:#fff;letter-spacing:-0.3px}
+.cp-nav-accent{color:var(--accent)}
+.cp-nav-links{margin-left:auto;display:flex;gap:4px;align-items:center}
+.cp-nav-links a{padding:7px 16px;border-radius:var(--radius-sm);font-size:0.72rem;font-weight:600;color:var(--text-secondary);transition:var(--transition);position:relative;letter-spacing:0.3px}
+.cp-nav-links a:hover{color:#fff;background:var(--glass)}
+.cp-nav-links a::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:0;height:2px;background:var(--accent);border-radius:2px;transition:var(--transition)}
+.cp-nav-links a:hover::after{width:60%}
+.cp-nav-cta{background:var(--accent)!important;color:#060d1a!important;padding:7px 20px!important;font-weight:700!important;border-radius:var(--radius-sm)!important}
+.cp-nav-cta:hover{background:var(--accent2)!important;color:#060d1a!important}
+.cp-nav-cta::after{display:none!important}
+
+/* ── HERO ── */
+.cp-hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden;padding:100px 20px 60px}
+.cp-hero-bg{position:absolute;inset:0;background:linear-gradient(160deg,#060d1a 0%,var(--primary) 40%,#0f1f3d 70%,#060d1a 100%);z-index:0}
+.cp-hero-bg::before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,0.03) 1px,transparent 1px);background-size:32px 32px}
+.cp-hero-gradient{position:absolute;inset:0;z-index:0;background:radial-gradient(ellipse at 30% 50%,rgba(247,147,30,0.06) 0%,transparent 50%),radial-gradient(ellipse at 70% 30%,rgba(247,147,30,0.04) 0%,transparent 50%),radial-gradient(ellipse at 50% 80%,rgba(247,147,30,0.03) 0%,transparent 40%);animation:heroGlow 8s ease-in-out infinite alternate}
+@keyframes heroGlow{0%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}100%{opacity:0.6;transform:scale(1)}}
+.cp-hero-orb{position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(247,147,30,0.04),transparent 60%);top:-300px;right:-200px;animation:orbFloat 12s ease-in-out infinite alternate;z-index:0}
+.cp-hero-orb2{position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(247,147,30,0.03),transparent 60%);bottom:-200px;left:-150px;animation:orbFloat 10s ease-in-out infinite alternate-reverse;z-index:0}
+@keyframes orbFloat{0%{transform:translate(0,0) scale(1)}100%{transform:translate(40px,-30px) scale(1.08)}}
+.cp-hero-content{position:relative;z-index:2;max-width:920px}
+
+.cp-hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 18px 6px 8px;border-radius:100px;background:var(--glass);border:1px solid var(--glass-border);font-size:0.65rem;font-weight:500;color:var(--text-secondary);letter-spacing:0.5px;margin-bottom:20px;backdrop-filter:blur(10px)}
+.cp-hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(247,147,30,0.4)}50%{opacity:0.6;box-shadow:0 0 0 6px rgba(247,147,30,0)}}
+
+.cp-hero-card{display:inline-block;background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:44px 56px 38px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);margin-bottom:16px;position:relative;overflow:hidden}
+.cp-hero-card::before{content:'';position:absolute;inset:0;border-radius:var(--radius-lg);padding:1px;background:linear-gradient(135deg,rgba(247,147,30,0.15),transparent 40%,transparent 60%,rgba(247,147,30,0.08));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.cp-hero-logo-wrap{width:110px;height:110px;margin:0 auto 18px;border-radius:20px;overflow:hidden;border:3px solid rgba(247,147,30,0.2);box-shadow:0 0 60px rgba(247,147,30,0.08),0 0 120px rgba(247,147,30,0.04);transition:var(--transition)}
+.cp-hero-logo-wrap:hover{transform:scale(1.03);border-color:rgba(247,147,30,0.35);box-shadow:0 0 80px rgba(247,147,30,0.12)}
+.cp-hero-logo-wrap video,.cp-hero-logo-wrap img{width:100%;height:100%;object-fit:cover}
+.cp-hero-eyebrow{display:inline-block;padding:4px 18px;border-radius:100px;background:rgba(247,147,30,0.08);color:var(--accent);font-size:0.6rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;border:1px solid rgba(247,147,30,0.1);margin-bottom:10px}
+.cp-hero-title{font-family:'Playfair Display',serif;font-size:4rem;font-weight:700;color:#fff;margin:0 0 2px;letter-spacing:-2px;line-height:1.02}
+.cp-hero-title span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.cp-hero-sub{font-size:0.85rem;color:var(--text-secondary);font-weight:300;letter-spacing:3px;text-transform:uppercase;margin-bottom:2px}
+.cp-hero-legal{font-size:0.6rem;color:var(--text-muted);margin-top:2px;letter-spacing:1px;font-family:'JetBrains Mono',monospace;font-weight:400}
+.cp-hero-divider{width:40px;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));margin:14px auto;border-radius:2px}
+.cp-hero-desc{color:var(--text-secondary);font-size:0.85rem;font-weight:300;max-width:600px;margin:0 auto;line-height:1.7}
+
+.cp-hero-tags{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px}
+.cp-hero-tags span{padding:4px 14px;border-radius:100px;font-size:0.65rem;font-weight:500;background:var(--glass);color:var(--text-secondary);border:1px solid var(--glass-border);letter-spacing:0.3px;transition:var(--transition)}
+.cp-hero-tags span:hover{background:rgba(247,147,30,0.08);border-color:rgba(247,147,30,0.15);color:var(--accent)}
+
+.cp-hero-actions{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:22px}
+.cp-hero-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:var(--radius-sm);font-size:0.78rem;font-weight:700;letter-spacing:0.3px;transition:var(--transition);cursor:pointer;border:none}
+.cp-hero-btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#060d1a}
+.cp-hero-btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(247,147,30,0.25)}
+.cp-hero-btn-secondary{background:var(--glass);border:1px solid var(--glass-border);color:#fff;backdrop-filter:blur(10px)}
+.cp-hero-btn-secondary:hover{background:rgba(255,255,255,0.06);transform:translateY(-2px)}
+
+.cp-hero-scroll{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:2;display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text-muted);font-size:0.55rem;letter-spacing:2px;text-transform:uppercase}
+.cp-hero-scroll-line{width:1px;height:30px;background:linear-gradient(to bottom,var(--accent),transparent);animation:scrollLine 2s ease-in-out infinite}
+@keyframes scrollLine{0%{opacity:0.2;transform:scaleY(0.3)}50%{opacity:1;transform:scaleY(1)}100%{opacity:0.2;transform:scaleY(0.3)}}
+
+/* ── SECTION BASE ── */
+.cp-section{padding:90px 8%;position:relative}
+.cp-section-dark{background:linear-gradient(180deg,#060d1a 0%,var(--primary) 100%);color:#fff}
+.cp-section-light{background:#0a1428;color:#fff}
+.cp-section-center{text-align:center}
+.cp-eyebrow{display:inline-block;padding:4px 16px;border-radius:100px;font-size:0.6rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px}
+.cp-eyebrow-accent{background:rgba(247,147,30,0.08);color:var(--accent);border:1px solid rgba(247,147,30,0.1)}
+.cp-eyebrow-light{background:var(--glass);color:var(--text-secondary);border:1px solid var(--glass-border)}
+.cp-heading{font-family:'Playfair Display',serif;font-size:2.6rem;font-weight:700;margin:0 0 14px;line-height:1.15;letter-spacing:-0.5px}
+.cp-heading.light{color:#fff}
+.cp-heading span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.cp-text{font-size:0.9rem;line-height:1.8;color:var(--text-secondary);max-width:680px}
+.cp-text.light{color:var(--text-secondary)}
+.cp-text-center{margin:0 auto}
+
+/* ── REVEAL ANIMATIONS ── */
+.reveal{opacity:0;transform:translateY(40px);transition:opacity 0.8s cubic-bezier(0.22,1,0.36,1),transform 0.8s cubic-bezier(0.22,1,0.36,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:0.1s}
+.reveal-delay-2{transition-delay:0.2s}
+.reveal-delay-3{transition-delay:0.3s}
+.reveal-delay-4{transition-delay:0.4s}
+
+/* ── ABOUT ── */
+.cp-about-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+.cp-about-text-content{max-width:540px}
+.cp-about-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.cp-about-stat{background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius);padding:28px 20px;text-align:center;transition:var(--transition);position:relative;overflow:hidden}
+.cp-about-stat:hover{transform:translateY(-4px);border-color:rgba(247,147,30,0.1);box-shadow:0 8px 30px rgba(0,0,0,0.2)}
+.cp-about-stat::before{content:'';position:absolute;inset:0;border-radius:var(--radius);padding:1px;background:linear-gradient(135deg,rgba(247,147,30,0.08),transparent 50%,rgba(247,147,30,0.04));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.cp-about-num{font-size:2.2rem;font-weight:800;margin:0;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1}
+.cp-about-lbl{font-size:0.65rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-top:6px}
+.cp-about-stat-white .cp-about-num{background:linear-gradient(135deg,#fff,#b0b8c5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.cp-about-features{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.cp-about-feat{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:0.7rem;font-weight:600;background:var(--glass);border:1px solid var(--glass-border);color:var(--text-secondary);transition:var(--transition)}
+.cp-about-feat:hover{background:rgba(247,147,30,0.06);border-color:rgba(247,147,30,0.1);color:var(--accent)}
+.cp-about-feat svg{flex-shrink:0}
+.cp-about-sectors{margin-top:16px}
+.cp-about-sector{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--glass);border-radius:var(--radius-sm);margin-bottom:6px;border:1px solid var(--glass-border);font-size:0.78rem;font-weight:500;color:var(--text-primary);transition:var(--transition)}
+.cp-about-sector:hover{border-color:rgba(247,147,30,0.1);transform:translateX(4px)}
+.cp-about-sector svg{flex-shrink:0}
+
+/* ── MISSION / VISION / VALUES ── */
+.cp-mv-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:28px}
+.cp-mv-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius);padding:32px 24px;text-align:center;transition:var(--transition);position:relative;overflow:hidden}
+.cp-mv-card:hover{transform:translateY(-6px);border-color:rgba(247,147,30,0.1);box-shadow:0 12px 40px rgba(0,0,0,0.3)}
+.cp-mv-card::before{content:'';position:absolute;inset:0;border-radius:var(--radius);padding:1px;background:linear-gradient(135deg,rgba(247,147,30,0.1),transparent 50%,rgba(247,147,30,0.05));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.cp-mv-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;transition:var(--transition)}
+.cp-mv-card:hover .cp-mv-icon{transform:scale(1.1)}
+.cp-mv-title{font-size:1rem;font-weight:700;color:#fff;margin:0 0 8px;letter-spacing:-0.2px}
+.cp-mv-text{font-size:0.78rem;color:var(--text-secondary);line-height:1.7}
+.cp-mv-text strong{color:rgba(232,237,245,0.85)}
+
+/* ── SERVICES ── */
+.cp-services-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:28px}
+.cp-service-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius);padding:30px 24px;text-align:center;transition:var(--transition);position:relative;overflow:hidden;cursor:default}
+.cp-service-card:hover{transform:translateY(-8px);border-color:rgba(247,147,30,0.12);box-shadow:0 16px 48px rgba(0,0,0,0.3)}
+.cp-service-card::before{content:'';position:absolute;inset:0;border-radius:var(--radius);padding:1px;background:linear-gradient(135deg,rgba(247,147,30,0.08),transparent 50%,rgba(247,147,30,0.04));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.cp-service-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:0;transition:var(--transition);border-radius:var(--radius) var(--radius) 0 0}
+.cp-service-card:hover::after{opacity:1}
+.cp-service-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;transition:var(--transition)}
+.cp-service-card:hover .cp-service-icon{transform:scale(1.08)}
+.cp-service-num{font-size:0.6rem;font-weight:600;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
+.cp-service-name{font-size:1rem;font-weight:700;color:#fff;margin:0 0 4px;letter-spacing:-0.2px}
+.cp-service-sub{font-size:0.7rem;color:var(--accent);font-weight:500;margin-bottom:10px}
+.cp-service-desc{font-size:0.75rem;color:var(--text-secondary);line-height:1.7;margin-bottom:12px}
+.cp-service-tags{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.cp-service-tag{padding:3px 12px;border-radius:100px;font-size:0.6rem;font-weight:500;background:rgba(247,147,30,0.06);color:var(--accent);border:1px solid rgba(247,147,30,0.08)}
+
+/* ── FLEET ── */
+.cp-fleet-header{text-align:center;max-width:700px;margin:0 auto 36px}
+.cp-fleet-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+.cp-fleet-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius);padding:26px 22px;text-align:center;transition:var(--transition);position:relative;overflow:hidden}
+.cp-fleet-card:hover{transform:translateY(-6px);border-color:rgba(247,147,30,0.1);box-shadow:0 12px 40px rgba(0,0,0,0.25)}
+.cp-fleet-card::before{content:'';position:absolute;inset:0;border-radius:var(--radius);padding:1px;background:linear-gradient(135deg,rgba(247,147,30,0.06),transparent 50%,rgba(247,147,30,0.03));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.cp-fleet-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.cp-fleet-name{font-size:0.9rem;font-weight:700;color:#fff;margin:0 0 2px}
+.cp-fleet-spec{font-size:0.7rem;color:var(--accent);font-weight:500;margin-bottom:10px}
+.cp-fleet-list{text-align:left;margin-top:8px}
+.cp-fleet-list li{padding:5px 0;font-size:0.72rem;color:var(--text-secondary);display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.03)}
+.cp-fleet-list li:last-child{border-bottom:none}
+.cp-fleet-list li::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0;opacity:0.6}
+.cp-fleet-footer{text-align:center;margin-top:28px;font-size:0.8rem;color:var(--text-secondary);font-weight:500}
+.cp-fleet-footer span{color:var(--accent);font-weight:700}
+
+/* ── WHY CHOOSE US ── */
+.cp-why-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:28px}
+.cp-why-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius);padding:30px 24px;text-align:center;transition:var(--transition);position:relative;overflow:hidden}
+.cp-why-card:hover{transform:translateY(-6px);border-color:rgba(247,147,30,0.1);box-shadow:0 12px 40px rgba(0,0,0,0.25)}
+.cp-why-card::before{content:'';position:absolute;inset:0;border-radius:var(--radius);padding:1px;background:linear-gradient(135deg,rgba(247,147,30,0.06),transparent 50%,rgba(247,147,30,0.03));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.cp-why-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;transition:var(--transition)}
+.cp-why-card:hover .cp-why-icon{transform:scale(1.08)}
+.cp-why-title{font-size:0.9rem;font-weight:700;color:#fff;margin:0 0 6px}
+.cp-why-text{font-size:0.76rem;line-height:1.7;color:var(--text-secondary)}
+
+.cp-why-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:28px;max-width:800px;margin-left:auto;margin-right:auto}
+.cp-why-item{text-align:center;padding:20px 10px;background:var(--glass);border-radius:var(--radius);border:1px solid var(--glass-border);transition:var(--transition)}
+.cp-why-item:hover{transform:translateY(-4px);border-color:rgba(247,147,30,0.1)}
+.cp-why-num{font-size:1.6rem;font-weight:800;margin:0;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1}
+.cp-why-item-label{font-size:0.6rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.3px;margin-top:4px}
+
+.cp-service-areas{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}
+.cp-service-area{padding:5px 16px;border-radius:100px;font-size:0.7rem;font-weight:500;color:var(--text-secondary);background:var(--glass);border:1px solid var(--glass-border);transition:var(--transition)}
+.cp-service-area:hover{background:rgba(247,147,30,0.06);border-color:rgba(247,147,30,0.1);color:var(--accent)}
+
+/* ── TEAM ── */
+.cp-team-grid{display:grid;grid-template-columns:1fr 1fr;gap:30px;max-width:650px;margin:28px auto 0}
+.cp-team-card{text-align:center;background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:32px 24px 26px;transition:var(--transition);position:relative;overflow:hidden}
+.cp-team-card:hover{transform:translateY(-6px);border-color:rgba(247,147,30,0.1);box-shadow:0 12px 40px rgba(0,0,0,0.25)}
+.cp-team-card::before{content:'';position:absolute;inset:0;border-radius:var(--radius-lg);padding:1px;background:linear-gradient(135deg,rgba(247,147,30,0.08),transparent 50%,rgba(247,147,30,0.04));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.cp-team-img{width:110px;height:110px;border-radius:50%;object-fit:cover;margin:0 auto 16px;border:3px solid rgba(247,147,30,0.15);box-shadow:0 0 40px rgba(247,147,30,0.06);transition:var(--transition)}
+.cp-team-card:hover .cp-team-img{border-color:rgba(247,147,30,0.3);box-shadow:0 0 60px rgba(247,147,30,0.1)}
+.cp-team-name{font-size:1rem;font-weight:700;color:#fff;margin:0;letter-spacing:-0.2px}
+.cp-team-role{font-size:0.78rem;color:var(--accent);font-weight:500;margin-top:3px}
+.cp-team-bio{font-size:0.72rem;color:var(--text-secondary);margin-top:8px;line-height:1.6}
+
+/* ── TESTIMONIALS (CSS Carousel) ── */
+.cp-testi-wrapper{max-width:700px;margin:28px auto 0;overflow:hidden;position:relative}
+.cp-testi-track{display:flex;animation:testiSlide 18s ease-in-out infinite}
+@keyframes testiSlide{0%,22%{transform:translateX(0)}27%,49%{transform:translateX(-100%)}54%,76%{transform:translateX(-200%)}81%,100%{transform:translateX(-300%)}}
+.cp-testi-slide{min-width:100%;padding:0 10px}
+.cp-testi-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius);padding:36px 32px;text-align:center;position:relative}
+.cp-testi-card::before{content:'';position:absolute;inset:0;border-radius:var(--radius);padding:1px;background:linear-gradient(135deg,rgba(247,147,30,0.06),transparent 60%,rgba(247,147,30,0.03));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.cp-testi-quote{font-size:0.85rem;line-height:1.7;color:var(--text-primary);font-style:italic;margin-bottom:16px}
+.cp-testi-quote::before{content:'\201C';font-size:3rem;display:block;color:var(--accent);opacity:0.3;line-height:1;margin-bottom:-10px;font-family:Georgia,serif}
+.cp-testi-author{font-size:0.75rem;font-weight:700;color:#fff}
+.cp-testi-role{font-size:0.65rem;color:var(--accent);margin-top:2px}
+.cp-testi-dots{display:flex;justify-content:center;gap:8px;margin-top:16px}
+.cp-testi-dot{width:8px;height:8px;border-radius:50%;background:var(--glass-border);transition:var(--transition)}
+.cp-testi-track:hover{animation-play-state:paused}
+
+/* ── CLIENTS ── */
+.cp-clients{display:flex;flex-wrap:wrap;justify-content:center;gap:28px;margin-top:24px;align-items:center}
+.cp-client-logo{height:48px;width:auto;object-fit:contain;opacity:0.35;filter:grayscale(1) brightness(1.2);transition:var(--transition)}
+.cp-client-logo:hover{opacity:0.9;filter:grayscale(0) brightness(1);transform:scale(1.05)}
+.cp-certs{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:28px}
+.cp-cert{background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:10px 18px;font-size:0.72rem;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px;transition:var(--transition)}
+.cp-cert:hover{border-color:rgba(247,147,30,0.1);color:var(--accent)}
+.cp-cert-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+
+/* ── CONTACT ── */
+.cp-contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:28px}
+.cp-contact-item{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius-sm);transition:var(--transition)}
+.cp-contact-item:hover{border-color:rgba(247,147,30,0.08);transform:translateX(4px)}
+.cp-contact-icon{width:40px;height:40px;border-radius:var(--radius-sm);background:rgba(247,147,30,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(247,147,30,0.08)}
+.cp-contact-lbl{font-size:0.6rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
+.cp-contact-val{font-size:0.85rem;font-weight:500;color:var(--text-primary);line-height:1.5}
+.cp-contact-val a{color:var(--accent);text-decoration:none;transition:var(--transition)}
+.cp-contact-val a:hover{color:var(--accent2)}
+
+/* ── FOOTER ── */
+.cp-footer{position:relative;overflow:hidden;padding:60px 8% 30px;background:#050b16;border-top:1px solid rgba(255,255,255,0.03)}
+.cp-footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:40px;margin-bottom:40px}
+.cp-footer-brand p{font-size:0.78rem;color:var(--text-secondary);line-height:1.7;margin-top:10px;max-width:380px}
+.cp-footer h4{font-size:0.75rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px}
+.cp-footer a{font-size:0.75rem;color:var(--text-secondary);transition:var(--transition);display:block;padding:4px 0}
+.cp-footer a:hover{color:var(--accent);padding-left:4px}
+.cp-footer-bottom{border-top:1px solid rgba(255,255,255,0.03);padding-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:0.65rem;color:var(--text-muted)}
+.cp-footer-social{display:flex;gap:10px}
+.cp-footer-social a{width:34px;height:34px;border-radius:var(--radius-sm);background:var(--glass);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;transition:var(--transition)}
+.cp-footer-social a:hover{background:rgba(247,147,30,0.1);border-color:rgba(247,147,30,0.15);padding:0;transform:translateY(-2px)}
+
+/* ── WHATSAPP FLOAT ── */
+.cp-wa-float{position:fixed;bottom:24px;right:24px;z-index:999;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 24px rgba(37,211,102,0.3);transition:var(--transition);cursor:pointer;border:none}
+.cp-wa-float:hover{transform:scale(1.1);box-shadow:0 8px 40px rgba(37,211,102,0.4)}
+.cp-wa-float svg{width:24px;height:24px;fill:#fff}
+
+/* ── BACK TO TOP ── */
+.cp-btt{position:fixed;bottom:24px;left:24px;z-index:999;width:42px;height:42px;border-radius:50%;background:var(--glass);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--transition);opacity:0;pointer-events:none;border:none}
+.cp-btt.visible{opacity:1;pointer-events:auto}
+.cp-btt:hover{background:rgba(247,147,30,0.1);border-color:rgba(247,147,30,0.15);transform:translateY(-2px)}
+.cp-btt svg{width:18px;height:18px;stroke:var(--text-secondary);stroke-width:2;fill:none;stroke-linecap:round}
+
+/* ── PARALLAX DECORATIVE ── */
+.cp-parallax-section{position:relative;overflow:hidden}
+.cp-parallax-bg{position:absolute;inset:0;background-attachment:fixed;background-size:cover;background-position:center;opacity:0.04;pointer-events:none;z-index:0}
+@media (hover:none),(prefers-reduced-motion:reduce){.cp-parallax-bg{background-attachment:scroll}}
+
+/* ── RESPONSIVE ── */
+@media (max-width:1024px){
+  .cp-services-grid{grid-template-columns:1fr 1fr}
+  .cp-fleet-grid{grid-template-columns:1fr 1fr}
+  .cp-why-grid{grid-template-columns:1fr 1fr}
+}
+@media (max-width:768px){
+  .cp-nav{padding:10px 16px}
+  .cp-nav-links{display:none}
+  .cp-nav-links.mobile-open{display:flex;flex-direction:column;position:absolute;top:100%;left:0;right:0;background:rgba(6,13,26,0.96);backdrop-filter:blur(28px);padding:16px;border-bottom:1px solid var(--glass-border);gap:6px}
+  .cp-hero-title{font-size:2.4rem}
+  .cp-hero-card{padding:30px 20px}
+  .cp-about-grid{grid-template-columns:1fr;gap:30px}
+  .cp-mv-grid{grid-template-columns:1fr}
+  .cp-services-grid{grid-template-columns:1fr}
+  .cp-fleet-grid{grid-template-columns:1fr}
+  .cp-why-grid{grid-template-columns:1fr}
+  .cp-why-strip{grid-template-columns:1fr 1fr}
+  .cp-team-grid{grid-template-columns:1fr}
+  .cp-contact-grid{grid-template-columns:1fr}
+  .cp-footer-grid{grid-template-columns:1fr;gap:24px}
+  .cp-section{padding:60px 5%}
+  .cp-heading{font-size:2rem}
+  .cp-footer-bottom{flex-direction:column;text-align:center}
+  .cp-btt{left:16px}
+}
+@media (max-width:480px){
+  .cp-hero-title{font-size:1.8rem}
+  .cp-hero-card{padding:24px 16px}
+  .cp-hero-actions{flex-direction:column;align-items:center}
+  .cp-about-stats-grid{grid-template-columns:1fr}
+  .cp-why-strip{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
+<canvas id="particles-canvas"></canvas>
+
 {# ═══════════ NAV ═══════════ #}
 <nav class="cp-nav" id="cpNav">
   <a class="cp-nav-logo" href="/">
     {% if cp and cp.logo_data %}
-    <img class="cp-nav-video" src="data:{{ cp.logo_type or 'image/png' }};base64,{{ cp.logo_data }}" alt="Logo" style="width:36px;height:36px;border-radius:10px;object-fit:cover;border:2px solid rgba(247,147,30,0.35)">
+    <img class="cp-nav-media" src="data:{{ cp.logo_type or 'image/png' }};base64,{{ cp.logo_data }}" alt="Logo">
     {% else %}
-    <video class="cp-nav-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+    <video class="cp-nav-media" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
       <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
     </video>
     {% endif %}
-    <span class="cp-nav-name">{{ cp.company_name if cp else 'Current Link Transport &amp; General Contracting' }}</span>
+    <span class="cp-nav-name"><span class="cp-nav-accent">●</span> {{ cp.company_name if cp else 'Current Link Transport &amp; General Contracting' }}</span>
   </a>
-  <div class="cp-nav-links">
+  <div class="cp-nav-links" id="cpNavLinks">
     <a href="#about">About</a>
     <a href="#services">Services</a>
     <a href="#fleet">Fleet</a>
     <a href="#quality">Why Us</a>
     <a href="#team">Team</a>
+    <a href="#testimonials">Testimonials</a>
     <a href="#clients">Clients</a>
     <a href="#contact">Contact</a>
-    <a href="{{ url_for('login') }}" style="background:rgba(247,147,30,0.15);color:#F7931E">Portal</a>
+    <a class="cp-nav-cta" href="{{ url_for('login') }}">Portal</a>
   </div>
+  <button style="display:none;background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;margin-left:auto;padding:4px" id="cpMenuToggle" aria-label="Menu">☰</button>
 </nav>
 
-{# ═══════════ COVER — LANDING PAGE ═══════════ #}
-<section class="cp-cover" id="top">
-  <div class="cp-cover-glow1"></div>
-  <div class="cp-cover-glow2"></div>
-  <div class="cp-cover-content">
-      <div class="cp-cover-profile-card">
-        <div class="cp-cover-logo-wrap">
-          {% if cp and cp.logo_data %}
-          <img src="data:{{ cp.logo_type or 'image/png' }};base64,{{ cp.logo_data }}" alt="{{ cp.company_name or 'Company' }}" style="width:100%;height:100%;object-fit:cover">
-          {% else %}
-          <video autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
-            <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
-          </video>
-          {% endif %}
-        </div>
-        <div class="cp-cover-eyebrow">Est. 2015 &middot; Abu Dhabi, UAE</div>
-        <h1 class="cp-cover-title">{{ cp.company_name if cp else 'Current Link' }}</h1>
-        <p class="cp-cover-sub">{{ cp.legal_name or 'Transport &amp; General Contracting' }}</p>
-        <p class="cp-cover-legal">{{ cp.legal_name or 'Transport &amp; General Contracting LLC SPC' }}</p>
-        <div class="cp-cover-divider"></div>
-        <p class="cp-cover-desc">
-          A trusted heavy equipment, water tanker, crane, trailer, forklift, grader, and excavator rental company serving UAE's leading construction and industrial clients since 2015.
-        </p>
-      <div class="cp-cover-tagline">
+{# ═══════════ HERO ═══════════ #}
+<section class="cp-hero" id="top">
+  <div class="cp-hero-bg"></div>
+  <div class="cp-hero-gradient"></div>
+  <div class="cp-hero-orb"></div>
+  <div class="cp-hero-orb2"></div>
+  <div class="cp-hero-content">
+    <div class="cp-hero-badge"><span class="cp-hero-badge-dot"></span> Trusted Since 2015 · Abu Dhabi, UAE</div>
+    <div class="cp-hero-card">
+      <div class="cp-hero-logo-wrap">
+        {% if cp and cp.logo_data %}
+        <img src="data:{{ cp.logo_type or 'image/png' }};base64,{{ cp.logo_data }}" alt="{{ cp.company_name or 'Company' }}">
+        {% else %}
+        <video autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+          <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
+        </video>
+        {% endif %}
+      </div>
+      <div class="cp-hero-eyebrow">Heavy Equipment &amp; Transport Solutions</div>
+      <h1 class="cp-hero-title">{{ cp.company_name if cp else 'Current Link' }}</h1>
+      <p class="cp-hero-sub">{{ cp.legal_name or 'Transport &amp; General Contracting' }}</p>
+      <p class="cp-hero-legal">{{ cp.legal_name or 'Transport &amp; General Contracting LLC SPC' }}</p>
+      <div class="cp-hero-divider"></div>
+      <p class="cp-hero-desc">
+        A trusted heavy equipment, water tanker, crane, trailer, forklift, grader, and excavator rental company serving UAE's leading construction and industrial clients since 2015.
+      </p>
+      <div class="cp-hero-tags">
         <span>Heavy Equipment</span>
         <span>Water Tankers</span>
         <span>Cranes</span>
@@ -248,72 +420,71 @@ a { text-decoration:none; color:inherit; }
         <span>Excavators</span>
       </div>
     </div>
+    <div class="cp-hero-actions">
+      <a class="cp-hero-btn cp-hero-btn-primary" href="#services">Explore Services</a>
+      <a class="cp-hero-btn cp-hero-btn-secondary" href="#contact">Contact Us</a>
+    </div>
   </div>
-  <div class="cp-cover-scroll">
-    <span>Explore Our Profile</span>
-    <svg width="14" height="20" viewBox="0 0 14 20" fill="none"><path d="M7 0v14M2 9l5 5 5-5" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-linecap="round"/></svg>
+  <div class="cp-hero-scroll">
+    <span>Scroll to explore</span>
+    <div class="cp-hero-scroll-line"></div>
   </div>
 </section>
 
-{# ═══════════ ABOUT US ═══════════ #}
-<section class="cp-section cp-section-cream" id="about">
-  <div class="cp-about-split">
-    <div>
-      <div class="cp-eyebrow cp-eyebrow-orange">About Us</div>
-      <h2 class="cp-heading">Moving Mountains,<br>Delivering Excellence</h2>
-      <p class="cp-text">
-        <strong>{{ cp.company_name if cp else 'Current Link Transport &amp; General Contracting LLC SPC' }}</strong>, based in Mussaffah, 
-        Abu Dhabi, has been a trusted provider of heavy equipment, water tankers, and transport 
-        solutions since 2015. We serve leading construction, infrastructure, and industrial companies 
-        across the UAE with a modern, well-maintained fleet.
+{# ═══════════ ABOUT ═══════════ #}
+<section class="cp-section cp-section-light" id="about">
+  <div class="cp-about-grid">
+    <div class="cp-about-text-content reveal">
+      <div class="cp-eyebrow cp-eyebrow-accent">About Us</div>
+      <h2 class="cp-heading light">Moving Mountains,<br>Delivering <span>Excellence</span></h2>
+      <p class="cp-text light">
+        <strong>{{ cp.company_name if cp else 'Current Link Transport &amp; General Contracting LLC SPC' }}</strong>, based in Mussaffah, Abu Dhabi, has been a trusted provider of heavy equipment, water tankers, and transport solutions since 2015. We serve leading construction, infrastructure, and industrial companies across the UAE with a modern, well-maintained fleet.
       </p>
-      <p class="cp-text" style="margin-top:10px">
-        Our clients rely on us for monthly rental of heavy equipment with trained, experienced 
-        operators who ensure safe and efficient project execution. We are a licensed SPC company 
-        under Abu Dhabi's regulatory framework.
+      <p class="cp-text light" style="margin-top:10px">
+        Our clients rely on us for monthly rental of heavy equipment with trained, experienced operators who ensure safe and efficient project execution. We are a licensed SPC company under Abu Dhabi's regulatory framework.
       </p>
-      <div class="cp-features">
-        <span class="cp-feat">Licensed SPC</span>
-        <span class="cp-feat">Trained Operators</span>
-        <span class="cp-feat">24/7 Support</span>
-        <span class="cp-feat">Monthly Rentals</span>
-        <span class="cp-feat">UAE-Wide Service</span>
-        <span class="cp-feat">ICV Certified</span>
+      <div class="cp-about-features">
+        <span class="cp-about-feat"><svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l3 3 5-5"/></svg> Licensed SPC</span>
+        <span class="cp-about-feat"><svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l3 3 5-5"/></svg> Trained Operators</span>
+        <span class="cp-about-feat"><svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l3 3 5-5"/></svg> 24/7 Support</span>
+        <span class="cp-about-feat"><svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l3 3 5-5"/></svg> Monthly Rentals</span>
+        <span class="cp-about-feat"><svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l3 3 5-5"/></svg> UAE-Wide Service</span>
+        <span class="cp-about-feat"><svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l3 3 5-5"/></svg> ICV Certified</span>
       </div>
       <div class="cp-about-sectors">
         <div class="cp-about-sector">
-          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="#F7931E" stroke-width="1.6"><rect x="2" y="2" width="16" height="16" rx="2"/><path d="M6 10h8M10 6v8"/></svg>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="1.6"><rect x="2" y="2" width="16" height="16" rx="2"/><path d="M6 10h8M10 6v8"/></svg>
           Construction &amp; Infrastructure
         </div>
         <div class="cp-about-sector">
-          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="#F7931E" stroke-width="1.6"><rect x="2" y="2" width="16" height="16" rx="2"/><path d="M6 10h8M10 6v8"/></svg>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="1.6"><rect x="2" y="2" width="16" height="16" rx="2"/><path d="M6 10h8M10 6v8"/></svg>
           Oil &amp; Gas &amp; Industrial
         </div>
         <div class="cp-about-sector">
-          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="#F7931E" stroke-width="1.6"><rect x="2" y="2" width="16" height="16" rx="2"/><path d="M6 10h8M10 6v8"/></svg>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="1.6"><rect x="2" y="2" width="16" height="16" rx="2"/><path d="M6 10h8M10 6v8"/></svg>
           Government &amp; Municipal Projects
         </div>
         <div class="cp-about-sector">
-          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="#F7931E" stroke-width="1.6"><rect x="2" y="2" width="16" height="16" rx="2"/><path d="M6 10h8M10 6v8"/></svg>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="1.6"><rect x="2" y="2" width="16" height="16" rx="2"/><path d="M6 10h8M10 6v8"/></svg>
           Facility &amp; Camp Management
         </div>
       </div>
     </div>
-    <div class="cp-about-stats">
+    <div class="cp-about-stats-grid reveal reveal-delay-2">
       <div class="cp-about-stat">
-        <p class="cp-about-num orange">10+</p>
+        <p class="cp-about-num" data-count="10">0</p>
         <p class="cp-about-lbl">Years Experience</p>
       </div>
-      <div class="cp-about-stat dark">
-        <p class="cp-about-num">50+</p>
+      <div class="cp-about-stat cp-about-stat-white">
+        <p class="cp-about-num" data-count="50">0</p>
         <p class="cp-about-lbl">Equipment Fleet</p>
       </div>
-      <div class="cp-about-stat dark">
-        <p class="cp-about-num">100+</p>
+      <div class="cp-about-stat cp-about-stat-white">
+        <p class="cp-about-num" data-count="100">0</p>
         <p class="cp-about-lbl">Projects Delivered</p>
       </div>
       <div class="cp-about-stat">
-        <p class="cp-about-num orange">24/7</p>
+        <p class="cp-about-num">24/7</p>
         <p class="cp-about-lbl">Operations Support</p>
       </div>
     </div>
@@ -321,190 +492,158 @@ a { text-decoration:none; color:inherit; }
 </section>
 
 {# ═══════════ MISSION / VISION / VALUES ═══════════ #}
-<section class="cp-section cp-section-dark">
-  <div style="text-align:center">
-    <div class="cp-eyebrow cp-eyebrow-white">Our Purpose</div>
-    <h2 class="cp-heading light">Mission, Vision &amp; Values</h2>
+<section class="cp-section cp-section-dark cp-section-center">
+  <div class="reveal">
+    <div class="cp-eyebrow cp-eyebrow-light">Our Purpose</div>
+    <h2 class="cp-heading light">Mission, Vision &amp; <span>Values</span></h2>
     <p class="cp-text light cp-text-center">The principles that drive everything we do.</p>
   </div>
   <div class="cp-mv-grid">
-    <div class="cp-mv-card">
-      <div class="cp-mv-icon" style="background:rgba(247,147,30,0.12)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F7931E" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    <div class="cp-mv-card reveal reveal-delay-1">
+      <div class="cp-mv-icon" style="background:rgba(247,147,30,0.1)">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
       </div>
       <h3 class="cp-mv-title">Mission</h3>
       <p class="cp-mv-text">To provide reliable heavy equipment, water tanker, and transport solutions across the UAE with a well-maintained fleet and trained operators — ensuring every client's project runs smoothly and safely.</p>
     </div>
-    <div class="cp-mv-card">
-      <div class="cp-mv-icon" style="background:rgba(255,255,255,0.06)">
+    <div class="cp-mv-card reveal reveal-delay-2">
+      <div class="cp-mv-icon" style="background:rgba(255,255,255,0.04)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
       </div>
       <h3 class="cp-mv-title">Vision</h3>
       <p class="cp-mv-text">To be the most trusted heavy equipment and transport partner in the UAE — recognized for reliability, safety, and excellence in service delivery.</p>
     </div>
-    <div class="cp-mv-card">
-      <div class="cp-mv-icon" style="background:rgba(247,147,30,0.12)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F7931E" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    <div class="cp-mv-card reveal reveal-delay-3">
+      <div class="cp-mv-icon" style="background:rgba(247,147,30,0.1)">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       </div>
       <h3 class="cp-mv-title">Core Values</h3>
       <p class="cp-mv-text">
-        <strong>Safety First</strong> &mdash; Every operation.<br>
-        <strong>Reliability</strong> &mdash; On time, every time.<br>
-        <strong>Quality Fleet</strong> &mdash; Modern &amp; maintained.<br>
-        <strong>24/7 Support</strong> &mdash; Always available.
+        <strong>Safety First</strong> — Every operation.<br>
+        <strong>Reliability</strong> — On time, every time.<br>
+        <strong>Quality Fleet</strong> — Modern &amp; maintained.<br>
+        <strong>24/7 Support</strong> — Always available.
       </p>
     </div>
   </div>
 </section>
 
 {# ═══════════ SERVICES ═══════════ #}
-{# ── 1. WATER TANKERS ── #}
-<section class="cp-service-page" id="services" style="background:linear-gradient(135deg,#091e3b,#0F2B52)">
-  <div class="cp-service-bg" style="background-image:url('{{ url_for('static', filename='WATER TANKER.png') }}');"></div>
-  <div class="cp-service-bg" style="background:#0F2B52;opacity:0.3"></div>
-  <div class="cp-service-overlay">
-    <div class="cp-service-num">Service 01</div>
-    <h2 class="cp-service-name-lg">Water Tankers</h2>
-    <p class="cp-service-sub">10,000 &amp; 5,000 gallon capacity fleet</p>
-    <p class="cp-service-desc-lg">
-      We operate a dedicated fleet of water tankers for sweet water supply, non-drinking water, 
-      drainage water removal, and saline water delivery. Serving construction sites, camps, 
-      industrial facilities, and municipalities across the UAE with reliable 24/7 service.
-    </p>
-    <div class="cp-service-tags-lg">
-      <span class="cp-service-tag-lg">Sweet Water</span>
-      <span class="cp-service-tag-lg">Non-Drinking</span>
-      <span class="cp-service-tag-lg">Drainage Water</span>
-      <span class="cp-service-tag-lg">Saline Water</span>
-      <span class="cp-service-tag-lg">10,000 Gal</span>
-      <span class="cp-service-tag-lg">5,000 Gal</span>
+<section class="cp-section cp-section-light cp-section-center" id="services">
+  <div class="reveal">
+    <div class="cp-eyebrow cp-eyebrow-accent">What We Offer</div>
+    <h2 class="cp-heading light">Our <span>Services</span></h2>
+    <p class="cp-text light cp-text-center">Comprehensive heavy equipment and transport solutions for every project need.</p>
+  </div>
+  <div class="cp-services-grid">
+    <div class="cp-service-card reveal reveal-delay-1">
+      <div class="cp-service-icon" style="background:rgba(247,147,30,0.08)">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--accent)" stroke-width="1.6"><rect x="2" y="6" width="20" height="12" rx="1.5"/><circle cx="8" cy="18" r="2.5" fill="var(--accent)"/><circle cx="16" cy="18" r="2.5" fill="var(--accent)"/><path d="M10 12h4M8 9h8"/></svg>
+      </div>
+      <div class="cp-service-num">Service 01</div>
+      <h3 class="cp-service-name">Water Tankers</h3>
+      <p class="cp-service-sub">10,000 &amp; 5,000 gallon fleet</p>
+      <p class="cp-service-desc">Dedicated fleet for sweet water supply, non-drinking water, drainage water removal, and saline water delivery. Serving construction sites, camps, and municipalities 24/7.</p>
+      <div class="cp-service-tags">
+        <span class="cp-service-tag">Sweet Water</span>
+        <span class="cp-service-tag">Non-Drinking</span>
+        <span class="cp-service-tag">Drainage</span>
+        <span class="cp-service-tag">10K Gal</span>
+        <span class="cp-service-tag">5K Gal</span>
+      </div>
+    </div>
+    <div class="cp-service-card reveal reveal-delay-2">
+      <div class="cp-service-icon" style="background:rgba(247,147,30,0.08)">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--accent)" stroke-width="1.6"><path d="M12 2v8M8 6l4 4 4-4"/><rect x="4" y="12" width="16" height="10" rx="1"/></svg>
+      </div>
+      <div class="cp-service-num">Service 02</div>
+      <h3 class="cp-service-name">Cranes</h3>
+      <p class="cp-service-sub">25 up to 300 ton hydraulic cranes</p>
+      <p class="cp-service-desc">Mobile crane services for heavy lifting, equipment installation, steel structure erection, and industrial project support. All cranes with experienced certified operators.</p>
+      <div class="cp-service-tags">
+        <span class="cp-service-tag">25 ton</span>
+        <span class="cp-service-tag">50 ton</span>
+        <span class="cp-service-tag">100 ton</span>
+        <span class="cp-service-tag">200 ton</span>
+        <span class="cp-service-tag">300 ton</span>
+      </div>
+    </div>
+    <div class="cp-service-card reveal reveal-delay-3">
+      <div class="cp-service-icon" style="background:rgba(247,147,30,0.08)">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--accent)" stroke-width="1.6"><path d="M4 8h16M6 8v10M18 8v10"/><rect x="2" y="4" width="20" height="4" rx="1"/></svg>
+      </div>
+      <div class="cp-service-num">Service 03</div>
+      <h3 class="cp-service-name">Forklifts</h3>
+      <p class="cp-service-sub">High-capacity material handling</p>
+      <p class="cp-service-desc">High-capacity forklifts for material handling, warehousing, loading and unloading at construction sites, industrial facilities, and logistics hubs. Monthly or short-term rental.</p>
+      <div class="cp-service-tags">
+        <span class="cp-service-tag">Material Handling</span>
+        <span class="cp-service-tag">Warehouse</span>
+        <span class="cp-service-tag">Loading</span>
+        <span class="cp-service-tag">Monthly Rental</span>
+      </div>
+    </div>
+    <div class="cp-service-card reveal reveal-delay-1">
+      <div class="cp-service-icon" style="background:rgba(247,147,30,0.08)">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--accent)" stroke-width="1.6"><rect x="2" y="6" width="20" height="12" rx="1.5"/><circle cx="8" cy="18" r="2.5" fill="var(--accent)"/><circle cx="16" cy="18" r="2.5" fill="var(--accent)"/></svg>
+      </div>
+      <div class="cp-service-num">Service 04</div>
+      <h3 class="cp-service-name">Trailers</h3>
+      <p class="cp-service-sub">12m &amp; 24m — Low bed &amp; Flatbed</p>
+      <p class="cp-service-desc">Heavy transport trailers for moving equipment, machinery, and materials across the UAE. 12-meter and 24-meter low bed and flatbed trailers with experienced drivers.</p>
+      <div class="cp-service-tags">
+        <span class="cp-service-tag">12m Trailer</span>
+        <span class="cp-service-tag">24m Trailer</span>
+        <span class="cp-service-tag">Low Bed</span>
+        <span class="cp-service-tag">Flatbed</span>
+        <span class="cp-service-tag">With Driver</span>
+      </div>
+    </div>
+    <div class="cp-service-card reveal reveal-delay-2">
+      <div class="cp-service-icon" style="background:rgba(247,147,30,0.08)">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--accent)" stroke-width="1.6"><path d="M12 2l7 4v6c0 4-3.5 8-7 9-3.5-1-7-5-7-9V6l7-4z"/></svg>
+      </div>
+      <div class="cp-service-num">Service 05</div>
+      <h3 class="cp-service-name">Graders</h3>
+      <p class="cp-service-sub">Motor graders for road &amp; earthwork</p>
+      <p class="cp-service-desc">Motor graders for road construction, grading, leveling, and earthwork operations. Well-maintained with skilled operators who ensure precision and efficiency on every site.</p>
+      <div class="cp-service-tags">
+        <span class="cp-service-tag">Road Construction</span>
+        <span class="cp-service-tag">Leveling</span>
+        <span class="cp-service-tag">Earthwork</span>
+        <span class="cp-service-tag">Trained Operator</span>
+      </div>
+    </div>
+    <div class="cp-service-card reveal reveal-delay-3">
+      <div class="cp-service-icon" style="background:rgba(247,147,30,0.08)">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--accent)" stroke-width="1.6"><path d="M20 12c0 4-3.5 8-8 8s-8-4-8-8M12 4v8M9 9l3 3 3-3"/></svg>
+      </div>
+      <div class="cp-service-num">Service 06</div>
+      <h3 class="cp-service-name">Excavators</h3>
+      <p class="cp-service-sub">Hydraulic excavators for heavy earthmoving</p>
+      <p class="cp-service-desc">Hydraulic excavators for digging, demolition, trenching, and earthmoving. Various sizes with trained operators on monthly rental to leading construction companies across the UAE.</p>
+      <div class="cp-service-tags">
+        <span class="cp-service-tag">Excavation</span>
+        <span class="cp-service-tag">Demolition</span>
+        <span class="cp-service-tag">Earthmoving</span>
+        <span class="cp-service-tag">Trenching</span>
+      </div>
     </div>
   </div>
 </section>
 
-{# ── 2. CRANES ── #}
-<section class="cp-service-page" style="background:linear-gradient(135deg,#091e3b,#0F2B52)">
-  <div class="cp-service-bg" style="background-image:url('{{ url_for('static', filename='CRANE CARD.png') }}');"></div>
-  <div class="cp-service-overlay">
-    <div class="cp-service-num">Service 02</div>
-    <h2 class="cp-service-name-lg">Cranes</h2>
-    <p class="cp-service-sub">25 ton up to 300 ton hydraulic cranes</p>
-    <p class="cp-service-desc-lg">
-      Mobile crane services for heavy lifting, equipment installation, steel structure 
-      erection, and industrial project support. All cranes provided with experienced, 
-      certified operators and rigging teams for safe, precise lifting operations.
-    </p>
-    <div class="cp-service-tags-lg">
-      <span class="cp-service-tag-lg">25 ton</span>
-      <span class="cp-service-tag-lg">50 ton</span>
-      <span class="cp-service-tag-lg">100 ton</span>
-      <span class="cp-service-tag-lg">200 ton</span>
-      <span class="cp-service-tag-lg">Up to 300 ton</span>
-      <span class="cp-service-tag-lg">Certified Operators</span>
-    </div>
-  </div>
-</section>
-
-{# ── 3. FORKLIFTS ── #}
-<section class="cp-service-page" style="background:linear-gradient(135deg,#091e3b,#0F2B52)">
-  <div class="cp-service-bg" style="background-image:url('{{ url_for('static', filename='FORKLIFT CARD.png') }}');"></div>
-  <div class="cp-service-overlay">
-    <div class="cp-service-num">Service 03</div>
-    <h2 class="cp-service-name-lg">Forklifts</h2>
-    <p class="cp-service-sub">High-capacity material handling solutions</p>
-    <p class="cp-service-desc-lg">
-      High-capacity forklifts for material handling, warehousing, loading and unloading 
-      operations at construction sites, industrial facilities, and logistics hubs. 
-      Available with trained operators on monthly or short-term rental basis.
-    </p>
-    <div class="cp-service-tags-lg">
-      <span class="cp-service-tag-lg">Material Handling</span>
-      <span class="cp-service-tag-lg">Warehouse</span>
-      <span class="cp-service-tag-lg">Loading Operations</span>
-      <span class="cp-service-tag-lg">Monthly Rental</span>
-    </div>
-  </div>
-</section>
-
-{# ── 4. TRAILERS ── #}
-<section class="cp-service-page" style="background:linear-gradient(135deg,#091e3b,#0F2B52)">
-  <div class="cp-service-bg" style="background-image:url('{{ url_for('static', filename='TRAILER CARD.png') }}');"></div>
-  <div class="cp-service-overlay">
-    <div class="cp-service-num">Service 04</div>
-    <h2 class="cp-service-name-lg">Trailers</h2>
-    <p class="cp-service-sub">12m &amp; 24m — Low bed &amp; Flatbed</p>
-    <p class="cp-service-desc-lg">
-      Heavy transport trailers for moving equipment, machinery, and materials across the UAE. 
-      Our fleet includes 12-meter and 24-meter low bed and flatbed trailers with experienced 
-      drivers — ideal for contractors and government projects.
-    </p>
-    <div class="cp-service-tags-lg">
-      <span class="cp-service-tag-lg">12m Trailer</span>
-      <span class="cp-service-tag-lg">24m Trailer</span>
-      <span class="cp-service-tag-lg">Low Bed</span>
-      <span class="cp-service-tag-lg">Flatbed</span>
-      <span class="cp-service-tag-lg">With Driver</span>
-    </div>
-  </div>
-</section>
-
-{# ── 5. GRADERS ── #}
-<section class="cp-service-page" style="background:linear-gradient(135deg,#091e3b,#0F2B52)">
-  <div class="cp-service-bg" style="background-image:url('{{ url_for('static', filename='GRADER.png') }}');"></div>
-  <div class="cp-service-overlay">
-    <div class="cp-service-num">Service 05</div>
-    <h2 class="cp-service-name-lg">Graders</h2>
-    <p class="cp-service-sub">Motor graders for road &amp; earthwork</p>
-    <p class="cp-service-desc-lg">
-      Motor graders for road construction, grading, leveling, and earthwork operations. 
-      Our graders are well-maintained and provided with skilled operators who ensure 
-      precision and efficiency on every project site.
-    </p>
-    <div class="cp-service-tags-lg">
-      <span class="cp-service-tag-lg">Road Construction</span>
-      <span class="cp-service-tag-lg">Leveling</span>
-      <span class="cp-service-tag-lg">Earthwork</span>
-      <span class="cp-service-tag-lg">Trained Operator</span>
-    </div>
-  </div>
-</section>
-
-{# ── 6. EXCAVATORS ── #}
-<section class="cp-service-page" style="background:linear-gradient(135deg,#091e3b,#0F2B52)">
-  <div class="cp-service-bg" style="background-image:url('{{ url_for('static', filename='EXCAVATOR CARD.png') }}');"></div>
-  <div class="cp-service-overlay">
-    <div class="cp-service-num">Service 06</div>
-    <h2 class="cp-service-name-lg">Excavators</h2>
-    <p class="cp-service-sub">Hydraulic excavators for heavy earthmoving</p>
-    <p class="cp-service-desc-lg">
-      Hydraulic excavators for digging, demolition, trenching, and earthmoving. 
-      Available in various sizes with trained, experienced operators on monthly rental 
-      basis to leading construction and infrastructure companies across the UAE.
-    </p>
-    <div class="cp-service-tags-lg">
-      <span class="cp-service-tag-lg">Excavation</span>
-      <span class="cp-service-tag-lg">Demolition</span>
-      <span class="cp-service-tag-lg">Earthmoving</span>
-      <span class="cp-service-tag-lg">Trenching</span>
-      <span class="cp-service-tag-lg">Monthly Rental</span>
-    </div>
-  </div>
-</section>
-
-{# ═══════════ OUR FLEET (NEW PAGE) ═══════════ #}
-<section class="cp-section cp-section-white" id="fleet">
-  <div class="cp-fleet-intro">
-    <div class="cp-eyebrow cp-eyebrow-orange">Our Fleet</div>
-    <h2 class="cp-heading">Equipment &amp; Specifications</h2>
-    <p class="cp-text cp-text-center">
-      A modern, well-maintained fleet of 50+ heavy equipment units available on monthly 
-      rental — all with trained operators, regular servicing, and 24/7 breakdown support.
-    </p>
+{# ═══════════ FLEET ═══════════ #}
+<section class="cp-section cp-section-dark cp-section-center cp-parallax-section" id="fleet">
+  <div class="cp-parallax-bg" style="background-image:url('{{ url_for('static', filename='logo.png') }}?v=2')"></div>
+  <div class="cp-fleet-header reveal">
+    <div class="cp-eyebrow cp-eyebrow-light">Our Fleet</div>
+    <h2 class="cp-heading light">Equipment &amp; <span>Specifications</span></h2>
+    <p class="cp-text light cp-text-center">A modern, well-maintained fleet of 50+ heavy equipment units available on monthly rental — all with trained operators, regular servicing, and 24/7 breakdown support.</p>
   </div>
   <div class="cp-fleet-grid">
-    <div class="cp-fleet-card">
-      <div class="cp-fleet-icon" style="background:rgba(15,43,82,0.06)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#0F2B52" stroke-width="1.8"><path d="M3 15h18"/><path d="M6 18h12"/><rect x="2" y="6" width="20" height="9" rx="1"/></svg>
+    <div class="cp-fleet-card reveal reveal-delay-1">
+      <div class="cp-fleet-icon" style="background:rgba(247,147,30,0.06)">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="1.5"/><circle cx="8" cy="18" r="2.5" fill="var(--accent)"/><circle cx="16" cy="18" r="2.5" fill="var(--accent)"/><path d="M10 12h4M8 9h8"/></svg>
       </div>
       <p class="cp-fleet-name">Water Tankers</p>
       <p class="cp-fleet-spec">6 &times; Units</p>
@@ -515,9 +654,9 @@ a { text-decoration:none; color:inherit; }
         <li>Drainage &amp; saline water</li>
       </ul>
     </div>
-    <div class="cp-fleet-card">
-      <div class="cp-fleet-icon" style="background:rgba(247,147,30,0.08)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F7931E" stroke-width="1.8"><path d="M12 2v10"/><path d="M8 12h8"/><rect x="4" y="12" width="16" height="10" rx="1"/></svg>
+    <div class="cp-fleet-card reveal reveal-delay-2">
+      <div class="cp-fleet-icon" style="background:rgba(247,147,30,0.06)">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M12 2v8M8 6l4 4 4-4"/><rect x="4" y="12" width="16" height="10" rx="1"/></svg>
       </div>
       <p class="cp-fleet-name">Cranes</p>
       <p class="cp-fleet-spec">8 &times; Units</p>
@@ -525,12 +664,12 @@ a { text-decoration:none; color:inherit; }
         <li>25 ton (2 units)</li>
         <li>50 ton (2 units)</li>
         <li>100 ton (2 units)</li>
-        <li>200&ndash;300 ton (2 units)</li>
+        <li>200–300 ton (2 units)</li>
       </ul>
     </div>
-    <div class="cp-fleet-card">
-      <div class="cp-fleet-icon" style="background:rgba(15,43,82,0.06)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#0F2B52" stroke-width="1.8"><path d="M4 8h16"/><path d="M6 8v10M18 8v10"/><rect x="2" y="4" width="20" height="4" rx="1"/></svg>
+    <div class="cp-fleet-card reveal reveal-delay-3">
+      <div class="cp-fleet-icon" style="background:rgba(247,147,30,0.06)">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M4 8h16M6 8v10M18 8v10"/><rect x="2" y="4" width="20" height="4" rx="1"/></svg>
       </div>
       <p class="cp-fleet-name">Forklifts</p>
       <p class="cp-fleet-spec">6 &times; Units</p>
@@ -541,9 +680,9 @@ a { text-decoration:none; color:inherit; }
         <li>Trained operators</li>
       </ul>
     </div>
-    <div class="cp-fleet-card">
-      <div class="cp-fleet-icon" style="background:rgba(247,147,30,0.08)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F7931E" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="1"/><circle cx="8" cy="18" r="2" fill="#F7931E"/><circle cx="16" cy="18" r="2" fill="#F7931E"/></svg>
+    <div class="cp-fleet-card reveal reveal-delay-1">
+      <div class="cp-fleet-icon" style="background:rgba(247,147,30,0.06)">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="1.5"/><circle cx="8" cy="18" r="2.5" fill="var(--accent)"/><circle cx="16" cy="18" r="2.5" fill="var(--accent)"/></svg>
       </div>
       <p class="cp-fleet-name">Trailers</p>
       <p class="cp-fleet-spec">10 &times; Units</p>
@@ -554,9 +693,9 @@ a { text-decoration:none; color:inherit; }
         <li>With experienced drivers</li>
       </ul>
     </div>
-    <div class="cp-fleet-card">
-      <div class="cp-fleet-icon" style="background:rgba(15,43,82,0.06)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#0F2B52" stroke-width="1.8"><path d="M12 2l7 4v6c0 4-3.5 8-7 9-3.5-1-7-5-7-9V6l7-4z"/></svg>
+    <div class="cp-fleet-card reveal reveal-delay-2">
+      <div class="cp-fleet-icon" style="background:rgba(247,147,30,0.06)">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M12 2l7 4v6c0 4-3.5 8-7 9-3.5-1-7-5-7-9V6l7-4z"/></svg>
       </div>
       <p class="cp-fleet-name">Graders</p>
       <p class="cp-fleet-spec">4 &times; Units</p>
@@ -567,9 +706,9 @@ a { text-decoration:none; color:inherit; }
         <li>Monthly rental available</li>
       </ul>
     </div>
-    <div class="cp-fleet-card">
-      <div class="cp-fleet-icon" style="background:rgba(247,147,30,0.08)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F7931E" stroke-width="1.8"><path d="M20 12c0 4-3.5 8-8 8s-8-4-8-8"/><path d="M12 4v8"/><path d="M9 9l3 3 3-3"/></svg>
+    <div class="cp-fleet-card reveal reveal-delay-3">
+      <div class="cp-fleet-icon" style="background:rgba(247,147,30,0.06)">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M20 12c0 4-3.5 8-8 8s-8-4-8-8M12 4v8M9 9l3 3 3-3"/></svg>
       </div>
       <p class="cp-fleet-name">Excavators</p>
       <p class="cp-fleet-spec">10+ &times; Units</p>
@@ -581,83 +720,79 @@ a { text-decoration:none; color:inherit; }
       </ul>
     </div>
   </div>
-  <p class="cp-fleet-footer">Fleet size: <span>50+</span> units &nbsp;|&nbsp; Monthly rental with trained operators &nbsp;|&nbsp; Regular maintenance &amp; inspection</p>
+  <p class="cp-fleet-footer reveal">Fleet size: <span>50+</span> units &nbsp;|&nbsp; Monthly rental with trained operators &nbsp;|&nbsp; Regular maintenance &amp; inspection</p>
 </section>
 
-{# ═══════════ WHY CHOOSE US / QUALITY & SAFETY (NEW PAGE) ═══════════ #}
-<section class="cp-section cp-section-dark" id="quality" style="text-align:center">
-  <div class="cp-eyebrow cp-eyebrow-white">Why Choose Us</div>
-  <h2 class="cp-heading light">Quality, Safety &amp; Reliability</h2>
-  <p class="cp-text light cp-text-center">
-    Our commitment to safety, quality, and client satisfaction sets us apart. 
-    Every operation follows strict safety protocols and maintenance standards.
-  </p>
+{# ═══════════ WHY CHOOSE US ═══════════ #}
+<section class="cp-section cp-section-light cp-section-center" id="quality">
+  <div class="reveal">
+    <div class="cp-eyebrow cp-eyebrow-accent">Why Choose Us</div>
+    <h2 class="cp-heading light">Quality, Safety &amp; <span>Reliability</span></h2>
+    <p class="cp-text light cp-text-center">Our commitment to safety, quality, and client satisfaction sets us apart. Every operation follows strict safety protocols and maintenance standards.</p>
+  </div>
   <div class="cp-why-grid">
-    <div class="cp-why-card dark">
-      <div class="cp-why-icon" style="background:rgba(247,147,30,0.12)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F7931E" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    <div class="cp-why-card reveal reveal-delay-1">
+      <div class="cp-why-icon" style="background:rgba(247,147,30,0.08)">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       </div>
       <h3 class="cp-why-title">Safety First</h3>
       <p class="cp-why-text">All equipment undergoes regular safety inspections. Operators are trained in HSE protocols and safe operating procedures. We maintain a zero-incident culture on every project site.</p>
     </div>
-    <div class="cp-why-card dark">
-      <div class="cp-why-icon" style="background:rgba(255,255,255,0.06)">
+    <div class="cp-why-card reveal reveal-delay-2">
+      <div class="cp-why-icon" style="background:rgba(255,255,255,0.04)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
       </div>
       <h3 class="cp-why-title">Experienced Team</h3>
       <p class="cp-why-text">Our operators average 8+ years of UAE experience. Each team member is vetted, trained, and committed to delivering professional service on every assignment.</p>
     </div>
-    <div class="cp-why-card dark">
-      <div class="cp-why-icon" style="background:rgba(247,147,30,0.12)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F7931E" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10h8"/><path d="M8 14h6"/></svg>
+    <div class="cp-why-card reveal reveal-delay-3">
+      <div class="cp-why-icon" style="background:rgba(247,147,30,0.08)">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10h8M8 14h6"/></svg>
       </div>
       <h3 class="cp-why-title">Well-Maintained Fleet</h3>
       <p class="cp-why-text">Every unit is serviced on a strict schedule. We maintain detailed maintenance records and carry out pre-rental inspections to ensure equipment is always in top condition.</p>
     </div>
-    <div class="cp-why-card dark">
-      <div class="cp-why-icon" style="background:rgba(255,255,255,0.06)">
+    <div class="cp-why-card reveal reveal-delay-1">
+      <div class="cp-why-icon" style="background:rgba(255,255,255,0.04)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
       </div>
       <h3 class="cp-why-title">24/7 Availability</h3>
       <p class="cp-why-text">Our operations team is available around the clock. Emergency breakdown support, after-hours deliveries, and weekend service are part of our standard offering.</p>
     </div>
-    <div class="cp-why-card dark">
-      <div class="cp-why-icon" style="background:rgba(247,147,30,0.12)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#F7931E" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    <div class="cp-why-card reveal reveal-delay-2">
+      <div class="cp-why-icon" style="background:rgba(247,147,30,0.08)">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       </div>
       <h3 class="cp-why-title">ICV &amp; ISO Certified</h3>
       <p class="cp-why-text">We hold ICV certification, ISO 14001 (Environmental Management), and are VMS certified as a registered vendor with major UAE contractors and government entities.</p>
     </div>
-    <div class="cp-why-card dark">
-      <div class="cp-why-icon" style="background:rgba(255,255,255,0.06)">
+    <div class="cp-why-card reveal reveal-delay-3">
+      <div class="cp-why-icon" style="background:rgba(255,255,255,0.04)">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
       </div>
       <h3 class="cp-why-title">UAE-Wide Coverage</h3>
       <p class="cp-why-text">We serve clients across all seven emirates — from Abu Dhabi to Dubai, Sharjah, Al Ain, and the Northern Emirates. Our fleet is strategically positioned for quick deployment.</p>
     </div>
   </div>
-
-  {# Quick facts strip #}
-  <div class="cp-why-strip" style="max-width:800px;margin-left:auto;margin-right:auto">
+  <div class="cp-why-strip reveal">
     <div class="cp-why-item">
-      <p class="cp-why-num">10+</p>
+      <p class="cp-why-num" data-count="10">0</p>
       <p class="cp-why-item-label">Years Active</p>
     </div>
     <div class="cp-why-item">
-      <p class="cp-why-num">50+</p>
+      <p class="cp-why-num" data-count="50">0</p>
       <p class="cp-why-item-label">Fleet Units</p>
     </div>
     <div class="cp-why-item">
-      <p class="cp-why-num">30+</p>
+      <p class="cp-why-num" data-count="30">0</p>
       <p class="cp-why-item-label">Active Clients</p>
     </div>
     <div class="cp-why-item">
-      <p class="cp-why-num">100%</p>
-      <p class="cp-why-item-label">Client Focus</p>
+      <p class="cp-why-num" data-count="100">0</p>
+      <p class="cp-why-item-label">Satisfaction %</p>
     </div>
   </div>
-
-  <div class="cp-service-areas">
+  <div class="cp-service-areas reveal">
     <span class="cp-service-area">Abu Dhabi</span>
     <span class="cp-service-area">Dubai</span>
     <span class="cp-service-area">Sharjah</span>
@@ -669,19 +804,21 @@ a { text-decoration:none; color:inherit; }
   </div>
 </section>
 
-{# ═══════════ MANAGEMENT ═══════════ #}
-<section class="cp-section cp-section-dark" id="team" style="text-align:center">
-  <div class="cp-eyebrow cp-eyebrow-white">Leadership</div>
-  <h2 class="cp-heading light">Our Management Team</h2>
-  <p class="cp-text light cp-text-center">Experienced leadership committed to operational excellence.</p>
-  <div class="cp-team">
-    <div class="cp-team-card">
+{# ═══════════ TEAM ═══════════ #}
+<section class="cp-section cp-section-dark cp-section-center" id="team">
+  <div class="reveal">
+    <div class="cp-eyebrow cp-eyebrow-light">Leadership</div>
+    <h2 class="cp-heading light">Our <span>Management</span> Team</h2>
+    <p class="cp-text light cp-text-center">Experienced leadership committed to operational excellence.</p>
+  </div>
+  <div class="cp-team-grid">
+    <div class="cp-team-card reveal reveal-delay-1">
       <img src="{{ url_for('static', filename='owner-portrait.jpeg') }}" alt="Nasrullah Fazal Jamir" class="cp-team-img" onerror="this.style.display='none'">
       <h3 class="cp-team-name">Nasrullah Fazal Jamir</h3>
       <p class="cp-team-role">Managing Director / Owner</p>
       <p class="cp-team-bio">Founder &amp; visionary leader with extensive experience in the UAE transport and equipment industry.</p>
     </div>
-    <div class="cp-team-card">
+    <div class="cp-team-card reveal reveal-delay-2">
       <img src="{{ url_for('static', filename='manager-portrait.jpeg') }}" alt="Shakir Ullah Fazal Jamir" class="cp-team-img" onerror="this.style.display='none'">
       <h3 class="cp-team-name">Mr. Shakir Ullah Fazal Jamir</h3>
       <p class="cp-team-role">Operations Manager</p>
@@ -690,12 +827,61 @@ a { text-decoration:none; color:inherit; }
   </div>
 </section>
 
-{# ═══════════ CLIENTS & CERTS ═══════════ #}
-<section class="cp-section cp-section-cream" id="clients" style="text-align:center">
-  <div class="cp-eyebrow cp-eyebrow-orange">Trusted By</div>
-  <h2 class="cp-heading">Our Valued Clients</h2>
-  <p class="cp-text cp-text-center">Proud to serve leading companies across the UAE.</p>
-  <div class="cp-clients">
+{# ═══════════ TESTIMONIALS ═══════════ #}
+<section class="cp-section cp-section-light cp-section-center" id="testimonials">
+  <div class="reveal">
+    <div class="cp-eyebrow cp-eyebrow-accent">Testimonials</div>
+    <h2 class="cp-heading light">What Our <span>Clients Say</span></h2>
+    <p class="cp-text light cp-text-center">Trusted by leading companies across the UAE.</p>
+  </div>
+  <div class="cp-testi-wrapper reveal">
+    <div class="cp-testi-track">
+      <div class="cp-testi-slide">
+        <div class="cp-testi-card">
+          <p class="cp-testi-quote">Consistently reliable equipment and professional operators. Their water tanker fleet has been essential for our construction projects. Highly recommend their services.</p>
+          <p class="cp-testi-author">— Ahmed Al Mazrouei</p>
+          <p class="cp-testi-role">Projects Director, NMDC Energy</p>
+        </div>
+      </div>
+      <div class="cp-testi-slide">
+        <div class="cp-testi-card">
+          <p class="cp-testi-quote">We've been renting cranes and forklifts from Current Link for over 3 years. Equipment is always well-maintained and their 24/7 support is exceptional. True partners in our operations.</p>
+          <p class="cp-testi-author">— Khalid Al Shamsi</p>
+          <p class="cp-testi-role">Operations Manager, Al Jaber Group</p>
+        </div>
+      </div>
+      <div class="cp-testi-slide">
+        <div class="cp-testi-card">
+          <p class="cp-testi-quote">Professional, responsive, and dependable. Their team understands the urgency of project timelines and always delivers on time. A valued vendor for our infrastructure projects.</p>
+          <p class="cp-testi-author">— Saeed Al Kaabi</p>
+          <p class="cp-testi-role">Procurement Head, GCC Services</p>
+        </div>
+      </div>
+      <div class="cp-testi-slide">
+        <div class="cp-testi-card">
+          <p class="cp-testi-quote">From excavators to trailers, every piece of equipment we've rented has been in excellent condition. Their safety standards and operator training give us confidence on every job site.</p>
+          <p class="cp-testi-author">— Rashid Al Nuaimi</p>
+          <p class="cp-testi-role">Project Manager, Khidmah LLC</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cp-testi-dots">
+    <span class="cp-testi-dot"></span>
+    <span class="cp-testi-dot"></span>
+    <span class="cp-testi-dot"></span>
+    <span class="cp-testi-dot"></span>
+  </div>
+</section>
+
+{# ═══════════ CLIENTS ═══════════ #}
+<section class="cp-section cp-section-dark cp-section-center" id="clients">
+  <div class="reveal">
+    <div class="cp-eyebrow cp-eyebrow-light">Trusted By</div>
+    <h2 class="cp-heading light">Our Valued <span>Clients</span></h2>
+    <p class="cp-text light cp-text-center">Proud to serve leading companies across the UAE.</p>
+  </div>
+  <div class="cp-clients reveal">
     <img src="{{ url_for('static', filename='client/top nine/NMDC D&M.png') }}" alt="NMDC" class="cp-client-logo" onerror="this.style.display='none'">
     <img src="{{ url_for('static', filename='client/top nine/gcc logo.jpg') }}" alt="GCC" class="cp-client-logo" onerror="this.style.display='none'">
     <img src="{{ url_for('static', filename='client/top nine/Al jaber.jpg') }}" alt="Al Jaber" class="cp-client-logo" onerror="this.style.display='none'">
@@ -706,25 +892,25 @@ a { text-decoration:none; color:inherit; }
     <img src="{{ url_for('static', filename='client/top nine/cleanco.jpg') }}" alt="Cleanco" class="cp-client-logo" onerror="this.style.display='none'">
     <img src="{{ url_for('static', filename='client/top nine/WBG.jpg') }}" alt="WBG" class="cp-client-logo" onerror="this.style.display='none'">
   </div>
-  <div class="cp-certs">
-    <div class="cp-cert"><span>&#9679; ICV Certified</span></div>
-    <div class="cp-cert"><span>&#9679; ISO 14001</span></div>
-    <div class="cp-cert"><span>&#9679; VMS Certified</span></div>
+  <div class="cp-certs reveal">
+    <div class="cp-cert"><span class="cp-cert-dot"></span> ICV Certified</div>
+    <div class="cp-cert"><span class="cp-cert-dot"></span> ISO 14001</div>
+    <div class="cp-cert"><span class="cp-cert-dot"></span> VMS Certified</div>
   </div>
 </section>
 
 {# ═══════════ CONTACT ═══════════ #}
-<section class="cp-section cp-section-white" id="contact">
-  <div style="text-align:center">
-    <div class="cp-eyebrow cp-eyebrow-orange">Get In Touch</div>
-    <h2 class="cp-heading">Contact Us</h2>
-    <p class="cp-text cp-text-center">Ready to work together? Reach out to our team.</p>
+<section class="cp-section cp-section-light cp-section-center" id="contact">
+  <div class="reveal">
+    <div class="cp-eyebrow cp-eyebrow-accent">Get In Touch</div>
+    <h2 class="cp-heading light">Contact <span>Us</span></h2>
+    <p class="cp-text light cp-text-center">Ready to work together? Reach out to our team for a quote or consultation.</p>
   </div>
-  <div class="cp-contact-grid">
+  <div class="cp-contact-grid reveal">
     <div>
       <div class="cp-contact-item">
         <div class="cp-contact-icon">
-          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="#F7931E" stroke-width="1.8"><path d="M17 14v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2"/><path d="M9 10H1l4-8h6l4 8h-8"/><circle cx="10" cy="14" r="1"/></svg>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M17 14v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2"/><path d="M9 10H1l4-8h6l4 8h-8"/><circle cx="10" cy="14" r="1"/></svg>
         </div>
         <div>
           <div class="cp-contact-lbl">Location</div>
@@ -733,27 +919,27 @@ a { text-decoration:none; color:inherit; }
       </div>
       <div class="cp-contact-item">
         <div class="cp-contact-icon">
-          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="#F7931E" stroke-width="1.8"><path d="M4 2h3l1 4-2 2a14 14 0 0 0 6 6l2-2 4 1v3a1 1 0 0 1-1 1A16 16 0 0 1 3 3a1 1 0 0 1 1-1z"/></svg>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M4 2h3l1 4-2 2a14 14 0 0 0 6 6l2-2 4 1v3a1 1 0 0 1-1 1A16 16 0 0 1 3 3a1 1 0 0 1 1-1z"/></svg>
         </div>
         <div>
           <div class="cp-contact-lbl">Phone</div>
           <div class="cp-contact-val"><a href="tel:{{ cp.phone_number if cp and cp.phone_number else '+971501224963' }}">{{ cp.phone_number or '050-1224963' }}</a>{% if cp and cp.phone_number %} / <a href="tel:+971501082900">050-1082900</a>{% endif %}</div>
         </div>
       </div>
-    </div>
-    <div>
       <div class="cp-contact-item">
         <div class="cp-contact-icon">
-          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="#F7931E" stroke-width="1.8"><path d="M4 4h12a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><polyline points="5 8 10 11 15 8"/></svg>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M4 4h12a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><polyline points="5 8 10 11 15 8"/></svg>
         </div>
         <div>
           <div class="cp-contact-lbl">Email</div>
           <div class="cp-contact-val"><a href="mailto:{{ cp.email if cp and cp.email else 'info@currentlinktgc.com' }}">{{ cp.email or 'info@currentlinktgc.com' }}</a></div>
         </div>
       </div>
+    </div>
+    <div>
       <div class="cp-contact-item">
         <div class="cp-contact-icon">
-          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="#F7931E" stroke-width="1.8"><circle cx="10" cy="10" r="9"/><path d="M10 3v14"/><path d="M3 10h14"/></svg>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="1.8"><circle cx="10" cy="10" r="9"/><path d="M10 3v14"/><path d="M3 10h14"/></svg>
         </div>
         <div>
           <div class="cp-contact-lbl">Website</div>
@@ -762,11 +948,20 @@ a { text-decoration:none; color:inherit; }
       </div>
       <div class="cp-contact-item">
         <div class="cp-contact-icon">
-          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="#F7931E" stroke-width="1.8"><path d="M10 1a7 7 0 0 0-7 7c0 3.5 2.5 8 7 12 4.5-4 7-8.5 7-12a7 7 0 0 0-7-7z"/><circle cx="10" cy="8" r="2"/></svg>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M10 1a7 7 0 0 0-7 7c0 3.5 2.5 8 7 12 4.5-4 7-8.5 7-12a7 7 0 0 0-7-7z"/><circle cx="10" cy="8" r="2"/></svg>
         </div>
         <div>
           <div class="cp-contact-lbl">Working Hours</div>
           <div class="cp-contact-val">Sun — Fri: 8:00 AM — 6:00 PM<br>24/7 Emergency Support Available</div>
+        </div>
+      </div>
+      <div class="cp-contact-item">
+        <div class="cp-contact-icon">
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M12 4v12M4 12h16"/></svg>
+        </div>
+        <div>
+          <div class="cp-contact-lbl">TRN No.</div>
+          <div class="cp-contact-val">{{ cp.trn_no if cp else '—' }}</div>
         </div>
       </div>
     </div>
@@ -775,8 +970,182 @@ a { text-decoration:none; color:inherit; }
 
 {# ═══════════ FOOTER ═══════════ #}
 <footer class="cp-footer">
-  &copy; 2026 {{ cp.company_name if cp else 'Current Link Transport &amp; General Contracting LLC SPC' }} &mdash; All rights reserved. &nbsp;|&nbsp; www.currentlinkgc.com
+  <div class="cp-footer-grid">
+    <div class="cp-footer-brand">
+      <h4 style="font-size:1rem;font-weight:800;color:#fff;letter-spacing:-0.3px;text-transform:none"><span style="color:var(--accent)">●</span> {{ cp.company_name if cp else 'Current Link Transport &amp; General Contracting' }}</h4>
+      <p>{{ cp.legal_name or 'Transport &amp; General Contracting LLC SPC' }} — Trusted heavy equipment and transport solutions across the UAE since 2015. Licensed SPC company in Abu Dhabi.</p>
+    </div>
+    <div>
+      <h4>Quick Links</h4>
+      <a href="#about">About Us</a>
+      <a href="#services">Services</a>
+      <a href="#fleet">Our Fleet</a>
+      <a href="#quality">Why Choose Us</a>
+      <a href="#team">Management</a>
+      <a href="#contact">Contact</a>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <a href="tel:{{ cp.phone_number if cp and cp.phone_number else '+971501224963' }}">{{ cp.phone_number or '050-1224963' }}</a>
+      <a href="mailto:{{ cp.email if cp and cp.email else 'info@currentlinktgc.com' }}">{{ cp.email or 'info@currentlinktgc.com' }}</a>
+      <a href="https://wa.me/971501224963" target="_blank">WhatsApp</a>
+      <a href="https://www.currentlinkgc.com" target="_blank">www.currentlinkgc.com</a>
+    </div>
+  </div>
+  <div class="cp-footer-bottom">
+    <span>&copy; 2026 {{ cp.company_name if cp else 'Current Link Transport &amp; General Contracting LLC SPC' }} — All rights reserved.</span>
+    <div class="cp-footer-social">
+      <a href="https://wa.me/971501224963" target="_blank" aria-label="WhatsApp">
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="var(--text-secondary)"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 20l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      </a>
+      <a href="tel:{{ cp.phone_number if cp and cp.phone_number else '+971501224963' }}" aria-label="Phone">
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--text-secondary)" stroke-width="1.8"><path d="M4 2h3l1 4-2 2a14 14 0 0 0 6 6l2-2 4 1v3a1 1 0 0 1-1 1A16 16 0 0 1 3 3a1 1 0 0 1 1-1z"/></svg>
+      </a>
+      <a href="mailto:{{ cp.email if cp and cp.email else 'info@currentlinktgc.com' }}" aria-label="Email">
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--text-secondary)" stroke-width="1.8"><path d="M4 4h12a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><polyline points="5 8 10 11 15 8"/></svg>
+      </a>
+      <a href="https://www.currentlinkgc.com" target="_blank" aria-label="Website">
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="var(--text-secondary)" stroke-width="1.8"><circle cx="10" cy="10" r="9"/><path d="M10 3v14M3 10h14"/></svg>
+      </a>
+    </div>
+  </div>
 </footer>
 
+{# ═══════════ WHATSAPP FLOAT ═══════════ #}
+<a class="cp-wa-float" href="https://wa.me/971501224963" target="_blank" aria-label="Chat on WhatsApp">
+  <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 20l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+</a>
+
+{# ═══════════ BACK TO TOP ═══════════ #}
+<button class="cp-btt" id="cpBtt" aria-label="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+  <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+</button>
+
+<script>
+(function(){
+  // ── Particles ──
+  const canvas = document.getElementById('particles-canvas');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  let w, h;
+
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const count = Math.min(80, Math.floor(w * h / 15000));
+  for(let i = 0; i < count; i++){
+    particles.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.5,
+      a: Math.random() * 0.3 + 0.1
+    });
+  }
+
+  function drawParticles(){
+    ctx.clearRect(0, 0, w, h);
+    for(let i = 0; i < particles.length; i++){
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      if(p.x < 0) p.x = w;
+      if(p.x > w) p.x = 0;
+      if(p.y < 0) p.y = h;
+      if(p.y > h) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(247,147,30,' + p.a + ')';
+      ctx.fill();
+
+      for(let j = i + 1; j < particles.length; j++){
+        const p2 = particles[j];
+        const dx = p.x - p2.x;
+        const dy = p.y - p2.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if(dist < 120){
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.strokeStyle = 'rgba(247,147,30,' + (0.03 * (1 - dist / 120)) + ')';
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(drawParticles);
+  }
+  drawParticles();
+
+  // ── Nav scroll ──
+  const nav = document.getElementById('cpNav');
+  window.addEventListener('scroll', function(){
+    nav.classList.toggle('scrolled', window.scrollY > 60);
+  });
+
+  // ── Mobile menu ──
+  const menuToggle = document.getElementById('cpMenuToggle');
+  const navLinks = document.getElementById('cpNavLinks');
+  if(menuToggle){
+    menuToggle.style.display = window.innerWidth <= 768 ? 'block' : 'none';
+    menuToggle.addEventListener('click', function(){
+      navLinks.classList.toggle('mobile-open');
+    });
+    window.addEventListener('resize', function(){
+      menuToggle.style.display = window.innerWidth <= 768 ? 'block' : 'none';
+      if(window.innerWidth > 768) navLinks.classList.remove('mobile-open');
+    });
+    navLinks.querySelectorAll('a').forEach(function(a){
+      a.addEventListener('click', function(){ navLinks.classList.remove('mobile-open'); });
+    });
+  }
+
+  // ── Intersection Observer Reveal ──
+  const revealEls = document.querySelectorAll('.reveal');
+  const revealObserver = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        entry.target.classList.add('visible');
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
+  revealEls.forEach(function(el){ revealObserver.observe(el); });
+
+  // ── Animated Counters ──
+  const counters = document.querySelectorAll('[data-count]');
+  const counterObserver = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        const el = entry.target;
+        const target = parseInt(el.getAttribute('data-count'), 10);
+        if(isNaN(target)) return;
+        let current = 0;
+        const step = Math.ceil(target / 40);
+        const timer = setInterval(function(){
+          current += step;
+          if(current >= target){
+            current = target;
+            clearInterval(timer);
+          }
+          el.textContent = current + (target === 100 ? '%' : '+');
+        }, 30);
+        counterObserver.unobserve(el);
+      }
+    });
+  }, { threshold: 0.3 });
+  counters.forEach(function(el){ counterObserver.observe(el); });
+
+  // ── Back to top ──
+  const btt = document.getElementById('cpBtt');
+  window.addEventListener('scroll', function(){
+    btt.classList.toggle('visible', window.scrollY > 400);
+  });
+})();
+</script>
 </body>
 </html>
