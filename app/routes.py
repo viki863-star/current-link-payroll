@@ -236,7 +236,13 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/company-profile")
     def company_profile():
-        return render_template("company_profile.html"), 200, {"Content-Type": "text/html; charset=utf-8"}
+        try:
+            db = open_db()
+            cp = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+            db.close()
+        except Exception:
+            cp = None
+        return render_template("company_profile.html", cp=cp), 200, {"Content-Type": "text/html; charset=utf-8"}
 
     @app.route("/brochure")
     def brochure():

@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Company Profile — Current Link Transport & General Contracting LLC SPC</title>
-    <meta name="theme-color" content="#0F2B52">
+    <title>Company Profile — {{ cp.company_name if cp else 'Current Link Transport & General Contracting LLC SPC' }}</title>
+    <meta name="theme-color" content="{{ cp.theme_color or '#0F2B52' }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
@@ -18,6 +18,12 @@ a { text-decoration:none; color:inherit; }
 
 /* ── NAV ── */
 .cp-nav { position:fixed; top:0; left:0; right:0; z-index:100; padding:10px 24px; display:flex; align-items:center; gap:12px; background:rgba(15,43,82,0.92); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.06); }
+{% if cp and cp.theme_color %}.cp-nav { background:{{ cp.theme_color }}e8; }
+.cp-cover { background:linear-gradient(160deg,{{ cp.theme_color }} 0%,{{ cp.theme_color }}cc 40%,{{ cp.theme_color }}99 100%); }
+.cp-section-dark { background:linear-gradient(160deg,{{ cp.theme_color }},{{ cp.theme_color }}cc); }
+.cp-service-page { background:linear-gradient(135deg,{{ cp.theme_color }},{{ cp.theme_color }}cc) !important; }
+.cp-footer { background:{{ cp.theme_color }}; }
+{% endif %}
 .cp-nav-logo { display:flex; align-items:center; gap:10px; }
 .cp-nav-video { width:36px; height:36px; border-radius:10px; object-fit:cover; border:2px solid rgba(247,147,30,0.35); }
 .cp-nav-name { font-size:1rem; font-weight:800; color:#fff; letter-spacing:-0.3px; }
@@ -188,10 +194,14 @@ a { text-decoration:none; color:inherit; }
 {# ═══════════ NAV ═══════════ #}
 <nav class="cp-nav" id="cpNav">
   <a class="cp-nav-logo" href="/">
+    {% if cp and cp.logo_data %}
+    <img class="cp-nav-video" src="data:{{ cp.logo_type or 'image/png' }};base64,{{ cp.logo_data }}" alt="Logo" style="width:36px;height:36px;border-radius:10px;object-fit:cover;border:2px solid rgba(247,147,30,0.35)">
+    {% else %}
     <video class="cp-nav-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
       <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
     </video>
-    <span class="cp-nav-name"><span>Current</span> <span class="cp-nav-orange">Link</span></span>
+    {% endif %}
+    <span class="cp-nav-name">{{ cp.company_name if cp else 'Current Link Transport &amp; General Contracting' }}</span>
   </a>
   <div class="cp-nav-links">
     <a href="#about">About</a>
@@ -210,20 +220,24 @@ a { text-decoration:none; color:inherit; }
   <div class="cp-cover-glow1"></div>
   <div class="cp-cover-glow2"></div>
   <div class="cp-cover-content">
-    <div class="cp-cover-profile-card">
-      <div class="cp-cover-logo-wrap">
-        <video autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
-          <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
-        </video>
-      </div>
-      <div class="cp-cover-eyebrow">Est. 2015 &middot; Abu Dhabi, UAE</div>
-      <h1 class="cp-cover-title">Current Link</h1>
-      <p class="cp-cover-sub">Transport &amp; General Contracting</p>
-      <p class="cp-cover-legal">Transport &amp; General Contracting LLC SPC</p>
-      <div class="cp-cover-divider"></div>
-      <p class="cp-cover-desc">
-        A trusted heavy equipment, water tanker, crane, trailer, forklift, grader, and excavator rental company serving UAE's leading construction and industrial clients since 2015.
-      </p>
+      <div class="cp-cover-profile-card">
+        <div class="cp-cover-logo-wrap">
+          {% if cp and cp.logo_data %}
+          <img src="data:{{ cp.logo_type or 'image/png' }};base64,{{ cp.logo_data }}" alt="{{ cp.company_name or 'Company' }}" style="width:100%;height:100%;object-fit:cover">
+          {% else %}
+          <video autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
+            <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
+          </video>
+          {% endif %}
+        </div>
+        <div class="cp-cover-eyebrow">Est. 2015 &middot; Abu Dhabi, UAE</div>
+        <h1 class="cp-cover-title">{{ cp.company_name if cp else 'Current Link' }}</h1>
+        <p class="cp-cover-sub">{{ cp.legal_name or 'Transport &amp; General Contracting' }}</p>
+        <p class="cp-cover-legal">{{ cp.legal_name or 'Transport &amp; General Contracting LLC SPC' }}</p>
+        <div class="cp-cover-divider"></div>
+        <p class="cp-cover-desc">
+          A trusted heavy equipment, water tanker, crane, trailer, forklift, grader, and excavator rental company serving UAE's leading construction and industrial clients since 2015.
+        </p>
       <div class="cp-cover-tagline">
         <span>Heavy Equipment</span>
         <span>Water Tankers</span>
@@ -248,7 +262,7 @@ a { text-decoration:none; color:inherit; }
       <div class="cp-eyebrow cp-eyebrow-orange">About Us</div>
       <h2 class="cp-heading">Moving Mountains,<br>Delivering Excellence</h2>
       <p class="cp-text">
-        <strong>Current Link Transport &amp; General Contracting LLC SPC</strong>, based in Mussaffah, 
+        <strong>{{ cp.company_name if cp else 'Current Link Transport &amp; General Contracting LLC SPC' }}</strong>, based in Mussaffah, 
         Abu Dhabi, has been a trusted provider of heavy equipment, water tankers, and transport 
         solutions since 2015. We serve leading construction, infrastructure, and industrial companies 
         across the UAE with a modern, well-maintained fleet.
@@ -714,7 +728,7 @@ a { text-decoration:none; color:inherit; }
         </div>
         <div>
           <div class="cp-contact-lbl">Location</div>
-          <div class="cp-contact-val">Confident property building, Behind Aramex,<br>First Floor, B-Block - office 102, M9,<br>Mussaffah, Abu Dhabi, UAE</div>
+          <div class="cp-contact-val">{{ cp.address if cp and cp.address else 'Confident property building, Behind Aramex,<br>First Floor, B-Block - office 102, M9,<br>Mussaffah, Abu Dhabi, UAE' }}</div>
         </div>
       </div>
       <div class="cp-contact-item">
@@ -723,7 +737,7 @@ a { text-decoration:none; color:inherit; }
         </div>
         <div>
           <div class="cp-contact-lbl">Phone</div>
-          <div class="cp-contact-val"><a href="tel:+971501224963">050-1224963</a> / <a href="tel:+971501082900">050-1082900</a></div>
+          <div class="cp-contact-val"><a href="tel:{{ cp.phone_number if cp and cp.phone_number else '+971501224963' }}">{{ cp.phone_number or '050-1224963' }}</a>{% if cp and cp.phone_number %} / <a href="tel:+971501082900">050-1082900</a>{% endif %}</div>
         </div>
       </div>
     </div>
@@ -734,7 +748,7 @@ a { text-decoration:none; color:inherit; }
         </div>
         <div>
           <div class="cp-contact-lbl">Email</div>
-          <div class="cp-contact-val"><a href="mailto:info@currentlinktgc.com">info@currentlinktgc.com</a></div>
+          <div class="cp-contact-val"><a href="mailto:{{ cp.email if cp and cp.email else 'info@currentlinktgc.com' }}">{{ cp.email or 'info@currentlinktgc.com' }}</a></div>
         </div>
       </div>
       <div class="cp-contact-item">
@@ -761,7 +775,7 @@ a { text-decoration:none; color:inherit; }
 
 {# ═══════════ FOOTER ═══════════ #}
 <footer class="cp-footer">
-  &copy; 2026 Current Link Transport &amp; General Contracting LLC SPC &mdash; All rights reserved. &nbsp;|&nbsp; www.currentlinkgc.com
+  &copy; 2026 {{ cp.company_name if cp else 'Current Link Transport &amp; General Contracting LLC SPC' }} &mdash; All rights reserved. &nbsp;|&nbsp; www.currentlinkgc.com
 </footer>
 
 </body>
