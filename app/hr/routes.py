@@ -746,7 +746,7 @@ def employee_salary_slip(employee_id):
         "payment_source": PAYMENT_SOURCES[0],
         "paid_by": "",
         "payment_notes": "",
-        "deduction_mode": "select",  # "select" or "manual"
+        "deduction_mode": "manual",
         "selected_txn_ids": [],
     }
 
@@ -801,43 +801,18 @@ def employee_salary_slip(employee_id):
 
     if request.method == "POST":
         selected_salary_id = request.form.get("salary_store_id", "").strip()
-        deduction_mode = request.form.get("deduction_mode", "select").strip()
-        selected_txn_ids_raw = request.form.getlist("selected_txn_ids")
-        manual_amount = request.form.get("manual_amount", "0").strip() or "0"
+        deduction_amount = float(request.form.get("deduction_amount", "0").strip() or "0")
+        selected_ids_int = []
         values = {
-            "deduction_amount": "0.00",
+            "deduction_amount": f"{deduction_amount:.2f}",
             "payment_date": request.form.get("payment_date", date.today().isoformat()).strip() or date.today().isoformat(),
             "actual_paid_amount": request.form.get("actual_paid_amount", "").strip(),
             "payment_source": request.form.get("payment_source", PAYMENT_SOURCES[0]).strip() or PAYMENT_SOURCES[0],
             "paid_by": request.form.get("paid_by", "").strip(),
             "payment_notes": request.form.get("payment_notes", "").strip(),
-            "deduction_mode": deduction_mode,
-            "selected_txn_ids": selected_txn_ids_raw,
+            "deduction_mode": "manual",
+            "selected_txn_ids": [],
         }
-
-        if deduction_mode == "select":
-            # Sum selected transaction amounts (based on remaining, not full amount)
-            deduction_amount = 0.0
-            selected_ids_int = []
-            for txn_id_str in selected_txn_ids_raw:
-                if txn_id_str.strip().isdigit():
-                    txn_id = int(txn_id_str.strip())
-                    txn = db.execute("SELECT * FROM driver_transactions WHERE id = ? AND driver_id = ?", (txn_id, eid)).fetchone()
-                    if txn:
-                        already = float(db.execute(
-                            "SELECT COALESCE(SUM(amount_deducted), 0) FROM salary_slip_deductions WHERE driver_transaction_id = ?",
-                            (txn["id"],),
-                        ).fetchone()[0])
-                        remaining = float(txn["amount"]) - already
-                        if remaining > 0.001:
-                            deduction_amount += remaining
-                            selected_ids_int.append(txn_id)
-            values["deduction_amount"] = f"{deduction_amount:.2f}"
-            values["selected_txn_ids"] = [str(x) for x in selected_ids_int]
-        else:
-            deduction_amount = float(manual_amount) if manual_amount else 0.0
-            selected_ids_int = []
-            values["deduction_amount"] = f"{deduction_amount:.2f}"
 
         if not selected_salary_id:
             flash("Select a stored salary month first.", "error")
@@ -929,7 +904,7 @@ def employee_salary_slip(employee_id):
 
                         # Save linked transactions to salary_slip_deductions
                         db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip_id,))
-                        if deduction_mode == "select" and selected_ids_int:
+                        if selected_ids_int:
                             for txn_id in selected_ids_int:
                                 txn = db.execute("SELECT * FROM driver_transactions WHERE id = ? AND driver_id = ?", (txn_id, eid)).fetchone()
                                 if txn:
