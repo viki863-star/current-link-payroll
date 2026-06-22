@@ -1158,7 +1158,7 @@ def fleet_maintenance_entry():
     return render_template("fleet/fleet_maintenance_entry.html", vehicles=vehicles, today=date.today().isoformat())
 
 
-@fleet_bp.route("/fleet/vehicles/<plate_no>/add-maintenance", methods=["POST"])
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/add-maintenance", methods=["POST"])
 @_login_required("admin")
 def vehicle_add_maintenance(plate_no):
     _touch_admin_workspace("fleet")
