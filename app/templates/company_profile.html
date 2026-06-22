@@ -294,14 +294,16 @@ ul{list-style:none}
 /* ── FOOTER ── */
 .cp-footer{position:relative;overflow:hidden;padding:60px 8% 30px;background:#050b16;border-top:1px solid rgba(255,255,255,0.03)}
 .cp-footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:40px;margin-bottom:40px}
-.cp-footer-brand p{font-size:0.78rem;color:var(--text-secondary);line-height:1.7;margin-top:10px;max-width:380px}
+.cp-footer-brand p{font-size:0.78rem;color:rgba(255,255,255,0.5);line-height:1.7;margin-top:10px;max-width:380px}
 .cp-footer h4{font-size:0.75rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px}
-.cp-footer a{font-size:0.75rem;color:var(--text-secondary);transition:var(--transition);display:block;padding:4px 0}
+.cp-footer a{font-size:0.75rem;color:rgba(255,255,255,0.5);transition:var(--transition);display:block;padding:4px 0}
 .cp-footer a:hover{color:var(--accent);padding-left:4px}
-.cp-footer-bottom{border-top:1px solid rgba(255,255,255,0.03);padding-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:0.65rem;color:var(--text-muted)}
+.cp-footer-bottom{border-top:1px solid rgba(255,255,255,0.03);padding-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:0.65rem;color:rgba(255,255,255,0.3)}
 .cp-footer-social{display:flex;gap:10px}
-.cp-footer-social a{width:34px;height:34px;border-radius:var(--radius-sm);background:var(--glass);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;transition:var(--transition)}
+.cp-footer-social a{width:34px;height:34px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;transition:var(--transition)}
 .cp-footer-social a:hover{background:rgba(247,147,30,0.1);border-color:rgba(247,147,30,0.15);padding:0;transform:translateY(-2px)}
+.cp-footer-social a svg{fill:rgba(255,255,255,0.5);transition:var(--transition)}
+.cp-footer-social a:hover svg{fill:var(--accent)}
 
 /* ── WHATSAPP FLOAT ── */
 .cp-wa-float{position:fixed;bottom:24px;right:24px;z-index:999;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 24px rgba(37,211,102,0.3);transition:var(--transition);cursor:pointer;border:none}
