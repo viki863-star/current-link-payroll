@@ -17379,6 +17379,26 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "movement": "Outgoing",
             }
         )
+    for entry in db.execute(
+        """
+        SELECT spr.payment_date, spr.amount, spr.notes, s.supplier_name
+        FROM supplier_payment_records spr
+        LEFT JOIN suppliers s ON s.id = spr.supplier_id
+        WHERE spr.fund_source = 'owner_fund'
+        ORDER BY spr.payment_date ASC, spr.id ASC
+        """
+    ).fetchall():
+        rows.append(
+            {
+                "entry_date": entry["payment_date"],
+                "reference": f"Supplier Payment / {entry['supplier_name'] or 'Unknown'}",
+                "party": "Owner Fund",
+                "details": entry["notes"] or "Supplier payment",
+                "incoming": 0.0,
+                "outgoing": float(entry["amount"]),
+                "movement": "Outgoing",
+            }
+        )
     rows.sort(key=lambda item: (item["entry_date"].isoformat() if hasattr(item["entry_date"], "isoformat") else str(item["entry_date"]), item["movement"], item["reference"]))
     balance = 0.0
     for row in rows:
