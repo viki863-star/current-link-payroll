@@ -236,7 +236,7 @@ def generate_lpo_pdf(company, party, lpo: dict, assets_dir: str, output_dir: str
     pdf.setFont("Helvetica", 6.8)
     pdf.drawString(15 * mm, 20 * mm,
                    f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}  |  "
-                   f"{company.get('company_name') or 'Current Link'}  |  "
+                   f"{company.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING')}  |  "
                    f"TRN: {company.get('trn_no') or '-'}")
     _draw_footer_banner(pdf, assets_dir, True, company_profile)
 
@@ -561,7 +561,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         return PlParagraph(str(t), F("_R", **kw))
 
     els = []
-    cn = cp.get("company_name") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
     trn = cp.get("trn_no") or "—"
 
     # ═══ HEADER ═══
@@ -796,7 +796,7 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
         return PlParagraph(str(t), F("_R", **kw))
 
     els = []
-    cn = cp.get("company_name") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
     trn = cp.get("trn_no") or "—"
 
     # ═══ HEADER ═══
@@ -1055,7 +1055,7 @@ def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: st
         return PlParagraph(str(t), F("_R", **kw))
 
     els = []
-    cn = cp.get("company_name") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
     trn = cp.get("trn_no") or "—"
 
     # ═══ HEADER ═══
@@ -1281,7 +1281,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
         return Paragraph(str(t), F("_R", **kw))
 
     els = []
-    cn = cp.get("company_name") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
     trn = cp.get("trn_no") or "—"
 
     # ═══ HEADER (matches customer SOA style) ═══
@@ -2353,7 +2353,7 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
         seller_w,
         seller_h,
         "SELLER",
-        company_profile.get("company_name") or "Current Link",
+        company_profile.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"),
         company_profile.get("legal_name") or company_profile.get("company_name") or "-",
         company_profile.get("address") or "-",
         company_profile.get("trn_no") or "-",
@@ -2485,7 +2485,7 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
 
     cy = header_y + header_h / 2
 
-    c_name = company.get("company_name") or "CURRENT LINK TRANSPORT"
+    c_name = company.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
     pdf.setFillColor(BLUE_DARK)
     cname_text, cname_size = _fit_text(pdf, c_name, "Helvetica-Bold", 13, text_area_w, min_size=9)
     pdf.setFont("Helvetica-Bold", cname_size)
@@ -3036,7 +3036,7 @@ def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str = "", show_top_rule:
     pdf.setStrokeColor(LINE)
     pdf.roundRect(15 * mm, 8 * mm, footer_w, 22 * mm, 4 * mm, fill=0, stroke=1)
 
-    c_name = (company.get("company_name") or "Current Link Transport").upper()
+    c_name = (company.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")).upper()
     cname_text, cname_size = _fit_text(pdf, c_name, "Helvetica-Bold", 8, footer_w - 10 * mm, min_size=6)
     pdf.setFillColor(BLUE_DARK)
     pdf.setFont("Helvetica-Bold", cname_size)
@@ -3489,7 +3489,7 @@ def _generate_employee_list_pdf(employees, output_dir: str, company_profile: dic
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     company = company_profile or {}
-    cn = company.get("company_name") or "Current Link Transport"
+    cn = company.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
 
     doc = SimpleDocTemplate(
         str(output_path), pagesize=A4,
@@ -3747,7 +3747,7 @@ def generate_deduction_statement_pdf(driver, salary_store_row, slip_row, deducte
         return ParagraphStyle(name, **kw)
 
     els = []
-    cn = cp.get("company_name") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
     trn = cp.get("trn_no") or "—"
 
     logo = None; LW = 0

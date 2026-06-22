@@ -1291,7 +1291,11 @@ def fleet_staff_delete(staff_id):
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
     # Nullify references so submitted data is preserved
+    ALLOWED_TABLES = {"maintenance_jobs", "maintenance_papers", "maintenance_staff_advances"}
+    ALLOWED_FIELDS = {"staff_id", "technician_code", "staff_code"}
     for tbl, col in [("maintenance_jobs", "staff_id"), ("maintenance_papers", "technician_code"), ("maintenance_staff_advances", "staff_code")]:
+        if tbl not in ALLOWED_TABLES or col not in ALLOWED_FIELDS:
+            continue
         try:
             db.execute(f"UPDATE {tbl} SET {col}='' WHERE {col}=?", (staff_id,))
         except Exception:

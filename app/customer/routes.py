@@ -662,7 +662,7 @@ def customer_invoice_pdf(cid, iid):
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64748b"); C6 = colors.HexColor("#dc2626")
 
-    cn = "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""
@@ -1394,7 +1394,7 @@ def customer_quotation_pdf(cid, qid):
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64748b"); C6 = colors.HexColor("#dc2626")
 
-    cn = "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""

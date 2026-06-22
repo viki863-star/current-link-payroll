@@ -6657,7 +6657,7 @@ def register_routes(app: Flask) -> None:
             return Paragraph(str(t), F("_R", **kw))
 
         els = []
-        cn = cp.get("company_name") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+        cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
         trn = cp.get("trn_no") or "—"
 
         # ═══ HEADER ═══
@@ -6874,7 +6874,7 @@ def register_routes(app: Flask) -> None:
             return Paragraph(str(t), F("_R", **kw))
 
         els = []
-        cn = cp.get("company_name") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+        cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
         trn = cp.get("trn_no") or "—"
 
         # ═══ HEADER ═══
@@ -10534,6 +10534,10 @@ def _maintenance_advance_row(db, advance_no: str, *, required: bool = False):
 
 
 def _next_reference_code(db, table_name: str, field_name: str, prefix: str) -> str:
+    ALLOWED_TABLES = {"branches", "financial_years", "agreements", "lpos", "hire_records", "account_invoices", "account_payments", "loan_entries", "annual_fee_entries", "vehicle_master", "maintenance_staff", "maintenance_staff_advances", "maintenance_papers", "maintenance_settlements", "supplier_lpos", "supplier_quotation_submissions", "supplier_registration_requests", "supplier_assets", "supplier_timesheets", "supplier_vouchers", "supplier_payments", "supplier_invoice_submissions", "supplier_partnership_entries", "cash_supplier_trips", "cash_supplier_debits", "cash_supplier_payments", "supplier_inquiries", "parties"}
+    ALLOWED_FIELDS = {"branch_code", "year_code", "agreement_no", "lpo_no", "hire_no", "invoice_no", "voucher_no", "loan_no", "fee_no", "vehicle_id", "staff_code", "advance_no", "paper_no", "settlement_no", "request_no", "asset_code", "timesheet_no", "payment_no", "submission_no", "quotation_no", "entry_no", "trip_no", "debit_no", "inquiry_no", "party_code"}
+    if table_name not in ALLOWED_TABLES or field_name not in ALLOWED_FIELDS:
+        return ""
     rows = db.execute(f"SELECT {field_name} FROM {table_name} WHERE {field_name} LIKE ? ORDER BY {field_name} ASC", (f"{prefix}-%",)).fetchall()
     max_number = 0
     for row in rows:
@@ -11625,6 +11629,10 @@ def _optional_reference_exists(db, table_name: str, field_name: str, value: str,
     code = (value or "").strip().upper()
     if not code:
         return ""
+    ALLOWED_TABLES = {"agreements", "lpos", "hire_records"}
+    ALLOWED_FIELDS = {"agreement_no", "lpo_no", "hire_no"}
+    if table_name not in ALLOWED_TABLES or field_name not in ALLOWED_FIELDS:
+        return ""
     row = db.execute(f"SELECT {field_name} FROM {table_name} WHERE {field_name} = ?", (code,)).fetchone()
     if row is None:
         raise ValidationError(f"{label} was not found.")
@@ -11840,6 +11848,10 @@ def _ensure_reference_available(db, table_name: str, field_name: str, new_value:
     new_code = (new_value or "").strip().upper()
     original_code = (original_value or "").strip().upper()
     if not new_code or new_code == original_code:
+        return
+    ALLOWED_TABLES = {"lpos", "supplier_quotation_submissions", "branches", "company_currencies", "financial_years", "cash_supplier_trips", "cash_supplier_debits", "cash_supplier_payments", "hire_records", "loan_entries", "annual_fee_entries", "account_invoices", "account_payments", "vehicle_master", "parties", "maintenance_papers", "maintenance_staff", "maintenance_staff_advances", "maintenance_settlements", "supplier_invoice_submissions", "supplier_vouchers", "supplier_assets", "supplier_timesheets", "supplier_payments", "supplier_partnership_entries"}
+    ALLOWED_FIELDS = {"lpo_no", "quotation_no", "branch_code", "currency_code", "year_code", "trip_no", "debit_no", "payment_no", "hire_no", "loan_no", "fee_no", "invoice_no", "voucher_no", "vehicle_id", "party_code", "paper_no", "staff_code", "advance_no", "settlement_no", "submission_no", "asset_code", "timesheet_no", "entry_no"}
+    if table_name not in ALLOWED_TABLES or field_name not in ALLOWED_FIELDS:
         return
     existing = db.execute(f"SELECT {field_name} FROM {table_name} WHERE {field_name} = ?", (new_code,)).fetchone()
     if existing is not None:
@@ -19102,6 +19114,10 @@ def _upsert_fleet_vehicle_records(db, records):
 
 
 def _reference_max_number(db, table_name: str, field_name: str, prefix: str) -> int:
+    ALLOWED_TABLES = {"vehicle_master"}
+    ALLOWED_FIELDS = {"vehicle_id"}
+    if table_name not in ALLOWED_TABLES or field_name not in ALLOWED_FIELDS:
+        return 0
     rows = db.execute(f"SELECT {field_name} FROM {table_name} WHERE {field_name} LIKE ? ORDER BY {field_name} ASC", (f"{prefix}-%",)).fetchall()
     max_number = 0
     for row in rows:
