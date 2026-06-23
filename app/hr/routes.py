@@ -79,9 +79,96 @@ def _employee_photo_url(app, employee):
 @hr_bp.route("/hr")
 @_login_required("admin")
 def hr_dashboard():
-    _touch_admin_workspace("hr")
-    ensure_employees_table()
-    return render_template("hr/employee_salary_dashboard.html")
+    try:
+        _touch_admin_workspace("hr")
+        ensure_employees_table()
+        db = open_db()
+
+        employees = db.execute(
+            "SELECT employee_id, full_name, employee_type, department, status, join_date FROM employees ORDER BY full_name"
+        ).fetchall()
+
+        total = len(employees)
+        active = sum(1 for e in employees if (e["status"] or "").lower() == "active")
+        inactive = total - active
+
+        stored_this_month = db.execute(
+            "SELECT COUNT(*) AS c FROM salary_store WHERE salary_month = ?",
+            (_current_month_value(),),
+        ).fetchone()["c"] or 0
+
+        advances_pending = db.execute(
+            "SELECT COUNT(*) AS c FROM driver_transactions WHERE txn_type IN ('advance','loan')"
+        ).fetchone()["c"] or 0
+
+        # ── Department breakdown ──
+        dept_rows = db.execute(
+            "SELECT department, COUNT(*) AS c FROM employees GROUP BY department ORDER BY c DESC"
+        ).fetchall()
+        departments = {r["department"]: r["c"] for r in dept_rows}
+
+        # ── Type breakdown ──
+        type_rows = db.execute(
+            "SELECT employee_type, COUNT(*) AS c FROM employees GROUP BY employee_type ORDER BY c DESC"
+        ).fetchall()
+        employee_types_dict = {r["employee_type"]: r["c"] for r in type_rows}
+
+        # ── Monthly salary store trend (last 6 months) ──
+        from datetime import date
+        trend_months = []
+        trend_counts = []
+        today = date.today()
+        for i in range(5, -1, -1):
+            m = today.month - i
+            y = today.year
+            if m < 1:
+                m += 12
+                y -= 1
+            ym = f"{y:04d}-{m:02d}"
+            cnt = db.execute(
+                "SELECT COUNT(*) AS c FROM salary_store WHERE salary_month = ?", (ym,)
+            ).fetchone()["c"] or 0
+            trend_months.append(ym)
+            trend_counts.append(cnt)
+
+        # ── Active drivers payroll amount this month ──
+        payroll_row = db.execute(
+            "SELECT COALESCE(SUM(ss.net_salary), 0) AS total FROM salary_store ss JOIN employees e ON e.employee_id = ss.driver_id WHERE ss.salary_month = ? AND LOWER(e.status) = 'active'",
+            (_current_month_value(),),
+        ).fetchone()
+        payroll_amount = payroll_row["total"] if payroll_row else 0
+
+        # ── Recent employees ──
+        recent = db.execute(
+            "SELECT employee_id, full_name, employee_type, department, join_date, status FROM employees ORDER BY id DESC LIMIT 5"
+        ).fetchall()
+
+        # ── Count by status ──
+        on_leave = sum(1 for e in employees if (e["status"] or "").lower() == "on leave")
+        terminated = sum(1 for e in employees if (e["status"] or "").lower() == "terminated")
+
+        return render_template(
+            "hr/dashboard.html",
+            total=total,
+            active_count=active,
+            inactive_count=inactive,
+            on_leave=on_leave,
+            terminated=terminated,
+            stored_this_month=stored_this_month,
+            payroll_amount=payroll_amount,
+            advances_pending=advances_pending,
+            departments=departments,
+            employee_types=employee_types_dict,
+            trend_months=trend_months,
+            trend_counts=trend_counts,
+            recent_employees=recent,
+        )
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        current_app.logger.error("HR dashboard error: %s | type=%s\n%s", e, type(e).__name__, tb)
+        flash(f"HR Dashboard error: {type(e).__name__}: {e}\n\nTraceback:\n{tb[:2000]}", "error")
+        return redirect(url_for("dashboard"))
 
 
 # ── Employee List ────────────────────────────────────────────────
