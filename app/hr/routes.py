@@ -1579,6 +1579,93 @@ def employee_vehicle_history(employee_id):
     except Exception:
         return []
 
+# ── Salary Dashboard ──────────────────────────────────────────────
+
+@hr_bp.route("/hr/salary-dashboard")
+@_login_required("admin")
+def salary_dashboard():
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    return render_template("hr/employee_salary_dashboard.html")
+
+
+@hr_bp.route("/hr/api/salary-dashboard-data")
+@_login_required("admin")
+def salary_dashboard_data():
+    import json
+    db = open_db()
+    ensure_employees_table()
+
+    # All employees
+    employees = db.execute(
+        "SELECT employee_id, full_name, department, status FROM employees ORDER BY full_name"
+    ).fetchall()
+
+    # All salary_store records
+    store_rows = db.execute(
+        "SELECT driver_id, salary_month, net_salary FROM salary_store"
+    ).fetchall()
+    store_by_emp = {}
+    for r in store_rows:
+        store_by_emp.setdefault(r["driver_id"], {})[r["salary_month"]] = r
+
+    # All salary_slips with paid amounts
+    slip_rows = db.execute(
+        "SELECT driver_id, salary_month, salary_after_deduction, actual_paid_amount "
+        "FROM salary_slips WHERE salary_after_deduction > 0 OR actual_paid_amount > 0"
+    ).fetchall()
+    paid_by_emp = {}
+    for r in slip_rows:
+        paid_by_emp.setdefault(r["driver_id"], set()).add(r["salary_month"])
+
+    # All salary_payments
+    pay_rows = db.execute(
+        "SELECT driver_id, salary_month FROM salary_payments WHERE amount > 0"
+    ).fetchall()
+    pay_by_emp = {}
+    for r in pay_rows:
+        pay_by_emp.setdefault(r["driver_id"], set()).add(r["salary_month"])
+
+    # Available months from both tables
+    month_rows = db.execute(
+        "SELECT DISTINCT salary_month FROM salary_store UNION "
+        "SELECT DISTINCT salary_month FROM salary_slips UNION "
+        "SELECT DISTINCT salary_month FROM salary_payments "
+        "ORDER BY salary_month DESC"
+    ).fetchall()
+    available_months = [r["salary_month"] for r in month_rows]
+
+    result = []
+    for emp in employees:
+        eid = emp["employee_id"]
+        emp_data = {
+            "employee_id": eid,
+            "name": emp["full_name"],
+            "department": emp["department"] or "",
+            "status": emp["status"] or "",
+            "salaryStatus": {},
+        }
+        for m in available_months:
+            has_store = eid in store_by_emp and m in store_by_emp[eid]
+            has_slip = eid in paid_by_emp and m in paid_by_emp[eid]
+            has_payment = eid in pay_by_emp and m in pay_by_emp[eid]
+
+            if has_slip or has_payment:
+                emp_data["salaryStatus"][m] = "Paid"
+            elif has_store:
+                emp_data["salaryStatus"][m] = "Unpaid"
+            else:
+                emp_data["salaryStatus"][m] = "Pending"
+
+        result.append(emp_data)
+
+    db.close()
+    return jsonify({
+        "employees": result,
+        "months": available_months,
+    })
+
+
 @hr_bp.app_template_global()
 def employee_photo_url(employee):
     if not employee:

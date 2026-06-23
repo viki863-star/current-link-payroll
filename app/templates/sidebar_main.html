@@ -64,6 +64,23 @@
             </a>
             {% endfor %}
 
+            {# â•â•â• HR CHILDREN â•â•â• #}
+            {% set hr_children = [
+                {"label": "Salary Dashboard", "endpoint": "hr.salary_dashboard", "icon": "bar-chart"},
+            ] %}
+            {% set is_on_hr_children = request.endpoint and (request.endpoint in ["hr.salary_dashboard"]) %}
+            <div class="erp-nav-children {{ 'is-expanded' if is_on_hr_children }}" style="margin-top:-4px;margin-bottom:4px">
+                {% for ch in hr_children %}
+                {% set ch_active = request.endpoint == ch.endpoint %}
+                <a class="erp-nav-link erp-nav-child {{ 'is-active' if ch_active }}" href="{{ url_for(ch.endpoint) }}">
+                    <span class="erp-nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M4 20V4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 2v6h6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="10" y1="16" x2="14" y2="16"/></svg>
+                    </span>
+                    <span class="erp-nav-copy">{{ ch.label }}</span>
+                </a>
+                {% endfor %}
+            </div>
+
             {# â•â•â• ACCOUNTS (expandable) â•â•â• #}
             <button class="erp-nav-expandable {{ 'is-expanded' if is_on_accounts }}" type="button" id="accountsExpandBtn" aria-expanded="{{ 'true' if is_on_accounts else 'false' }}">
                 <span class="erp-nav-icon">
