@@ -57,11 +57,19 @@
 {% set sf = request.args.get('status', 'active') %}
 {% set sel_month_val = request.args.get('month', months[0][0] if months else '') %}
 
+{% set visible = [] %}
+{% for e in employees %}
+  {% set st = e.statuses.get(sel_month_val, 'No Record') %}
+  {% if st != 'No Record' %}
+    {% set _ = visible.append(e) %}
+  {% endif %}
+{% endfor %}
+
 {% set paid_count = namespace(v=0) %}
 {% set unpaid_count = namespace(v=0) %}
 {% set pending_count = namespace(v=0) %}
 {% set total_salary = namespace(v=0) %}
-{% for e in employees %}
+{% for e in visible %}
   {% set s = e.statuses.get(sel_month_val, 'No Record') %}
   {% if s == 'Paid' %}{% set paid_count.v = paid_count.v + 1 %}
   {% elif s == 'Unpaid' %}{% set unpaid_count.v = unpaid_count.v + 1 %}
@@ -81,8 +89,8 @@
   <div class="sd-summary">
     <div class="sd-summary-card">
       <div class="sd-s-icon" style="background:#0f172a;color:#0f172a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-      <div class="num" style="color:#0f172a">{{ employees|length }}</div>
-      <div class="label" style="color:#64748b">Total Employees</div>
+      <div class="num" style="color:#0f172a">{{ visible|length }}</div>
+      <div class="label" style="color:#64748b">Active This Month</div>
     </div>
     <div class="sd-summary-card">
       <div class="sd-s-icon" style="background:#10b981;color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
@@ -123,7 +131,7 @@
         {% endfor %}
       </select>
     </form>
-    <span class="sd-badge">{{ employees|length }} employees</span>
+    <span class="sd-badge">{{ visible|length }} active this month</span>
     <a class="sd-btn" href="{{ url_for('hr.salary_dashboard_excel', month=sel_month_val, status=sf) }}" title="Download Excel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Excel
@@ -143,7 +151,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for e in employees %}
+        {% for e in visible %}
         {% set st = e.statuses.get(sel_month_val, 'No Record') %}
         {% set amt = e.amounts.get(sel_month_val, 0) %}
         {% set cls = 'sd-paid' if st == 'Paid' else ('sd-unpaid' if st == 'Unpaid' else ('sd-pending' if st == 'Pending' else 'sd-norecord')) %}

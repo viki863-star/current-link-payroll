@@ -1594,7 +1594,7 @@ def _salary_dashboard_data(status_filter=""):
         where = "WHERE LOWER(status) = 'terminated'"
 
     employees = db.execute(
-        f"SELECT employee_id, full_name, department, status FROM employees {where} ORDER BY full_name"
+        f"SELECT employee_id, full_name, department, status, termination_date FROM employees {where} ORDER BY full_name"
     ).fetchall()
 
     store_rows = db.execute(
@@ -1630,24 +1630,30 @@ def _salary_dashboard_data(status_filter=""):
     emp_list = []
     for emp in employees:
         eid = emp["employee_id"]
+        term_date = emp.get("termination_date") or ""
+        term_month = term_date[:7] if term_date and len(term_date) >= 7 else ""
+
         statuses = {}
         amounts = {}
         for m in available_months:
-            if eid in paid_by_emp and m in paid_by_emp[eid]:
-                statuses[m] = "Paid"
-            elif eid in store_by_emp and m in store_by_emp[eid]:
-                statuses[m] = "Unpaid"
-            else:
-                statuses[m] = "Pending"
-            if eid in store_by_emp and m in store_by_emp[eid]:
-                amounts[m] = float(store_by_emp[eid][m])
-            else:
+            emp_is_terminated = (emp["status"] or "").lower() == "terminated"
+            if emp_is_terminated and term_month and m > term_month:
+                statuses[m] = "No Record"
                 amounts[m] = 0.0
+            else:
+                if eid in paid_by_emp and m in paid_by_emp[eid]:
+                    statuses[m] = "Paid"
+                elif eid in store_by_emp and m in store_by_emp[eid]:
+                    statuses[m] = "Unpaid"
+                else:
+                    statuses[m] = "Pending"
+                amounts[m] = float(store_by_emp[eid][m]) if eid in store_by_emp and m in store_by_emp[eid] else 0.0
         emp_list.append({
             "id": eid,
             "name": emp["full_name"],
             "department": emp["department"] or "",
             "emp_status": emp["status"] or "",
+            "term_date": term_date,
             "statuses": statuses,
             "amounts": amounts,
         })
@@ -1672,13 +1678,14 @@ def salary_dashboard():
     _touch_admin_workspace("hr")
     ensure_employees_table()
     sf = request.args.get("status", "active")
+    sel_month_raw = request.args.get("month", "")
     emp_list, available_months = _salary_dashboard_data(status_filter=sf)
     return render_template(
         "hr/employee_salary_dashboard.html",
         employees=emp_list,
         months=_format_month_options(available_months),
         selected_status=sf,
-        sel_month=request.args.get("month", available_months[0] if available_months else ""),
+        sel_month=sel_month_raw or (available_months[0] if available_months else ""),
     )
 
 
@@ -1724,12 +1731,15 @@ def salary_dashboard_excel():
         "No Record": PatternFill("solid", fgColor="F2F3F4"),
     }
 
-    for ri, emp in enumerate(emp_list, 2):
+    row_idx = 2
+    for emp in emp_list:
         st = emp["statuses"].get(selected_month, "No Record")
+        if st == "No Record":
+            continue
         amt = emp["amounts"].get(selected_month, 0)
-        vals = [ri - 1, emp["name"], emp["department"], emp["emp_status"], amt, st]
+        vals = [row_idx - 1, emp["name"], emp["department"], emp["emp_status"], amt, st]
         for ci, v in enumerate(vals, 1):
-            c = ws.cell(row=ri, column=ci, value=v)
+            c = ws.cell(row=row_idx, column=ci, value=v)
             c.border = border
             if ci == 5:
                 c.number_format = '#,##0.00'
@@ -1737,6 +1747,7 @@ def salary_dashboard_excel():
             sf = status_fills.get(st)
             if sf:
                 c.fill = sf
+        row_idx += 1
 
     ws.column_dimensions["A"].width = 6
     ws.column_dimensions["B"].width = 32
