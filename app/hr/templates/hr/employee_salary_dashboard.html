@@ -76,11 +76,13 @@
 
   <div class="sd-controls">
     <label for="month-select">📅 Month:</label>
-    <select id="month-select">
-      {% for val, label in months %}
-      <option value="{{ val }}" {% if val == selected_month %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
+    <form method="get" style="display:inline" id="month-form">
+      <select id="month-select" name="month" onchange="this.form.submit()">
+        {% for val, label in months %}
+        <option value="{{ val }}" {% if val == selected_month %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
     <span class="badge">{{ employees|length }} employees</span>
   </div>
 
