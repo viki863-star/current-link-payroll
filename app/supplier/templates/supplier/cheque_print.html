@@ -27,7 +27,7 @@ html, body {
 .date-field {
   position: absolute;
   left: 152mm;
-  top: 21mm;
+  top: 19mm;
   font-size: 10pt;
   font-family: 'Georgia', 'Times New Roman', Times, serif;
   color: #000;
@@ -38,7 +38,7 @@ html, body {
 .payee-field {
   position: absolute;
   left: 35mm;
-  top: 37mm;
+  top: 35mm;
   font-size: 12pt;
   font-family: 'Georgia', 'Times New Roman', Times, serif;
   color: #000;
@@ -52,7 +52,7 @@ html, body {
 .words-line1 {
   position: absolute;
   left: 20mm;
-  top: 48mm;
+  top: 46mm;
   font-size: 10pt;
   font-family: 'Georgia', 'Times New Roman', Times, serif;
   color: #000;
@@ -75,8 +75,8 @@ html, body {
 /* ── AMOUNT FIGURE BOX ── */
 .figure-box {
   position: absolute;
-  left: 138mm;
-  top: 52mm;
+  left: 135mm;
+  top: 50mm;
   width: 42mm;
   height: 10mm;
   display: flex;
@@ -133,21 +133,21 @@ html, body {
 
   {# ── TEST ALIGNMENT MARKERS ── #}
   {% if request.args.get('test') %}
-  <div class="crosshair h" style="left:152mm;top:21mm;transform:translateX(-5mm)"></div>
-  <div class="crosshair v" style="left:152mm;top:21mm;transform:translateY(-5mm)"></div>
-  <div class="crosshair-label" style="left:152mm;top:18mm;transform:translateX(-50%)">DATE</div>
+  <div class="crosshair h" style="left:152mm;top:19mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:152mm;top:19mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:152mm;top:16mm;transform:translateX(-50%)">DATE</div>
 
-  <div class="crosshair h" style="left:35mm;top:37mm;transform:translateX(-5mm)"></div>
-  <div class="crosshair v" style="left:35mm;top:37mm;transform:translateY(-5mm)"></div>
-  <div class="crosshair-label" style="left:35mm;top:34mm;transform:translateX(-50%)">PAYEE</div>
+  <div class="crosshair h" style="left:35mm;top:35mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:35mm;top:35mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:35mm;top:32mm;transform:translateX(-50%)">PAYEE</div>
 
-  <div class="crosshair h" style="left:20mm;top:48mm;transform:translateX(-5mm)"></div>
-  <div class="crosshair v" style="left:20mm;top:48mm;transform:translateY(-5mm)"></div>
-  <div class="crosshair-label" style="left:20mm;top:45mm;transform:translateX(-50%)">WORDS</div>
+  <div class="crosshair h" style="left:20mm;top:46mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:20mm;top:46mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:20mm;top:43mm;transform:translateX(-50%)">WORDS</div>
 
-  <div class="crosshair h" style="left:138mm;top:52mm;transform:translateX(-5mm)"></div>
-  <div class="crosshair v" style="left:138mm;top:52mm;transform:translateY(-5mm)"></div>
-  <div class="crosshair-label" style="left:138mm;top:49mm;transform:translateX(-50%)">BOX</div>
+  <div class="crosshair h" style="left:135mm;top:50mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:135mm;top:50mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:135mm;top:47mm;transform:translateX(-50%)">BOX</div>
   {% endif %}
 
 </div>
