@@ -13,7 +13,7 @@
 html, body {
   width: 297mm;
   height: 210mm;
-  font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+  font-family: 'Georgia', 'Times New Roman', Times, serif;
 }
 .cheque-wrapper {
   position: absolute;
@@ -27,9 +27,9 @@ html, body {
 .date-field {
   position: absolute;
   left: 148mm;
-  top: 23mm;
+  top: 21mm;
   font-size: 10pt;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Georgia', 'Times New Roman', Times, serif;
   color: #000;
   white-space: nowrap;
 }
@@ -40,7 +40,7 @@ html, body {
   left: 35mm;
   top: 39mm;
   font-size: 12pt;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Georgia', 'Times New Roman', Times, serif;
   color: #000;
   max-width: 130mm;
   white-space: nowrap;
@@ -54,7 +54,7 @@ html, body {
   left: 20mm;
   top: 50mm;
   font-size: 10pt;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Georgia', 'Times New Roman', Times, serif;
   color: #000;
   max-width: 155mm;
   white-space: nowrap;
@@ -65,7 +65,7 @@ html, body {
   left: 20mm;
   top: 63mm;
   font-size: 10pt;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Georgia', 'Times New Roman', Times, serif;
   color: #000;
   max-width: 155mm;
   white-space: nowrap;
@@ -75,19 +75,21 @@ html, body {
 /* ── AMOUNT FIGURE BOX ── */
 .figure-box {
   position: absolute;
-  left: 150mm;
-  top: 55mm;
-  width: 40mm;
+  left: 145mm;
+  top: 53mm;
+  width: 42mm;
   height: 10mm;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  padding-right: 2mm;
 }
 .figure-box span {
   font-size: 18pt;
   font-weight: 700;
-  font-family: 'Segoe UI', Arial, sans-serif;
+  font-family: 'Georgia', 'Times New Roman', Times, serif;
   color: #000;
+  letter-spacing: 1px;
 }
 
 /* ── TEST MARKERS ── */
@@ -108,10 +110,11 @@ html, body {
 <body>
 <div class="cheque-wrapper">
 
-  {# ── DATE ── #}
+  {# ── DATE (DD-MM-YYYY) ── #}
   {% set d = pay.cheque_date or pay.payment_date %}
   {% if d %}
-  <div class="date-field">{{ d }}</div>
+  {% set parts = d.split('-') %}
+  <div class="date-field">{{ parts[2]|int }}-{{ parts[1]|int }}-{{ parts[0] }}</div>
   {% endif %}
 
   {# ── PAYEE ── #}
@@ -130,9 +133,9 @@ html, body {
 
   {# ── TEST ALIGNMENT MARKERS ── #}
   {% if request.args.get('test') %}
-  <div class="crosshair h" style="left:146mm;top:23mm;transform:translateX(-5mm)"></div>
-  <div class="crosshair v" style="left:146mm;top:23mm;transform:translateY(-5mm)"></div>
-  <div class="crosshair-label" style="left:146mm;top:20mm;transform:translateX(-50%)">DATE</div>
+  <div class="crosshair h" style="left:148mm;top:21mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:148mm;top:21mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:148mm;top:18mm;transform:translateX(-50%)">DATE</div>
 
   <div class="crosshair h" style="left:35mm;top:39mm;transform:translateX(-5mm)"></div>
   <div class="crosshair v" style="left:35mm;top:39mm;transform:translateY(-5mm)"></div>
@@ -142,9 +145,9 @@ html, body {
   <div class="crosshair v" style="left:20mm;top:50mm;transform:translateY(-5mm)"></div>
   <div class="crosshair-label" style="left:20mm;top:47mm;transform:translateX(-50%)">WORDS</div>
 
-  <div class="crosshair h" style="left:150mm;top:55mm;transform:translateX(-5mm)"></div>
-  <div class="crosshair v" style="left:150mm;top:55mm;transform:translateY(-5mm)"></div>
-  <div class="crosshair-label" style="left:150mm;top:52mm;transform:translateX(-50%)">BOX</div>
+  <div class="crosshair h" style="left:145mm;top:53mm;transform:translateX(-5mm)"></div>
+  <div class="crosshair v" style="left:145mm;top:53mm;transform:translateY(-5mm)"></div>
+  <div class="crosshair-label" style="left:145mm;top:50mm;transform:translateX(-50%)">BOX</div>
   {% endif %}
 
 </div>
