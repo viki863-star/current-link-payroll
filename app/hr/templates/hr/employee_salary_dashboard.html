@@ -6,26 +6,31 @@
 {% block content %}
 <style>
 .sd-root { font-family: system-ui, -apple-system, sans-serif; }
-.sd-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
-.sd-summary-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 16px 18px; text-align: center; transition: box-shadow .15s; }
-.sd-summary-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-.sd-summary-card .num { font-size: 1.6rem; font-weight: 800; line-height: 1.2; letter-spacing: -.5px; }
-.sd-summary-card .label { font-size: .72rem; font-weight: 600; text-transform: uppercase; color: #64748b; letter-spacing: .4px; margin-top: 2px; }
-.sd-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-.sd-controls label { font-size: .82rem; font-weight: 600; color: #334155; }
-.sd-controls select { padding: 8px 14px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: .85rem; font-weight: 500; background: #fff; cursor: pointer; min-width: 160px; }
-.sd-controls select:focus { outline: none; border-color: #0f172a; }
-.sd-controls .badge { margin-left: auto; font-size: .72rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 4px 12px; border-radius: 20px; }
-.sd-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #fff; font-size: .8rem; font-weight: 600; color: #334155; cursor: pointer; text-decoration: none; transition: all .12s; }
+.sd-top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+.sd-top h2 { margin:0; font-size:1.05rem; font-weight:700; color:#0f172a; }
+.sd-top p { margin:2px 0 0; font-size:.78rem; color:#64748b; }
+.sd-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.sd-summary-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; position:relative; overflow:hidden; transition:all .15s; }
+.sd-summary-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.06); transform:translateY(-1px); }
+.sd-summary-card .sd-s-icon { position:absolute; top:12px; right:12px; width:32px; height:32px; border-radius:8px; display:grid; place-items:center; opacity:.15; }
+.sd-summary-card .sd-s-icon svg { width:20px; height:20px; }
+.sd-summary-card .num { font-size: 1.7rem; font-weight: 800; line-height: 1.2; letter-spacing: -.5px; }
+.sd-summary-card .label { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-top: 4px; }
+.sd-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.sd-controls label { font-size: .78rem; font-weight: 600; color: #475569; }
+.sd-controls select { padding: 7px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: .82rem; font-weight: 500; background: #fff; cursor: pointer; min-width: 140px; }
+.sd-controls select:focus { outline: none; border-color: #0f172a; box-shadow:0 0 0 3px rgba(15,23,42,.08); }
+.sd-badge { font-size: .72rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 4px 12px; border-radius: 20px; white-space:nowrap; }
+.sd-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #fff; font-size: .78rem; font-weight: 600; color: #334155; cursor: pointer; text-decoration: none; transition: all .12s; }
 .sd-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
-.sd-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
-.sd-table-wrap { overflow-x: auto; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; }
+.sd-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.sd-table-wrap { overflow-x: auto; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; box-shadow:0 1px 3px rgba(0,0,0,.04); }
 .sd-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
-.sd-table th { background: #f8fafc; text-align: left; padding: 12px 16px; font-size: .72rem; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: .4px; border-bottom: 1.5px solid #e2e8f0; white-space: nowrap; }
-.sd-table td { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; }
+.sd-table th { background: #f8fafc; padding: 12px 14px; font-size: .7rem; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: .4px; border-bottom: 1.5px solid #e2e8f0; white-space: nowrap; }
+.sd-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; }
 .sd-table tr:last-child td { border-bottom: none; }
 .sd-table tr:hover td { background: #f8fafc; }
-.sd-status { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: .78rem; padding: 3px 12px; border-radius: 20px; white-space: nowrap; }
+.sd-status { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: .76rem; padding: 3px 12px; border-radius: 20px; white-space: nowrap; }
 .sd-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .sd-paid { color: #059669; background: #ecfdf5; }
 .sd-paid .sd-status-dot { background: #10b981; }
@@ -36,61 +41,92 @@
 .sd-norecord { color: #94a3b8; background: #f8fafc; }
 .sd-norecord .sd-status-dot { background: #cbd5e1; }
 .sd-emp-name { font-weight: 600; color: #0f172a; }
-.sd-emp-sub { font-size: .7rem; color: #94a3b8; }
+.sd-emp-sub { font-size: .68rem; color: #94a3b8; margin-top:1px; }
+.sd-amt { font-weight:600; color:#0f172a; font-size:.82rem; }
+.sd-amt-null { color:#cbd5e1; }
+.sd-filter-tabs { display:flex; gap:4px; margin-bottom:20px; flex-wrap:wrap; }
+.sd-filter-tab { padding:6px 16px; border:1.5px solid #e2e8f0; border-radius:20px; font-size:.76rem; font-weight:600; color:#64748b; background:#fff; cursor:pointer; text-decoration:none; transition:all .1s; }
+.sd-filter-tab:hover { border-color:#94a3b8; color:#334155; }
+.sd-filter-tab.active { background:#0f172a; border-color:#0f172a; color:#fff; }
 @media (max-width: 640px) {
   .sd-summary { grid-template-columns: repeat(2, 1fr); }
-  .sd-controls { flex-direction: column; align-items: stretch; }
-  .sd-controls select { width: 100%; }
-  .sd-controls .badge { margin-left: 0; text-align: center; }
+  .sd-top { flex-direction:column; align-items:flex-start; }
 }
 </style>
 
-{% set selected_month = request.args.get('month', months[0][0] if months else '') %}
+{% set sf = request.args.get('status', 'active') %}
+{% set sel_month_val = request.args.get('month', months[0][0] if months else '') %}
 
 {% set paid_count = namespace(v=0) %}
 {% set unpaid_count = namespace(v=0) %}
 {% set pending_count = namespace(v=0) %}
+{% set total_salary = namespace(v=0) %}
 {% for e in employees %}
-  {% set s = e.statuses.get(selected_month, 'No Record') %}
+  {% set s = e.statuses.get(sel_month_val, 'No Record') %}
   {% if s == 'Paid' %}{% set paid_count.v = paid_count.v + 1 %}
   {% elif s == 'Unpaid' %}{% set unpaid_count.v = unpaid_count.v + 1 %}
   {% elif s == 'Pending' %}{% set pending_count.v = pending_count.v + 1 %}
   {% endif %}
+  {% set total_salary.v = total_salary.v + e.amounts.get(sel_month_val, 0) %}
 {% endfor %}
 
 <div class="sd-root">
+  <div class="sd-top">
+    <div>
+      <h2>Employee Salary Status</h2>
+      <p>Track salary payments across all employees</p>
+    </div>
+  </div>
+
   <div class="sd-summary">
     <div class="sd-summary-card">
+      <div class="sd-s-icon" style="background:#0f172a;color:#0f172a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
       <div class="num" style="color:#0f172a">{{ employees|length }}</div>
-      <div class="label">Total Active Employees</div>
+      <div class="label" style="color:#64748b">Total Employees</div>
     </div>
     <div class="sd-summary-card">
+      <div class="sd-s-icon" style="background:#10b981;color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
       <div class="num" style="color:#10b981">{{ paid_count.v }}</div>
-      <div class="label">Paid</div>
+      <div class="label" style="color:#64748b">Paid</div>
     </div>
     <div class="sd-summary-card">
+      <div class="sd-s-icon" style="background:#ef4444;color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
       <div class="num" style="color:#ef4444">{{ unpaid_count.v }}</div>
-      <div class="label">Unpaid</div>
+      <div class="label" style="color:#64748b">Unpaid</div>
     </div>
     <div class="sd-summary-card">
+      <div class="sd-s-icon" style="background:#f59e0b;color:#f59e0b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
       <div class="num" style="color:#f59e0b">{{ pending_count.v }}</div>
-      <div class="label">Pending</div>
+      <div class="label" style="color:#64748b">Pending</div>
     </div>
+    <div class="sd-summary-card">
+      <div class="sd-s-icon" style="background:#6366f1;color:#6366f1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <div class="num" style="color:#6366f1;font-size:1.15rem">AED {{ '{:,.0f}'.format(total_salary.v) }}</div>
+      <div class="label" style="color:#64748b">Total Salary</div>
+    </div>
+  </div>
+
+  <div class="sd-filter-tabs">
+    <a class="sd-filter-tab {{ 'active' if sf == 'all' }}" href="?status=all{% if sel_month_val %}&month={{ sel_month_val }}{% endif %}">All</a>
+    <a class="sd-filter-tab {{ 'active' if sf == 'active' }}" href="?status=active{% if sel_month_val %}&month={{ sel_month_val }}{% endif %}">Active</a>
+    <a class="sd-filter-tab {{ 'active' if sf == 'inactive' }}" href="?status=inactive{% if sel_month_val %}&month={{ sel_month_val }}{% endif %}">Inactive</a>
+    <a class="sd-filter-tab {{ 'active' if sf == 'terminated' }}" href="?status=terminated{% if sel_month_val %}&month={{ sel_month_val }}{% endif %}">Terminated</a>
   </div>
 
   <div class="sd-controls">
     <label for="month-select">📅 Month:</label>
     <form method="get" style="display:inline" id="month-form">
+      <input type="hidden" name="status" value="{{ sf }}">
       <select id="month-select" name="month" onchange="this.form.submit()">
         {% for val, label in months %}
-        <option value="{{ val }}" {% if val == selected_month %}selected{% endif %}>{{ label }}</option>
+        <option value="{{ val }}" {% if val == sel_month_val %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </form>
-    <span class="badge">{{ employees|length }} active employees</span>
-    <a class="sd-btn" href="{{ url_for('hr.salary_dashboard_excel', month=selected_month) }}" title="Download Excel">
+    <span class="sd-badge">{{ employees|length }} employees</span>
+    <a class="sd-btn" href="{{ url_for('hr.salary_dashboard_excel', month=sel_month_val, status=sf) }}" title="Download Excel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Download Excel
+      Excel
     </a>
   </div>
 
@@ -101,12 +137,15 @@
           <th>#</th>
           <th>Employee Name</th>
           <th>Department</th>
-          <th>Salary Status</th>
+          <th>Status</th>
+          <th>Salary (AED)</th>
+          <th>Payment Status</th>
         </tr>
       </thead>
       <tbody>
         {% for e in employees %}
-        {% set st = e.statuses.get(selected_month, 'No Record') %}
+        {% set st = e.statuses.get(sel_month_val, 'No Record') %}
+        {% set amt = e.amounts.get(sel_month_val, 0) %}
         {% set cls = 'sd-paid' if st == 'Paid' else ('sd-unpaid' if st == 'Unpaid' else ('sd-pending' if st == 'Pending' else 'sd-norecord')) %}
         <tr>
           <td style="color:#94a3b8;font-size:.72rem">{{ loop.index }}</td>
@@ -114,6 +153,22 @@
             <div class="sd-emp-name">{{ e.name }}</div>
           </td>
           <td style="color:#475569">{{ e.department or '—' }}</td>
+          <td>
+            {% set sc = 'active' if e.emp_status|lower == 'active' else ('inactive' if e.emp_status|lower in ('inactive','on leave') else '') %}
+            {% if e.emp_status %}
+            <span style="display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:2px 10px;border-radius:12px;
+              {% if sc == 'active' %}color:#059669;background:#ecfdf5;
+              {% elif sc == 'inactive' %}color:#d97706;background:#fffbeb;
+              {% else %}color:#dc2626;background:#fef2f2;{% endif %}">
+              <span style="width:5px;height:5px;border-radius:50%;
+                {% if sc == 'active' %}background:#10b981;
+                {% elif sc == 'inactive' %}background:#f59e0b;
+                {% else %}background:#ef4444;{% endif %}"></span>
+              {{ e.emp_status }}
+            </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="sd-amt">{{ '{:,.0f}'.format(amt) if amt > 0 else '<span class="sd-amt-null">—</span>'|safe }}</td>
           <td>
             <span class="sd-status {{ cls }}">
               <span class="sd-status-dot"></span>
@@ -130,8 +185,9 @@
 
 {% block extra_scripts %}
 <script>
-document.getElementById('month-select')?.addEventListener('change', function() {
-  if (this.value) this.form.submit();
-});
+(function() {
+  var sel = document.getElementById('month-select');
+  if (sel) sel.addEventListener('change', function() { if (this.value) this.form.submit(); });
+})();
 </script>
 {% endblock %}

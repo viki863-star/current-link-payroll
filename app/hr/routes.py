@@ -1581,23 +1581,32 @@ def employee_vehicle_history(employee_id):
 
 # ── Salary Dashboard ──────────────────────────────────────────────
 
-def _salary_dashboard_data(active_only=True):
+def _salary_dashboard_data(status_filter=""):
     db = open_db()
 
-    where = "WHERE LOWER(status) = 'active'" if active_only else ""
+    where = ""
+    params = []
+    if status_filter == "active":
+        where = "WHERE LOWER(status) = 'active'"
+    elif status_filter == "inactive":
+        where = "WHERE LOWER(status) IN ('inactive','on leave')"
+    elif status_filter == "terminated":
+        where = "WHERE LOWER(status) = 'terminated'"
+
     employees = db.execute(
         f"SELECT employee_id, full_name, department, status FROM employees {where} ORDER BY full_name"
     ).fetchall()
 
     store_rows = db.execute(
-        "SELECT driver_id, salary_month FROM salary_store"
+        "SELECT driver_id, salary_month, net_salary FROM salary_store"
     ).fetchall()
     store_by_emp = {}
     for r in store_rows:
-        store_by_emp.setdefault(r["driver_id"], set()).add(r["salary_month"])
+        store_by_emp.setdefault(r["driver_id"], {})[r["salary_month"]] = r["net_salary"]
 
     slip_rows = db.execute(
-        "SELECT driver_id, salary_month FROM salary_slips WHERE salary_after_deduction > 0 OR actual_paid_amount > 0"
+        "SELECT driver_id, salary_month, salary_after_deduction, actual_paid_amount "
+        "FROM salary_slips WHERE salary_after_deduction > 0 OR actual_paid_amount > 0"
     ).fetchall()
     paid_by_emp = {}
     for r in slip_rows:
@@ -1622,6 +1631,7 @@ def _salary_dashboard_data(active_only=True):
     for emp in employees:
         eid = emp["employee_id"]
         statuses = {}
+        amounts = {}
         for m in available_months:
             if eid in paid_by_emp and m in paid_by_emp[eid]:
                 statuses[m] = "Paid"
@@ -1629,16 +1639,31 @@ def _salary_dashboard_data(active_only=True):
                 statuses[m] = "Unpaid"
             else:
                 statuses[m] = "Pending"
+            if eid in store_by_emp and m in store_by_emp[eid]:
+                amounts[m] = float(store_by_emp[eid][m])
+            else:
+                amounts[m] = 0.0
         emp_list.append({
             "id": eid,
             "name": emp["full_name"],
             "department": emp["department"] or "",
             "emp_status": emp["status"] or "",
             "statuses": statuses,
+            "amounts": amounts,
         })
 
     db.close()
     return emp_list, available_months
+
+
+def _format_month_options(months):
+    names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    return [(m, f"{names[int(m.split('-')[1])-1]} {m.split('-')[0]}") for m in months]
+
+
+def _month_name(ym):
+    names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    return f"{names[int(ym.split('-')[1])-1]} {ym.split('-')[0]}"
 
 
 @hr_bp.route("/hr/salary-dashboard")
@@ -1646,13 +1671,14 @@ def _salary_dashboard_data(active_only=True):
 def salary_dashboard():
     _touch_admin_workspace("hr")
     ensure_employees_table()
-    emp_list, available_months = _salary_dashboard_data(active_only=True)
-    month_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-    month_options = [(m, f"{month_names[int(m.split('-')[1])-1]} {m.split('-')[0]}") for m in available_months]
+    sf = request.args.get("status", "active")
+    emp_list, available_months = _salary_dashboard_data(status_filter=sf)
     return render_template(
         "hr/employee_salary_dashboard.html",
         employees=emp_list,
-        months=month_options,
+        months=_format_month_options(available_months),
+        selected_status=sf,
+        sel_month=request.args.get("month", available_months[0] if available_months else ""),
     )
 
 
@@ -1662,8 +1688,9 @@ def salary_dashboard_excel():
     _touch_admin_workspace("hr")
     ensure_employees_table()
 
+    sf = request.args.get("status", "all")
     selected_month = request.args.get("month", "")
-    emp_list, available_months = _salary_dashboard_data(active_only=True)
+    emp_list, available_months = _salary_dashboard_data(status_filter=sf)
     if not selected_month and available_months:
         selected_month = available_months[0]
 
@@ -1677,11 +1704,15 @@ def salary_dashboard_excel():
 
     hf = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
     hfill = PatternFill("solid", fgColor="1a3a5c")
+    hfill_green = PatternFill("solid", fgColor="059669")
+    hfill_red = PatternFill("solid", fgColor="DC2626")
+    hfill_amber = PatternFill("solid", fgColor="D97706")
     center = Alignment(horizontal="center", vertical="center")
+    right = Alignment(horizontal="right", vertical="center")
     thin = Side(style="thin", color="d8e4f5")
     border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-    heads = ["#", "Employee Name", "Department", "Salary Status"]
+    heads = ["#", "Employee Name", "Department", "Status", f"Salary ({_month_name(selected_month)})", "Salary Status"]
     for ci, h in enumerate(heads, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
@@ -1695,10 +1726,14 @@ def salary_dashboard_excel():
 
     for ri, emp in enumerate(emp_list, 2):
         st = emp["statuses"].get(selected_month, "No Record")
-        vals = [ri - 1, emp["name"], emp["department"], st]
+        amt = emp["amounts"].get(selected_month, 0)
+        vals = [ri - 1, emp["name"], emp["department"], emp["emp_status"], amt, st]
         for ci, v in enumerate(vals, 1):
             c = ws.cell(row=ri, column=ci, value=v)
             c.border = border
+            if ci == 5:
+                c.number_format = '#,##0.00'
+                c.alignment = right
             sf = status_fills.get(st)
             if sf:
                 c.fill = sf
@@ -1706,7 +1741,9 @@ def salary_dashboard_excel():
     ws.column_dimensions["A"].width = 6
     ws.column_dimensions["B"].width = 32
     ws.column_dimensions["C"].width = 18
-    ws.column_dimensions["D"].width = 18
+    ws.column_dimensions["D"].width = 14
+    ws.column_dimensions["E"].width = 22
+    ws.column_dimensions["F"].width = 18
 
     buf = BytesIO()
     wb.save(buf)
