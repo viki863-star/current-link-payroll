@@ -1581,15 +1581,12 @@ def employee_vehicle_history(employee_id):
 
 # ── Salary Dashboard ──────────────────────────────────────────────
 
-@hr_bp.route("/hr/salary-dashboard")
-@_login_required("admin")
-def salary_dashboard():
-    _touch_admin_workspace("hr")
-    ensure_employees_table()
+def _salary_dashboard_data(active_only=True):
     db = open_db()
 
+    where = "WHERE LOWER(status) = 'active'" if active_only else ""
     employees = db.execute(
-        "SELECT employee_id, full_name, department, status FROM employees ORDER BY full_name"
+        f"SELECT employee_id, full_name, department, status FROM employees {where} ORDER BY full_name"
     ).fetchall()
 
     store_rows = db.execute(
@@ -1640,15 +1637,82 @@ def salary_dashboard():
             "statuses": statuses,
         })
 
+    db.close()
+    return emp_list, available_months
+
+
+@hr_bp.route("/hr/salary-dashboard")
+@_login_required("admin")
+def salary_dashboard():
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    emp_list, available_months = _salary_dashboard_data(active_only=True)
     month_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     month_options = [(m, f"{month_names[int(m.split('-')[1])-1]} {m.split('-')[0]}") for m in available_months]
-
-    db.close()
     return render_template(
         "hr/employee_salary_dashboard.html",
         employees=emp_list,
         months=month_options,
     )
+
+
+@hr_bp.route("/hr/salary-dashboard/download/excel")
+@_login_required("admin")
+def salary_dashboard_excel():
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+
+    selected_month = request.args.get("month", "")
+    emp_list, available_months = _salary_dashboard_data(active_only=True)
+    if not selected_month and available_months:
+        selected_month = available_months[0]
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from io import BytesIO
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Salary Status"
+
+    hf = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+    hfill = PatternFill("solid", fgColor="1a3a5c")
+    center = Alignment(horizontal="center", vertical="center")
+    thin = Side(style="thin", color="d8e4f5")
+    border = Border(top=thin, left=thin, right=thin, bottom=thin)
+
+    heads = ["#", "Employee Name", "Department", "Salary Status"]
+    for ci, h in enumerate(heads, 1):
+        c = ws.cell(row=1, column=ci, value=h)
+        c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
+
+    status_fills = {
+        "Paid": PatternFill("solid", fgColor="D5F5E3"),
+        "Unpaid": PatternFill("solid", fgColor="FADBD8"),
+        "Pending": PatternFill("solid", fgColor="FDEBD0"),
+        "No Record": PatternFill("solid", fgColor="F2F3F4"),
+    }
+
+    for ri, emp in enumerate(emp_list, 2):
+        st = emp["statuses"].get(selected_month, "No Record")
+        vals = [ri - 1, emp["name"], emp["department"], st]
+        for ci, v in enumerate(vals, 1):
+            c = ws.cell(row=ri, column=ci, value=v)
+            c.border = border
+            sf = status_fills.get(st)
+            if sf:
+                c.fill = sf
+
+    ws.column_dimensions["A"].width = 6
+    ws.column_dimensions["B"].width = 32
+    ws.column_dimensions["C"].width = 18
+    ws.column_dimensions["D"].width = 18
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"salary_status_{selected_month}.xlsx" if selected_month else "salary_status.xlsx"
+    return send_file(buf, as_attachment=True, download_name=fname, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @hr_bp.app_template_global()
