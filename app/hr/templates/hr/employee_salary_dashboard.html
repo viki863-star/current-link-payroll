@@ -29,7 +29,9 @@
 .sd-table th { background: #f8fafc; padding: 12px 14px; font-size: .7rem; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: .4px; border-bottom: 1.5px solid #e2e8f0; white-space: nowrap; }
 .sd-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; }
 .sd-table tr:last-child td { border-bottom: none; }
+.sd-table tr { cursor:pointer; }
 .sd-table tr:hover td { background: #f8fafc; }
+.sd-table tr:hover .sd-emp-name { color: #0f172a; }
 .sd-status { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: .76rem; padding: 3px 12px; border-radius: 20px; white-space: nowrap; }
 .sd-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .sd-paid { color: #059669; background: #ecfdf5; }
@@ -155,10 +157,12 @@
         {% set st = e.statuses.get(sel_month_val, 'No Record') %}
         {% set amt = e.amounts.get(sel_month_val, 0) %}
         {% set cls = 'sd-paid' if st == 'Paid' else ('sd-unpaid' if st == 'Unpaid' else ('sd-pending' if st == 'Pending' else 'sd-norecord')) %}
-        <tr>
+        <tr onclick="window.location='{{ url_for('hr.employee_detail', employee_id=e.id) }}'" style="cursor:pointer">
           <td style="color:#94a3b8;font-size:.72rem">{{ loop.index }}</td>
           <td>
-            <div class="sd-emp-name">{{ e.name }}</div>
+            <a href="{{ url_for('hr.employee_detail', employee_id=e.id) }}" style="text-decoration:none;color:inherit" onclick="event.stopPropagation()">
+              <div class="sd-emp-name">{{ e.name }}</div>
+            </a>
           </td>
           <td style="color:#475569">{{ e.department or '—' }}</td>
           <td>
