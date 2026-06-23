@@ -1586,39 +1586,26 @@ def employee_vehicle_history(employee_id):
 def salary_dashboard():
     _touch_admin_workspace("hr")
     ensure_employees_table()
-    return render_template("hr/employee_salary_dashboard.html")
-
-
-@hr_bp.route("/hr/api/salary-dashboard-data")
-@_login_required("admin")
-def salary_dashboard_data():
-    import json
     db = open_db()
-    ensure_employees_table()
 
-    # All employees
     employees = db.execute(
         "SELECT employee_id, full_name, department, status FROM employees ORDER BY full_name"
     ).fetchall()
 
-    # All salary_store records
     store_rows = db.execute(
-        "SELECT driver_id, salary_month, net_salary FROM salary_store"
+        "SELECT driver_id, salary_month FROM salary_store"
     ).fetchall()
     store_by_emp = {}
     for r in store_rows:
-        store_by_emp.setdefault(r["driver_id"], {})[r["salary_month"]] = r
+        store_by_emp.setdefault(r["driver_id"], set()).add(r["salary_month"])
 
-    # All salary_slips with paid amounts
     slip_rows = db.execute(
-        "SELECT driver_id, salary_month, salary_after_deduction, actual_paid_amount "
-        "FROM salary_slips WHERE salary_after_deduction > 0 OR actual_paid_amount > 0"
+        "SELECT driver_id, salary_month FROM salary_slips WHERE salary_after_deduction > 0 OR actual_paid_amount > 0"
     ).fetchall()
     paid_by_emp = {}
     for r in slip_rows:
         paid_by_emp.setdefault(r["driver_id"], set()).add(r["salary_month"])
 
-    # All salary_payments
     pay_rows = db.execute(
         "SELECT driver_id, salary_month FROM salary_payments WHERE amount > 0"
     ).fetchall()
@@ -1626,7 +1613,6 @@ def salary_dashboard_data():
     for r in pay_rows:
         pay_by_emp.setdefault(r["driver_id"], set()).add(r["salary_month"])
 
-    # Available months from both tables
     month_rows = db.execute(
         "SELECT DISTINCT salary_month FROM salary_store UNION "
         "SELECT DISTINCT salary_month FROM salary_slips UNION "
@@ -1635,35 +1621,34 @@ def salary_dashboard_data():
     ).fetchall()
     available_months = [r["salary_month"] for r in month_rows]
 
-    result = []
+    emp_list = []
     for emp in employees:
         eid = emp["employee_id"]
-        emp_data = {
-            "employee_id": eid,
+        statuses = {}
+        for m in available_months:
+            if eid in paid_by_emp and m in paid_by_emp[eid]:
+                statuses[m] = "Paid"
+            elif eid in store_by_emp and m in store_by_emp[eid]:
+                statuses[m] = "Unpaid"
+            else:
+                statuses[m] = "Pending"
+        emp_list.append({
+            "id": eid,
             "name": emp["full_name"],
             "department": emp["department"] or "",
-            "status": emp["status"] or "",
-            "salaryStatus": {},
-        }
-        for m in available_months:
-            has_store = eid in store_by_emp and m in store_by_emp[eid]
-            has_slip = eid in paid_by_emp and m in paid_by_emp[eid]
-            has_payment = eid in pay_by_emp and m in pay_by_emp[eid]
+            "emp_status": emp["status"] or "",
+            "statuses": statuses,
+        })
 
-            if has_slip or has_payment:
-                emp_data["salaryStatus"][m] = "Paid"
-            elif has_store:
-                emp_data["salaryStatus"][m] = "Unpaid"
-            else:
-                emp_data["salaryStatus"][m] = "Pending"
-
-        result.append(emp_data)
+    month_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    month_options = [(m, f"{month_names[int(m.split('-')[1])-1]} {m.split('-')[0]}") for m in available_months]
 
     db.close()
-    return jsonify({
-        "employees": result,
-        "months": available_months,
-    })
+    return render_template(
+        "hr/employee_salary_dashboard.html",
+        employees=emp_list,
+        months=month_options,
+    )
 
 
 @hr_bp.app_template_global()

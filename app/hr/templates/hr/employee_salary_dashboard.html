@@ -33,10 +33,6 @@
 .sd-norecord .sd-status-dot { background: #cbd5e1; }
 .sd-emp-name { font-weight: 600; color: #0f172a; }
 .sd-emp-sub { font-size: .7rem; color: #94a3b8; }
-.sd-loading { display: flex; align-items: center; justify-content: center; padding: 60px 20px; color: #64748b; gap: 10px; }
-.sd-spinner { width: 20px; height: 20px; border: 2.5px solid #e2e8f0; border-top-color: #0f172a; border-radius: 50%; animation: sd-spin .6s linear infinite; }
-@keyframes sd-spin { to { transform: rotate(360deg); } }
-.sd-error { text-align: center; padding: 40px; color: #dc2626; font-weight: 500; }
 @media (max-width: 640px) {
   .sd-summary { grid-template-columns: repeat(2, 1fr); }
   .sd-controls { flex-direction: column; align-items: stretch; }
@@ -45,146 +41,88 @@
 }
 </style>
 
-<div id="salary-dashboard-root" class="sd-root"></div>
+{% set selected_month = request.args.get('month', months[0][0] if months else '') %}
+
+{% set paid_count = namespace(v=0) %}
+{% set unpaid_count = namespace(v=0) %}
+{% set pending_count = namespace(v=0) %}
+{% for e in employees %}
+  {% set s = e.statuses.get(selected_month, 'No Record') %}
+  {% if s == 'Paid' %}{% set paid_count.v = paid_count.v + 1 %}
+  {% elif s == 'Unpaid' %}{% set unpaid_count.v = unpaid_count.v + 1 %}
+  {% elif s == 'Pending' %}{% set pending_count.v = pending_count.v + 1 %}
+  {% endif %}
+{% endfor %}
+
+<div class="sd-root">
+  <div class="sd-summary">
+    <div class="sd-summary-card">
+      <div class="num" style="color:#0f172a">{{ employees|length }}</div>
+      <div class="label">Total Employees</div>
+    </div>
+    <div class="sd-summary-card">
+      <div class="num" style="color:#10b981">{{ paid_count.v }}</div>
+      <div class="label">Paid</div>
+    </div>
+    <div class="sd-summary-card">
+      <div class="num" style="color:#ef4444">{{ unpaid_count.v }}</div>
+      <div class="label">Unpaid</div>
+    </div>
+    <div class="sd-summary-card">
+      <div class="num" style="color:#f59e0b">{{ pending_count.v }}</div>
+      <div class="label">Pending</div>
+    </div>
+  </div>
+
+  <div class="sd-controls">
+    <label for="month-select">📅 Month:</label>
+    <select id="month-select">
+      {% for val, label in months %}
+      <option value="{{ val }}" {% if val == selected_month %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <span class="badge">{{ employees|length }} employees</span>
+  </div>
+
+  <div class="sd-table-wrap">
+    <table class="sd-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Employee Name</th>
+          <th>Department</th>
+          <th>Salary Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in employees %}
+        {% set st = e.statuses.get(selected_month, 'No Record') %}
+        {% set cls = 'sd-paid' if st == 'Paid' else ('sd-unpaid' if st == 'Unpaid' else ('sd-pending' if st == 'Pending' else 'sd-norecord')) %}
+        <tr>
+          <td style="color:#94a3b8;font-size:.72rem">{{ loop.index }}</td>
+          <td>
+            <div class="sd-emp-name">{{ e.name }}</div>
+            {% if e.emp_status %}<div class="sd-emp-sub">{{ e.emp_status }}</div>{% endif %}
+          </td>
+          <td style="color:#475569">{{ e.department or '—' }}</td>
+          <td>
+            <span class="sd-status {{ cls }}">
+              <span class="sd-status-dot"></span>
+              {{ st }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-{% raw %}
-<script type="text/babel" data-presets="react">
-const { useState, useEffect, useMemo } = React;
-
-const STATUS = { PAID: "Paid", UNPAID: "Unpaid", PENDING: "Pending", NO_RECORD: "No Record" };
-
-function statusClass(s) {
-  switch (s) {
-    case STATUS.PAID: return "sd-paid";
-    case STATUS.UNPAID: return "sd-unpaid";
-    case STATUS.PENDING: return "sd-pending";
-    default: return "sd-norecord";
-  }
-}
-
-function formatMonthLabel(ym) {
-  if (!ym) return "";
-  const [y, m] = ym.split("-").map(Number);
-  const names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `${names[m-1]} ${y}`;
-}
-
-function SummaryCards({ employees, selectedMonth }) {
-  const total = employees.length;
-  const counts = useMemo(() => {
-    const c = { Paid:0, Unpaid:0, Pending:0 };
-    employees.forEach(e => {
-      const s = e.salaryStatus[selectedMonth] || STATUS.NO_RECORD;
-      if (s === STATUS.PAID) c.Paid++;
-      else if (s === STATUS.UNPAID) c.Unpaid++;
-      else if (s === STATUS.PENDING) c.Pending++;
-    });
-    return c;
-  }, [employees, selectedMonth]);
-
-  const cards = [
-    { label: "Total Employees", num: total, color: "#0f172a" },
-    { label: "Paid", num: counts.Paid, color: "#10b981" },
-    { label: "Unpaid", num: counts.Unpaid, color: "#ef4444" },
-    { label: "Pending", num: counts.Pending, color: "#f59e0b" },
-  ];
-
-  return (
-    <div className="sd-summary">
-      {cards.map(c => (
-        <div className="sd-summary-card" key={c.label}>
-          <div className="num" style={{color: c.color}}>{c.num}</div>
-          <div className="label">{c.label}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function App() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState("");
-
-  useEffect(() => {
-    fetch("/hr/api/salary-dashboard-data")
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(j => {
-        setData(j);
-        if (j.months && j.months.length > 0) setSelectedMonth(j.months[0]);
-        setLoading(false);
-      })
-      .catch(e => { setError(e.message); setLoading(false); });
-  }, []);
-
-  if (loading) return <div className="sd-loading"><div className="sd-spinner"></div> Loading salary data…</div>;
-  if (error) return <div className="sd-error">Failed to load: {error}</div>;
-  if (!data || !data.employees) return <div className="sd-error">No data available</div>;
-
-  const { employees, months } = data;
-  const month = selectedMonth || (months && months[0]) || "";
-  const filtered = employees.filter(e => e.salaryStatus[month] !== undefined);
-
-  return (
-    <>
-      <SummaryCards employees={employees} selectedMonth={month} />
-
-      <div className="sd-controls">
-        <label htmlFor="month-select">📅 Month:</label>
-        <select id="month-select" value={month} onChange={e => setSelectedMonth(e.target.value)}>
-          {months.map(m => <option key={m} value={m}>{formatMonthLabel(m)}</option>)}
-        </select>
-        <span className="badge">{filtered.length} employees</span>
-      </div>
-
-      <div className="sd-table-wrap">
-        <table className="sd-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Employee Name</th>
-              <th>Department</th>
-              <th>Salary Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((emp, i) => {
-              const st = emp.salaryStatus[month] || STATUS.NO_RECORD;
-              return (
-                <tr key={emp.employee_id}>
-                  <td style={{color:"#94a3b8", fontSize:".72rem"}}>{i + 1}</td>
-                  <td>
-                    <div className="sd-emp-name">{emp.name}</div>
-                    {emp.status && <div className="sd-emp-sub">{emp.status}</div>}
-                  </td>
-                  <td style={{color:"#475569"}}>{emp.department || "—"}</td>
-                  <td>
-                    <span className={`sd-status ${statusClass(st)}`}>
-                      <span className="sd-status-dot"></span>
-                      {st}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
-
-const root = ReactDOM.createRoot(document.getElementById("salary-dashboard-root"));
-root.render(<App />);
+<script>
+document.getElementById('month-select')?.addEventListener('change', function() {
+  if (this.value) window.location = '?month=' + encodeURIComponent(this.value);
+});
 </script>
-{% endraw %}
 {% endblock %}
