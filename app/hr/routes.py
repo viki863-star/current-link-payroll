@@ -79,6 +79,8 @@ def _employee_photo_url(app, employee):
 @hr_bp.route("/hr")
 @_login_required("admin")
 def hr_dashboard():
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
     return render_template("hr/employee_salary_dashboard.html")
 
 
