@@ -5,6 +5,7 @@ from flask import render_template, request, redirect, url_for, flash, current_ap
 from io import BytesIO
 from . import documents_bp
 from ..database import open_db
+from app import csrf
 
 logger = logging.getLogger(__name__)
 
@@ -322,3 +323,5 @@ def document_parse_pdf():
         })
     except Exception as e:
         return jsonify({"error": f"Failed to parse PDF: {str(e)}"}), 400
+
+csrf.exempt(document_parse_pdf)

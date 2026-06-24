@@ -126,7 +126,9 @@ function parsePDF(file) {
   fd.append('file', file);
 
   fetch('{{ url_for("documents.document_parse_pdf") }}', {
-    method: 'POST', body: fd
+    method: 'POST',
+    headers: {'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''},
+    body: fd
   })
   .then(r => r.json())
   .then(data => {
