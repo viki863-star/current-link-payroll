@@ -30,7 +30,7 @@
                 <span><strong>Salary:</strong> <span class="salary-amount">AED {{ "%.0f"|format(employee.basic_salary or 0) }}</span></span>
                 <span><strong>Phone:</strong> {{ employee.phone_number or '-' }}</span>
                 {% if employee.employee_type == 'Driver' %}
-                <span><strong>Vehicle:</strong> {% if current_vehicle %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ current_vehicle.vehicle_id }}</span>{% if current_vehicle.model %} ({{ current_vehicle.model }}){% endif %}{% if current_vehicle.assigned_from %} <span style="font-size:0.7rem;color:var(--muted)">since {{ current_vehicle.assigned_from }}</span>{% endif %}{% else %}<span style="color:var(--muted)">—</span>{% endif %}</span>
+                <span><strong>Vehicle:</strong> {% if current_vehicle %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ current_vehicle.vehicle_id }}</span>{% if current_vehicle.model %} ({{ current_vehicle.model }}){% endif %}{% else %}<span style="color:var(--muted)">—</span>{% endif %}</span>
                 {% endif %}
             </div>
         </div>
@@ -49,7 +49,7 @@
         {% for h in veh_history %}
         <span style="margin:0 12px 0 0;white-space:nowrap">
             {{ h.vehicle_id }}{% if h.model %} ({{ h.model }}){% endif %}
-            {% if h.assigned_from %}<span style="color:var(--muted)">{{ h.assigned_from[:10] }}</span>{% endif %}
+            {% if h.assigned_from %}<span style="color:var(--muted)">from {{ h.assigned_from[:10] }}</span>{% endif %}
             {% if h.assigned_until %}<span style="color:#c62828">→ {{ h.assigned_until[:10] }}</span>{% endif %}
             {% if loop.last and not h.assigned_until %}<span style="color:#2e7d32;font-weight:600">Current</span>{% endif %}
         </span>
