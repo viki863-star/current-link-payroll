@@ -30,7 +30,7 @@
                 <span><strong>Salary:</strong> <span class="salary-amount">AED {{ "%.0f"|format(employee.basic_salary or 0) }}</span></span>
                 <span><strong>Phone:</strong> {{ employee.phone_number or '-' }}</span>
                 {% if employee.employee_type == 'Driver' %}
-                <span><strong>Vehicle:</strong> {% if current_vehicle %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ current_vehicle.vehicle_id }}</span>{% if current_vehicle.model %} ({{ current_vehicle.model }}){% endif %}{% else %}<span style="color:var(--muted)">—</span>{% endif %}</span>
+                <span><strong>Vehicle:</strong> {% if current_vehicle %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ current_vehicle.vehicle_id }}</span>{% else %}<span style="color:var(--muted)">—</span>{% endif %}</span>
                 {% endif %}
             </div>
         </div>
