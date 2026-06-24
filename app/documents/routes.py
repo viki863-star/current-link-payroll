@@ -263,10 +263,13 @@ def document_parse_pdf():
                 from pdf2image import convert_from_bytes
                 import pytesseract
                 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
-                images = convert_from_bytes(pdf_bytes, dpi=300, poppler_path="/usr/bin")
-                ocr_config = "--psm 6 --oem 3"
+                images = convert_from_bytes(pdf_bytes, dpi=400, poppler_path="/usr/bin")
                 for img in images:
-                    text += pytesseract.image_to_string(img, config=ocr_config) + "\n"
+                    # Preprocess: grayscale → high contrast → enlarge
+                    gray = img.convert('L')
+                    bw = gray.point(lambda x: 0 if x < 160 else 255)
+                    big = bw.resize((bw.width * 2, bw.height * 2), 0)
+                    text += pytesseract.image_to_string(big, lang="eng+ara", config="--psm 4 --oem 3") + "\n"
                 text = text.strip()
             except ImportError as imp_err:
                 text = text or f"[OCR packages not installed: {imp_err.name}]"
