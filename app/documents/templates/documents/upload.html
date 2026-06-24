@@ -60,7 +60,6 @@
         <div class="summary-row"><span class="label">Vehicle</span><span class="value auto" id="pvPlate">—</span></div>
         <div class="summary-row"><span class="label">Issue Date</span><span class="value" id="pvIssue">—</span></div>
         <div class="summary-row"><span class="label">Expiry Date</span><span class="value" id="pvExpiry">—</span></div>
-        <div id="debugText" style="margin-top:8px;padding:8px;background:#f8fafc;border-radius:6px;font-size:0.72rem;color:#64748b;font-family:monospace;white-space:pre-wrap;word-break:break-all;display:none"></div>
       </div>
       <div class="actions" style="display:flex;gap:10px">
         <button type="submit" class="btn btn-primary" style="flex:1;padding:12px;font-size:0.95rem;font-weight:600">
@@ -148,14 +147,6 @@ function parsePDF(file) {
     document.getElementById('pvPlate').textContent = data.plate_no || 'Not found';
     document.getElementById('pvIssue').textContent = data.issue_date || 'Not found';
     document.getElementById('pvExpiry').textContent = data.expiry_date || 'Not found';
-
-    // Debug: show extracted text preview
-    if (data.text_preview) {
-      const dbg = document.getElementById('debugText');
-      dbg.textContent = 'Extracted text:\n' + data.text_preview;
-      dbg.style.display = 'block';
-    }
-
     parseDone.style.display = 'block';
   })
   .catch(err => {

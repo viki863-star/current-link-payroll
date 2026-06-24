@@ -255,43 +255,52 @@ def document_parse_pdf():
 
         # Extract plate number
         plate_no = ""
-        patterns = [
-            r"(?:Plate\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
-            r"(?:رقم اللوحة[:\s]*)([A-Z0-9\- ]{2,15})",
-            r"(?:Registration\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
-            r"(?:Vehicle\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
-            r"(?:Plate)[:\s]*([A-Z0-9\- ]{2,15})",
-            r"\b(\d{4,5})\b",
-        ]
-        for p in patterns:
-            m = re.search(p, text, re.IGNORECASE)
-            if m:
-                plate_no = m.group(1).strip()
-                break
+        m = re.search(r"Traffic\s*Plate\s*No\.?\s*(\S+)", text, re.IGNORECASE)
+        if m:
+            plate_no = m.group(1).strip()
+        if not plate_no:
+            patterns = [
+                r"(?:Plate\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
+                r"(?:رقم اللوحة[:\s]*)([A-Z0-9\- ]{2,15})",
+                r"(?:Registration\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
+                r"(?:Vehicle\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
+                r"(?:Plate)[:\s]*([A-Z0-9\- ]{2,15})",
+                r"\b(\d{4,5})\b",
+            ]
+            for p in patterns:
+                m = re.search(p, text, re.IGNORECASE)
+                if m:
+                    plate_no = m.group(1).strip()
+                    break
 
-        # Extract dates
-        issue_date = ""
+        # Extract expiry date (no issue date needed)
         expiry_date = ""
-
-        issue_match = re.search(r"(?:Issue|Issued|Issuing|Date\s*of\s*Issue)[:\s]*([\d/\-]{8,12})", text, re.IGNORECASE)
-        if issue_match:
-            issue_date = issue_match.group(1).strip()
-
-        expiry_match = re.search(r"(?:Expir|Expiry|Expiration|Valid\s*(?:Until|Till|To)|Valid\s*Upto)[:\s]*([\d/\-]{8,12})", text, re.IGNORECASE)
-        if expiry_match:
-            expiry_date = expiry_match.group(1).strip()
-
-        # Fallback: if two dates found, first = issue, second = expiry
-        if not issue_date or not expiry_date:
+        m = re.search(r"Exp\.?\s*Date\s*(\d{2}[-\s][A-Z]{3}[-\s]\d{2,4})", text, re.IGNORECASE)
+        if m:
+            expiry_date = m.group(1).strip().replace(" ", "-")
+        if not expiry_date:
+            m = re.search(r"(?:Expir|Expiry|Expiration)[:\s]*([\d/\-]{8,12})", text, re.IGNORECASE)
+            if m:
+                expiry_date = m.group(1).strip()
+        if not expiry_date:
             dates = re.findall(r"\b(\d{2}[/\-]\d{2}[/\-]\d{4})\b", text)
             dates += re.findall(r"\b(\d{4}[/\-]\d{2}[/\-]\d{2})\b", text)
-            if not issue_date and len(dates) >= 1:
-                issue_date = dates[0]
-            if not expiry_date and len(dates) >= 2:
-                expiry_date = dates[1]
+            if len(dates) >= 1:
+                expiry_date = dates[-1]
 
-        # Convert DD/MM/YYYY to YYYY-MM-DD for form
+        # Convert to YYYY-MM-DD
         def to_iso(d):
+            # DD-MMM-YY or DD-MMM-YYYY
+            mmm = re.match(r"(\d{2})[-\s]([A-Z]{3})[-\s](\d{2,4})", d, re.IGNORECASE)
+            if mmm:
+                months = {"JAN":"01","FEB":"02","MAR":"03","APR":"04","MAY":"05","JUN":"06",
+                          "JUL":"07","AUG":"08","SEP":"09","OCT":"10","NOV":"11","DEC":"12"}
+                day = mmm.group(1)
+                mon = months.get(mmm.group(2).upper(), "01")
+                yr = mmm.group(3)
+                if len(yr) == 2:
+                    yr = "20" + yr
+                return f"{yr}-{mon}-{day}"
             m = re.match(r"(\d{2})[/\-](\d{2})[/\-](\d{4})", d)
             if m:
                 return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
@@ -300,7 +309,7 @@ def document_parse_pdf():
                 return d.replace("/", "-")
             return d
 
-        issue_date = to_iso(issue_date) if issue_date else ""
+        issue_date = ""
         expiry_date = to_iso(expiry_date) if expiry_date else ""
 
         # Look up matching vehicle in DB to confirm plate
