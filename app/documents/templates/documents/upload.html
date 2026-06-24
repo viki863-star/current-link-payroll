@@ -3,171 +3,59 @@
 {% block page_title %}Upload Document{% endblock %}
 
 {% block content %}
-<style>
-.upload-simple { max-width: 520px; margin: 0 auto; }
-.drop-area { border: 2px dashed #cbd5e1; border-radius: 14px; padding: 40px 20px; text-align: center; cursor: pointer; transition: 0.2s; background: #fafbfc; }
-.drop-area:hover, .drop-area.dragover { border-color: #3b82f6; background: #eff6ff; }
-.drop-area .icon { font-size: 2.8rem; margin-bottom: 8px; }
-.drop-area p { margin: 4px 0; color: #475569; }
-.drop-area .sub { font-size: 0.78rem; color: #94a3b8; }
-.parse-loading { display: none; align-items: center; gap: 10px; padding: 14px 18px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; margin-top: 14px; font-size: 0.88rem; color: #1e40af; }
-.parse-error { display: none; align-items: center; gap: 10px; padding: 14px 18px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; margin-top: 14px; font-size: 0.88rem; color: #991b1b; }
-.parse-done { display: none; margin-top: 14px; }
-.parse-done .summary { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px 18px; }
-.parse-done .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 0.88rem; }
-.parse-done .summary-row .label { color: #64748b; font-weight: 500; }
-.parse-done .summary-row .value { font-weight: 600; color: #0f172a; }
-.parse-done .summary-row .value.auto { color: #16a34a; }
-.parse-done .summary-row .value.auto::after { content: ' ✓ auto'; font-weight: 400; font-size: 0.72rem; color: #16a34a; }
-.parse-done .actions { margin-top: 14px; }
-</style>
-<div class="upload-simple">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+<div class="profile-shell" style="max-width:540px;margin:0 auto">
+<div class="profile-card">
+  <div style="margin-bottom:14px">
     <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm">&larr; Back</a>
   </div>
+  <h3 style="margin:0 0 16px">📁 Upload Document</h3>
 
-  <h3 style="margin:0 0 16px;font-size:1.05rem">📁 Upload Mulkiya / Document</h3>
-
-  <form method="POST" enctype="multipart/form-data" id="uploadForm">
+  <form method="POST" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="entity_type" id="entityType" value="">
-    <input type="hidden" name="entity_id" id="entityId" value="">
-    <input type="hidden" name="doc_name" id="docName" value="">
-    <input type="hidden" name="doc_category" id="docCategory" value="">
-    <input type="hidden" name="issue_date" id="issueDate" value="">
-    <input type="hidden" name="expiry_date" id="expiryDate" value="">
-    <input type="hidden" name="doc_ref_no" id="docRefNo" value="">
-    <input type="hidden" name="notes" id="notes" value="">
+    <input type="hidden" name="entity_type" value="vehicle">
 
-    {# ─── Drop Zone ─── #}
-    <div class="drop-area" id="dropZone">
-      <div class="icon">📄</div>
-      <p><strong>Mulkiya PDF</strong> yahan drop karein ya click karein</p>
-      <p class="sub">UAE vehicle registration card — plate no, issue/expiry date auto fill hoga</p>
-      <input type="file" name="file" id="fileInput" accept=".pdf,application/pdf" style="display:none" required>
-    </div>
-
-    {# ─── Status ─── #}
-    <div class="parse-loading" id="parseLoading">
-      <span class="spinner"></span> Parsing mulkiya PDF...
-    </div>
-    <div class="parse-error" id="parseError"></div>
-    <div id="parseDebug" style="display:none;margin-top:10px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.72rem;color:#475569;font-family:monospace;white-space:pre-wrap;word-break:break-all"></div>
-
-    {# ─── Parsed Summary ─── #}
-    <div class="parse-done" id="parseDone">
-      <div class="summary">
-        <div style="font-weight:600;font-size:0.9rem;margin-bottom:8px;color:#166534">✅ Mulkiya parsed successfully</div>
-        <div class="summary-row"><span class="label">Vehicle</span><span class="value auto" id="pvPlate">—</span></div>
-        <div class="summary-row"><span class="label">Issue Date</span><span class="value" id="pvIssue">—</span></div>
-        <div class="summary-row"><span class="label">Expiry Date</span><span class="value" id="pvExpiry">—</span></div>
+    <div style="display:grid;gap:12px">
+      <div>
+        <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">Vehicle Number *</label>
+        <input type="text" name="entity_id" class="form-control" required placeholder="e.g. 1/80900">
       </div>
-      <div class="actions" style="display:flex;gap:10px">
-        <button type="submit" class="btn btn-primary" style="flex:1;padding:12px;font-size:0.95rem;font-weight:600">
-          ⬆ Upload Document
-        </button>
-        <button type="button" class="btn btn-outline" onclick="resetForm()">✕ Cancel</button>
+
+      <div>
+        <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">Document Name *</label>
+        <input type="text" name="doc_name" class="form-control" required placeholder="e.g. Mulkiya Registration">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">Category</label>
+          <select name="doc_category" class="form-control">
+            <option value="Registration" selected>Registration</option>
+            <option value="Insurance">Insurance</option>
+            <option value="License">License</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">Expiry Date</label>
+          <input type="date" name="expiry_date" class="form-control">
+        </div>
+      </div>
+
+      <div>
+        <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">File (PDF) *</label>
+        <input type="file" name="file" class="form-control" required accept=".pdf">
+      </div>
+
+      <div>
+        <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">Notes</label>
+        <textarea name="notes" class="form-control" rows="2" placeholder="Optional"></textarea>
       </div>
     </div>
+
+    <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;margin-top:18px;font-size:0.95rem;font-weight:600">
+      ⬆ Upload Document
+    </button>
   </form>
 </div>
-
-<script>
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const parseLoading = document.getElementById('parseLoading');
-const parseError = document.getElementById('parseError');
-const parseDone = document.getElementById('parseDone');
-
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('dragover');
-  if (e.dataTransfer.files.length) {
-    fileInput.files = e.dataTransfer.files;
-    handleFile();
-  }
-});
-fileInput.addEventListener('change', handleFile);
-
-function handleFile() {
-  const file = fileInput.files[0];
-  if (!file) return;
-  if (file.type !== 'application/pdf') {
-    showError('Only PDF files are supported for Mulkiya.');
-    return;
-  }
-  parsePDF(file);
-}
-
-function showError(msg) {
-  parseLoading.style.display = 'none';
-  parseDone.style.display = 'none';
-  parseError.style.display = 'flex';
-  parseError.innerHTML = '⚠️ ' + msg;
-}
-
-function resetForm() {
-  fileInput.value = '';
-  parseLoading.style.display = 'none';
-  parseError.style.display = 'none';
-  parseDone.style.display = 'none';
-  dropZone.style.display = 'block';
-}
-
-function parsePDF(file) {
-  dropZone.style.display = 'none';
-  parseError.style.display = 'none';
-  parseDone.style.display = 'none';
-  parseLoading.style.display = 'flex';
-
-  const fd = new FormData();
-  fd.append('file', file);
-
-  fetch('{{ url_for("documents.document_parse_pdf") }}', {
-    method: 'POST',
-    headers: {'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''},
-    body: fd
-  })
-  .then(r => r.json())
-  .then(data => {
-    parseLoading.style.display = 'none';
-    if (data.error) { showError(data.error); return; }
-
-    // Fill hidden fields
-    document.getElementById('entityType').value = 'vehicle';
-    document.getElementById('entityId').value = data.plate_no || '';
-    document.getElementById('docName').value = 'Vehicle Registration' + (data.plate_no ? ' - ' + data.plate_no : '');
-    document.getElementById('docCategory').value = 'Registration';
-    document.getElementById('issueDate').value = data.issue_date || '';
-    document.getElementById('expiryDate').value = data.expiry_date || '';
-
-    // Show preview
-    document.getElementById('pvPlate').textContent = data.plate_no || 'Not found';
-    document.getElementById('pvIssue').textContent = data.issue_date || 'Not found';
-    document.getElementById('pvExpiry').textContent = data.expiry_date || 'Not found';
-
-    console.log('=== MULKIA PARSE RESULT ===');
-    console.log('plate_no:', JSON.stringify(data.plate_no));
-    console.log('issue_date:', JSON.stringify(data.issue_date));
-    console.log('expiry_date:', JSON.stringify(data.expiry_date));
-    console.log('text_preview:', JSON.stringify(data.text_preview));
-    const dbg = document.getElementById('parseDebug');
-    if (data.text_preview) {
-      dbg.style.display = 'block';
-      dbg.textContent = 'Extracted text:\n' + data.text_preview.slice(0, 800);
-    } else {
-      dbg.style.display = 'block';
-      dbg.textContent = '⚠️ No text extracted from PDF (maybe scanned/image-based)';
-    }
-    parseDone.style.display = 'block';
-  })
-  .catch(err => {
-    parseLoading.style.display = 'none';
-    showError(err.message);
-  });
-}
-</script>
+</div>
 {% endblock %}
