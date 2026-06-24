@@ -1551,7 +1551,9 @@ def employee_current_vehicle(employee_id):
     try:
         d = open_db()
         row = d.execute(
-            "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id WHERE va.driver_id = ? AND va.is_current = 1 LIMIT 1",
+            "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model "
+            "FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id "
+            "WHERE va.driver_id = ? ORDER BY va.id DESC LIMIT 1",
             (employee_id,),
         ).fetchone()
         if not row:
