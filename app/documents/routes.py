@@ -246,10 +246,11 @@ def document_parse_pdf():
 
     try:
         from pypdf import PdfReader
+        from io import BytesIO
         import re
 
         pdf_bytes = f.read()
-        reader = PdfReader(pdf_bytes)
+        reader = PdfReader(BytesIO(pdf_bytes))
         text = ""
         for page in reader.pages:
             text += page.extract_text() + "\n"
