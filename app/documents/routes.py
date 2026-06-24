@@ -254,7 +254,23 @@ def document_parse_pdf():
         for page in reader.pages:
             text += page.extract_text() + "\n"
 
-        # Extract plate number
+        text = text.strip()
+
+        # If pypdf got no text, try OCR
+        if not text:
+            try:
+                from pdf2image import convert_from_bytes
+                import pytesseract
+                images = convert_from_bytes(pdf_bytes, dpi=300)
+                for img in images:
+                    text += pytesseract.image_to_string(img) + "\n"
+                text = text.strip()
+            except ImportError:
+                pass
+            except Exception as ocr_err:
+                text = text or f"[OCR failed: {ocr_err}]"
+
+        # ─── Extract plate number ───
         plate_no = ""
         m = re.search(r"Traffic\s*Plate\s*No\.?\s*(\S+)", text, re.IGNORECASE)
         if m:
@@ -274,7 +290,7 @@ def document_parse_pdf():
                     plate_no = m.group(1).strip()
                     break
 
-        # Extract expiry date (no issue date needed)
+        # ─── Extract expiry date ───
         expiry_date = ""
         m = re.search(r"Exp\.?\s*Date\s*(\d{2}[-\s][A-Z]{3}[-\s]\d{2,4})", text, re.IGNORECASE)
         if m:
@@ -289,9 +305,8 @@ def document_parse_pdf():
             if len(dates) >= 1:
                 expiry_date = dates[-1]
 
-        # Convert to YYYY-MM-DD
+        # ─── Convert to YYYY-MM-DD ───
         def to_iso(d):
-            # DD-MMM-YY or DD-MMM-YYYY
             mmm = re.match(r"(\d{2})[-\s]([A-Z]{3})[-\s](\d{2,4})", d, re.IGNORECASE)
             if mmm:
                 months = {"JAN":"01","FEB":"02","MAR":"03","APR":"04","MAY":"05","JUN":"06",
@@ -313,7 +328,7 @@ def document_parse_pdf():
         issue_date = ""
         expiry_date = to_iso(expiry_date) if expiry_date else ""
 
-        # Look up matching vehicle in DB to confirm plate
+        # ─── Look up matching vehicle ───
         matched = False
         if plate_no:
             db = open_db()
@@ -328,7 +343,7 @@ def document_parse_pdf():
             "issue_date": issue_date,
             "expiry_date": expiry_date,
             "matched": matched,
-            "text_preview": text[:300],
+            "text_preview": text[:500],
         })
     except Exception as e:
         return jsonify({"error": f"Failed to parse PDF: {str(e)}"}), 400
