@@ -1,196 +1,156 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Edit' if doc else 'Upload' }} Document{% endblock %}
-{% block page_title %}{{ 'Edit' if doc else 'Upload' }} Document{% endblock %}
+{% block title %}Upload Document{% endblock %}
+{% block page_title %}Upload Document{% endblock %}
 
 {% block content %}
-<div class="profile-shell" style="max-width:600px;margin:0 auto">
+<style>
+.upload-simple { max-width: 520px; margin: 0 auto; }
+.drop-area { border: 2px dashed #cbd5e1; border-radius: 14px; padding: 40px 20px; text-align: center; cursor: pointer; transition: 0.2s; background: #fafbfc; }
+.drop-area:hover, .drop-area.dragover { border-color: #3b82f6; background: #eff6ff; }
+.drop-area .icon { font-size: 2.8rem; margin-bottom: 8px; }
+.drop-area p { margin: 4px 0; color: #475569; }
+.drop-area .sub { font-size: 0.78rem; color: #94a3b8; }
+.parse-loading { display: none; align-items: center; gap: 10px; padding: 14px 18px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; margin-top: 14px; font-size: 0.88rem; color: #1e40af; }
+.parse-error { display: none; align-items: center; gap: 10px; padding: 14px 18px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; margin-top: 14px; font-size: 0.88rem; color: #991b1b; }
+.parse-done { display: none; margin-top: 14px; }
+.parse-done .summary { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px 18px; }
+.parse-done .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 0.88rem; }
+.parse-done .summary-row .label { color: #64748b; font-weight: 500; }
+.parse-done .summary-row .value { font-weight: 600; color: #0f172a; }
+.parse-done .summary-row .value.auto { color: #16a34a; }
+.parse-done .summary-row .value.auto::after { content: ' ✓ auto'; font-weight: 400; font-size: 0.72rem; color: #16a34a; }
+.parse-done .actions { margin-top: 14px; }
+</style>
+<div class="upload-simple">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+  </div>
 
-<div class="profile-card">
-    <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
-        <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm">&larr; Back</a>
-        {% if doc %}
-        <span style="font-size:0.72rem;color:var(--muted)">Editing: <strong>{{ doc.doc_name }}</strong></span>
-        {% endif %}
+  <h3 style="margin:0 0 16px;font-size:1.05rem">📁 Upload Mulkiya / Document</h3>
+
+  <form method="POST" enctype="multipart/form-data" id="uploadForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="entity_type" id="entityType" value="">
+    <input type="hidden" name="entity_id" id="entityId" value="">
+    <input type="hidden" name="doc_name" id="docName" value="">
+    <input type="hidden" name="doc_category" id="docCategory" value="">
+    <input type="hidden" name="issue_date" id="issueDate" value="">
+    <input type="hidden" name="expiry_date" id="expiryDate" value="">
+    <input type="hidden" name="doc_ref_no" id="docRefNo" value="">
+    <input type="hidden" name="notes" id="notes" value="">
+
+    {# ─── Drop Zone ─── #}
+    <div class="drop-area" id="dropZone">
+      <div class="icon">📄</div>
+      <p><strong>Mulkiya PDF</strong> yahan drop karein ya click karein</p>
+      <p class="sub">UAE vehicle registration card — plate no, issue/expiry date auto fill hoga</p>
+      <input type="file" name="file" id="fileInput" accept=".pdf,application/pdf" style="display:none" required>
     </div>
-    <h3>{{ '✏️ Edit Document' if doc else '📁 Upload New Document' }}</h3>
 
-    <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# ─── Status ─── #}
+    <div class="parse-loading" id="parseLoading">
+      <span class="spinner"></span> Parsing mulkiya PDF...
+    </div>
+    <div class="parse-error" id="parseError"></div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
-            <div class="form-row">
-                <label class="form-label">Entity Type *</label>
-                <select name="entity_type" id="entityType" class="form-control" required onchange="document.getElementById('entityId').value='';loadEntities()">
-                    <option value="">— Select —</option>
-                    {% for k,v in ENTITY_LABELS.items() %}
-                    <option value="{{ k }}" {% if (doc and doc.entity_type == k) or (pre_type == k) %}selected{% endif %}>{{ v }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Entity ID *</label>
-                <div style="position:relative">
-                    <input type="text" name="entity_id" id="entityId" class="form-control" value="{{ doc.entity_id if doc else pre_id }}" required placeholder="Type to search..." autocomplete="off" oninput="loadEntities()">
-                    <div id="entityResults" style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d8e4f5;border-radius:6px;max-height:200px;overflow-y:auto;display:none;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,0.1)"></div>
-                </div>
-            </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
-            <div class="form-row" style="grid-column:span 2">
-                <label class="form-label">Document Name *</label>
-                <input type="text" name="doc_name" id="docName" class="form-control" value="{{ doc.doc_name if doc else '' }}" required placeholder="e.g. Passport Copy, Insurance Policy">
-            </div>
-            <div class="form-row">
-                <label class="form-label">Category</label>
-                <select name="doc_category" id="docCategory" class="form-control">
-                    <option value="Registration">Registration</option>
-                    <option value="Insurance">Insurance</option>
-                    <option value="License">License</option>
-                    <option value="Contract">Contract</option>
-                    <option value="ID Proof">ID Proof</option>
-                    <option value="Certificate">Certificate</option>
-                    <option value="Bank">Bank</option>
-                    <option value="Other" {% if not doc or doc.doc_category == 'Other' %}selected{% endif %}>Other</option>
-                </select>
-            </div>
-            <div class="form-row">
-                <label class="form-label">Ref No.</label>
-                <input type="text" name="doc_ref_no" class="form-control" value="{{ doc.doc_ref_no if doc else '' }}" placeholder="Policy/license number">
-            </div>
-            <div class="form-row">
-                <label class="form-label">Issue Date</label>
-                <input type="date" name="issue_date" id="issueDate" class="form-control" value="{{ doc.issue_date if doc else '' }}">
-            </div>
-            <div class="form-row">
-                <label class="form-label">Expiry Date</label>
-                <input type="date" name="expiry_date" id="expiryDate" class="form-control" value="{{ doc.expiry_date if doc else '' }}">
-            </div>
-        </div>
-
-        <div style="margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
-            <div class="form-row">
-                <label class="form-label">{{ 'Replace File' if doc else 'File' }} {% if not doc %}*{% endif %}</label>
-                <input type="file" name="file" id="fileInput" class="form-control" {% if not doc %}required{% endif %} accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx">
-                <span style="font-size:0.72rem;color:var(--muted)">
-                    {% if doc %}Leave empty to keep current file. {% endif %}
-                    PDF, images, Word, Excel — <strong>Mulkiya PDF</strong> select karein to auto-fill ho jayega
-                </span>
-            </div>
-            <div id="parseStatus" style="font-size:0.82rem;margin-top:8px;display:none;padding:8px 12px;border-radius:6px"></div>
-            <div class="form-row" style="margin-top:10px">
-                <label class="form-label">Notes</label>
-                <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes">{{ doc.notes if doc else '' }}</textarea>
-            </div>
-        </div>
-
-        <button type="submit" class="btn btn-primary" style="width:100%;padding:12px">
-            {{ 'Update Document' if doc else 'Upload Document' }}
+    {# ─── Parsed Summary ─── #}
+    <div class="parse-done" id="parseDone">
+      <div class="summary">
+        <div style="font-weight:600;font-size:0.9rem;margin-bottom:8px;color:#166534">✅ Mulkiya parsed successfully</div>
+        <div class="summary-row"><span class="label">Vehicle</span><span class="value auto" id="pvPlate">—</span></div>
+        <div class="summary-row"><span class="label">Issue Date</span><span class="value" id="pvIssue">—</span></div>
+        <div class="summary-row"><span class="label">Expiry Date</span><span class="value" id="pvExpiry">—</span></div>
+      </div>
+      <div class="actions" style="display:flex;gap:10px">
+        <button type="submit" class="btn btn-primary" style="flex:1;padding:12px;font-size:0.95rem;font-weight:600">
+          ⬆ Upload Document
         </button>
-    </form>
-</div>
+        <button type="button" class="btn btn-outline" onclick="resetForm()">✕ Cancel</button>
+      </div>
+    </div>
+  </form>
 </div>
 
 <script>
-let entityTimer;
-function loadEntities() {
-    clearTimeout(entityTimer);
-    const typ = document.getElementById('entityType').value;
-    const q = document.getElementById('entityId').value;
-    const res = document.getElementById('entityResults');
-    if (!typ || q.length < 1) { res.style.display = 'none'; return; }
-    entityTimer = setTimeout(() => {
-        fetch('{{ url_for("documents.document_search_entity") }}?entity_type=' + encodeURIComponent(typ) + '&q=' + encodeURIComponent(q))
-            .then(r => r.json())
-            .then(data => {
-                if (!data.length) { res.style.display = 'none'; return; }
-                res.innerHTML = data.map(item =>
-                    '<div style="padding:6px 10px;font-size:0.8rem;cursor:pointer;border-bottom:1px solid #f0f2f5" onclick="selectEntity(\\'' + item.id + '\\',\\'' + item.label.replace(/'/g,"\\'") + '\\')">' + item.label + '</div>'
-                ).join('');
-                res.style.display = 'block';
-            })
-            .catch(() => { res.style.display = 'none'; });
-    }, 300);
-}
-function selectEntity(id, label) {
-    document.getElementById('entityId').value = id;
-    document.getElementById('entityResults').style.display = 'none';
-}
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('#entityId') && !e.target.closest('#entityResults')) {
-        document.getElementById('entityResults').style.display = 'none';
-    }
-});
-
-// ─── Auto PDF Parse on file select ───
+const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
-const parseStatus = document.getElementById('parseStatus');
+const parseLoading = document.getElementById('parseLoading');
+const parseError = document.getElementById('parseError');
+const parseDone = document.getElementById('parseDone');
 
-fileInput.addEventListener('change', function() {
-    parseStatus.style.display = 'none';
-    const file = fileInput.files[0];
-    if (!file || file.type !== 'application/pdf') return;
-    parsePDF(file);
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) {
+    fileInput.files = e.dataTransfer.files;
+    handleFile();
+  }
 });
+fileInput.addEventListener('change', handleFile);
 
-function toDateInput(isoStr) {
-    if (!isoStr || !isoStr.match(/^\d{4}-\d{2}-\d{2}$/)) return '';
-    return isoStr;
+function handleFile() {
+  const file = fileInput.files[0];
+  if (!file) return;
+  if (file.type !== 'application/pdf') {
+    showError('Only PDF files are supported for Mulkiya.');
+    return;
+  }
+  parsePDF(file);
+}
+
+function showError(msg) {
+  parseLoading.style.display = 'none';
+  parseDone.style.display = 'none';
+  parseError.style.display = 'flex';
+  parseError.innerHTML = '⚠️ ' + msg;
+}
+
+function resetForm() {
+  fileInput.value = '';
+  parseLoading.style.display = 'none';
+  parseError.style.display = 'none';
+  parseDone.style.display = 'none';
+  dropZone.style.display = 'block';
 }
 
 function parsePDF(file) {
-    parseStatus.style.display = 'block';
-    parseStatus.className = '';
-    parseStatus.innerHTML = '<span class="spinner"></span> Parsing PDF...';
-    parseStatus.style.background = '#f0f4ff';
-    parseStatus.style.color = '#1e40af';
+  dropZone.style.display = 'none';
+  parseError.style.display = 'none';
+  parseDone.style.display = 'none';
+  parseLoading.style.display = 'flex';
 
-    const formData = new FormData();
-    formData.append('file', file);
+  const fd = new FormData();
+  fd.append('file', file);
 
-    fetch('{{ url_for("documents.document_parse_pdf") }}', {
-        method: 'POST',
-        body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.error) {
-            parseStatus.innerHTML = '⚠️ ' + data.error;
-            parseStatus.style.background = '#ffebee';
-            parseStatus.style.color = '#c62828';
-            return;
-        }
+  fetch('{{ url_for("documents.document_parse_pdf") }}', {
+    method: 'POST', body: fd
+  })
+  .then(r => r.json())
+  .then(data => {
+    parseLoading.style.display = 'none';
+    if (data.error) { showError(data.error); return; }
 
-        parseStatus.innerHTML = '✅ Mulkiya parsed — fields auto-filled below';
-        parseStatus.style.background = '#e8f5e9';
-        parseStatus.style.color = '#166534';
+    // Fill hidden fields
+    document.getElementById('entityType').value = 'vehicle';
+    document.getElementById('entityId').value = data.plate_no || '';
+    document.getElementById('docName').value = 'Vehicle Registration' + (data.plate_no ? ' - ' + data.plate_no : '');
+    document.getElementById('docCategory').value = 'Registration';
+    document.getElementById('issueDate').value = data.issue_date || '';
+    document.getElementById('expiryDate').value = data.expiry_date || '';
 
-        document.getElementById('entityType').value = 'vehicle';
-
-        if (data.plate_no) {
-            document.getElementById('entityId').value = data.plate_no;
-        }
-
-        const docName = document.getElementById('docName');
-        if (docName && !docName.value) {
-            docName.value = 'Vehicle Registration - ' + (data.plate_no || 'Mulkiya');
-        }
-
-        const catSel = document.getElementById('docCategory');
-        if (catSel) catSel.value = 'Registration';
-
-        if (data.issue_date) {
-            document.getElementById('issueDate').value = toDateInput(data.issue_date);
-        }
-        if (data.expiry_date) {
-            document.getElementById('expiryDate').value = toDateInput(data.expiry_date);
-        }
-    })
-    .catch(err => {
-        parseStatus.innerHTML = '❌ Error: ' + err.message;
-        parseStatus.style.background = '#ffebee';
-        parseStatus.style.color = '#c62828';
-    });
+    // Show preview
+    document.getElementById('pvPlate').textContent = data.plate_no || 'Not found';
+    document.getElementById('pvIssue').textContent = data.issue_date || 'Not found';
+    document.getElementById('pvExpiry').textContent = data.expiry_date || 'Not found';
+    parseDone.style.display = 'block';
+  })
+  .catch(err => {
+    parseLoading.style.display = 'none';
+    showError(err.message);
+  });
 }
 </script>
 {% endblock %}
