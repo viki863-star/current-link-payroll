@@ -274,42 +274,32 @@ def document_parse_pdf():
 
         # ─── Extract plate number ───
         plate_no = ""
-        m = re.search(r"Traffic\s*Plate\s*No\.?\s*(\S+)", text, re.IGNORECASE)
+        m = re.search(r"Traffic\s*Plate\s*No\.?\s*(.+)", text, re.IGNORECASE)
         if m:
             plate_no = m.group(1).strip()
         if not plate_no:
-            patterns = [
-                r"(?:Plate\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
-                r"(?:رقم اللوحة[:\s]*)([A-Z0-9\- ]{2,15})",
-                r"(?:Registration\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
-                r"(?:Vehicle\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
-                r"(?:Plate)[:\s]*([A-Z0-9\- ]{2,15})",
-                r"\b(\d{4,5})\b",
-            ]
-            for p in patterns:
-                m = re.search(p, text, re.IGNORECASE)
-                if m:
-                    plate_no = m.group(1).strip()
-                    break
+            m = re.search(r"رقم اللوحة[:\s]*(.+)", text)
+            if m:
+                plate_no = m.group(1).strip()
+        if plate_no:
+            # Take only up to newline/next field label
+            plate_no = re.split(r'\n|\s{3,}|Exp\.?\s*Date|انتهاء', plate_no)[0].strip()
+            # Remove spaces around "/" (e.g. "1 / 80900" → "1/80900")
+            plate_no = re.sub(r'\s*/\s*', '/', plate_no)
 
         # ─── Extract expiry date ───
         expiry_date = ""
-        m = re.search(r"Exp\.?\s*Date\s*(\d{2}[-\s][A-Z]{3}[-\s]\d{2,4})", text, re.IGNORECASE)
+        m = re.search(r"Exp\.?\s*Date\s*(\S+)", text, re.IGNORECASE)
         if m:
-            expiry_date = m.group(1).strip().replace(" ", "-")
+            expiry_date = m.group(1).strip()
         if not expiry_date:
-            m = re.search(r"(?:Expir|Expiry|Expiration)[:\s]*([\d/\-]{8,12})", text, re.IGNORECASE)
+            m = re.search(r"انتهاء الترخيص[:\s]*(\S+)", text)
             if m:
                 expiry_date = m.group(1).strip()
-        if not expiry_date:
-            dates = re.findall(r"\b(\d{2}[/\-]\d{2}[/\-]\d{4})\b", text)
-            dates += re.findall(r"\b(\d{4}[/\-]\d{2}[/\-]\d{2})\b", text)
-            if len(dates) >= 1:
-                expiry_date = dates[-1]
 
         # ─── Convert to YYYY-MM-DD ───
         def to_iso(d):
-            mmm = re.match(r"(\d{2})[-\s]([A-Z]{3})[-\s](\d{2,4})", d, re.IGNORECASE)
+            mmm = re.match(r"(\d{2})[-\s]([A-Za-z]{3})[-\s](\d{2,4})", d.strip(), re.IGNORECASE)
             if mmm:
                 months = {"JAN":"01","FEB":"02","MAR":"03","APR":"04","MAY":"05","JUN":"06",
                           "JUL":"07","AUG":"08","SEP":"09","OCT":"10","NOV":"11","DEC":"12"}
@@ -319,12 +309,6 @@ def document_parse_pdf():
                 if len(yr) == 2:
                     yr = "20" + yr
                 return f"{yr}-{mon}-{day}"
-            m = re.match(r"(\d{2})[/\-](\d{2})[/\-](\d{4})", d)
-            if m:
-                return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
-            m = re.match(r"(\d{4})[/\-](\d{2})[/\-](\d{2})", d)
-            if m:
-                return d.replace("/", "-")
             return d
 
         issue_date = ""
