@@ -262,7 +262,8 @@ def document_parse_pdf():
             try:
                 from pdf2image import convert_from_bytes
                 import pytesseract
-                images = convert_from_bytes(pdf_bytes, dpi=300)
+                pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+                images = convert_from_bytes(pdf_bytes, dpi=300, poppler_path="/usr/bin")
                 for img in images:
                     text += pytesseract.image_to_string(img) + "\n"
                 text = text.strip()
