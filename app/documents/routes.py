@@ -248,8 +248,7 @@ def document_parse_pdf():
         from pypdf import PdfReader
         import re
 
-        pdf_bytes = f.read()
-        reader = PdfReader(pdf_bytes)
+        reader = PdfReader(BytesIO(f.read()))
         text = ""
         for page in reader.pages:
             text += page.extract_text() + "\n"
