@@ -1559,8 +1559,8 @@ def supplier_lpo_pdf(sup_id, lpo_id):
             if x < 20: return ones[x]
             if x < 100: return tens[x//10] + (" " + ones[x%10] if x%10 else "")
             if x < 1000: return ones[x//100] + " Hundred" + (" " + cvt(x%100) if x%100 else "")
-            if x < 100000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
-            return cvt(x//100000) + " Lakh" + (" " + cvt(x%100000) if x%100000 else "")
+            if x < 1000000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
+            return cvt(x//1000000) + " Million" + (" " + cvt(x%1000000) if x%1000000 else "")
         ip = int(n); dp = round((n - ip) * 100)
         w = cvt(ip)
         if dp: w += f" and {dp}/100"
@@ -1975,8 +1975,8 @@ def supplier_quotation_pdf(sup_id, q_id):
             if x < 20: return ones[x]
             if x < 100: return tens[x//10] + (" " + ones[x%10] if x%10 else "")
             if x < 1000: return ones[x//100] + " Hundred" + (" " + cvt(x%100) if x%100 else "")
-            if x < 100000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
-            return cvt(x//100000) + " Lakh" + (" " + cvt(x%100000) if x%100000 else "")
+            if x < 1000000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
+            return cvt(x//1000000) + " Million" + (" " + cvt(x%1000000) if x%1000000 else "")
         ip = int(n); dp = round((n - ip) * 100)
         w = cvt(ip)
         if dp: w += f" and {dp}/100"
@@ -2417,8 +2417,8 @@ def supplier_cheque_print(sup_id, pay_id):
             if x < 20: return ones[x]
             if x < 100: return tens[x//10] + (" " + ones[x%10] if x%10 else "")
             if x < 1000: return ones[x//100] + " Hundred" + (" " + cvt(x%100) if x%100 else "")
-            if x < 100000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
-            return cvt(x//100000) + " Lakh" + (" " + cvt(x%100000) if x%100000 else "")
+            if x < 1000000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
+            return cvt(x//1000000) + " Million" + (" " + cvt(x%1000000) if x%1000000 else "")
         ip = int(n); dp = round((n - ip) * 100)
         w = cvt(ip)
         if dp: w += f" and {dp}/100"
