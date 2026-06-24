@@ -52,6 +52,7 @@
       <span class="spinner"></span> Parsing mulkiya PDF...
     </div>
     <div class="parse-error" id="parseError"></div>
+    <div id="parseDebug" style="display:none;margin-top:10px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.72rem;color:#475569;font-family:monospace;white-space:pre-wrap;word-break:break-all"></div>
 
     {# ─── Parsed Summary ─── #}
     <div class="parse-done" id="parseDone">
@@ -147,6 +148,20 @@ function parsePDF(file) {
     document.getElementById('pvPlate').textContent = data.plate_no || 'Not found';
     document.getElementById('pvIssue').textContent = data.issue_date || 'Not found';
     document.getElementById('pvExpiry').textContent = data.expiry_date || 'Not found';
+
+    console.log('=== MULKIA PARSE RESULT ===');
+    console.log('plate_no:', JSON.stringify(data.plate_no));
+    console.log('issue_date:', JSON.stringify(data.issue_date));
+    console.log('expiry_date:', JSON.stringify(data.expiry_date));
+    console.log('text_preview:', JSON.stringify(data.text_preview));
+    const dbg = document.getElementById('parseDebug');
+    if (data.text_preview) {
+      dbg.style.display = 'block';
+      dbg.textContent = 'Extracted text:\n' + data.text_preview.slice(0, 800);
+    } else {
+      dbg.style.display = 'block';
+      dbg.textContent = '⚠️ No text extracted from PDF (maybe scanned/image-based)';
+    }
     parseDone.style.display = 'block';
   })
   .catch(err => {
