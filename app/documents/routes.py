@@ -334,7 +334,7 @@ def document_parse_pdf():
         matched = False
         if plate_no:
             db = open_db()
-            row = db.execute("SELECT plate_no, make_model FROM vehicles WHERE plate_no LIKE ?", (f"%{plate_no}%",)).fetchone()
+            row = db.execute("SELECT plate_no FROM vehicles WHERE plate_no LIKE ?", (f"%{plate_no}%",)).fetchone()
             if row:
                 plate_no = row["plate_no"]
                 matched = True
