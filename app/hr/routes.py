@@ -71,6 +71,8 @@ def _employee_photo_url(app, employee):
         return None
     if employee.get("photo_data") and employee.get("photo_content_type"):
         return f"data:{employee['photo_content_type']};base64,{employee['photo_data']}"
+    if employee.get("photo_url"):
+        return employee["photo_url"]
     return None
 
 
@@ -482,6 +484,31 @@ def employee_transactions(employee_id):
 
     photo_url = _employee_photo_url(current_app._get_current_object(), employee)
 
+    # Fetch current vehicle directly (same logic as edit page)
+    current_vehicle = None
+    if employee.get("employee_type") == "Driver":
+        veh_row = db.execute(
+            "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model "
+            "FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id "
+            "WHERE va.driver_id = ? AND va.is_current = 1 LIMIT 1",
+            (eid,),
+        ).fetchone()
+        if not veh_row:
+            veh_row = db.execute(
+                "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model "
+                "FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id "
+                "WHERE va.driver_id = ? ORDER BY va.id DESC LIMIT 1",
+                (eid,),
+            ).fetchone()
+        if not veh_row:
+            legacy = db.execute("SELECT vehicle_no FROM drivers WHERE driver_id = ? LIMIT 1", (eid,)).fetchone()
+            if legacy and legacy["vehicle_no"]:
+                veh_row = db.execute("SELECT plate_no AS vehicle_id, NULL AS assigned_from, plate_no, vehicle_type, model FROM vehicles WHERE plate_no = ? LIMIT 1", (legacy["vehicle_no"],)).fetchone()
+                if not veh_row:
+                    current_vehicle = {"vehicle_id": legacy["vehicle_no"], "assigned_from": "", "plate_no": legacy["vehicle_no"], "vehicle_type": "", "model": ""}
+        if veh_row:
+            current_vehicle = dict(veh_row)
+
     return render_template(
         "hr/employee_detail.html",
         employee=employee,
@@ -491,6 +518,7 @@ def employee_transactions(employee_id):
         transactions=transactions,
         total_advance=total_advance,
         edit_txn=edit_txn,
+        current_vehicle=current_vehicle,
     )
 
 
