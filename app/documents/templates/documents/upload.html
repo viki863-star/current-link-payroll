@@ -39,18 +39,18 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
             <div class="form-row" style="grid-column:span 2">
                 <label class="form-label">Document Name *</label>
-                <input type="text" name="doc_name" class="form-control" value="{{ doc.doc_name if doc else '' }}" required placeholder="e.g. Passport Copy, Insurance Policy">
+                <input type="text" name="doc_name" id="docName" class="form-control" value="{{ doc.doc_name if doc else '' }}" required placeholder="e.g. Passport Copy, Insurance Policy">
             </div>
             <div class="form-row">
                 <label class="form-label">Category</label>
-                <select name="doc_category" class="form-control">
-                    <option value="Registration" {% if doc and doc.doc_category == 'Registration' %}selected{% endif %}>Registration</option>
-                    <option value="Insurance" {% if doc and doc.doc_category == 'Insurance' %}selected{% endif %}>Insurance</option>
-                    <option value="License" {% if doc and doc.doc_category == 'License' %}selected{% endif %}>License</option>
-                    <option value="Contract" {% if doc and doc.doc_category == 'Contract' %}selected{% endif %}>Contract</option>
-                    <option value="ID Proof" {% if doc and doc.doc_category == 'ID Proof' %}selected{% endif %}>ID Proof</option>
-                    <option value="Certificate" {% if doc and doc.doc_category == 'Certificate' %}selected{% endif %}>Certificate</option>
-                    <option value="Bank" {% if doc and doc.doc_category == 'Bank' %}selected{% endif %}>Bank</option>
+                <select name="doc_category" id="docCategory" class="form-control">
+                    <option value="Registration">Registration</option>
+                    <option value="Insurance">Insurance</option>
+                    <option value="License">License</option>
+                    <option value="Contract">Contract</option>
+                    <option value="ID Proof">ID Proof</option>
+                    <option value="Certificate">Certificate</option>
+                    <option value="Bank">Bank</option>
                     <option value="Other" {% if not doc or doc.doc_category == 'Other' %}selected{% endif %}>Other</option>
                 </select>
             </div>
@@ -60,29 +60,24 @@
             </div>
             <div class="form-row">
                 <label class="form-label">Issue Date</label>
-                <input type="date" name="issue_date" class="form-control" value="{{ doc.issue_date if doc else '' }}">
+                <input type="date" name="issue_date" id="issueDate" class="form-control" value="{{ doc.issue_date if doc else '' }}">
             </div>
             <div class="form-row">
                 <label class="form-label">Expiry Date</label>
-                <input type="date" name="expiry_date" class="form-control" value="{{ doc.expiry_date if doc else '' }}">
+                <input type="date" name="expiry_date" id="expiryDate" class="form-control" value="{{ doc.expiry_date if doc else '' }}">
             </div>
         </div>
 
         <div style="margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
             <div class="form-row">
                 <label class="form-label">{{ 'Replace File' if doc else 'File' }} {% if not doc %}*{% endif %}</label>
-                <div style="display:flex;gap:8px;align-items:center">
-                    <input type="file" name="file" id="fileInput" class="form-control" style="flex:1" {% if not doc %}required{% endif %} accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx">
-                    <button type="button" id="parseBtn" class="btn btn-outline btn-sm" style="white-space:nowrap;padding:7px 14px;display:none" onclick="parsePDF()">
-                        🔍 Auto-fill
-                    </button>
-                </div>
+                <input type="file" name="file" id="fileInput" class="form-control" {% if not doc %}required{% endif %} accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx">
                 <span style="font-size:0.72rem;color:var(--muted)">
                     {% if doc %}Leave empty to keep current file. {% endif %}
-                    PDF, images, Word, Excel
+                    PDF, images, Word, Excel — <strong>Mulkiya PDF</strong> select karein to auto-fill ho jayega
                 </span>
             </div>
-            <div id="parseStatus" style="font-size:0.78rem;margin-top:6px;display:none"></div>
+            <div id="parseStatus" style="font-size:0.82rem;margin-top:8px;display:none;padding:8px 12px;border-radius:6px"></div>
             <div class="form-row" style="margin-top:10px">
                 <label class="form-label">Notes</label>
                 <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes">{{ doc.notes if doc else '' }}</textarea>
@@ -127,19 +122,15 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// PDF Smart Parse
+// ─── Auto PDF Parse on file select ───
 const fileInput = document.getElementById('fileInput');
-const parseBtn = document.getElementById('parseBtn');
 const parseStatus = document.getElementById('parseStatus');
 
 fileInput.addEventListener('change', function() {
+    parseStatus.style.display = 'none';
     const file = fileInput.files[0];
-    if (file && file.type === 'application/pdf') {
-        parseBtn.style.display = 'inline-flex';
-    } else {
-        parseBtn.style.display = 'none';
-        parseStatus.style.display = 'none';
-    }
+    if (!file || file.type !== 'application/pdf') return;
+    parsePDF(file);
 });
 
 function toDateInput(isoStr) {
@@ -147,14 +138,12 @@ function toDateInput(isoStr) {
     return isoStr;
 }
 
-function parsePDF() {
-    const file = fileInput.files[0];
-    if (!file) return;
-
+function parsePDF(file) {
     parseStatus.style.display = 'block';
+    parseStatus.className = '';
     parseStatus.innerHTML = '<span class="spinner"></span> Parsing PDF...';
-    parseStatus.style.color = '#555';
-    parseBtn.disabled = true;
+    parseStatus.style.background = '#f0f4ff';
+    parseStatus.style.color = '#1e40af';
 
     const formData = new FormData();
     formData.append('file', file);
@@ -165,46 +154,42 @@ function parsePDF() {
     })
     .then(r => r.json())
     .then(data => {
-        parseBtn.disabled = false;
         if (data.error) {
-            parseStatus.innerHTML = '❌ ' + data.error;
-            parseStatus.style.color = '#dc2626';
+            parseStatus.innerHTML = '⚠️ ' + data.error;
+            parseStatus.style.background = '#ffebee';
+            parseStatus.style.color = '#c62828';
             return;
         }
 
-        parseStatus.innerHTML = '✅ PDF parsed successfully';
-        parseStatus.style.color = '#16a34a';
+        parseStatus.innerHTML = '✅ Mulkiya parsed — fields auto-filled below';
+        parseStatus.style.background = '#e8f5e9';
+        parseStatus.style.color = '#166534';
 
-        // Auto-set entity type to vehicle
         document.getElementById('entityType').value = 'vehicle';
 
-        // Auto-fill plate no in entity_id
         if (data.plate_no) {
             document.getElementById('entityId').value = data.plate_no;
         }
 
-        // Auto-fill document name
-        const docName = document.querySelector('input[name="doc_name"]');
+        const docName = document.getElementById('docName');
         if (docName && !docName.value) {
-            docName.value = 'Vehicle Registration - ' + (data.plate_no || 'Mulkia');
+            docName.value = 'Vehicle Registration - ' + (data.plate_no || 'Mulkiya');
         }
 
-        // Auto-set category to Registration
-        const catSel = document.querySelector('select[name="doc_category"]');
+        const catSel = document.getElementById('docCategory');
         if (catSel) catSel.value = 'Registration';
 
-        // Auto-fill dates
         if (data.issue_date) {
-            document.querySelector('input[name="issue_date"]').value = toDateInput(data.issue_date);
+            document.getElementById('issueDate').value = toDateInput(data.issue_date);
         }
         if (data.expiry_date) {
-            document.querySelector('input[name="expiry_date"]').value = toDateInput(data.expiry_date);
+            document.getElementById('expiryDate').value = toDateInput(data.expiry_date);
         }
     })
     .catch(err => {
-        parseBtn.disabled = false;
         parseStatus.innerHTML = '❌ Error: ' + err.message;
-        parseStatus.style.color = '#dc2626';
+        parseStatus.style.background = '#ffebee';
+        parseStatus.style.color = '#c62828';
     });
 }
 </script>
