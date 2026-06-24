@@ -264,38 +264,53 @@ def document_parse_pdf():
                 import pytesseract
                 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
                 images = convert_from_bytes(pdf_bytes, dpi=300, poppler_path="/usr/bin")
+                ocr_config = "--psm 6 --oem 3"
                 for img in images:
-                    text += pytesseract.image_to_string(img) + "\n"
+                    text += pytesseract.image_to_string(img, config=ocr_config) + "\n"
                 text = text.strip()
             except ImportError as imp_err:
                 text = text or f"[OCR packages not installed: {imp_err.name}]"
             except Exception as ocr_err:
                 text = text or f"[OCR error: {ocr_err}]"
 
-        # ─── Extract plate number ───
-        plate_no = ""
-        m = re.search(r"Traffic\s*Plate\s*No\.?\s*(.+)", text, re.IGNORECASE)
-        if m:
-            plate_no = m.group(1).strip()
-        if not plate_no:
-            m = re.search(r"رقم اللوحة[:\s]*(.+)", text)
-            if m:
-                plate_no = m.group(1).strip()
-        if plate_no:
-            # Take only up to newline/next field label
-            plate_no = re.split(r'\n|\s{3,}|Exp\.?\s*Date|انتهاء', plate_no)[0].strip()
-            # Remove spaces around "/" (e.g. "1 / 80900" → "1/80900")
-            plate_no = re.sub(r'\s*/\s*', '/', plate_no)
+        # ─── STEP 1: OCR Cleanup ───
+        lines = text.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            line = line.strip()
+            # Remove very short noise lines
+            if len(line) < 2:
+                continue
+            cleaned_lines.append(line)
+        cleaned = '\n'.join(cleaned_lines)
 
-        # ─── Extract expiry date ───
+        # ─── STEP 2: Extract ───
+        plate_no = ""
+
+        # Look for "Traffic Plate No." label (may be split across lines)
+        for i, line in enumerate(cleaned_lines):
+            if re.search(r'Traffic.*Plate|Plate.*No\.?|رقم اللوحة', line, re.IGNORECASE):
+                # The value might be on the same line or next line
+                val = re.sub(r'^.*?(?:Traffic.*?Plate.*?No\.?\s*|رقم اللوحة[:\s]*)', '', line, flags=re.IGNORECASE).strip()
+                if not val and i + 1 < len(cleaned_lines):
+                    val = cleaned_lines[i + 1]
+                if val:
+                    # Take only until next field label or end of line
+                    val = re.split(r'\s{3,}|Exp\.?\s*Date|انتهاء', val)[0].strip()
+                    val = re.sub(r'\s*/\s*', '/', val)  # "1 / 80900" → "1/80900"
+                    plate_no = val
+                break
+
         expiry_date = ""
-        m = re.search(r"Exp\.?\s*Date\s*(\S+)", text, re.IGNORECASE)
-        if m:
-            expiry_date = m.group(1).strip()
-        if not expiry_date:
-            m = re.search(r"انتهاء الترخيص[:\s]*(\S+)", text)
-            if m:
-                expiry_date = m.group(1).strip()
+        for i, line in enumerate(cleaned_lines):
+            if re.search(r'Exp\.?\s*Date|انتهاء الترخيص', line, re.IGNORECASE):
+                val = re.sub(r'^.*?(?:Exp\.?\s*Date[:\s]*|انتهاء الترخيص[:\s]*)', '', line, flags=re.IGNORECASE).strip()
+                if not val and i + 1 < len(cleaned_lines):
+                    val = cleaned_lines[i + 1]
+                if val:
+                    val = val.split()[0] if val.split() else val
+                    expiry_date = val
+                break
 
         # ─── Convert to YYYY-MM-DD ───
         def to_iso(d):
