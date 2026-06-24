@@ -71,12 +71,18 @@
         <div style="margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
             <div class="form-row">
                 <label class="form-label">{{ 'Replace File' if doc else 'File' }} {% if not doc %}*{% endif %}</label>
-                <input type="file" name="file" class="form-control" {% if not doc %}required{% endif %} accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx">
+                <div style="display:flex;gap:8px;align-items:center">
+                    <input type="file" name="file" id="fileInput" class="form-control" style="flex:1" {% if not doc %}required{% endif %} accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx">
+                    <button type="button" id="parseBtn" class="btn btn-outline btn-sm" style="white-space:nowrap;padding:7px 14px;display:none" onclick="parsePDF()">
+                        🔍 Auto-fill
+                    </button>
+                </div>
                 <span style="font-size:0.72rem;color:var(--muted)">
                     {% if doc %}Leave empty to keep current file. {% endif %}
                     PDF, images, Word, Excel
                 </span>
             </div>
+            <div id="parseStatus" style="font-size:0.78rem;margin-top:6px;display:none"></div>
             <div class="form-row" style="margin-top:10px">
                 <label class="form-label">Notes</label>
                 <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes">{{ doc.notes if doc else '' }}</textarea>
@@ -120,5 +126,86 @@ document.addEventListener('click', function(e) {
         document.getElementById('entityResults').style.display = 'none';
     }
 });
+
+// PDF Smart Parse
+const fileInput = document.getElementById('fileInput');
+const parseBtn = document.getElementById('parseBtn');
+const parseStatus = document.getElementById('parseStatus');
+
+fileInput.addEventListener('change', function() {
+    const file = fileInput.files[0];
+    if (file && file.type === 'application/pdf') {
+        parseBtn.style.display = 'inline-flex';
+    } else {
+        parseBtn.style.display = 'none';
+        parseStatus.style.display = 'none';
+    }
+});
+
+function toDateInput(isoStr) {
+    if (!isoStr || !isoStr.match(/^\d{4}-\d{2}-\d{2}$/)) return '';
+    return isoStr;
+}
+
+function parsePDF() {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    parseStatus.style.display = 'block';
+    parseStatus.innerHTML = '<span class="spinner"></span> Parsing PDF...';
+    parseStatus.style.color = '#555';
+    parseBtn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch('{{ url_for("documents.document_parse_pdf") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        parseBtn.disabled = false;
+        if (data.error) {
+            parseStatus.innerHTML = '❌ ' + data.error;
+            parseStatus.style.color = '#dc2626';
+            return;
+        }
+
+        parseStatus.innerHTML = '✅ PDF parsed successfully';
+        parseStatus.style.color = '#16a34a';
+
+        // Auto-set entity type to vehicle
+        document.getElementById('entityType').value = 'vehicle';
+
+        // Auto-fill plate no in entity_id
+        if (data.plate_no) {
+            document.getElementById('entityId').value = data.plate_no;
+        }
+
+        // Auto-fill document name
+        const docName = document.querySelector('input[name="doc_name"]');
+        if (docName && !docName.value) {
+            docName.value = 'Vehicle Registration - ' + (data.plate_no || 'Mulkia');
+        }
+
+        // Auto-set category to Registration
+        const catSel = document.querySelector('select[name="doc_category"]');
+        if (catSel) catSel.value = 'Registration';
+
+        // Auto-fill dates
+        if (data.issue_date) {
+            document.querySelector('input[name="issue_date"]').value = toDateInput(data.issue_date);
+        }
+        if (data.expiry_date) {
+            document.querySelector('input[name="expiry_date"]').value = toDateInput(data.expiry_date);
+        }
+    })
+    .catch(err => {
+        parseBtn.disabled = false;
+        parseStatus.innerHTML = '❌ Error: ' + err.message;
+        parseStatus.style.color = '#dc2626';
+    });
+}
 </script>
 {% endblock %}

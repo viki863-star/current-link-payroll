@@ -18,7 +18,6 @@
     {% set nav_items = [
         {"label": "Dashboard", "endpoint": "dashboard", "icon": "grid"},
         {"label": "HR & Employees", "endpoint": "hr.hr_dashboard", "icon": "users"},
-        {"label": "Fleet", "endpoint": "fleet.fleet_dashboard", "icon": "truck"},
         {"label": "Suppliers", "endpoint": "supplier.supplier_dashboard", "icon": "building"},
         {"label": "Customers", "endpoint": "customer.customer_dashboard", "icon": "handshake"},
     ] %}
@@ -41,7 +40,7 @@
     <div class="erp-sidebar-body">
         <nav class="erp-sidebar-nav">
             {% for item in nav_items %}
-            {% set is_active = (request.endpoint and (request.endpoint == item.endpoint or (item.label == 'HR & Employees' and request.endpoint.startswith('hr.')) or (item.label == 'Fleet' and request.endpoint.startswith('fleet.')) or (item.label == 'Suppliers' and request.endpoint.startswith('supplier.')) or (item.label == 'Customers' and request.endpoint.startswith('customer.') and not request.endpoint.startswith('customer.settings')))) %}
+            {% set is_active = (request.endpoint and (request.endpoint == item.endpoint or (item.label == 'HR & Employees' and request.endpoint.startswith('hr.')) or (item.label == 'Suppliers' and request.endpoint.startswith('supplier.')) or (item.label == 'Customers' and request.endpoint.startswith('customer.') and not request.endpoint.startswith('customer.settings')))) %}
             <a class="erp-nav-link {{ 'is-active' if is_active }}" href="{{ url_for(item.endpoint) if item.endpoint != 'dashboard' else url_for('dashboard') }}">
                 <span class="erp-nav-icon">
                     {% if item.icon == 'grid' %}
@@ -63,6 +62,43 @@
                 </span>
             </a>
             {% endfor %}
+
+            {# â•â•â• FLEET (expandable) â•â•â• #}
+            {% set fleet_children = [
+                {"label": "Dashboard", "endpoint": "fleet.fleet_dashboard", "icon": "layout-dashboard"},
+                {"label": "Vehicles", "endpoint": "fleet.vehicle_list", "icon": "truck"},
+            ] %}
+            {% set fleet_endpoints = [] %}
+            {% for ch in fleet_children %}{% set _ = fleet_endpoints.append(ch.endpoint) %}{% endfor %}
+            {% set is_on_fleet = request.endpoint and (request.endpoint in fleet_endpoints or request.endpoint.startswith('fleet.')) %}
+            <button class="erp-nav-expandable {{ 'is-expanded' if is_on_fleet }}" type="button" id="fleetExpandBtn" aria-expanded="{{ 'true' if is_on_fleet else 'false' }}">
+                <span class="erp-nav-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+                </span>
+                <span class="erp-nav-copy">
+                    <strong>Fleet</strong>
+                </span>
+                <svg class="erp-nav-chevron" viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
+                    <path d="M5.293 7.293a1 1 0 0 1 1.414 0L10 10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 0-1.414z"/>
+                </svg>
+            </button>
+            <div class="erp-nav-children {{ 'is-expanded' if is_on_fleet }}" id="fleetChildren">
+                {% for ch in fleet_children %}
+                {% set ch_active = request.endpoint == ch.endpoint %}
+                <a class="erp-nav-link erp-nav-child {{ 'is-active' if ch_active }}" href="{{ url_for(ch.endpoint) }}">
+                    <span class="erp-nav-icon">
+                        {% if ch.icon == 'layout-dashboard' %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                        {% elif ch.icon == 'truck' %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+                        {% elif ch.icon == 'file-text' %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        {% endif %}
+                    </span>
+                    <span class="erp-nav-copy">{{ ch.label }}</span>
+                </a>
+                {% endfor %}
+            </div>
 
             {# â•â•â• ACCOUNTS (expandable) â•â•â• #}
             <button class="erp-nav-expandable {{ 'is-expanded' if is_on_accounts }}" type="button" id="accountsExpandBtn" aria-expanded="{{ 'true' if is_on_accounts else 'false' }}">
@@ -156,6 +192,19 @@
             btn.classList.toggle('is-expanded');
             children.classList.toggle('is-expanded');
             try { localStorage.setItem('erp_accounts_expanded', expanded); } catch(ex) {}
+        });
+    }
+
+    var fbtn = document.getElementById('fleetExpandBtn');
+    var fchildren = document.getElementById('fleetChildren');
+    if (fbtn && fchildren) {
+        fbtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var expanded = fbtn.getAttribute('aria-expanded') === 'true' ? false : true;
+            fbtn.setAttribute('aria-expanded', expanded);
+            fbtn.classList.toggle('is-expanded');
+            fchildren.classList.toggle('is-expanded');
+            try { localStorage.setItem('erp_fleet_expanded', expanded); } catch(ex) {}
         });
     }
 

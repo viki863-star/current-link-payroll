@@ -676,16 +676,17 @@ def vehicle_document_view(plate_no, doc_id):
         return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
     import base64
     from io import BytesIO
-    data = base64.b64decode(doc["doc_data"])
+    data = base64.b64decode(job["attachment_data"])
     return send_file(
         BytesIO(data),
-        mimetype=doc["doc_type"] or "application/octet-stream",
+        mimetype=job["attachment_type"] or "application/octet-stream",
         as_attachment=False,
-        download_name=doc["doc_name"],
+        download_name=job["attachment_name"] or f"attachment_{job_id}",
     )
 
 
 # ═════════════════════════════════════════════════════════════════
+
 # FIELD STAFF PORTAL (separate login)
 # ═════════════════════════════════════════════════════════════════
 

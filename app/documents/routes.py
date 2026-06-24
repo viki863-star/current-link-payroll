@@ -233,3 +233,92 @@ def document_search_entity():
         results = [{"id": r["id"], "label": r["label"]} for r in rows]
     db.close()
     return jsonify(results)
+
+
+@documents_bp.route("/documents/parse-pdf", methods=["POST"])
+def document_parse_pdf():
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "Empty file"}), 400
+
+    try:
+        from pypdf import PdfReader
+        import re
+
+        pdf_bytes = f.read()
+        reader = PdfReader(pdf_bytes)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() + "\n"
+
+        # Extract plate number
+        plate_no = ""
+        patterns = [
+            r"(?:Plate\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
+            r"(?:رقم اللوحة[:\s]*)([A-Z0-9\- ]{2,15})",
+            r"(?:Registration\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
+            r"(?:Vehicle\s*(?:No|#|Number)[:\s]*)([A-Z0-9\- ]{2,15})",
+            r"(?:Plate)[:\s]*([A-Z0-9\- ]{2,15})",
+            r"\b(\d{4,5})\b",
+        ]
+        for p in patterns:
+            m = re.search(p, text, re.IGNORECASE)
+            if m:
+                plate_no = m.group(1).strip()
+                break
+
+        # Extract dates
+        issue_date = ""
+        expiry_date = ""
+
+        issue_match = re.search(r"(?:Issue|Issued|Issuing|Date\s*of\s*Issue)[:\s]*([\d/\-]{8,12})", text, re.IGNORECASE)
+        if issue_match:
+            issue_date = issue_match.group(1).strip()
+
+        expiry_match = re.search(r"(?:Expir|Expiry|Expiration|Valid\s*(?:Until|Till|To)|Valid\s*Upto)[:\s]*([\d/\-]{8,12})", text, re.IGNORECASE)
+        if expiry_match:
+            expiry_date = expiry_match.group(1).strip()
+
+        # Fallback: if two dates found, first = issue, second = expiry
+        if not issue_date or not expiry_date:
+            dates = re.findall(r"\b(\d{2}[/\-]\d{2}[/\-]\d{4})\b", text)
+            dates += re.findall(r"\b(\d{4}[/\-]\d{2}[/\-]\d{2})\b", text)
+            if not issue_date and len(dates) >= 1:
+                issue_date = dates[0]
+            if not expiry_date and len(dates) >= 2:
+                expiry_date = dates[1]
+
+        # Convert DD/MM/YYYY to YYYY-MM-DD for form
+        def to_iso(d):
+            m = re.match(r"(\d{2})[/\-](\d{2})[/\-](\d{4})", d)
+            if m:
+                return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
+            m = re.match(r"(\d{4})[/\-](\d{2})[/\-](\d{2})", d)
+            if m:
+                return d.replace("/", "-")
+            return d
+
+        issue_date = to_iso(issue_date) if issue_date else ""
+        expiry_date = to_iso(expiry_date) if expiry_date else ""
+
+        # Look up matching vehicle in DB to confirm plate
+        matched = False
+        if plate_no:
+            db = open_db()
+            row = db.execute("SELECT plate_no, make_model FROM vehicles WHERE plate_no LIKE ?", (f"%{plate_no}%",)).fetchone()
+            if row:
+                plate_no = row["plate_no"]
+                matched = True
+            db.close()
+
+        return jsonify({
+            "plate_no": plate_no,
+            "issue_date": issue_date,
+            "expiry_date": expiry_date,
+            "matched": matched,
+            "text_preview": text[:300],
+        })
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse PDF: {str(e)}"}), 400
