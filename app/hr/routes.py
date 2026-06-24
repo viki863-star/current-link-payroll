@@ -73,6 +73,23 @@ def _employee_photo_url(app, employee):
         return f"data:{employee['photo_content_type']};base64,{employee['photo_data']}"
     if employee.get("photo_url"):
         return employee["photo_url"]
+    if employee.get("photo_name"):
+        try:
+            import base64
+            from pathlib import Path
+            photo_dir = Path(app.config.get("DRIVER_FILES_DIR", "")) / "employee_photos"
+            photo_path = photo_dir / employee["photo_name"]
+            if photo_path.exists():
+                ct = "image/jpeg"
+                ext = photo_path.suffix.lower()
+                if ext == ".png": ct = "image/png"
+                elif ext == ".gif": ct = "image/gif"
+                elif ext == ".webp": ct = "image/webp"
+                with open(photo_path, "rb") as f:
+                    data = base64.b64encode(f.read()).decode("utf-8")
+                return f"data:{ct};base64,{data}"
+        except Exception:
+            pass
     return None
 
 
