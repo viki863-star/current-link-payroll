@@ -266,10 +266,10 @@ def document_parse_pdf():
                 for img in images:
                     text += pytesseract.image_to_string(img) + "\n"
                 text = text.strip()
-            except ImportError:
-                pass
+            except ImportError as imp_err:
+                text = text or f"[OCR packages not installed: {imp_err.name}]"
             except Exception as ocr_err:
-                text = text or f"[OCR failed: {ocr_err}]"
+                text = text or f"[OCR error: {ocr_err}]"
 
         # ─── Extract plate number ───
         plate_no = ""
