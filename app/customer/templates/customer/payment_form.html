@@ -26,7 +26,7 @@
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
             <h3>Record Payment Received</h3>
-            <p><strong>{{ c.customer_name }}</strong> &middot; Balance: <strong style="color:#c62828">AED {{ "%.0f"|format(balance) }}</strong></p>
+            <p><strong>{{ c.customer_name }}</strong> &middot; Balance: <strong style="color:#c62828">AED {{ "%.2f"|format(balance) }}</strong></p>
         </div>
         <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='payments') }}" class="btn btn-outline btn-sm">&larr; Back</a>
     </div>
@@ -86,7 +86,7 @@
                     {% endif %}
                 </div>
                 <div style="text-align:right;font-size:0.85rem;font-weight:600;color:{% if inv.balance > 0 %}#c62828{% else %}var(--green){% endif %}" class="mono">
-                    <span class="inv-bal-num">{{ "%.0f"|format(inv.balance) }}</span>
+                    <span class="inv-bal-num">{{ "%.2f"|format(inv.balance) }}</span>
                 </div>
                 <input type="number" name="alloc_{{ inv.id }}" class="form-control alloc-amt" step="any" min="0" style="text-align:right;font-size:0.82rem;padding:6px" placeholder="0" oninput="syncTotal()">
             </div>
@@ -102,7 +102,7 @@
             </div>
             <div class="stat">
                 <div style="font-size:0.7rem;color:var(--muted)">Total Balance</div>
-                <div class="num" style="color:#c62828">{{ "%.0f"|format(invoices|sum(attribute='balance')) }}</div>
+                <div class="num" style="color:#c62828">{{ "%.2f"|format(invoices|sum(attribute='balance')) }}</div>
             </div>
             <div class="stat">
                 <div style="font-size:0.7rem;color:var(--muted)">Allocated</div>
