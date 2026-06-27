@@ -1630,7 +1630,7 @@ def customer_quotation_pdf(cid, qid):
         "<li>This quotation is valid for 15 days from the date of issue.</li>",
         "<li>Payment is due within 30 days from the date of invoice.</li>",
         "<li>Any alteration or cancellation of order must be notified in writing.</li>",
-        "<li>All disputes are subject to Dubai jurisdiction.</li>",
+        "<li>All disputes are subject to UAE jurisdiction.</li>",
         "<li>Delivery / service execution as per agreed schedule.</li>",
         "<li>Rates are exclusive of any applicable taxes unless stated otherwise.</li>",
     ]
