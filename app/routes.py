@@ -7707,6 +7707,8 @@ def register_routes(app: Flask) -> None:
                 month=filters["month"],
                 movement=filters["movement"],
                 search=filters["search"],
+                date_from=filters["date_from"],
+                date_to=filters["date_to"],
             )
 
             # ── Supplier owner fund data ──
