@@ -1099,15 +1099,17 @@ def customer_payment_add(cid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
     invoices_raw = db.execute(
-        "SELECT i.id,i.invoice_no,i.invoice_date,i.total_amount,COALESCE(SUM(p.amount),0) AS paid FROM customer_invoices i LEFT JOIN customer_payments p ON p.invoice_id=i.id WHERE i.customer_id=? GROUP BY i.id ORDER BY i.invoice_date DESC",
+        "SELECT i.id,i.invoice_no,i.invoice_date,i.total_amount,COALESCE((SELECT SUM(p.amount) FROM customer_payments p WHERE p.invoice_id=i.id),0) AS paid,COALESCE((SELECT SUM(cn.total_amount) FROM customer_credit_notes cn WHERE cn.invoice_id=i.id),0) AS credit_notes FROM customer_invoices i WHERE i.customer_id=? ORDER BY i.invoice_date DESC",
         (cid,),
     ).fetchall()
     invoices = []
     for inv in invoices_raw:
         d = dict(inv)
-        d["balance"] = round(d["total_amount"] - d["paid"], 2)
-        invoices.append(d)
-    total_balance = round(sum(d["total_amount"] for d in invoices) - sum(d["paid"] for d in invoices), 2)
+        owed = d["total_amount"] - d["paid"] - d["credit_notes"]
+        d["balance"] = round(owed, 2)
+        if owed > 0.005:
+            invoices.append(d)
+    total_balance = round(sum(d["balance"] for d in invoices), 2)
     if request.method == "POST":
         pmt_date = request.form.get("payment_date", date.today().isoformat())
         method = request.form.get("payment_method", "Cheque")
@@ -2112,7 +2114,8 @@ def customer_soa(cid):
     db = _get_db()
     entries = []
     inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.total_amount as dr,
-                      COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0) as cr
+                      COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0) as cr,
+                      COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cn_total
                FROM customer_invoices i WHERE i.customer_id=?"""
     inv_p = [cid]
     if from_date: inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
@@ -2121,7 +2124,8 @@ def customer_soa(cid):
     for inv in db.execute(inv_q, inv_p).fetchall():
         d = dict(inv)
         d["type"] = "Invoice"
-        if (d.get("dr",0) or 0) > 0 and (d.get("dr",0) or 0) - (d.get("cr",0) or 0) <= 0.005:
+        effective = (d.get("dr",0) or 0) - (d.get("cr",0) or 0) - (d.get("cn_total",0) or 0)
+        if (d.get("dr",0) or 0) > 0 and effective <= 0.005:
             continue
         entries.append(d)
     cn_q = "SELECT credit_note_date as d, credit_note_no as ref, 'Credit Note' as type, 0 as dr, total_amount as cr FROM customer_credit_notes WHERE customer_id=?"
@@ -2166,7 +2170,8 @@ def customer_soa_pdf(cid):
     company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     entries = []
     inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.total_amount as dr,
-                      COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0) as cr
+                      COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0) as cr,
+                      COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cn_total
                FROM customer_invoices i WHERE i.customer_id=?"""
     inv_p = [cid]
     if from_date: inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
@@ -2175,7 +2180,8 @@ def customer_soa_pdf(cid):
     for inv in db.execute(inv_q, inv_p).fetchall():
         d = dict(inv)
         d["type"] = "Invoice"
-        if (d.get("dr",0) or 0) > 0 and (d.get("dr",0) or 0) - (d.get("cr",0) or 0) <= 0.005:
+        effective = (d.get("dr",0) or 0) - (d.get("cr",0) or 0) - (d.get("cn_total",0) or 0)
+        if (d.get("dr",0) or 0) > 0 and effective <= 0.005:
             continue
         entries.append(d)
     cn_q = "SELECT credit_note_date as d, credit_note_no as ref, 'Credit Note' as type, 0 as dr, total_amount as cr FROM customer_credit_notes WHERE customer_id=?"
