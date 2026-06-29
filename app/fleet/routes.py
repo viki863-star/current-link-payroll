@@ -168,7 +168,17 @@ def _vehicle_full(plate_no):
         )
     except Exception:
         pass
-    v["total_cost"] = float(total_cost) + float(paper_cost) + fuel_cost
+    parts_cost = 0
+    try:
+        parts_cost = float(
+            db.execute(
+                "SELECT COALESCE(SUM(net_amount),0) AS t FROM supplier_bills WHERE vehicle_plate = ?",
+                (plate_no,),
+            ).fetchone()["t"] or 0
+        )
+    except Exception:
+        pass
+    v["total_cost"] = float(total_cost) + float(paper_cost) + fuel_cost + parts_cost
     return v
 
 
@@ -534,6 +544,19 @@ def vehicle_profile(plate_no):
     fuel_total_amount = sum(f["total_amount"] for f in fuel_entries) if fuel_entries else 0
     suppliers = db.execute("SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name").fetchall()
 
+    # Supplier bills (Parts) for this vehicle
+    try:
+        supplier_bills = db.execute(
+            """SELECT sb.*, s.supplier_name FROM supplier_bills sb
+               JOIN suppliers s ON s.id = sb.supplier_id
+               WHERE sb.vehicle_plate = ? ORDER BY sb.bill_date DESC, sb.id DESC""",
+            (plate_no,),
+        ).fetchall()
+    except Exception:
+        supplier_bills = []
+    parts_total_amount = sum(b["total_amount"] for b in supplier_bills) if supplier_bills else 0
+    parts_total_net = sum(b["net_amount"] for b in supplier_bills) if supplier_bills else 0
+
     return render_template(
         "fleet/vehicle_profile.html",
         v=v,
@@ -548,6 +571,9 @@ def vehicle_profile(plate_no):
         fuel_entries=fuel_entries,
         fuel_total_gallons=fuel_total_gallons,
         fuel_total_amount=fuel_total_amount,
+        supplier_bills=supplier_bills,
+        parts_total_amount=parts_total_amount,
+        parts_total_net=parts_total_net,
         suppliers=suppliers,
         date=date,
     )

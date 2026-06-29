@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Supplier Bills{% endblock %}
+{% block page_title %}Supplier Bills{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block content %}
+<style>
+.sb-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+.sb-toolbar select, .sb-toolbar input { padding:6px 10px; border:1px solid var(--line); border-radius:8px; font-size:0.82rem; }
+.sb-toolbar a, .sb-toolbar button { white-space:nowrap; }
+</style>
+<div class="profile-shell">
+  <div class="profile-header" style="border-left:4px solid #1565C0">
+    <div class="profile-info">
+      <h1 style="font-size:1.4rem">&#128230; Supplier Bills</h1>
+      <p class="profile-badge">Parts &amp; service bills from suppliers — per vehicle tracking</p>
+    </div>
+    <div class="profile-actions">
+      <a href="{{ url_for('supplier.supplier_bill_add') }}" class="btn btn-primary">+ Add Bill</a>
+      <a href="{{ url_for('supplier.supplier_list') }}" class="btn btn-outline">&#8592; Suppliers</a>
+    </div>
+  </div>
+
+  <div class="profile-card" style="margin-top:1rem">
+    <form method="GET" class="sb-toolbar">
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Supplier:</label>
+      <select name="supplier">
+        <option value="">All</option>
+        {% for s in suppliers %}
+        <option value="{{ s.id }}" {{ 'selected' if supplier_filter == s.id|string }}>{{ s.supplier_name }}</option>
+        {% endfor %}
+      </select>
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Vehicle:</label>
+      <select name="vehicle">
+        <option value="">All</option>
+        {% for v in vehicles %}
+        <option value="{{ v.plate_no }}" {{ 'selected' if vehicle_filter == v.plate_no }}>{{ v.plate_no }}</option>
+        {% endfor %}
+      </select>
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Month:</label>
+      <input type="month" name="month" value="{{ month_filter }}">
+      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+      {% if supplier_filter or vehicle_filter or month_filter %}
+      <a href="?" class="btn btn-sm btn-outline">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="profile-card" style="margin-top:1rem">
+    {% if bills %}
+    <div class="table-wrap">
+      <table class="smart-table">
+        <thead><tr><th>Bill#</th><th>Date</th><th>Supplier</th><th>Vehicle</th><th>Items</th><th class="r">Amount</th><th class="r">Discount</th><th class="r">Net AED</th><th></th></tr></thead>
+        <tbody>
+          {% for b in bills %}
+          <tr>
+            <td class="mono" style="font-weight:600">{{ b.bill_no }}</td>
+            <td class="mono">{{ b.bill_date }}</td>
+            <td>{{ b.supplier_name }}</td>
+            <td><strong><a href="{{ url_for('fleet.vehicle_profile', plate_no=b.vehicle_plate) }}?tab=parts" style="color:var(--primary);text-decoration:none">{{ b.vehicle_plate }}</a></strong></td>
+            <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--muted)">{{ b.description or '—' }}</td>
+            <td class="r mono">{{ "%.2f"|format(b.total_amount) }}</td>
+            <td class="r mono" style="color:#2e7d32">{{ "%.2f"|format(b.discount) if b.discount > 0 else '—' }}</td>
+            <td class="r mono" style="font-weight:700;color:#1565C0">{{ "%.2f"|format(b.net_amount) }}</td>
+            <td>
+              <div style="display:flex;gap:4px">
+                <a href="{{ url_for('supplier.supplier_bill_edit', bill_id=b.id) }}" class="btn btn-xs btn-outline">Edit</a>
+                <form method="post" action="{{ url_for('supplier.supplier_bill_delete', bill_id=b.id) }}" style="display:inline" onsubmit="return confirm('Delete bill #{{ b.bill_no }} for {{ b.vehicle_plate }}?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px;padding:12px;background:#f8fafd;border-radius:8px;display:flex;justify-content:space-around">
+      <span><strong>Total Amount:</strong> AED {{ "%.2f"|format(total_amount) }}</span>
+      <span><strong>Total Discount:</strong> AED {{ "%.2f"|format(total_discount) }}</span>
+      <span><strong>Total Net:</strong> AED {{ "%.2f"|format(total_net) }}</span>
+    </div>
+    {% else %}
+    <p class="empty-state" style="padding:40px;text-align:center;color:var(--muted)">No supplier bills found.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

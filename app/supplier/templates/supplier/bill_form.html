@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if bill else 'Add' }} Supplier Bill{% endblock %}
+{% block page_title %}{{ 'Edit' if bill else 'Add' }} Supplier Bill{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block content %}
+<div class="profile-shell" style="max-width:640px;margin:0 auto">
+  <div class="profile-card">
+    <h3 style="margin:0 0 16px;font-size:0.95rem">{{ 'Edit' if bill else 'New' }} Supplier Bill</h3>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row">
+        <label class="form-label">Supplier *</label>
+        <select name="supplier_id" class="form-control" required>
+          <option value="">— Select —</option>
+          {% for s in suppliers %}
+          <option value="{{ s.id }}" {{ 'selected' if bill and bill.supplier_id == s.id }}>{{ s.supplier_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Vehicle *</label>
+        <select name="vehicle_plate" class="form-control" required>
+          <option value="">— Select —</option>
+          {% for v in vehicles %}
+          <option value="{{ v.plate_no }}" {{ 'selected' if bill and bill.vehicle_plate == v.plate_no }}>{{ v.plate_no }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Bill No *</label>
+          <input type="text" name="bill_no" class="form-control" value="{{ bill.bill_no if bill else '' }}" required>
+        </div>
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Bill Date *</label>
+          <input type="date" name="bill_date" class="form-control" value="{{ bill.bill_date if bill else '' }}" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Description (Items)</label>
+        <input type="text" name="description" class="form-control" value="{{ bill.description if bill else '' }}" placeholder="e.g. Oil filter, Diesel filter">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Total Amount (AED) *</label>
+          <input type="number" name="total_amount" step="0.01" min="0" class="form-control" value="{{ bill.total_amount if bill else '' }}" placeholder="0" required>
+        </div>
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Discount (AED)</label>
+          <input type="number" name="discount" step="0.01" min="0" class="form-control" value="{{ bill.discount if bill else '0' }}" placeholder="0">
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:10px;background:#f8fafd;border-radius:8px;text-align:right">
+        <span style="font-size:0.82rem;color:var(--muted)">Net Amount: </span>
+        <span id="netPreview" style="font-size:1.1rem;font-weight:700;color:var(--primary)">AED 0.00</span>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button type="submit" class="btn btn-primary">{{ 'Update' if bill else 'Add' }} Bill</button>
+        <a href="{{ url_for('supplier.supplier_bill_list') }}" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function updateNet() {
+    var total = parseFloat(document.querySelector('input[name="total_amount"]').value) || 0;
+    var disc = parseFloat(document.querySelector('input[name="discount"]').value) || 0;
+    var net = Math.max(0, total - disc);
+    document.getElementById('netPreview').textContent = 'AED ' + net.toFixed(2);
+}
+document.querySelector('input[name="total_amount"]').addEventListener('input', updateNet);
+document.querySelector('input[name="discount"]').addEventListener('input', updateNet);
+updateNet();
+</script>
+{% endblock %}

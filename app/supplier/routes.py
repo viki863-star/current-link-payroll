@@ -210,6 +210,21 @@ def _ensure_tables():
     """)
 
     db.executescript(f"""
+        CREATE TABLE IF NOT EXISTS supplier_bills (
+            {id_col},
+            supplier_id INTEGER NOT NULL,
+            vehicle_plate TEXT NOT NULL,
+            bill_no TEXT NOT NULL,
+            bill_date TEXT NOT NULL,
+            description TEXT,
+            total_amount {real_type} NOT NULL,
+            discount {real_type} DEFAULT 0,
+            net_amount {real_type} NOT NULL,
+            source_expense_id INTEGER,
+            created_at TEXT NOT NULL DEFAULT {now_val},
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+        );
+
         CREATE TABLE IF NOT EXISTS supplier_quotation_items (
             {id_col},
             quotation_id INTEGER NOT NULL,
@@ -3246,3 +3261,170 @@ def supplier_purchase_report():
         from_filter=from_filter,
         to_filter=to_filter,
     )
+
+
+# ═══════════════════════════════════════════════════════════
+# SUPPLIER BILLS (Parts/Service bills per vehicle)
+# ═══════════════════════════════════════════════════════════
+
+@supplier_bp.route("/bills")
+def supplier_bill_list():
+    _ensure_tables()
+    db = _get_db()
+    supplier_filter = request.args.get("supplier", "")
+    vehicle_filter = request.args.get("vehicle", "")
+    month_filter = request.args.get("month", "")
+    params = []
+    where = ""
+    if supplier_filter:
+        where += " AND sb.supplier_id = ?"
+        params.append(supplier_filter)
+    if vehicle_filter:
+        where += " AND sb.vehicle_plate = ?"
+        params.append(vehicle_filter)
+    if month_filter:
+        where += " AND substr(sb.bill_date,1,7) = ?"
+        params.append(month_filter)
+    bills = db.execute(f"""
+        SELECT sb.*, s.supplier_name FROM supplier_bills sb
+        JOIN suppliers s ON s.id = sb.supplier_id
+        WHERE 1=1{where}
+        ORDER BY sb.bill_date DESC, sb.id DESC
+    """, params).fetchall()
+    suppliers = db.execute("SELECT id, supplier_name FROM suppliers ORDER BY supplier_name").fetchall()
+    vehicles = db.execute("SELECT plate_no FROM vehicles ORDER BY plate_no").fetchall()
+    total_amount = sum(b["total_amount"] for b in bills) if bills else 0
+    total_discount = sum(b["discount"] for b in bills) if bills else 0
+    total_net = sum(b["net_amount"] for b in bills) if bills else 0
+    return render_template(
+        "supplier/bill_list.html",
+        bills=bills,
+        suppliers=suppliers,
+        vehicles=vehicles,
+        supplier_filter=supplier_filter,
+        vehicle_filter=vehicle_filter,
+        month_filter=month_filter,
+        total_amount=total_amount,
+        total_discount=total_discount,
+        total_net=total_net,
+    )
+
+
+@supplier_bp.route("/bills/add", methods=["GET", "POST"])
+def supplier_bill_add():
+    _ensure_tables()
+    db = _get_db()
+    if request.method == "POST":
+        supplier_id = request.form.get("supplier_id", "").strip()
+        vehicle_plate = request.form.get("vehicle_plate", "").strip()
+        bill_no = request.form.get("bill_no", "").strip()
+        bill_date = request.form.get("bill_date", "").strip()
+        description = request.form.get("description", "").strip()
+        total_amount = float(request.form.get("total_amount", 0) or 0)
+        discount = float(request.form.get("discount", 0) or 0)
+        if not supplier_id or not vehicle_plate or not bill_no or not bill_date or total_amount <= 0:
+            flash("Please fill all required fields (supplier, vehicle, bill no, date, amount).", "error")
+            return redirect(url_for("supplier.supplier_bill_add"))
+        supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
+        if not supplier:
+            flash("Supplier not found.", "error")
+            return redirect(url_for("supplier.supplier_bill_add"))
+        net_amount = round(total_amount - discount, 2)
+        bill_desc = f"Bill {bill_no} — {vehicle_plate}"
+        if description:
+            bill_desc += f" ({description})"
+        if db.backend == "postgres":
+            bill_result = db.execute(
+                """INSERT INTO supplier_bills (supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+                (supplier["id"], vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount),
+            )
+            bill_id = bill_result.fetchone()[0]
+            exp_result = db.execute(
+                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
+                   VALUES (?, ?, ?, 'Parts', ?, 'Parts', ?, ?, ?, 'approved') RETURNING id""",
+                (supplier["id"], bill_date, net_amount, bill_desc, 1, net_amount, vehicle_plate),
+            )
+            expense_id = exp_result.fetchone()[0]
+        else:
+            db.execute(
+                """INSERT INTO supplier_bills (supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (supplier["id"], vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount),
+            )
+            bill_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+            db.execute(
+                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
+                   VALUES (?, ?, ?, 'Parts', ?, 'Parts', ?, ?, ?, 'approved')""",
+                (supplier["id"], bill_date, net_amount, bill_desc, 1, net_amount, vehicle_plate),
+            )
+            expense_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        db.execute("UPDATE supplier_bills SET source_expense_id = ? WHERE id = ?", (expense_id, bill_id))
+        db.commit()
+        flash(f"Bill #{bill_no} added — AED {net_amount}", "success")
+        return redirect(url_for("supplier.supplier_bill_list"))
+    suppliers = db.execute("SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name").fetchall()
+    vehicles = db.execute("SELECT plate_no FROM vehicles ORDER BY plate_no").fetchall()
+    return render_template("supplier/bill_form.html", suppliers=suppliers, vehicles=vehicles, bill=None)
+
+
+@supplier_bp.route("/bills/<int:bill_id>/edit", methods=["GET", "POST"])
+def supplier_bill_edit(bill_id):
+    _ensure_tables()
+    db = _get_db()
+    bill = db.execute("SELECT * FROM supplier_bills WHERE id = ?", (bill_id,)).fetchone()
+    if not bill:
+        flash("Bill not found.", "error")
+        return redirect(url_for("supplier.supplier_bill_list"))
+    if request.method == "POST":
+        supplier_id = request.form.get("supplier_id", "").strip()
+        vehicle_plate = request.form.get("vehicle_plate", "").strip()
+        bill_no = request.form.get("bill_no", "").strip()
+        bill_date = request.form.get("bill_date", "").strip()
+        description = request.form.get("description", "").strip()
+        total_amount = float(request.form.get("total_amount", 0) or 0)
+        discount = float(request.form.get("discount", 0) or 0)
+        if not supplier_id or not vehicle_plate or not bill_no or not bill_date or total_amount <= 0:
+            flash("Please fill all required fields.", "error")
+            return redirect(url_for("supplier.supplier_bill_edit", bill_id=bill_id))
+        supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
+        if not supplier:
+            flash("Supplier not found.", "error")
+            return redirect(url_for("supplier.supplier_bill_edit", bill_id=bill_id))
+        net_amount = round(total_amount - discount, 2)
+        bill_desc = f"Bill {bill_no} — {vehicle_plate}"
+        if description:
+            bill_desc += f" ({description})"
+        db.execute(
+            """UPDATE supplier_bills SET supplier_id=?, vehicle_plate=?, bill_no=?, bill_date=?, description=?, total_amount=?, discount=?, net_amount=?
+               WHERE id=?""",
+            (supplier["id"], vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount, bill_id),
+        )
+        if bill["source_expense_id"]:
+            db.execute(
+                """UPDATE supplier_expenses SET expense_date=?, amount=?, category='Parts', description=?, earning_type='Parts', quantity=?, rate=?, vehicle_no=?
+                   WHERE id=?""",
+                (bill_date, net_amount, bill_desc, 1, net_amount, vehicle_plate, bill["source_expense_id"]),
+            )
+        db.commit()
+        flash(f"Bill #{bill_no} updated.", "success")
+        return redirect(url_for("supplier.supplier_bill_list"))
+    suppliers = db.execute("SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name").fetchall()
+    vehicles = db.execute("SELECT plate_no FROM vehicles ORDER BY plate_no").fetchall()
+    return render_template("supplier/bill_form.html", suppliers=suppliers, vehicles=vehicles, bill=bill)
+
+
+@supplier_bp.route("/bills/<int:bill_id>/delete", methods=["POST"])
+def supplier_bill_delete(bill_id):
+    _ensure_tables()
+    db = _get_db()
+    bill = db.execute("SELECT * FROM supplier_bills WHERE id = ?", (bill_id,)).fetchone()
+    if not bill:
+        flash("Bill not found.", "error")
+        return redirect(url_for("supplier.supplier_bill_list"))
+    if bill["source_expense_id"]:
+        db.execute("DELETE FROM supplier_expenses WHERE id = ?", (bill["source_expense_id"],))
+    db.execute("DELETE FROM supplier_bills WHERE id = ?", (bill_id,))
+    db.commit()
+    flash(f"Bill #{bill['bill_no']} deleted.", "info")
+    return redirect(url_for("supplier.supplier_bill_list"))
