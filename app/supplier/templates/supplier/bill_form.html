@@ -40,18 +40,32 @@
         <label class="form-label">Description (Items)</label>
         <input type="text" name="description" class="form-control" value="{{ bill.description if bill else '' }}" placeholder="e.g. Oil filter, Diesel filter">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+      <div class="form-row">
+        <label class="form-checkbox" style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600">
+          <input type="checkbox" name="include_vat" id="includeVat" {{ 'checked' if (bill and bill.vat_percentage > 0) or not bill else 'checked' }}>
+          Total amount includes VAT
+        </label>
+      </div>
+
+      <div id="vatSection" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
         <div class="form-row" style="margin:0">
           <label class="form-label">Total Amount (AED) *</label>
           <input type="number" name="total_amount" step="0.01" min="0" class="form-control" value="{{ bill.total_amount if bill else '' }}" placeholder="0" required>
+        </div>
+        <div class="form-row" style="margin:0">
+          <label class="form-label">VAT %</label>
+          <input type="number" name="vat_percentage" id="vatPerc" step="0.1" min="0" class="form-control" value="{{ bill.vat_percentage if bill else '5' }}" placeholder="5">
         </div>
         <div class="form-row" style="margin:0">
           <label class="form-label">Discount (AED)</label>
           <input type="number" name="discount" step="0.01" min="0" class="form-control" value="{{ bill.discount if bill else '0' }}" placeholder="0">
         </div>
       </div>
+
       <div style="margin-top:12px;padding:10px;background:#f8fafd;border-radius:8px;text-align:right">
-        <span style="font-size:0.82rem;color:var(--muted)">Net Amount: </span>
+        <span style="font-size:0.82rem;color:var(--muted)" id="vatPreview">VAT: AED 0.00 &middot;</span>
+        <span style="font-size:0.82rem;color:var(--muted)">Net Amount (excl. VAT): </span>
         <span id="netPreview" style="font-size:1.1rem;font-weight:700;color:var(--primary)">AED 0.00</span>
       </div>
       <div style="margin-top:16px;display:flex;gap:8px">
@@ -64,12 +78,25 @@
 
 <script>
 function updateNet() {
+    var includeVat = document.getElementById('includeVat').checked;
     var total = parseFloat(document.querySelector('input[name="total_amount"]').value) || 0;
+    var vatPerc = parseFloat(document.getElementById('vatPerc').value) || 0;
     var disc = parseFloat(document.querySelector('input[name="discount"]').value) || 0;
-    var net = Math.max(0, total - disc);
+    var netExVat = total;
+    var vatAmt = 0;
+    if (includeVat && vatPerc > 0) {
+        netExVat = total / (1 + vatPerc / 100);
+        vatAmt = total - netExVat;
+    }
+    netExVat = Math.round(netExVat * 100) / 100;
+    vatAmt = Math.round(vatAmt * 100) / 100;
+    var net = Math.max(0, netExVat - disc);
+    document.getElementById('vatPreview').textContent = 'VAT: AED ' + vatAmt.toFixed(2) + ' \u00b7';
     document.getElementById('netPreview').textContent = 'AED ' + net.toFixed(2);
 }
+document.getElementById('includeVat').addEventListener('change', updateNet);
 document.querySelector('input[name="total_amount"]').addEventListener('input', updateNet);
+document.getElementById('vatPerc').addEventListener('input', updateNet);
 document.querySelector('input[name="discount"]').addEventListener('input', updateNet);
 updateNet();
 </script>

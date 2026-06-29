@@ -218,6 +218,8 @@ def _ensure_tables():
             bill_date TEXT NOT NULL,
             description TEXT,
             total_amount {real_type} NOT NULL,
+            vat_percentage {real_type} DEFAULT 5.0,
+            vat_amount {real_type} DEFAULT 0.0,
             discount {real_type} DEFAULT 0,
             net_amount {real_type} NOT NULL,
             source_expense_id INTEGER,
@@ -3320,7 +3322,9 @@ def supplier_bill_add():
         bill_no = request.form.get("bill_no", "").strip()
         bill_date = request.form.get("bill_date", "").strip()
         description = request.form.get("description", "").strip()
+        include_vat = request.form.get("include_vat") == "on"
         total_amount = float(request.form.get("total_amount", 0) or 0)
+        vat_percentage = float(request.form.get("vat_percentage", 5) or 5)
         discount = float(request.form.get("discount", 0) or 0)
         if not supplier_id or not vehicle_plate or not bill_no or not bill_date or total_amount <= 0:
             flash("Please fill all required fields (supplier, vehicle, bill no, date, amount).", "error")
@@ -3329,15 +3333,21 @@ def supplier_bill_add():
         if not supplier:
             flash("Supplier not found.", "error")
             return redirect(url_for("supplier.supplier_bill_add"))
-        net_amount = round(total_amount - discount, 2)
+        if include_vat and vat_percentage > 0:
+            net_excl_vat = round(total_amount / (1 + vat_percentage / 100), 2)
+            vat_amount = round(total_amount - net_excl_vat, 2)
+        else:
+            net_excl_vat = total_amount
+            vat_amount = 0
+        net_amount = round(net_excl_vat - discount, 2)
         bill_desc = f"Bill {bill_no} — {vehicle_plate}"
         if description:
             bill_desc += f" ({description})"
         if db.backend == "postgres":
             bill_result = db.execute(
-                """INSERT INTO supplier_bills (supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
-                (supplier["id"], vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount),
+                """INSERT INTO supplier_bills (supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, vat_percentage, vat_amount, discount, net_amount)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+                (supplier["id"], vehicle_plate, bill_no, bill_date, description, total_amount, vat_percentage, vat_amount, discount, net_amount),
             )
             bill_id = bill_result.fetchone()[0]
             exp_result = db.execute(
@@ -3348,9 +3358,9 @@ def supplier_bill_add():
             expense_id = exp_result.fetchone()[0]
         else:
             db.execute(
-                """INSERT INTO supplier_bills (supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (supplier["id"], vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount),
+                """INSERT INTO supplier_bills (supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, vat_percentage, vat_amount, discount, net_amount)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (supplier["id"], vehicle_plate, bill_no, bill_date, description, total_amount, vat_percentage, vat_amount, discount, net_amount),
             )
             bill_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
             db.execute(
@@ -3382,7 +3392,9 @@ def supplier_bill_edit(bill_id):
         bill_no = request.form.get("bill_no", "").strip()
         bill_date = request.form.get("bill_date", "").strip()
         description = request.form.get("description", "").strip()
+        include_vat = request.form.get("include_vat") == "on"
         total_amount = float(request.form.get("total_amount", 0) or 0)
+        vat_percentage = float(request.form.get("vat_percentage", 5) or 5)
         discount = float(request.form.get("discount", 0) or 0)
         if not supplier_id or not vehicle_plate or not bill_no or not bill_date or total_amount <= 0:
             flash("Please fill all required fields.", "error")
@@ -3391,14 +3403,20 @@ def supplier_bill_edit(bill_id):
         if not supplier:
             flash("Supplier not found.", "error")
             return redirect(url_for("supplier.supplier_bill_edit", bill_id=bill_id))
-        net_amount = round(total_amount - discount, 2)
+        if include_vat and vat_percentage > 0:
+            net_excl_vat = round(total_amount / (1 + vat_percentage / 100), 2)
+            vat_amount = round(total_amount - net_excl_vat, 2)
+        else:
+            net_excl_vat = total_amount
+            vat_amount = 0
+        net_amount = round(net_excl_vat - discount, 2)
         bill_desc = f"Bill {bill_no} — {vehicle_plate}"
         if description:
             bill_desc += f" ({description})"
         db.execute(
-            """UPDATE supplier_bills SET supplier_id=?, vehicle_plate=?, bill_no=?, bill_date=?, description=?, total_amount=?, discount=?, net_amount=?
+            """UPDATE supplier_bills SET supplier_id=?, vehicle_plate=?, bill_no=?, bill_date=?, description=?, total_amount=?, vat_percentage=?, vat_amount=?, discount=?, net_amount=?
                WHERE id=?""",
-            (supplier["id"], vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount, bill_id),
+            (supplier["id"], vehicle_plate, bill_no, bill_date, description, total_amount, vat_percentage, vat_amount, discount, net_amount, bill_id),
         )
         if bill["source_expense_id"]:
             db.execute(
