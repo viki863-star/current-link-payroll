@@ -420,12 +420,12 @@
             <input type="date" name="bill_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
         </div>
         <div>
-            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Amount</label>
-            <input type="number" name="total_amount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
+            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Amount (Excl. VAT)</label>
+            <input type="number" name="amount_excl_vat" step="0.01" min="0" placeholder="0" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
         </div>
         <div style="grid-column:1/-1;display:flex;gap:8px;align-items:end">
             <input type="text" name="description" placeholder="Items (e.g. Oil filter, Diesel filter)" class="form-control" style="padding:6px 8px;font-size:0.82rem;flex:1">
-            <input type="hidden" name="include_vat" value="on">
+            <input type="hidden" name="is_tax_bill" value="on">
             <input type="hidden" name="vat_percentage" value="5">
             <div style="display:flex;gap:4px;align-items:end">
                 <label style="font-size:0.7rem;font-weight:600;color:var(--muted);white-space:nowrap">Disc:</label>
@@ -444,7 +444,7 @@
     {% if supplier_bills %}
     <div class="table-wrap">
         <table class="smart-table">
-            <thead><tr><th>Bill#</th><th>Date</th><th>Supplier</th><th>Items</th><th class="r">Total</th><th class="r">VAT</th><th class="r">Disc</th><th class="r">Net AED</th><th></th></tr></thead>
+            <thead><tr><th>Bill#</th><th>Date</th><th>Supplier</th><th>Items</th><th class="r">Excl VAT</th><th class="r">VAT</th><th class="r">Inc VAT</th><th class="r">Disc</th><th class="r">Net</th><th></th></tr></thead>
             <tbody>
                 {% for b in supplier_bills %}
                 <tr>
@@ -452,8 +452,9 @@
                     <td class="mono">{{ b.bill_date }}</td>
                     <td>{{ b.supplier_name }}</td>
                     <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--muted)">{{ b.description or '—' }}</td>
-                    <td class="r mono">{{ "%.2f"|format(b.total_amount) }}</td>
+                    <td class="r mono">{{ "%.2f"|format(b.net_amount + b.discount) }}</td>
                     <td class="r mono" style="color:#7c3aed;font-size:0.78rem">{{ "%.2f"|format(b.vat_amount) if b.vat_amount > 0 else '—' }}</td>
+                    <td class="r mono" style="font-weight:600;color:#e65100">{{ "%.2f"|format(b.total_amount) }}</td>
                     <td class="r mono" style="color:#2e7d32">{{ "%.2f"|format(b.discount) if b.discount > 0 else '—' }}</td>
                     <td class="r mono" style="font-weight:700;color:#1565C0">{{ "%.2f"|format(b.net_amount) }}</td>
                     <td>
@@ -471,8 +472,10 @@
         </table>
     </div>
     <div style="margin-top:12px;padding:12px;background:#f8fafd;border-radius:8px;display:flex;justify-content:space-around">
-        <span><strong>Total (Inc VAT):</strong> AED {{ "%.2f"|format(parts_total_amount) }}</span>
-        <span><strong>Total Net (Excl VAT):</strong> AED {{ "%.2f"|format(parts_total_net) }}</span>
+        <span><strong>Total (Excl. VAT):</strong> AED {{ "%.2f"|format(parts_total_amount - parts_total_vat|default(0)) }}</span>
+        <span><strong>Total VAT:</strong> AED {{ "%.2f"|format(parts_total_vat|default(0)) }}</span>
+        <span><strong>Total (Inc. VAT):</strong> AED {{ "%.2f"|format(parts_total_amount) }}</span>
+        <span><strong>Total Net:</strong> AED {{ "%.2f"|format(parts_total_net) }}</span>
     </div>
     {% else %}
     <p class="empty-state">No parts bills for this vehicle.</p>

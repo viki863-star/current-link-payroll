@@ -555,6 +555,7 @@ def vehicle_profile(plate_no):
     except Exception:
         supplier_bills = []
     parts_total_amount = sum(b["total_amount"] for b in supplier_bills) if supplier_bills else 0
+    parts_total_vat = sum(b["vat_amount"] for b in supplier_bills) if supplier_bills else 0
     parts_total_net = sum(b["net_amount"] for b in supplier_bills) if supplier_bills else 0
 
     return render_template(
@@ -573,6 +574,7 @@ def vehicle_profile(plate_no):
         fuel_total_amount=fuel_total_amount,
         supplier_bills=supplier_bills,
         parts_total_amount=parts_total_amount,
+        parts_total_vat=parts_total_vat,
         parts_total_net=parts_total_net,
         suppliers=suppliers,
         date=date,

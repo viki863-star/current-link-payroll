@@ -49,7 +49,7 @@
     {% if bills %}
     <div class="table-wrap">
       <table class="smart-table">
-        <thead><tr><th>Bill#</th><th>Date</th><th>Supplier</th><th>Vehicle</th><th>Items</th><th class="r">Total</th><th class="r">VAT%</th><th class="r">VAT</th><th class="r">Disc</th><th class="r">Net AED</th><th></th></tr></thead>
+        <thead><tr><th>Bill#</th><th>Date</th><th>Supplier</th><th>Vehicle</th><th>Items</th><th class="r">Excl VAT</th><th class="r">VAT%</th><th class="r">VAT</th><th class="r">Inc VAT</th><th class="r">Disc</th><th class="r">Net</th><th></th></tr></thead>
         <tbody>
           {% for b in bills %}
           <tr>
@@ -58,9 +58,10 @@
             <td>{{ b.supplier_name }}</td>
             <td><strong><a href="{{ url_for('fleet.vehicle_profile', plate_no=b.vehicle_plate) }}?tab=parts" style="color:var(--primary);text-decoration:none">{{ b.vehicle_plate }}</a></strong></td>
             <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--muted)">{{ b.description or '—' }}</td>
-            <td class="r mono">{{ "%.2f"|format(b.total_amount) }}</td>
+            <td class="r mono">{{ "%.2f"|format(b.net_amount + b.discount) }}</td>
             <td class="r mono" style="font-size:0.75rem">{{ "%.1f"|format(b.vat_percentage) if b.vat_percentage > 0 else '—' }}</td>
             <td class="r mono" style="color:#7c3aed;font-size:0.78rem">{{ "%.2f"|format(b.vat_amount) if b.vat_amount > 0 else '—' }}</td>
+            <td class="r mono" style="font-weight:600;color:#e65100">{{ "%.2f"|format(b.total_amount) }}</td>
             <td class="r mono" style="color:#2e7d32">{{ "%.2f"|format(b.discount) if b.discount > 0 else '—' }}</td>
             <td class="r mono" style="font-weight:700;color:#1565C0">{{ "%.2f"|format(b.net_amount) }}</td>
             <td>
@@ -78,9 +79,11 @@
       </table>
     </div>
     <div style="margin-top:12px;padding:12px;background:#f8fafd;border-radius:8px;display:flex;justify-content:space-around">
-      <span><strong>Total (Inc VAT):</strong> AED {{ "%.2f"|format(total_amount) }}</span>
+      <span><strong>Total (Excl. VAT):</strong> AED {{ "%.2f"|format(total_amount - total_discount_adj|default(0)) }}</span>
+      <span><strong>Total VAT:</strong> AED {{ "%.2f"|format(total_vat|default(0)) }}</span>
+      <span><strong>Total (Inc. VAT):</strong> AED {{ "%.2f"|format(total_amount) }}</span>
       <span><strong>Total Discount:</strong> AED {{ "%.2f"|format(total_discount) }}</span>
-      <span><strong>Total Net (Excl VAT):</strong> AED {{ "%.2f"|format(total_net) }}</span>
+      <span><strong>Total Net:</strong> AED {{ "%.2f"|format(total_net) }}</span>
     </div>
     {% else %}
     <p class="empty-state" style="padding:40px;text-align:center;color:var(--muted)">No supplier bills found.</p>
