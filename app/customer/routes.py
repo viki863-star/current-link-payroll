@@ -2114,8 +2114,8 @@ def customer_soa(cid):
     db = _get_db()
     entries = []
     inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.total_amount as dr,
-                      COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0) as cr,
-                      COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cn_total
+                      COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0)
+                      + COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cr
                FROM customer_invoices i WHERE i.customer_id=?"""
     inv_p = [cid]
     if from_date: inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
@@ -2124,17 +2124,9 @@ def customer_soa(cid):
     for inv in db.execute(inv_q, inv_p).fetchall():
         d = dict(inv)
         d["type"] = "Invoice"
-        effective = (d.get("dr",0) or 0) - (d.get("cr",0) or 0) - (d.get("cn_total",0) or 0)
-        if (d.get("dr",0) or 0) > 0 and effective <= 0.005:
+        if (d.get("dr",0) or 0) > 0 and (d.get("dr",0) or 0) - (d.get("cr",0) or 0) <= 0.005:
             continue
         entries.append(d)
-    cn_q = "SELECT credit_note_date as d, credit_note_no as ref, 'Credit Note' as type, 0 as dr, total_amount as cr FROM customer_credit_notes WHERE customer_id=?"
-    cn_p = [cid]
-    if from_date: cn_q += " AND credit_note_date>=?"; cn_p.append(from_date)
-    if to_date: cn_q += " AND credit_note_date<=?"; cn_p.append(to_date)
-    cn_q += " ORDER BY credit_note_date"
-    for cn in db.execute(cn_q, cn_p).fetchall():
-        entries.append(dict(cn))
     unalloc_pmt_q = "SELECT payment_date as d, reference_no as ref, 'Unallocated Payment' as type, 0 as dr, amount as cr FROM customer_payments WHERE customer_id=? AND invoice_id IS NULL"
     unalloc_pmt_p = [cid]
     if from_date: unalloc_pmt_q += " AND payment_date>=?"; unalloc_pmt_p.append(from_date)
@@ -2170,8 +2162,8 @@ def customer_soa_pdf(cid):
     company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     entries = []
     inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.total_amount as dr,
-                      COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0) as cr,
-                      COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cn_total
+                      COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0)
+                      + COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cr
                FROM customer_invoices i WHERE i.customer_id=?"""
     inv_p = [cid]
     if from_date: inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
@@ -2180,17 +2172,9 @@ def customer_soa_pdf(cid):
     for inv in db.execute(inv_q, inv_p).fetchall():
         d = dict(inv)
         d["type"] = "Invoice"
-        effective = (d.get("dr",0) or 0) - (d.get("cr",0) or 0) - (d.get("cn_total",0) or 0)
-        if (d.get("dr",0) or 0) > 0 and effective <= 0.005:
+        if (d.get("dr",0) or 0) > 0 and (d.get("dr",0) or 0) - (d.get("cr",0) or 0) <= 0.005:
             continue
         entries.append(d)
-    cn_q = "SELECT credit_note_date as d, credit_note_no as ref, 'Credit Note' as type, 0 as dr, total_amount as cr FROM customer_credit_notes WHERE customer_id=?"
-    cn_p = [cid]
-    if from_date: cn_q += " AND credit_note_date>=?"; cn_p.append(from_date)
-    if to_date: cn_q += " AND credit_note_date<=?"; cn_p.append(to_date)
-    cn_q += " ORDER BY credit_note_date"
-    for cn in db.execute(cn_q, cn_p).fetchall():
-        entries.append(dict(cn))
     unalloc_pmt_q = "SELECT payment_date as d, reference_no as ref, 'Unallocated Payment' as type, 0 as dr, amount as cr FROM customer_payments WHERE customer_id=? AND invoice_id IS NULL"
     unalloc_pmt_p = [cid]
     if from_date: unalloc_pmt_q += " AND payment_date>=?"; unalloc_pmt_p.append(from_date)
