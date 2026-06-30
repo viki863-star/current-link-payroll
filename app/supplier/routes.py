@@ -3454,22 +3454,22 @@ def supplier_bills_batch():
     import json as _json
     data = _json.loads(request.data)
     supplier_id = data.get("supplier_id")
-    vehicle_plate = data.get("vehicle_plate", "").strip()
     bills = data.get("bills", [])
-    if not supplier_id or not vehicle_plate or not bills:
-        return {"error": "Missing supplier, vehicle, or bills"}, 400
+    if not supplier_id or not bills:
+        return {"error": "Missing supplier or bills"}, 400
     supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
     if not supplier:
         return {"error": "Supplier not found"}, 404
     count = 0
     for b in bills:
+        vehicle_plate = b.get("vehicle_plate", "").strip()
         bill_no = b.get("bill_no", "").strip()
         bill_date = b.get("bill_date", "").strip()
         description = b.get("description", "").strip()
         amount_excl = float(b.get("amount", 0) or 0)
         discount = float(b.get("discount", 0) or 0)
         is_tax = b.get("is_tax_bill", True)
-        if not bill_no or not bill_date or amount_excl <= 0:
+        if not vehicle_plate or not bill_no or not bill_date or amount_excl <= 0:
             continue
         if is_tax:
             total_amount = round(amount_excl * 1.05, 2)
