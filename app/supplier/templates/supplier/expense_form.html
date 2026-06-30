@@ -46,7 +46,7 @@
       <div class="ef-row">
         <label>Basis / Type</label>
         <div class="ef-type-grid" id="typeGrid">
-{% set ef_type = exp.earning_type if exp and exp.earning_type else 'fixed' %}
+{% set ef_type = exp.earning_type if exp and exp.earning_type in ('fixed','trip','hour') else 'fixed' %}
           <label class="ef-type-btn {{ 'active' if ef_type == 'fixed' else '' }}">
             <input type="radio" name="earning_type" value="fixed" {{ 'checked' if ef_type == 'fixed' else '' }} onchange="toggleType(this)">
             <div style="font-size:1.2rem;margin-bottom:2px">💰</div> Fixed
@@ -73,14 +73,14 @@
         <div class="ef-grid-2">
           <div class="ef-row">
             <label id="qtyLbl">{{ 'Hours' if ef_type == 'hour' else 'Trip Count' }}</label>
-            <input type="number" name="quantity" step="0.01" min="0" class="form-control" id="qtyInput" oninput="calcEFTotal()" placeholder="0" value="{{ exp.quantity if exp else '' }}">
+            <input type="number" name="quantity" step="0.01" min="0" class="form-control" id="qtyInput" oninput="calcEFTotal()" placeholder="0" value="{{ exp.quantity if exp and exp.quantity != None else '' }}">
           </div>
           <div class="ef-row">
             <label id="rateLbl">{{ 'Rate per Hour' if ef_type == 'hour' else 'Rate per Trip' }}</label>
             <input type="number" name="rate" step="0.01" min="0" class="form-control" id="rateInput" oninput="calcEFTotal()" placeholder="0.00" value="{{ exp.rate if exp else '' }}">
           </div>
         </div>
-        <div class="ef-total">Total: AED <span id="efTotalDisplay">{{ "%.2f"|format(exp.amount) if ef_type != 'fixed' and exp else '0.00' }}</span></div>
+        <div class="ef-total">Total: AED <span id="efTotalDisplay">{{ "%.2f"|format(exp.amount|float) if ef_type != 'fixed' and exp else '0.00' }}</span></div>
       </div>
 
       <div class="ef-row">

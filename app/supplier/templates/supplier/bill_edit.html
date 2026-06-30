@@ -36,21 +36,22 @@
       </div>
       <div class="form-row">
         <label class="form-label">Items</label>
-        <input type="text" name="description" class="form-control" value="{{ bill.description }}" placeholder="e.g. Oil filter">
+        <input type="text" name="description" class="form-control" value="{{ bill.description or '' }}" placeholder="e.g. Oil filter">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-row" style="margin:0">
           <label class="form-label">Amount (excl. Tax)</label>
-          <input type="number" name="amount" step="0.01" min="0" class="form-control" value="{{ (bill.net_amount + bill.vat_amount) if bill.vat_percentage > 0 else bill.net_amount }}" required>
+          {% set amt_excl = (bill.net_amount|float) + (bill.discount|float) %}
+          <input type="number" name="amount" step="0.01" min="0" class="form-control" value="{{ '%.2f'|format(amt_excl) }}" required>
         </div>
         <div class="form-row" style="margin:0">
           <label class="form-label">Discount</label>
-          <input type="number" name="discount" step="0.01" min="0" class="form-control" value="{{ bill.discount }}">
+          <input type="number" name="discount" step="0.01" min="0" class="form-control" value="{{ bill.discount or '0' }}">
         </div>
       </div>
       <div class="form-row">
         <label class="form-checkbox" style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600">
-          <input type="checkbox" name="is_tax_bill" {{ 'checked' if bill.vat_percentage > 0 }}>
+          <input type="checkbox" name="is_tax_bill" {{ 'checked' if (bill.vat_percentage|float) > 0 }}>
           Tax Invoice (5% VAT auto-adds)
         </label>
       </div>

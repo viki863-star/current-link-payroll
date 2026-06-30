@@ -3437,7 +3437,7 @@ def supplier_bill_edit(bill_id):
             db.execute(
                 """UPDATE supplier_expenses SET expense_date=?, amount=?, category='Parts', description=?, earning_type='fixed', quantity=NULL, rate=NULL, vehicle_no=?
                    WHERE id=?""",
-                (bill_date, net_amount, bill_desc, 1, net_amount, vehicle_plate, bill["source_expense_id"]),
+                (bill_date, net_amount, bill_desc, vehicle_plate, bill["source_expense_id"]),
             )
         db.commit()
         flash(f"Bill #{bill_no} updated.", "success")
