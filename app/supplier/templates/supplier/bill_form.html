@@ -1,90 +1,131 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Edit' if bill else 'Add' }} Supplier Bill{% endblock %}
-{% block page_title %}{{ 'Edit' if bill else 'Add' }} Supplier Bill{% endblock %}
+{% block title %}Add Supplier Bills{% endblock %}
+{% block page_title %}Add Supplier Bills{% endblock %}
 {% block body_class %}detail-body{% endblock %}
 {% block content %}
-<div class="profile-shell" style="max-width:640px;margin:0 auto">
+<style>
+.batch-row { display:grid; grid-template-columns:90px 110px 1fr 90px 60px 40px; gap:6px; align-items:center; margin-bottom:4px; }
+.batch-row input, .batch-row select { padding:5px 6px; border:1px solid var(--line); border-radius:6px; font-size:0.78rem; }
+.batch-row .cb-wrap { text-align:center; }
+.batch-header { font-size:0.7rem; font-weight:600; color:var(--muted); text-transform:uppercase; padding:0 4px; }
+</style>
+<div class="profile-shell" style="max-width:900px;margin:0 auto">
   <div class="profile-card">
-    <h3 style="margin:0 0 16px;font-size:0.95rem">{{ 'Edit' if bill else 'New' }} Supplier Bill</h3>
-    <form method="POST">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="form-row">
-        <label class="form-label">Supplier *</label>
-        <select name="supplier_id" class="form-control" required>
+    <h3 style="margin:0 0 12px;font-size:0.95rem">Add Supplier Bills</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;padding:12px;background:#f8fafd;border-radius:8px">
+      <div>
+        <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Supplier *</label>
+        <select id="batchSupplier" class="form-control" style="padding:6px 8px;font-size:0.85rem">
           <option value="">— Select —</option>
           {% for s in suppliers %}
-          <option value="{{ s.id }}" {{ 'selected' if bill and bill.supplier_id == s.id }}>{{ s.supplier_name }}</option>
+          <option value="{{ s.id }}">{{ s.supplier_name }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="form-row">
-        <label class="form-label">Vehicle *</label>
-        <select name="vehicle_plate" class="form-control" required>
+      <div>
+        <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Vehicle *</label>
+        <select id="batchVehicle" class="form-control" style="padding:6px 8px;font-size:0.85rem">
           <option value="">— Select —</option>
           {% for v in vehicles %}
-          <option value="{{ v.plate_no }}" {{ 'selected' if bill and bill.vehicle_plate == v.plate_no }}>{{ v.plate_no }}</option>
+          <option value="{{ v.plate_no }}">{{ v.plate_no }}</option>
           {% endfor %}
         </select>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-row" style="margin:0">
-          <label class="form-label">Bill No *</label>
-          <input type="text" name="bill_no" class="form-control" value="{{ bill.bill_no if bill else '' }}" required>
-        </div>
-        <div class="form-row" style="margin:0">
-          <label class="form-label">Date *</label>
-          <input type="date" name="bill_date" class="form-control" value="{{ bill.bill_date if bill else '' }}" required>
-        </div>
+    </div>
+
+    <div class="batch-row batch-header">
+      <span>Bill No</span>
+      <span>Date</span>
+      <span>Items</span>
+      <span>Amount*</span>
+      <span>Disc</span>
+      <span>Tax</span>
+    </div>
+    <div id="billRows">
+      <div class="batch-row" data-idx="0">
+        <input type="text" name="bill_no_0" placeholder="e.g. 56255" required>
+        <input type="date" name="bill_date_0" required>
+        <input type="text" name="desc_0" placeholder="Oil filter, Diesel filter">
+        <input type="number" name="amount_0" step="0.01" min="0" placeholder="0" required>
+        <input type="number" name="discount_0" step="0.01" min="0" placeholder="0">
+        <div class="cb-wrap"><input type="checkbox" name="tax_0" checked title="Tax Invoice (5% VAT auto-adds)"></div>
       </div>
-      <div class="form-row">
-        <label class="form-label">Items</label>
-        <input type="text" name="description" class="form-control" value="{{ bill.description if bill else '' }}" placeholder="e.g. Oil filter, Diesel filter">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-row" style="margin:0">
-          <label class="form-label">Amount (as per bill) *</label>
-          <input type="number" name="amount" step="0.01" min="0" class="form-control" id="amtField" value="{{ bill.total_amount if bill else '' }}" placeholder="0" required>
-        </div>
-        <div class="form-row" style="margin:0">
-          <label class="form-label">Discount</label>
-          <input type="number" name="discount" step="0.01" min="0" class="form-control" value="{{ bill.discount if bill else '0' }}" placeholder="0">
-        </div>
-      </div>
-      <div class="form-row">
-        <label class="form-checkbox" style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600">
-          <input type="checkbox" name="is_tax_bill" id="taxCheck" {{ 'checked' if (bill and bill.vat_percentage > 0) else 'checked' }}>
-          Tax Invoice (5% VAT included in amount)
-        </label>
-      </div>
-      <div style="margin-top:12px;padding:10px;background:#f8fafd;border-radius:8px;display:flex;justify-content:space-around">
-        <span style="font-size:0.85rem">VAT: <strong id="vatDisplay" style="color:#7c3aed">AED 0.00</strong></span>
-        <span style="font-size:0.85rem">Net (Excl. VAT): <strong id="netDisplay" style="color:#1565C0">AED 0.00</strong></span>
-      </div>
-      <div style="margin-top:16px;display:flex;gap:8px">
-        <button type="submit" class="btn btn-primary">{{ 'Update' if bill else 'Add' }} Bill</button>
-        <a href="{{ url_for('supplier.supplier_bill_list') }}" class="btn btn-outline">Cancel</a>
-      </div>
-    </form>
+    </div>
+
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button type="button" class="btn btn-sm btn-outline" onclick="addRow()">+ Add Another Bill</button>
+    </div>
+
+    <div style="margin-top:16px;padding:12px;background:#f0f4ff;border-radius:8px;display:flex;justify-content:space-between">
+      <span style="font-size:0.85rem"><strong id="billCount">1</strong> bill(s) &middot; Total: AED <strong id="totalPreview">0.00</strong></span>
+      <span style="font-size:0.82rem;color:var(--muted)">Amount without tax — VAT auto-adds 5% if checked</span>
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button type="button" class="btn btn-primary" onclick="submitBills()">Save All Bills</button>
+      <a href="{{ url_for('supplier.supplier_bill_list') }}" class="btn btn-outline">Cancel</a>
+    </div>
   </div>
 </div>
 
 <script>
-function calc() {
-    var amt = parseFloat(document.getElementById('amtField').value) || 0;
-    var disc = parseFloat(document.querySelector('input[name="discount"]').value) || 0;
-    var isTax = document.getElementById('taxCheck').checked;
-    var vat = 0, net = amt;
-    if (isTax) {
-        net = Math.round(amt / 1.05 * 100) / 100;
-        vat = Math.round((amt - net) * 100) / 100;
-    }
-    net = Math.max(0, Math.round((net - disc) * 100) / 100);
-    document.getElementById('vatDisplay').textContent = 'AED ' + vat.toFixed(2);
-    document.getElementById('netDisplay').textContent = 'AED ' + net.toFixed(2);
+var rowIdx = 1;
+function addRow() {
+    var html = '<div class="batch-row" data-idx="' + rowIdx + '">' +
+        '<input type="text" name="bill_no_' + rowIdx + '" placeholder="e.g. 56255" required>' +
+        '<input type="date" name="bill_date_' + rowIdx + '" required>' +
+        '<input type="text" name="desc_' + rowIdx + '" placeholder="Oil filter, Diesel filter">' +
+        '<input type="number" name="amount_' + rowIdx + '" step="0.01" min="0" placeholder="0" required oninput="updateTotal()">' +
+        '<input type="number" name="discount_' + rowIdx + '" step="0.01" min="0" placeholder="0">' +
+        '<div class="cb-wrap"><input type="checkbox" name="tax_' + rowIdx + '" checked title="Tax Invoice (5% VAT auto-adds)"></div>' +
+        '</div>';
+    document.getElementById('billRows').insertAdjacentHTML('beforeend', html);
+    rowIdx++;
+    document.getElementById('billCount').textContent = document.querySelectorAll('.batch-row').length;
 }
-document.getElementById('amtField').addEventListener('input', calc);
-document.getElementById('taxCheck').addEventListener('change', calc);
-document.querySelector('input[name="discount"]').addEventListener('input', calc);
-calc();
+
+function updateTotal() {
+    var rows = document.querySelectorAll('.batch-row');
+    var total = 0;
+    rows.forEach(function(r) {
+        var amt = parseFloat(r.querySelector('input[name^="amount_"]').value) || 0;
+        total += amt;
+    });
+    document.getElementById('totalPreview').textContent = total.toFixed(2);
+}
+
+function submitBills() {
+    var supplier = document.getElementById('batchSupplier').value;
+    var vehicle = document.getElementById('batchVehicle').value;
+    if (!supplier || !vehicle) { alert('Select supplier and vehicle first.'); return; }
+
+    var rows = document.querySelectorAll('.batch-row');
+    var payload = [];
+    for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        var idx = r.dataset.idx;
+        var billNo = r.querySelector('input[name="bill_no_' + idx + '"]').value.trim();
+        var billDate = r.querySelector('input[name="bill_date_' + idx + '"]').value;
+        var desc = r.querySelector('input[name="desc_' + idx + '"]').value.trim();
+        var amt = parseFloat(r.querySelector('input[name="amount_' + idx + '"]').value) || 0;
+        var disc = parseFloat(r.querySelector('input[name="discount_' + idx + '"]').value) || 0;
+        var isTax = r.querySelector('input[name="tax_' + idx + '"]').checked;
+        if (!billNo || !billDate || amt <= 0) {
+            alert('Row ' + (i+1) + ': Bill No, Date, and Amount are required.');
+            return;
+        }
+        payload.push({ bill_no: billNo, bill_date: billDate, description: desc, amount: amt, discount: disc, is_tax_bill: isTax });
+    }
+
+    fetch('{{ url_for("supplier.supplier_bills_batch") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+        body: JSON.stringify({ supplier_id: parseInt(supplier), vehicle_plate: vehicle, bills: payload })
+    }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.error) { alert(d.error); return; }
+        alert(d.message);
+        window.location.href = '{{ url_for("supplier.supplier_bill_list") }}';
+    }).catch(function(e) { alert('Error: ' + e.message); });
+}
 </script>
 {% endblock %}

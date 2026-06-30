@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Edit Supplier Bill{% endblock %}
+{% block page_title %}Edit Supplier Bill{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block content %}
+<div class="profile-shell" style="max-width:520px;margin:0 auto">
+  <div class="profile-card">
+    <h3 style="margin:0 0 16px;font-size:0.95rem">Edit Bill #{{ bill.bill_no }}</h3>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row">
+        <label class="form-label">Supplier</label>
+        <select name="supplier_id" class="form-control" required>
+          {% for s in suppliers %}
+          <option value="{{ s.id }}" {{ 'selected' if bill.supplier_id == s.id }}>{{ s.supplier_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Vehicle</label>
+        <select name="vehicle_plate" class="form-control" required>
+          {% for v in vehicles %}
+          <option value="{{ v.plate_no }}" {{ 'selected' if bill.vehicle_plate == v.plate_no }}>{{ v.plate_no }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Bill No</label>
+          <input type="text" name="bill_no" class="form-control" value="{{ bill.bill_no }}" required>
+        </div>
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Date</label>
+          <input type="date" name="bill_date" class="form-control" value="{{ bill.bill_date }}" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Items</label>
+        <input type="text" name="description" class="form-control" value="{{ bill.description }}" placeholder="e.g. Oil filter">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Amount (excl. Tax)</label>
+          <input type="number" name="amount" step="0.01" min="0" class="form-control" value="{{ (bill.net_amount + bill.vat_amount) if bill.vat_percentage > 0 else bill.net_amount }}" required>
+        </div>
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Discount</label>
+          <input type="number" name="discount" step="0.01" min="0" class="form-control" value="{{ bill.discount }}">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-checkbox" style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600">
+          <input type="checkbox" name="is_tax_bill" {{ 'checked' if bill.vat_percentage > 0 }}>
+          Tax Invoice (5% VAT auto-adds)
+        </label>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button type="submit" class="btn btn-primary">Update Bill</button>
+        <a href="{{ url_for('supplier.supplier_bill_list') }}" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
