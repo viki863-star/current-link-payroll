@@ -39,7 +39,10 @@
       <div id="billRows">
         {% set ns = namespace(row_idx=0) %}
         <div class="batch-row" data-idx="{{ ns.row_idx }}">
-          <input type="text" name="v_{{ ns.row_idx }}" placeholder="Plate no" required>
+          <select name="v_{{ ns.row_idx }}" required style="padding:4px 5px;border:1px solid var(--line);border-radius:6px;font-size:0.75rem">
+            <option value="">—</option>
+            {% for v in vehicles %}<option value="{{ v.plate_no }}">{{ v.plate_no }}</option>{% endfor %}
+          </select>
           <input type="text" name="bn_{{ ns.row_idx }}" placeholder="e.g. 56255" required>
           <input type="date" name="bd_{{ ns.row_idx }}" required>
           <input type="text" name="desc_{{ ns.row_idx }}" placeholder="Oil filter, Diesel filter">
@@ -84,7 +87,7 @@ document.getElementById('billForm').addEventListener('submit', function(e) {
     for (var i = 0; i < rows.length; i++) {
         var r = rows[i];
         var idx = r.dataset.idx;
-        var vehicle = (r.querySelector('input[name="v_' + idx + '"]') || r.querySelector('select[name="v_' + idx + '"]')).value.trim();
+        var vehicle = r.querySelector('select[name="v_' + idx + '"]').value.trim();
         var billNo = r.querySelector('input[name="bn_' + idx + '"]').value.trim();
         var billDate = r.querySelector('input[name="bd_' + idx + '"]').value;
         var desc = r.querySelector('input[name="desc_' + idx + '"]').value.trim();
@@ -106,7 +109,7 @@ document.getElementById('billForm').addEventListener('submit', function(e) {
 
 function addRow() {
     var html = '<div class="batch-row" data-idx="' + rowIdx + '">' +
-        '<input type="text" name="v_' + rowIdx + '" placeholder="Plate no" required>' +
+        '<select name="v_' + rowIdx + '" required style="padding:4px 5px;border:1px solid var(--line);border-radius:6px;font-size:0.75rem"><option value="">—</option>{% for v in vehicles %}<option value="{{ v.plate_no }}">{{ v.plate_no }}</option>{% endfor %}</select>' +
         '<input type="text" name="bn_' + rowIdx + '" placeholder="e.g. 56255" required>' +
         '<input type="date" name="bd_' + rowIdx + '" required>' +
         '<input type="text" name="desc_' + rowIdx + '" placeholder="Oil filter, Diesel filter">' +
