@@ -1,5 +1,5 @@
 :root {
-    --bg: #eef3f9;
+    --bg: #f5f7fa;
     --surface: rgba(255, 255, 255, 0.97);
     --ink: #15335d;
     --muted: #627a9b;
@@ -25,10 +25,7 @@ body {
     margin: 0;
     font-family: "Inter", "Segoe UI", Tahoma, sans-serif;
     color: var(--ink);
-    background:
-        radial-gradient(circle at top left, rgba(230, 135, 31, 0.12), transparent 24%),
-        radial-gradient(circle at top right, rgba(28, 86, 139, 0.09), transparent 22%),
-        linear-gradient(180deg, #f4f7fb 0%, #e8eef7 100%);
+    background: #f5f7fa;
     animation: fadeBody 0.45s ease;
 }
 html { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
@@ -7820,7 +7817,7 @@ html {
 }
 
 .dashboard-body {
-    background: var(--bg) !important;
+    background: #f5f7fa !important;
 }
 .dashboard-body .page {
     background: transparent !important;
