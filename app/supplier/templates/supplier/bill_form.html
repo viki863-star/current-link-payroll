@@ -14,12 +14,10 @@
     <h3 style="margin:0 0 12px;font-size:0.95rem">Add Supplier Bills</h3>
     <form id="billForm" method="POST" action="{{ url_for('supplier.supplier_bills_batch') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="supplier_id" id="supplierIdField">
-      <input type="hidden" name="payload" id="payloadField">
 
       <div style="margin-bottom:14px;padding:10px 14px;background:#f8fafd;border-radius:8px;max-width:300px">
         <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Supplier *</label>
-        <select id="batchSupplier" class="form-control" style="padding:6px 8px;font-size:0.85rem" required>
+        <select name="batch_supplier" class="form-control" style="padding:6px 8px;font-size:0.85rem" required>
           <option value="">— Select —</option>
           {% for s in suppliers %}
           <option value="{{ s.id }}">{{ s.supplier_name }}</option>
@@ -80,29 +78,22 @@ document.getElementById('billRows').addEventListener('change', function(e) {
 });
 
 document.getElementById('billForm').addEventListener('submit', function(e) {
-    var supplier = document.getElementById('batchSupplier').value;
-    if (!supplier) { e.preventDefault(); alert('Select a supplier first.'); return; }
     var rows = document.querySelectorAll('.batch-row');
-    var payload = [];
+    var supplier = document.querySelector('select[name="batch_supplier"]').value;
+    if (!supplier) { e.preventDefault(); alert('Select a supplier first.'); return; }
     for (var i = 0; i < rows.length; i++) {
         var r = rows[i];
         var idx = r.dataset.idx;
-        var vehicle = r.querySelector('select[name="v_' + idx + '"]').value.trim();
-        var billNo = r.querySelector('input[name="bn_' + idx + '"]').value.trim();
-        var billDate = r.querySelector('input[name="bd_' + idx + '"]').value;
-        var desc = r.querySelector('input[name="desc_' + idx + '"]').value.trim();
-        var amt = parseFloat(r.querySelector('input[name="amt_' + idx + '"]').value) || 0;
-        var disc = parseFloat(r.querySelector('input[name="disc_' + idx + '"]').value) || 0;
-        var isTax = r.querySelector('input[name="tax_' + idx + '"]').checked;
-        if (!vehicle || !billNo || !billDate || amt <= 0) {
+        var vehicle = r.querySelector('select[name="v_' + idx + '"]');
+        var billNo = r.querySelector('input[name="bn_' + idx + '"]');
+        var billDate = r.querySelector('input[name="bd_' + idx + '"]');
+        if (!vehicle || !billNo || !billDate) continue;
+        if (!vehicle.value.trim() || !billNo.value.trim() || !billDate.value || !parseFloat(r.querySelector('input[name="amt_' + idx + '"]').value)) {
             e.preventDefault();
             alert('Row ' + (i+1) + ': Vehicle, Bill No, Date, and Amount are required.');
             return;
         }
-        payload.push({ vehicle_plate: vehicle, bill_no: billNo, bill_date: billDate, description: desc, amount: amt, discount: disc, is_tax_bill: isTax });
     }
-    document.getElementById('supplierIdField').value = supplier;
-    document.getElementById('payloadField').value = JSON.stringify(payload);
     document.getElementById('saveBtn').disabled = true;
     document.getElementById('saveBtn').textContent = 'Saving...';
 });

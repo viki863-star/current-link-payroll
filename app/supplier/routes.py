@@ -3451,30 +3451,29 @@ def supplier_bill_edit(bill_id):
 def supplier_bills_batch():
     _ensure_tables()
     db = _get_db()
-    import json as _json
-    supplier_id = request.form.get("supplier_id", "").strip()
-    payload_str = request.form.get("payload")
-    if not payload_str:
-        flash("Missing data.", "error")
-        return redirect(url_for("supplier.supplier_bill_add"))
-    data = _json.loads(payload_str)
-    bills = data if isinstance(data, list) else data.get("bills", [])
-    if not supplier_id or not bills:
-        flash("Missing supplier or bills.", "error")
+    supplier_id = request.form.get("batch_supplier", "").strip()
+    if not supplier_id:
+        flash("Missing supplier.", "error")
         return redirect(url_for("supplier.supplier_bill_add"))
     supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
     if not supplier:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_bill_add"))
+    import re
+    v_keys = [k for k in request.form.keys() if re.match(r'^v_\d+$', k)]
+    if not v_keys:
+        flash("No bill rows found.", "error")
+        return redirect(url_for("supplier.supplier_bill_add"))
     count = 0
-    for b in bills:
-        vehicle_plate = b.get("vehicle_plate", "").strip()
-        bill_no = b.get("bill_no", "").strip()
-        bill_date = b.get("bill_date", "").strip()
-        description = b.get("description", "").strip()
-        amount_excl = float(b.get("amount", 0) or 0)
-        discount = float(b.get("discount", 0) or 0)
-        is_tax = b.get("is_tax_bill", True)
+    for vk in v_keys:
+        idx = vk.split("_", 1)[1]
+        vehicle_plate = request.form.get(f"v_{idx}", "").strip()
+        bill_no = request.form.get(f"bn_{idx}", "").strip()
+        bill_date = request.form.get(f"bd_{idx}", "").strip()
+        description = request.form.get(f"desc_{idx}", "").strip()
+        amount_excl = float(request.form.get(f"amt_{idx}", 0) or 0)
+        discount = float(request.form.get(f"disc_{idx}", 0) or 0)
+        is_tax = request.form.get(f"tax_{idx}") == "on"
         if not vehicle_plate or not bill_no or not bill_date or amount_excl <= 0:
             continue
         if is_tax:
