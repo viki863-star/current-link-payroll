@@ -15,157 +15,150 @@
     </div>
     <div class="erp-sidebar-accent"></div>
 
-    {% set nav_items = [
-        {"label": "Dashboard", "endpoint": "dashboard", "icon": "grid"},
-        {"label": "HR & Employees", "endpoint": "hr.hr_dashboard", "icon": "users"},
-        {"label": "Suppliers", "endpoint": "supplier.supplier_dashboard", "icon": "building"},
-        {"label": "Supplier Bills", "endpoint": "supplier.supplier_bill_list", "icon": "shopping-cart"},
-        {"label": "Customers", "endpoint": "customer.customer_dashboard", "icon": "handshake"},
-    ] %}
-
-    {% set accounts_children = [
-        {"label": "Dashboard", "endpoint": "reports_center", "icon": "layout-dashboard"},
-        {"label": "Owner Fund", "endpoint": "owner_fund", "icon": "wallet"},
-        {"label": "Loans", "endpoint": "loans_center", "icon": "credit-card"},
-        {"label": "Annual Fees", "endpoint": "annual_fees", "icon": "book-open"},
-        {"label": "Customer Tax Report", "endpoint": "customer.customer_tax_report", "icon": "calculator"},
-        {"label": "Supplier Purchase Report", "endpoint": "supplier.supplier_purchase_report", "icon": "shopping-cart"},
-        {"label": "Cheque Report", "endpoint": "cheque_report", "icon": "file-text"},
-    ] %}
-
-    {% set accounts_endpoints = [] %}
-    {% for ch in accounts_children %}{% set _ = accounts_endpoints.append(ch.endpoint) %}{% endfor %}
-
-    {% set is_on_accounts = request.endpoint and (request.endpoint in accounts_endpoints or request.endpoint.startswith('accounts.')) %}
+    {% macro nav_icon(name) %}
+    {% if name == 'dashboard' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    {% elif name == 'users' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    {% elif name == 'building' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h.01"/><path d="M9 13h.01"/><path d="M9 17h.01"/><path d="M15 9h.01"/><path d="M15 13h.01"/><path d="M15 17h.01"/></svg>
+    {% elif name == 'handshake' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M11 12 8 9a3 3 0 0 0-4 0l-1 1"/><path d="m13 14 3 3a3 3 0 0 0 4 0l1-1"/><path d="M8 9l4-4a3 3 0 0 1 4 0l3 3"/><path d="m6 13 4 4"/><path d="m10 12 4 4"/><path d="m14 11 4 4"/></svg>
+    {% elif name == 'cart' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+    {% elif name == 'truck' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+    {% elif name == 'file-text' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    {% elif name == 'settings' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    {% elif name == 'wallet' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M20 7H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M16 12h.01"/><path d="M6 7V5a2 2 0 0 1 2-2h10"/></svg>
+    {% elif name == 'credit-card' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+    {% elif name == 'book' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    {% elif name == 'calculator' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10.01"/><line x1="12" y1="10" x2="12" y2="10.01"/><line x1="16" y1="10" x2="16" y2="10.01"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="16" y1="14" x2="16" y2="14.01"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+    {% elif name == 'layout' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    {% elif name == 'chevron' %}
+    <svg class="erp-nav-chevron" viewBox="0 0 20 20" fill="currentColor" width="12" height="12"><path d="M5.293 7.293a1 1 0 0 1 1.414 0L10 10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 0-1.414z"/></svg>
+    {% endif %}
+    {% endmacro %}
 
     <div class="erp-sidebar-body">
         <nav class="erp-sidebar-nav">
-            {% for item in nav_items %}
-            {% set is_active = (request.endpoint and (request.endpoint == item.endpoint or (item.label == 'HR & Employees' and request.endpoint.startswith('hr.')) or (item.label == 'Suppliers' and request.endpoint.startswith('supplier.') and not request.endpoint.startswith('supplier.supplier_bill')) or (item.label == 'Supplier Bills' and request.endpoint.startswith('supplier.supplier_bill')) or (item.label == 'Customers' and request.endpoint.startswith('customer.') and not request.endpoint.startswith('customer.settings')))) %}
-            <a class="erp-nav-link {{ 'is-active' if is_active }}" href="{{ url_for(item.endpoint) if item.endpoint != 'dashboard' else url_for('dashboard') }}">
-                <span class="erp-nav-icon">
-                    {% if item.icon == 'grid' %}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-                    {% elif item.icon == 'users' %}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    {% elif item.icon == 'truck' %}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
-                    {% elif item.icon == 'building' %}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h.01"/><path d="M9 13h.01"/><path d="M9 17h.01"/><path d="M15 9h.01"/><path d="M15 13h.01"/><path d="M15 17h.01"/></svg>
-                    {% elif item.icon == 'handshake' %}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M11 12 8 9a3 3 0 0 0-4 0l-1 1"/><path d="m13 14 3 3a3 3 0 0 0 4 0l1-1"/><path d="M8 9l4-4a3 3 0 0 1 4 0l3 3"/><path d="m6 13 4 4"/><path d="m10 12 4 4"/><path d="m14 11 4 4"/></svg>
-                    {% elif item.icon == 'shopping-cart' %}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-                    {% elif item.icon == 'gear' %}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                    {% endif %}
-                </span>
-                <span class="erp-nav-copy">
-                    <strong>{{ item.label }}</strong>
-                </span>
-            </a>
-            {% endfor %}
 
-            {# â•â•â• FLEET (expandable) â•â•â• #}
+            <div class="erp-nav-label">Main</div>
+
+            {# Dashboard #}
+            {% set is_dash = request.endpoint == 'dashboard' %}
+            <a class="erp-nav-link {{ 'is-active' if is_dash }}" href="{{ url_for('dashboard') }}">
+                <span class="erp-nav-icon">{{ nav_icon('dashboard') }}</span>
+                <span class="erp-nav-copy"><strong>Dashboard</strong></span>
+            </a>
+
+            <div class="erp-nav-label">Operations</div>
+
+            {# Fleet (expandable) #}
             {% set fleet_children = [
-                {"label": "Dashboard", "endpoint": "fleet.fleet_dashboard", "icon": "layout-dashboard"},
+                {"label": "Dashboard", "endpoint": "fleet.fleet_dashboard", "icon": "layout"},
                 {"label": "Vehicles", "endpoint": "fleet.vehicle_list", "icon": "truck"},
             ] %}
             {% set fleet_endpoints = [] %}
             {% for ch in fleet_children %}{% set _ = fleet_endpoints.append(ch.endpoint) %}{% endfor %}
             {% set is_on_fleet = request.endpoint and (request.endpoint in fleet_endpoints or request.endpoint.startswith('fleet.')) %}
             <button class="erp-nav-expandable {{ 'is-expanded' if is_on_fleet }}" type="button" id="fleetExpandBtn" aria-expanded="{{ 'true' if is_on_fleet else 'false' }}">
-                <span class="erp-nav-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
-                </span>
-                <span class="erp-nav-copy">
-                    <strong>Fleet</strong>
-                </span>
-                <svg class="erp-nav-chevron" viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
-                    <path d="M5.293 7.293a1 1 0 0 1 1.414 0L10 10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 0-1.414z"/>
-                </svg>
+                <span class="erp-nav-icon">{{ nav_icon('truck') }}</span>
+                <span class="erp-nav-copy"><strong>Fleet</strong></span>
+                {{ nav_icon('chevron') }}
             </button>
             <div class="erp-nav-children {{ 'is-expanded' if is_on_fleet }}" id="fleetChildren">
                 {% for ch in fleet_children %}
-                {% set ch_active = request.endpoint == ch.endpoint %}
-                <a class="erp-nav-link erp-nav-child {{ 'is-active' if ch_active }}" href="{{ url_for(ch.endpoint) }}">
-                    <span class="erp-nav-icon">
-                        {% if ch.icon == 'layout-dashboard' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-                        {% elif ch.icon == 'truck' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
-                        {% elif ch.icon == 'file-text' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                        {% endif %}
-                    </span>
+                <a class="erp-nav-link erp-nav-child {{ 'is-active' if request.endpoint == ch.endpoint }}" href="{{ url_for(ch.endpoint) }}">
+                    <span class="erp-nav-icon">{{ nav_icon(ch.icon) }}</span>
                     <span class="erp-nav-copy">{{ ch.label }}</span>
                 </a>
                 {% endfor %}
             </div>
 
-            {# â•â•â• ACCOUNTS (expandable) â•â•â• #}
+            {# HR & Employees #}
+            {% set is_hr = request.endpoint and request.endpoint.startswith('hr.') %}
+            <a class="erp-nav-link {{ 'is-active' if is_hr }}" href="{{ url_for('hr.hr_dashboard') }}">
+                <span class="erp-nav-icon">{{ nav_icon('users') }}</span>
+                <span class="erp-nav-copy"><strong>HR & Employees</strong></span>
+            </a>
+
+            {# Customers #}
+            {% set is_cust = request.endpoint and request.endpoint.startswith('customer.') and not request.endpoint.startswith('customer.settings') %}
+            <a class="erp-nav-link {{ 'is-active' if is_cust }}" href="{{ url_for('customer.customer_dashboard') }}">
+                <span class="erp-nav-icon">{{ nav_icon('handshake') }}</span>
+                <span class="erp-nav-copy"><strong>Customers</strong></span>
+            </a>
+
+            <div class="erp-nav-label">Procurement</div>
+
+            {# Suppliers #}
+            {% set is_sup = request.endpoint and request.endpoint.startswith('supplier.') and not request.endpoint.startswith('supplier.supplier_bill') %}
+            <a class="erp-nav-link {{ 'is-active' if is_sup }}" href="{{ url_for('supplier.supplier_dashboard') }}">
+                <span class="erp-nav-icon">{{ nav_icon('building') }}</span>
+                <span class="erp-nav-copy"><strong>Suppliers</strong></span>
+            </a>
+
+            {# Supplier Bills #}
+            {% set is_sup_bill = request.endpoint and request.endpoint.startswith('supplier.supplier_bill') %}
+            <a class="erp-nav-link {{ 'is-active' if is_sup_bill }}" href="{{ url_for('supplier.supplier_bill_list') }}">
+                <span class="erp-nav-icon">{{ nav_icon('cart') }}</span>
+                <span class="erp-nav-copy"><strong>Supplier Bills</strong></span>
+            </a>
+
+            <div class="erp-nav-label">Finance</div>
+
+            {# Accounts (expandable) #}
+            {% set accounts_children = [
+                {"label": "Dashboard", "endpoint": "reports_center", "icon": "layout"},
+                {"label": "Owner Fund", "endpoint": "owner_fund", "icon": "wallet"},
+                {"label": "Loans", "endpoint": "loans_center", "icon": "credit-card"},
+                {"label": "Annual Fees", "endpoint": "annual_fees", "icon": "book"},
+                {"label": "Customer Tax Report", "endpoint": "customer.customer_tax_report", "icon": "calculator"},
+                {"label": "Supplier Purchase Report", "endpoint": "supplier.supplier_purchase_report", "icon": "cart"},
+                {"label": "Cheque Report", "endpoint": "cheque_report", "icon": "file-text"},
+            ] %}
+            {% set accounts_endpoints = [] %}
+            {% for ch in accounts_children %}{% set _ = accounts_endpoints.append(ch.endpoint) %}{% endfor %}
+            {% set is_on_accounts = request.endpoint and (request.endpoint in accounts_endpoints or request.endpoint.startswith('accounts.')) %}
             <button class="erp-nav-expandable {{ 'is-expanded' if is_on_accounts }}" type="button" id="accountsExpandBtn" aria-expanded="{{ 'true' if is_on_accounts else 'false' }}">
                 <span class="erp-nav-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M3 10h18"/><path d="M4 10V7l8-4 8 4v3"/><path d="M6 10v8"/><path d="M10 10v8"/><path d="M14 10v8"/><path d="M18 10v8"/><path d="M2 21h20"/></svg>
                 </span>
-                <span class="erp-nav-copy">
-                    <strong>Accounts</strong>
-                </span>
-                <svg class="erp-nav-chevron" viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
-                    <path d="M5.293 7.293a1 1 0 0 1 1.414 0L10 10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 0-1.414z"/>
-                </svg>
+                <span class="erp-nav-copy"><strong>Accounts</strong></span>
+                {{ nav_icon('chevron') }}
             </button>
             <div class="erp-nav-children {{ 'is-expanded' if is_on_accounts }}" id="accountsChildren">
                 {% for ch in accounts_children %}
-                {% set ch_active = request.endpoint == ch.endpoint %}
-                <a class="erp-nav-link erp-nav-child {{ 'is-active' if ch_active }}" href="{{ url_for(ch.endpoint) }}">
-                    <span class="erp-nav-icon">
-                        {% if ch.icon == 'layout-dashboard' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-                        {% elif ch.icon == 'wallet' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M20 7H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M16 12h.01"/><path d="M6 7V5a2 2 0 0 1 2-2h10"/></svg>
-                        {% elif ch.icon == 'file-text' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                        {% elif ch.icon == 'building' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h.01"/><path d="M9 13h.01"/><path d="M9 17h.01"/><path d="M15 9h.01"/><path d="M15 13h.01"/><path d="M15 17h.01"/></svg>
-                        {% elif ch.icon == 'credit-card' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                        {% elif ch.icon == 'book-open' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                        {% elif ch.icon == 'calculator' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10.01"/><line x1="12" y1="10" x2="12" y2="10.01"/><line x1="16" y1="10" x2="16" y2="10.01"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="16" y1="14" x2="16" y2="14.01"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
-                        {% elif ch.icon == 'shopping-cart' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-                        {% elif ch.icon == 'wrench' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                        {% elif ch.icon == 'settings' %}
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                        {% endif %}
-                    </span>
+                <a class="erp-nav-link erp-nav-child {{ 'is-active' if request.endpoint == ch.endpoint }}" href="{{ url_for(ch.endpoint) }}">
+                    <span class="erp-nav-icon">{{ nav_icon(ch.icon) }}</span>
                     <span class="erp-nav-copy">{{ ch.label }}</span>
                 </a>
                 {% endfor %}
             </div>
 
-            {# â•â•â• DOCUMENTS â•â•â• #}
-            <a class="erp-nav-link" href="{{ url_for('documents.document_hub') }}">
-                <span class="erp-nav-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                </span>
+            <div class="erp-nav-label">Tools</div>
+
+            {# Documents #}
+            <a class="erp-nav-link {{ 'is-active' if request.endpoint and request.endpoint.startswith('documents.') }}" href="{{ url_for('documents.document_hub') }}">
+                <span class="erp-nav-icon">{{ nav_icon('file-text') }}</span>
                 <span class="erp-nav-copy"><strong>Documents</strong></span>
             </a>
 
-            {# â•â•â• SETTINGS â•â•â• #}
-            {% set is_settings = request.endpoint and request.endpoint.startswith('core.settings') %}
-            <a class="erp-nav-link {{ 'is-active' if is_settings }}" href="{{ url_for('core.settings') }}">
-                <span class="erp-nav-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                </span>
+            {# Settings #}
+            <a class="erp-nav-link {{ 'is-active' if request.endpoint and request.endpoint.startswith('core.settings') }}" href="{{ url_for('core.settings') }}">
+                <span class="erp-nav-icon">{{ nav_icon('settings') }}</span>
                 <span class="erp-nav-copy"><strong>Settings</strong></span>
             </a>
+
         </nav>
-
-
     </div>
 
     <div class="erp-sidebar-foot">
@@ -185,31 +178,24 @@
 
 <script>
 (function() {
-    var btn = document.getElementById('accountsExpandBtn');
-    var children = document.getElementById('accountsChildren');
-    if (btn && children) {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            var expanded = btn.getAttribute('aria-expanded') === 'true' ? false : true;
-            btn.setAttribute('aria-expanded', expanded);
-            btn.classList.toggle('is-expanded');
-            children.classList.toggle('is-expanded');
-            try { localStorage.setItem('erp_accounts_expanded', expanded); } catch(ex) {}
-        });
-    }
-
-    var fbtn = document.getElementById('fleetExpandBtn');
-    var fchildren = document.getElementById('fleetChildren');
-    if (fbtn && fchildren) {
-        fbtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            var expanded = fbtn.getAttribute('aria-expanded') === 'true' ? false : true;
-            fbtn.setAttribute('aria-expanded', expanded);
-            fbtn.classList.toggle('is-expanded');
-            fchildren.classList.toggle('is-expanded');
-            try { localStorage.setItem('erp_fleet_expanded', expanded); } catch(ex) {}
-        });
-    }
+    var expanders = [
+        {btn: 'accountsExpandBtn', children: 'accountsChildren', key: 'erp_accounts_expanded'},
+        {btn: 'fleetExpandBtn', children: 'fleetChildren', key: 'erp_fleet_expanded'}
+    ];
+    expanders.forEach(function(e) {
+        var btn = document.getElementById(e.btn);
+        var children = document.getElementById(e.children);
+        if (btn && children) {
+            btn.addEventListener('click', function(ev) {
+                ev.preventDefault();
+                var expanded = btn.getAttribute('aria-expanded') === 'true' ? false : true;
+                btn.setAttribute('aria-expanded', expanded);
+                btn.classList.toggle('is-expanded');
+                children.classList.toggle('is-expanded');
+                try { localStorage.setItem(e.key, expanded); } catch(ex) {}
+            });
+        }
+    });
 
     var video = document.getElementById('brandVideo');
     var img = document.getElementById('brandImage');
@@ -228,15 +214,9 @@
             video.addEventListener('loadeddata', showVideo, {once:true});
             video.addEventListener('canplay', showVideo, {once:true});
         }
-        video.addEventListener('error', function() {
-            img.classList.remove('is-hidden');
-        });
-        video.addEventListener('suspend', function() {
-            if (!shown) { img.classList.remove('is-hidden'); }
-        });
-        setTimeout(function() {
-            if (!shown) { img.classList.remove('is-hidden'); }
-        }, 3000);
+        video.addEventListener('error', function() { img.classList.remove('is-hidden'); });
+        video.addEventListener('suspend', function() { if (!shown) img.classList.remove('is-hidden'); });
+        setTimeout(function() { if (!shown) img.classList.remove('is-hidden'); }, 3000);
     }
 })();
 </script>
