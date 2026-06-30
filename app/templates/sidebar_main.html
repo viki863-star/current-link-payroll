@@ -50,16 +50,12 @@
     <div class="erp-sidebar-body">
         <nav class="erp-sidebar-nav">
 
-            <div class="erp-nav-label">Main</div>
-
             {# Dashboard #}
             {% set is_dash = request.endpoint == 'dashboard' %}
             <a class="erp-nav-link {{ 'is-active' if is_dash }}" href="{{ url_for('dashboard') }}">
                 <span class="erp-nav-icon">{{ nav_icon('dashboard') }}</span>
                 <span class="erp-nav-copy"><strong>Dashboard</strong></span>
             </a>
-
-            <div class="erp-nav-label">Operations</div>
 
             {# Fleet (expandable) #}
             {% set fleet_children = [
@@ -97,8 +93,6 @@
                 <span class="erp-nav-copy"><strong>Customers</strong></span>
             </a>
 
-            <div class="erp-nav-label">Procurement</div>
-
             {# Suppliers #}
             {% set is_sup = request.endpoint and request.endpoint.startswith('supplier.') and not request.endpoint.startswith('supplier.supplier_bill') %}
             <a class="erp-nav-link {{ 'is-active' if is_sup }}" href="{{ url_for('supplier.supplier_dashboard') }}">
@@ -112,8 +106,6 @@
                 <span class="erp-nav-icon">{{ nav_icon('cart') }}</span>
                 <span class="erp-nav-copy"><strong>Supplier Bills</strong></span>
             </a>
-
-            <div class="erp-nav-label">Finance</div>
 
             {# Accounts (expandable) #}
             {% set accounts_children = [
@@ -144,8 +136,6 @@
                 {% endfor %}
             </div>
 
-            <div class="erp-nav-label">Tools</div>
-
             {# Documents #}
             <a class="erp-nav-link {{ 'is-active' if request.endpoint and request.endpoint.startswith('documents.') }}" href="{{ url_for('documents.document_hub') }}">
                 <span class="erp-nav-icon">{{ nav_icon('file-text') }}</span>
@@ -169,9 +159,12 @@
                 <small>{{ current_workspace_meta.title if current_workspace_meta else "Admin" }}</small>
             </div>
         </div>
-        <div class="erp-side-note">
-            <strong><span class="brand-current">Current</span> <span class="brand-link">Link</span></strong>
-            <span>ERP v2.0</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 10px 0">
+            <button id="darkModeToggle" type="button" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.3);display:flex;align-items:center;gap:6px;font-size:0.7rem;padding:4px 6px;border-radius:6px;transition:all .15s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.3)'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <span id="dmLabel">Dark</span>
+            </button>
+            <span style="color:rgba(255,255,255,0.15);font-size:0.58rem">ERP v2.0</span>
         </div>
     </div>
 </aside>
@@ -217,6 +210,21 @@
         video.addEventListener('error', function() { img.classList.remove('is-hidden'); });
         video.addEventListener('suspend', function() { if (!shown) img.classList.remove('is-hidden'); });
         setTimeout(function() { if (!shown) img.classList.remove('is-hidden'); }, 3000);
+    }
+
+    // Dark mode toggle
+    var dmBtn = document.getElementById('darkModeToggle');
+    var dmLabel = document.getElementById('dmLabel');
+    function applyDark(dark) {
+        if (dark) { document.documentElement.classList.add('dark-mode'); dmLabel.textContent = 'Light'; }
+        else { document.documentElement.classList.remove('dark-mode'); dmLabel.textContent = 'Dark'; }
+        try { localStorage.setItem('erp_dark_mode', dark ? '1' : '0'); } catch(ex) {}
+    }
+    if (dmBtn) {
+        try { var saved = localStorage.getItem('erp_dark_mode'); if (saved === '1') applyDark(true); } catch(ex) {}
+        dmBtn.addEventListener('click', function() {
+            applyDark(!document.documentElement.classList.contains('dark-mode'));
+        });
     }
 })();
 </script>
