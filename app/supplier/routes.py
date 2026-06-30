@@ -3336,23 +3336,24 @@ def supplier_bill_add():
         bill_date = request.form.get("bill_date", "").strip()
         description = request.form.get("description", "").strip()
         is_tax_bill = request.form.get("is_tax_bill") == "on"
-        amount_excl_vat = float(request.form.get("amount_excl_vat", 0) or 0)
-        vat_percentage = float(request.form.get("vat_percentage", 5) or 5)
+        total_amount = float(request.form.get("amount", 0) or 0)
         discount = float(request.form.get("discount", 0) or 0)
-        if not supplier_id or not vehicle_plate or not bill_no or not bill_date or amount_excl_vat <= 0:
+        if not supplier_id or not vehicle_plate or not bill_no or not bill_date or total_amount <= 0:
             flash("Please fill all required fields (supplier, vehicle, bill no, date, amount).", "error")
             return redirect(url_for("supplier.supplier_bill_add"))
         supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
         if not supplier:
             flash("Supplier not found.", "error")
             return redirect(url_for("supplier.supplier_bill_add"))
-        if is_tax_bill and vat_percentage > 0:
-            vat_amount = round(amount_excl_vat * vat_percentage / 100, 2)
-            total_amount = round(amount_excl_vat + vat_amount, 2)
+        if is_tax_bill:
+            net_excl_vat = round(total_amount / 1.05, 2)
+            vat_amount = round(total_amount - net_excl_vat, 2)
+            vat_percentage = 5
         else:
+            net_excl_vat = total_amount
             vat_amount = 0
-            total_amount = amount_excl_vat
-        net_amount = round(amount_excl_vat - discount, 2)
+            vat_percentage = 0
+        net_amount = round(net_excl_vat - discount, 2)
         bill_desc = f"Bill {bill_no} — {vehicle_plate}"
         if description:
             bill_desc += f" ({description})"
@@ -3406,23 +3407,24 @@ def supplier_bill_edit(bill_id):
         bill_date = request.form.get("bill_date", "").strip()
         description = request.form.get("description", "").strip()
         is_tax_bill = request.form.get("is_tax_bill") == "on"
-        amount_excl_vat = float(request.form.get("amount_excl_vat", 0) or 0)
-        vat_percentage = float(request.form.get("vat_percentage", 5) or 5)
+        total_amount = float(request.form.get("amount", 0) or 0)
         discount = float(request.form.get("discount", 0) or 0)
-        if not supplier_id or not vehicle_plate or not bill_no or not bill_date or amount_excl_vat <= 0:
+        if not supplier_id or not vehicle_plate or not bill_no or not bill_date or total_amount <= 0:
             flash("Please fill all required fields.", "error")
             return redirect(url_for("supplier.supplier_bill_edit", bill_id=bill_id))
         supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
         if not supplier:
             flash("Supplier not found.", "error")
             return redirect(url_for("supplier.supplier_bill_edit", bill_id=bill_id))
-        if is_tax_bill and vat_percentage > 0:
-            vat_amount = round(amount_excl_vat * vat_percentage / 100, 2)
-            total_amount = round(amount_excl_vat + vat_amount, 2)
+        if is_tax_bill:
+            net_excl_vat = round(total_amount / 1.05, 2)
+            vat_amount = round(total_amount - net_excl_vat, 2)
+            vat_percentage = 5
         else:
+            net_excl_vat = total_amount
             vat_amount = 0
-            total_amount = amount_excl_vat
-        net_amount = round(amount_excl_vat - discount, 2)
+            vat_percentage = 0
+        net_amount = round(net_excl_vat - discount, 2)
         bill_desc = f"Bill {bill_no} — {vehicle_plate}"
         if description:
             bill_desc += f" ({description})"

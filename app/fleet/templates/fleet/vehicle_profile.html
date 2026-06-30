@@ -420,13 +420,12 @@
             <input type="date" name="bill_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
         </div>
         <div>
-            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Amount (Excl. VAT)</label>
-            <input type="number" name="amount_excl_vat" step="0.01" min="0" placeholder="0" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
+            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Amount</label>
+            <input type="number" name="amount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
         </div>
         <div style="grid-column:1/-1;display:flex;gap:8px;align-items:end">
             <input type="text" name="description" placeholder="Items (e.g. Oil filter, Diesel filter)" class="form-control" style="padding:6px 8px;font-size:0.82rem;flex:1">
             <input type="hidden" name="is_tax_bill" value="on">
-            <input type="hidden" name="vat_percentage" value="5">
             <div style="display:flex;gap:4px;align-items:end">
                 <label style="font-size:0.7rem;font-weight:600;color:var(--muted);white-space:nowrap">Disc:</label>
                 <input type="number" name="discount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:6px 8px;font-size:0.82rem;width:70px">
