@@ -12,76 +12,106 @@
 <div class="profile-shell" style="max-width:960px;margin:0 auto">
   <div class="profile-card">
     <h3 style="margin:0 0 12px;font-size:0.95rem">Add Supplier Bills</h3>
-    <div style="margin-bottom:14px;padding:10px 14px;background:#f8fafd;border-radius:8px;max-width:300px">
-      <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Supplier *</label>
-      <select id="batchSupplier" class="form-control" style="padding:6px 8px;font-size:0.85rem">
-        <option value="">— Select —</option>
-        {% for s in suppliers %}
-        <option value="{{ s.id }}">{{ s.supplier_name }}</option>
-        {% endfor %}
-      </select>
-    </div>
+    <form id="billForm" method="POST" action="{{ url_for('supplier.supplier_bills_batch') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="supplier_id" id="supplierIdField">
+      <input type="hidden" name="payload" id="payloadField">
 
-    <div class="batch-row batch-header">
-      <span>Vehicle</span>
-      <span>Bill No</span>
-      <span>Date</span>
-      <span>Items</span>
-      <span>Amount*</span>
-      <span>Disc</span>
-      <span>Tax</span>
-    </div>
-    <div id="billRows">
-      <div class="batch-row" data-idx="0">
-        <select name="vehicle_0" class="vselect" required>
-          <option value="">—</option>
-          {% for v in vehicles %}<option value="{{ v.plate_no }}">{{ v.plate_no }}</option>{% endfor %}
+      <div style="margin-bottom:14px;padding:10px 14px;background:#f8fafd;border-radius:8px;max-width:300px">
+        <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Supplier *</label>
+        <select id="batchSupplier" class="form-control" style="padding:6px 8px;font-size:0.85rem" required>
+          <option value="">— Select —</option>
+          {% for s in suppliers %}
+          <option value="{{ s.id }}">{{ s.supplier_name }}</option>
+          {% endfor %}
         </select>
-        <input type="text" name="bill_no_0" placeholder="e.g. 56255" required>
-        <input type="date" name="bill_date_0" required>
-        <input type="text" name="desc_0" placeholder="Oil filter, Diesel filter">
-        <input type="number" name="amount_0" step="0.01" min="0" placeholder="0" required>
-        <input type="number" name="discount_0" step="0.01" min="0" placeholder="0">
-        <div class="cb-wrap"><input type="checkbox" name="tax_0" checked title="5% VAT auto-adds"></div>
       </div>
-    </div>
 
-    <div style="margin-top:8px;display:flex;gap:8px">
-      <button type="button" class="btn btn-sm btn-outline" onclick="addRow()">+ Add Another Bill</button>
-    </div>
+      <div class="batch-row batch-header">
+        <span>Vehicle</span>
+        <span>Bill No</span>
+        <span>Date</span>
+        <span>Items</span>
+        <span>Amount*</span>
+        <span>Disc</span>
+        <span>Tax</span>
+      </div>
+      <div id="billRows">
+        {% set ns = namespace(row_idx=0) %}
+        <div class="batch-row" data-idx="{{ ns.row_idx }}">
+          <input type="text" name="v_{{ ns.row_idx }}" placeholder="Plate no" required>
+          <input type="text" name="bn_{{ ns.row_idx }}" placeholder="e.g. 56255" required>
+          <input type="date" name="bd_{{ ns.row_idx }}" required>
+          <input type="text" name="desc_{{ ns.row_idx }}" placeholder="Oil filter, Diesel filter">
+          <input type="number" name="amt_{{ ns.row_idx }}" step="0.01" min="0" placeholder="0" required>
+          <input type="number" name="disc_{{ ns.row_idx }}" step="0.01" min="0" placeholder="0">
+          <div class="cb-wrap"><input type="checkbox" name="tax_{{ ns.row_idx }}" checked title="5% VAT auto-adds"></div>
+        </div>
+      </div>
 
-    <div style="margin-top:16px;padding:12px;background:#f0f4ff;border-radius:8px;display:flex;justify-content:space-between">
-      <span style="font-size:0.85rem"><strong id="billCount">1</strong> bill(s) &middot; Total: AED <strong id="totalPreview">0.00</strong></span>
-      <span style="font-size:0.82rem;color:var(--muted)">Amount without tax — VAT auto-adds 5% if checked</span>
-    </div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button type="button" class="btn btn-sm btn-outline" onclick="addRow()">+ Add Another Bill</button>
+      </div>
 
-    <div style="margin-top:16px;display:flex;gap:8px">
-      <button type="button" class="btn btn-primary" onclick="submitBills()">Save All Bills</button>
-      <a href="{{ url_for('supplier.supplier_bill_list') }}" class="btn btn-outline">Cancel</a>
-    </div>
+      <div style="margin-top:16px;padding:12px;background:#f0f4ff;border-radius:8px;display:flex;justify-content:space-between">
+        <span style="font-size:0.85rem"><strong id="billCount">1</strong> bill(s) &middot; Total: AED <strong id="totalPreview">0.00</strong></span>
+        <span style="font-size:0.82rem;color:var(--muted)">Amount without tax — VAT auto-adds 5% if checked</span>
+      </div>
+
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save All Bills</button>
+        <a href="{{ url_for('supplier.supplier_bill_list') }}" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
   </div>
 </div>
 
-<template id="vselectTpl"><select name="vehicle_" class="vselect" required><option value="">—</option>{% for v in vehicles %}<option value="{{ v.plate_no }}">{{ v.plate_no }}</option>{% endfor %}</select></template>
-
 <script>
 var rowIdx = 1;
+
 document.getElementById('billRows').addEventListener('input', function(e) {
-    if (e.target.matches('input[name^="amount_"], input[name^="discount_"]')) updateTotal();
+    if (e.target.matches('input[name^="amt_"], input[name^="disc_"]')) updateTotal();
 });
 document.getElementById('billRows').addEventListener('change', function(e) {
     if (e.target.matches('input[name^="tax_"]')) updateTotal();
 });
 
+document.getElementById('billForm').addEventListener('submit', function(e) {
+    var supplier = document.getElementById('batchSupplier').value;
+    if (!supplier) { e.preventDefault(); alert('Select a supplier first.'); return; }
+    var rows = document.querySelectorAll('.batch-row');
+    var payload = [];
+    for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        var idx = r.dataset.idx;
+        var vehicle = (r.querySelector('input[name="v_' + idx + '"]') || r.querySelector('select[name="v_' + idx + '"]')).value.trim();
+        var billNo = r.querySelector('input[name="bn_' + idx + '"]').value.trim();
+        var billDate = r.querySelector('input[name="bd_' + idx + '"]').value;
+        var desc = r.querySelector('input[name="desc_' + idx + '"]').value.trim();
+        var amt = parseFloat(r.querySelector('input[name="amt_' + idx + '"]').value) || 0;
+        var disc = parseFloat(r.querySelector('input[name="disc_' + idx + '"]').value) || 0;
+        var isTax = r.querySelector('input[name="tax_' + idx + '"]').checked;
+        if (!vehicle || !billNo || !billDate || amt <= 0) {
+            e.preventDefault();
+            alert('Row ' + (i+1) + ': Vehicle, Bill No, Date, and Amount are required.');
+            return;
+        }
+        payload.push({ vehicle_plate: vehicle, bill_no: billNo, bill_date: billDate, description: desc, amount: amt, discount: disc, is_tax_bill: isTax });
+    }
+    document.getElementById('supplierIdField').value = supplier;
+    document.getElementById('payloadField').value = JSON.stringify(payload);
+    document.getElementById('saveBtn').disabled = true;
+    document.getElementById('saveBtn').textContent = 'Saving...';
+});
+
 function addRow() {
-    var selHtml = document.getElementById('vselectTpl').innerHTML.replace('vehicle_', 'vehicle_' + rowIdx);
     var html = '<div class="batch-row" data-idx="' + rowIdx + '">' +
-        selHtml +
-        '<input type="text" name="bill_no_' + rowIdx + '" placeholder="e.g. 56255" required>' +
-        '<input type="date" name="bill_date_' + rowIdx + '" required>' +
+        '<input type="text" name="v_' + rowIdx + '" placeholder="Plate no" required>' +
+        '<input type="text" name="bn_' + rowIdx + '" placeholder="e.g. 56255" required>' +
+        '<input type="date" name="bd_' + rowIdx + '" required>' +
         '<input type="text" name="desc_' + rowIdx + '" placeholder="Oil filter, Diesel filter">' +
-        '<input type="number" name="amount_' + rowIdx + '" step="0.01" min="0" placeholder="0" required>' +
-        '<input type="number" name="discount_' + rowIdx + '" step="0.01" min="0" placeholder="0">' +
+        '<input type="number" name="amt_' + rowIdx + '" step="0.01" min="0" placeholder="0" required>' +
+        '<input type="number" name="disc_' + rowIdx + '" step="0.01" min="0" placeholder="0">' +
         '<div class="cb-wrap"><input type="checkbox" name="tax_' + rowIdx + '" checked title="5% VAT auto-adds"></div>' +
         '</div>';
     document.getElementById('billRows').insertAdjacentHTML('beforeend', html);
@@ -94,42 +124,10 @@ function updateTotal() {
     var total = 0;
     var rows = document.querySelectorAll('.batch-row');
     for (var i = 0; i < rows.length; i++) {
-        var amtInputs = rows[i].querySelectorAll('input[name^="amount_"]');
-        if (amtInputs.length) total += parseFloat(amtInputs[0].value) || 0;
+        var inputs = rows[i].querySelectorAll('input[name^="amt_"]');
+        if (inputs.length) total += parseFloat(inputs[0].value) || 0;
     }
     document.getElementById('totalPreview').textContent = total.toFixed(2);
-}
-
-function submitBills() {
-    var supplier = document.getElementById('batchSupplier').value;
-    if (!supplier) { alert('Select a supplier first.'); return; }
-    var rows = document.querySelectorAll('.batch-row');
-    var payload = [];
-    for (var i = 0; i < rows.length; i++) {
-        var r = rows[i];
-        var idx = r.dataset.idx;
-        var vehicle = r.querySelector('select[name="vehicle_' + idx + '"]').value;
-        var billNo = r.querySelector('input[name="bill_no_' + idx + '"]').value.trim();
-        var billDate = r.querySelector('input[name="bill_date_' + idx + '"]').value;
-        var desc = r.querySelector('input[name="desc_' + idx + '"]').value.trim();
-        var amt = parseFloat(r.querySelector('input[name="amount_' + idx + '"]').value) || 0;
-        var disc = parseFloat(r.querySelector('input[name="discount_' + idx + '"]').value) || 0;
-        var isTax = r.querySelector('input[name="tax_' + idx + '"]').checked;
-        if (!vehicle || !billNo || !billDate || amt <= 0) {
-            alert('Row ' + (i+1) + ': Vehicle, Bill No, Date, and Amount are required.');
-            return;
-        }
-        payload.push({ vehicle_plate: vehicle, bill_no: billNo, bill_date: billDate, description: desc, amount: amt, discount: disc, is_tax_bill: isTax });
-    }
-    fetch('{{ url_for("supplier.supplier_bills_batch") }}', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
-        body: JSON.stringify({ supplier_id: parseInt(supplier), bills: payload })
-    }).then(function(r) { return r.json(); }).then(function(d) {
-        if (d.error) { alert(d.error); return; }
-        alert(d.message);
-        window.location.href = '{{ url_for("supplier.supplier_bill_list") }}';
-    }).catch(function(e) { alert('Error: ' + e.message); });
 }
 </script>
 {% endblock %}

@@ -3452,14 +3452,20 @@ def supplier_bills_batch():
     _ensure_tables()
     db = _get_db()
     import json as _json
-    data = _json.loads(request.data)
-    supplier_id = data.get("supplier_id")
-    bills = data.get("bills", [])
+    supplier_id = request.form.get("supplier_id", "").strip()
+    payload_str = request.form.get("payload")
+    if not payload_str:
+        flash("Missing data.", "error")
+        return redirect(url_for("supplier.supplier_bill_add"))
+    data = _json.loads(payload_str)
+    bills = data if isinstance(data, list) else data.get("bills", [])
     if not supplier_id or not bills:
-        return {"error": "Missing supplier or bills"}, 400
+        flash("Missing supplier or bills.", "error")
+        return redirect(url_for("supplier.supplier_bill_add"))
     supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
     if not supplier:
-        return {"error": "Supplier not found"}, 404
+        flash("Supplier not found.", "error")
+        return redirect(url_for("supplier.supplier_bill_add"))
     count = 0
     for b in bills:
         vehicle_plate = b.get("vehicle_plate", "").strip()
@@ -3512,7 +3518,8 @@ def supplier_bills_batch():
         db.execute("UPDATE supplier_bills SET source_expense_id = ? WHERE id = ?", (expense_id, bill_id))
         count += 1
     db.commit()
-    return {"message": f"{count} bill(s) added successfully for {supplier['supplier_name']}"}
+    flash(f"{count} bill(s) added successfully for {supplier['supplier_name']}.", "success")
+    return redirect(url_for("supplier.supplier_bill_list"))
 
 
 @supplier_bp.route("/bills/<int:bill_id>/delete", methods=["POST"])
