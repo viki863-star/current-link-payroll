@@ -87,7 +87,7 @@
         <label>Category *</label>
         <select name="category" class="form-control" required>
           <option value="">Select Category</option>
-          {% for c in ['Transport','Fuel','Food','Stationery','Cleaning','Safety','Tools','Other'] %}
+          {% for c in ['Parts','Transport','Fuel','Food','Stationery','Cleaning','Safety','Tools','Other'] %}
           <option value="{{ c }}" {{ 'selected' if exp and exp.category == c else '' }}>{{ c }}</option>
           {% endfor %}
         </select>
