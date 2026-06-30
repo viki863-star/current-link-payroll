@@ -40,7 +40,7 @@
         <input type="text" name="bill_no_0" placeholder="e.g. 56255" required>
         <input type="date" name="bill_date_0" required>
         <input type="text" name="desc_0" placeholder="Oil filter, Diesel filter">
-        <input type="number" name="amount_0" step="0.01" min="0" placeholder="0" required oninput="updateTotal()">
+        <input type="number" name="amount_0" step="0.01" min="0" placeholder="0" required>
         <input type="number" name="discount_0" step="0.01" min="0" placeholder="0">
         <div class="cb-wrap"><input type="checkbox" name="tax_0" checked title="5% VAT auto-adds"></div>
       </div>
@@ -66,6 +66,13 @@
 
 <script>
 var rowIdx = 1;
+document.getElementById('billRows').addEventListener('input', function(e) {
+    if (e.target.matches('input[name^="amount_"], input[name^="discount_"]')) updateTotal();
+});
+document.getElementById('billRows').addEventListener('change', function(e) {
+    if (e.target.matches('input[name^="tax_"]')) updateTotal();
+});
+
 function addRow() {
     var selHtml = document.getElementById('vselectTpl').innerHTML.replace('vehicle_', 'vehicle_' + rowIdx);
     var html = '<div class="batch-row" data-idx="' + rowIdx + '">' +
@@ -73,20 +80,23 @@ function addRow() {
         '<input type="text" name="bill_no_' + rowIdx + '" placeholder="e.g. 56255" required>' +
         '<input type="date" name="bill_date_' + rowIdx + '" required>' +
         '<input type="text" name="desc_' + rowIdx + '" placeholder="Oil filter, Diesel filter">' +
-        '<input type="number" name="amount_' + rowIdx + '" step="0.01" min="0" placeholder="0" required oninput="updateTotal()">' +
+        '<input type="number" name="amount_' + rowIdx + '" step="0.01" min="0" placeholder="0" required>' +
         '<input type="number" name="discount_' + rowIdx + '" step="0.01" min="0" placeholder="0">' +
         '<div class="cb-wrap"><input type="checkbox" name="tax_' + rowIdx + '" checked title="5% VAT auto-adds"></div>' +
         '</div>';
     document.getElementById('billRows').insertAdjacentHTML('beforeend', html);
     rowIdx++;
     document.getElementById('billCount').textContent = document.querySelectorAll('.batch-row').length;
+    updateTotal();
 }
 
 function updateTotal() {
     var total = 0;
-    document.querySelectorAll('.batch-row').forEach(function(r) {
-        total += parseFloat(r.querySelector('input[name^="amount_"]').value) || 0;
-    });
+    var rows = document.querySelectorAll('.batch-row');
+    for (var i = 0; i < rows.length; i++) {
+        var amtInputs = rows[i].querySelectorAll('input[name^="amount_"]');
+        if (amtInputs.length) total += parseFloat(amtInputs[0].value) || 0;
+    }
     document.getElementById('totalPreview').textContent = total.toFixed(2);
 }
 
