@@ -136,9 +136,21 @@ def chat():
         if not sql:
             return jsonify({"reply": explanation or "Done.", "sql": None, "data": None})
 
-        rows = _execute_sql(sql)
-        if isinstance(rows, dict) and "error" in rows:
-            return jsonify({"reply": f"SQL error: {rows['error']}", "sql": sql, "data": None})
+        # Auto-retry SQL on failure (up to 2 times)
+        for attempt in range(3):
+            rows = _execute_sql(sql)
+            if not isinstance(rows, dict) or "error" not in rows:
+                break
+            if attempt < 2:
+                fix_prompt = f"The previous SQL had an error: {rows['error']}. Fix the SQL for PostgreSQL and respond with JSON only. Original question: {user_msg}. Schema: {schema}"
+                fix_result, fix_err = _call_llm([{"role": "system", "content": "Fix SQL errors. Reply JSON only."}, {"role": "user", "content": fix_prompt}])
+                if fix_result and isinstance(fix_result, dict) and fix_result.get("sql"):
+                    sql = fix_result["sql"]
+                    explanation = fix_result.get("explanation", explanation)
+                else:
+                    break
+        else:
+            return jsonify({"reply": "Mujhe samajh nahi aaya. Kuch aur tarah se poochiye.", "sql": None, "data": None})
 
         if rows and explanation:
             for row in rows[:1]:
