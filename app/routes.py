@@ -7092,6 +7092,7 @@ def register_routes(app: Flask) -> None:
         db.commit()
 
         if request.method == "POST":
+            edit_id = request.form.get("edit_id", "").strip()
             entry_date = request.form.get("entry_date", "").strip()
             transaction_type = request.form.get("transaction_type", "").strip()
             amount = request.form.get("amount", "0").strip()
@@ -7103,12 +7104,20 @@ def register_routes(app: Flask) -> None:
             if entry_date and transaction_type and amount:
                 try:
                     amount_f = float(amount)
-                    db.execute(
-                        "INSERT INTO bank_transactions (entry_date, transaction_type, amount, payee, reference_no, cheque_number, cheque_date, description) VALUES (?,?,?,?,?,?,?,?)",
-                        (entry_date, transaction_type, amount_f, payee or None, reference_no or None, cheque_number or None, cheque_date or None, description or None),
-                    )
-                    db.commit()
-                    flash("Transaction added", "success")
+                    if edit_id:
+                        db.execute(
+                            "UPDATE bank_transactions SET entry_date=?, transaction_type=?, amount=?, payee=?, reference_no=?, cheque_number=?, cheque_date=?, description=? WHERE id=?",
+                            (entry_date, transaction_type, amount_f, payee or None, reference_no or None, cheque_number or None, cheque_date or None, description or None, int(edit_id)),
+                        )
+                        db.commit()
+                        flash("Transaction updated", "success")
+                    else:
+                        db.execute(
+                            "INSERT INTO bank_transactions (entry_date, transaction_type, amount, payee, reference_no, cheque_number, cheque_date, description) VALUES (?,?,?,?,?,?,?,?)",
+                            (entry_date, transaction_type, amount_f, payee or None, reference_no or None, cheque_number or None, cheque_date or None, description or None),
+                        )
+                        db.commit()
+                        flash("Transaction added", "success")
                 except Exception as e:
                     flash(f"Error: {e}", "error")
             else:
@@ -7120,6 +7129,7 @@ def register_routes(app: Flask) -> None:
         filter_type = request.args.get("type", "").strip()
         month = request.args.get("month", "")
         year = request.args.get("year", "")
+        edit_id = request.args.get("edit", "").strip()
 
         rows = db.execute("SELECT * FROM bank_transactions ORDER BY entry_date DESC").fetchall()
         entries = []
@@ -7145,6 +7155,15 @@ def register_routes(app: Flask) -> None:
             entries.append(dict(r))
         db.close()
 
+        edit_entry = None
+        if edit_id:
+            try:
+                row = db.execute("SELECT * FROM bank_transactions WHERE id = ?", (int(edit_id),)).fetchone()
+                if row:
+                    edit_entry = dict(row)
+            except Exception:
+                pass
+
         types = ["Cheque", "ATM Withdrawal", "Bank Transfer", "Online Transfer", "Bank Charge", "Other"]
         months_list = [{"value": str(i), "label": datetime(2000, i, 1).strftime("%B")} for i in range(1, 13)]
         years_list = list(range(2020, datetime.now().year + 1))
@@ -7162,6 +7181,7 @@ def register_routes(app: Flask) -> None:
             years=years_list,
             total_amount=total_amount,
             today=datetime.now().strftime("%Y-%m-%d"),
+            edit_entry=edit_entry,
         )
 
     @app.post("/bank-transactions/<int:txn_id>/delete")
