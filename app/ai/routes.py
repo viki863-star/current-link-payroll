@@ -7,27 +7,39 @@ from flask import request, jsonify, current_app
 from . import ai_bp
 from ..database import open_db
 
-SCHEMA = """
-employees(employee_id, full_name, phone_number, email, employee_type, department, basic_salary, status)
-drivers(driver_id, full_name, phone_number, vehicle_no, shift, basic_salary, ot_rate, status)
-field_staff(staff_id, full_name, phone, username)
-cash_receipts(staff_id, amount, receipt_date, given_by)
-vehicles(plate_no, vehicle_type, model, year, status)
-vehicle_assignments(vehicle_id, driver_id, is_current)
-salary_store(driver_id, salary_month, basic_salary, ot_amount, advances, deductions, net_salary)
-salary_slips(employee_id, salary_month, basic_salary, net_salary, status)
-salary_payments(employee_id, salary_month, amount, payment_date)
-maintenance_jobs(vehicle_id, staff_id, amount, category, status)
-technicians(technician_code, user_id, phone_number)
-maintenance_advances(staff_code, amount, advance_date)
-maintenance_papers(paper_no, technician_code, total_amount, review_status)
-parties(party_code, party_name, phone, role, status)
-suppliers(supplier_code, supplier_name, category, status)
-supplier_invoices(supplier_code, invoice_no, amount, status)
-supplier_bills(supplier_code, bill_no, amount, vat, total, status)
-account_invoices(invoice_no, party_code, total_amount, status)
-fuel_entries(vehicle_id, liters, cost, entry_date)
-"""
+TABLES = [
+    "employees", "drivers", "field_staff", "cash_receipts", "vehicles",
+    "vehicle_assignments", "salary_store", "salary_slips", "salary_payments",
+    "maintenance_jobs", "technicians", "maintenance_staff_advances",
+    "maintenance_papers", "parties", "suppliers", "supplier_invoices",
+    "supplier_bills", "account_invoices", "account_invoice_lines",
+    "account_payments", "fuel_entries",
+]
+
+
+def _get_schema():
+    """Dynamically fetch schema from the database."""
+    db = open_db()
+    backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+    lines = []
+    for table in TABLES:
+        try:
+            if backend == "postgres":
+                cols = db.execute(
+                    "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ? ORDER BY ordinal_position",
+                    (table,),
+                ).fetchall()
+                if cols:
+                    names = [f"{c['column_name']}" for c in cols]
+                    lines.append(f"{table}({', '.join(names)})")
+            else:
+                cols = db.execute(f"PRAGMA table_info({table})").fetchall()
+                if cols:
+                    names = [f"{c['name']} {c['type']}" for c in cols]
+                    lines.append(f"{table}({', '.join(names)})")
+        except Exception:
+            pass
+    return "\n".join(lines)
 
 
 def _execute_sql(sql):
@@ -67,23 +79,19 @@ def _call_llm(messages):
         raw = re.sub(r'\s*```$', '', raw)
         raw = raw.strip()
 
-        # Try to extract JSON from anywhere in the response
         json_match = re.search(r'\{[^{}]*"sql"[^{}]*\}', raw, re.DOTALL)
         if json_match:
             try:
-                parsed = json.loads(json_match.group())
-                return parsed, None
+                return json.loads(json_match.group()), None
             except json.JSONDecodeError:
                 pass
 
-        # Fallback: try parsing whole response as JSON
         if raw.startswith("{"):
             try:
                 return json.loads(raw), None
             except json.JSONDecodeError:
                 pass
 
-        # Use entire response as explanation
         prefix = re.sub(r'\{.*', '', raw, count=1).strip()
         return {"explanation": prefix or raw, "sql": ""}, None
     except Exception as e:
@@ -100,16 +108,14 @@ def chat():
         user_msg = data["message"].strip()
         history = data.get("history", [])
         today = date.today().isoformat()
-
-        backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
-        pg = " CRITICAL: TEXT columns need single-quoted values. NEVER compare TEXT=INT. is_current is INT 0/1." if backend == "postgres" else ""
+        schema = _get_schema()
 
         system = (
-            f"Date:{today}. ERP SQL assistant.{pg}\n"
-            f"Tables:\n{SCHEMA}\n"
-            'Reply ONLY JSON: {"sql":"SELECT...","explanation":"answer in user language with {column_aliases}"}. '
-            "SELECT only. ALWAYS use AS aliases for columns. "
-            'Ex: {"sql":"SELECT count(*) AS cnt FROM drivers WHERE status=\'Active\'","explanation":"{cnt} active drivers hain"}'
+            f"Date:{today}. ERP SQL assistant.\n"
+            f"Database schema (exact column names):\n{schema}\n"
+            "Reply ONLY JSON: {\"sql\":\"SELECT...\",\"explanation\":\"answer\"}. "
+            "SELECT only. ALWAYS use AS aliases. "
+            'Ex: {"sql":"SELECT count(*) AS cnt FROM drivers WHERE status=\'Active\'","explanation":"15 active drivers"}'
         )
 
         messages = [{"role": "system", "content": system}]
@@ -139,13 +145,10 @@ def chat():
                 for k, v in row.items():
                     explanation = explanation.replace("{" + k + "}", str(v if v is not None else "0"))
 
-        # Strip "SQL:" lines and raw JSON that LLM sometimes includes
         explanation = re.sub(r'(?m)^SQL:.*$', '', explanation).strip()
-        explanation = re.sub(r'\{"sql":.*', '', explanation).strip()
-        # Replace any remaining {placeholders} with actual values or remove
-        explanation = re.sub(r'\{[^}]+\}', '', explanation)
+        explanation = re.sub(r'\{[^}]+\}', '', explanation).strip()
 
-        return jsonify({"reply": explanation, "sql": sql, "data": rows[:20] if rows else None})
+        return jsonify({"reply": explanation or "Done.", "sql": sql, "data": rows[:20] if rows else None})
 
     except Exception as e:
         import traceback
