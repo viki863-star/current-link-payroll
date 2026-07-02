@@ -56,6 +56,7 @@
             <div class="bt-card">
                 <h2>Add Transaction</h2>
                 <form method="post" class="bt-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <label>Transaction Type</label>
                     <select name="transaction_type" required onchange="toggleCheque(this.value)">
                         {% for t in types %}
@@ -161,6 +162,7 @@
                     <td style="color:#7b92b6;max-width:160px;overflow:hidden;text-overflow:ellipsis">{{ e.description or '—' }}</td>
                     <td>
                         <form method="post" action="{{ url_for('bank_transaction_delete', txn_id=e.id) }}" onsubmit="return confirm('Delete this transaction?')" style="margin:0">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="bt-btn bt-btn-danger">Delete</button>
                         </form>
                     </td>
