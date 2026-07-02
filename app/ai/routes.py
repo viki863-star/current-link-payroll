@@ -7,29 +7,26 @@ from flask import request, jsonify, current_app
 from . import ai_bp
 from ..database import open_db
 
-SCHEMA_DESC = """Available tables:
-
-1. employees(employee_id, full_name, phone_number, email, employee_type, department, designation, basic_salary, ot_rate, status, join_date, termination_date)
-2. drivers(driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type, basic_salary, ot_rate, status, termination_date)
-3. field_staff(staff_id, full_name, phone, username, is_active)
-4. cash_receipts(staff_id, given_by, amount, receipt_date)
-5. vehicles(plate_no, vehicle_type, model, year, ownership_type, status)
-6. vehicle_assignments(vehicle_id, driver_id, assigned_from, assigned_until, is_current)
-7. salary_store(driver_id/employee_id, salary_month, basic_salary, ot_amount, advances, deductions, net_salary)
-8. salary_slips(employee_id, salary_month, basic_salary, net_salary, status)
-9. salary_payments(employee_id, salary_month, amount, payment_date)
-10. maintenance_jobs(vehicle_id, staff_id, amount, category, status, description)
-11. technicians(technician_code, user_id, phone_number, specialization, status)
-12. maintenance_staff_advances(staff_code, amount, advance_date)
-13. maintenance_papers(technician_code, total_amount, review_status)
-14. parties(party_code, party_name, phone, role, status)
-15. suppliers(supplier_code, supplier_name, category, status)
-16. supplier_invoices(supplier_code, invoice_no, amount, status)
-17. supplier_bills(supplier_code, bill_no, amount, vat_amount, total_amount, status)
-18. account_invoices(invoice_no, party_code, total_amount, status)
-19. account_invoice_lines(invoice_id, description, quantity, unit_price, amount)
-20. account_payments(invoice_id, amount, payment_date)
-21. fuel_entries(vehicle_id, liters, rate, total_cost, entry_date)
+SCHEMA_DESC = """employees(id,full_name,phone,email,type,dept,designation,salary,status,join_date)
+drivers(id,full_name,phone,vehicle_no,shift,salary,status)
+field_staff(id,full_name,phone,username)
+cash_receipts(staff_id,amount,receipt_date)
+vehicles(plate_no,type,model,year,status)
+vehicle_assignments(vehicle_id,driver_id,assigned_from,is_current)
+salary_store(emp_id,month,basic_salary,ot,advances,deductions,net)
+salary_slips(emp_id,month,basic_salary,net,status)
+salary_payments(emp_id,month,amount,date)
+maintenance_jobs(vehicle_id,staff_id,amount,category,status)
+technicians(code,user_id,phone)
+maintenance_advances(staff_code,amount,date)
+maintenance_papers(code,total_amount,status)
+parties(code,name,phone,role,status)
+suppliers(code,name,category,status)
+supplier_invoices(code,inv_no,amount,status)
+supplier_bills(code,bill_no,amount,vat,total,status)
+account_invoices(inv_no,party_code,total,status)
+account_payments(inv_id,amount,date)
+fuel_entries(vehicle_id,liters,cost,date)
 """
 
 
@@ -49,7 +46,7 @@ def _call_gemini(messages, api_key=None):
     if not api_key:
         return None, "GEMINI_API_KEY not configured. Set it in .env file."
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
 
     gemini_contents = []
     for msg in messages:
@@ -93,25 +90,13 @@ def chat():
 
         today = date.today().isoformat()
         system = (
-            "You are an ERP AI assistant for Current Link Transport & General Contracting. "
-            "Answer questions by writing SQL SELECT queries. "
-            f"Current date: {today}.\n\n"
-            + SCHEMA_DESC +
-            "Rules:\n"
-            "- Respond ONLY with valid JSON: {\"sql\": \"SELECT ...\", \"explanation\": \"...\"}\n"
-            "- Use SELECT queries only (read-only)\n"
-            "- Use SQLite syntax (? placeholders) - system auto-converts for PostgreSQL\n"
-            "- Use strftime for dates in SQLite, EXTRACT in PostgreSQL\n"
-            "- Use COALESCE for NULL values\n"
-            "- Limit results to 20 rows\n"
-            "- Explanation in same language as the user's question\n"
-            "- For counts/sums always include the computed value in explanation\n"
-            "- Use ROUND for currency amounts\n"
-            "\nExample:\n"
-            'User: "FS-01 ki total cash receipts?"\n'
-            'Assistant: {"sql": "SELECT COUNT(*) AS cnt, COALESCE(SUM(amount),0) AS tot FROM cash_receipts WHERE staff_id = \'FS-01\'", "explanation": "FS-01 ne 5 cash receipts diye, total AED 1200"}\n\n'
-            'User: "Kitne active drivers?"\n'
-            'Assistant: {"sql": "SELECT COUNT(*) AS cnt FROM drivers WHERE status = \'Active\'", "explanation": "15 active drivers hain"}'
+            f"Date: {today}. "
+            "ERP assistant. Write SQL SELECT. "
+            "Schema:\n" + SCHEMA_DESC +
+            "Rules: Reply JSON {\"sql\":...,\"explanation\":...}. "
+            "SELECT only. Max 20 rows. COALESCE nulls. "
+            "Explanation in user's language. "
+            "Ex: {\"sql\":\"SELECT count(*) FROM drivers WHERE status='Active'\",\"explanation\":\"15 drivers\"}"
         )
 
         messages = [{"role": "system", "content": system}]
