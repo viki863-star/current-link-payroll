@@ -6341,12 +6341,8 @@ def register_routes(app: Flask) -> None:
 
         # 6. Bank transactions (Cheque type only)
         try:
-            rows = db.execute("""
-                SELECT entry_date, amount, payee, reference_no, cheque_number, cheque_date, description
-                FROM bank_transactions
-                WHERE transaction_type = 'Cheque'
-            """).fetchall()
-            for r in rows:
+            sub_rows = db.execute("SELECT entry_date, amount, payee, reference_no, cheque_number, cheque_date, description FROM bank_transactions WHERE transaction_type = 'Cheque'").fetchall()
+            for r in sub_rows:
                 if _matches_month_year(r["entry_date"], month, year):
                     entries.append({
                         "date": r["entry_date"],
@@ -6358,8 +6354,8 @@ def register_routes(app: Flask) -> None:
                         "reference": r["reference_no"] or "",
                         "notes": r["description"] or "",
                     })
-        except Exception:
-            pass
+        except Exception as ex:
+            flash(f"Bank txns error: {ex}", "error")
 
         entries.sort(key=lambda e: e["date"], reverse=True)
         total_amount = sum(e["amount"] for e in entries)
