@@ -5,52 +5,56 @@
 
 {% block content %}
 <style>
-.cr-shell{max-width:1200px;margin:0 auto}
-.cr-header{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px}
-.cr-header h1{margin:8px 0 10px;font-size:36px;line-height:1;color:#17345e}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+.cr-shell{max-width:1200px;margin:0 auto;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif}
+.cr-header{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:24px}
+.cr-header h1{margin:8px 0 10px;font-size:30px;font-weight:800;letter-spacing:-.5px;color:#0f1e3d;line-height:1.1}
 .cr-filter-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.cr-filter-form select,.cr-filter-form input{padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem}
-.cr-filter-form label{font-size:.78rem;font-weight:600}
-.cr-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.cr-filter-form select,.cr-filter-form input{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.8rem;font-weight:500;background:#fff;color:#1e293b;outline:none;transition:border-color .2s}
+.cr-filter-form select:focus,.cr-filter-form input:focus{border-color:#f7931e}
+.cr-filter-form label{font-size:.75rem;font-weight:600;color:#475569;display:flex;align-items:center;gap:6px}
+.cr-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
 @media(max-width:700px){.cr-stats{grid-template-columns:repeat(2,1fr)}}
-.cr-stat{background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center;transition:box-shadow .2s}
-.cr-stat:hover{box-shadow:0 4px 12px rgba(0,0,0,.06)}
-.cr-stat .lb{font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px}
-.cr-stat .vl{font-size:1.5rem;font-weight:700;margin-top:6px}
-.cr-tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid #eef3fa;padding-bottom:0}
-.cr-tab{padding:10px 20px;border:0;background:none;font-size:.85rem;font-weight:600;color:#7b92b6;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
-.cr-tab:hover{color:#17345e}
-.cr-tab.active{color:#17345e;border-bottom-color:#f7931e}
-.cr-pdf-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
-.cr-pdf-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border:0;border-radius:8px;color:#fff;font-weight:700;text-decoration:none;font-size:.82rem;transition:opacity .2s}
-.cr-pdf-btn:hover{opacity:.85}
-.cr-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.cr-stat{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px 16px;text-align:center;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.cr-stat:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);border-color:#cbd5e1;transform:translateY(-1px)}
+.cr-stat .lb{font-size:.62rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.cr-stat .vl{font-size:1.4rem;font-weight:700;margin-top:8px}
+.cr-tabs{display:flex;gap:4px;margin-bottom:18px;background:#f1f5f9;border-radius:12px;padding:4px;width:fit-content}
+.cr-tab{padding:8px 24px;border:0;background:none;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;border-radius:10px;transition:all .2s}
+.cr-tab:hover{color:#0f1e3d}
+.cr-tab.active{background:#fff;color:#0f1e3d;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.cr-pdf-bar{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap}
+.cr-pdf-btn{display:inline-flex;align-items:center;gap:8px;padding:9px 20px;border:0;border-radius:10px;color:#fff;font-weight:600;text-decoration:none;font-size:.8rem;transition:all .2s;letter-spacing:.02em}
+.cr-pdf-btn:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.cr-charts{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px}
 @media(max-width:800px){.cr-charts{grid-template-columns:1fr}}
-.cr-chart-box{background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px}
-.cr-chart-box h3{margin:0 0 14px;font-size:.82rem;font-weight:700;color:#17345e;text-transform:uppercase;letter-spacing:.06em}
-.cr-table-wrap{background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow-x:auto}
-.cr-table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:700px}
-.cr-table th{padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;text-align:left;background:#f5f8fe}
-.cr-table td{padding:10px 14px;border-top:1px solid #eef3fa}
-.cr-table tfoot td{background:#f5f8fe;font-weight:700;padding:12px 14px}
-.cr-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.72rem;font-weight:700}
-.pie-wrap{display:flex;align-items:center;gap:16px}
-.pie{width:100px;height:100px;border-radius:50%;flex-shrink:0}
+.cr-chart-box{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.cr-chart-box h3{margin:0 0 16px;font-size:.78rem;font-weight:700;color:#0f1e3d;text-transform:uppercase;letter-spacing:.08em}
+.cr-table-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.cr-table{width:100%;border-collapse:collapse;font-size:.8rem;min-width:750px}
+.cr-table th{padding:14px 16px;color:#475569;font-weight:600;white-space:nowrap;text-align:left;background:#f8fafc;border-bottom:2px solid #e2e8f0;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em}
+.cr-table td{padding:12px 16px;border-bottom:1px solid #f1f5f9;transition:background .15s}
+.cr-table tbody tr:hover td{background:#f8fafc}
+.cr-table tfoot td{background:#f1f5f9;font-weight:700;padding:14px 16px;border-top:2px solid #e2e8f0;color:#0f1e3d}
+.cr-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:.7rem;font-weight:600;letter-spacing:.02em}
+.pie-wrap{display:flex;align-items:center;gap:20px}
+.pie{width:110px;height:110px;border-radius:50%;flex-shrink:0}
 .pie-leg{flex:1}
-.pie-leg-item{display:flex;align-items:center;gap:8px;font-size:.78rem;margin-bottom:4px}
-.pie-leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.pie-leg-item{display:flex;align-items:center;gap:10px;font-size:.78rem;margin-bottom:6px;color:#334155}
+.pie-leg-item:last-child{margin-bottom:0}
+.pie-leg-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
 .bar-chart{display:flex;align-items:flex-end;gap:4px;height:120px;padding-top:10px}
 .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
 .bar{width:100%;max-width:28px;border-radius:4px 4px 0 0;min-height:2px;transition:height .4s}
-.bar-label{font-size:.55rem;color:#7b92b6;margin-top:4px;white-space:nowrap;transform:rotate(-45deg);transform-origin:left top}
-.bar-val{font-size:.55rem;font-weight:700;color:#17345e;margin-bottom:2px}
+.bar-label{font-size:.55rem;color:#94a3b8;margin-top:6px;white-space:nowrap;transform:rotate(-45deg);transform-origin:left top;font-weight:500}
+.bar-val{font-size:.55rem;font-weight:700;color:#0f1e3d;margin-bottom:3px}
 </style>
 
 <div class="cr-shell">
     {# ═══ HEADER ═══ #}
     <div class="cr-header">
         <div>
-            <div style="font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#7b92b6;">Accounts</div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#94a3b8;">Accounts</div>
             <h1>Cheque Report</h1>
         </div>
         <form method="get" class="cr-filter-form">
@@ -69,9 +73,9 @@
                     {% endfor %}
                 </select>
             </label>
-            <button type="submit" style="padding:7px 16px;border:0;border-radius:8px;background:#f7931e;color:#fff;font-weight:700;cursor:pointer;">Filter</button>
-            {% if selected_month or selected_year %}
-            <a href="{{ url_for('cheque_report') }}" style="padding:7px 16px;border:0;border-radius:8px;background:#255f99;color:#fff;font-weight:700;text-decoration:none;">Clear</a>
+            <button type="submit" style="padding:8px 18px;border:0;border-radius:10px;background:#f7931e;color:#fff;font-weight:600;cursor:pointer;font-size:.8rem;transition:all .2s">Filter</button>
+            {% if selected_month or selected_year or search_q or filter_method %}
+            <a href="{{ url_for('cheque_report') }}" style="padding:8px 18px;border:0;border-radius:10px;background:#475569;color:#fff;font-weight:600;text-decoration:none;font-size:.8rem;transition:all .2s">Clear</a>
             {% endif %}
         </form>
     </div>
@@ -158,8 +162,8 @@
                     <td style="color:#17345e;font-weight:600">{{ e.payee }}</td>
                     <td>
                         <span class="cr-badge" style="
-                            {% if e.payee_type == 'Customer' %}background:#e3f2fd;color:#1565c0
-                            {% else %}background:#e8f5e9;color:#2e7d32{% endif %}">{{ 'In' if e.payee_type == 'Customer' else 'Out' }}</span>
+                            {% if e.payee_type == 'Customer' %}background:#dbeafe;color:#1d4ed8
+                            {% else %}background:#dcfce7;color:#15803d{% endif %}">{{ 'In' if e.payee_type == 'Customer' else 'Out' }}</span>
                     </td>
                     <td style="font-weight:600">{{ e.cheque_no or '—' }}</td>
                     <td>{{ e.cheque_date or '—' }}</td>
