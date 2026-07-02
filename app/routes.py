@@ -6339,6 +6339,28 @@ def register_routes(app: Flask) -> None:
         except Exception:
             pass
 
+        # 6. Bank transactions (Cheque type only)
+        try:
+            rows = db.execute("""
+                SELECT entry_date, amount, payee, reference_no, cheque_number, cheque_date, description
+                FROM bank_transactions
+                WHERE transaction_type = 'Cheque'
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["entry_date"], month, year):
+                    entries.append({
+                        "date": r["entry_date"],
+                        "payee": r["payee"] or "—",
+                        "payee_type": "Bank Transaction",
+                        "cheque_no": r["cheque_number"] or "",
+                        "cheque_date": r["cheque_date"] or "",
+                        "amount": float(r["amount"] or 0),
+                        "reference": r["reference_no"] or "",
+                        "notes": r["description"] or "",
+                    })
+        except Exception:
+            pass
+
         entries.sort(key=lambda e: e["date"], reverse=True)
         total_amount = sum(e["amount"] for e in entries)
         supplier_count = sum(1 for e in entries if e["payee_type"] == "Supplier")
@@ -7027,6 +7049,170 @@ def register_routes(app: Flask) -> None:
         buf.seek(0)
         fn = f"Customer_Cheque_Report_{month or 'All'}_{year}.pdf"
         return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=fn)
+
+    # ═══════════════════════════════════════════════════
+    # BANK TRANSACTIONS
+    # ═══════════════════════════════════════════════════
+    @app.route("/bank-transactions", methods=["GET", "POST"])
+    @_login_required("admin")
+    def bank_transactions():
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        # Ensure table
+        if db.backend == "postgres":
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS bank_transactions (
+                    id BIGSERIAL PRIMARY KEY,
+                    entry_date TEXT NOT NULL,
+                    transaction_type TEXT NOT NULL,
+                    amount DOUBLE PRECISION NOT NULL,
+                    payee TEXT,
+                    reference_no TEXT,
+                    cheque_number TEXT,
+                    cheque_date TEXT,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+        else:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS bank_transactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    entry_date TEXT NOT NULL,
+                    transaction_type TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    payee TEXT,
+                    reference_no TEXT,
+                    cheque_number TEXT,
+                    cheque_date TEXT,
+                    description TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+        db.commit()
+
+        if request.method == "POST":
+            entry_date = request.form.get("entry_date", "").strip()
+            transaction_type = request.form.get("transaction_type", "").strip()
+            amount = request.form.get("amount", "0").strip()
+            payee = request.form.get("payee", "").strip()
+            reference_no = request.form.get("reference_no", "").strip()
+            cheque_number = request.form.get("cheque_number", "").strip()
+            cheque_date = request.form.get("cheque_date", "").strip()
+            description = request.form.get("description", "").strip()
+            if entry_date and transaction_type and amount:
+                try:
+                    amount_f = float(amount)
+                    db.execute(
+                        "INSERT INTO bank_transactions (entry_date, transaction_type, amount, payee, reference_no, cheque_number, cheque_date, description) VALUES (?,?,?,?,?,?,?,?)",
+                        (entry_date, transaction_type, amount_f, payee or None, reference_no or None, cheque_number or None, cheque_date or None, description or None),
+                    )
+                    db.commit()
+                    flash("Transaction added", "success")
+                except Exception as e:
+                    flash(f"Error: {e}", "error")
+            else:
+                flash("Date, type, amount required", "error")
+            return redirect(url_for("bank_transactions"))
+
+        # GET - list
+        search_q = request.args.get("q", "").strip()
+        filter_type = request.args.get("type", "").strip()
+        month = request.args.get("month", "")
+        year = request.args.get("year", "")
+
+        rows = db.execute("SELECT * FROM bank_transactions ORDER BY entry_date DESC").fetchall()
+        entries = []
+        for r in rows:
+            if month and year:
+                try:
+                    parts = r["entry_date"].split("-")
+                    if len(parts) >= 2:
+                        if parts[1] != month or parts[0] != year:
+                            continue
+                except (IndexError, ValueError):
+                    pass
+            elif year:
+                try:
+                    if r["entry_date"].split("-")[0] != year:
+                        continue
+                except (IndexError, ValueError):
+                    pass
+            if filter_type and r["transaction_type"].lower() != filter_type.lower():
+                continue
+            if search_q and search_q.lower() not in str(r["payee"] or "").lower():
+                continue
+            entries.append(dict(r))
+        db.close()
+
+        types = ["Cheque", "ATM Withdrawal", "Bank Transfer", "Online Transfer", "Bank Charge", "Other"]
+        months_list = [{"value": str(i), "label": datetime(2000, i, 1).strftime("%B")} for i in range(1, 13)]
+        years_list = list(range(2020, datetime.now().year + 1))
+        total_amount = sum(e["amount"] for e in entries)
+
+        return render_template(
+            "bank_transactions.html",
+            entries=entries,
+            types=types,
+            search_q=search_q,
+            filter_type=filter_type,
+            selected_month=month,
+            selected_year=year,
+            months=months_list,
+            years=years_list,
+            total_amount=total_amount,
+            today=datetime.now().strftime("%Y-%m-%d"),
+        )
+
+    @app.post("/bank-transactions/<int:txn_id>/delete")
+    @_login_required("admin")
+    def bank_transaction_delete(txn_id):
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        db.execute("DELETE FROM bank_transactions WHERE id = ?", (txn_id,))
+        db.commit()
+        db.close()
+        flash("Transaction deleted", "success")
+        return redirect(url_for("bank_transactions"))
+
+    # ═══════════════════════════════════════════════════
+    # ATM REPORT
+    # ═══════════════════════════════════════════════════
+    @app.get("/atm-report")
+    @_login_required("admin")
+    def atm_report():
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        month = request.args.get("month", "")
+        year = request.args.get("year", "")
+        if not year:
+            year = str(datetime.now().year)
+
+        rows = db.execute("""
+            SELECT * FROM bank_transactions
+            WHERE transaction_type = 'ATM Withdrawal'
+            ORDER BY entry_date DESC
+        """).fetchall()
+        entries = []
+        for r in rows:
+            if _matches_month_year(r["entry_date"], month, year):
+                entries.append(dict(r))
+        db.close()
+
+        total_amount = sum(e["amount"] for e in entries)
+        months_list = [{"value": str(i), "label": datetime(2000, i, 1).strftime("%B")} for i in range(1, 13)]
+        years_list = list(range(2020, datetime.now().year + 1))
+
+        return render_template(
+            "atm_report.html",
+            entries=entries,
+            total_amount=total_amount,
+            entry_count=len(entries),
+            selected_month=month,
+            selected_year=year,
+            months=months_list,
+            years=years_list,
+        )
 
     @app.route("/technicians", methods=["GET", "POST"])
     @_login_required("admin")

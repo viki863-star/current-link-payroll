@@ -116,6 +116,8 @@
                 {"label": "Customer Tax Report", "endpoint": "customer.customer_tax_report", "icon": "calculator"},
                 {"label": "Supplier Purchase Report", "endpoint": "supplier.supplier_purchase_report", "icon": "cart"},
                 {"label": "Cheque Report", "endpoint": "cheque_report", "icon": "file-text"},
+                {"label": "Bank Transactions", "endpoint": "bank_transactions", "icon": "book"},
+                {"label": "ATM Report", "endpoint": "atm_report", "icon": "file-text"},
             ] %}
             {% set accounts_endpoints = [] %}
             {% for ch in accounts_children %}{% set _ = accounts_endpoints.append(ch.endpoint) %}{% endfor %}

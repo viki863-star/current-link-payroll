@@ -900,6 +900,19 @@ CREATE TABLE IF NOT EXISTS contact_inquiries (
     company TEXT, equipment TEXT, message TEXT NOT NULL,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS bank_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entry_date TEXT NOT NULL,
+    transaction_type TEXT NOT NULL,
+    amount REAL NOT NULL,
+    payee TEXT,
+    reference_no TEXT,
+    cheque_number TEXT,
+    cheque_date TEXT,
+    description TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
@@ -1775,6 +1788,19 @@ CREATE TABLE IF NOT EXISTS supplier_quotation_submissions (
     created_by_name TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS bank_transactions (
+    id BIGSERIAL PRIMARY KEY,
+    entry_date TEXT NOT NULL,
+    transaction_type TEXT NOT NULL,
+    amount DOUBLE PRECISION NOT NULL,
+    payee TEXT,
+    reference_no TEXT,
+    cheque_number TEXT,
+    cheque_date TEXT,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS supplier_inquiries (

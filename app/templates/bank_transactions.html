@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Bank Transactions — Current Link ERP{% endblock %}
+{% block body_class %}dashboard-body{% endblock %}
+{% block page_title %}Bank Transactions{% endblock %}
+
+{% block content %}
+<style>
+.bt-shell{max-width:1200px;margin:0 auto}
+.bt-header{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px}
+.bt-header h1{margin:8px 0 10px;font-size:36px;line-height:1;color:#17345e}
+.bt-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:900px){.bt-grid{grid-template-columns:1fr}}
+.bt-card{background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:22px}
+.bt-card h2{margin:0 0 16px;font-size:1rem;color:#17345e;text-transform:uppercase;letter-spacing:.06em}
+.bt-form label{display:block;font-size:.78rem;font-weight:600;color:#17345e;margin-bottom:4px;margin-top:12px}
+.bt-form label:first-child{margin-top:0}
+.bt-form input,.bt-form select,.bt-form textarea{width:100%;padding:8px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem;box-sizing:border-box}
+.bt-form textarea{resize:vertical;min-height:60px}
+.bt-form .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.bt-btn{padding:10px 24px;border:0;border-radius:8px;font-weight:700;cursor:pointer;font-size:.85rem;margin-top:16px}
+.bt-btn-primary{background:#f7931e;color:#fff}
+.bt-btn-primary:hover{opacity:.9}
+.bt-btn-danger{background:#d32f2f;color:#fff;padding:4px 12px;font-size:.75rem}
+.bt-btn-danger:hover{opacity:.9}
+.bt-filter{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.bt-filter input,.bt-filter select{padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem}
+.bt-filter button{padding:6px 14px;border:0;border-radius:8px;background:#f7931e;color:#fff;font-weight:700;cursor:pointer;font-size:.82rem}
+.bt-table-wrap{background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow-x:auto;margin-top:16px}
+.bt-table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:700px}
+.bt-table th{padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;text-align:left;background:#f5f8fe}
+.bt-table td{padding:10px 14px;border-top:1px solid #eef3fa}
+.bt-table tfoot td{background:#f5f8fe;font-weight:700;padding:12px 14px}
+.bt-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.72rem;font-weight:700}
+.bt-stat{background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center}
+.bt-stat .lb{font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px}
+.bt-stat .vl{font-size:1.5rem;font-weight:700;margin-top:6px}
+.bt-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+</style>
+
+<div class="bt-shell">
+    <div class="bt-header">
+        <div>
+            <div style="font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#7b92b6;">Accounts</div>
+            <h1>Bank Transactions</h1>
+        </div>
+    </div>
+
+    {% for msg in get_flashed_messages(with_categories=true) %}
+    <div style="padding:10px 16px;border-radius:8px;margin-bottom:14px;font-size:.85rem;{% if msg[0]=='error' %}background:#ffebee;color:#c62828{% else %}background:#e8f5e9;color:#2e7d32{% endif %}">{{ msg[1] }}</div>
+    {% endfor %}
+
+    {# ═══ FORM + LIST ═══ #}
+    <div class="bt-grid">
+        {# ─── ADD FORM ─── #}
+        <div>
+            <div class="bt-card">
+                <h2>Add Transaction</h2>
+                <form method="post" class="bt-form">
+                    <label>Transaction Type</label>
+                    <select name="transaction_type" required onchange="toggleCheque(this.value)">
+                        {% for t in types %}
+                        <option value="{{ t }}">{{ t }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label>Date</label>
+                    <input type="date" name="entry_date" required value="{{ today or '' }}">
+
+                    <label>Amount (AED)</label>
+                    <input type="number" step="0.01" name="amount" required>
+
+                    <label>Payee / Party Name</label>
+                    <input type="text" name="payee" placeholder="e.g. Name">
+
+                    <div class="form-row">
+                        <div>
+                            <label>Reference No</label>
+                            <input type="text" name="reference_no" placeholder="Optional">
+                        </div>
+                        <div id="chequeFields" style="display:none">
+                            <label>Cheque Number</label>
+                            <input type="text" name="cheque_number" placeholder="e.g. 123456">
+                            <label>Cheque Date</label>
+                            <input type="date" name="cheque_date">
+                        </div>
+                    </div>
+
+                    <label>Description</label>
+                    <textarea name="description" placeholder="Optional notes..."></textarea>
+
+                    <button type="submit" class="bt-btn bt-btn-primary">Add Transaction</button>
+                </form>
+            </div>
+        </div>
+
+        {# ─── STATS + RECENT ─── #}
+        <div>
+            <div class="bt-stats" style="margin-bottom:12px">
+                <div class="bt-stat"><div class="lb">Total Entries</div><div class="vl" style="color:#17345e">{{ entries|length }}</div></div>
+                <div class="bt-stat"><div class="lb">Total Amount</div><div class="vl" style="color:#f7931e">AED {{ "{:,.2f}".format(total_amount) }}</div></div>
+            </div>
+
+            <div class="bt-card">
+                <h2>Filter</h2>
+                <form method="get" class="bt-filter">
+                    <input type="text" name="q" placeholder="Search payee..." value="{{ search_q or '' }}">
+                    <select name="type">
+                        <option value="">All Types</option>
+                        {% for t in types %}
+                        <option value="{{ t }}" {{ 'selected' if filter_type == t }}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="month">
+                        <option value="">Month</option>
+                        {% for m in months %}
+                        <option value="{{ m.value }}" {{ 'selected' if selected_month == m.value }}>{{ m.label }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="year">
+                        {% for y in years %}
+                        <option value="{{ y }}" {{ 'selected' if selected_year == y|string }}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">Filter</button>
+                    {% if search_q or filter_type or selected_month or selected_year %}
+                    <a href="{{ url_for('bank_transactions') }}" style="padding:6px 14px;border:0;border-radius:8px;background:#255f99;color:#fff;font-weight:700;text-decoration:none;font-size:.82rem">Clear</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# ═══ TABLE ═══ #}
+    <div class="bt-table-wrap">
+        <table class="bt-table">
+            <thead>
+                <tr>
+                    <th>DATE</th>
+                    <th>TYPE</th>
+                    <th>PAYEE</th>
+                    <th>AMOUNT (AED)</th>
+                    <th>CHEQUE NO</th>
+                    <th>REFERENCE</th>
+                    <th>DESCRIPTION</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entries %}
+                <tr>
+                    <td style="white-space:nowrap">{{ e.entry_date }}</td>
+                    <td>
+                        {% set tcolors = {'Cheque':'#fff3e0;#e65100','ATM Withdrawal':'#ffebee;#c62828','Bank Transfer':'#e3f2fd;#1565c0','Online Transfer':'#e8f5e9;#2e7d32','Bank Charge':'#fce4ec;#d32f2f','Other':'#eceff1;#546e7a'} %}
+                        {% set tc = tcolors.get(e.transaction_type,'#f5f5f5;#616161').split(';') %}
+                        <span class="bt-badge" style="background:{{ tc[0] }};color:{{ tc[1] }}">{{ e.transaction_type }}</span>
+                    </td>
+                    <td style="color:#17345e;font-weight:600">{{ e.payee or '—' }}</td>
+                    <td style="text-align:right;font-weight:600">{{ "{:,.2f}".format(e.amount) }}</td>
+                    <td>{{ e.cheque_number or '—' }}</td>
+                    <td style="color:#7b92b6">{{ e.reference_no or '—' }}</td>
+                    <td style="color:#7b92b6;max-width:160px;overflow:hidden;text-overflow:ellipsis">{{ e.description or '—' }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('bank_transaction_delete', txn_id=e.id) }}" onsubmit="return confirm('Delete this transaction?')" style="margin:0">
+                            <button type="submit" class="bt-btn bt-btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" style="padding:32px;text-align:center;color:#a0b5cf">No transactions yet.</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" style="padding:12px 14px;color:#17345e;font-weight:700">TOTAL</td>
+                    <td style="padding:12px 14px;text-align:right;font-weight:700">AED {{ "{:,.2f}".format(total_amount) }}</td>
+                    <td colspan="4"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<script>
+function toggleCheque(val) {
+    var el = document.getElementById('chequeFields');
+    el.style.display = (val === 'Cheque') ? 'block' : 'none';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}ATM Withdrawal Report — Current Link ERP{% endblock %}
+{% block body_class %}dashboard-body{% endblock %}
+{% block page_title %}ATM Withdrawal Report{% endblock %}
+
+{% block content %}
+<style>
+.atm-shell{max-width:1000px;margin:0 auto}
+.atm-header{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px}
+.atm-header h1{margin:8px 0 10px;font-size:36px;line-height:1;color:#17345e}
+.atm-filter{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.atm-filter select,.atm-filter input{padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem}
+.atm-filter button{padding:6px 14px;border:0;border-radius:8px;background:#f7931e;color:#fff;font-weight:700;cursor:pointer;font-size:.82rem}
+.atm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:600px){.atm-stats{grid-template-columns:1fr}}
+.atm-stat{background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center}
+.atm-stat .lb{font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px}
+.atm-stat .vl{font-size:1.5rem;font-weight:700;margin-top:6px}
+.atm-table-wrap{background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow-x:auto}
+.atm-table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:600px}
+.atm-table th{padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;text-align:left;background:#f5f8fe}
+.atm-table td{padding:10px 14px;border-top:1px solid #eef3fa}
+.atm-table tfoot td{background:#f5f8fe;font-weight:700;padding:12px 14px}
+</style>
+
+<div class="atm-shell">
+    <div class="atm-header">
+        <div>
+            <div style="font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#7b92b6;">Accounts</div>
+            <h1>ATM Withdrawal Report</h1>
+        </div>
+        <form method="get" class="atm-filter">
+            <label>Month:
+                <select name="month">
+                    <option value="">All</option>
+                    {% for m in months %}
+                    <option value="{{ m.value }}" {{ 'selected' if selected_month == m.value }}>{{ m.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Year:
+                <select name="year">
+                    {% for y in years %}
+                    <option value="{{ y }}" {{ 'selected' if selected_year == y|string }}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <button type="submit">Filter</button>
+            {% if selected_month or selected_year %}
+            <a href="{{ url_for('atm_report') }}" style="padding:6px 14px;border:0;border-radius:8px;background:#255f99;color:#fff;font-weight:700;text-decoration:none;font-size:.82rem">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="atm-stats">
+        <div class="atm-stat"><div class="lb">Total Withdrawals</div><div class="vl" style="color:#c62828">{{ entry_count }}</div></div>
+        <div class="atm-stat"><div class="lb">Total Amount</div><div class="vl" style="color:#c62828">AED {{ "{:,.2f}".format(total_amount) }}</div></div>
+        <div class="atm-stat"><div class="lb">Average</div><div class="vl" style="color:#17345e">AED {{ "{:,.2f}".format(total_amount / entry_count) if entry_count > 0 else 0 }}</div></div>
+    </div>
+
+    <div class="atm-table-wrap">
+        <table class="atm-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>DATE</th>
+                    <th>PAYEE</th>
+                    <th style="text-align:right">AMOUNT (AED)</th>
+                    <th>REFERENCE</th>
+                    <th>DESCRIPTION</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entries %}
+                <tr>
+                    <td style="color:#a0b5cf">{{ loop.index }}</td>
+                    <td style="white-space:nowrap">{{ e.entry_date }}</td>
+                    <td style="color:#17345e;font-weight:600">{{ e.payee or '—' }}</td>
+                    <td style="text-align:right;font-weight:600;color:#c62828">{{ "{:,.2f}".format(e.amount) }}</td>
+                    <td style="color:#7b92b6">{{ e.reference_no or '—' }}</td>
+                    <td style="color:#7b92b6;max-width:200px">{{ e.description or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" style="padding:32px;text-align:center;color:#a0b5cf">No ATM withdrawals found.</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" style="padding:12px 14px;color:#17345e;font-weight:700">TOTAL</td>
+                    <td id="atmTotal" style="padding:12px 14px;text-align:right;font-weight:700">AED {{ "{:,.2f}".format(total_amount) }}</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endblock %}
