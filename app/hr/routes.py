@@ -1441,44 +1441,45 @@ def employee_edit(employee_id):
                 db.rollback()
                 return redirect(url_for("hr.employee_edit", employee_id=employee_id))
 
-            if values["vehicle_id"]:
-                db.execute(
-                    "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
-                    (date.today().isoformat(), employee_id),
-                )
-                existing = db.execute(
-                    "SELECT id FROM vehicle_assignments WHERE vehicle_id = ? AND driver_id = ? AND is_current = 1",
-                    (values["vehicle_id"], employee_id),
-                ).fetchone()
-                if not existing:
+            if values.get("employee_type") == "Driver":
+                if values["vehicle_id"]:
                     db.execute(
-                        "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
-                        (values["vehicle_id"], employee_id, date.today().isoformat()),
+                        "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
+                        (date.today().isoformat(), employee_id),
                     )
-                db.execute("UPDATE drivers SET vehicle_no = ? WHERE driver_id = ?", (values["vehicle_id"], employee_id))
-            else:
-                db.execute(
-                    "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
-                    (date.today().isoformat(), employee_id),
-                )
-                db.execute("UPDATE drivers SET vehicle_no = NULL WHERE driver_id = ?", (employee_id,))
+                    existing = db.execute(
+                        "SELECT id FROM vehicle_assignments WHERE vehicle_id = ? AND driver_id = ? AND is_current = 1",
+                        (values["vehicle_id"], employee_id),
+                    ).fetchone()
+                    if not existing:
+                        db.execute(
+                            "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
+                            (values["vehicle_id"], employee_id, date.today().isoformat()),
+                        )
+                    db.execute("UPDATE drivers SET vehicle_no = ? WHERE driver_id = ?", (values["vehicle_id"], employee_id))
+                else:
+                    db.execute(
+                        "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
+                        (date.today().isoformat(), employee_id),
+                    )
+                    db.execute("UPDATE drivers SET vehicle_no = NULL WHERE driver_id = ?", (employee_id,))
+
+                try:
+                    db.execute(
+                        "UPDATE drivers SET basic_salary=?, ot_rate=?, duty_start=?, shift=?, full_name=?, phone_number=?, photo_name=COALESCE(?, photo_name), photo_data=COALESCE(?, photo_data), photo_content_type=COALESCE(?, photo_content_type), vehicle_no=?, status=?, termination_date=? WHERE UPPER(driver_id)=?",
+                        (salary, ot_rate, values["join_date"], values["shift"] or "Morning", values["full_name"], values["phone_number"] or None,
+                         uploaded_photo["photo_name"] if uploaded_photo else None,
+                         uploaded_photo["photo_data"] if uploaded_photo else None,
+                         uploaded_photo["photo_content_type"] if uploaded_photo else None,
+                         values.get("vehicle_id", "") or "",
+                         values["status"], values["termination_date"] or None, employee_id),
+                    )
+                    db.commit()
+                except Exception:
+                    db.rollback()
 
             _audit_log(db, "employee_updated", entity_type="employee", entity_id=employee_id, details=f"{values['full_name']} updated")
             db.commit()
-
-            try:
-                db.execute(
-                    "UPDATE drivers SET basic_salary=?, ot_rate=?, duty_start=?, shift=?, full_name=?, phone_number=?, photo_name=COALESCE(?, photo_name), photo_data=COALESCE(?, photo_data), photo_content_type=COALESCE(?, photo_content_type), vehicle_no=?, status=?, termination_date=? WHERE UPPER(driver_id)=?",
-                    (salary, ot_rate, values["join_date"], values["shift"] or "Morning", values["full_name"], values["phone_number"] or None,
-                     uploaded_photo["photo_name"] if uploaded_photo else None,
-                     uploaded_photo["photo_data"] if uploaded_photo else None,
-                     uploaded_photo["photo_content_type"] if uploaded_photo else None,
-                     values.get("vehicle_id", "") or "",
-                     values["status"], values["termination_date"] or None, employee_id),
-                )
-                db.commit()
-            except Exception:
-                db.rollback()
 
             flash("Employee updated successfully.", "success")
             return redirect(url_for("hr.employee_detail", employee_id=employee_id))
