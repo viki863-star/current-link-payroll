@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Bank Report — Current Link ERP{% endblock %}
+{% block title %}Cheque Report — Current Link ERP{% endblock %}
 {% block body_class %}dashboard-body{% endblock %}
-{% block page_title %}Bank Report{% endblock %}
+{% block page_title %}Cheque Report{% endblock %}
 
 {% block content %}
 <style>
@@ -11,7 +11,8 @@
 .cr-filter-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .cr-filter-form select,.cr-filter-form input{padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem}
 .cr-filter-form label{font-size:.78rem;font-weight:600}
-.cr-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.cr-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:700px){.cr-stats{grid-template-columns:repeat(2,1fr)}}
 .cr-stat{background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px 16px;text-align:center;transition:box-shadow .2s}
 .cr-stat:hover{box-shadow:0 4px 12px rgba(0,0,0,.06)}
 .cr-stat .lb{font-size:0.62rem;color:#7b92b6;text-transform:uppercase;letter-spacing:0.3px}
@@ -28,12 +29,13 @@
 .cr-chart-box{background:#fff;border:1px solid #d8e4f5;border-radius:14px;padding:18px}
 .cr-chart-box h3{margin:0 0 14px;font-size:.82rem;font-weight:700;color:#17345e;text-transform:uppercase;letter-spacing:.06em}
 .cr-table-wrap{background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow-x:auto}
-.cr-table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:750px}
+.cr-table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:700px}
 .cr-table th{padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;text-align:left;background:#f5f8fe}
 .cr-table td{padding:10px 14px;border-top:1px solid #eef3fa}
 .cr-table tfoot td{background:#f5f8fe;font-weight:700;padding:12px 14px}
 .cr-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.72rem;font-weight:700}
 .pie-wrap{display:flex;align-items:center;gap:16px}
+.pie{width:100px;height:100px;border-radius:50%;flex-shrink:0}
 .pie-leg{flex:1}
 .pie-leg-item{display:flex;align-items:center;gap:8px;font-size:.78rem;margin-bottom:4px}
 .pie-leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -42,10 +44,6 @@
 .bar{width:100%;max-width:28px;border-radius:4px 4px 0 0;min-height:2px;transition:height .4s}
 .bar-label{font-size:.55rem;color:#7b92b6;margin-top:4px;white-space:nowrap;transform:rotate(-45deg);transform-origin:left top}
 .bar-val{font-size:.55rem;font-weight:700;color:#17345e;margin-bottom:2px}
-.cr-search-box{display:flex;gap:6px;align-items:center}
-.cr-search-box input{padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem;min-width:160px}
-.cr-search-box button{padding:6px 14px;border:0;border-radius:8px;background:#f7931e;color:#fff;font-weight:700;cursor:pointer;font-size:.82rem}
-.method-badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:.72rem;font-weight:600;white-space:nowrap}
 </style>
 
 <div class="cr-shell">
@@ -53,21 +51,9 @@
     <div class="cr-header">
         <div>
             <div style="font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#7b92b6;">Accounts</div>
-            <h1>Bank Report</h1>
+            <h1>Cheque Report</h1>
         </div>
         <form method="get" class="cr-filter-form">
-            <div class="cr-search-box">
-                <input type="text" name="q" placeholder="Search by name..." value="{{ search_q or '' }}">
-                <button type="submit">Search</button>
-            </div>
-            <label>Method:
-                <select name="method">
-                    <option value="">All (non-Cash)</option>
-                    {% for m in method_options %}
-                    <option value="{{ m }}" {{ 'selected' if filter_method == m }}>{{ m }}</option>
-                    {% endfor %}
-                </select>
-            </label>
             <label>Month:
                 <select name="month">
                     <option value="">All</option>
@@ -84,7 +70,7 @@
                 </select>
             </label>
             <button type="submit" style="padding:7px 16px;border:0;border-radius:8px;background:#f7931e;color:#fff;font-weight:700;cursor:pointer;">Filter</button>
-            {% if selected_month or selected_year or search_q or filter_method %}
+            {% if selected_month or selected_year %}
             <a href="{{ url_for('cheque_report') }}" style="padding:7px 16px;border:0;border-radius:8px;background:#255f99;color:#fff;font-weight:700;text-decoration:none;">Clear</a>
             {% endif %}
         </form>
@@ -92,54 +78,31 @@
 
     {# ═══ STATS CARDS ═══ #}
     <div class="cr-stats">
-        <div class="cr-stat"><div class="lb">Total Transactions</div><div class="vl" style="color:#17345e">{{ entry_count }}</div></div>
-        <div class="cr-stat"><div class="lb">Supplier</div><div class="vl" style="color:#2e7d32">{{ supplier_count }}</div></div>
-        <div class="cr-stat"><div class="lb">Customer</div><div class="vl" style="color:#1565c0">{{ customer_count }}</div></div>
-        {% if account_count %}
-        <div class="cr-stat"><div class="lb">Account</div><div class="vl" style="color:#7b1fa2">{{ account_count }}</div></div>
-        {% endif %}
+        <div class="cr-stat"><div class="lb">Total Cheques</div><div class="vl" style="color:#17345e">{{ entry_count }}</div></div>
+        <div class="cr-stat"><div class="lb">Supplier Cheques</div><div class="vl" style="color:#2e7d32">{{ supplier_count }}</div></div>
+        <div class="cr-stat"><div class="lb">Customer Cheques</div><div class="vl" style="color:#1565c0">{{ customer_count }}</div></div>
         <div class="cr-stat"><div class="lb">Total Amount</div><div class="vl" style="color:#f7931e">AED {{ "{:,.2f}".format(total_amount) }}</div></div>
     </div>
-
-    {# ═══ METHOD BREAKDOWN ═══ #}
-    {% if method_breakdown %}
-    <div class="cr-stats" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
-        {% for m, data in method_breakdown.items() %}
-        {% set colors = {'Cheque':'#e65100','Bank':'#1565c0','Transfer':'#2e7d32','Owner Fund':'#6a1b9a','Card':'#c62828','Other':'#546e7a'} %}
-        <div class="cr-stat">
-            <div class="lb">{{ m }}</div>
-            <div class="vl" style="color:{{ colors.get(m,'#17345e') }};font-size:1.1rem">{{ data.count }}</div>
-            <div style="font-size:.72rem;color:#7b92b6;margin-top:4px">AED {{ "{:,.0f}".format(data.total) }}</div>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
 
     {# ═══ CHARTS ═══ #}
     <div class="cr-charts">
         {# ─── PIE CHART ─── #}
         <div class="cr-chart-box">
-            <h3>By Type</h3>
+            <h3>Supplier vs Customer</h3>
             {% set sup_pct = (supplier_total / total_amount * 100) if total_amount > 0 else 0 %}
             {% set cust_pct = (customer_total / total_amount * 100) if total_amount > 0 else 0 %}
-            {% set acct_pct = (account_total / total_amount * 100) if total_amount > 0 else 0 %}
             <div class="pie-wrap">
-                <div style="width:100px;height:100px;border-radius:50%;flex-shrink:0;background:conic-gradient(
-                    {%- if supplier_total > 0 %}#2e7d32 0deg {{ sup_pct }}deg{% endif -%}
-                    {%- if customer_total > 0 %}{% if supplier_total > 0 %}, {% endif %}#1565c0 {{ sup_pct }}deg {{ (sup_pct + cust_pct)|int }}deg{% endif -%}
-                    {%- if account_total > 0 %}{% if supplier_total > 0 or customer_total > 0 %}, {% endif %}#7b1fa2 {{ (sup_pct + cust_pct)|int }}deg {{ (sup_pct + cust_pct + acct_pct)|int }}deg{% endif -%}
-                )"></div>
+                <div class="pie" style="background:conic-gradient(#2e7d32 0deg {{ sup_pct }}deg, #1565c0 {{ sup_pct }}deg 360deg)"></div>
                 <div class="pie-leg">
-                    {% if supplier_total > 0 %}<div class="pie-leg-item"><span class="pie-leg-dot" style="background:#2e7d32"></span> Supplier — AED {{ "{:,.2f}".format(supplier_total) }} ({{ "%.1f"|format(sup_pct) }}%)</div>{% endif %}
-                    {% if customer_total > 0 %}<div class="pie-leg-item"><span class="pie-leg-dot" style="background:#1565c0"></span> Customer — AED {{ "{:,.2f}".format(customer_total) }} ({{ "%.1f"|format(cust_pct) }}%)</div>{% endif %}
-                    {% if account_total > 0 %}<div class="pie-leg-item"><span class="pie-leg-dot" style="background:#7b1fa2"></span> Account — AED {{ "{:,.2f}".format(account_total) }} ({{ "%.1f"|format(acct_pct) }}%)</div>{% endif %}
+                    <div class="pie-leg-item"><span class="pie-leg-dot" style="background:#2e7d32"></span> Supplier — AED {{ "{:,.2f}".format(supplier_total) }} ({{ "%.1f"|format(sup_pct) }}%)</div>
+                    <div class="pie-leg-item"><span class="pie-leg-dot" style="background:#1565c0"></span> Customer — AED {{ "{:,.2f}".format(customer_total) }} ({{ "%.1f"|format(cust_pct) }}%)</div>
                 </div>
             </div>
         </div>
 
         {# ─── BAR CHART ─── #}
         <div class="cr-chart-box">
-            <h3>Monthly Amount — {{ selected_year or 'All Years' }}</h3>
+            <h3>Monthly Cheque Amount — {{ selected_year or 'All Years' }}</h3>
             {% set max_monthly = monthly_data|max or 1 %}
             <div class="bar-chart">
                 {% for i in range(12) %}
@@ -176,7 +139,6 @@
         <button class="cr-tab active" data-filter="all" onclick="filterTable('all')">All</button>
         <button class="cr-tab" data-filter="Supplier" onclick="filterTable('Supplier')">Supplier</button>
         <button class="cr-tab" data-filter="Customer" onclick="filterTable('Customer')">Customer</button>
-        {% if account_count %}<button class="cr-tab" data-filter="Account" onclick="filterTable('Account')">Account</button>{% endif %}
     </div>
 
     {# ═══ TABLE ═══ #}
@@ -184,11 +146,9 @@
         <table class="cr-table" id="chequeTable">
             <thead>
                 <tr>
-                    <th>#</th>
                     <th>DATE</th>
                     <th>PAYEE</th>
                     <th>TYPE</th>
-                    <th>METHOD</th>
                     <th>CHEQUE NO</th>
                     <th>CHEQUE DATE</th>
                     <th style="text-align:right">AMOUNT (AED)</th>
@@ -199,34 +159,27 @@
             <tbody>
                 {% for e in entries %}
                 <tr data-type="{{ e.payee_type }}">
-                    <td style="color:#a0b5cf;font-size:0.72rem">{{ e.id }}</td>
                     <td style="white-space:nowrap">{{ e.date }}</td>
                     <td style="color:#17345e;font-weight:600">{{ e.payee }}</td>
                     <td>
                         <span class="cr-badge" style="
                             {% if e.payee_type == 'Supplier' %}background:#e8f5e9;color:#2e7d32
                             {% elif e.payee_type == 'Customer' %}background:#e3f2fd;color:#1565c0
-                            {% elif e.payee_type == 'Account' %}background:#f3e5f5;color:#7b1fa2
                             {% else %}background:#fce4ec;color:#c62828{% endif %}">{{ e.payee_type }}</span>
-                    </td>
-                    <td>
-                        {% set mcolors = {'Cheque':'#fff3e0;#e65100','Bank':'#e3f2fd;#1565c0','Transfer':'#e8f5e9;#2e7d32','Owner Fund':'#f3e5f5;#6a1b9a','Card':'#ffebee;#c62828','Other':'#eceff1;#546e7a'} %}
-                        {% set mc = mcolors.get(e.method,'#f5f5f5;#616161').split(';') %}
-                        <span class="method-badge" style="background:{{ mc[0] }};color:{{ mc[1] }}">{{ e.method }}</span>
                     </td>
                     <td style="font-weight:600">{{ e.cheque_no or '—' }}</td>
                     <td>{{ e.cheque_date or '—' }}</td>
                     <td style="text-align:right;font-weight:600">{{ "{:,.2f}".format(e.amount) }}</td>
                     <td style="color:#7b92b6">{{ e.reference or '—' }}</td>
-                    <td style="color:#7b92b6;max-width:160px;overflow:hidden;text-overflow:ellipsis">{{ e.notes or '—' }}</td>
+                    <td style="color:#7b92b6;max-width:200px;overflow:hidden;text-overflow:ellipsis">{{ e.notes or '—' }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="10" style="padding:32px;text-align:center;color:#a0b5cf">No bank transactions found.</td></tr>
+                <tr><td colspan="8" style="padding:32px;text-align:center;color:#a0b5cf">No cheque payments found.</td></tr>
                 {% endfor %}
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="7" style="padding:12px 14px;color:#17345e;font-weight:700">TOTAL</td>
+                    <td colspan="5" style="padding:12px 14px;color:#17345e;font-weight:700">TOTAL</td>
                     <td id="totalFoot" style="padding:12px 14px;text-align:right;font-weight:700">AED {{ "{:,.2f}".format(total_amount) }}</td>
                     <td colspan="2"></td>
                 </tr>
@@ -242,6 +195,7 @@ var totalAmount = {{ total_amount }};
 function filterTable(type) {
     var rows = document.querySelectorAll('#chequeTable tbody tr');
     var total = 0;
+    var count = 0;
 
     document.querySelectorAll('.cr-tab').forEach(function(t) {
         t.classList.toggle('active', t.getAttribute('data-filter') === type);
@@ -250,8 +204,9 @@ function filterTable(type) {
     rows.forEach(function(row) {
         if (type === 'all' || row.getAttribute('data-type') === type) {
             row.style.display = '';
-            var amt = parseFloat(row.querySelectorAll('td')[7].textContent.replace(/[^0-9.-]/g, '')) || 0;
+            var amt = parseFloat(row.querySelectorAll('td')[5].textContent.replace(/[^0-9.-]/g, '')) || 0;
             total += amt;
+            count++;
         } else {
             row.style.display = 'none';
         }
@@ -262,6 +217,12 @@ function filterTable(type) {
         foot.textContent = 'AED ' + totalAmount.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
     } else {
         foot.textContent = 'AED ' + total.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    // Update count display if needed
+    var countCells = document.querySelectorAll('.cr-stat .vl');
+    if (countCells.length > 0 && type !== 'all') {
+        // Just visual feedback
     }
 }
 </script>
