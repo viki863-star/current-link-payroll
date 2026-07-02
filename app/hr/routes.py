@@ -48,6 +48,38 @@ def ensure_employees_table():
         import traceback
         current_app.logger.error("ensure_employees_table schema error: %s\n%s", e, traceback.format_exc())
 
+    # Migration: add missing columns for tables created before schema was expanded
+    employee_cols = [
+        ("email", "TEXT"),
+        ("gender", "TEXT"),
+        ("shift", "TEXT DEFAULT 'Morning'"),
+        ("contract_type", "TEXT DEFAULT 'Permanent'"),
+        ("nationality", "TEXT"),
+        ("iqama_no", "TEXT"),
+        ("passport_no", "TEXT"),
+        ("bank_name", "TEXT"),
+        ("bank_account", "TEXT"),
+        ("iban", "TEXT"),
+        ("emergency_contact", "TEXT"),
+        ("emergency_name", "TEXT"),
+        ("address", "TEXT"),
+        ("photo_name", "TEXT"),
+        ("photo_data", "TEXT"),
+        ("photo_content_type", "TEXT"),
+        ("termination_date", "TEXT"),
+        ("remarks", "TEXT"),
+        ("updated_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+    ]
+    for col_name, col_type in employee_cols:
+        try:
+            if backend == "postgres":
+                db.execute(f"ALTER TABLE employees ADD COLUMN IF NOT EXISTS {col_name} {col_type}")
+            else:
+                db.execute(f"ALTER TABLE employees ADD COLUMN {col_name} {col_type}")
+            db.commit()
+        except Exception:
+            db.rollback()
+
     try:
         sync_drivers_to_employees(db)
     except Exception:
@@ -1369,38 +1401,43 @@ def employee_edit(employee_id):
                 flash(f"Photo upload failed: {exc}", "error")
                 uploaded_photo = None
 
-            db.execute(
-                """
-                UPDATE employees SET
-                    full_name=?, phone_number=?, email=?,
-                    employee_type=?, department=?, designation=?, gender=?,
-                    shift=?, contract_type=?, join_date=?,
-                    basic_salary=?, ot_rate=?,
-                    nationality=?, iqama_no=?, passport_no=?,
-                    bank_name=?, bank_account=?, iban=?,
-                    emergency_contact=?, emergency_name=?, address=?,
-                    photo_name=COALESCE(?, photo_name),
-                    photo_data=COALESCE(?, photo_data),
-                    photo_content_type=COALESCE(?, photo_content_type),
-                    status=?, termination_date=?, remarks=?,
-                    updated_at=CURRENT_TIMESTAMP
-                WHERE UPPER(employee_id)=?
-                """,
-                (
-                    values["full_name"], values["phone_number"], values["email"] or None,
-                    values["employee_type"], values["department"], values["designation"], values["gender"] or None,
-                    values["shift"] or "Morning", values["contract_type"] or "Permanent",
-                    values["join_date"], salary, ot_rate,
-                    values["nationality"] or None, values["iqama_no"] or None, values["passport_no"] or None,
-                    values["bank_name"] or None, values["bank_account"] or None, values["iban"] or None,
-                    values["emergency_contact"] or None, values["emergency_name"] or None, values["address"] or None,
-                    uploaded_photo["photo_name"] if uploaded_photo else None,
-                    uploaded_photo["photo_data"] if uploaded_photo else None,
-                    uploaded_photo["photo_content_type"] if uploaded_photo else None,
-                    values["status"], values["termination_date"] or None, values["remarks"] or None,
-                    employee_id,
-                ),
-            )
+            try:
+                db.execute(
+                    """
+                    UPDATE employees SET
+                        full_name=?, phone_number=?, email=?,
+                        employee_type=?, department=?, designation=?, gender=?,
+                        shift=?, contract_type=?, join_date=?,
+                        basic_salary=?, ot_rate=?,
+                        nationality=?, iqama_no=?, passport_no=?,
+                        bank_name=?, bank_account=?, iban=?,
+                        emergency_contact=?, emergency_name=?, address=?,
+                        photo_name=COALESCE(?, photo_name),
+                        photo_data=COALESCE(?, photo_data),
+                        photo_content_type=COALESCE(?, photo_content_type),
+                        status=?, termination_date=?, remarks=?,
+                        updated_at=CURRENT_TIMESTAMP
+                    WHERE UPPER(employee_id)=?
+                    """,
+                    (
+                        values["full_name"], values["phone_number"], values["email"] or None,
+                        values["employee_type"], values["department"], values["designation"], values["gender"] or None,
+                        values["shift"] or "Morning", values["contract_type"] or "Permanent",
+                        values["join_date"], salary, ot_rate,
+                        values["nationality"] or None, values["iqama_no"] or None, values["passport_no"] or None,
+                        values["bank_name"] or None, values["bank_account"] or None, values["iban"] or None,
+                        values["emergency_contact"] or None, values["emergency_name"] or None, values["address"] or None,
+                        uploaded_photo["photo_name"] if uploaded_photo else None,
+                        uploaded_photo["photo_data"] if uploaded_photo else None,
+                        uploaded_photo["photo_content_type"] if uploaded_photo else None,
+                        values["status"], values["termination_date"] or None, values["remarks"] or None,
+                        employee_id,
+                    ),
+                )
+            except Exception as exc:
+                flash(f"Database error updating employee: {exc}", "error")
+                db.rollback()
+                return redirect(url_for("hr.employee_edit", employee_id=employee_id))
 
             if values["vehicle_id"]:
                 db.execute(
