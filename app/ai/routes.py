@@ -8,25 +8,25 @@ from . import ai_bp
 from ..database import open_db
 
 SCHEMA = """
-employees(employee_id TEXT pk, full_name, phone, email, type, dept, salary NUMERIC, status)
-drivers(driver_id TEXT pk, full_name, phone, vehicle_no, shift, salary NUMERIC, status)
-field_staff(staff_id TEXT pk, full_name, phone, username)
-cash_receipts(staff_id TEXT, amount NUMERIC, receipt_date)
-vehicles(plate_no TEXT pk, type, model, year INT, status)
-vehicle_assignments(vehicle_id TEXT, driver_id TEXT, is_current INT=1)
-salary_store(emp_id TEXT, month, basic NUMERIC, ot, deductions, net NUMERIC)
-salary_slips(emp_id, month, basic NUMERIC, net, status)
-salary_payments(emp_id, month, amount NUMERIC, date)
-maintenance_jobs(vehicle_id TEXT, staff_id TEXT, amount NUMERIC, category, status)
-technicians(technician_code TEXT pk, user_id, phone)
-maintenance_advances(staff_code TEXT, amount, date)
-maintenance_papers(paper_no TEXT, total, status)
-parties(party_code TEXT pk, name, phone, role, status)
-suppliers(supplier_code TEXT, name, category, status)
-supplier_invoices(invoice_no TEXT, supplier_code, amount, status)
-supplier_bills(bill_no TEXT, supplier_code, amount, vat, total, status)
-account_invoices(invoice_no TEXT, party_code, total, status)
-fuel_entries(vehicle_id TEXT, liters, cost, date)
+employees(employee_id, full_name, phone_number, email, employee_type, department, basic_salary, status)
+drivers(driver_id, full_name, phone_number, vehicle_no, shift, basic_salary, ot_rate, status)
+field_staff(staff_id, full_name, phone, username)
+cash_receipts(staff_id, amount, receipt_date, given_by)
+vehicles(plate_no, vehicle_type, model, year, status)
+vehicle_assignments(vehicle_id, driver_id, is_current)
+salary_store(driver_id, salary_month, basic_salary, ot_amount, advances, deductions, net_salary)
+salary_slips(employee_id, salary_month, basic_salary, net_salary, status)
+salary_payments(employee_id, salary_month, amount, payment_date)
+maintenance_jobs(vehicle_id, staff_id, amount, category, status)
+technicians(technician_code, user_id, phone_number)
+maintenance_advances(staff_code, amount, advance_date)
+maintenance_papers(paper_no, technician_code, total_amount, review_status)
+parties(party_code, party_name, phone, role, status)
+suppliers(supplier_code, supplier_name, category, status)
+supplier_invoices(supplier_code, invoice_no, amount, status)
+supplier_bills(supplier_code, bill_no, amount, vat, total, status)
+account_invoices(invoice_no, party_code, total_amount, status)
+fuel_entries(vehicle_id, liters, cost, entry_date)
 """
 
 
@@ -139,24 +139,11 @@ def chat():
                 for k, v in row.items():
                     explanation = explanation.replace("{" + k + "}", str(v if v is not None else "0"))
 
-        # Strip "SQL:" lines that LLM sometimes includes in explanation
+        # Strip "SQL:" lines and raw JSON that LLM sometimes includes
         explanation = re.sub(r'(?m)^SQL:.*$', '', explanation).strip()
-        # Strip raw JSON that might leak into explanation
         explanation = re.sub(r'\{"sql":.*', '', explanation).strip()
-        # Replace any remaining {placeholders} with "?"
-        explanation = re.sub(r'\{[^}]+\}', '?', explanation)
-
-        if not explanation or explanation == "?":
-            explanation = "\n".join(" | ".join(f"{k}: {v}" for k, v in r.items()) for r in rows[:5])
-        elif rows:
-            # Append data if placeholders weren't fully resolved
-            remaining = [r for r in rows if any(v not in ("", None, "0", 0) for v in r.values())]
-            if remaining:
-                data_strs = []
-                for r in remaining[:3]:
-                    data_strs.append(", ".join(f"{k}: {v}" for k, v in r.items() if v not in (None, "")))
-                if data_strs:
-                    explanation += "\n" + "\n".join(data_strs)
+        # Replace any remaining {placeholders} with actual values or remove
+        explanation = re.sub(r'\{[^}]+\}', '', explanation)
 
         return jsonify({"reply": explanation, "sql": sql, "data": rows[:20] if rows else None})
 
