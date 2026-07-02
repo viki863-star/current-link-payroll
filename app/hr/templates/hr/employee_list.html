@@ -99,12 +99,10 @@
                     <td class="action-cell">
                         <a href="{{ url_for('hr.employee_detail', employee_id=emp.employee_id) }}" class="btn btn-sm btn-primary">Profile</a>
                         <a href="{{ url_for('hr.employee_edit', employee_id=emp.employee_id) }}" class="btn btn-sm btn-outline" onclick="event.stopPropagation()">Edit</a>
-                        {% if emp.status|lower == 'terminated' %}
                         <form method="POST" action="{{ url_for('hr.employee_delete', employee_id=emp.employee_id) }}" style="display:inline" onsubmit="return confirm('Delete {{ emp.full_name }} ({{ emp.employee_id }}) permanently? This cannot be undone.')" onclick="event.stopPropagation()">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-danger" style="background:none;border:1px solid #e0e0e0;color:#c62828;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem" onmouseover="this.style.background='#fee'" onmouseout="this.style.background=''">Delete</button>
+                            <button type="submit" class="btn btn-sm" style="background:none;border:1px solid #e0e0e0;color:#c62828;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem" onmouseover="this.style.background='#fee'" onmouseout="this.style.background=''">Delete</button>
                         </form>
-                        {% endif %}
                     </td>
                 </tr>
                 {% else %}
