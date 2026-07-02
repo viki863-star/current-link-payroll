@@ -107,8 +107,8 @@ def chat():
         system = (
             f"Date:{today}. ERP SQL assistant.{pg}\n"
             f"Tables:\n{SCHEMA}\n"
-            'Reply ONLY JSON: {"sql":"SELECT...","explanation":"Answer with {column_names} placeholders for values"}. '
-            "SELECT only. Max 20 rows. COALESCE nulls. "
+            'Reply ONLY JSON: {"sql":"SELECT...","explanation":"answer in user language with {column_aliases}"}. '
+            "SELECT only. ALWAYS use AS aliases for columns. "
             'Ex: {"sql":"SELECT count(*) AS cnt FROM drivers WHERE status=\'Active\'","explanation":"{cnt} active drivers hain"}'
         )
 
@@ -139,10 +139,24 @@ def chat():
                 for k, v in row.items():
                     explanation = explanation.replace("{" + k + "}", str(v if v is not None else "0"))
 
-        if not explanation:
+        # Strip "SQL:" lines that LLM sometimes includes in explanation
+        explanation = re.sub(r'(?m)^SQL:.*$', '', explanation).strip()
+        # Strip raw JSON that might leak into explanation
+        explanation = re.sub(r'\{"sql":.*', '', explanation).strip()
+        # Replace any remaining {placeholders} with "?"
+        explanation = re.sub(r'\{[^}]+\}', '?', explanation)
+
+        if not explanation or explanation == "?":
             explanation = "\n".join(" | ".join(f"{k}: {v}" for k, v in r.items()) for r in rows[:5])
-        elif rows and "{" in explanation:
-            explanation += "\n" + "\n".join(" | ".join(f"{k}: {v}" for k, v in r.items()) for r in rows[:3])
+        elif rows:
+            # Append data if placeholders weren't fully resolved
+            remaining = [r for r in rows if any(v not in ("", None, "0", 0) for v in r.values())]
+            if remaining:
+                data_strs = []
+                for r in remaining[:3]:
+                    data_strs.append(", ".join(f"{k}: {v}" for k, v in r.items() if v not in (None, "")))
+                if data_strs:
+                    explanation += "\n" + "\n".join(data_strs)
 
         return jsonify({"reply": explanation, "sql": sql, "data": rows[:20] if rows else None})
 
