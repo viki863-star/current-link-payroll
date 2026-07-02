@@ -40,25 +40,27 @@ def _execute_sql(sql):
 
 
 def _call_llm(messages):
-    api_key = os.getenv("GROQ_API_KEY") or current_app.config.get("GROQ_API_KEY", "")
-    if not api_key:
-        return None, "GROQ_API_KEY not configured. Set in .env"
+    api_key = os.getenv("AI_API_KEY") or os.getenv("GROQ_API_KEY") or ""
+    api_url = os.getenv("AI_API_URL", "https://api.groq.com/openai/v1/chat/completions")
+    api_model = os.getenv("AI_MODEL", "llama-3.3-70b-versatile")
 
-    url = "https://api.groq.com/openai/v1/chat/completions"
+    if not api_key:
+        return None, "AI_API_KEY not configured. Set in .env"
+
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
-        "model": "llama-3.3-70b-versatile",
+        "model": api_model,
         "messages": messages,
         "temperature": 0.1,
         "max_tokens": 1024,
     }
 
     try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=30)
+        resp = requests.post(api_url, json=payload, headers=headers, timeout=30)
         data = resp.json()
         if "choices" not in data or not data["choices"]:
             err = data.get("error", {}).get("message", str(data))
-            return None, f"Groq error: {err}"
+            return None, f"AI error: {err}"
 
         text = data["choices"][0]["message"]["content"].strip()
         text = re.sub(r'^```(?:json)?\s*', '', text)
@@ -84,21 +86,14 @@ def chat():
         today = date.today().isoformat()
 
         backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
-        pg_hint = ""
-        if backend == "postgres":
-            pg_hint = (
-                "CRITICAL: TEXT columns need single-quoted string values, NEVER compare TEXT = INTEGER. "
-                "Use 'textvalue' not just textvalue. is_current is INTEGER 0/1 not yes/no. "
-                "Join driver_id TEXT to drivers.driver_id TEXT, NOT to drivers.id. "
-                "Use CAST(t.col AS INTEGER) if needed. "
-            )
+        pg = " CRITICAL: TEXT columns need single-quoted values. NEVER compare TEXT=INT. is_current is INT 0/1." if backend == "postgres" else ""
+
         system = (
-            f"Date: {today}. You are an ERP SQL assistant. "
+            f"Date:{today}. ERP SQL assistant.{pg}\n"
             f"Tables:\n{SCHEMA}\n"
-            f"{pg_hint}"
-            "Reply ONLY valid JSON: {\"sql\":\"SELECT...\",\"explanation\":\"answer in user's language\"}. "
+            'Reply ONLY JSON: {"sql":"SELECT...","explanation":"Answer with {column_names} placeholders for values"}. '
             "SELECT only. Max 20 rows. COALESCE nulls. "
-            'Ex: {"sql":"SELECT count(*) FROM drivers WHERE status=\'Active\'","explanation":"15 drivers are active"}'
+            'Ex: {"sql":"SELECT count(*) AS cnt FROM drivers WHERE status=\'Active\'","explanation":"{cnt} active drivers hain"}'
         )
 
         messages = [{"role": "system", "content": system}]
@@ -124,15 +119,14 @@ def chat():
             return jsonify({"reply": f"SQL error: {rows['error']}", "sql": sql, "data": None})
 
         if rows and explanation:
-            try:
-                for row in rows[:1]:
-                    for k, v in row.items():
-                        explanation = explanation.replace("{" + k + "}", str(v or "0"))
-            except Exception:
-                pass
+            for row in rows[:1]:
+                for k, v in row.items():
+                    explanation = explanation.replace("{" + k + "}", str(v if v is not None else "0"))
 
-        if not explanation and rows:
-            explanation = "\n".join(" | ".join(f"{k}:{v}" for k, v in r.items()) for r in rows[:5])
+        if not explanation:
+            explanation = "\n".join(" | ".join(f"{k}: {v}" for k, v in r.items()) for r in rows[:5])
+        elif rows and "{" in explanation:
+            explanation += "\n" + "\n".join(" | ".join(f"{k}: {v}" for k, v in r.items()) for r in rows[:3])
 
         return jsonify({"reply": explanation, "sql": sql, "data": rows[:20] if rows else None})
 
