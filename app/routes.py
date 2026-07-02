@@ -6312,6 +6312,24 @@ def register_routes(app: Flask) -> None:
         except Exception:
             pass
 
+        # 6. Bank transactions (Cheque type only) — before db.close()
+        try:
+            sub_rows = db.execute("SELECT entry_date, amount, payee, reference_no, cheque_number, cheque_date, description FROM bank_transactions WHERE transaction_type = 'Cheque'").fetchall()
+            for r in sub_rows:
+                if _matches_month_year(r["entry_date"], month, year):
+                    entries.append({
+                        "date": r["entry_date"],
+                        "payee": r["payee"] or "—",
+                        "payee_type": "Bank Transaction",
+                        "cheque_no": r["cheque_number"] or "",
+                        "cheque_date": r["cheque_date"] or "",
+                        "amount": float(r["amount"] or 0),
+                        "reference": r["reference_no"] or "",
+                        "notes": r["description"] or "",
+                    })
+        except Exception:
+            pass
+
         db.close()
 
         # 5. Customer payments (payroll DB)
@@ -6338,24 +6356,6 @@ def register_routes(app: Flask) -> None:
             pdb.close()
         except Exception:
             pass
-
-        # 6. Bank transactions (Cheque type only)
-        try:
-            sub_rows = db.execute("SELECT entry_date, amount, payee, reference_no, cheque_number, cheque_date, description FROM bank_transactions WHERE transaction_type = 'Cheque'").fetchall()
-            for r in sub_rows:
-                if _matches_month_year(r["entry_date"], month, year):
-                    entries.append({
-                        "date": r["entry_date"],
-                        "payee": r["payee"] or "—",
-                        "payee_type": "Bank Transaction",
-                        "cheque_no": r["cheque_number"] or "",
-                        "cheque_date": r["cheque_date"] or "",
-                        "amount": float(r["amount"] or 0),
-                        "reference": r["reference_no"] or "",
-                        "notes": r["description"] or "",
-                    })
-        except Exception as ex:
-            flash(f"Bank txns error: {ex}", "error")
 
         entries.sort(key=lambda e: e["date"], reverse=True)
         total_amount = sum(e["amount"] for e in entries)
