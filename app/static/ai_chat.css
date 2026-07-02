@@ -57,6 +57,7 @@
 .ai-chat-header-status::before {
   content: ''; width: 6px; height: 6px; border-radius: 50%; background: #4ade80; display: inline-block;
 }
+.ai-chat-header-actions { display:flex; align-items:center; gap:2px; }
 .ai-chat-close {
   background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer;
   width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;

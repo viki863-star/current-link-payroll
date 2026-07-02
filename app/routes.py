@@ -6215,100 +6215,81 @@ def register_routes(app: Flask) -> None:
         db = open_db()
         month = request.args.get("month", "")
         year = request.args.get("year", "")
+        search_q = request.args.get("q", "").strip()
+        filter_method = request.args.get("method", "").strip()
         if not year:
             year = str(datetime.now().year)
 
         entries = []
+        total_entries = 0  # for entry_id
+
+        def _add(rows, payee_key, payee_type, method_key, cheque_no_key, cheque_date_key, ref_key):
+            nonlocal total_entries
+            for r in rows:
+                dt = r.get("payment_date") or r.get("entry_date") or r.get("date") or ""
+                if not _matches_month_year(dt, month, year):
+                    continue
+                payee = str(r[payee_key] or "")
+                if search_q and search_q.lower() not in payee.lower():
+                    continue
+                pm = str(r.get(method_key) or "Cheque")
+                if filter_method and pm.lower() != filter_method.lower():
+                    continue
+                total_entries += 1
+                entries.append({
+                    "id": total_entries,
+                    "date": dt,
+                    "payee": payee,
+                    "payee_type": payee_type,
+                    "method": pm,
+                    "cheque_no": str(r.get(cheque_no_key) or ""),
+                    "cheque_date": str(r.get(cheque_date_key) or ""),
+                    "amount": float(r["amount"] or 0),
+                    "reference": str(r.get(ref_key) or ""),
+                    "notes": str(r.get("notes") or ""),
+                })
 
         # 1. Supplier payment records (legacy)
         try:
             rows = db.execute("""
-                SELECT p.payment_date, p.cheque_number, p.cheque_date, p.amount, p.reference_no, p.notes, p.payment_method, s.supplier_name
+                SELECT payment_date, cheque_number, cheque_date, amount, reference_no, notes, payment_method, supplier_name
                 FROM supplier_payment_records p
                 JOIN suppliers s ON s.id = p.supplier_id
-                WHERE p.payment_method = 'Cheque' AND p.cheque_number IS NOT NULL
             """).fetchall()
-            for r in rows:
-                if _matches_month_year(r["payment_date"], month, year):
-                    entries.append({
-                        "date": r["payment_date"],
-                        "payee": r["supplier_name"],
-                        "payee_type": "Supplier",
-                        "cheque_no": r["cheque_number"] or "",
-                        "cheque_date": r["cheque_date"] or "",
-                        "amount": float(r["amount"] or 0),
-                        "reference": r["reference_no"] or "",
-                        "notes": r["notes"] or "",
-                    })
+            _add(rows, "supplier_name", "Supplier", "payment_method", "cheque_number", "cheque_date", "reference_no")
         except Exception:
             pass
 
         # 2. Supplier payments (newer system)
         try:
             rows = db.execute("""
-                SELECT p.entry_date, p.amount, p.reference, p.notes, p.payment_no, pa.party_name
+                SELECT entry_date, amount, reference, notes, payment_no, payment_method, party_name
                 FROM supplier_payments p
                 JOIN parties pa ON pa.party_code = p.party_code
-                WHERE p.payment_method = 'Cheque'
             """).fetchall()
-            for r in rows:
-                if _matches_month_year(r["entry_date"], month, year):
-                    entries.append({
-                        "date": r["entry_date"],
-                        "payee": r["party_name"],
-                        "payee_type": "Supplier",
-                        "cheque_no": r["reference"] or "",
-                        "cheque_date": "",
-                        "amount": float(r["amount"] or 0),
-                        "reference": r["payment_no"] or "",
-                        "notes": r["notes"] or "",
-                    })
+            _add(rows, "party_name", "Supplier", "payment_method", "reference", None, "payment_no")
         except Exception:
             pass
 
         # 3. Cash supplier payments
         try:
             rows = db.execute("""
-                SELECT c.entry_date, c.amount, c.reference, c.notes, c.payment_no, pa.party_name
+                SELECT entry_date, amount, reference, notes, payment_no, payment_method, party_name
                 FROM cash_supplier_payments c
                 JOIN parties pa ON pa.party_code = c.party_code
-                WHERE c.payment_method = 'Cheque'
             """).fetchall()
-            for r in rows:
-                if _matches_month_year(r["entry_date"], month, year):
-                    entries.append({
-                        "date": r["entry_date"],
-                        "payee": r["party_name"],
-                        "payee_type": "Supplier",
-                        "cheque_no": r["reference"] or "",
-                        "cheque_date": "",
-                        "amount": float(r["amount"] or 0),
-                        "reference": r["payment_no"] or "",
-                        "notes": r["notes"] or "",
-                    })
+            _add(rows, "party_name", "Supplier", "payment_method", "reference", None, "payment_no")
         except Exception:
             pass
 
         # 4. Account payments
         try:
             rows = db.execute("""
-                SELECT a.entry_date, a.amount, a.reference, a.notes, a.payment_kind, a.voucher_no, pa.party_name
+                SELECT entry_date, amount, reference, notes, payment_kind, voucher_no, payment_method, party_name
                 FROM account_payments a
                 JOIN parties pa ON pa.party_code = a.party_code
-                WHERE a.payment_method = 'Cheque'
             """).fetchall()
-            for r in rows:
-                if _matches_month_year(r["entry_date"], month, year):
-                    entries.append({
-                        "date": r["entry_date"],
-                        "payee": r["party_name"],
-                        "payee_type": "Account",
-                        "cheque_no": r["reference"] or "",
-                        "cheque_date": "",
-                        "amount": float(r["amount"] or 0),
-                        "reference": r["voucher_no"] or "",
-                        "notes": r["notes"] or "",
-                    })
+            _add(rows, "party_name", "Account", "payment_method", "reference", None, "voucher_no")
         except Exception:
             pass
 
@@ -6318,33 +6299,32 @@ def register_routes(app: Flask) -> None:
         try:
             pdb = _open_payroll_db()
             rows = pdb.execute("""
-                SELECT p.payment_date, p.amount, p.reference_no, p.notes, c.customer_name
+                SELECT payment_date, amount, reference_no, notes, payment_method, customer_name
                 FROM customer_payments p
                 JOIN customers c ON c.id = p.customer_id
-                WHERE p.payment_method = 'Cheque'
             """).fetchall()
-            for r in rows:
-                if _matches_month_year(r["payment_date"], month, year):
-                    entries.append({
-                        "date": r["payment_date"],
-                        "payee": r["customer_name"],
-                        "payee_type": "Customer",
-                        "cheque_no": r["reference_no"] or "",
-                        "cheque_date": "",
-                        "amount": float(r["amount"] or 0),
-                        "reference": "",
-                        "notes": r["notes"] or "",
-                    })
+            _add(rows, "customer_name", "Customer", "payment_method", "reference_no", None, "reference_no")
             pdb.close()
         except Exception:
             pass
 
         entries.sort(key=lambda e: e["date"], reverse=True)
+
+        # ── Stats ──
         total_amount = sum(e["amount"] for e in entries)
-        supplier_count = sum(1 for e in entries if e["payee_type"] == "Supplier")
-        customer_count = sum(1 for e in entries if e["payee_type"] == "Customer")
+        method_breakdown = {}
+        for e in entries:
+            m = e["method"]
+            method_breakdown.setdefault(m, {"count": 0, "total": 0.0})
+            method_breakdown[m]["count"] += 1
+            method_breakdown[m]["total"] += e["amount"]
+
         supplier_total = sum(e["amount"] for e in entries if e["payee_type"] == "Supplier")
         customer_total = sum(e["amount"] for e in entries if e["payee_type"] == "Customer")
+        account_total = sum(e["amount"] for e in entries if e["payee_type"] == "Account")
+        supplier_count = sum(1 for e in entries if e["payee_type"] == "Supplier")
+        customer_count = sum(1 for e in entries if e["payee_type"] == "Customer")
+        account_count = sum(1 for e in entries if e["payee_type"] == "Account")
 
         # Monthly breakdown for chart
         monthly_data = [0.0] * 12
@@ -6366,6 +6346,7 @@ def register_routes(app: Flask) -> None:
         for i in range(1, 13):
             months_list.append({"value": str(i), "label": datetime(2000, i, 1).strftime("%B")})
         years_list = list(range(2020, datetime.now().year + 1))
+        method_options = [m for m in PAYMENT_METHOD_OPTIONS if m != "Cash"]
 
         return render_template(
             "cheque_report.html",
@@ -6374,15 +6355,21 @@ def register_routes(app: Flask) -> None:
             entry_count=len(entries),
             supplier_count=supplier_count,
             customer_count=customer_count,
+            account_count=account_count,
             supplier_total=supplier_total,
             customer_total=customer_total,
+            account_total=account_total,
+            method_breakdown=method_breakdown,
             monthly_data=monthly_data,
             monthly_supplier=monthly_supplier,
             monthly_customer=monthly_customer,
             selected_month=month,
             selected_year=year,
+            search_q=search_q,
+            filter_method=filter_method,
             months=months_list,
             years=years_list,
+            method_options=method_options,
         )
 
     @app.get("/cheque-report/export/pdf")
