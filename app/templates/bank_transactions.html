@@ -78,7 +78,7 @@
                             <label>Reference No</label>
                             <input type="text" name="reference_no" placeholder="Optional">
                         </div>
-                        <div id="chequeFields" style="display:none">
+                        <div id="chequeFields">
                             <label>Cheque Number</label>
                             <input type="text" name="cheque_number" placeholder="e.g. 123456">
                             <label>Cheque Date</label>
@@ -187,5 +187,9 @@ function toggleCheque(val) {
     var el = document.getElementById('chequeFields');
     el.style.display = (val === 'Cheque') ? 'block' : 'none';
 }
+document.addEventListener('DOMContentLoaded', function() {
+    var sel = document.querySelector('select[name="transaction_type"]');
+    if (sel) toggleCheque(sel.value);
+});
 </script>
 {% endblock %}
