@@ -123,11 +123,6 @@
             {% set sup_pct = (supplier_total / total_amount * 100) if total_amount > 0 else 0 %}
             {% set cust_pct = (customer_total / total_amount * 100) if total_amount > 0 else 0 %}
             {% set acct_pct = (account_total / total_amount * 100) if total_amount > 0 else 0 %}
-            {% set other_pct = 100 - sup_pct - cust_pct - acct_pct %}
-            {% set pct_list = [] %}
-            {% if supplier_total > 0 %}{% set _ = pct_list.append(sup_pct|int){% endif %}
-            {% if customer_total > 0 %}{% set _ = pct_list.append(cust_pct|int){% endif %}
-            {% if account_total > 0 %}{% set _ = pct_list.append(acct_pct|int){% endif %}
             <div class="pie-wrap">
                 <div style="width:100px;height:100px;border-radius:50%;flex-shrink:0;background:conic-gradient(
                     {%- if supplier_total > 0 %}#2e7d32 0deg {{ sup_pct }}deg{% endif -%}

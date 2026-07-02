@@ -6252,7 +6252,7 @@ def register_routes(app: Flask) -> None:
         # 1. Supplier payment records (legacy)
         try:
             rows = db.execute("""
-                SELECT payment_date, cheque_number, cheque_date, amount, reference_no, notes, payment_method, supplier_name
+                SELECT p.payment_date, p.cheque_number, p.cheque_date, p.amount, p.reference_no, p.notes, p.payment_method, s.supplier_name
                 FROM supplier_payment_records p
                 JOIN suppliers s ON s.id = p.supplier_id
             """).fetchall()
@@ -6263,7 +6263,7 @@ def register_routes(app: Flask) -> None:
         # 2. Supplier payments (newer system)
         try:
             rows = db.execute("""
-                SELECT entry_date, amount, reference, notes, payment_no, payment_method, party_name
+                SELECT p.entry_date, p.amount, p.reference, p.notes, p.payment_no, p.payment_method, pa.party_name
                 FROM supplier_payments p
                 JOIN parties pa ON pa.party_code = p.party_code
             """).fetchall()
@@ -6274,7 +6274,7 @@ def register_routes(app: Flask) -> None:
         # 3. Cash supplier payments
         try:
             rows = db.execute("""
-                SELECT entry_date, amount, reference, notes, payment_no, payment_method, party_name
+                SELECT c.entry_date, c.amount, c.reference, c.notes, c.payment_no, c.payment_method, pa.party_name
                 FROM cash_supplier_payments c
                 JOIN parties pa ON pa.party_code = c.party_code
             """).fetchall()
@@ -6285,7 +6285,7 @@ def register_routes(app: Flask) -> None:
         # 4. Account payments
         try:
             rows = db.execute("""
-                SELECT entry_date, amount, reference, notes, payment_kind, voucher_no, payment_method, party_name
+                SELECT a.entry_date, a.amount, a.reference, a.notes, a.payment_kind, a.voucher_no, a.payment_method, pa.party_name
                 FROM account_payments a
                 JOIN parties pa ON pa.party_code = a.party_code
             """).fetchall()
@@ -6299,7 +6299,7 @@ def register_routes(app: Flask) -> None:
         try:
             pdb = _open_payroll_db()
             rows = pdb.execute("""
-                SELECT payment_date, amount, reference_no, notes, payment_method, customer_name
+                SELECT p.payment_date, p.amount, p.reference_no, p.notes, p.payment_method, c.customer_name
                 FROM customer_payments p
                 JOIN customers c ON c.id = p.customer_id
             """).fetchall()
