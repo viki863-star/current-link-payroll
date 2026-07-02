@@ -222,6 +222,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(supplier_bp)
     from .customer import customer_bp
     app.register_blueprint(customer_bp)
+    from .ai import ai_bp
+    app.register_blueprint(ai_bp)
     if not app.config.get("TESTING"):
         try:
             from .backup_service import ensure_daily_backup_for_today

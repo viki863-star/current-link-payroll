@@ -1,0 +1,45 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='ai_chat.css', v='20260702a') }}">
+
+<button id="aiChatToggle" class="ai-chat-toggle" aria-label="AI Assistant">
+  <div class="ai-chat-toggle-pulse"></div>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    <path d="M12 8v4m0 2h.01"/>
+  </svg>
+</button>
+
+<div id="aiChatPanel" class="ai-chat-panel">
+  <div class="ai-chat-header">
+    <div class="ai-chat-avatar">AI</div>
+    <div class="ai-chat-header-info">
+      <div class="ai-chat-header-name">ERP Assistant</div>
+      <div class="ai-chat-header-status">Ready to help</div>
+    </div>
+    <button class="ai-chat-close" onclick="document.getElementById('aiChatToggle').click()" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <path d="M18 6L6 18M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="aiChatMessages" class="ai-chat-messages">
+    <div class="ai-chat-msg assistant">
+      <div>Hi! I'm your ERP assistant. Ask me anything about your data — employees, drivers, vehicles, salaries, suppliers, invoices, and more. Try asking in Urdu or English!</div>
+    </div>
+  </div>
+
+  <div id="aiChatTyping" class="ai-chat-typing" style="display:none">
+    <span></span><span></span><span></span>
+  </div>
+
+  <div class="ai-chat-footer">
+    <textarea id="aiChatInput" class="ai-chat-input" rows="1" placeholder="Ask me anything about your ERP data..." style="height:auto;overflow:hidden"></textarea>
+    <button id="aiChatSend" class="ai-chat-send" aria-label="Send">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='ai_chat.js', v='20260702a') }}"></script>
