@@ -7153,7 +7153,6 @@ def register_routes(app: Flask) -> None:
             if search_q and search_q.lower() not in str(r["payee"] or "").lower():
                 continue
             entries.append(dict(r))
-        db.close()
 
         edit_entry = None
         if edit_id:
@@ -7163,6 +7162,7 @@ def register_routes(app: Flask) -> None:
                     edit_entry = dict(row)
             except Exception:
                 pass
+        db.close()
 
         types = ["Cheque", "ATM Withdrawal", "Bank Transfer", "Online Transfer", "Bank Charge", "Other"]
         months_list = [{"value": str(i), "label": datetime(2000, i, 1).strftime("%B")} for i in range(1, 13)]
