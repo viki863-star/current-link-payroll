@@ -29,6 +29,19 @@ html.dark-mode {
     --danger-soft: rgba(199, 61, 44, 0.2);
     --success-soft: rgba(44, 177, 92, 0.2);
     --orange: #fb923c;
+    --card: #1e293b;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow: 0 4px 16px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+}
+html.dark-mode input:read-only,
+html.dark-mode textarea:read-only,
+html.dark-mode [readonly] {
+    background: rgba(30, 41, 59, 0.7) !important;
+    color: var(--muted);
+}
+@media (prefers-color-scheme: dark) {
+    html:not(.light-mode) { }
 }
 
 * {
@@ -1276,11 +1289,6 @@ tbody td {
 }
 .wc-driver:hover { box-shadow: 0 24px 60px rgba(28,86,139,0.45); }
 
-.wc-supplier {
-    background: linear-gradient(145deg, #2a1500 0%, #4a2800 100%);
-    box-shadow: 0 8px 32px rgba(180,95,20,0.30);
-}
-.wc-supplier:hover { box-shadow: 0 24px 60px rgba(230,135,31,0.40); }
 
 .wc-partner {
     background: linear-gradient(145deg, #1a0d2e 0%, #2d1654 100%);

@@ -1756,6 +1756,47 @@ CREATE TABLE IF NOT EXISTS contact_inquiries (
     company TEXT, equipment TEXT, message TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS supplier_quotation_submissions (
+    id BIGSERIAL PRIMARY KEY,
+    quotation_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    quotation_date TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    rate_basis TEXT,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    notes TEXT,
+    attachment_path TEXT,
+    review_status TEXT NOT NULL DEFAULT 'Pending',
+    review_note TEXT,
+    reviewed_by TEXT,
+    reviewed_at TEXT,
+    created_by_role TEXT,
+    created_by_name TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_inquiries (
+    id BIGSERIAL PRIMARY KEY,
+    inquiry_no TEXT NOT NULL UNIQUE,
+    party_code TEXT NOT NULL,
+    inquiry_date TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    description TEXT NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'Normal',
+    status TEXT NOT NULL DEFAULT 'Open',
+    assigned_to TEXT,
+    due_date TEXT,
+    response_deadline TEXT,
+    created_by TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT,
+    closed_at TEXT,
+    closed_by TEXT,
+    closure_notes TEXT,
+    FOREIGN KEY(party_code) REFERENCES parties(party_code)
+);
 """
 
 

@@ -98,6 +98,21 @@ def _fetch_employee(db, employee_id):
     ).fetchone()
 
 
+def _sync_employee_to_field_staff(db, staff_id, full_name, phone, status):
+    from werkzeug.security import generate_password_hash
+    username = staff_id.lower()
+    pw_hash = generate_password_hash("changeme123")
+    is_active = 1 if status == "Active" else 0
+    try:
+        existing = db.execute("SELECT staff_id FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+        if existing:
+            db.execute("UPDATE field_staff SET full_name=?, phone=?, is_active=? WHERE staff_id=?", (full_name, phone or "", is_active, staff_id))
+        else:
+            db.execute("INSERT INTO field_staff (staff_id, full_name, phone, username, password_hash, is_active) VALUES (?,?,?,?,?,?)", (staff_id, full_name, phone or "", username, pw_hash, is_active))
+    except Exception:
+        pass
+
+
 def _employee_photo_url(app, employee):
     if not employee:
         return None
@@ -401,6 +416,9 @@ def employee_new():
                 (values["vehicle_id"], values["employee_id"], date.today().isoformat()),
             )
             db.execute("UPDATE drivers SET vehicle_no = ? WHERE driver_id = ?", (values["vehicle_id"], values["employee_id"]))
+
+        if values["employee_type"] == "Field Staff":
+            _sync_employee_to_field_staff(db, values["employee_id"], values["full_name"], values["phone_number"], values["status"])
 
         _audit_log(
             db, "employee_created",
@@ -1476,6 +1494,14 @@ def employee_edit(employee_id):
                         (date.today().isoformat(), employee_id),
                     )
                     db.execute("UPDATE drivers SET vehicle_no = NULL WHERE driver_id = ?", (employee_id,))
+
+            if values.get("employee_type") == "Field Staff":
+                _sync_employee_to_field_staff(db, employee_id, values["full_name"], values["phone_number"], values["status"])
+            else:
+                try:
+                    db.execute("DELETE FROM field_staff WHERE staff_id = ?", (employee_id,))
+                except Exception:
+                    pass
 
             _audit_log(db, "employee_updated", entity_type="employee", entity_id=employee_id, details=f"{values['full_name']} updated")
             db.commit()
