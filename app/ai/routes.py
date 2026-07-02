@@ -8,25 +8,25 @@ from . import ai_bp
 from ..database import open_db
 
 SCHEMA = """
-employees(id,full_name,phone,email,type,dept,designation,salary,status,join_date)
-drivers(id,full_name,phone,vehicle_no,shift,salary,status)
-field_staff(id,full_name,phone,username)
-cash_receipts(staff_id,amount,receipt_date)
-vehicles(plate_no,type,model,year,status)
-vehicle_assignments(vehicle_id,driver_id,from,is_current)
-salary_store(emp_id,month,basic,ot,advances,deductions,net)
-salary_slips(emp_id,month,basic,net,status)
-salary_payments(emp_id,month,amount,date)
-maintenance_jobs(vehicle_id,staff_id,amount,category,status)
-technicians(code,user_id,phone)
-maintenance_advances(staff_code,amount,date)
-maintenance_papers(code,total,status)
-parties(code,name,phone,role,status)
-suppliers(code,name,category,status)
-supplier_invoices(code,inv_no,amount,status)
-supplier_bills(code,bill_no,amount,vat,total,status)
-account_invoices(inv_no,party,total,status)
-fuel_entries(vehicle_id,liters,cost,date)
+employees(employee_id TEXT pk, full_name, phone, email, type, dept, salary NUMERIC, status)
+drivers(driver_id TEXT pk, full_name, phone, vehicle_no, shift, salary NUMERIC, status)
+field_staff(staff_id TEXT pk, full_name, phone, username)
+cash_receipts(staff_id TEXT, amount NUMERIC, receipt_date)
+vehicles(plate_no TEXT pk, type, model, year INT, status)
+vehicle_assignments(vehicle_id TEXT, driver_id TEXT, is_current INT=1)
+salary_store(emp_id TEXT, month, basic NUMERIC, ot, deductions, net NUMERIC)
+salary_slips(emp_id, month, basic NUMERIC, net, status)
+salary_payments(emp_id, month, amount NUMERIC, date)
+maintenance_jobs(vehicle_id TEXT, staff_id TEXT, amount NUMERIC, category, status)
+technicians(technician_code TEXT pk, user_id, phone)
+maintenance_advances(staff_code TEXT, amount, date)
+maintenance_papers(paper_no TEXT, total, status)
+parties(party_code TEXT pk, name, phone, role, status)
+suppliers(supplier_code TEXT, name, category, status)
+supplier_invoices(invoice_no TEXT, supplier_code, amount, status)
+supplier_bills(bill_no TEXT, supplier_code, amount, vat, total, status)
+account_invoices(invoice_no TEXT, party_code, total, status)
+fuel_entries(vehicle_id TEXT, liters, cost, date)
 """
 
 
@@ -83,9 +83,19 @@ def chat():
         history = data.get("history", [])
         today = date.today().isoformat()
 
+        backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+        pg_hint = ""
+        if backend == "postgres":
+            pg_hint = (
+                "CRITICAL: TEXT columns need single-quoted string values, NEVER compare TEXT = INTEGER. "
+                "Use 'textvalue' not just textvalue. is_current is INTEGER 0/1 not yes/no. "
+                "Join driver_id TEXT to drivers.driver_id TEXT, NOT to drivers.id. "
+                "Use CAST(t.col AS INTEGER) if needed. "
+            )
         system = (
             f"Date: {today}. You are an ERP SQL assistant. "
             f"Tables:\n{SCHEMA}\n"
+            f"{pg_hint}"
             "Reply ONLY valid JSON: {\"sql\":\"SELECT...\",\"explanation\":\"answer in user's language\"}. "
             "SELECT only. Max 20 rows. COALESCE nulls. "
             'Ex: {"sql":"SELECT count(*) FROM drivers WHERE status=\'Active\'","explanation":"15 drivers are active"}'
