@@ -62,14 +62,30 @@ def _call_llm(messages):
             err = data.get("error", {}).get("message", str(data))
             return None, f"AI error: {err}"
 
-        text = data["choices"][0]["message"]["content"].strip()
-        text = re.sub(r'^```(?:json)?\s*', '', text)
-        text = re.sub(r'\s*```$', '', text)
-        text = text.strip()
+        raw = data["choices"][0]["message"]["content"].strip()
+        raw = re.sub(r'^```(?:json)?\s*', '', raw)
+        raw = re.sub(r'\s*```$', '', raw)
+        raw = raw.strip()
 
-        if text.startswith("{"):
-            return json.loads(text), None
-        return {"explanation": text, "sql": ""}, None
+        # Try to extract JSON from anywhere in the response
+        json_match = re.search(r'\{[^{}]*"sql"[^{}]*\}', raw, re.DOTALL)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group())
+                return parsed, None
+            except json.JSONDecodeError:
+                pass
+
+        # Fallback: try parsing whole response as JSON
+        if raw.startswith("{"):
+            try:
+                return json.loads(raw), None
+            except json.JSONDecodeError:
+                pass
+
+        # Use entire response as explanation
+        prefix = re.sub(r'\{.*', '', raw, count=1).strip()
+        return {"explanation": prefix or raw, "sql": ""}, None
     except Exception as e:
         return None, str(e)
 
