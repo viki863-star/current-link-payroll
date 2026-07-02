@@ -114,7 +114,7 @@
                 {% set bar_h = (mval / max_monthly * 100) if max_monthly > 0 else 0 %}
                 <div class="bar-col">
                     <div class="bar-val">{{ "{:,.0f}".format(mval) if mval > 0 else '' }}</div>
-                    <div class="bar" style="height:{{ bar_h }}%;background:{% if mval > 0 %}#17345e{% else %}#eef3fa{% endif %};opacity:{% if mval > 0 %}1{% else %}.3{% endif %}"></div>
+                    <div class="bar" style="height:{{ bar_h }}%;background:{% if mval > 0 %}#f7931e{% else %}#e2e8f0{% endif %};opacity:{% if mval > 0 %}1{% else %}.3{% endif %};border-radius:6px 6px 2px 2px"></div>
                     <div class="bar-label">{{ months[i].label[:3] }}</div>
                 </div>
                 {% endfor %}
@@ -124,11 +124,11 @@
 
     {# ═══ PDF DOWNLOADS ═══ #}
     <div class="cr-pdf-bar">
-        <a href="{{ url_for('cheque_report_supplier_pdf', month=selected_month, year=selected_year) }}" target="_blank" class="cr-pdf-btn" style="background:#2e7d32">
+        <a href="{{ url_for('cheque_report_supplier_pdf', month=selected_month, year=selected_year) }}" target="_blank" class="cr-pdf-btn" style="background:#15803d">
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M10 1a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 10.586V2a1 1 0 0 1 1-1z"/><path d="M2 13a1 1 0 0 1 1 1v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2a1 1 0 1 1 2 0v2a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3v-2a1 1 0 0 1 1-1z"/></svg>
             Out PDF
         </a>
-        <a href="{{ url_for('cheque_report_customer_pdf', month=selected_month, year=selected_year) }}" target="_blank" class="cr-pdf-btn" style="background:#1565c0">
+        <a href="{{ url_for('cheque_report_customer_pdf', month=selected_month, year=selected_year) }}" target="_blank" class="cr-pdf-btn" style="background:#1d4ed8">
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M10 1a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 10.586V2a1 1 0 0 1 1-1z"/><path d="M2 13a1 1 0 0 1 1 1v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2a1 1 0 1 1 2 0v2a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3v-2a1 1 0 0 1 1-1z"/></svg>
             In PDF
         </a>
@@ -145,40 +145,40 @@
         <table class="cr-table" id="chequeTable">
             <thead>
                 <tr>
-                    <th>DATE</th>
-                    <th>PAYEE</th>
-                    <th>TYPE</th>
-                    <th>CHEQUE NO</th>
-                    <th>CHEQUE DATE</th>
-                    <th style="text-align:right">AMOUNT (AED)</th>
-                    <th>REFERENCE</th>
+                    <th style="width:90px">DATE</th>
+                    <th style="min-width:160px">PAYEE</th>
+                    <th style="width:55px">TYPE</th>
+                    <th style="width:100px">CHEQUE NO</th>
+                    <th style="width:100px">CHEQUE DATE</th>
+                    <th style="text-align:right;width:130px">AMOUNT (AED)</th>
+                    <th style="width:85px">REFERENCE</th>
                     <th>NOTES</th>
                 </tr>
             </thead>
             <tbody>
                 {% for e in entries %}
                 <tr data-type="{{ e.payee_type }}" data-flow="{{ 'in' if e.payee_type == 'Customer' else 'out' }}">
-                    <td style="white-space:nowrap">{{ e.date }}</td>
-                    <td style="color:#17345e;font-weight:600">{{ e.payee }}</td>
+                    <td style="white-space:nowrap;font-weight:500">{{ e.date }}</td>
+                    <td style="color:#0f1e3d;font-weight:600;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ e.payee }}">{{ e.payee }}</td>
                     <td>
                         <span class="cr-badge" style="
                             {% if e.payee_type == 'Customer' %}background:#dbeafe;color:#1d4ed8
                             {% else %}background:#dcfce7;color:#15803d{% endif %}">{{ 'In' if e.payee_type == 'Customer' else 'Out' }}</span>
                     </td>
-                    <td style="font-weight:600">{{ e.cheque_no or '—' }}</td>
+                    <td style="font-weight:600;letter-spacing:.02em">{{ e.cheque_no or '—' }}</td>
                     <td>{{ e.cheque_date or '—' }}</td>
-                    <td style="text-align:right;font-weight:600">{{ "{:,.2f}".format(e.amount) }}</td>
-                    <td style="color:#7b92b6">{{ e.reference or '—' }}</td>
-                    <td style="color:#7b92b6;max-width:200px;overflow:hidden;text-overflow:ellipsis">{{ e.notes or '—' }}</td>
+                    <td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums">{{ "{:,.2f}".format(e.amount) }}</td>
+                    <td style="color:#64748b">{{ e.reference or '—' }}</td>
+                    <td style="color:#64748b;font-size:.72rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ e.notes }}">{{ e.notes or '—' }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="8" style="padding:32px;text-align:center;color:#a0b5cf">No cheque payments found.</td></tr>
+                <tr><td colspan="8" style="padding:32px;text-align:center;color:#94a3b8">No cheque payments found.</td></tr>
                 {% endfor %}
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="5" style="padding:12px 14px;color:#17345e;font-weight:700">TOTAL</td>
-                    <td id="totalFoot" style="padding:12px 14px;text-align:right;font-weight:700">AED {{ "{:,.2f}".format(total_amount) }}</td>
+                    <td colspan="5" style="padding:14px 16px;color:#0f1e3d;font-weight:700">TOTAL</td>
+                    <td id="totalFoot" style="padding:14px 16px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums">AED {{ "{:,.2f}".format(total_amount) }}</td>
                     <td colspan="2"></td>
                 </tr>
             </tfoot>
@@ -190,7 +190,7 @@
 var entriesData = {{ entries|tojson }};
 var totalAmount = {{ total_amount }};
 
-filterTable('in');
+filterTable('in');  // default to In tab
 
 function filterTable(type) {
     var rows = document.querySelectorAll('#chequeTable tbody tr');
