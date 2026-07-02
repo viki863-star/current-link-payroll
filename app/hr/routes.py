@@ -1532,6 +1532,7 @@ def employee_delete(employee_id):
         db.execute("DELETE FROM driver_transactions WHERE driver_id = ?", (employee_id,))
         db.execute("DELETE FROM vehicle_assignments WHERE driver_id = ?", (employee_id,))
         db.execute("DELETE FROM drivers WHERE driver_id = ?", (employee_id,))
+        db.execute("DELETE FROM cash_receipts WHERE staff_id = ?", (employee_id,))
         db.execute("DELETE FROM field_staff WHERE staff_id = ?", (employee_id,))
         db.execute("DELETE FROM employees WHERE employee_id = ?", (employee_id,))
         db.execute("DELETE FROM audit_logs WHERE entity_id = ? AND entity_type = 'employee'", (employee_id,))
