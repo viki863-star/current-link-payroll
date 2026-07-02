@@ -1546,6 +1546,56 @@ def employee_delete(employee_id):
     return redirect(url_for("hr.employee_list"))
 
 
+@hr_bp.route("/hr/employees/<employee_id>/restore", methods=["POST"])
+@_login_required("admin")
+def employee_restore(employee_id):
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    employee_id = employee_id.strip().upper()
+
+    # Check if already exists
+    existing = _fetch_employee(db, employee_id)
+    if existing:
+        flash(f"Employee {employee_id} already exists.", "success")
+        return redirect(url_for("hr.employee_edit", employee_id=employee_id))
+
+    # Try to restore from technicians table
+    tech = db.execute("SELECT * FROM technicians WHERE technician_code = ?", (employee_id,)).fetchone()
+    if not tech:
+        flash(f"No data found for {employee_id} in technicians table.", "error")
+        return redirect(url_for("hr.employee_list"))
+
+    from werkzeug.security import generate_password_hash
+    name = tech["specialization"] or f"Staff {employee_id}"
+    phone = tech["phone_number"] or ""
+    username = tech["user_id"] or employee_id.lower()
+    pw_hash = tech["password_hash"] or generate_password_hash("changeme123")
+    is_active = 1 if tech.get("status") == "Active" else 0
+
+    try:
+        # Restore field_staff
+        db.execute("""
+            INSERT INTO field_staff (staff_id, full_name, phone, username, password_hash, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (employee_id, name, phone, username, pw_hash, is_active))
+    except Exception:
+        pass  # might already exist
+
+    try:
+        # Restore employees
+        db.execute("""
+            INSERT INTO employees (employee_id, full_name, phone_number, employee_type, department, designation, status, join_date)
+            VALUES (?, ?, ?, 'Field Staff', 'Field Staff', 'Field Staff', ?, CURRENT_DATE)
+        """, (employee_id, name, phone, "Active" if is_active else "Inactive"))
+    except Exception:
+        pass
+
+    db.commit()
+    flash(f"Employee {name} ({employee_id}) restored successfully from technicians backup.", "success")
+    return redirect(url_for("hr.employee_edit", employee_id=employee_id))
+
+
 @hr_bp.route("/hr/employees/download/excel")
 @_login_required("admin")
 def employee_list_excel():
