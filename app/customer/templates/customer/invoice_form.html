@@ -5,11 +5,12 @@
 {% block content %}
 <div class="profile-shell" style="max-width:780px;margin:0 auto">
 <style>
-.line-item-row { display:grid; grid-template-columns:1fr 70px 60px 90px 100px 36px; gap:6px; align-items:center; margin-bottom:4px; }
-.line-item-row input { padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; outline:none; }
-.line-item-row input:focus { border-color:var(--primary); }
-.line-item-row .item-amt { font-weight:600; font-size:0.85rem; text-align:right; padding:6px 8px; }
-.line-item-row .btn-remove { width:32px; height:32px; border-radius:6px; border:1px solid #e0e0e0; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#c62828; font-size:1rem; }
+.line-item-row { display:grid; grid-template-columns:1.8fr 70px 55px 90px 95px 32px; gap:6px; align-items:start; margin-bottom:4px; }
+.line-item-row input, .line-item-row textarea { padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; outline:none; font-family:inherit; }
+.line-item-row input:focus, .line-item-row textarea:focus { border-color:var(--primary); }
+.line-item-row textarea { resize:none; overflow:hidden; min-height:34px; max-height:72px; line-height:1.4; }
+.line-item-row .item-amt { font-weight:600; font-size:0.85rem; text-align:right; padding:6px 8px; align-self:center; }
+.line-item-row .btn-remove { width:32px; height:32px; border-radius:6px; border:1px solid #e0e0e0; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#c62828; font-size:1rem; align-self:center; }
 .line-item-row .btn-remove:hover { background:#fee; }
 .unit-badge { font-size:0.6rem; color:var(--muted); text-align:center; padding:2px 4px; }
 .service-hint { position:absolute; background:#fff; border:1px solid #d8e4f5; border-radius:6px; max-height:200px; overflow-y:auto; display:none; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
@@ -87,7 +88,7 @@
 
             <div style="background:#f8fafc;border-radius:10px;padding:10px;border:1px solid #eef2f6">
                 {# Header #}
-                <div style="display:grid;grid-template-columns:1fr 70px 60px 90px 100px 36px;gap:6px;margin-bottom:6px;padding:0 4px">
+                <div style="display:grid;grid-template-columns:1.8fr 70px 55px 90px 95px 32px;gap:6px;margin-bottom:6px;padding:0 4px">
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600">Description</span>
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">QTY</span>
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">Unit</span>
@@ -99,7 +100,7 @@
                 {% if edit and items %}
                     {% for it in items %}
                     <div class="line-item-row">
-                        <input type="text" name="item_desc[]" value="{{ it.description or '' }}" placeholder="Service description" style="width:100%">
+                        <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)">{{ it.description or '' }}</textarea>
                         <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
                         <input type="text" name="item_unit[]" value="{{ it.unit or 'hour' }}" readonly style="width:100%;text-align:center;background:#f0f2f5;font-size:0.7rem;border:none;font-weight:600">
                         <input type="number" name="item_rate[]" value="{{ it.rate or 0 }}" min="0" step="any" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
@@ -109,7 +110,7 @@
                     {% endfor %}
                 {% else %}
                     <div class="line-item-row">
-                        <input type="text" name="item_desc[]" placeholder="Service description" style="width:100%">
+                        <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)"></textarea>
                         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
                         <input type="text" name="item_unit[]" value="hour" readonly style="width:100%;text-align:center;background:#f0f2f5;font-size:0.7rem;border:none;font-weight:600">
                         <input type="number" name="item_rate[]" value="0" min="0" step="any" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
@@ -145,6 +146,10 @@
 </div>
 
 <script>
+function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 72) + 'px';
+}
 let itemCount = {{ items|length if edit and items else 1 }};
 let lpoItemsCache = {};
 
@@ -158,13 +163,15 @@ function addItem(desc, qty, rate, unit, vehicle) {
     const u = unit || 'hour';
     const v = vehicle || '';
     row.innerHTML = `
-        <input type="text" name="item_desc[]" value="${d}" placeholder="Service description">
+        <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)">${d}</textarea>
         <input type="number" name="item_qty[]" value="${q}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
         <input type="text" name="item_unit[]" value="${u}" readonly style="text-align:center;background:#f0f2f5;font-size:0.7rem;border:none;font-weight:600">
         <input type="number" name="item_rate[]" value="${r}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
         <span class="item-amt" id="itemAmt_${itemCount}">${(q * r).toFixed(2)}</span>
         <button type="button" class="btn-remove" onclick="removeItem(this)">&times;</button>
     `;
+    // trigger auto-resize after DOM insert
+    setTimeout(() => { const t = row.querySelector('textarea'); if (t) autoResize(t); }, 0);
     container.appendChild(row);
     itemCount++;
 }
