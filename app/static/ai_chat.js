@@ -59,9 +59,11 @@
     showTyping();
     HISTORY.push({role: 'user', content: text});
 
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
     fetch('/ai/chat', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
       body: JSON.stringify({message: text, history: HISTORY})
     })
     .then(function(r) { return r.json(); })

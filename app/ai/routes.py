@@ -2,6 +2,7 @@ import json
 import re
 import os
 import requests
+from datetime import date
 from flask import request, jsonify, current_app
 from . import ai_bp
 from ..database import open_db
@@ -50,10 +51,10 @@ Rules:
 
 Example:
 User: "FS-01 ne kitne cash receipts diye?"
-Assistant: {{"sql": "SELECT COUNT(*) AS count, COALESCE(SUM(amount),0) AS total FROM cash_receipts WHERE staff_id = 'FS-01'", "explanation": "FS-01 ne {count} cash receipts diye hain, total AED {total}"}}
+Assistant: {{"sql": "SELECT COUNT(*) AS count, COALESCE(SUM(amount),0) AS total FROM cash_receipts WHERE staff_id = 'FS-01'", "explanation": "FS-01 ne {{count}} cash receipts diye hain, total AED {{total}}"}}
 
 User: "Kitne active drivers hain?"
-Assistant: {{"sql": "SELECT COUNT(*) AS count FROM drivers WHERE status = 'Active'", "explanation": "Total {count} active drivers hain."}}
+Assistant: {{"sql": "SELECT COUNT(*) AS count FROM drivers WHERE status = 'Active'", "explanation": "Total {{count}} active drivers hain."}}
 """
 
 
@@ -116,68 +117,69 @@ def _call_llm(messages, api_key=None):
 
 @ai_bp.route("/chat", methods=["POST"])
 def chat():
-    data = request.get_json()
-    if not data or "message" not in data:
-        return jsonify({"error": "Message is required"}), 400
+    try:
+        data = request.get_json()
+        if not data or "message" not in data:
+            return jsonify({"error": "Message is required"}), 400
 
-    user_message = data["message"].strip()
-    history = data.get("history", [])
+        user_message = data["message"].strip()
+        history = data.get("history", [])
 
-    today = __import__("datetime").date.today().isoformat()
-    system = SYSTEM_PROMPT.format(today=today)
+        system = SYSTEM_PROMPT.format(today=date.today().isoformat())
 
-    messages = [{"role": "system", "content": system}]
-    for h in history[-10:]:
-        messages.append({"role": h["role"], "content": h["content"]})
-    messages.append({"role": "user", "content": user_message})
+        messages = [{"role": "system", "content": system}]
+        for h in history[-10:]:
+            messages.append({"role": h["role"], "content": h["content"]})
+        messages.append({"role": "user", "content": user_message})
 
-    result, error = _call_llm(messages)
-    if error:
-        return jsonify({"error": error}), 500
+        result, error = _call_llm(messages)
+        if error:
+            return jsonify({"error": error}), 500
 
-    if not result or "sql" not in result:
-        explanation = result.get("explanation", "Sorry, I couldn't process that.")
+        if not result or "sql" not in result:
+            explanation = result.get("explanation", "Sorry, I couldn't process that.")
+            return jsonify({
+                "reply": explanation,
+                "sql": None,
+                "data": None
+            })
+
+        sql = result["sql"].strip()
+        explanation = result.get("explanation", "")
+
+        rows = _execute_sql(sql)
+        if isinstance(rows, dict) and "error" in rows:
+            return jsonify({
+                "reply": f"SQL error: {rows['error']}",
+                "sql": sql,
+                "data": None
+            })
+
+        if rows and explanation:
+            try:
+                formatted = explanation
+                for i, row in enumerate(rows):
+                    for key, val in row.items():
+                        placeholder = "{" + key + "}"
+                        if placeholder in formatted:
+                            formatted = formatted.replace(placeholder, str(val) if val is not None else "0")
+                        elif i == 0:
+                            formatted = formatted.replace("{" + key + "}", str(val) if val is not None else "0")
+                explanation = formatted
+            except Exception:
+                pass
+
+        if not explanation and rows:
+            explanation = "Here are the results:"
+            for row in rows[:5]:
+                explanation += "\n" + ", ".join(f"{k}: {v}" for k, v in row.items())
+
         return jsonify({
-            "reply": explanation,
-            "sql": None,
-            "data": None
-        })
-
-    sql = result["sql"].strip()
-    explanation = result.get("explanation", "")
-
-    rows = _execute_sql(sql)
-    if isinstance(rows, dict) and "error" in rows:
-        return jsonify({
-            "reply": f"SQL error: {rows['error']}",
+            "reply": explanation or "Done.",
             "sql": sql,
-            "data": None
+            "data": rows[:20] if rows else None
         })
-
-    if rows and explanation:
-        try:
-            formatted = explanation
-            for i, row in enumerate(rows):
-                for key, val in row.items():
-                    placeholder = "{" + key + "}"
-                    if placeholder in formatted:
-                        formatted = formatted.replace(placeholder, str(val) if val is not None else "0")
-                    elif i == 0:
-                        formatted = formatted.replace("{" + key + "}", str(val) if val is not None else "0")
-            explanation = formatted
-        except Exception:
-            pass
-
-    if not explanation and rows:
-        explanation = "Here are the results:"
-        for row in rows[:5]:
-            explanation += "\n" + ", ".join(f"{k}: {v}" for k, v in row.items())
-
-    return jsonify({
-        "reply": explanation or "Done.",
-        "sql": sql,
-        "data": rows[:20] if rows else None
-    })
-
-from app import csrf
-csrf.exempt(chat)
+    except Exception as e:
+        import traceback
+        current_app.logger.error("AI Chat error: %s\n%s", e, traceback.format_exc())
+        return jsonify({"error": f"Server error: {e}"}), 500
