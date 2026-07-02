@@ -1,6 +1,7 @@
 (function() {
-  var TOGGLE, PANEL, MSGS, INPUT, SEND, TYPING;
+  var TOGGLE, PANEL, MSGS, INPUT, SEND, TYPING, CLEAR, CLOSE;
   var HISTORY = [];
+  var WELCOME = 'Hi! I\'m your ERP assistant. Ask me anything about your data — employees, drivers, vehicles, salaries, suppliers, invoices, and more. Try asking in Urdu or English!';
 
   function init() {
     TOGGLE = document.getElementById('aiChatToggle');
@@ -9,10 +10,14 @@
     INPUT = document.getElementById('aiChatInput');
     SEND = document.getElementById('aiChatSend');
     TYPING = document.getElementById('aiChatTyping');
+    CLEAR = document.getElementById('aiChatClear');
+    CLOSE = document.getElementById('aiChatClose');
     if (!TOGGLE || !PANEL) return;
 
     TOGGLE.addEventListener('click', togglePanel);
     SEND.addEventListener('click', sendMessage);
+    CLEAR.addEventListener('click', clearChat);
+    CLOSE.addEventListener('click', closeChat);
     INPUT.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     });
@@ -20,6 +25,22 @@
       this.style.height = 'auto';
       this.style.height = Math.min(this.scrollHeight, 80) + 'px';
     });
+  }
+
+  function clearChat() {
+    MSGS.innerHTML = '';
+    HISTORY = [];
+    var welcome = document.createElement('div');
+    welcome.className = 'ai-chat-msg assistant';
+    welcome.innerHTML = '<div>' + WELCOME + '</div>';
+    MSGS.appendChild(welcome);
+    INPUT.value = '';
+    INPUT.focus();
+  }
+
+  function closeChat() {
+    PANEL.classList.remove('is-open');
+    TOGGLE.classList.remove('is-open');
   }
 
   function togglePanel() {

@@ -9,13 +9,18 @@
 </button>
 
 <div id="aiChatPanel" class="ai-chat-panel">
-  <div class="ai-chat-header">
+    <div class="ai-chat-header">
     <div class="ai-chat-avatar">AI</div>
     <div class="ai-chat-header-info">
       <div class="ai-chat-header-name">ERP Assistant</div>
       <div class="ai-chat-header-status">Ready to help</div>
     </div>
-    <button class="ai-chat-close" onclick="document.getElementById('aiChatToggle').click()" aria-label="Close">
+    <button id="aiChatClear" class="ai-chat-close" title="Clear chat" aria-label="Clear chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      </svg>
+    </button>
+    <button id="aiChatClose" class="ai-chat-close" aria-label="Close">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
         <path d="M18 6L6 18M6 6l12 12"/>
       </svg>
