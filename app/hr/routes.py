@@ -1571,7 +1571,13 @@ def employee_restore(employee_id):
         username = tech["user_id"] or employee_id.lower()
         pw_hash = tech["password_hash"] or generate_password_hash("changeme123")
         is_active = 1 if tech.get("status") == "Active" else 0
-        join_date = tech.get("created_at", "").split(" ")[0] if tech.get("created_at") else "2025-01-01"
+        raw_created = tech.get("created_at")
+        if isinstance(raw_created, (datetime, date)):
+            join_date = raw_created.strftime("%Y-%m-%d")
+        elif raw_created:
+            join_date = str(raw_created).split(" ")[0]
+        else:
+            join_date = date.today().isoformat()
 
         try:
             db.execute("""
