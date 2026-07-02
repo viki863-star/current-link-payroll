@@ -6651,6 +6651,29 @@ def register_routes(app: Flask) -> None:
         except Exception:
             pass
 
+        # Account payments
+        try:
+            rows = db.execute("""
+                SELECT a.entry_date, a.amount, a.reference, a.notes, a.voucher_no, pa.party_name
+                FROM account_payments a
+                JOIN parties pa ON pa.party_code = a.party_code
+                WHERE a.payment_method = 'Cheque'
+            """).fetchall()
+            for r in rows:
+                if _matches_month_year(r["entry_date"], month, year):
+                    entries.append({"date": r["entry_date"], "payee": r["party_name"], "cheque": r["reference"] or "", "chq_date": "", "amount": float(r["amount"] or 0), "reference": r["voucher_no"] or "", "notes": r["notes"] or ""})
+        except Exception:
+            pass
+
+        # Bank transactions (Cheque type)
+        try:
+            rows = db.execute("SELECT entry_date, amount, payee, reference_no, cheque_number, cheque_date, description FROM bank_transactions WHERE transaction_type = 'Cheque'").fetchall()
+            for r in rows:
+                if _matches_month_year(r["entry_date"], month, year):
+                    entries.append({"date": r["entry_date"], "payee": r["payee"] or "—", "cheque": r["cheque_number"] or "", "chq_date": r["cheque_date"] or "", "amount": float(r["amount"] or 0), "reference": r["reference_no"] or "", "notes": r["description"] or ""})
+        except Exception:
+            pass
+
         company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
         db.close()
 
@@ -6709,7 +6732,7 @@ def register_routes(app: Flask) -> None:
         else:
             lh = co_p
         rh = Paragraph(
-            "<b>SUPPLIER<br/>CHEQUE REPORT</b>",
+            "<b>OUT<br/>CHEQUE REPORT</b>",
             F("TI", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
         ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
         ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
@@ -6731,7 +6754,7 @@ def register_routes(app: Flask) -> None:
             filter_text = " | ".join(parts)
 
         finfo = [[Paragraph("<b>Account</b>", F("_fl", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11)),
-                   Paragraph("<b>Supplier Cheque Report</b>", F("_fv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12))]]
+                   Paragraph("<b>Out Cheque Report</b>", F("_fv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12))]]
         if filter_text:
             finfo.append([Paragraph("Filter", F("_l", fontSize=7.5, textColor=C5, leading=10)), Paragraph(filter_text, F("_v", fontSize=8.5, textColor=C4, leading=11))])
         ft = Table(finfo, colWidths=[50, W - 50])
@@ -6744,7 +6767,7 @@ def register_routes(app: Flask) -> None:
             Paragraph(f"<b>Total Cheques</b><br/><font size=10 color='#1a3a5c'>{len(entries)}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
             Paragraph(f"<b>Total Cheque Amount</b><br/><font size=10 color='#2e7d32'>AED {total_amount:,.2f}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
             Paragraph(f"<b>Period</b><br/><font size=10 color='#1a3a5c'>{month and datetime(2000, int(month), 1).strftime('%B') or 'All'} {year}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-            Paragraph(f"<b>Type</b><br/><font size=10 color='#2e7d32'>Supplier</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+            Paragraph(f"<b>Type</b><br/><font size=10 color='#2e7d32'>Out</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         ]]
         st = Table(sdata, colWidths=[W/4, W/4, W/4, W/4])
         st.setStyle(TableStyle([
@@ -6828,7 +6851,8 @@ def register_routes(app: Flask) -> None:
 
         doc.build(els)
         buf.seek(0)
-        fn = f"Supplier_Cheque_Report_{month or 'All'}_{year}.pdf"
+        month_label = datetime(2000, int(month), 1).strftime('%b_%Y') if month else f'All_{year}'
+        fn = f"CurrentLink_ChequeReport_Out_{month_label}.pdf"
         return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=fn)
 
     @app.get("/cheque-report/export/customer-pdf")
@@ -6926,7 +6950,7 @@ def register_routes(app: Flask) -> None:
         else:
             lh = co_p
         rh = Paragraph(
-            "<b>CUSTOMER<br/>CHEQUE REPORT</b>",
+            "<b>IN<br/>CHEQUE REPORT</b>",
             F("TI", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
         ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
         ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
@@ -6948,7 +6972,7 @@ def register_routes(app: Flask) -> None:
             filter_text = " | ".join(parts)
 
         finfo = [[Paragraph("<b>Account</b>", F("_fl", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11)),
-                   Paragraph("<b>Customer Cheque Report</b>", F("_fv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12))]]
+                   Paragraph("<b>In Cheque Report</b>", F("_fv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12))]]
         if filter_text:
             finfo.append([Paragraph("Filter", F("_l", fontSize=7.5, textColor=C5, leading=10)), Paragraph(filter_text, F("_v", fontSize=8.5, textColor=C4, leading=11))])
         ft = Table(finfo, colWidths=[50, W - 50])
@@ -6961,7 +6985,7 @@ def register_routes(app: Flask) -> None:
             Paragraph(f"<b>Total Cheques</b><br/><font size=10 color='#1a3a5c'>{len(entries)}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
             Paragraph(f"<b>Total Cheque Amount</b><br/><font size=10 color='#1565c0'>AED {total_amount:,.2f}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
             Paragraph(f"<b>Period</b><br/><font size=10 color='#1a3a5c'>{month and datetime(2000, int(month), 1).strftime('%B') or 'All'} {year}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-            Paragraph(f"<b>Type</b><br/><font size=10 color='#1565c0'>Customer</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+            Paragraph(f"<b>Type</b><br/><font size=10 color='#1565c0'>In</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         ]]
         st = Table(sdata, colWidths=[W/4, W/4, W/4, W/4])
         st.setStyle(TableStyle([
@@ -7043,7 +7067,8 @@ def register_routes(app: Flask) -> None:
 
         doc.build(els)
         buf.seek(0)
-        fn = f"Customer_Cheque_Report_{month or 'All'}_{year}.pdf"
+        month_label = datetime(2000, int(month), 1).strftime('%b_%Y') if month else f'All_{year}'
+        fn = f"CurrentLink_ChequeReport_In_{month_label}.pdf"
         return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=fn)
 
     # ═══════════════════════════════════════════════════
