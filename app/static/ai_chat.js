@@ -31,18 +31,12 @@
     }
   }
 
-  function addMessage(role, text, sql) {
+  function addMessage(role, text) {
     var div = document.createElement('div');
     div.className = 'ai-chat-msg ' + role;
     var p = document.createElement('div');
     p.textContent = text;
     div.appendChild(p);
-    if (sql) {
-      var code = document.createElement('code');
-      code.className = 'msg-sql';
-      code.textContent = 'SQL: ' + sql;
-      div.appendChild(code);
-    }
     MSGS.appendChild(div);
     MSGS.scrollTop = MSGS.scrollHeight;
   }
@@ -73,7 +67,7 @@
         addMessage('assistant', 'Error: ' + data.error);
         return;
       }
-      addMessage('assistant', data.reply, data.sql || null);
+      addMessage('assistant', data.reply);
       HISTORY.push({role: 'assistant', content: data.reply});
     })
     .catch(function(err) {

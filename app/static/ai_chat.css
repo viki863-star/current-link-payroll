@@ -91,12 +91,6 @@
   border: 1px solid var(--line, rgba(21,51,93,0.1));
   color: var(--ink, #15335d); border-bottom-left-radius: 4px;
 }
-.ai-chat-msg.assistant .msg-sql {
-  display: block; font-size: 0.65rem; color: var(--muted, #627a9b);
-  margin-top: 6px; font-family: monospace; background: rgba(0,0,0,0.03);
-  padding: 4px 8px; border-radius: 6px; overflow-x: auto;
-}
-
 /* ─── Typing ─── */
 .ai-chat-typing {
   align-self: flex-start; display: flex; align-items: center; gap: 4px;
