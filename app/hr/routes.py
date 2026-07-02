@@ -1506,6 +1506,38 @@ def employee_edit(employee_id):
     )
 
 
+@hr_bp.route("/hr/employees/<employee_id>/delete", methods=["POST"])
+@_login_required("admin")
+def employee_delete(employee_id):
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    employee_id = employee_id.strip().upper()
+
+    employee = _fetch_employee(db, employee_id)
+    if employee is None:
+        flash("Employee not found.", "error")
+        return redirect(url_for("hr.employee_list"))
+
+    try:
+        # Clean up related data
+        db.execute("DELETE FROM salary_store WHERE driver_id = ?", (employee_id,))
+        db.execute("DELETE FROM salary_slips WHERE driver_id = ?", (employee_id,))
+        db.execute("DELETE FROM salary_payments WHERE driver_id = ?", (employee_id,))
+        db.execute("DELETE FROM driver_transactions WHERE driver_id = ?", (employee_id,))
+        db.execute("DELETE FROM vehicle_assignments WHERE driver_id = ?", (employee_id,))
+        db.execute("DELETE FROM drivers WHERE driver_id = ?", (employee_id,))
+        db.execute("DELETE FROM employees WHERE employee_id = ?", (employee_id,))
+        db.commit()
+        _audit_log(db, "employee_deleted", entity_type="employee", entity_id=employee_id, details=f"{employee['full_name']} deleted")
+        flash(f"Employee {employee['full_name']} ({employee_id}) deleted permanently.", "success")
+    except Exception as e:
+        db.rollback()
+        flash(f"Error deleting employee: {e}", "error")
+
+    return redirect(url_for("hr.employee_list"))
+
+
 @hr_bp.route("/hr/employees/download/excel")
 @_login_required("admin")
 def employee_list_excel():

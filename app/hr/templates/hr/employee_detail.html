@@ -36,6 +36,10 @@
         </div>
         <div class="profile-actions">
             <a href="{{ url_for('hr.employee_edit', employee_id=employee.employee_id) }}" class="btn btn-primary btn-sm">&#9998; Edit</a>
+            <form method="POST" action="{{ url_for('hr.employee_delete', employee_id=employee.employee_id) }}" style="display:inline" onsubmit="return confirm('Delete {{ employee.full_name }} ({{ employee.employee_id }}) permanently? All salary data, transactions, and assignments will also be removed.')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm" style="background:none;border:1px solid #e0e0e0;color:#c62828;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:0.78rem" onmouseover="this.style.background='#fee'" onmouseout="this.style.background=''">Delete</button>
+            </form>
             <a href="{{ url_for('hr.employee_list') }}" class="btn btn-outline btn-sm">&#8592; Back</a>
         </div>
     </div>
