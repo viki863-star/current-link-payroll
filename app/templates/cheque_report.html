@@ -79,8 +79,8 @@
     {# ═══ STATS CARDS ═══ #}
     <div class="cr-stats">
         <div class="cr-stat"><div class="lb">Total Cheques</div><div class="vl" style="color:#17345e">{{ entry_count }}</div></div>
-        <div class="cr-stat"><div class="lb">Supplier Cheques</div><div class="vl" style="color:#2e7d32">{{ supplier_count }}</div></div>
-        <div class="cr-stat"><div class="lb">Customer Cheques</div><div class="vl" style="color:#1565c0">{{ customer_count }}</div></div>
+        <div class="cr-stat"><div class="lb">In (Customer)</div><div class="vl" style="color:#1565c0">{{ customer_count }}</div></div>
+        <div class="cr-stat"><div class="lb">Out (Supplier + Other)</div><div class="vl" style="color:#2e7d32">{{ supplier_count }}</div></div>
         <div class="cr-stat"><div class="lb">Total Amount</div><div class="vl" style="color:#f7931e">AED {{ "{:,.2f}".format(total_amount) }}</div></div>
     </div>
 
@@ -88,14 +88,14 @@
     <div class="cr-charts">
         {# ─── PIE CHART ─── #}
         <div class="cr-chart-box">
-            <h3>Supplier vs Customer</h3>
-            {% set sup_pct = (supplier_total / total_amount * 100) if total_amount > 0 else 0 %}
-            {% set cust_pct = (customer_total / total_amount * 100) if total_amount > 0 else 0 %}
+            <h3>In vs Out</h3>
+            {% set in_pct = (customer_total / total_amount * 100) if total_amount > 0 else 0 %}
+            {% set out_pct = (supplier_total / total_amount * 100) if total_amount > 0 else 0 %}
             <div class="pie-wrap">
-                <div class="pie" style="background:conic-gradient(#2e7d32 0deg {{ sup_pct }}deg, #1565c0 {{ sup_pct }}deg 360deg)"></div>
+                <div class="pie" style="background:conic-gradient(#1565c0 0deg {{ in_pct }}deg, #2e7d32 {{ in_pct }}deg 360deg)"></div>
                 <div class="pie-leg">
-                    <div class="pie-leg-item"><span class="pie-leg-dot" style="background:#2e7d32"></span> Supplier — AED {{ "{:,.2f}".format(supplier_total) }} ({{ "%.1f"|format(sup_pct) }}%)</div>
-                    <div class="pie-leg-item"><span class="pie-leg-dot" style="background:#1565c0"></span> Customer — AED {{ "{:,.2f}".format(customer_total) }} ({{ "%.1f"|format(cust_pct) }}%)</div>
+                    <div class="pie-leg-item"><span class="pie-leg-dot" style="background:#1565c0"></span> In (Customer) — AED {{ "{:,.2f}".format(customer_total) }} ({{ "%.1f"|format(in_pct) }}%)</div>
+                    <div class="pie-leg-item"><span class="pie-leg-dot" style="background:#2e7d32"></span> Out (Supplier + Other) — AED {{ "{:,.2f}".format(supplier_total) }} ({{ "%.1f"|format(out_pct) }}%)</div>
                 </div>
             </div>
         </div>
@@ -126,19 +126,19 @@
         </a>
         <a href="{{ url_for('cheque_report_supplier_pdf', month=selected_month, year=selected_year) }}" target="_blank" class="cr-pdf-btn" style="background:#2e7d32">
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M10 1a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 10.586V2a1 1 0 0 1 1-1z"/><path d="M2 13a1 1 0 0 1 1 1v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2a1 1 0 1 1 2 0v2a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3v-2a1 1 0 0 1 1-1z"/></svg>
-            Supplier PDF
+            Out PDF
         </a>
         <a href="{{ url_for('cheque_report_customer_pdf', month=selected_month, year=selected_year) }}" target="_blank" class="cr-pdf-btn" style="background:#1565c0">
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M10 1a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 10.586V2a1 1 0 0 1 1-1z"/><path d="M2 13a1 1 0 0 1 1 1v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2a1 1 0 1 1 2 0v2a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3v-2a1 1 0 0 1 1-1z"/></svg>
-            Customer PDF
+            In PDF
         </a>
     </div>
 
     {# ═══ TABS ═══ #}
     <div class="cr-tabs">
         <button class="cr-tab active" data-filter="all" onclick="filterTable('all')">All</button>
-        <button class="cr-tab" data-filter="Supplier" onclick="filterTable('Supplier')">Supplier</button>
-        <button class="cr-tab" data-filter="Customer" onclick="filterTable('Customer')">Customer</button>
+        <button class="cr-tab" data-filter="in" onclick="filterTable('in')">In</button>
+        <button class="cr-tab" data-filter="out" onclick="filterTable('out')">Out</button>
     </div>
 
     {# ═══ TABLE ═══ #}
@@ -158,14 +158,13 @@
             </thead>
             <tbody>
                 {% for e in entries %}
-                <tr data-type="{{ e.payee_type }}">
+                <tr data-type="{{ e.payee_type }}" data-flow="{{ 'in' if e.payee_type == 'Customer' else 'out' }}">
                     <td style="white-space:nowrap">{{ e.date }}</td>
                     <td style="color:#17345e;font-weight:600">{{ e.payee }}</td>
                     <td>
                         <span class="cr-badge" style="
-                            {% if e.payee_type == 'Supplier' %}background:#e8f5e9;color:#2e7d32
-                            {% elif e.payee_type == 'Customer' %}background:#e3f2fd;color:#1565c0
-                            {% else %}background:#fce4ec;color:#c62828{% endif %}">{{ e.payee_type }}</span>
+                            {% if e.payee_type == 'Customer' %}background:#e3f2fd;color:#1565c0
+                            {% else %}background:#e8f5e9;color:#2e7d32{% endif %}">{{ 'In' if e.payee_type == 'Customer' else 'Out' }}</span>
                     </td>
                     <td style="font-weight:600">{{ e.cheque_no or '—' }}</td>
                     <td>{{ e.cheque_date or '—' }}</td>
@@ -195,18 +194,16 @@ var totalAmount = {{ total_amount }};
 function filterTable(type) {
     var rows = document.querySelectorAll('#chequeTable tbody tr');
     var total = 0;
-    var count = 0;
 
     document.querySelectorAll('.cr-tab').forEach(function(t) {
         t.classList.toggle('active', t.getAttribute('data-filter') === type);
     });
 
     rows.forEach(function(row) {
-        if (type === 'all' || row.getAttribute('data-type') === type) {
+        if (type === 'all' || row.getAttribute('data-flow') === type) {
             row.style.display = '';
             var amt = parseFloat(row.querySelectorAll('td')[5].textContent.replace(/[^0-9.-]/g, '')) || 0;
             total += amt;
-            count++;
         } else {
             row.style.display = 'none';
         }
@@ -217,12 +214,6 @@ function filterTable(type) {
         foot.textContent = 'AED ' + totalAmount.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
     } else {
         foot.textContent = 'AED ' + total.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
-    }
-
-    // Update count display if needed
-    var countCells = document.querySelectorAll('.cr-stat .vl');
-    if (countCells.length > 0 && type !== 'all') {
-        // Just visual feedback
     }
 }
 </script>
