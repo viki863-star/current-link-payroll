@@ -1393,7 +1393,10 @@ def employee_edit(employee_id):
         else:
             salary = float(values["basic_salary"])
             ot_rate = float(values.get("ot_rate", 0) or 0)
-            if values.get("status", "").lower() != "terminated":
+            if values.get("status", "").lower() == "terminated":
+                if not values.get("termination_date"):
+                    values["termination_date"] = date.today().isoformat()
+            else:
                 values["termination_date"] = ""
             try:
                 uploaded_photo = save_employee_photo(
@@ -1441,6 +1444,16 @@ def employee_edit(employee_id):
                 db.rollback()
                 return redirect(url_for("hr.employee_edit", employee_id=employee_id))
 
+            # Always sync status/termination to drivers table so sync_drivers_to_employees doesn't revert it
+            try:
+                db.execute(
+                    "UPDATE drivers SET status=?, termination_date=?, basic_salary=?, ot_rate=?, shift=?, full_name=?, phone_number=? WHERE UPPER(driver_id)=?",
+                    (values["status"], values["termination_date"] or None, salary, ot_rate,
+                     values["shift"] or "Morning", values["full_name"], values["phone_number"] or None, employee_id),
+                )
+            except Exception:
+                pass  # drivers table may not exist
+
             if values.get("employee_type") == "Driver":
                 if values["vehicle_id"]:
                     db.execute(
@@ -1464,23 +1477,12 @@ def employee_edit(employee_id):
                     )
                     db.execute("UPDATE drivers SET vehicle_no = NULL WHERE driver_id = ?", (employee_id,))
 
-                try:
-                    db.execute(
-                        "UPDATE drivers SET basic_salary=?, ot_rate=?, duty_start=?, shift=?, full_name=?, phone_number=?, photo_name=COALESCE(?, photo_name), photo_data=COALESCE(?, photo_data), photo_content_type=COALESCE(?, photo_content_type), vehicle_no=?, status=?, termination_date=? WHERE UPPER(driver_id)=?",
-                        (salary, ot_rate, values["join_date"], values["shift"] or "Morning", values["full_name"], values["phone_number"] or None,
-                         uploaded_photo["photo_name"] if uploaded_photo else None,
-                         uploaded_photo["photo_data"] if uploaded_photo else None,
-                         uploaded_photo["photo_content_type"] if uploaded_photo else None,
-                         values.get("vehicle_id", "") or "",
-                         values["status"], values["termination_date"] or None, employee_id),
-                    )
-                    db.commit()
-                except Exception:
-                    db.rollback()
-
             _audit_log(db, "employee_updated", entity_type="employee", entity_id=employee_id, details=f"{values['full_name']} updated")
             db.commit()
 
+            # Verify the update took effect
+            check = _fetch_employee(db, employee_id)
+            current_app.logger.info(f"Employee {employee_id} updated: status={check['status'] if check else 'NOT FOUND'}")
             flash("Employee updated successfully.", "success")
             return redirect(url_for("hr.employee_detail", employee_id=employee_id))
 
