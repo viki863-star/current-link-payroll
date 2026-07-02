@@ -1549,52 +1549,56 @@ def employee_delete(employee_id):
 @hr_bp.route("/hr/employees/<employee_id>/restore", methods=["GET", "POST"])
 @_login_required("admin")
 def employee_restore(employee_id):
-    _touch_admin_workspace("hr")
-    ensure_employees_table()
-    db = open_db()
-    employee_id = employee_id.strip().upper()
-
-    existing = _fetch_employee(db, employee_id)
-    if existing:
-        flash(f"Employee {employee_id} already exists.", "success")
-        return redirect(url_for("hr.employee_edit", employee_id=employee_id))
-
-    tech = db.execute("SELECT * FROM technicians WHERE technician_code = ?", (employee_id,)).fetchone()
-    if not tech:
-        flash(f"No data found for {employee_id} in technicians table.", "error")
-        return redirect(url_for("hr.employee_list"))
-
-    from werkzeug.security import generate_password_hash
-    name = tech["specialization"] or f"Staff {employee_id}"
-    phone = tech["phone_number"] or ""
-    username = tech["user_id"] or employee_id.lower()
-    pw_hash = tech["password_hash"] or generate_password_hash("changeme123")
-    is_active = 1 if tech.get("status") == "Active" else 0
-    join_date = tech.get("created_at", "").split(" ")[0] if tech.get("created_at") else "2025-01-01"
-
-    errors = []
+    import traceback
     try:
-        db.execute("""
-            INSERT INTO field_staff (staff_id, full_name, phone, username, password_hash, is_active)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (employee_id, name, phone, username, pw_hash, is_active))
-    except Exception as e:
-        errors.append(f"field_staff: {e}")
+        _touch_admin_workspace("hr")
+        ensure_employees_table()
+        db = open_db()
+        employee_id = employee_id.strip().upper()
 
-    try:
-        db.execute("""
-            INSERT INTO employees (employee_id, full_name, phone_number, employee_type, department, designation, status, join_date, basic_salary, ot_rate)
-            VALUES (?, ?, ?, 'Field Staff', 'Field Staff', 'Field Staff', ?, ?, 0, 0)
-        """, (employee_id, name, phone, "Active" if is_active else "Inactive", join_date))
-    except Exception as e:
-        errors.append(f"employees: {e}")
+        existing = _fetch_employee(db, employee_id)
+        if existing:
+            flash(f"Employee {employee_id} already exists.", "success")
+            return redirect(url_for("hr.employee_edit", employee_id=employee_id))
 
-    db.commit()
-    if errors:
-        flash(f"Restore partial: {', '.join(errors)}", "warning")
-    else:
+        tech = db.execute("SELECT * FROM technicians WHERE technician_code = ?", (employee_id,)).fetchone()
+        if not tech:
+            flash(f"No data found for {employee_id} in technicians table.", "error")
+            return redirect(url_for("hr.employee_list"))
+
+        name = tech["specialization"] or f"Staff {employee_id}"
+        phone = tech["phone_number"] or ""
+        username = tech["user_id"] or employee_id.lower()
+        pw_hash = tech["password_hash"] or generate_password_hash("changeme123")
+        is_active = 1 if tech.get("status") == "Active" else 0
+        join_date = tech.get("created_at", "").split(" ")[0] if tech.get("created_at") else "2025-01-01"
+
+        try:
+            db.execute("""
+                INSERT INTO field_staff (staff_id, full_name, phone, username, password_hash, is_active)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (employee_id, name, phone, username, pw_hash, is_active))
+        except Exception as e:
+            current_app.logger.warning("restore field_staff: %s", e)
+
+        try:
+            db.execute("""
+                INSERT INTO employees (employee_id, full_name, phone_number, employee_type, department, designation, status, join_date, basic_salary, ot_rate)
+                VALUES (?, ?, ?, 'Field Staff', 'Field Staff', 'Field Staff', ?, ?, 0, 0)
+            """, (employee_id, name, phone, "Active" if is_active else "Inactive", join_date))
+        except Exception as e:
+            current_app.logger.warning("restore employees: %s", e)
+            db.rollback()
+            flash(f"Restore failed (employees): {e}", "error")
+            return redirect(url_for("hr.employee_list"))
+
+        db.commit()
         flash(f"Employee {name} ({employee_id}) restored successfully.", "success")
-    return redirect(url_for("hr.employee_edit", employee_id=employee_id))
+        return redirect(url_for("hr.employee_edit", employee_id=employee_id))
+    except Exception as e:
+        current_app.logger.error("restore error: %s\n%s", e, traceback.format_exc())
+        flash(f"Restore error: {e}", "error")
+        return redirect(url_for("hr.employee_list"))
 
 
 @hr_bp.route("/hr/employees/download/excel")
