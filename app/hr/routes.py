@@ -648,7 +648,7 @@ def employee_salary_store(employee_id):
         except ValidationError as exc:
             flash(str(exc), "error")
         else:
-            if employee.get("termination_date"):
+            if employee.get("termination_date") and (employee.get("status") or "").lower() == "terminated":
                 term_date = employee["termination_date"]
                 if term_date < form["salary_month"] + "-01":
                     flash(f"Cannot store salary: employee was terminated on {term_date}. Select a month on or before {term_date[:7]}.", "error")
@@ -1393,6 +1393,8 @@ def employee_edit(employee_id):
         else:
             salary = float(values["basic_salary"])
             ot_rate = float(values.get("ot_rate", 0) or 0)
+            if values.get("status", "").lower() != "terminated":
+                values["termination_date"] = ""
             try:
                 uploaded_photo = save_employee_photo(
                     current_app._get_current_object(), employee_id,
