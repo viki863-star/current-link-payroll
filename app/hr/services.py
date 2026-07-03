@@ -175,17 +175,35 @@ def employee_search_filter(query, status_filter, department_filter, employee_typ
 
 
 def next_employee_id(db):
-    last = db.execute(
-        "SELECT employee_id FROM employees ORDER BY id DESC LIMIT 1"
-    ).fetchone()
-    if last is None:
+    # Get all existing employee IDs to find the maximum numeric suffix
+    existing_ids = db.execute(
+        "SELECT employee_id FROM employees WHERE employee_id LIKE 'EMP-%'"
+    ).fetchall()
+    
+    if not existing_ids:
         return "EMP-0001"
-    last_id = last["employee_id"]
-    try:
-        num = int(last_id.split("-")[-1]) + 1
-    except (ValueError, IndexError):
-        num = 1
-    return f"EMP-{num:04d}"
+    
+    # Extract numeric suffixes and find the maximum
+    max_num = 0
+    for row in existing_ids:
+        emp_id = row["employee_id"]
+        try:
+            num = int(emp_id.split("-")[-1])
+            if num > max_num:
+                max_num = num
+        except (ValueError, IndexError):
+            continue
+    
+    # Generate next ID and ensure it doesn't exist
+    next_num = max_num + 1
+    new_id = f"EMP-{next_num:04d}"
+    
+    # Double-check the new ID doesn't exist (handle race conditions)
+    while db.execute("SELECT employee_id FROM employees WHERE employee_id = ?", (new_id,)).fetchone():
+        next_num += 1
+        new_id = f"EMP-{next_num:04d}"
+    
+    return new_id
 
 
 def employee_departments(db):
