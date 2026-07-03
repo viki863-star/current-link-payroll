@@ -337,98 +337,121 @@ def employee_new():
                 assigned_vehicle=values.get("vehicle_id", ""),
             )
 
-        salary = float(values["basic_salary"])
-        ot_rate = float(values.get("ot_rate", 0) or 0)
+        try:
+            salary = float(values["basic_salary"])
+            ot_rate = float(values.get("ot_rate", 0) or 0)
 
-        uploaded_photo = save_employee_photo(
-            current_app._get_current_object(), values["employee_id"],
-            values["full_name"], request.files.get("photo_file")
-        )
-
-        db.execute(
-            """
-            INSERT INTO employees (
-                employee_id, full_name, phone_number, email,
-                employee_type, department, designation, gender,
-                shift, contract_type, join_date, basic_salary, ot_rate,
-                nationality, iqama_no, passport_no,
-                bank_name, bank_account, iban,
-                emergency_contact, emergency_name, address,
-                photo_name, photo_data, photo_content_type,
-                status, termination_date, remarks
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                values["employee_id"], values["full_name"], values["phone_number"], values["email"] or None,
-                values["employee_type"], values["department"], values["designation"], values["gender"] or None,
-                values["shift"] or "Morning", values["contract_type"] or "Permanent",
-                values["join_date"], salary, ot_rate,
-                values["nationality"] or None, values["iqama_no"] or None, values["passport_no"] or None,
-                values["bank_name"] or None, values["bank_account"] or None, values["iban"] or None,
-                values["emergency_contact"] or None, values["emergency_name"] or None, values["address"] or None,
-                uploaded_photo["photo_name"] if uploaded_photo else None,
-                uploaded_photo["photo_data"] if uploaded_photo else None,
-                uploaded_photo["photo_content_type"] if uploaded_photo else None,
-                values["status"], values["termination_date"] or None, values["remarks"] or None,
-            ),
-        )
-
-        db.execute(
-            """
-            INSERT INTO drivers (
-                driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
-                basic_salary, ot_rate, duty_start, photo_name, photo_data, photo_content_type,
-                status, termination_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(driver_id) DO UPDATE SET
-                full_name=excluded.full_name,
-                phone_number=excluded.phone_number,
-                shift=excluded.shift,
-                basic_salary=excluded.basic_salary,
-                ot_rate=excluded.ot_rate,
-                photo_name=excluded.photo_name,
-                photo_data=excluded.photo_data,
-                photo_content_type=excluded.photo_content_type,
-                status=excluded.status,
-                termination_date=excluded.termination_date
-            """,
-            (
-                values["employee_id"], values["full_name"], values["phone_number"] or None,
-                values.get("vehicle_id", "") or "",
-                values["shift"] or "Morning",
-                values.get("vehicle_type", "Car") or "Car",
-                salary, ot_rate,
-                values["join_date"] or None,
-                uploaded_photo["photo_name"] if uploaded_photo else None,
-                uploaded_photo["photo_data"] if uploaded_photo else None,
-                uploaded_photo["photo_content_type"] if uploaded_photo else None,
-                values["status"], values["termination_date"] or None,
-            ),
-        )
-
-        if values["vehicle_id"]:
-            db.execute(
-                "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
-                (date.today().isoformat(), values["employee_id"]),
+            uploaded_photo = save_employee_photo(
+                current_app._get_current_object(), values["employee_id"],
+                values["full_name"], request.files.get("photo_file")
             )
+
             db.execute(
-                "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
-                (values["vehicle_id"], values["employee_id"], date.today().isoformat()),
+                """
+                INSERT INTO employees (
+                    employee_id, full_name, phone_number, email,
+                    employee_type, department, designation, gender,
+                    shift, contract_type, join_date, basic_salary, ot_rate,
+                    nationality, iqama_no, passport_no,
+                    bank_name, bank_account, iban,
+                    emergency_contact, emergency_name, address,
+                    photo_name, photo_data, photo_content_type,
+                    status, termination_date, remarks
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    values["employee_id"], values["full_name"], values["phone_number"], values["email"] or None,
+                    values["employee_type"], values["department"], values["designation"], values["gender"] or None,
+                    values["shift"] or "Morning", values["contract_type"] or "Permanent",
+                    values["join_date"], salary, ot_rate,
+                    values["nationality"] or None, values["iqama_no"] or None, values["passport_no"] or None,
+                    values["bank_name"] or None, values["bank_account"] or None, values["iban"] or None,
+                    values["emergency_contact"] or None, values["emergency_name"] or None, values["address"] or None,
+                    uploaded_photo["photo_name"] if uploaded_photo else None,
+                    uploaded_photo["photo_data"] if uploaded_photo else None,
+                    uploaded_photo["photo_content_type"] if uploaded_photo else None,
+                    values["status"], values["termination_date"] or None, values["remarks"] or None,
+                ),
             )
-            db.execute("UPDATE drivers SET vehicle_no = ? WHERE driver_id = ?", (values["vehicle_id"], values["employee_id"]))
 
-        if values["employee_type"] == "Field Staff":
-            _sync_employee_to_field_staff(db, values["employee_id"], values["full_name"], values["phone_number"], values["status"])
+            db.execute(
+                """
+                INSERT INTO drivers (
+                    driver_id, full_name, phone_number, vehicle_no, shift, vehicle_type,
+                    basic_salary, ot_rate, duty_start, photo_name, photo_data, photo_content_type,
+                    status, termination_date
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(driver_id) DO UPDATE SET
+                    full_name=excluded.full_name,
+                    phone_number=excluded.phone_number,
+                    shift=excluded.shift,
+                    basic_salary=excluded.basic_salary,
+                    ot_rate=excluded.ot_rate,
+                    photo_name=excluded.photo_name,
+                    photo_data=excluded.photo_data,
+                    photo_content_type=excluded.photo_content_type,
+                    status=excluded.status,
+                    termination_date=excluded.termination_date
+                """,
+                (
+                    values["employee_id"], values["full_name"], values["phone_number"] or None,
+                    values.get("vehicle_id", "") or "",
+                    values["shift"] or "Morning",
+                    values.get("vehicle_type", "Car") or "Car",
+                    salary, ot_rate,
+                    values["join_date"] or None,
+                    uploaded_photo["photo_name"] if uploaded_photo else None,
+                    uploaded_photo["photo_data"] if uploaded_photo else None,
+                    uploaded_photo["photo_content_type"] if uploaded_photo else None,
+                    values["status"], values["termination_date"] or None,
+                ),
+            )
 
-        _audit_log(
-            db, "employee_created",
-            entity_type="employee",
-            entity_id=values["employee_id"],
-            details=f"{values['full_name']} / {values['employee_type']} / {values['department']}",
-        )
-        db.commit()
-        flash(f"Employee {values['employee_id']} - {values['full_name']} created successfully.", "success")
-        return redirect(url_for("hr.employee_detail", employee_id=values["employee_id"]))
+            if values["vehicle_id"]:
+                db.execute(
+                    "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
+                    (date.today().isoformat(), values["employee_id"]),
+                )
+                db.execute(
+                    "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
+                    (values["vehicle_id"], values["employee_id"], date.today().isoformat()),
+                )
+                db.execute("UPDATE drivers SET vehicle_no = ? WHERE driver_id = ?", (values["vehicle_id"], values["employee_id"]))
+
+            if values["employee_type"] == "Field Staff":
+                _sync_employee_to_field_staff(db, values["employee_id"], values["full_name"], values["phone_number"], values["status"])
+
+            _audit_log(
+                db, "employee_created",
+                entity_type="employee",
+                entity_id=values["employee_id"],
+                details=f"{values['full_name']} / {values['employee_type']} / {values['department']}",
+            )
+            db.commit()
+            flash(f"Employee {values['employee_id']} - {values['full_name']} created successfully.", "success")
+            return redirect(url_for("hr.employee_detail", employee_id=values["employee_id"]))
+        except Exception as e:
+            db.rollback()
+            import traceback
+            current_app.logger.error(f"Employee creation failed: {e}\n{traceback.format_exc()}")
+            flash(f"Error creating employee: {str(e)}", "error")
+            return render_template(
+                "hr/employee_form.html",
+                values=values,
+                page_title="Add Employee",
+                submit_label="Save Employee",
+                edit_mode=False,
+                employee_types=EMPLOYEE_TYPES,
+                departments=DEPARTMENTS,
+                designations=DESIGNATIONS,
+                status_options=STATUS_OPTIONS,
+                gender_options=GENDER_OPTIONS,
+                shift_options=SHIFT_OPTIONS,
+                contract_options=CONTRACT_TYPE_OPTIONS,
+                vehicles=vehicles,
+                assigned_vehicle=values.get("vehicle_id", ""),
+            )
+
 
     assigned_vehicle = db.execute(
         "SELECT vehicle_id FROM vehicle_assignments WHERE driver_id = ? AND is_current = 1 LIMIT 1",
