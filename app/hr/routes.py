@@ -311,9 +311,16 @@ def employee_new():
 
     values = employee_form_data()
     if not values["employee_id"]:
-        values["employee_id"] = next_employee_id(db)
+        try:
+            values["employee_id"] = next_employee_id(db)
+        except Exception:
+            values["employee_id"] = ""
 
-    vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
+    # Get vehicles if table exists, otherwise empty list
+    try:
+        vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
+    except Exception:
+        vehicles = []
 
     if request.method == "POST":
         errors = validate_employee_form(values)
@@ -453,10 +460,8 @@ def employee_new():
             )
 
 
-    assigned_vehicle = db.execute(
-        "SELECT vehicle_id FROM vehicle_assignments WHERE driver_id = ? AND is_current = 1 LIMIT 1",
-        (values["employee_id"],),
-    ).fetchone()
+    # For new employees, no assigned vehicle query needed
+    assigned_vehicle = None
     return render_template(
         "hr/employee_form.html",
         values=values,
@@ -471,7 +476,7 @@ def employee_new():
         shift_options=SHIFT_OPTIONS,
         contract_options=CONTRACT_TYPE_OPTIONS,
         vehicles=vehicles,
-        assigned_vehicle=assigned_vehicle["vehicle_id"] if assigned_vehicle else "",
+        assigned_vehicle="",
     )
 
 
@@ -1415,7 +1420,11 @@ def employee_edit(employee_id):
         flash("Employee not found.", "error")
         return redirect(url_for("hr.employee_list"))
 
-    vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
+    # Get vehicles if table exists, otherwise empty list
+    try:
+        vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
+    except Exception:
+        vehicles = []
     assigned = db.execute("SELECT vehicle_id FROM vehicle_assignments WHERE driver_id = ? AND is_current = 1 LIMIT 1", (employee_id,)).fetchone()
     assigned_vehicle = assigned["vehicle_id"] if assigned else ""
     if not assigned_vehicle:
