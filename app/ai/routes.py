@@ -118,23 +118,43 @@ def tripsheet_save():
         if not entry_date:
             return jsonify({"error": "Date required"}), 400
         db = open_db()
-        db.execute("""CREATE TABLE IF NOT EXISTS tabreed_tripsheets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            entry_date TEXT NOT NULL,
-            time_in TEXT,
-            time_out TEXT,
-            total_reading REAL DEFAULT 0,
-            tanker_gln TEXT,
-            trips REAL DEFAULT 1,
-            tanker_reg TEXT,
-            notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )""")
+        backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+        # Auto-fill GLN as 10000 GLN
+        if not tanker_gln:
+            tanker_gln = "10000 GLN"
+        # Ensure table exists (backend-aware)
+        if backend == "postgres":
+            db.execute("""CREATE TABLE IF NOT EXISTS tabreed_tripsheets (
+                id SERIAL PRIMARY KEY,
+                customer_id INTEGER NOT NULL,
+                entry_date TEXT NOT NULL,
+                time_in TEXT,
+                time_out TEXT,
+                total_reading REAL DEFAULT 0,
+                tanker_gln TEXT,
+                trips REAL DEFAULT 1,
+                tanker_reg TEXT,
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT (NOW())
+            )""")
+        else:
+            db.execute("""CREATE TABLE IF NOT EXISTS tabreed_tripsheets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL,
+                entry_date TEXT NOT NULL,
+                time_in TEXT,
+                time_out TEXT,
+                total_reading REAL DEFAULT 0,
+                tanker_gln TEXT,
+                trips REAL DEFAULT 1,
+                tanker_reg TEXT,
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )""")
         db.execute("""INSERT INTO tabreed_tripsheets
             (customer_id, entry_date, time_in, time_out, total_reading, tanker_gln, trips, tanker_reg, notes)
             VALUES (?,?,?,?,?,?,?,?,?)""",
-            (cid, entry_date, time_in or None, time_out or None, total_reading, tanker_gln or None, trips, tanker_reg or None, notes or None))
+            (cid, entry_date, time_in or None, time_out or None, total_reading, tanker_gln, trips, tanker_reg or None, notes or None))
         db.commit()
         db.close()
         return jsonify({"success": True, "message": "Tripsheet entry saved"})

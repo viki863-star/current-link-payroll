@@ -256,9 +256,9 @@
         { id: 'time_out', label: 'fieldTimeOut', parse: parseTime },
         { id: 'total_reading', label: 'fieldMeter', parse: parseNumber },
         { id: 'trips', label: 'fieldTrips', parse: parseNumber },
-        { id: 'tanker_gln', label: 'fieldGln', parse: parseGln },
         { id: 'tanker_reg', label: 'fieldReg', parse: parseText },
       ],
+      // tanker_gln always auto-fills as "10000 GLN" on backend
       data: {},
       idx: 0,
       answered: false,
