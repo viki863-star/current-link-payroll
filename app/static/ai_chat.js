@@ -345,6 +345,8 @@
     .then(function(data) {
       hideTyping();
       if (data.error) { addMessage('assistant', '❌ ' + t('error') + ': ' + data.error); resetTripsheetMode(); return; }
+      var info = '✅ Saved (customer #' + data.customer_id + ', date: ' + data.date + ')';
+      addMessage('assistant', info);
       var msg = t('saved') + ' "📋 ' + t('tripsheetBtn') + '" ' + t('saved2');
       addMessage('assistant', msg);
       speakText('Entry saved successfully');

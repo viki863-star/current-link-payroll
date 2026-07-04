@@ -156,8 +156,11 @@ def tripsheet_save():
             VALUES (?,?,?,?,?,?,?,?,?)""",
             (cid, entry_date, time_in or None, time_out or None, total_reading, tanker_gln, trips, tanker_reg or None, notes or None))
         db.commit()
+        # Verify by counting
+        count = db.execute("SELECT COUNT(*) AS cnt FROM tabreed_tripsheets WHERE customer_id=? AND entry_date=?", (cid, entry_date)).fetchone()
+        cnt = count["cnt"] if count else 0
         db.close()
-        return jsonify({"success": True, "message": "Tripsheet entry saved"})
+        return jsonify({"success": True, "message": "Tripsheet entry saved", "customer_id": cid, "date": entry_date, "count": cnt})
     except Exception as e:
         import traceback
         current_app.logger.error("Tripsheet save error: %s\n%s", e, traceback.format_exc())
