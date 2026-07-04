@@ -8,10 +8,23 @@ def _get_db():
     from ..database import open_db
     return open_db()
 
+def _safe_rollback(db):
+    try:
+        db.rollback()
+    except Exception:
+        pass
+
+def _safe_execute(db, sql, params=()):
+    try:
+        db.execute(sql, params)
+        db.commit()
+    except Exception:
+        _safe_rollback(db)
+
 def _ensure_tables():
     db = _get_db()
     backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
-    autoinc = "BIGSERIAL" if backend == "postgres" else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    autoinc = "BIGSERIAL PRIMARY KEY" if backend == "postgres" else "INTEGER PRIMARY KEY AUTOINCREMENT"
     now = "NOW()" if backend == "postgres" else "datetime('now')"
     ignore = "ON CONFLICT DO NOTHING" if backend == "postgres" else "OR IGNORE"
     int_type = "INTEGER" if backend == "postgres" else "INTEGER"
@@ -190,19 +203,16 @@ def _ensure_tables():
             );
         """)
         db.commit()
-    except Exception:
-        db.rollback()
+    except Exception as ex:
+        current_app.logger.error("_ensure_tables executescript error: %s", ex)
+        _safe_rollback(db)
     # seed service_items from existing invoice items
-    try:
-        db.execute(f"""
-            INSERT INTO service_items (description)
-            SELECT DISTINCT TRIM(description) FROM customer_invoice_items
-            WHERE description IS NOT NULL AND TRIM(description) != ''
-            {ignore}
-        """)
-        db.commit()
-    except Exception:
-        pass
+    _safe_execute(db, f"""
+        INSERT INTO service_items (description)
+        SELECT DISTINCT TRIM(description) FROM customer_invoice_items
+        WHERE description IS NOT NULL AND TRIM(description) != ''
+        {ignore}
+    """)
     # ALTER TABLE additions (best-effort on both backends)
     alter_ops = [
         ("customer_invoices", "lpo_no", "TEXT"),
@@ -240,42 +250,13 @@ def _ensure_tables():
         ("company_profile", "iban", "TEXT"),
     ]
     for table, col, dtype in alter_ops:
-        try:
-            db.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {dtype}" if backend == "postgres" else f"ALTER TABLE {table} ADD COLUMN {col} {dtype}")
-            db.commit()
-        except Exception:
-            pass
-    try:
-        if backend == "postgres":
-            db.execute("ALTER TABLE customer_invoices DROP COLUMN IF EXISTS status")
-        else:
-            db.execute("ALTER TABLE customer_invoices DROP COLUMN status")
-        db.commit()
-    except Exception:
-        pass
-    try:
-        if backend == "postgres":
-            db.execute("ALTER TABLE customer_invoices DROP COLUMN IF EXISTS paid")
-        else:
-            db.execute("ALTER TABLE customer_invoices DROP COLUMN paid")
-        db.commit()
-    except Exception:
-        pass
-    try:
-        db.execute("INSERT INTO quotation_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM quotation_sequence)")
-        db.commit()
-    except Exception:
-        pass
-    try:
-        db.execute("INSERT INTO invoice_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM invoice_sequence)")
-        db.commit()
-    except Exception:
-        pass
-    try:
-        db.execute("ALTER TABLE customer_quotation_items ADD COLUMN unit TEXT DEFAULT 'hr'")
-        db.commit()
-    except Exception:
-        pass
+        sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {dtype}" if backend == "postgres" else f"ALTER TABLE {table} ADD COLUMN {col} {dtype}"
+        _safe_execute(db, sql)
+    _safe_execute(db, "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS status" if backend == "postgres" else "ALTER TABLE customer_invoices DROP COLUMN status")
+    _safe_execute(db, "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS paid" if backend == "postgres" else "ALTER TABLE customer_invoices DROP COLUMN paid")
+    _safe_execute(db, "INSERT INTO quotation_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM quotation_sequence)")
+    _safe_execute(db, "INSERT INTO invoice_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM invoice_sequence)")
+    _safe_execute(db, "ALTER TABLE customer_quotation_items ADD COLUMN unit TEXT DEFAULT 'hr'")
 
 # ─── HELPERS ───
 
