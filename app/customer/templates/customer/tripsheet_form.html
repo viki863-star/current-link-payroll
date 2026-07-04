@@ -84,9 +84,11 @@
                 <button class="btn btn-primary" type="submit">{% if edit %}Update Entry{% else %}Save Entry{% endif %}</button>
                 {% if not edit %}
                 <button class="btn btn-outline" type="button" onclick="saveAndNew()">Save &amp; New</button>
+                <button class="btn btn-outline" type="button" id="voiceEntryBtn" style="border-color:var(--primary);color:var(--primary)">🎤 Voice Entry</button>
                 {% endif %}
                 <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='tripsheet') }}" class="btn btn-outline">Cancel</a>
             </div>
+            <div id="voiceStatus" class="full-span" style="display:none;margin-top:4px;padding:8px 12px;border-radius:8px;background:#f0f7ff;font-size:0.82rem;color:var(--primary)"></div>
         </form>
     </div>
 </div>
@@ -125,6 +127,91 @@ document.getElementById('tankerGln').addEventListener('input', function() {
             }
         });
     }
+})();
+
+// ─── Voice Entry ───
+(function(){
+    var btn = document.getElementById('voiceEntryBtn');
+    var status = document.getElementById('voiceStatus');
+    if (!btn) return;
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) { btn.style.display = 'none'; return; }
+    var fields = [
+        { id: 'entryDate', label: 'Date kya hai?', type: 'date' },
+        { id: 'timeIn', label: 'Time In kya hai?', type: 'time' },
+        { id: 'timeOut', label: 'Time Out kya hai?', type: 'time' },
+        { id: 'totalReading', label: 'Kitna meter reading hai?', type: 'number' },
+        { id: 'trips', label: 'Kitne trips hain?', type: 'number' },
+        { id: 'tankerGln', label: 'Tanker GLN kya hai?', type: 'text' },
+        { id: 'tankerReg', label: 'Tanker registration number kya hai?', type: 'text' },
+    ];
+    var step = -1, isRunning = false, recognition = null;
+    var synth = window.speechSynthesis;
+    function speak(text, cb) {
+        status.textContent = '🤖 ' + text;
+        if (!synth) { if (cb) cb(); return; }
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ur-PK'; u.rate = 0.9;
+        u.onend = function() { if (cb) cb(); };
+        u.onerror = function() { if (cb) cb(); };
+        synth.cancel(); synth.speak(u);
+    }
+    function listen(cb) {
+        status.textContent = '🎤 Sun raha hoon... boliye';
+        recognition = new SpeechRecognition();
+        recognition.lang = 'ur-PK'; recognition.continuous = false; recognition.interimResults = false;
+        recognition.onresult = function(e) {
+            var text = e.results[0][0].transcript.trim();
+            status.textContent = '✅ Aapne kaha: ' + text;
+            if (cb) cb(text);
+        };
+        recognition.onerror = function() {
+            status.textContent = '❌ Samajh nahi aaya, dobara koshish karein';
+            if (cb) cb(null);
+        };
+        recognition.start();
+    }
+    function fillField(id, value) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (id === 'entryDate') {
+            var d = new Date(value);
+            if (!isNaN(d)) { el.value = d.toISOString().slice(0,10); return; }
+            var m = value.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+            if (m) { var day=m[1], mon=m[2], yr=m[3]; if(yr.length===2)yr='20'+yr; el.value=yr+'-'+mon.padStart(2,'0')+'-'+day.padStart(2,'0'); return; }
+            el.value = value;
+        } else if (id === 'timeIn' || id === 'timeOut') {
+            var tm = value.match(/(\d{1,2})\s*[:\s]\s*(\d{2})\s*(am|pm|AM|PM)?/i);
+            if (tm) { var h=parseInt(tm[1]),m=tm[2],ap=(tm[3]||'').toLowerCase(); if(ap==='pm'&&h<12)h+=12; if(ap==='am'&&h===12)h=0; el.value=String(h).padStart(2,'0')+':'+m; return; }
+            el.value = value;
+        } else if (id === 'tankerGln') {
+            el.value = value.toUpperCase().includes('GLN') ? value.toUpperCase() : value + ' GLN';
+            document.querySelectorAll('.gln-btn').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-value') === el.value); });
+        } else if (id === 'totalReading' || id === 'trips') {
+            el.value = parseFloat(value) || 0;
+        } else {
+            el.value = value.toUpperCase();
+        }
+    }
+    function nextStep() {
+        step++;
+        if (step >= fields.length) {
+            isRunning = false;
+            status.textContent = '✅ Sab kuch complete! Auto-save...';
+            speak('Sab kuch complete. Auto-save.', function(){ saveAndNew(); });
+            return;
+        }
+        var f = fields[step];
+        var el = document.getElementById(f.id);
+        if (el && el.value && el.value !== '0' && f.id !== 'totalReading') { nextStep(); return; }
+        speak(f.label, function(){ listen(function(ans){ if(ans) fillField(f.id, ans); setTimeout(nextStep,500); }); });
+    }
+    btn.addEventListener('click', function() {
+        if (isRunning) return;
+        isRunning = true; step = -1;
+        status.style.display = 'block';
+        speak('Voice entry start. Sawal jawab se form bharein.', function(){ setTimeout(nextStep,500); });
+    });
 })();
 
 // Date: click opens picker; Time: double-click opens picker, single-click lets you type
