@@ -257,6 +257,12 @@ def _ensure_tables():
     _safe_execute(db, "INSERT INTO quotation_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM quotation_sequence)")
     _safe_execute(db, "INSERT INTO invoice_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM invoice_sequence)")
     _safe_execute(db, "ALTER TABLE customer_quotation_items ADD COLUMN unit TEXT DEFAULT 'hr'")
+    # Ensure customer_id columns exist on tables that may have been created without them
+    for tbl in ["customer_invoices","customer_payments","customer_contracts","customer_quotations",
+                "customer_lpos","customer_documents","customer_invoice_items",
+                "customer_service_orders","customer_so_items","customer_quotation_items",
+                "customer_credit_notes","tabreed_tripsheets"]:
+        _safe_execute(db, f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS customer_id {int_type}" if backend == "postgres" else f"ALTER TABLE {tbl} ADD COLUMN customer_id {int_type}")
 
 # ─── HELPERS ───
 
