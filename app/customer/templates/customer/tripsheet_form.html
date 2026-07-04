@@ -37,6 +37,7 @@
                 <div class="quick-btns">
                     <button type="button" class="quick-btn" onclick="setDate('today')">Today</button>
                     <button type="button" class="quick-btn" onclick="setDate('yesterday')">Yesterday</button>
+                    <input type="hidden" name="prev_date" value="{{ today }}">
                 </div>
             </label>
 
@@ -98,8 +99,9 @@ function setDate(t) {
 
 function saveAndNew() {
     var form = document.getElementById('tripsheetForm');
+    var date = document.getElementById('entryDate').value;
     var action = form.action;
-    form.action = action + (action.includes('?') ? '&' : '?') + 'save_and_new=1';
+    form.action = action + (action.includes('?') ? '&' : '?') + 'save_and_new=1&date=' + encodeURIComponent(date);
     form.submit();
 }
 

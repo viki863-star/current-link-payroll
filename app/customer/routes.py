@@ -2723,9 +2723,10 @@ def customer_tripsheet_add(cid):
         db.close()
         flash("Tripsheet entry added.", "success")
         if request.args.get("save_and_new"):
-            return redirect(url_for("customer.customer_tripsheet_add", cid=cid))
+            return redirect(url_for("customer.customer_tripsheet_add", cid=cid, date=entry_date))
         return redirect(url_for("customer.customer_profile", cid=cid, tab="tripsheet"))
-    return render_template("customer/tripsheet_form.html", c=c, today=date.today().isoformat(), tanker_options=TANKER_GLN_OPTIONS)
+    default_date = request.args.get("date", date.today().isoformat())
+    return render_template("customer/tripsheet_form.html", c=c, today=default_date, tanker_options=TANKER_GLN_OPTIONS)
 
 @customer_bp.route("/<int:cid>/tripsheet/<int:tid>/delete", methods=["POST"])
 def customer_tripsheet_delete(cid, tid):
