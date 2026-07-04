@@ -93,6 +93,7 @@ td .mono-sm { font-size:0.75rem; }
     <a href="?tab=lpos" class="tab-btn {% if active_tab == 'lpos' %}is-active{% endif %}">LPOs</a>
     <a href="?tab=service_orders" class="tab-btn {% if active_tab == 'service_orders' %}is-active{% endif %}">Service Orders</a>
     <a href="?tab=documents" class="tab-btn {% if active_tab == 'documents' %}is-active{% endif %}">Documents</a>
+    <a href="?tab=tripsheet" class="tab-btn {% if active_tab == 'tripsheet' %}is-active{% endif %}">Tripsheet</a>
     <a href="{{ url_for('customer.customer_soa', cid=c.id) }}" class="tab-btn">SOA</a>
 </div>
 
@@ -434,6 +435,49 @@ td .mono-sm { font-size:0.75rem; }
         </table>
     </div>
     {% else %}<p class="empty-state">No documents. <a href="{{ url_for('customer.customer_doc_add', cid=c.id) }}">Upload one</a>.</p>{% endif %}
+</div>
+{% elif active_tab == 'tripsheet' %}
+<div class="profile-card">
+    <div class="section-header">
+        <h3>Tabreed Tripsheet</h3>
+        <div style="display:flex;gap:6px">
+            <a href="{{ url_for('customer.customer_tripsheet_add', cid=c.id) }}" class="btn btn-primary btn-sm">+ New Entry</a>
+            <a href="{{ url_for('customer.customer_tripsheet_report', cid=c.id) }}" class="btn btn-outline btn-sm">Monthly Report</a>
+        </div>
+    </div>
+    {% if tripsheets %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr>
+                <th>#</th><th>Date</th><th>Time In</th><th>Time Out</th>
+                <th>Meter Start</th><th>Meter Stop</th><th>Total Reading</th>
+                <th>Tanker GLN</th><th>Trips</th><th>Tanker Reg</th><th></th>
+            </tr></thead>
+            <tbody>
+                {% for t in tripsheets %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td class="mono">{{ t.entry_date }}</td>
+                    <td>{{ t.time_in or '—' }}</td>
+                    <td>{{ t.time_out or '—' }}</td>
+                    <td class="mono">{{ "%.0f"|format(t.meter_start) }}</td>
+                    <td class="mono">{{ "%.0f"|format(t.meter_stop) }}</td>
+                    <td class="mono" style="font-weight:600">{{ "%.2f"|format(t.total_reading) }}</td>
+                    <td><span class="badge badge-dept">{{ t.tanker_gln or '—' }}</span></td>
+                    <td class="mono">{{ "%.0f"|format(t.trips) }}</td>
+                    <td class="mono">{{ t.tanker_reg or '—' }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('customer.customer_tripsheet_delete', cid=c.id, tid=t.id) }}" style="display:inline" onsubmit="return confirm('Delete this tripsheet entry?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}<p class="empty-state">No tripsheet entries. <a href="{{ url_for('customer.customer_tripsheet_add', cid=c.id) }}">Add one</a>.</p>{% endif %}
 </div>
 {% endif %}
 </div>

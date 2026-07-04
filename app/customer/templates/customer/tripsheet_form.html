@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}New Tripsheet Entry — {{ c.customer_name }}{% endblock %}
+{% block page_title %}New Tripsheet Entry{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+<style>
+.form-shell { max-width:720px; margin:0 auto; }
+.form-shell .card { padding:24px; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; }
+.form-grid .full-span { grid-column:1 / -1; }
+.form-grid label { display:flex; flex-direction:column; gap:4px; font-size:0.78rem; font-weight:600; color:var(--muted); }
+.form-grid label input, .form-grid label select, .form-grid label textarea { padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:0.85rem; background:var(--surface); color:var(--text); }
+.form-grid label input:focus, .form-grid label select:focus, .form-grid label textarea:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px rgba(28,86,139,0.15); }
+.form-actions { display:flex; gap:8px; margin-top:4px; }
+@media(max-width:600px){ .form-grid { grid-template-columns:1fr; } }
+</style>
+
+<div class="form-shell">
+    <div class="card">
+        <div style="margin-bottom:16px">
+            <h2 style="margin:0 0 4px">New Tripsheet Entry</h2>
+            <p style="margin:0;color:var(--muted);font-size:0.82rem">Customer: <strong>{{ c.customer_name }}</strong></p>
+        </div>
+        <form method="POST" class="form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>Date *
+                <input type="date" name="entry_date" value="{{ today }}" required>
+            </label>
+            <label>Tanker GLN
+                <select name="tanker_gln">
+                    <option value="">— Select —</option>
+                    {% for opt in tanker_options %}
+                    <option value="{{ opt }}">{{ opt }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Time In
+                <input type="time" name="time_in">
+            </label>
+            <label>Time Out
+                <input type="time" name="time_out">
+            </label>
+            <label>Meter Reading Start
+                <input type="number" name="meter_start" step="0.01" min="0" value="0">
+            </label>
+            <label>Meter Reading Stop
+                <input type="number" name="meter_stop" step="0.01" min="0" value="0">
+            </label>
+            <label>Trips
+                <input type="number" name="trips" step="1" min="1" value="1">
+            </label>
+            <label>Tanker Registration No.
+                <input type="text" name="tanker_reg" placeholder="e.g. ABC-1234">
+            </label>
+            <label class="full-span">Notes
+                <textarea name="notes" rows="2" placeholder="Optional notes..."></textarea>
+            </label>
+            <div class="form-actions full-span">
+                <button class="btn btn-primary" type="submit">Save Entry</button>
+                <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='tripsheet') }}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}

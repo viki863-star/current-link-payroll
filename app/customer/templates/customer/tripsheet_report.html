@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Tripsheet Report — {{ c.customer_name }}{% endblock %}
+{% block page_title %}Tripsheet Report{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+<style>
+.report-shell { max-width:1100px; margin:0 auto; }
+.report-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+.report-header h2 { margin:0; }
+.report-stats { display:flex; gap:16px; }
+.stat-chip { background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:6px 14px; font-size:0.8rem; }
+.stat-chip strong { color:var(--primary); }
+.month-picker { display:flex; align-items:center; gap:8px; }
+.month-picker input[type=month] { padding:6px 10px; border:1px solid var(--line); border-radius:8px; font-size:0.85rem; }
+</style>
+
+<div class="report-shell">
+    <div class="report-header">
+        <div>
+            <h2>Tabreed Tripsheet</h2>
+            <p style="margin:4px 0 0;color:var(--muted);font-size:0.82rem">Customer: <strong>{{ c.customer_name }}</strong></p>
+        </div>
+        <div class="report-stats">
+            <span class="stat-chip">Total Trips: <strong>{{ "%.0f"|format(total_trips) }}</strong></span>
+            <span class="stat-chip">Total Reading: <strong>{{ "%.2f"|format(total_reading) }}</strong></span>
+        </div>
+    </div>
+
+    <div class="card" style="padding:16px;margin-bottom:14px">
+        <form method="GET" class="month-picker">
+            <label style="font-size:0.82rem;font-weight:600;color:var(--muted)">Select Month</label>
+            <input type="month" name="month" value="{{ month }}" onchange="this.form.submit()">
+            <a href="{{ url_for('customer.customer_tripsheet_report_pdf', cid=c.id, month=month) }}" class="btn btn-primary btn-sm" target="_blank">Download PDF</a>
+            <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='tripsheet') }}" class="btn btn-outline btn-sm">Back</a>
+        </form>
+    </div>
+
+    {% if rows %}
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead><tr>
+                <th>#</th><th>Date</th><th>Time In</th><th>Time Out</th>
+                <th>Meter Start</th><th>Meter Stop</th><th>Total Reading</th>
+                <th>Tanker GLN</th><th>Trips</th><th>Tanker Reg</th>
+            </tr></thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td class="mono">{{ r.entry_date }}</td>
+                    <td>{{ r.time_in or '—' }}</td>
+                    <td>{{ r.time_out or '—' }}</td>
+                    <td class="mono">{{ "%.0f"|format(r.meter_start) }}</td>
+                    <td class="mono">{{ "%.0f"|format(r.meter_stop) }}</td>
+                    <td class="mono" style="font-weight:600">{{ "%.2f"|format(r.total_reading) }}</td>
+                    <td><span class="badge badge-dept">{{ r.tanker_gln or '—' }}</span></td>
+                    <td class="mono">{{ "%.0f"|format(r.trips) }}</td>
+                    <td class="mono">{{ r.tanker_reg or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="font-weight:700;background:var(--bg-alt)">
+                    <td colspan="6" style="text-align:right">Totals:</td>
+                    <td class="mono">{{ "%.2f"|format(total_reading) }}</td>
+                    <td></td>
+                    <td class="mono">{{ "%.0f"|format(total_trips) }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% else %}
+    <div class="card" style="padding:24px;text-align:center">
+        <p style="color:var(--muted);margin:0">No tripsheet entries found for {{ month }}.</p>
+    </div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}

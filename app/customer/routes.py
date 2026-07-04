@@ -181,6 +181,24 @@ def _ensure_tables():
         )
     """)
     db.execute("""
+        CREATE TABLE IF NOT EXISTS tabreed_tripsheets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            entry_date TEXT NOT NULL,
+            time_in TEXT,
+            time_out TEXT,
+            meter_start REAL DEFAULT 0,
+            meter_stop REAL DEFAULT 0,
+            total_reading REAL DEFAULT 0,
+            tanker_gln TEXT,
+            trips REAL DEFAULT 1,
+            tanker_reg TEXT,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (customer_id) REFERENCES customers(id)
+        )
+    """)
+    db.execute("""
         CREATE TABLE IF NOT EXISTS customer_so_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             so_id INTEGER NOT NULL,
@@ -399,6 +417,12 @@ def customer_profile(cid):
     service_orders = db.execute("SELECT * FROM customer_service_orders WHERE customer_id=? ORDER BY so_date DESC", (cid,)).fetchall()
     docs = db.execute("SELECT * FROM customer_documents WHERE customer_id=? ORDER BY created_at DESC", (cid,)).fetchall()
     credit_notes = db.execute("SELECT * FROM customer_credit_notes WHERE customer_id=? ORDER BY credit_note_date DESC", (cid,)).fetchall()
+    tripsheets = db.execute("""
+        SELECT * FROM tabreed_tripsheets
+        WHERE customer_id=?
+        ORDER BY entry_date DESC, id DESC
+        LIMIT 100
+    """, (cid,)).fetchall()
     total_inv = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices WHERE customer_id=?", (cid,)).fetchone()[0]
     total_paid = db.execute("SELECT COALESCE(SUM(amount),0) FROM customer_payments WHERE customer_id=?", (cid,)).fetchone()[0]
     total_cn = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes WHERE customer_id=?", (cid,)).fetchone()[0]
@@ -406,7 +430,7 @@ def customer_profile(cid):
     db.close()
     return render_template("customer/profile.html", c=c, active_tab=tab, invoices=invoices,
         payments=payments, contracts=contracts, quotations=quotations, lpos=lpos, service_orders=service_orders, docs=docs,
-        credit_notes=credit_notes,
+        credit_notes=credit_notes, tripsheets=tripsheets,
         total_inv=total_inv, total_paid=total_paid, total_cn=total_cn, balance=balance)
 
 # ─── INVOICES ───
@@ -2665,4 +2689,160 @@ def customer_tax_report_pdf():
     doc.build(els)
     buf.seek(0)
     fn = f"Tax_Report_{from_filter or 'start'}_to_{to_filter or 'end'}.pdf"
+    return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=fn)
+
+# ═══════════════════════════════════════════════════════════
+# TABREED TRIPSHEET
+# ═══════════════════════════════════════════════════════════
+
+TANKER_GLN_OPTIONS = ["10000 GLN", "5000 GLN", "3000 GLN", "2000 GLN", "1500 GLN", "1000 GLN", "500 GLN"]
+
+@customer_bp.route("/<int:cid>/tripsheet/add", methods=["GET", "POST"])
+def customer_tripsheet_add(cid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    if request.method == "POST":
+        entry_date = request.form.get("entry_date", "").strip()
+        time_in = request.form.get("time_in", "").strip()
+        time_out = request.form.get("time_out", "").strip()
+        meter_start = float(request.form.get("meter_start", 0) or 0)
+        meter_stop = float(request.form.get("meter_stop", 0) or 0)
+        total_reading = round(meter_stop - meter_start, 2)
+        tanker_gln = request.form.get("tanker_gln", "").strip()
+        trips = float(request.form.get("trips", 1) or 1)
+        tanker_reg = request.form.get("tanker_reg", "").strip().upper()
+        notes = request.form.get("notes", "").strip()
+        if not entry_date:
+            flash("Date is required.", "error")
+            return render_template("customer/tripsheet_form.html", c=c, today=date.today().isoformat())
+        db = _get_db()
+        db.execute("""INSERT INTO tabreed_tripsheets
+            (customer_id, entry_date, time_in, time_out, meter_start, meter_stop, total_reading, tanker_gln, trips, tanker_reg, notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, entry_date, time_in or None, time_out or None, meter_start, meter_stop, total_reading, tanker_gln or None, trips, tanker_reg or None, notes or None))
+        db.commit()
+        db.close()
+        flash("Tripsheet entry added.", "success")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="tripsheet"))
+    return render_template("customer/tripsheet_form.html", c=c, today=date.today().isoformat(), tanker_options=TANKER_GLN_OPTIONS)
+
+@customer_bp.route("/<int:cid>/tripsheet/<int:tid>/delete", methods=["POST"])
+def customer_tripsheet_delete(cid, tid):
+    db = _get_db()
+    db.execute("DELETE FROM tabreed_tripsheets WHERE id=? AND customer_id=?", (tid, cid))
+    db.commit()
+    db.close()
+    flash("Tripsheet entry deleted.", "success")
+    return redirect(url_for("customer.customer_profile", cid=cid, tab="tripsheet"))
+
+@customer_bp.route("/<int:cid>/tripsheet/report")
+def customer_tripsheet_report(cid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    month = request.args.get("month", date.today().strftime("%Y-%m"))
+    db = _get_db()
+    rows = db.execute("""
+        SELECT * FROM tabreed_tripsheets
+        WHERE customer_id=? AND substr(entry_date,1,7)=?
+        ORDER BY entry_date, id
+    """, (cid, month)).fetchall()
+    total_trips = sum(r["trips"] or 0 for r in rows)
+    total_reading = sum(r["total_reading"] or 0 for r in rows)
+    db.close()
+    return render_template("customer/tripsheet_report.html", c=c, rows=rows, month=month,
+        total_trips=total_trips, total_reading=total_reading)
+
+@customer_bp.route("/<int:cid>/tripsheet/report/pdf")
+def customer_tripsheet_report_pdf(cid):
+    _ensure_tables()
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from io import BytesIO
+    import calendar
+
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    month = request.args.get("month", date.today().strftime("%Y-%m"))
+    db = _get_db()
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    rows = db.execute("""
+        SELECT * FROM tabreed_tripsheets
+        WHERE customer_id=? AND substr(entry_date,1,7)=?
+        ORDER BY entry_date, id
+    """, (cid, month)).fetchall()
+    total_trips = sum(r["trips"] or 0 for r in rows)
+    total_reading_sum = sum(r["total_reading"] or 0 for r in rows)
+    db.close()
+
+    buf = BytesIO()
+    LM, RM, TM, BM = 15*mm, 15*mm, 15*mm, 15*mm
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = landscape(A4)[0] - LM - RM
+
+    tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
+    try: TH = colors.HexColor(tc)
+    except: TH = colors.HexColor("#1a3a5c")
+    WH = colors.white
+    C5 = colors.HexColor("#6b7280")
+
+    def F(name, **kw):
+        kw.setdefault("fontSize", 7)
+        kw.setdefault("leading", 10)
+        return ParagraphStyle(name, **kw)
+
+    els = []
+    cn = company["company_name"] if company else "Current Link"
+    title = f"<b>{cn}</b>"
+    els.append(Paragraph(title, F("T", fontSize=12, textColor=TH, spaceAfter=2)))
+    month_name = f"{calendar.month_name[int(month.split('-')[1])]} {month.split('-')[0]}" if '-' in month else month
+    els.append(Paragraph(f"<b>Tabreed Tripsheet Report — {month_name}</b>", F("S", fontSize=9, textColor=C5, spaceAfter=2)))
+    els.append(Paragraph(f"Customer: <b>{c['customer_name']}</b>", F("C", fontSize=8, textColor=C5, spaceAfter=8)))
+    els.append(Spacer(1, 3*mm))
+
+    hdr = ["#", "Date", "Time In", "Time Out", "Meter Start", "Meter Stop", "Total Reading", "Tanker GLN", "Trips", "Tanker Reg"]
+    data = [hdr]
+    for idx, r in enumerate(rows, 1):
+        data.append([
+            str(idx),
+            r["entry_date"] or "—",
+            r["time_in"] or "—",
+            r["time_out"] or "—",
+            f"{r['meter_start'] or 0:,.0f}",
+            f"{r['meter_stop'] or 0:,.0f}",
+            f"{r['total_reading'] or 0:,.2f}",
+            r["tanker_gln"] or "—",
+            f"{r['trips'] or 0:,.0f}",
+            r["tanker_reg"] or "—",
+        ])
+
+    data.append([""] * 10)
+    total_row = ["", "", "", "", "", "", f"{total_reading_sum:,.2f}", "", f"{total_trips:,.0f}", ""]
+    data.append(total_row)
+
+    col_w = [W*0.04, W*0.09, W*0.08, W*0.08, W*0.10, W*0.10, W*0.10, W*0.12, W*0.06, W*0.12]
+    tbl = Table(data, colWidths=col_w, repeatRows=1)
+    tbl.setStyle(TableStyle([
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 7),
+        ("BACKGROUND", (0,0), (-1,0), TH),
+        ("TEXTCOLOR", (0,0), (-1,0), WH),
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("ALIGN", (4,0), (6,-1), "RIGHT"),
+        ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
+        ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f5f8fe")),
+        ("TOPPADDING", (0,0), (-1,-1), 4),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ("GRID", (0,0), (-1,-2), 0.3, colors.HexColor("#d8e4f5")),
+    ]))
+    els.append(tbl)
+
+    doc.build(els)
+    buf.seek(0)
+    fn = f"Tabreed_Tripsheet_{month}_{c['customer_name']}.pdf"
     return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=fn)
