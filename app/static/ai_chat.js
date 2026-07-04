@@ -7,6 +7,7 @@
   var isRecording = false;
   var currentRecognition = null;
   var micResultCallback = null;
+  var tripsheetTimer = null;
 
   // Tripsheet state (single handler approach)
   var tripsheet = null;
@@ -82,7 +83,7 @@
     applyLang();
 
     TOGGLE.addEventListener('click', togglePanel);
-    SEND.addEventListener('click', sendMessage);
+    SEND.addEventListener('click', function() { if (voiceEntryActive) return; sendMessage(); });
     CLEAR.addEventListener('click', clearChat);
     CLOSE.addEventListener('click', closeChat);
     if (LANG_EN) LANG_EN.addEventListener('click', function(){ setLang('en'); });
@@ -268,7 +269,15 @@
     addMessage('assistant', t('tripsheetStart'));
     INPUT.placeholder = t('placeholder2');
     INPUT.focus();
-    setTimeout(askNext, 500);
+    scheduleAskNext(500);
+  }
+
+  function scheduleAskNext(ms) {
+    if (tripsheetTimer) { clearTimeout(tripsheetTimer); tripsheetTimer = null; }
+    tripsheetTimer = setTimeout(function() {
+      tripsheetTimer = null;
+      askNext();
+    }, ms);
   }
 
   function askNext() {
@@ -291,7 +300,7 @@
       addMessage('user', '🎤 ' + voiceText);
       tripsheet.data[f.id] = f.parse ? f.parse(voiceText) : voiceText;
       tripsheet.idx++;
-      setTimeout(askNext, 300);
+      scheduleAskNext(300);
     };
   }
 
@@ -309,7 +318,7 @@
       addMessage('user', t('skipped'));
     }
     tripsheet.idx++;
-    setTimeout(askNext, 300);
+    scheduleAskNext(300);
   }
 
   function finishEntry() {
@@ -358,6 +367,7 @@
     voiceEntryActive = false;
     tripsheet = null;
     micResultCallback = null;
+    if (tripsheetTimer) { clearTimeout(tripsheetTimer); tripsheetTimer = null; }
     INPUT.placeholder = t('placeholder');
     INPUT.focus();
   }
@@ -365,10 +375,17 @@
   // ─── Parsers ───
   function parseDate(s) {
     if (!s) return '';
+    // YYYY-MM-DD already
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // Try standard date parsing
     var d = new Date(s);
-    if (!isNaN(d)) return d.toISOString().slice(0,10);
-    var m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (!isNaN(d) && d.getFullYear() > 2000) return d.toISOString().slice(0,10);
+    // d/m/y or d-m-y
+    var m = s.match(/^(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})$/);
     if (m) { var day=m[1], mon=m[2], yr=m[3]; if(yr.length===2)yr='20'+yr; return yr+'-'+mon.padStart(2,'0')+'-'+day.padStart(2,'0'); }
+    // d m y (space separated)
+    var m2 = s.match(/^(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})$/);
+    if (m2) { var day2=m2[1], mon2=m2[2], yr2=m2[3]; if(yr2.length===2)yr2='20'+yr2; return yr2+'-'+mon2.padStart(2,'0')+'-'+day2.padStart(2,'0'); }
     return s;
   }
   function parseTime(s) {
