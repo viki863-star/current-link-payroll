@@ -65,7 +65,7 @@
             </label>
 
             <label>Total Meter Reading
-                <input type="number" name="total_reading" id="totalReading" step="1" min="0" value="{% if edit %}{{ row.total_reading or 0 }}{% else %}0{% endif %}" autofocus>
+                <input type="number" name="total_reading" id="totalReading" step="1" min="0" value="{% if edit %}{{ row.total_reading or '' }}{% endif %}" placeholder="Meter reading" autofocus>
             </label>
 
             <label>Trips
