@@ -479,4 +479,27 @@ td .mono-sm { font-size:0.75rem; }
 </div>
 {% endif %}
 </div>
+
+<script>
+// Arrow key tab navigation
+(function() {
+    var tabBar = document.querySelector('.tab-bar');
+    if (!tabBar) return;
+    var tabs = tabBar.querySelectorAll('.tab-btn');
+    if (tabs.length < 2) return;
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        var active = tabBar.querySelector('.is-active');
+        var idx = Array.from(tabs).indexOf(active);
+        if (idx === -1) return;
+        e.preventDefault();
+        if (e.key === 'ArrowRight' && idx < tabs.length - 1) {
+            tabs[idx + 1].click();
+        } else if (e.key === 'ArrowLeft' && idx > 0) {
+            tabs[idx - 1].click();
+        }
+    });
+})();
+</script>
 {% endblock %}
