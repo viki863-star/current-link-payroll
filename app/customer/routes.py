@@ -2706,9 +2706,7 @@ def customer_tripsheet_add(cid):
         entry_date = request.form.get("entry_date", "").strip()
         time_in = request.form.get("time_in", "").strip()
         time_out = request.form.get("time_out", "").strip()
-        meter_start = float(request.form.get("meter_start", 0) or 0)
-        meter_stop = float(request.form.get("meter_stop", 0) or 0)
-        total_reading = round(meter_stop - meter_start, 2)
+        total_reading = round(float(request.form.get("total_reading", 0) or 0), 2)
         tanker_gln = request.form.get("tanker_gln", "").strip()
         trips = float(request.form.get("trips", 1) or 1)
         tanker_reg = request.form.get("tanker_reg", "").strip().upper()
@@ -2718,9 +2716,9 @@ def customer_tripsheet_add(cid):
             return render_template("customer/tripsheet_form.html", c=c, today=date.today().isoformat())
         db = _get_db()
         db.execute("""INSERT INTO tabreed_tripsheets
-            (customer_id, entry_date, time_in, time_out, meter_start, meter_stop, total_reading, tanker_gln, trips, tanker_reg, notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-            (cid, entry_date, time_in or None, time_out or None, meter_start, meter_stop, total_reading, tanker_gln or None, trips, tanker_reg or None, notes or None))
+            (customer_id, entry_date, time_in, time_out, total_reading, tanker_gln, trips, tanker_reg, notes)
+            VALUES (?,?,?,?,?,?,?,?,?)""",
+            (cid, entry_date, time_in or None, time_out or None, total_reading, tanker_gln or None, trips, tanker_reg or None, notes or None))
         db.commit()
         db.close()
         flash("Tripsheet entry added.", "success")
@@ -2807,7 +2805,7 @@ def customer_tripsheet_report_pdf(cid):
     els.append(Paragraph(f"Customer: <b>{c['customer_name']}</b>", F("C", fontSize=8, textColor=C5, spaceAfter=8)))
     els.append(Spacer(1, 3*mm))
 
-    hdr = ["#", "Date", "Time In", "Time Out", "Meter Start", "Meter Stop", "Total Reading", "Tanker GLN", "Trips", "Tanker Reg"]
+    hdr = ["#", "Date", "Time In", "Time Out", "Total Reading", "Tanker GLN", "Trips", "Tanker Reg"]
     data = [hdr]
     for idx, r in enumerate(rows, 1):
         data.append([
@@ -2815,19 +2813,17 @@ def customer_tripsheet_report_pdf(cid):
             r["entry_date"] or "—",
             r["time_in"] or "—",
             r["time_out"] or "—",
-            f"{r['meter_start'] or 0:,.0f}",
-            f"{r['meter_stop'] or 0:,.0f}",
             f"{r['total_reading'] or 0:,.2f}",
             r["tanker_gln"] or "—",
             f"{r['trips'] or 0:,.0f}",
             r["tanker_reg"] or "—",
         ])
 
-    data.append([""] * 10)
-    total_row = ["", "", "", "", "", "", f"{total_reading_sum:,.2f}", "", f"{total_trips:,.0f}", ""]
+    data.append([""] * 8)
+    total_row = ["", "", "", "", f"{total_reading_sum:,.2f}", "", f"{total_trips:,.0f}", ""]
     data.append(total_row)
 
-    col_w = [W*0.04, W*0.09, W*0.08, W*0.08, W*0.10, W*0.10, W*0.10, W*0.12, W*0.06, W*0.12]
+    col_w = [W*0.05, W*0.11, W*0.09, W*0.09, W*0.14, W*0.17, W*0.08, W*0.17]
     tbl = Table(data, colWidths=col_w, repeatRows=1)
     tbl.setStyle(TableStyle([
         ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
@@ -2835,7 +2831,7 @@ def customer_tripsheet_report_pdf(cid):
         ("BACKGROUND", (0,0), (-1,0), TH),
         ("TEXTCOLOR", (0,0), (-1,0), WH),
         ("ALIGN", (0,0), (-1,-1), "CENTER"),
-        ("ALIGN", (4,0), (6,-1), "RIGHT"),
+        ("ALIGN", (4,0), (4,-1), "RIGHT"),
         ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
         ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f5f8fe")),
         ("TOPPADDING", (0,0), (-1,-1), 4),

@@ -450,7 +450,7 @@ td .mono-sm { font-size:0.75rem; }
         <table class="smart-table">
             <thead><tr>
                 <th>#</th><th>Date</th><th>Time In</th><th>Time Out</th>
-                <th>Meter Start</th><th>Meter Stop</th><th>Total Reading</th>
+                <th>Total Reading</th>
                 <th>Tanker GLN</th><th>Trips</th><th>Tanker Reg</th><th></th>
             </tr></thead>
             <tbody>
@@ -460,8 +460,6 @@ td .mono-sm { font-size:0.75rem; }
                     <td class="mono">{{ t.entry_date }}</td>
                     <td>{{ t.time_in or '—' }}</td>
                     <td>{{ t.time_out or '—' }}</td>
-                    <td class="mono">{{ "%.0f"|format(t.meter_start) }}</td>
-                    <td class="mono">{{ "%.0f"|format(t.meter_stop) }}</td>
                     <td class="mono" style="font-weight:600">{{ "%.2f"|format(t.total_reading) }}</td>
                     <td><span class="badge badge-dept">{{ t.tanker_gln or '—' }}</span></td>
                     <td class="mono">{{ "%.0f"|format(t.trips) }}</td>

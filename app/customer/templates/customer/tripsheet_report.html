@@ -41,7 +41,7 @@
         <table class="smart-table">
             <thead><tr>
                 <th>#</th><th>Date</th><th>Time In</th><th>Time Out</th>
-                <th>Meter Start</th><th>Meter Stop</th><th>Total Reading</th>
+                <th>Total Reading</th>
                 <th>Tanker GLN</th><th>Trips</th><th>Tanker Reg</th>
             </tr></thead>
             <tbody>
@@ -51,8 +51,6 @@
                     <td class="mono">{{ r.entry_date }}</td>
                     <td>{{ r.time_in or '—' }}</td>
                     <td>{{ r.time_out or '—' }}</td>
-                    <td class="mono">{{ "%.0f"|format(r.meter_start) }}</td>
-                    <td class="mono">{{ "%.0f"|format(r.meter_stop) }}</td>
                     <td class="mono" style="font-weight:600">{{ "%.2f"|format(r.total_reading) }}</td>
                     <td><span class="badge badge-dept">{{ r.tanker_gln or '—' }}</span></td>
                     <td class="mono">{{ "%.0f"|format(r.trips) }}</td>
@@ -62,7 +60,7 @@
             </tbody>
             <tfoot>
                 <tr style="font-weight:700;background:var(--bg-alt)">
-                    <td colspan="6" style="text-align:right">Totals:</td>
+                    <td colspan="4" style="text-align:right">Totals:</td>
                     <td class="mono">{{ "%.2f"|format(total_reading) }}</td>
                     <td></td>
                     <td class="mono">{{ "%.0f"|format(total_trips) }}</td>
