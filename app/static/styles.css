@@ -10411,6 +10411,22 @@ textarea.form-control {
     flex-wrap: wrap;
 }
 
+/* ── Fix date/month/time picker popups not opening ── */
+input[type="date"],
+input[type="time"],
+input[type="month"],
+input[type="datetime-local"] {
+    min-width: 130px;
+    width: auto;
+    appearance: auto;
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
+    position: relative;
+    z-index: auto;
+    pointer-events: auto;
+    cursor: text;
+}
+
 @media (max-width: 1100px) { .cl-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 800px) { .cl-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 500px) { .cl-grid { grid-template-columns: 1fr; } }
