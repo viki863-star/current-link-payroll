@@ -4257,38 +4257,49 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     els.append(Spacer(1, 4*mm))
 
     # ═══ TABLE ═══
-    colw = [36, 56, 36, 28, W - 36 - 56 - 36 - 28]
+    colw = [34, 80, 26, 18, W - 34 - 80 - 26 - 18]
     hdr = [
-        Paragraph('<b>Date</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=10)),
-        Paragraph('<b>Payee</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=10)),
-        Paragraph('<b>Amount (AED)</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=10)),
-        Paragraph('<b>Reference</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=10)),
-        Paragraph('<b>Description</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=10)),
+        Paragraph('<b>Date</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph('<b>Payee</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=9)),
+        Paragraph('<b>Amount (AED)</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=9)),
+        Paragraph('<b>Ref</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=9)),
+        Paragraph('<b>Description</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=9)),
     ]
+    def payee_p(text):
+        t = str(text) or '-'
+        fs = 7 if len(t) < 20 else (6 if len(t) < 30 else 5.5)
+        return Paragraph('<b>{}</b>'.format(t), F('_p', fontSize=fs, fontName='Helvetica-Bold', textColor=C4, leading=fs + 1.5))
+    def date_p(text):
+        t = str(text) or '-'
+        fs = 7 if len(t) < 14 else 6.5
+        return Paragraph(t, F('_d', fontSize=fs, leading=fs + 1.5, alignment=TA_CENTER))
+    def desc_p(text):
+        t = str(text) or '-'
+        fs = 7 if len(t) < 15 else (6 if len(t) < 25 else 5.5)
+        return Paragraph(t, F('_desc', fontSize=fs, textColor=C5, leading=fs + 1.5))
     rws = [hdr]
     for r in rows:
         rws.append([
-            Paragraph(str(r.get('entry_date') or '-'), F('_d', fontSize=7, leading=10)),
-            Paragraph('<b>{}</b>'.format(str(r.get('payee') or '-')), F('_p', fontSize=7, fontName='Helvetica-Bold', textColor=C4, leading=10)),
+            date_p(r.get('entry_date')),
+            payee_p(r.get('payee')),
             R('{:,.2f}'.format(float(r.get('amount') or 0)), fontSize=7, textColor='#c62828', fontName='Helvetica-Bold'),
-            L(str(r.get('reference_no') or '-'), fontSize=7),
-            L(str(r.get('description') or '-'), fontSize=7),
+            Paragraph(str(r.get('reference_no') or '-'), F('_ref', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=8.5)),
+            desc_p(r.get('description')),
         ])
-    # Closing row
     rws.append([
-        Paragraph('<b>Total</b>', F('_cb', fontSize=8, fontName='Helvetica-Bold', textColor=WH, leading=11)),
-        Paragraph('', F('_x', fontSize=7, leading=10)),
-        Paragraph('<b>{:,.2f}</b>'.format(total_amount), F('_ct', fontSize=8, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=11)),
-        Paragraph('', F('_x', fontSize=7, leading=10)),
-        Paragraph('', F('_x', fontSize=7, leading=10)),
+        Paragraph('<b>Total</b>', F('_cb', fontSize=8, fontName='Helvetica-Bold', textColor=WH, leading=10)),
+        Paragraph('', F('_x', fontSize=7, leading=8)),
+        Paragraph('<b>{:,.2f}</b>'.format(total_amount), F('_ct', fontSize=8, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph('', F('_x', fontSize=7, leading=8)),
+        Paragraph('', F('_x', fontSize=7, leading=8)),
     ])
     it = Table(rws, colWidths=colw, repeatRows=1)
     it.setStyle(TableStyle([
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
         ('BACKGROUND',(0,0),(-1,0),TH), ('TEXTCOLOR',(0,0),(-1,0),WH),
         ('BOX',(0,0),(-1,-1),0.5,C3), ('INNERGRID',(0,0),(-1,-1),0.3,C3),
-        ('TOPPADDING',(0,0),(-1,-1),2), ('BOTTOMPADDING',(0,0),(-1,-1),2),
-        ('LEFTPADDING',(0,0),(-1,-1),3), ('RIGHTPADDING',(0,0),(-1,-1),3),
+        ('TOPPADDING',(0,0),(-1,-1),1), ('BOTTOMPADDING',(0,0),(-1,-1),1),
+        ('LEFTPADDING',(0,0),(-1,-1),2), ('RIGHTPADDING',(0,0),(-1,-1),2),
         ('BACKGROUND',(0,-1),(-1,-1),TH), ('TEXTCOLOR',(0,-1),(-1,-1),WH),
         ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
         ('ROWBACKGROUNDS',(0,1),(-2,-2),[WH, BG]),
