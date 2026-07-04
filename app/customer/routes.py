@@ -187,6 +187,10 @@ def _ensure_tables():
                 "customer_service_orders","customer_so_items","customer_quotation_items",
                 "customer_credit_notes","tabreed_tripsheets"]:
         _safe_execute(db, f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS customer_id {int_type}" if backend == "postgres" else f"ALTER TABLE {tbl} ADD COLUMN customer_id {int_type}")
+    # Ensure created_at columns exist on tables that may have been created without them
+    for tbl in ["customer_documents","customer_invoice_items","customer_so_items",
+                "customer_quotation_items","lpo_items","service_items"]:
+        _safe_execute(db, f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS created_at TEXT" if backend == "postgres" else f"ALTER TABLE {tbl} ADD COLUMN created_at TEXT")
 
 # ─── HELPERS ───
 
