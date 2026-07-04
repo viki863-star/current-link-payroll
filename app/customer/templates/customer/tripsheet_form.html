@@ -133,17 +133,21 @@ document.getElementById('timeIn').addEventListener('dblclick', function(){ try {
 document.getElementById('timeOut').addEventListener('dblclick', function(){ try { this.showPicker(); } catch(e) {} });
 
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT') {
+    var inputs = document.querySelectorAll('#tripsheetForm input, #tripsheetForm select, #tripsheetForm textarea');
+    var idx = -1;
+    for (var i = 0; i < inputs.length; i++) {
+        if (inputs[i] === e.target) { idx = i; break; }
+    }
+    if (idx === -1) return;
+    if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowRight') {
         e.preventDefault();
-        var inputs = document.querySelectorAll('#tripsheetForm input, #tripsheetForm select, #tripsheetForm textarea');
-        for (var i = 0; i < inputs.length; i++) {
-            if (inputs[i] === e.target) {
-                var next = inputs[i + 1];
-                if (next) { next.focus(); }
-                else { document.querySelector('#tripsheetForm button[type=submit]').click(); }
-                break;
-            }
-        }
+        var next = inputs[idx + 1];
+        if (next) { next.focus(); }
+        else { document.querySelector('#tripsheetForm button[type=submit]').click(); }
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        var prev = inputs[idx - 1];
+        if (prev) prev.focus();
     }
 });
 </script>
