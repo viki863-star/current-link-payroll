@@ -1,11 +1,15 @@
-<link rel="stylesheet" href="{{ url_for('static', filename='ai_chat.css', v='20260704a') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='ai_chat.css', v='20260704b') }}">
 
 <button id="aiChatToggle" class="ai-chat-toggle" aria-label="AI Assistant">
   <div class="ai-chat-toggle-pulse"></div>
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-    <path d="M12 8v4m0 2h.01"/>
-  </svg>
+  <div class="ai-icon-face">
+    <svg viewBox="0 0 32 32" fill="none">
+      <circle cx="11" cy="13" r="2.5" fill="#fff"/>
+      <circle cx="21" cy="13" r="2.5" fill="#fff"/>
+      <path d="M10 21c2 2 10 2 12 0" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+    </svg>
+    <div class="ai-icon-dots"><span></span><span></span><span></span></div>
+  </div>
 </button>
 
 <div id="aiChatPanel" class="ai-chat-panel">
@@ -16,6 +20,10 @@
       <div class="ai-chat-header-status">Ready to help</div>
     </div>
     <div class="ai-chat-header-actions">
+      <div class="ai-chat-lang">
+        <button id="aiLangEn" class="is-active">ENG</button>
+        <button id="aiLangUr">اردو</button>
+      </div>
       <button id="aiChatClear" class="ai-chat-close" title="Clear chat" aria-label="Clear chat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
           <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -49,4 +57,4 @@
   </div>
 </div>
 
-<script src="{{ url_for('static', filename='ai_chat.js', v='20260704a') }}"></script>
+<script src="{{ url_for('static', filename='ai_chat.js', v='20260704b') }}"></script>

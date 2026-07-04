@@ -153,12 +153,18 @@ def chat():
 
         user_msg = data["message"].strip()
         history = data.get("history", [])
+        chat_lang = data.get("lang", "en")
         today = date.today().isoformat()
         schema = _get_schema()
 
+        lang_instruction = (
+            "Respond in English." if chat_lang == "en"
+            else "Urdu mein jawab dein. (Respond in Urdu.)"
+        )
         system = (
             f"Date:{today}. ERP SQL assistant.\n"
             f"Database schema (exact column names):\n{schema}\n"
+            f"{lang_instruction}\n"
             "Reply ONLY JSON: {\"sql\":\"SELECT...\",\"explanation\":\"answer\"}. "
             "SELECT only. ALWAYS use AS aliases. "
             'Ex: {"sql":"SELECT count(*) AS cnt FROM drivers WHERE status=\'Active\'","explanation":"15 active drivers"}'
