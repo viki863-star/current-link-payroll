@@ -41,12 +41,12 @@
             </label>
 
             <label>Tanker GLN
-                <select name="tanker_gln" id="tankerGln">
-                    <option value="">— Select —</option>
+                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:2px">
                     {% for opt in tanker_options %}
-                    <option value="{{ opt }}">{{ opt }}</option>
+                    <button type="button" class="quick-btn gln-btn" data-value="{{ opt }}" onclick="selectGln(this)">{{ opt }}</button>
                     {% endfor %}
-                </select>
+                    <input type="text" name="tanker_gln" id="tankerGln" placeholder="Ya type karo..." style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.88rem">
+                </div>
             </label>
 
             <label>Time In
@@ -103,11 +103,15 @@ function saveAndNew() {
     form.submit();
 }
 
-// Auto-calc total reading on meter_stop change
-document.getElementById('meterStop').addEventListener('input', function() {
-    var start = parseFloat(document.getElementById('meterStart').value) || 0;
-    var stop = parseFloat(this.value) || 0;
-    // Optional: show calculated reading somewhere
+// GLN button click — set value and highlight
+function selectGln(btn) {
+    document.getElementById('tankerGln').value = btn.getAttribute('data-value');
+    document.querySelectorAll('.gln-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+}
+// Clear GLN highlight when typing custom
+document.getElementById('tankerGln').addEventListener('input', function() {
+    document.querySelectorAll('.gln-btn').forEach(function(b) { b.classList.remove('active'); });
 });
 
 // Focus: after entering meter stop, auto-tab to trips
