@@ -143,6 +143,7 @@ document.addEventListener('keydown', function(e) {
         e.preventDefault();
         var next = inputs[idx + 1];
         if (next) { next.focus(); }
+        else if (typeof saveAndNew === 'function') { saveAndNew(); }
         else { document.querySelector('#tripsheetForm button[type=submit]').click(); }
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
         e.preventDefault();
