@@ -68,7 +68,7 @@
   function showTyping() { TYPING.style.display = 'flex'; MSGS.scrollTop = MSGS.scrollHeight; }
   function hideTyping() { TYPING.style.display = 'none'; }
 
-  // ─── Text Entry for Tripsheet ───
+  // ─── Tripsheet Entry (Voice + Text) ───
   function startVoiceEntry() {
     if (voiceEntryActive) return;
     var cid = getCustomerId();
@@ -77,21 +77,22 @@
       return;
     }
     voiceEntryActive = true;
-    addMessage('assistant', '📋 Tripsheet Entry! Main sawaal puchhoonga, aap jawab text mein likhiye.');
+    addMessage('assistant', '📋 Tripsheet Entry! Main sawaal puchhoonga, aap boliye ya type karein.');
 
     var fields = [
-      { id: 'entry_date', label: '📅 Date kya hai? (e.g. 1/5/2026)', parse: parseDate },
-      { id: 'time_in', label: '⏰ Time In kya hai? (e.g. 12:23 AM)', parse: parseTime },
-      { id: 'time_out', label: '⏰ Time Out kya hai? (e.g. 1:42 AM)', parse: parseTime },
-      { id: 'total_reading', label: '📊 Meter reading kitna hai? (e.g. 39)', parse: parseNumber },
-      { id: 'trips', label: '🔄 Kitne trips hain? (e.g. 1)', parse: parseNumber },
-      { id: 'tanker_gln', label: '⛽ Tanker GLN kya hai? (e.g. 10000 GLN)', parse: parseGln },
-      { id: 'tanker_reg', label: '🚛 Tanker registration number? (e.g. 63014)', parse: parseText },
+      { id: 'entry_date', label: '📅 Date kya hai?', parse: parseDate },
+      { id: 'time_in', label: '⏰ Time In kya hai?', parse: parseTime },
+      { id: 'time_out', label: '⏰ Time Out kya hai?', parse: parseTime },
+      { id: 'total_reading', label: '📊 Meter reading kitna hai?', parse: parseNumber },
+      { id: 'trips', label: '🔄 Kitne trips hain?', parse: parseNumber },
+      { id: 'tanker_gln', label: '⛽ Tanker GLN kya hai?', parse: parseGln },
+      { id: 'tanker_reg', label: '🚛 Tanker registration number?', parse: parseText },
     ];
     var entryData = {};
     var idx = 0;
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    INPUT.placeholder = 'Jawab yahan type karein...';
+    INPUT.placeholder = 'Boliye ya yahan type karein...';
     INPUT.focus();
 
     function askNext() {
@@ -100,14 +101,21 @@
         return;
       }
       var f = fields[idx];
-      addMessage('assistant', f.label);
+      var answered = false;
+
+      addMessage('assistant', f.label + ' (boliye ya type karein)');
       INPUT.focus();
-      var handler = function(e) {
+
+      // ── Text handler ──
+      var textHandler = function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
-          INPUT.removeEventListener('keydown', handler);
+          if (answered) return;
+          answered = true;
+          INPUT.removeEventListener('keydown', textHandler);
           var text = INPUT.value.trim();
           INPUT.value = '';
+          stopListening();
           if (text) {
             addMessage('user', text);
             entryData[f.id] = f.parse ? f.parse(text) : text;
@@ -118,7 +126,39 @@
           setTimeout(askNext, 200);
         }
       };
-      INPUT.addEventListener('keydown', handler);
+      INPUT.addEventListener('keydown', textHandler);
+
+      // ── Voice handler ──
+      var recognition = null;
+      function startListening() {
+        if (!SpeechRecognition) return;
+        try {
+          recognition = new SpeechRecognition();
+          recognition.lang = 'ur-PK';
+          recognition.continuous = false;
+          recognition.interimResults = false;
+          recognition.onresult = function(e) {
+            if (answered) return;
+            answered = true;
+            INPUT.removeEventListener('keydown', textHandler);
+            stopListening();
+            var text = e.results[0][0].transcript.trim();
+            addMessage('user', '🎤 ' + text);
+            entryData[f.id] = f.parse ? f.parse(text) : text;
+            idx++;
+            setTimeout(askNext, 200);
+          };
+          recognition.onerror = function() {
+            // Voice failed - text only mode still works, no need to do anything
+          };
+          recognition.start();
+        } catch(e) {}
+      }
+      function stopListening() {
+        if (recognition) { try { recognition.stop(); } catch(e) {} recognition = null; }
+      }
+
+      startListening();
     }
 
     function finishEntry() {
