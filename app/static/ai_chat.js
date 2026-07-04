@@ -268,10 +268,9 @@
         { id: 'time_in', label: 'fieldTimeIn', parse: parseTime },
         { id: 'time_out', label: 'fieldTimeOut', parse: parseTime },
         { id: 'total_reading', label: 'fieldMeter', parse: parseNumber },
-        { id: 'trips', label: 'fieldTrips', parse: parseNumber },
         { id: 'tanker_reg', label: 'fieldReg', parse: parseText },
       ],
-      // tanker_gln always auto-fills as "10000 GLN" on backend
+      // tanker_gln = "10000 GLN", trips = 1 (auto-filled on backend)
       data: {},
       idx: 0,
       answered: false,
@@ -341,7 +340,7 @@
     showTyping();
     var csrfMeta = document.querySelector('meta[name="csrf-token"]');
     var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
-    var payload = { customer_id: cid, lang: lang };
+    var payload = { customer_id: cid, lang: lang, tanker_gln: '10000 GLN', trips: 1 };
     tripsheet.fields.forEach(function(f) { payload[f.id] = tripsheet.data[f.id] || ''; });
     console.log('Tripsheet payload:', JSON.stringify(payload));
     fetch('/ai/tripsheet_save', {
