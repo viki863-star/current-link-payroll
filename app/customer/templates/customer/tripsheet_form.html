@@ -127,10 +127,10 @@ document.getElementById('tankerGln').addEventListener('input', function() {
     }
 })();
 
-// Force picker on click for stubborn browsers
+// Date: click opens picker; Time: double-click opens picker, single-click lets you type
 document.getElementById('entryDate').addEventListener('click', function(){ try { this.showPicker(); } catch(e) {} });
-document.getElementById('timeIn').addEventListener('click', function(){ try { this.showPicker(); } catch(e) {} });
-document.getElementById('timeOut').addEventListener('click', function(){ try { this.showPicker(); } catch(e) {} });
+document.getElementById('timeIn').addEventListener('dblclick', function(){ try { this.showPicker(); } catch(e) {} });
+document.getElementById('timeOut').addEventListener('dblclick', function(){ try { this.showPicker(); } catch(e) {} });
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT') {

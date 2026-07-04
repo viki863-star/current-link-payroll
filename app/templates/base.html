@@ -494,12 +494,17 @@ if ("serviceWorker" in navigator) {
 {% block extra_scripts %}{% endblock %}
 </script>
 <script>
-// Force date/time/month pickers to open on click (fix for browsers that hide native picker)
+// Force date/month pickers on click; time pickers on dblclick (so typing works)
 (function(){
-    var types = ['date','time','month','datetime-local'];
     document.addEventListener('click', function(e) {
         var t = e.target;
-        if (t && t.tagName === 'INPUT' && types.indexOf(t.type) >= 0) {
+        if (t && t.tagName === 'INPUT' && (t.type === 'date' || t.type === 'month' || t.type === 'datetime-local')) {
+            try { t.showPicker(); } catch(ex) {}
+        }
+    });
+    document.addEventListener('dblclick', function(e) {
+        var t = e.target;
+        if (t && t.tagName === 'INPUT' && t.type === 'time') {
             try { t.showPicker(); } catch(ex) {}
         }
     });

@@ -78,5 +78,8 @@
 </div>
 <script>
 document.getElementById('reportMonth').addEventListener('click', function(){ try { this.showPicker(); } catch(e) {} });
+document.querySelectorAll('input[type=time]').forEach(function(el) {
+    el.addEventListener('dblclick', function(){ try { this.showPicker(); } catch(e) {} });
+});
 </script>
 {% endblock %}
