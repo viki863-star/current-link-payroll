@@ -331,8 +331,20 @@
     .then(function(r) { return r.json(); })
     .then(function(data) {
       hideTyping();
-      if (data.error) { addMessage('assistant', '❌ ' + t('error') + ': ' + data.error); }
-      else { addMessage('assistant', t('saved') + ' "📋 ' + t('tripsheetBtn') + '" ' + t('saved2')); speakText('Entry saved successfully'); }
+      if (data.error) { addMessage('assistant', '❌ ' + t('error') + ': ' + data.error); resetTripsheetMode(); return; }
+      var msg = t('saved') + ' "📋 ' + t('tripsheetBtn') + '" ' + t('saved2');
+      addMessage('assistant', msg);
+      speakText('Entry saved successfully');
+      // Add inline New Entry button
+      var btnDiv = document.createElement('div');
+      btnDiv.style.cssText = 'display:flex;gap:6px;padding:2px 16px 10px;';
+      var newBtn = document.createElement('button');
+      newBtn.textContent = '🆕 New Entry';
+      newBtn.style.cssText = 'background:linear-gradient(135deg,#1a56db,#2563eb);color:#fff;border:none;border-radius:14px;padding:6px 16px;font-size:0.78rem;cursor:pointer;font-weight:500;';
+      newBtn.addEventListener('click', function(e) { e.stopPropagation(); startTripsheetEntry(); });
+      btnDiv.appendChild(newBtn);
+      MSGS.appendChild(btnDiv);
+      MSGS.scrollTop = MSGS.scrollHeight;
       resetTripsheetMode();
     })
     .catch(function(err) {
