@@ -181,54 +181,58 @@
     if (!MIC) return;
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) { MIC.style.display = 'none'; return; }
+    var stopped = false, pendingText = '';
 
     function onStart() {
       if (isRecording) return;
-      isRecording = true;
+      isRecording = true; stopped = false; pendingText = '';
       MIC.classList.add('is-recording');
       LISTENING.classList.add('is-active');
       if (LISTEN_TEXT) LISTEN_TEXT.textContent = t('listening');
-      currentRecognition = new SpeechRecognition();
-      currentRecognition.lang = lang === 'ur' ? 'ur-PK' : 'en-US';
-      currentRecognition.continuous = true;
-      currentRecognition.interimResults = false;
-      currentRecognition.onresult = function(e) {
+      var r = new SpeechRecognition();
+      r.lang = lang === 'ur' ? 'ur-PK' : 'en-US';
+      r.continuous = false;
+      r.interimResults = false;
+      r.onresult = function(e) {
         var last = e.results[e.results.length - 1];
-        if (last && last[0]) currentRecognition._latest = last[0].transcript.trim();
+        if (last && last[0] && last.isFinal) pendingText = last[0].transcript.trim();
       };
-      currentRecognition.onerror = function() { onEnd(); };
-      try { currentRecognition.start(); } catch(e) { onEnd(); }
+      r.onerror = function() { finishRec(r, true); };
+      r.onend = function() { finishRec(r, false); };
+      currentRecognition = r;
+      try { r.start(); } catch(e) { finishRec(r, true); }
     }
 
-    function onEnd() {
-      if (!isRecording) return;
-      isRecording = false;
+    function finishRec(r, immediate) {
+      if (!isRecording || currentRecognition !== r) return;
+      isRecording = false; currentRecognition = null;
       MIC.classList.remove('is-recording');
       LISTENING.classList.remove('is-active');
-      var text = '';
-      if (currentRecognition) {
-        try { currentRecognition.stop(); } catch(e) {}
-        text = currentRecognition._latest || '';
-        currentRecognition = null;
-      }
-      if (!text) return;
+      var text = pendingText || '';
+      if (!text) { stopped = false; pendingText = ''; return; }
       INPUT.value = text;
+      stopped = false; pendingText = '';
       if (micResultCallback) {
         var cb = micResultCallback;
         micResultCallback = null;
-        setTimeout(function() { cb(text); }, 150);
+        setTimeout(function() { cb(text); }, 100);
       } else {
-        // Normal mode: auto-submit
-        setTimeout(function() { handleEnter(); }, 150);
+        setTimeout(function() { handleEnter(); }, 100);
       }
     }
 
+    function userStop() {
+      if (!isRecording) return;
+      stopped = true;
+      if (currentRecognition) { try { currentRecognition.stop(); } catch(e) {} }
+    }
+
     MIC.addEventListener('mousedown', function(e) { e.preventDefault(); onStart(); });
-    MIC.addEventListener('mouseup', function(e) { e.preventDefault(); onEnd(); });
-    MIC.addEventListener('mouseleave', function() { if (isRecording) onEnd(); });
+    MIC.addEventListener('mouseup', function(e) { e.preventDefault(); userStop(); });
+    MIC.addEventListener('mouseleave', function() { if (isRecording) userStop(); });
     MIC.addEventListener('touchstart', function(e) { e.preventDefault(); onStart(); }, {passive: false});
-    MIC.addEventListener('touchend', function(e) { e.preventDefault(); onEnd(); }, {passive: false});
-    MIC.addEventListener('touchcancel', function() { if (isRecording) onEnd(); });
+    MIC.addEventListener('touchend', function(e) { e.preventDefault(); userStop(); }, {passive: false});
+    MIC.addEventListener('touchcancel', function() { if (isRecording) userStop(); });
   }
 
   // ─── Single Enter handler ───
