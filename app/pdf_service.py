@@ -3993,3 +3993,67 @@ def generate_fuel_report_pdf(entries, vehicle_filter: str, month_filter: str, ou
 
     pdf.save()
     return str(output_path)
+
+
+def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', company_profile=None):
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_path = Path(output_dir) / 'atm_report_{}_{}_{}.pdf'.format(year or 'all', month or 'all', timestamp)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+    rows = list(entries or [])
+    if not rows:
+        rows = [{'entry_date': '-', 'payee': '-', 'amount': 0, 'reference_no': '-', 'description': '-'}]
+
+    table_top = PAGE_HEIGHT - 90 * mm
+    row_height = 7.2 * mm
+    bottom_limit = 36 * mm
+    rows_per_page = max(1, int((table_top - bottom_limit) // row_height) - 2)
+    pages = [rows[i:i + rows_per_page] for i in range(0, len(rows), rows_per_page)] or [rows]
+
+    total_amount = sum(float(r.get('amount', 0) or 0) for r in rows)
+    month_label = format_month_label('{}-{}'.format(year, month)) if month and year else 'All Periods'
+
+    for page_number, page_rows in enumerate(pages, start=1):
+        pdf.setFillColor(colors.white)
+        pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
+        _draw_header(pdf, assets_dir, company_profile)
+        _draw_title(pdf, 'ATM Withdrawal Report', month_label)
+
+        stats_y = PAGE_HEIGHT - 86 * mm
+        _draw_stat_box(pdf, 16 * mm, stats_y, 58 * mm, 14 * mm, 'Total Withdrawals', str(len(rows)))
+        _draw_stat_box(pdf, 78 * mm, stats_y, 58 * mm, 14 * mm, 'Total Amount (AED)', 'AED {}'.format(format_currency(total_amount)))
+        avg = total_amount / len(rows) if rows else 0
+        _draw_stat_box(pdf, 140 * mm, stats_y, 54 * mm, 14 * mm, 'Average (AED)', 'AED {}'.format(format_currency(avg)))
+
+        _draw_table_header(pdf, table_top, ['Date', 'Payee', 'Amount (AED)', 'Reference', 'Description'], [18, 52, 104, 136, 170])
+        y = table_top - 6.2 * mm
+        for index, row in enumerate(page_rows):
+            if index % 2 == 0:
+                pdf.setFillColor(SOFT)
+                pdf.roundRect(16 * mm, y - 2.2 * mm, 178 * mm, 6.2 * mm, 1.6 * mm, fill=1, stroke=0)
+            pdf.setFillColor(TEXT)
+            pdf.setFont('Helvetica', 7.0)
+            pdf.drawString(18 * mm, y, format_date_label(row.get('entry_date')))
+            payee_text, payee_size = _fit_text(pdf, str(row.get('payee') or '-'), 'Helvetica-Bold', 7.0, 50 * mm, min_size=6.0)
+            pdf.setFont('Helvetica-Bold', payee_size)
+            pdf.drawString(52 * mm, y, payee_text)
+            pdf.setFont('Helvetica', 7.0)
+            pdf.drawRightString(126 * mm, y, format_currency(float(row.get('amount') or 0)))
+            ref_text, ref_size = _fit_text(pdf, str(row.get('reference_no') or '-'), 'Helvetica', 7.0, 32 * mm, min_size=6.0)
+            pdf.setFont('Helvetica', ref_size)
+            pdf.drawString(136 * mm, y, ref_text)
+            desc_text, desc_size = _fit_text(pdf, str(row.get('description') or '-'), 'Helvetica', 7.0, 38 * mm, min_size=6.0)
+            pdf.setFont('Helvetica', desc_size)
+            pdf.drawString(170 * mm, y, desc_text)
+            y -= row_height
+
+        pdf.setFillColor(MUTED)
+        pdf.setFont('Helvetica', 6.5)
+        pdf.drawString(16 * mm, 14 * mm, 'Generated on {}'.format(datetime.now().strftime('%d-%b-%Y %I:%M %p')))
+        pdf.drawRightString(194 * mm, 14 * mm, 'Page {} / {}'.format(page_number, len(pages)))
+        _draw_footer_banner(pdf, assets_dir, True, company_profile)
+        pdf.showPage()
+
+    pdf.save()
+    return str(output_path)

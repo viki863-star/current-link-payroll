@@ -47,6 +47,9 @@
             </label>
             <button type="submit">Filter</button>
             {% if selected_month or selected_year %}
+            <a href="{{ url_for('atm_report_pdf', month=selected_month, year=selected_year) }}" style="padding:6px 14px;border:0;border-radius:8px;background:#e65100;color:#fff;font-weight:700;text-decoration:none;font-size:.82rem">📄 Download PDF</a>
+            {% endif %}
+            {% if selected_month or selected_year %}
             <a href="{{ url_for('atm_report') }}" style="padding:6px 14px;border:0;border-radius:8px;background:#255f99;color:#fff;font-weight:700;text-decoration:none;font-size:.82rem">Clear</a>
             {% endif %}
         </form>

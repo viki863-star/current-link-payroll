@@ -42,6 +42,7 @@ from .pdf_driver_import import load_driver_records_from_pdf, load_driver_records
 from .pdf_vehicle_import import load_vehicle_records_from_pdf_bytes
 from .pdf_service import (
     format_month_label,
+    generate_atm_report_pdf,
     generate_cash_supplier_kata_pdf,
     generate_cash_supplier_manual_pdf,
     generate_cash_supplier_payment_voucher_pdf,
@@ -7254,6 +7255,41 @@ def register_routes(app: Flask) -> None:
             months=months_list,
             years=years_list,
         )
+
+    @app.get("/atm-report/pdf")
+    @_login_required("admin")
+    def atm_report_pdf():
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        month = request.args.get("month", "")
+        year = request.args.get("year", "")
+        if not year:
+            year = str(datetime.now().year)
+
+        rows = db.execute("""
+            SELECT * FROM bank_transactions
+            WHERE transaction_type = 'ATM Withdrawal'
+            ORDER BY entry_date DESC
+        """).fetchall()
+        entries = []
+        for r in rows:
+            if _matches_month_year(r["entry_date"], month, year):
+                entries.append(dict(r))
+        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        db.close()
+
+        output_dir = current_app.config.get("GENERATED_BACKUP_DIR", "/tmp")
+        cp = dict(company) if company else {}
+        assets_dir = str(Path(current_app.root_path).parent / "app" / "static")
+        pdf_path = generate_atm_report_pdf(
+            entries=entries,
+            month=month,
+            year=year,
+            output_dir=output_dir,
+            assets_dir=assets_dir,
+            company_profile=cp,
+        )
+        return send_file(pdf_path, as_attachment=True, download_name=f"atm_report_{year or 'all'}_{month or 'all'}.pdf")
 
     @app.route("/technicians", methods=["GET", "POST"])
     @_login_required("admin")
