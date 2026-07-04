@@ -493,6 +493,18 @@ if ("serviceWorker" in navigator) {
 })();
 {% block extra_scripts %}{% endblock %}
 </script>
+<script>
+// Force date/time/month pickers to open on click (fix for browsers that hide native picker)
+(function(){
+    var types = ['date','time','month','datetime-local'];
+    document.addEventListener('click', function(e) {
+        var t = e.target;
+        if (t && t.tagName === 'INPUT' && types.indexOf(t.type) >= 0) {
+            try { t.showPicker(); } catch(ex) {}
+        }
+    });
+})();
+</script>
 {% include 'ai_chat_widget.html' %}
 </body>
 </html>

@@ -30,7 +30,7 @@
     <div class="card" style="padding:16px;margin-bottom:14px">
         <form method="GET" class="month-picker">
             <label style="font-size:0.82rem;font-weight:600;color:var(--muted)">Select Month</label>
-            <input type="month" name="month" value="{{ month }}" onchange="this.form.submit()">
+            <input type="month" name="month" id="reportMonth" value="{{ month }}" onchange="this.form.submit()">
             <a href="{{ url_for('customer.customer_tripsheet_report_pdf', cid=c.id, month=month) }}" class="btn btn-primary btn-sm" target="_blank">Download PDF</a>
             <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='tripsheet') }}" class="btn btn-outline btn-sm">Back</a>
         </form>
@@ -76,4 +76,7 @@
     {% endif %}
 </div>
 </div>
+<script>
+document.getElementById('reportMonth').addEventListener('click', function(){ try { this.showPicker(); } catch(e) {} });
+</script>
 {% endblock %}

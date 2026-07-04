@@ -10416,15 +10416,27 @@ input[type="date"],
 input[type="time"],
 input[type="month"],
 input[type="datetime-local"] {
-    min-width: 130px;
-    width: auto;
-    appearance: auto;
-    -webkit-appearance: auto;
-    -moz-appearance: auto;
-    position: relative;
-    z-index: auto;
-    pointer-events: auto;
-    cursor: text;
+    min-width: 140px !important;
+    width: auto !important;
+    max-width: 200px;
+    appearance: auto !important;
+    -webkit-appearance: auto !important;
+    -moz-appearance: auto !important;
+    position: relative !important;
+    z-index: auto !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    display: inline-block;
+    box-sizing: border-box;
+    min-height: 38px;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+    display: block !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
 }
 
 @media (max-width: 1100px) { .cl-grid { grid-template-columns: repeat(3, 1fr); } }
