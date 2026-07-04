@@ -6,7 +6,10 @@
   var voiceEntryActive = false;
   var isRecording = false;
   var currentRecognition = null;
-  var micResultCallback = null; // set by tripsheet entry per-question
+  var micResultCallback = null;
+
+  // Tripsheet state (single handler approach)
+  var tripsheet = null;
 
   var TEXTS = {
     en: {
@@ -87,13 +90,18 @@
 
     setupMic();
 
+    // SINGLE Enter handler for both normal chat and tripsheet
     INPUT.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        if (voiceEntryActive) return; // tripsheet handles its own Enter
-        sendMessage();
+        if (voiceEntryActive && tripsheet) {
+          handleTripsheetAnswer();
+        } else {
+          sendMessage();
+        }
       }
     });
+
     INPUT.addEventListener('input', function() {
       this.style.height = 'auto';
       this.style.height = Math.min(this.scrollHeight, 80) + 'px';
@@ -202,16 +210,15 @@
         text = currentRecognition._latest || '';
         currentRecognition = null;
       }
-      if (text && micResultCallback) {
-        // Show text in input box then auto-submit
-        INPUT.value = text;
+      if (!text) return;
+      INPUT.value = text;
+      if (micResultCallback) {
         var cb = micResultCallback;
         micResultCallback = null;
-        // Small delay so user sees text before submit
         setTimeout(function() { cb(text); }, 150);
-      } else if (text) {
-        INPUT.value = text;
-        sendMessage();
+      } else {
+        // Normal mode: auto-submit
+        setTimeout(function() { handleEnter(); }, 150);
       }
     }
 
@@ -223,6 +230,15 @@
     MIC.addEventListener('touchcancel', function() { if (isRecording) onEnd(); });
   }
 
+  // ─── Single Enter handler ───
+  function handleEnter() {
+    if (voiceEntryActive && tripsheet) {
+      handleTripsheetAnswer();
+    } else {
+      sendMessage();
+    }
+  }
+
   // ─── Tripsheet Entry ───
   function startTripsheetEntry() {
     if (voiceEntryActive) return;
@@ -232,96 +248,106 @@
       return;
     }
     voiceEntryActive = true;
+
+    tripsheet = {
+      fields: [
+        { id: 'entry_date', label: 'fieldDate', parse: parseDate },
+        { id: 'time_in', label: 'fieldTimeIn', parse: parseTime },
+        { id: 'time_out', label: 'fieldTimeOut', parse: parseTime },
+        { id: 'total_reading', label: 'fieldMeter', parse: parseNumber },
+        { id: 'trips', label: 'fieldTrips', parse: parseNumber },
+        { id: 'tanker_gln', label: 'fieldGln', parse: parseGln },
+        { id: 'tanker_reg', label: 'fieldReg', parse: parseText },
+      ],
+      data: {},
+      idx: 0,
+      answered: false,
+    };
+    micResultCallback = null;
+
     addMessage('assistant', t('tripsheetStart'));
-
-    var fields = [
-      { id: 'entry_date', label: 'fieldDate', parse: parseDate },
-      { id: 'time_in', label: 'fieldTimeIn', parse: parseTime },
-      { id: 'time_out', label: 'fieldTimeOut', parse: parseTime },
-      { id: 'total_reading', label: 'fieldMeter', parse: parseNumber },
-      { id: 'trips', label: 'fieldTrips', parse: parseNumber },
-      { id: 'tanker_gln', label: 'fieldGln', parse: parseGln },
-      { id: 'tanker_reg', label: 'fieldReg', parse: parseText },
-    ];
-    var entryData = {};
-    var idx = 0;
-
     INPUT.placeholder = t('placeholder2');
     INPUT.focus();
-
-    function askNext() {
-      if (idx >= fields.length) { finishEntry(); return; }
-      var f = fields[idx];
-      var answered = false;
-
-      addMessage('assistant', t(f.label) + t('listenHint'));
-      INPUT.focus();
-      speakText(t(f.label));
-
-      var textHandler = function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          if (answered) return;
-          answered = true;
-          INPUT.removeEventListener('keydown', textHandler);
-          micResultCallback = null;
-          var text = INPUT.value.trim(); INPUT.value = '';
-          if (text) { addMessage('user', text); entryData[f.id] = f.parse ? f.parse(text) : text; }
-          else { addMessage('user', t('skipped')); }
-          idx++; setTimeout(askNext, 300);
-        }
-      };
-      INPUT.addEventListener('keydown', textHandler);
-
-      micResultCallback = function(voiceText) {
-        if (answered) return;
-        answered = true;
-        INPUT.removeEventListener('keydown', textHandler);
-        INPUT.value = ''; // clear text that was shown by onEnd
-        addMessage('user', '🎤 ' + voiceText);
-        entryData[f.id] = f.parse ? f.parse(voiceText) : voiceText;
-        idx++; setTimeout(askNext, 300);
-      };
-    }
-
-    function finishEntry() {
-      micResultCallback = null;
-      var cid = getCustomerId();
-      if (!cid) { addMessage('assistant', '❌ ' + t('fail')); resetVoiceMode(); return; }
-      addMessage('assistant', t('saving'));
-      showTyping();
-      var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-      var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
-      var payload = { customer_id: cid, lang: lang };
-      fields.forEach(function(f) { payload[f.id] = entryData[f.id] || ''; });
-      fetch('/ai/tripsheet_save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify(payload)
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        hideTyping();
-        if (data.error) { addMessage('assistant', '❌ ' + t('error') + ': ' + data.error); }
-        else { addMessage('assistant', t('saved') + ' "📋 ' + t('tripsheetBtn') + '" ' + t('saved2')); speakText('Entry saved successfully'); }
-        resetVoiceMode();
-      })
-      .catch(function(err) {
-        hideTyping();
-        addMessage('assistant', '❌ ' + t('error') + ': ' + err.message);
-        resetVoiceMode();
-      });
-    }
-
-    function resetVoiceMode() {
-      voiceEntryActive = false;
-      INPUT.placeholder = t('placeholder');
-      INPUT.focus();
-    }
-
-    idx = 0;
-    entryData = {};
     setTimeout(askNext, 500);
+  }
+
+  function askNext() {
+    if (!tripsheet) return;
+    if (tripsheet.idx >= tripsheet.fields.length) {
+      finishEntry();
+      return;
+    }
+    tripsheet.answered = false;
+    var f = tripsheet.fields[tripsheet.idx];
+
+    addMessage('assistant', t(f.label) + t('listenHint'));
+    INPUT.focus();
+    speakText(t(f.label));
+
+    micResultCallback = function(voiceText) {
+      if (tripsheet.answered) return;
+      tripsheet.answered = true;
+      INPUT.value = '';
+      addMessage('user', '🎤 ' + voiceText);
+      tripsheet.data[f.id] = f.parse ? f.parse(voiceText) : voiceText;
+      tripsheet.idx++;
+      setTimeout(askNext, 300);
+    };
+  }
+
+  function handleTripsheetAnswer() {
+    if (!tripsheet || tripsheet.answered) return;
+    tripsheet.answered = true;
+    micResultCallback = null;
+    var f = tripsheet.fields[tripsheet.idx];
+    var text = INPUT.value.trim();
+    INPUT.value = '';
+    if (text) {
+      addMessage('user', text);
+      tripsheet.data[f.id] = f.parse ? f.parse(text) : text;
+    } else {
+      addMessage('user', t('skipped'));
+    }
+    tripsheet.idx++;
+    setTimeout(askNext, 300);
+  }
+
+  function finishEntry() {
+    micResultCallback = null;
+    var cid = getCustomerId();
+    if (!cid) { addMessage('assistant', '❌ ' + t('fail')); resetTripsheetMode(); return; }
+    addMessage('assistant', t('saving'));
+    showTyping();
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+    var payload = { customer_id: cid, lang: lang };
+    tripsheet.fields.forEach(function(f) { payload[f.id] = tripsheet.data[f.id] || ''; });
+    console.log('Tripsheet payload:', JSON.stringify(payload));
+    fetch('/ai/tripsheet_save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      hideTyping();
+      if (data.error) { addMessage('assistant', '❌ ' + t('error') + ': ' + data.error); }
+      else { addMessage('assistant', t('saved') + ' "📋 ' + t('tripsheetBtn') + '" ' + t('saved2')); speakText('Entry saved successfully'); }
+      resetTripsheetMode();
+    })
+    .catch(function(err) {
+      hideTyping();
+      addMessage('assistant', '❌ ' + t('error') + ': ' + err.message);
+      resetTripsheetMode();
+    });
+  }
+
+  function resetTripsheetMode() {
+    voiceEntryActive = false;
+    tripsheet = null;
+    micResultCallback = null;
+    INPUT.placeholder = t('placeholder');
+    INPUT.focus();
   }
 
   // ─── Parsers ───
