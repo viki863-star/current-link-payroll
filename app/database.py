@@ -2029,6 +2029,10 @@ class QueryResult:
         self.cursor = cursor
         self.backend = backend
 
+    @property
+    def lastrowid(self):
+        return self.cursor.lastrowid
+
     def fetchone(self):
         row = self.cursor.fetchone()
         return _to_record(row, self.cursor.description)
