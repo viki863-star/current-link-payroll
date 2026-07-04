@@ -44,9 +44,9 @@
             <label>Tanker GLN
                 <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:2px">
                     {% for opt in tanker_options %}
-                    <button type="button" class="quick-btn gln-btn{% if edit and row.tanker_gln == opt %} active{% endif %}" data-value="{{ opt }}" onclick="selectGln(this)">{{ opt }}</button>
+                    <button type="button" class="quick-btn gln-btn{% if (edit and row.tanker_gln == opt) or (not edit and opt == '10000 GLN') %} active{% endif %}" data-value="{{ opt }}" onclick="selectGln(this)">{{ opt }}</button>
                     {% endfor %}
-                    <input type="text" name="tanker_gln" id="tankerGln" placeholder="Ya type karo..." value="{% if edit %}{{ row.tanker_gln or '' }}{% endif %}" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.88rem">
+                    <input type="text" name="tanker_gln" id="tankerGln" placeholder="Ya type karo..." value="{% if edit %}{{ row.tanker_gln or '' }}{% elif not edit %}10000 GLN{% endif %}" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.88rem">
                 </div>
             </label>
 
@@ -115,6 +115,17 @@ function selectGln(btn) {
 document.getElementById('tankerGln').addEventListener('input', function() {
     document.querySelectorAll('.gln-btn').forEach(function(b) { b.classList.remove('active'); });
 });
+// Auto-select default GLN on page load for new entries
+(function(){
+    var val = document.getElementById('tankerGln').value;
+    if (val) {
+        document.querySelectorAll('.gln-btn').forEach(function(b) {
+            if (b.getAttribute('data-value') === val) {
+                b.classList.add('active');
+            }
+        });
+    }
+})();
 
 // Force picker on click for stubborn browsers
 document.getElementById('entryDate').addEventListener('click', function(){ try { this.showPicker(); } catch(e) {} });
