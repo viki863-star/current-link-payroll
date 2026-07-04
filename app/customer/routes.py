@@ -310,7 +310,7 @@ def customer_dashboard():
         SELECT c.id, c.customer_name, COUNT(i.id) AS inv_cnt,
                COALESCE(SUM(i.total_amount),0) AS total
         FROM customers c LEFT JOIN customer_invoices i ON i.customer_id=c.id
-        GROUP BY c.id ORDER BY total DESC LIMIT 5
+        GROUP BY c.id, c.customer_name ORDER BY total DESC LIMIT 5
     """).fetchall()
     db.close()
     return render_template("customer/dashboard.html",
@@ -2453,7 +2453,7 @@ def customer_tax_report():
                COALESCE(SUM(i.total_amount),0) AS total_invoiced
         FROM customers c
         LEFT JOIN customer_invoices i ON i.customer_id = c.id {where}
-        GROUP BY c.id
+        GROUP BY c.id, c.customer_name, c.trn, c.customer_code, c.status
         ORDER BY c.customer_name
     """, params).fetchall()
     invoices = db.execute(f"""

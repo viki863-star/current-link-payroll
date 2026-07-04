@@ -725,7 +725,7 @@ def supplier_dashboard():
                    COALESCE(SUM(si.total_amount),0) AS total
             FROM suppliers s
             LEFT JOIN supplier_invoices si ON si.supplier_id = s.id
-            GROUP BY s.id ORDER BY total DESC LIMIT 5
+            GROUP BY s.id, s.supplier_name ORDER BY total DESC LIMIT 5
         """).fetchall()
 
         return render_template(
