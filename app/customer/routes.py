@@ -29,183 +29,107 @@ def _ensure_tables():
     ignore = "ON CONFLICT DO NOTHING" if backend == "postgres" else "OR IGNORE"
     int_type = "INTEGER" if backend == "postgres" else "INTEGER"
     real_type = "DOUBLE PRECISION" if backend == "postgres" else "REAL"
-    try:
-        db.executescript(f"""
-            CREATE TABLE IF NOT EXISTS customers (
-                id {autoinc},
-                customer_name TEXT NOT NULL,
-                customer_code TEXT,
-                contact_person TEXT,
-                phone TEXT,
-                email TEXT,
-                address TEXT,
-                trn TEXT,
-                trade_license TEXT,
-                credit_limit {real_type} DEFAULT 0,
-                payment_terms TEXT,
-                status TEXT NOT NULL DEFAULT 'active',
-                notes TEXT,
-                created_at TEXT NOT NULL DEFAULT ({now})
-            );
-            CREATE TABLE IF NOT EXISTS customer_invoices (
-                id {autoinc},
-                customer_id {int_type} NOT NULL,
-                invoice_no TEXT,
-                invoice_date TEXT NOT NULL,
-                amount {real_type} NOT NULL,
-                vat_percent {real_type} DEFAULT 5,
-                vat_amount {real_type} DEFAULT 0,
-                total_amount {real_type} NOT NULL,
-                status TEXT NOT NULL DEFAULT 'pending',
-                notes TEXT,
-                created_at TEXT NOT NULL DEFAULT ({now})
-            );
-            CREATE TABLE IF NOT EXISTS customer_payments (
-                id {autoinc},
-                customer_id {int_type} NOT NULL,
-                invoice_id {int_type},
-                payment_date TEXT NOT NULL,
-                amount {real_type} NOT NULL,
-                payment_method TEXT DEFAULT 'Cash',
-                reference_no TEXT,
-                notes TEXT,
-                created_at TEXT NOT NULL DEFAULT ({now})
-            );
-            CREATE TABLE IF NOT EXISTS customer_contracts (
-                id {autoinc},
-                customer_id {int_type} NOT NULL,
-                contract_no TEXT,
-                contract_date TEXT NOT NULL,
-                start_date TEXT,
-                end_date TEXT,
-                contract_type TEXT DEFAULT 'rental',
-                amount {real_type},
-                status TEXT NOT NULL DEFAULT 'active',
-                notes TEXT,
-                created_at TEXT NOT NULL DEFAULT ({now})
-            );
-            CREATE TABLE IF NOT EXISTS customer_quotations (
-                id {autoinc},
-                customer_id {int_type} NOT NULL,
-                quotation_no TEXT,
-                quotation_date TEXT NOT NULL,
-                amount {real_type},
-                status TEXT NOT NULL DEFAULT 'pending',
-                notes TEXT,
-                created_at TEXT NOT NULL DEFAULT ({now})
-            );
-            CREATE TABLE IF NOT EXISTS customer_lpos (
-                id {autoinc},
-                customer_id {int_type} NOT NULL,
-                lpo_no TEXT,
-                lpo_date TEXT NOT NULL,
-                amount {real_type},
-                status TEXT NOT NULL DEFAULT 'pending',
-                notes TEXT,
-                created_at TEXT NOT NULL DEFAULT ({now})
-            );
-            CREATE TABLE IF NOT EXISTS lpo_items (
-                id {autoinc},
-                lpo_id {int_type} NOT NULL,
-                description TEXT,
-                quantity {real_type} NOT NULL DEFAULT 1,
-                rate {real_type} NOT NULL DEFAULT 0,
-                amount {real_type} NOT NULL DEFAULT 0,
-                unit_type TEXT NOT NULL DEFAULT 'hour',
-                sort_order {int_type} DEFAULT 0
-            );
-            CREATE TABLE IF NOT EXISTS customer_documents (
-                id {autoinc},
-                customer_id {int_type} NOT NULL,
-                doc_type TEXT,
-                doc_name TEXT,
-                file_data TEXT,
-                file_type TEXT,
-                expiry_date TEXT,
-                created_at TEXT NOT NULL DEFAULT ({now})
-            );
-            CREATE TABLE IF NOT EXISTS customer_invoice_items (
-                id {autoinc},
-                invoice_id {int_type} NOT NULL,
-                description TEXT,
-                quantity {real_type} DEFAULT 1,
-                rate {real_type} DEFAULT 0,
-                amount {real_type} DEFAULT 0,
-                sort_order {int_type} DEFAULT 0
-            );
-            CREATE TABLE IF NOT EXISTS service_items (
-                id {autoinc},
-                description TEXT NOT NULL UNIQUE,
-                default_rate {real_type} DEFAULT 0,
-                category TEXT DEFAULT '',
-                created_at TEXT NOT NULL DEFAULT ({now})
-            );
-            CREATE TABLE IF NOT EXISTS customer_service_orders (
-                id {autoinc},
-                customer_id {int_type} NOT NULL,
-                so_no TEXT,
-                so_date TEXT NOT NULL,
-                amount {real_type},
-                status TEXT NOT NULL DEFAULT 'pending',
-                notes TEXT,
-                created_at TEXT NOT NULL DEFAULT ({now})
-            );
-            CREATE TABLE IF NOT EXISTS tabreed_tripsheets (
-                id {autoinc},
-                customer_id {int_type} NOT NULL,
-                entry_date TEXT NOT NULL,
-                time_in TEXT,
-                time_out TEXT,
-                meter_start {real_type} DEFAULT 0,
-                meter_stop {real_type} DEFAULT 0,
-                total_reading {real_type} DEFAULT 0,
-                tanker_gln TEXT,
-                trips {real_type} DEFAULT 1,
-                tanker_reg TEXT,
-                notes TEXT,
-                created_at TEXT NOT NULL DEFAULT ({now})
-            );
-            CREATE TABLE IF NOT EXISTS customer_so_items (
-                id {autoinc},
-                so_id {int_type} NOT NULL,
-                description TEXT,
-                quantity {real_type} NOT NULL DEFAULT 1,
-                rate {real_type} NOT NULL DEFAULT 0,
-                amount {real_type} NOT NULL DEFAULT 0,
-                unit_type TEXT NOT NULL DEFAULT 'hour',
-                sort_order {int_type} DEFAULT 0
-            );
-            CREATE TABLE IF NOT EXISTS customer_quotation_items (
-                id {autoinc},
-                quotation_id {int_type} NOT NULL,
-                description TEXT,
-                quantity {real_type} DEFAULT 1,
-                rate {real_type} DEFAULT 0,
-                amount {real_type} DEFAULT 0,
-                unit TEXT DEFAULT 'hr',
-                sort_order {int_type} DEFAULT 0
-            );
-            CREATE TABLE IF NOT EXISTS quotation_sequence (last_number {int_type} DEFAULT 0);
-            CREATE TABLE IF NOT EXISTS invoice_sequence (last_number {int_type} DEFAULT 0);
-            CREATE TABLE IF NOT EXISTS customer_credit_notes (
-                id {autoinc},
-                customer_id {int_type} NOT NULL,
-                credit_note_no TEXT,
-                credit_note_date TEXT NOT NULL,
-                invoice_id {int_type},
-                amount {real_type} NOT NULL DEFAULT 0,
-                vat_percent {real_type} DEFAULT 0,
-                vat_amount {real_type} DEFAULT 0,
-                total_amount {real_type} NOT NULL DEFAULT 0,
-                reason TEXT,
-                notes TEXT,
-                created_at TEXT NOT NULL DEFAULT ({now})
-            );
-        """)
-        db.commit()
-    except Exception as ex:
-        current_app.logger.error("_ensure_tables executescript error: %s", ex)
-        _safe_rollback(db)
+    # Create each table individually so a failure in one doesn't affect others
+    table_ddl = [
+        f"""CREATE TABLE IF NOT EXISTS customers (
+            id {autoinc}, customer_name TEXT NOT NULL, customer_code TEXT,
+            contact_person TEXT, phone TEXT, email TEXT, address TEXT,
+            trn TEXT, trade_license TEXT, credit_limit {real_type} DEFAULT 0,
+            payment_terms TEXT, status TEXT NOT NULL DEFAULT 'active',
+            notes TEXT, created_at TEXT NOT NULL DEFAULT ({now})
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS customer_invoices (
+            id {autoinc}, customer_id {int_type} NOT NULL, invoice_no TEXT,
+            invoice_date TEXT NOT NULL, amount {real_type} NOT NULL,
+            vat_percent {real_type} DEFAULT 5, vat_amount {real_type} DEFAULT 0,
+            total_amount {real_type} NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+            notes TEXT, created_at TEXT NOT NULL DEFAULT ({now})
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS customer_payments (
+            id {autoinc}, customer_id {int_type} NOT NULL, invoice_id {int_type},
+            payment_date TEXT NOT NULL, amount {real_type} NOT NULL,
+            payment_method TEXT DEFAULT 'Cash', reference_no TEXT,
+            notes TEXT, created_at TEXT NOT NULL DEFAULT ({now})
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS customer_contracts (
+            id {autoinc}, customer_id {int_type} NOT NULL, contract_no TEXT,
+            contract_date TEXT NOT NULL, start_date TEXT, end_date TEXT,
+            contract_type TEXT DEFAULT 'rental', amount {real_type},
+            status TEXT NOT NULL DEFAULT 'active', notes TEXT,
+            created_at TEXT NOT NULL DEFAULT ({now})
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS customer_quotations (
+            id {autoinc}, customer_id {int_type} NOT NULL, quotation_no TEXT,
+            quotation_date TEXT NOT NULL, amount {real_type},
+            status TEXT NOT NULL DEFAULT 'pending', notes TEXT,
+            created_at TEXT NOT NULL DEFAULT ({now})
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS customer_lpos (
+            id {autoinc}, customer_id {int_type} NOT NULL, lpo_no TEXT,
+            lpo_date TEXT NOT NULL, amount {real_type},
+            status TEXT NOT NULL DEFAULT 'pending', notes TEXT,
+            created_at TEXT NOT NULL DEFAULT ({now})
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS lpo_items (
+            id {autoinc}, lpo_id {int_type} NOT NULL, description TEXT,
+            quantity {real_type} NOT NULL DEFAULT 1, rate {real_type} NOT NULL DEFAULT 0,
+            amount {real_type} NOT NULL DEFAULT 0, unit_type TEXT NOT NULL DEFAULT 'hour',
+            sort_order {int_type} DEFAULT 0
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS customer_documents (
+            id {autoinc}, customer_id {int_type} NOT NULL,
+            doc_type TEXT, doc_name TEXT, file_data TEXT, file_type TEXT,
+            expiry_date TEXT, created_at TEXT NOT NULL DEFAULT ({now})
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS customer_invoice_items (
+            id {autoinc}, invoice_id {int_type} NOT NULL, description TEXT,
+            quantity {real_type} DEFAULT 1, rate {real_type} DEFAULT 0,
+            amount {real_type} DEFAULT 0, sort_order {int_type} DEFAULT 0
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS service_items (
+            id {autoinc}, description TEXT NOT NULL UNIQUE,
+            default_rate {real_type} DEFAULT 0, category TEXT DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT ({now})
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS customer_service_orders (
+            id {autoinc}, customer_id {int_type} NOT NULL, so_no TEXT,
+            so_date TEXT NOT NULL, amount {real_type},
+            status TEXT NOT NULL DEFAULT 'pending', notes TEXT,
+            created_at TEXT NOT NULL DEFAULT ({now})
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS tabreed_tripsheets (
+            id {autoinc}, customer_id {int_type} NOT NULL,
+            entry_date TEXT NOT NULL, time_in TEXT, time_out TEXT,
+            meter_start {real_type} DEFAULT 0, meter_stop {real_type} DEFAULT 0,
+            total_reading {real_type} DEFAULT 0, tanker_gln TEXT,
+            trips {real_type} DEFAULT 1, tanker_reg TEXT, notes TEXT,
+            created_at TEXT NOT NULL DEFAULT ({now})
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS customer_so_items (
+            id {autoinc}, so_id {int_type} NOT NULL, description TEXT,
+            quantity {real_type} NOT NULL DEFAULT 1, rate {real_type} NOT NULL DEFAULT 0,
+            amount {real_type} NOT NULL DEFAULT 0, unit_type TEXT NOT NULL DEFAULT 'hour',
+            sort_order {int_type} DEFAULT 0
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS customer_quotation_items (
+            id {autoinc}, quotation_id {int_type} NOT NULL, description TEXT,
+            quantity {real_type} DEFAULT 1, rate {real_type} DEFAULT 0,
+            amount {real_type} DEFAULT 0, unit TEXT DEFAULT 'hr',
+            sort_order {int_type} DEFAULT 0
+        )""",
+        f"""CREATE TABLE IF NOT EXISTS quotation_sequence (last_number {int_type} DEFAULT 0)""",
+        f"""CREATE TABLE IF NOT EXISTS invoice_sequence (last_number {int_type} DEFAULT 0)""",
+        f"""CREATE TABLE IF NOT EXISTS customer_credit_notes (
+            id {autoinc}, customer_id {int_type} NOT NULL,
+            credit_note_no TEXT, credit_note_date TEXT NOT NULL,
+            invoice_id {int_type}, amount {real_type} NOT NULL DEFAULT 0,
+            vat_percent {real_type} DEFAULT 0, vat_amount {real_type} DEFAULT 0,
+            total_amount {real_type} NOT NULL DEFAULT 0,
+            reason TEXT, notes TEXT, created_at TEXT NOT NULL DEFAULT ({now})
+        )""",
+    ]
+    for ddl in table_ddl:
+        _safe_execute(db, ddl)
     # seed service_items from existing invoice items
     _safe_execute(db, f"""
         INSERT INTO service_items (description)
