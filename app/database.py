@@ -2041,6 +2041,7 @@ class DatabaseAdapter:
     def __init__(self, connection, backend: str):
         self.connection = connection
         self.backend = backend
+        self._closed = False
 
     def execute(self, query: str, params=()):
         cursor = self.connection.cursor()
@@ -2067,6 +2068,9 @@ class DatabaseAdapter:
         self.connection.rollback()
 
     def close(self):
+        if self._closed:
+            return
+        self._closed = True
         try:
             self.connection.close()
         except Exception:
@@ -2106,7 +2110,7 @@ def init_db(app: Flask) -> None:
 
 
 def open_db():
-    if "db" not in g:
+    if "db" not in g or g.db._closed:
         backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
         if backend == "postgres":
             connection = _connect_postgres(current_app.config["DATABASE_URL"])
