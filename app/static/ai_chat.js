@@ -181,58 +181,66 @@
     if (!MIC) return;
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) { MIC.style.display = 'none'; return; }
-    var stopped = false, pendingText = '';
+    var releaseTimer = null, pendingText = '';
 
     function onStart() {
       if (isRecording) return;
-      isRecording = true; stopped = false; pendingText = '';
+      if (releaseTimer) { clearTimeout(releaseTimer); releaseTimer = null; }
+      isRecording = true; pendingText = '';
       MIC.classList.add('is-recording');
       LISTENING.classList.add('is-active');
       if (LISTEN_TEXT) LISTEN_TEXT.textContent = t('listening');
       var r = new SpeechRecognition();
       r.lang = lang === 'ur' ? 'ur-PK' : 'en-US';
-      r.continuous = false;
+      r.continuous = true;
       r.interimResults = false;
       r.onresult = function(e) {
-        var last = e.results[e.results.length - 1];
-        if (last && last[0] && last.isFinal) pendingText = last[0].transcript.trim();
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) pendingText = e.results[i][0].transcript.trim();
+        }
       };
-      r.onerror = function() { finishRec(r, true); };
-      r.onend = function() { finishRec(r, false); };
+      r.onerror = function() { forceFinish(); };
+      r.onend = function() { if (isRecording) forceFinish(); };
       currentRecognition = r;
-      try { r.start(); } catch(e) { finishRec(r, true); }
+      try { r.start(); } catch(e) { forceFinish(); }
     }
 
-    function finishRec(r, immediate) {
-      if (!isRecording || currentRecognition !== r) return;
-      isRecording = false; currentRecognition = null;
+    function forceFinish() {
+      if (releaseTimer) { clearTimeout(releaseTimer); releaseTimer = null; }
+      if (!isRecording) return;
+      isRecording = false;
+      if (currentRecognition) { try { currentRecognition.stop(); } catch(e) {} currentRecognition = null; }
       MIC.classList.remove('is-recording');
       LISTENING.classList.remove('is-active');
       var text = pendingText || '';
-      if (!text) { stopped = false; pendingText = ''; return; }
+      pendingText = '';
+      if (!text) return;
       INPUT.value = text;
-      stopped = false; pendingText = '';
       if (micResultCallback) {
         var cb = micResultCallback;
         micResultCallback = null;
-        setTimeout(function() { cb(text); }, 100);
+        setTimeout(function() { cb(text); }, 80);
       } else {
-        setTimeout(function() { handleEnter(); }, 100);
+        setTimeout(function() { handleEnter(); }, 80);
       }
     }
 
-    function userStop() {
+    function userRelease() {
       if (!isRecording) return;
-      stopped = true;
-      if (currentRecognition) { try { currentRecognition.stop(); } catch(e) {} }
+      // Wait briefly for speech to finish processing, then force-stop
+      if (releaseTimer) clearTimeout(releaseTimer);
+      releaseTimer = setTimeout(function() {
+        releaseTimer = null;
+        forceFinish();
+      }, 600);
     }
 
     MIC.addEventListener('mousedown', function(e) { e.preventDefault(); onStart(); });
-    MIC.addEventListener('mouseup', function(e) { e.preventDefault(); userStop(); });
-    MIC.addEventListener('mouseleave', function() { if (isRecording) userStop(); });
+    MIC.addEventListener('mouseup', function(e) { e.preventDefault(); userRelease(); });
+    MIC.addEventListener('mouseleave', function() { if (isRecording) userRelease(); });
     MIC.addEventListener('touchstart', function(e) { e.preventDefault(); onStart(); }, {passive: false});
-    MIC.addEventListener('touchend', function(e) { e.preventDefault(); userStop(); }, {passive: false});
-    MIC.addEventListener('touchcancel', function() { if (isRecording) userStop(); });
+    MIC.addEventListener('touchend', function(e) { e.preventDefault(); userRelease(); }, {passive: false});
+    MIC.addEventListener('touchcancel', function() { if (isRecording) userRelease(); });
   }
 
   // ─── Single Enter handler ───
