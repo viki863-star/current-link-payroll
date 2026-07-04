@@ -6,6 +6,7 @@ from datetime import date
 from flask import request, jsonify, current_app
 from . import ai_bp
 from ..database import open_db
+from app import csrf
 
 TABLES = [
     "employees", "drivers", "field_staff", "cash_receipts", "vehicles",
@@ -99,6 +100,7 @@ def _call_llm(messages):
 
 
 @ai_bp.route("/tripsheet_save", methods=["POST"])
+@csrf.exempt
 def tripsheet_save():
     try:
         data = request.get_json()
