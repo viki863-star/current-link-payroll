@@ -4257,7 +4257,7 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     els.append(Spacer(1, 4*mm))
 
     # ═══ TABLE ═══
-    colw = [38, 52, W - 38 - 52 - 52 - 62, 52, 62]
+    colw = [36, 56, 36, 28, W - 36 - 56 - 36 - 28]
     hdr = [
         Paragraph('<b>Date</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=10)),
         Paragraph('<b>Payee</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=10)),
