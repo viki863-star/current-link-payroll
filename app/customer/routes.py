@@ -2724,6 +2724,8 @@ def customer_tripsheet_add(cid):
         db.commit()
         db.close()
         flash("Tripsheet entry added.", "success")
+        if request.args.get("save_and_new"):
+            return redirect(url_for("customer.customer_tripsheet_add", cid=cid))
         return redirect(url_for("customer.customer_profile", cid=cid, tab="tripsheet"))
     return render_template("customer/tripsheet_form.html", c=c, today=date.today().isoformat(), tanker_options=TANKER_GLN_OPTIONS)
 

@@ -5,14 +5,21 @@
 {% block content %}
 <div class="profile-shell">
 <style>
-.form-shell { max-width:720px; margin:0 auto; }
+.form-shell { max-width:820px; margin:0 auto; }
 .form-shell .card { padding:24px; }
-.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
 .form-grid .full-span { grid-column:1 / -1; }
-.form-grid label { display:flex; flex-direction:column; gap:4px; font-size:0.78rem; font-weight:600; color:var(--muted); }
-.form-grid label input, .form-grid label select, .form-grid label textarea { padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:0.85rem; background:var(--surface); color:var(--text); }
+.form-grid label { display:flex; flex-direction:column; gap:3px; font-size:0.72rem; font-weight:600; color:var(--muted); }
+.form-grid label input, .form-grid label select, .form-grid label textarea { padding:7px 10px; border:1px solid var(--line); border-radius:8px; font-size:0.88rem; background:var(--surface); color:var(--text); }
 .form-grid label input:focus, .form-grid label select:focus, .form-grid label textarea:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px rgba(28,86,139,0.15); }
 .form-actions { display:flex; gap:8px; margin-top:4px; }
+.quick-btns { display:flex; gap:4px; flex-wrap:wrap; margin-top:3px; }
+.quick-btn { padding:3px 10px; font-size:0.7rem; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--muted); cursor:pointer; transition:all .12s; }
+.quick-btn:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+.quick-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.time-row { display:flex; gap:6px; align-items:center; }
+.time-row input { flex:1; }
+.time-row .quick-btn { white-space:nowrap; }
 @media(max-width:600px){ .form-grid { grid-template-columns:1fr; } }
 </style>
 
@@ -22,46 +29,106 @@
             <h2 style="margin:0 0 4px">New Tripsheet Entry</h2>
             <p style="margin:0;color:var(--muted);font-size:0.82rem">Customer: <strong>{{ c.customer_name }}</strong></p>
         </div>
-        <form method="POST" class="form-grid">
+        <form method="POST" class="form-grid" id="tripsheetForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
             <label>Date *
-                <input type="date" name="entry_date" value="{{ today }}" required>
+                <input type="date" name="entry_date" id="entryDate" value="{{ today }}" required>
+                <div class="quick-btns">
+                    <button type="button" class="quick-btn" onclick="setDate('today')">Today</button>
+                    <button type="button" class="quick-btn" onclick="setDate('yesterday')">Yesterday</button>
+                </div>
             </label>
+
             <label>Tanker GLN
-                <select name="tanker_gln">
+                <select name="tanker_gln" id="tankerGln">
                     <option value="">— Select —</option>
                     {% for opt in tanker_options %}
                     <option value="{{ opt }}">{{ opt }}</option>
                     {% endfor %}
                 </select>
             </label>
+
             <label>Time In
-                <input type="time" name="time_in">
+                <div class="time-row">
+                    <input type="time" name="time_in" id="timeIn">
+                    <button type="button" class="quick-btn" onclick="document.getElementById('timeIn').value=new Date().toTimeString().slice(0,5)">Now</button>
+                </div>
             </label>
+
             <label>Time Out
-                <input type="time" name="time_out">
+                <div class="time-row">
+                    <input type="time" name="time_out" id="timeOut">
+                    <button type="button" class="quick-btn" onclick="document.getElementById('timeOut').value=new Date().toTimeString().slice(0,5)">Now</button>
+                </div>
             </label>
+
             <label>Meter Reading Start
-                <input type="number" name="meter_start" step="0.01" min="0" value="0">
+                <input type="number" name="meter_start" id="meterStart" step="1" min="0" value="0" autofocus>
             </label>
+
             <label>Meter Reading Stop
-                <input type="number" name="meter_stop" step="0.01" min="0" value="0">
+                <input type="number" name="meter_stop" id="meterStop" step="1" min="0" value="0">
             </label>
+
             <label>Trips
-                <input type="number" name="trips" step="1" min="1" value="1">
+                <input type="number" name="trips" id="trips" step="1" min="1" value="1">
             </label>
+
             <label>Tanker Registration No.
-                <input type="text" name="tanker_reg" placeholder="e.g. ABC-1234">
+                <input type="text" name="tanker_reg" id="tankerReg" placeholder="e.g. ABC-1234" style="text-transform:uppercase">
             </label>
+
             <label class="full-span">Notes
-                <textarea name="notes" rows="2" placeholder="Optional notes..."></textarea>
+                <textarea name="notes" rows="1" placeholder="Optional..."></textarea>
             </label>
+
             <div class="form-actions full-span">
                 <button class="btn btn-primary" type="submit">Save Entry</button>
+                <button class="btn btn-outline" type="button" onclick="saveAndNew()">Save &amp; New</button>
                 <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='tripsheet') }}" class="btn btn-outline">Cancel</a>
             </div>
         </form>
     </div>
 </div>
 </div>
+
+<script>
+function setDate(t) {
+    var d = new Date();
+    if (t === 'yesterday') d.setDate(d.getDate() - 1);
+    document.getElementById('entryDate').value = d.toISOString().slice(0,10);
+}
+
+function saveAndNew() {
+    var form = document.getElementById('tripsheetForm');
+    var action = form.action;
+    form.action = action + (action.includes('?') ? '&' : '?') + 'save_and_new=1';
+    form.submit();
+}
+
+// Auto-calc total reading on meter_stop change
+document.getElementById('meterStop').addEventListener('input', function() {
+    var start = parseFloat(document.getElementById('meterStart').value) || 0;
+    var stop = parseFloat(this.value) || 0;
+    // Optional: show calculated reading somewhere
+});
+
+// Focus: after entering meter stop, auto-tab to trips
+// Tab-friendly: Enter key submits the form quickly
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT') {
+        e.preventDefault();
+        var inputs = document.querySelectorAll('#tripsheetForm input, #tripsheetForm select, #tripsheetForm textarea');
+        for (var i = 0; i < inputs.length; i++) {
+            if (inputs[i] === e.target) {
+                var next = inputs[i + 1];
+                if (next) { next.focus(); }
+                else { document.querySelector('#tripsheetForm button[type=submit]').click(); }
+                break;
+            }
+        }
+    }
+});
+</script>
 {% endblock %}
