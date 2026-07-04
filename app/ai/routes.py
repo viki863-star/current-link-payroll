@@ -98,6 +98,52 @@ def _call_llm(messages):
         return None, str(e)
 
 
+@ai_bp.route("/tripsheet_save", methods=["POST"])
+def tripsheet_save():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "JSON required"}), 400
+        cid = data.get("customer_id")
+        if not cid:
+            return jsonify({"error": "customer_id required"}), 400
+        entry_date = (data.get("entry_date") or "").strip()
+        time_in = (data.get("time_in") or "").strip()
+        time_out = (data.get("time_out") or "").strip()
+        total_reading = round(float(data.get("total_reading", 0) or 0), 2)
+        tanker_gln = (data.get("tanker_gln") or "").strip()
+        trips = float(data.get("trips", 1) or 1)
+        tanker_reg = (data.get("tanker_reg") or "").strip().upper()
+        notes = (data.get("notes") or "").strip()
+        if not entry_date:
+            return jsonify({"error": "Date required"}), 400
+        db = open_db()
+        db.execute("""CREATE TABLE IF NOT EXISTS tabreed_tripsheets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            entry_date TEXT NOT NULL,
+            time_in TEXT,
+            time_out TEXT,
+            total_reading REAL DEFAULT 0,
+            tanker_gln TEXT,
+            trips REAL DEFAULT 1,
+            tanker_reg TEXT,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )""")
+        db.execute("""INSERT INTO tabreed_tripsheets
+            (customer_id, entry_date, time_in, time_out, total_reading, tanker_gln, trips, tanker_reg, notes)
+            VALUES (?,?,?,?,?,?,?,?,?)""",
+            (cid, entry_date, time_in or None, time_out or None, total_reading, tanker_gln or None, trips, tanker_reg or None, notes or None))
+        db.commit()
+        db.close()
+        return jsonify({"success": True, "message": "Tripsheet entry saved"})
+    except Exception as e:
+        import traceback
+        current_app.logger.error("Tripsheet save error: %s\n%s", e, traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
 @ai_bp.route("/chat", methods=["POST"])
 def chat():
     try:
