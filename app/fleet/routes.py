@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from ..database import open_db, _connect_sqlite
 from ..routes import _login_required, _touch_admin_workspace
+from ..pdf_service import generate_fuel_report_pdf
 from . import fleet_bp
 
 
@@ -2016,6 +2017,42 @@ def fuel_list():
         total_gallons=total_gallons,
         total_amount=total_amount,
     )
+
+
+@fleet_bp.route("/fleet/fuel/report/pdf")
+@_login_required("admin")
+def fuel_report_pdf():
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    vehicle_filter = request.args.get("vehicle", "")
+    month_filter = request.args.get("month", "")
+    params = []
+    where = ""
+    if vehicle_filter:
+        where += " AND fe.vehicle_plate = ?"
+        params.append(vehicle_filter)
+    if month_filter:
+        where += " AND substr(fe.entry_date,1,7) = ?"
+        params.append(month_filter)
+    entries = db.execute(f"""
+        SELECT fe.* FROM fuel_entries fe
+        WHERE 1=1{where}
+        ORDER BY fe.entry_date DESC, fe.id DESC
+    """, params).fetchall()
+    output_dir = current_app.config.get("GENERATED_BACKUP_DIR", "/tmp")
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    cp = dict(company) if company else {}
+    assets_dir = str(Path(current_app.root_path).parent / "app" / "static")
+    pdf_path = generate_fuel_report_pdf(
+        entries=entries,
+        vehicle_filter=vehicle_filter,
+        month_filter=month_filter,
+        output_dir=output_dir,
+        assets_dir=assets_dir,
+        company_profile=cp,
+    )
+    return send_file(pdf_path, as_attachment=True, download_name=f"fuel_report_{month_filter or 'all'}.pdf")
 
 
 @fleet_bp.route("/fleet/fuel/add", methods=["GET", "POST"])

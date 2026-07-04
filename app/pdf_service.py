@@ -3889,3 +3889,107 @@ def generate_deduction_statement_pdf(driver, salary_store_row, slip_row, deducte
 
     doc.build(els)
     return str(output_path)
+
+
+def generate_fuel_report_pdf(entries, vehicle_filter: str, month_filter: str, output_dir: str, assets_dir: str = "", company_profile: dict | None = None) -> str:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_path = Path(output_dir) / f"fuel_report_{month_filter or 'all'}_{timestamp}.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+    rows = list(entries or [])
+    if not rows:
+        rows = [{"entry_date": "-", "vehicle_plate": "-", "gallons": 0, "rate_per_gallon": 0, "total_amount": 0, "supplier_name": "-", "notes": ""}]
+
+    table_top = PAGE_HEIGHT - 108 * mm
+    row_height = 6.8 * mm
+    bottom_limit = 36 * mm
+    rows_per_page = max(1, int((table_top - bottom_limit) // row_height) - 2)
+    pages = [rows[index:index + rows_per_page] for index in range(0, len(rows), rows_per_page)] or [rows]
+
+    month_label = format_month_label(month_filter) if month_filter else "All Periods"
+    total_gallons = sum(float(r.get("gallons", 0) or 0) for r in rows)
+    total_amount = sum(float(r.get("total_amount", 0) or 0) for r in rows)
+
+    from collections import Counter
+    veh_totals = Counter()
+    for r in rows:
+        plate = r.get("vehicle_plate") or "Unknown"
+        veh_totals[plate] += float(r.get("gallons", 0) or 0)
+    top_vehicles = veh_totals.most_common(10)
+
+    for page_number, page_rows in enumerate(pages, start=1):
+        pdf.setFillColor(colors.white)
+        pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
+        _draw_header(pdf, assets_dir, company_profile)
+
+        title = "Fuel Consumption Report"
+        subtitle = month_label + (f" | Vehicle: {vehicle_filter}" if vehicle_filter else "")
+        _draw_title(pdf, title, subtitle)
+
+        stats_y = PAGE_HEIGHT - 86 * mm
+        _draw_stat_box(pdf, 16 * mm, stats_y, 58 * mm, 14 * mm, "Total Gallons (GLN)", f"{format_currency(total_gallons)} GLN")
+        _draw_stat_box(pdf, 78 * mm, stats_y, 58 * mm, 14 * mm, "Total Amount (AED)", f"AED {format_currency(total_amount)}")
+        _draw_stat_box(pdf, 140 * mm, stats_y, 54 * mm, 14 * mm, "Total Entries", str(len(rows)))
+
+        chart_y = stats_y - 32 * mm
+        chart_h = 26 * mm
+        if top_vehicles:
+            max_val = max(v for _, v in top_vehicles)
+            pdf.setFillColor(BLUE_DARK)
+            pdf.setFont("Helvetica-Bold", 7.5)
+            pdf.drawString(16 * mm, chart_y + chart_h + 2 * mm, "Top Vehicles by Fuel Consumption (GLN)")
+            bar_count = min(len(top_vehicles), 10)
+            bar_w = (172 * mm) / max(bar_count, 1)
+            for i, (plate, gal) in enumerate(top_vehicles[:10]):
+                bw = bar_w * 0.6
+                bh = (gal / max_val) * (chart_h - 6 * mm) if max_val > 0 else 0
+                bx = 17 * mm + i * bar_w + (bar_w - bw) / 2
+                by = chart_y + 3 * mm
+                pdf.setFillColor(BLUE_SOFT)
+                pdf.rect(bx, by, bw, bh, fill=1, stroke=0)
+                pdf.setFillColor(BLUE)
+                pdf.rect(bx, by, bw, min(bh, 1.2 * mm), fill=1, stroke=0)
+                pdf.setFillColor(TEXT)
+                pdf.setFont("Helvetica", 5.8)
+                val_text = f"{gal:.0f}"
+                pdf.drawCentredString(bx + bw / 2, by + max(bh, 0) + 1 * mm, val_text)
+                pdf.saveState()
+                pdf.translate(bx + bw / 2, by - 1 * mm)
+                pdf.rotate(45)
+                pdf.setFont("Helvetica", 5.5)
+                pdf.setFillColor(MUTED)
+                pdf.drawString(0, 0, plate[:8])
+                pdf.restoreState()
+
+        header_top = chart_y - 4 * mm if top_vehicles else chart_y - 2 * mm
+        _draw_table_header(pdf, header_top, ["Date", "Vehicle", "GLN", "Rate/GLN", "Total AED", "Supplier"], [18, 48, 82, 106, 130, 158])
+        y = header_top - 6.2 * mm
+        for index, row in enumerate(page_rows):
+            if index % 2 == 0:
+                pdf.setFillColor(SOFT)
+                pdf.roundRect(16 * mm, y - 2.2 * mm, 178 * mm, 6.2 * mm, 1.6 * mm, fill=1, stroke=0)
+            pdf.setFillColor(TEXT)
+            pdf.setFont("Helvetica", 7.0)
+            pdf.drawString(18 * mm, y, format_date_label(row.get("entry_date")))
+            veh_text, veh_size = _fit_text(pdf, str(row.get("vehicle_plate") or "-"), "Helvetica-Bold", 7.0, 32 * mm, min_size=6.0)
+            pdf.setFont("Helvetica-Bold", veh_size)
+            pdf.drawString(48 * mm, y, veh_text)
+            pdf.setFont("Helvetica", 7.0)
+            pdf.drawRightString(96 * mm, y, format_currency(float(row.get("gallons") or 0)))
+            pdf.drawRightString(122 * mm, y, format_currency(float(row.get("rate_per_gallon") or 0)))
+            pdf.drawRightString(150 * mm, y, format_currency(float(row.get("total_amount") or 0)))
+            sup_text, sup_size = _fit_text(pdf, str(row.get("supplier_name") or "-"), "Helvetica", 7.0, 28 * mm, min_size=6.0)
+            pdf.setFont("Helvetica", sup_size)
+            pdf.drawString(158 * mm, y, sup_text)
+            y -= row_height
+
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 6.5)
+        pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
+        pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number} / {len(pages)}")
+        _draw_footer_banner(pdf, assets_dir, True, company_profile)
+        pdf.showPage()
+
+    pdf.save()
+    return str(output_path)

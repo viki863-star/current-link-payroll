@@ -16,6 +16,9 @@
     </div>
     <div class="profile-actions">
       <a href="{{ url_for('fleet.fuel_add') }}" class="btn btn-primary">+ Add Fuel Entry</a>
+      {% if month_filter %}
+      <a href="{{ url_for('fleet.fuel_report_pdf', month=month_filter, vehicle=vehicle_filter) }}" class="btn btn-sm btn-outline" target="_blank">📄 Download PDF</a>
+      {% endif %}
       <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline">← Vehicles</a>
     </div>
   </div>
