@@ -465,10 +465,13 @@ td .mono-sm { font-size:0.75rem; }
                     <td class="mono">{{ "%.0f"|format(t.trips) }}</td>
                     <td class="mono">{{ t.tanker_reg or '—' }}</td>
                     <td>
+                        <div style="display:flex;gap:4px">
+                        <a href="{{ url_for('customer.customer_tripsheet_edit', cid=c.id, tid=t.id) }}" class="btn btn-xs btn-outline">&#9998;</a>
                         <form method="POST" action="{{ url_for('customer.customer_tripsheet_delete', cid=c.id, tid=t.id) }}" style="display:inline" onsubmit="return confirm('Delete this tripsheet entry?')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
                         </form>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}

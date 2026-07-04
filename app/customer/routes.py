@@ -2728,6 +2728,38 @@ def customer_tripsheet_add(cid):
     default_date = request.args.get("date", date.today().isoformat())
     return render_template("customer/tripsheet_form.html", c=c, today=default_date, tanker_options=TANKER_GLN_OPTIONS)
 
+@customer_bp.route("/<int:cid>/tripsheet/<int:tid>/edit", methods=["GET", "POST"])
+def customer_tripsheet_edit(cid, tid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    row = db.execute("SELECT * FROM tabreed_tripsheets WHERE id=? AND customer_id=?", (tid, cid)).fetchone()
+    if not row:
+        db.close()
+        flash("Tripsheet entry not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="tripsheet"))
+    if request.method == "POST":
+        entry_date = request.form.get("entry_date", "").strip()
+        time_in = request.form.get("time_in", "").strip()
+        time_out = request.form.get("time_out", "").strip()
+        total_reading = round(float(request.form.get("total_reading", 0) or 0), 2)
+        tanker_gln = request.form.get("tanker_gln", "").strip()
+        trips = float(request.form.get("trips", 1) or 1)
+        tanker_reg = request.form.get("tanker_reg", "").strip().upper()
+        notes = request.form.get("notes", "").strip()
+        if not entry_date:
+            flash("Date is required.", "error")
+            return render_template("customer/tripsheet_form.html", c=c, row=row, today=entry_date, tanker_options=TANKER_GLN_OPTIONS, edit=True)
+        db.execute("""UPDATE tabreed_tripsheets SET entry_date=?, time_in=?, time_out=?, total_reading=?, tanker_gln=?, trips=?, tanker_reg=?, notes=? WHERE id=? AND customer_id=?""",
+            (entry_date, time_in or None, time_out or None, total_reading, tanker_gln or None, trips, tanker_reg or None, notes or None, tid, cid))
+        db.commit()
+        db.close()
+        flash("Tripsheet entry updated.", "success")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="tripsheet"))
+    db.close()
+    return render_template("customer/tripsheet_form.html", c=c, row=row, today=row["entry_date"], tanker_options=TANKER_GLN_OPTIONS, edit=True)
+
 @customer_bp.route("/<int:cid>/tripsheet/<int:tid>/delete", methods=["POST"])
 def customer_tripsheet_delete(cid, tid):
     db = _get_db()
