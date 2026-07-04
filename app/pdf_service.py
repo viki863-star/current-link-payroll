@@ -3955,104 +3955,194 @@ def generate_deduction_statement_pdf(driver, salary_store_row, slip_row, deducte
     return str(output_path)
 
 
-def generate_fuel_report_pdf(entries, vehicle_filter: str, month_filter: str, output_dir: str, assets_dir: str = "", company_profile: dict | None = None) -> str:
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_path = Path(output_dir) / f"fuel_report_{month_filter or 'all'}_{timestamp}.pdf"
+def generate_fuel_report_pdf(entries, vehicle_filter, month_filter, output_dir, assets_dir='', company_profile=None):
+    import tempfile
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from collections import Counter
+    from io import BytesIO
+
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_path = Path(output_dir) / 'fuel_report_{}_{}.pdf'.format(month_filter or 'all', timestamp)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    pdf = canvas.Canvas(str(output_path), pagesize=A4)
+    buf = BytesIO()
+    LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 15*mm
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = A4[0] - LM - RM
     rows = list(entries or [])
-    if not rows:
-        rows = [{"entry_date": "-", "vehicle_plate": "-", "gallons": 0, "rate_per_gallon": 0, "total_amount": 0, "supplier_name": "-", "notes": ""}]
+    total_gallons = sum(float(r.get('gallons', 0) or 0) for r in rows)
+    total_amount = sum(float(r.get('total_amount', 0) or 0) for r in rows)
+    month_label = format_month_label(month_filter) if month_filter else 'All Periods'
 
-    table_top = PAGE_HEIGHT - 108 * mm
-    row_height = 6.8 * mm
-    bottom_limit = 36 * mm
-    rows_per_page = max(1, int((table_top - bottom_limit) // row_height) - 2)
-    pages = [rows[index:index + rows_per_page] for index in range(0, len(rows), rows_per_page)] or [rows]
-
-    month_label = format_month_label(month_filter) if month_filter else "All Periods"
-    total_gallons = sum(float(r.get("gallons", 0) or 0) for r in rows)
-    total_amount = sum(float(r.get("total_amount", 0) or 0) for r in rows)
-
-    from collections import Counter
     veh_totals = Counter()
     for r in rows:
-        plate = r.get("vehicle_plate") or "Unknown"
-        veh_totals[plate] += float(r.get("gallons", 0) or 0)
+        plate = r.get('vehicle_plate') or 'Unknown'
+        veh_totals[plate] += float(r.get('gallons', 0) or 0)
     top_vehicles = veh_totals.most_common(10)
 
-    for page_number, page_rows in enumerate(pages, start=1):
-        pdf.setFillColor(colors.white)
-        pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
-        _draw_invoice_header(pdf, company_profile, 'Fuel Consumption Report')
+    _logo_tmp_files = []
+    cp = company_profile or {}
+    tc = cp.get('theme_color') or '#1a3a5c'
+    try: TH = colors.HexColor(tc)
+    except: TH = colors.HexColor('#1a3a5c')
+    BG = colors.HexColor('#f4f6f9'); WH = colors.white; C3 = colors.HexColor('#d1d5db')
+    C4 = colors.HexColor('#111827'); C5 = colors.HexColor('#6b7280')
 
-        # Summary stats
-        stats_y = PAGE_HEIGHT - 82 * mm
-        _draw_stat_box(pdf, 16 * mm, stats_y, 58 * mm, 14 * mm, "Total Gallons (GLN)", f"{format_currency(total_gallons)} GLN")
-        _draw_stat_box(pdf, 78 * mm, stats_y, 58 * mm, 14 * mm, "Total Amount (AED)", f"AED {format_currency(total_amount)}")
-        _draw_stat_box(pdf, 140 * mm, stats_y, 54 * mm, 14 * mm, "Total Entries", str(len(rows)))
+    def F(name, **kw):
+        kw.setdefault('fontSize', 8); kw.setdefault('leading', 12)
+        return ParagraphStyle(name, **kw)
 
-        chart_y = stats_y - 32 * mm
-        chart_h = 26 * mm
-        if top_vehicles:
-            max_val = max(v for _, v in top_vehicles)
-            pdf.setFillColor(BLUE_DARK)
-            pdf.setFont("Helvetica-Bold", 7.5)
-            pdf.drawString(16 * mm, chart_y + chart_h + 2 * mm, "Top Vehicles by Fuel Consumption (GLN)")
-            bar_count = min(len(top_vehicles), 10)
-            bar_w = (172 * mm) / max(bar_count, 1)
-            for i, (plate, gal) in enumerate(top_vehicles[:10]):
-                bw = bar_w * 0.6
-                bh = (gal / max_val) * (chart_h - 6 * mm) if max_val > 0 else 0
-                bx = 17 * mm + i * bar_w + (bar_w - bw) / 2
-                by = chart_y + 3 * mm
-                pdf.setFillColor(BLUE_SOFT)
-                pdf.rect(bx, by, bw, bh, fill=1, stroke=0)
-                pdf.setFillColor(BLUE)
-                pdf.rect(bx, by, bw, min(bh, 1.2 * mm), fill=1, stroke=0)
-                pdf.setFillColor(TEXT)
-                pdf.setFont("Helvetica", 5.8)
-                val_text = f"{gal:.0f}"
-                pdf.drawCentredString(bx + bw / 2, by + max(bh, 0) + 1 * mm, val_text)
-                pdf.saveState()
-                pdf.translate(bx + bw / 2, by - 1 * mm)
-                pdf.rotate(45)
-                pdf.setFont("Helvetica", 5.5)
-                pdf.setFillColor(MUTED)
-                pdf.drawString(0, 0, plate[:8])
-                pdf.restoreState()
+    def R(t, **kw):
+        kw.setdefault('alignment', TA_RIGHT)
+        return Paragraph(str(t), F('_R', **kw))
+    def L(t, **kw):
+        kw.setdefault('textColor', C5)
+        return Paragraph(str(t), F('_L', **kw))
 
-        header_top = chart_y - 4 * mm if top_vehicles else chart_y - 2 * mm
-        _draw_table_header(pdf, header_top, ["Date", "Vehicle", "GLN", "Rate/GLN", "Total AED", "Supplier"], [18, 48, 82, 106, 130, 158])
-        y = header_top - 6.2 * mm
-        for index, row in enumerate(page_rows):
-            if index % 2 == 0:
-                pdf.setFillColor(SOFT)
-                pdf.roundRect(16 * mm, y - 2.2 * mm, 178 * mm, 6.2 * mm, 1.6 * mm, fill=1, stroke=0)
-            pdf.setFillColor(TEXT)
-            pdf.setFont("Helvetica", 7.0)
-            pdf.drawString(18 * mm, y, format_date_label(row.get("entry_date")))
-            veh_text, veh_size = _fit_text(pdf, str(row.get("vehicle_plate") or "-"), "Helvetica-Bold", 7.0, 32 * mm, min_size=6.0)
-            pdf.setFont("Helvetica-Bold", veh_size)
-            pdf.drawString(48 * mm, y, veh_text)
-            pdf.setFont("Helvetica", 7.0)
-            pdf.drawRightString(96 * mm, y, format_currency(float(row.get("gallons") or 0)))
-            pdf.drawRightString(122 * mm, y, format_currency(float(row.get("rate_per_gallon") or 0)))
-            pdf.drawRightString(150 * mm, y, format_currency(float(row.get("total_amount") or 0)))
-            sup_text, sup_size = _fit_text(pdf, str(row.get("supplier_name") or "-"), "Helvetica", 7.0, 28 * mm, min_size=6.0)
-            pdf.setFont("Helvetica", sup_size)
-            pdf.drawString(158 * mm, y, sup_text)
-            y -= row_height
+    els = []
+    cn = cp.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING')
+    trn = cp.get('trn_no') or '—'
 
-        pdf.setFillColor(MUTED)
-        pdf.setFont("Helvetica", 6.5)
-        pdf.drawString(16 * mm, 14 * mm, f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
-        pdf.drawRightString(194 * mm, 14 * mm, f"Page {page_number} / {len(pages)}")
-        _draw_footer_banner(pdf, assets_dir, True, company_profile)
-        pdf.showPage()
+    # ═══ HEADER (SOA/invoice style) ═══
+    logo = None; LW = 0
+    if cp.get('logo_data'):
+        try:
+            lb = base64.b64decode(cp['logo_data'])
+            f = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+            f.write(lb); f.close()
+            logo = Image(f.name, width=50, height=50)
+            LW = 50
+            _logo_tmp_files.append(f.name)
+        except: pass
 
-    pdf.save()
+    cl = ['<font size=11><b>{}</b></font>'.format(cn)]
+    addr = cp.get('address') or ''; ph = cp.get('phone_number') or ''; em = cp.get('email') or ''
+    parts = [x for x in [addr] if x]
+    cparts = [x for x in [ph, em, 'TRN: {}'.format(trn)] if x and x != 'TRN: —']
+    if parts or cparts:
+        info = ' &middot; '.join(parts + cparts)
+        cl.append('<font size=6.5 color="#6b7280">{}</font>'.format(info))
+    co_p = Paragraph('<br/>'.join(cl), F('CO', fontSize=11, fontName='Helvetica-Bold', textColor=TH, leading=13))
+    if logo:
+        lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm])
+        lh.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
+    else:
+        lh = co_p
+    subtitle = month_label + (' | Vehicle: {}'.format(vehicle_filter) if vehicle_filter else '')
+    rh = Paragraph(
+        '<b>FUEL CONSUMPTION<br/>REPORT</b><br/><font size=7 color="#6b7280">{}</font>'.format(subtitle),
+        F('TI', fontSize=14, fontName='Helvetica-Bold', textColor=TH, leading=18, alignment=TA_RIGHT))
+    ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
+    ht.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
+    els.append(ht)
+    els.append(Spacer(1, 2*mm))
+    hr = Table([['']], colWidths=[W], rowHeights=[2])
+    hr.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),TH),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
+    els.append(hr)
+    els.append(Spacer(1, 4*mm))
+
+    # ═══ SUMMARY CARDS (SOA style) ═══
+    sdata = [[
+        Paragraph('<b>Total Gallons (GLN)</b><br/><font size=10 color="#1a3a5c">{:,.2f}</font>'.format(total_gallons), F('_s1', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph('<b>Total Amount (AED)</b><br/><font size=10 color="#c62828">AED {:,.2f}</font>'.format(total_amount), F('_s2', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph('<b>Total Entries</b><br/><font size=10 color="#1a3a5c">{}</font>'.format(len(rows)), F('_s3', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+    ]]
+    st = Table(sdata, colWidths=[W/3, W/3, W/3])
+    st.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('BOX',(0,0),(-1,-1),0.5,C3), ('INNERGRID',(0,0),(-1,-1),0.3,C3),
+        ('TOPPADDING',(0,0),(-1,-1),8), ('BOTTOMPADDING',(0,0),(-1,-1),8),
+        ('LEFTPADDING',(0,0),(-1,-1),5), ('RIGHTPADDING',(0,0),(-1,-1),5),
+        ('BACKGROUND',(0,0),(-1,-1),BG),
+    ]))
+    els.append(st)
+    els.append(Spacer(1, 4*mm))
+
+    # ═══ BAR CHART (table-based visual) ═══
+    if top_vehicles:
+        chart_data = [[
+            Paragraph('<b>Vehicle</b>', F('_ch', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=10)),
+            Paragraph('<b>GLN</b>', F('_ch2', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=10)),
+            Paragraph('', F('_ch3', fontSize=7, leading=6)),
+        ]]
+        max_val = max(v for _, v in top_vehicles)
+        for plate, gal in top_vehicles[:10]:
+            pct = gal / max_val if max_val > 0 else 0
+            bar_w = max(6, int(pct * 80))
+            bar_html = '<table cellpadding="0" cellspacing="0"><tr><td bgcolor="#1C568B" width="{}" height="5">&nbsp;</td><td width="{}">&nbsp;</td></tr></table>'.format(bar_w, max(0, 80 - bar_w))
+            chart_data.append([
+                Paragraph('<font size=6.5>{}</font>'.format(plate), F('_bp', fontSize=6.5, textColor=C4, leading=9)),
+                Paragraph('<font size=6.5><b>{:,.0f}</b></font>'.format(gal), F('_bv', fontSize=6.5, fontName='Helvetica-Bold', textColor=C4, alignment=TA_RIGHT, leading=9)),
+                Paragraph(bar_html, F('_bb', fontSize=1, leading=5)),
+            ])
+        ct = Table(chart_data, colWidths=[50, 30, W - 80])
+        ct.setStyle(TableStyle([
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('BOX',(0,0),(-1,-1),0.5,C3), ('INNERGRID',(0,0),(-1,-1),0.3,C3),
+            ('TOPPADDING',(0,0),(-1,-1),2), ('BOTTOMPADDING',(0,0),(-1,-1),2),
+            ('LEFTPADDING',(0,0),(-1,-1),4), ('RIGHTPADDING',(0,0),(-1,-1),4),
+            ('BACKGROUND',(0,0),(-1,0),TH), ('TEXTCOLOR',(0,0),(-1,0),WH),
+            ('ROWBACKGROUNDS',(0,1),(-1,-1),[WH, BG]),
+        ]))
+        els.append(ct)
+        els.append(Spacer(1, 4*mm))
+
+    # ═══ TABLE ═══
+    colw = [38, 38, 34, 34, 42, W - 38 - 38 - 34 - 34 - 42]
+    hdr = [
+        Paragraph('<b>Date</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph('<b>Vehicle</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=10)),
+        Paragraph('<b>GLN</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph('<b>Rate/GLN</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph('<b>Total AED</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph('<b>Supplier</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=10)),
+    ]
+    rws = [hdr]
+    for r in rows:
+        rws.append([
+            Paragraph(str(r.get('entry_date') or '-'), F('_d', fontSize=7, leading=10)),
+            Paragraph('<b>{}</b>'.format(str(r.get('vehicle_plate') or '-')), F('_p', fontSize=7, fontName='Helvetica-Bold', textColor=C4, leading=10)),
+            R('{:,.2f}'.format(float(r.get('gallons') or 0)), fontSize=7),
+            R('{:,.3f}'.format(float(r.get('rate_per_gallon') or 0)), fontSize=7),
+            R('{:,.2f}'.format(float(r.get('total_amount') or 0)), fontSize=7, fontName='Helvetica-Bold', textColor='#c62828'),
+            L(str(r.get('supplier_name') or '-'), fontSize=7),
+        ])
+    rws.append([
+        Paragraph('<b>Total</b>', F('_cb', fontSize=8, fontName='Helvetica-Bold', textColor=WH, leading=11)),
+        Paragraph('', F('_x', fontSize=7, leading=10)),
+        Paragraph('<b>{:,.2f}</b>'.format(total_gallons), F('_cg', fontSize=8, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=11)),
+        Paragraph('', F('_x', fontSize=7, leading=10)),
+        Paragraph('<b>{:,.2f}</b>'.format(total_amount), F('_ct', fontSize=8, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=11)),
+        Paragraph('', F('_x', fontSize=7, leading=10)),
+    ])
+    it = Table(rws, colWidths=colw, repeatRows=1)
+    it.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('BACKGROUND',(0,0),(-1,0),TH), ('TEXTCOLOR',(0,0),(-1,0),WH),
+        ('BOX',(0,0),(-1,-1),0.5,C3), ('INNERGRID',(0,0),(-1,-1),0.3,C3),
+        ('TOPPADDING',(0,0),(-1,-1),2), ('BOTTOMPADDING',(0,0),(-1,-1),2),
+        ('LEFTPADDING',(0,0),(-1,-1),3), ('RIGHTPADDING',(0,0),(-1,-1),3),
+        ('BACKGROUND',(0,-1),(-1,-1),TH), ('TEXTCOLOR',(0,-1),(-1,-1),WH),
+        ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
+        ('ROWBACKGROUNDS',(0,1),(-2,-2),[WH, BG]),
+    ]))
+    els.append(it)
+    els.append(Spacer(1, 4*mm))
+    els.append(Paragraph(
+        '<font size=6.5 color="#6b7280">Generated on {}</font>'.format(datetime.now().strftime('%d-%b-%Y %I:%M %p')),
+        F('_ft', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
+
+    doc.build(els)
+    with open(str(output_path), 'wb') as f:
+        f.write(buf.getvalue())
+    for tmp in _logo_tmp_files:
+        try: os.unlink(tmp)
+        except: pass
     return str(output_path)
 
 
