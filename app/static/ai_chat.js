@@ -68,7 +68,7 @@
   function showTyping() { TYPING.style.display = 'flex'; MSGS.scrollTop = MSGS.scrollHeight; }
   function hideTyping() { TYPING.style.display = 'none'; }
 
-  // ─── Voice / Text Entry for Tripsheet ───
+  // ─── Text Entry for Tripsheet ───
   function startVoiceEntry() {
     if (voiceEntryActive) return;
     var cid = getCustomerId();
@@ -77,77 +77,22 @@
       return;
     }
     voiceEntryActive = true;
-    addMessage('assistant', '📋 Tripsheet Entry start! Main sawaal puchhoonga, aap jawab boliye (ya text mein likhiye).');
+    addMessage('assistant', '📋 Tripsheet Entry! Main sawaal puchhoonga, aap jawab text mein likhiye.');
 
     var fields = [
-      { id: 'entry_date', label: 'Date kya hai?', parse: parseDate },
-      { id: 'time_in', label: 'Time In kya hai?', parse: parseTime },
-      { id: 'time_out', label: 'Time Out kya hai?', parse: parseTime },
-      { id: 'total_reading', label: 'Kitna meter reading hai?', parse: parseNumber },
-      { id: 'trips', label: 'Kitne trips hain?', parse: parseNumber },
-      { id: 'tanker_gln', label: 'Tanker GLN kya hai?', parse: parseGln },
-      { id: 'tanker_reg', label: 'Tanker registration number kya hai?', parse: parseText },
+      { id: 'entry_date', label: '📅 Date kya hai? (e.g. 1/5/2026)', parse: parseDate },
+      { id: 'time_in', label: '⏰ Time In kya hai? (e.g. 12:23 AM)', parse: parseTime },
+      { id: 'time_out', label: '⏰ Time Out kya hai? (e.g. 1:42 AM)', parse: parseTime },
+      { id: 'total_reading', label: '📊 Meter reading kitna hai? (e.g. 39)', parse: parseNumber },
+      { id: 'trips', label: '🔄 Kitne trips hain? (e.g. 1)', parse: parseNumber },
+      { id: 'tanker_gln', label: '⛽ Tanker GLN kya hai? (e.g. 10000 GLN)', parse: parseGln },
+      { id: 'tanker_reg', label: '🚛 Tanker registration number? (e.g. 63014)', parse: parseText },
     ];
     var entryData = {};
     var idx = 0;
-    var synth = window.speechSynthesis;
-    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    // Disable normal input temporarily
-    INPUT.disabled = true;
-    SEND.disabled = true;
-    INPUT.placeholder = 'Voice entry mode...';
-
-    function speak(text, cb) {
-      addMessage('assistant', '🤖 ' + text);
-      if (!synth || !SpeechRecognition) { if (cb) setTimeout(cb, 100); return; }
-      var u = new SpeechSynthesisUtterance(text);
-      u.lang = 'ur-PK'; u.rate = 0.9;
-      u.onend = function() { if (cb) setTimeout(cb, 300); };
-      u.onerror = function() { if (cb) setTimeout(cb, 300); };
-      synth.cancel(); synth.speak(u);
-    }
-
-    function listen(cb) {
-      addMessage('assistant', '🎤 Sun raha hoon... boliye');
-      if (!SpeechRecognition) { cb(null); return; }
-      var r = new SpeechRecognition();
-      r.lang = 'ur-PK'; r.continuous = false; r.interimResults = false;
-      r.onresult = function(e) {
-        var text = e.results[0][0].transcript.trim();
-        addMessage('user', '🎤 ' + text);
-        cb(text);
-      };
-      r.onerror = function() {
-        addMessage('assistant', '❌ Samajh nahi aaya, text mein likhiye.');
-        // fallback to text input for this field
-        enableTextFallback(cb);
-      };
-      r.start();
-    }
-
-    function enableTextFallback(cb) {
-      INPUT.disabled = false;
-      INPUT.placeholder = 'Type answer here...';
-      INPUT.focus();
-      var handler = function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          INPUT.removeEventListener('keydown', handler);
-          var text = INPUT.value.trim();
-          INPUT.value = '';
-          INPUT.disabled = true;
-          INPUT.placeholder = 'Voice entry mode...';
-          if (text) {
-            addMessage('user', text);
-            cb(text);
-          } else {
-            cb(null);
-          }
-        }
-      };
-      INPUT.addEventListener('keydown', handler);
-    }
+    INPUT.placeholder = 'Jawab yahan type karein...';
+    INPUT.focus();
 
     function askNext() {
       if (idx >= fields.length) {
@@ -155,15 +100,25 @@
         return;
       }
       var f = fields[idx];
-      speak(f.label, function() {
-        listen(function(answer) {
-          if (answer) {
-            entryData[f.id] = f.parse ? f.parse(answer) : answer.trim();
+      addMessage('assistant', f.label);
+      INPUT.focus();
+      var handler = function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          INPUT.removeEventListener('keydown', handler);
+          var text = INPUT.value.trim();
+          INPUT.value = '';
+          if (text) {
+            addMessage('user', text);
+            entryData[f.id] = f.parse ? f.parse(text) : text;
+          } else {
+            addMessage('user', '(skipped)');
           }
           idx++;
           setTimeout(askNext, 200);
-        });
-      });
+        }
+      };
+      INPUT.addEventListener('keydown', handler);
     }
 
     function finishEntry() {
@@ -194,11 +149,7 @@
         if (data.error) {
           addMessage('assistant', '❌ Error: ' + data.error);
         } else {
-          addMessage('assistant', '✅ ' + data.message + '! Agar aur entries chahiye to dobara Tripsheet Entry click karein.');
-          // Optional: prompt to add another
-          idx = 0;
-          entryData = {};
-          speak('Entry save ho gayi. Agar aur chahiye to dobara Tripsheet Entry button dabayein.');
+          addMessage('assistant', '✅ ' + data.message + '! Dobara entry ke liye "📋 Tripsheet Entry" dobara dabayein.');
         }
         resetVoiceMode();
       })
@@ -211,8 +162,6 @@
 
     function resetVoiceMode() {
       voiceEntryActive = false;
-      INPUT.disabled = false;
-      SEND.disabled = false;
       INPUT.placeholder = 'Ask me anything about your ERP data...';
       INPUT.focus();
     }
