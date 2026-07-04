@@ -23,13 +23,18 @@
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-row" style="margin:0">
-          <label class="form-label">Gallons *</label>
-          <input type="number" name="gallons" step="0.01" min="0" class="form-control" value="{{ entry.gallons if entry else '' }}" placeholder="0" required>
+          <label class="form-label">GLN (Gallons) *</label>
+          <input type="number" name="gallons" id="fuelGallons" step="0.01" min="0" class="form-control" value="{{ entry.gallons if entry else '' }}" placeholder="0" required oninput="calcFuelRate()">
         </div>
         <div class="form-row" style="margin:0">
-          <label class="form-label">Rate per Gallon *</label>
-          <input type="number" name="rate_per_gallon" step="0.001" min="0" class="form-control" value="{{ entry.rate_per_gallon if entry else '' }}" placeholder="0" required>
+          <label class="form-label">Amount (AED) *</label>
+          <input type="number" name="total_amount" id="fuelAmount" step="0.01" min="0" class="form-control" value="{{ (entry.total_amount if entry else '') }}" placeholder="0" required oninput="calcFuelRate()">
         </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Rate/GLN</label>
+        <input type="text" id="fuelRate" class="form-control" readonly style="background:var(--bg-muted, #f1f5f9);cursor:default" placeholder="Auto-calculated" value="{{ entry.rate_per_gallon if entry else '' }}">
+        <input type="hidden" name="rate_per_gallon" id="fuelRateHidden" value="{{ entry.rate_per_gallon if entry else '' }}">
       </div>
       <div class="form-row">
         <label class="form-label">Supplier *</label>
@@ -51,4 +56,16 @@
     </form>
   </div>
 </div>
+<script>
+function calcFuelRate() {
+  var gln = parseFloat(document.getElementById('fuelGallons').value) || 0;
+  var amt = parseFloat(document.getElementById('fuelAmount').value) || 0;
+  var rate = gln > 0 ? (amt / gln) : 0;
+  document.getElementById('fuelRate').value = rate ? rate.toFixed(3) : '';
+  document.getElementById('fuelRateHidden').value = rate ? rate.toFixed(3) : '';
+}
+{% if entry %}
+calcFuelRate();
+{% endif %}
+</script>
 {% endblock %}

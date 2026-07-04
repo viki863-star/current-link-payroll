@@ -2029,6 +2029,12 @@ def fuel_add():
         entry_date = request.form.get("entry_date", "").strip()
         gallons = float(request.form.get("gallons", 0) or 0)
         rate = float(request.form.get("rate_per_gallon", 0) or 0)
+        # Auto-calculate rate from total_amount if provided
+        total_amount = request.form.get("total_amount", "").strip()
+        if total_amount:
+            amt = float(total_amount or 0)
+            if rate <= 0 and gallons > 0:
+                rate = round(amt / gallons, 3)
         supplier_id = request.form.get("supplier_id", "").strip()
         notes = request.form.get("notes", "").strip()
         if not vehicle_plate or not entry_date or gallons <= 0 or rate <= 0 or not supplier_id:
@@ -2090,6 +2096,12 @@ def fuel_edit(entry_id):
         entry_date = request.form.get("entry_date", "").strip()
         gallons = float(request.form.get("gallons", 0) or 0)
         rate = float(request.form.get("rate_per_gallon", 0) or 0)
+        # Auto-calculate rate from total_amount if provided
+        total_amount = request.form.get("total_amount", "").strip()
+        if total_amount:
+            amt = float(total_amount or 0)
+            if rate <= 0 and gallons > 0:
+                rate = round(amt / gallons, 3)
         supplier_id = request.form.get("supplier_id", "").strip()
         notes = request.form.get("notes", "").strip()
         if not vehicle_plate or not entry_date or gallons <= 0 or rate <= 0 or not supplier_id:
