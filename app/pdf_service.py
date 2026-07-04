@@ -4057,63 +4057,164 @@ def generate_fuel_report_pdf(entries, vehicle_filter: str, month_filter: str, ou
 
 
 def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', company_profile=None):
+    import tempfile
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from io import BytesIO
+
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     output_path = Path(output_dir) / 'atm_report_{}_{}_{}.pdf'.format(year or 'all', month or 'all', timestamp)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    pdf = canvas.Canvas(str(output_path), pagesize=A4)
     rows = list(entries or [])
-    if not rows:
-        rows = [{'entry_date': '-', 'payee': '-', 'amount': 0, 'reference_no': '-', 'description': '-'}]
-
-    table_top = PAGE_HEIGHT - 90 * mm
-    row_height = 7.2 * mm
-    bottom_limit = 36 * mm
-    rows_per_page = max(1, int((table_top - bottom_limit) // row_height) - 2)
-    pages = [rows[i:i + rows_per_page] for i in range(0, len(rows), rows_per_page)] or [rows]
-
     total_amount = sum(float(r.get('amount', 0) or 0) for r in rows)
     month_label = format_month_label('{}-{}'.format(year, month)) if month and year else 'All Periods'
 
-    for page_number, page_rows in enumerate(pages, start=1):
-        pdf.setFillColor(colors.white)
-        pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
-        _draw_invoice_header(pdf, company_profile, 'ATM Withdrawal Report')
+    _logo_tmp_files = []
+    buf = BytesIO()
+    LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 15*mm
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = A4[0] - LM - RM
 
-        stats_y = PAGE_HEIGHT - 82 * mm
-        _draw_stat_box(pdf, 16 * mm, stats_y, 58 * mm, 14 * mm, 'Total Withdrawals', str(len(rows)))
-        _draw_stat_box(pdf, 78 * mm, stats_y, 58 * mm, 14 * mm, 'Total Amount (AED)', 'AED {}'.format(format_currency(total_amount)))
-        avg = total_amount / len(rows) if rows else 0
-        _draw_stat_box(pdf, 140 * mm, stats_y, 54 * mm, 14 * mm, 'Average (AED)', 'AED {}'.format(format_currency(avg)))
+    cp = company_profile or {}
+    tc = cp.get('theme_color') or '#1a3a5c'
+    try: TH = colors.HexColor(tc)
+    except: TH = colors.HexColor('#1a3a5c')
+    BG = colors.HexColor('#f4f6f9'); WH = colors.white; C3 = colors.HexColor('#d1d5db')
+    C4 = colors.HexColor('#111827'); C5 = colors.HexColor('#6b7280')
 
-        _draw_table_header(pdf, table_top, ['Date', 'Payee', 'Amount (AED)', 'Reference', 'Description'], [18, 52, 104, 136, 170])
-        y = table_top - 6.2 * mm
-        for index, row in enumerate(page_rows):
-            if index % 2 == 0:
-                pdf.setFillColor(SOFT)
-                pdf.roundRect(16 * mm, y - 2.2 * mm, 178 * mm, 6.2 * mm, 1.6 * mm, fill=1, stroke=0)
-            pdf.setFillColor(TEXT)
-            pdf.setFont('Helvetica', 7.0)
-            pdf.drawString(18 * mm, y, format_date_label(row.get('entry_date')))
-            payee_text, payee_size = _fit_text(pdf, str(row.get('payee') or '-'), 'Helvetica-Bold', 7.0, 50 * mm, min_size=6.0)
-            pdf.setFont('Helvetica-Bold', payee_size)
-            pdf.drawString(52 * mm, y, payee_text)
-            pdf.setFont('Helvetica', 7.0)
-            pdf.drawRightString(126 * mm, y, format_currency(float(row.get('amount') or 0)))
-            ref_text, ref_size = _fit_text(pdf, str(row.get('reference_no') or '-'), 'Helvetica', 7.0, 32 * mm, min_size=6.0)
-            pdf.setFont('Helvetica', ref_size)
-            pdf.drawString(136 * mm, y, ref_text)
-            desc_text, desc_size = _fit_text(pdf, str(row.get('description') or '-'), 'Helvetica', 7.0, 38 * mm, min_size=6.0)
-            pdf.setFont('Helvetica', desc_size)
-            pdf.drawString(170 * mm, y, desc_text)
-            y -= row_height
+    def F(name, **kw):
+        kw.setdefault('fontSize', 8); kw.setdefault('leading', 12)
+        return ParagraphStyle(name, **kw)
 
-        pdf.setFillColor(MUTED)
-        pdf.setFont('Helvetica', 6.5)
-        pdf.drawString(16 * mm, 14 * mm, 'Generated on {}'.format(datetime.now().strftime('%d-%b-%Y %I:%M %p')))
-        pdf.drawRightString(194 * mm, 14 * mm, 'Page {} / {}'.format(page_number, len(pages)))
-        _draw_footer_banner(pdf, assets_dir, True, company_profile)
-        pdf.showPage()
+    def R(t, **kw):
+        kw.setdefault('alignment', TA_RIGHT)
+        return Paragraph(str(t), F('_R', **kw))
+    def C(t, **kw):
+        kw.setdefault('alignment', TA_CENTER)
+        return Paragraph(str(t), F('_C', **kw))
+    def L(t, **kw):
+        kw.setdefault('textColor', C5)
+        return Paragraph(str(t), F('_L', **kw))
 
-    pdf.save()
+    els = []
+    cn = cp.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING')
+    trn = cp.get('trn_no') or '—'
+
+    # ═══ HEADER (matches SOA/invoice style) ═══
+    logo = None; LW = 0
+    if cp.get('logo_data'):
+        try:
+            lb = base64.b64decode(cp['logo_data'])
+            f = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+            f.write(lb); f.close()
+            logo = Image(f.name, width=50, height=50)
+            LW = 50
+            _logo_tmp_files.append(f.name)
+        except: pass
+
+    cl = ['<font size=11><b>{}</b></font>'.format(cn)]
+    addr = cp.get('address') or ''; ph = cp.get('phone_number') or ''; em = cp.get('email') or ''
+    parts = [x for x in [addr] if x]
+    cparts = [x for x in [ph, em, 'TRN: {}'.format(trn)] if x and x != 'TRN: —']
+    if parts or cparts:
+        info = ' &middot; '.join(parts + cparts)
+        cl.append('<font size=6.5 color="#6b7280">{}</font>'.format(info))
+    co_p = Paragraph('<br/>'.join(cl), F('CO', fontSize=11, fontName='Helvetica-Bold', textColor=TH, leading=13))
+    if logo:
+        lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm])
+        lh.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
+    else:
+        lh = co_p
+    rh = Paragraph(
+        '<b>ATM WITHDRAWAL<br/>REPORT</b>',
+        F('TI', fontSize=14, fontName='Helvetica-Bold', textColor=TH, leading=18, alignment=TA_RIGHT))
+    ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
+    ht.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
+    els.append(ht)
+    els.append(Spacer(1, 2*mm))
+    hr = Table([['']], colWidths=[W], rowHeights=[2])
+    hr.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),TH),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
+    els.append(hr)
+    els.append(Spacer(1, 4*mm))
+
+    # PERIOD INFO
+    els.append(Paragraph(
+        '<font size=7 color="#6b7280">{}</font>'.format(month_label if month_label != 'All Periods' else 'All Periods'),
+        F('_pr', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
+    els.append(Spacer(1, 2*mm))
+
+    # ═══ SUMMARY CARDS (SOA style) ═══
+    avg = total_amount / len(rows) if rows else 0
+    sdata = [[
+        Paragraph('<b>Total Withdrawals</b><br/><font size=10 color="#1a3a5c">{}</font>'.format(len(rows)), F('_s1', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph('<b>Total Amount</b><br/><font size=10 color="#c62828">AED {:,.2f}</font>'.format(total_amount), F('_s2', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph('<b>Average</b><br/><font size=10 color="#1a3a5c">AED {:,.2f}</font>'.format(avg), F('_s3', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+    ]]
+    st = Table(sdata, colWidths=[W/3, W/3, W/3])
+    st.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('BOX',(0,0),(-1,-1),0.5,C3), ('INNERGRID',(0,0),(-1,-1),0.3,C3),
+        ('TOPPADDING',(0,0),(-1,-1),8), ('BOTTOMPADDING',(0,0),(-1,-1),8),
+        ('LEFTPADDING',(0,0),(-1,-1),5), ('RIGHTPADDING',(0,0),(-1,-1),5),
+        ('BACKGROUND',(0,0),(-1,-1),BG),
+    ]))
+    els.append(st)
+    els.append(Spacer(1, 4*mm))
+
+    # ═══ TABLE ═══
+    colw = [38, 52, W - 38 - 52 - 52 - 62, 52, 62]
+    hdr = [
+        Paragraph('<b>Date</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph('<b>Payee</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=10)),
+        Paragraph('<b>Amount (AED)</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph('<b>Reference</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=10)),
+        Paragraph('<b>Description</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=10)),
+    ]
+    rws = [hdr]
+    for r in rows:
+        rws.append([
+            Paragraph(str(r.get('entry_date') or '-'), F('_d', fontSize=7, leading=10)),
+            Paragraph('<b>{}</b>'.format(str(r.get('payee') or '-')), F('_p', fontSize=7, fontName='Helvetica-Bold', textColor=C4, leading=10)),
+            R('{:,.2f}'.format(float(r.get('amount') or 0)), fontSize=7, textColor='#c62828', fontName='Helvetica-Bold'),
+            L(str(r.get('reference_no') or '-'), fontSize=7),
+            L(str(r.get('description') or '-'), fontSize=7),
+        ])
+    # Closing row
+    rws.append([
+        Paragraph('<b>Total</b>', F('_cb', fontSize=8, fontName='Helvetica-Bold', textColor=WH, leading=11)),
+        Paragraph('', F('_x', fontSize=7, leading=10)),
+        Paragraph('<b>{:,.2f}</b>'.format(total_amount), F('_ct', fontSize=8, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=11)),
+        Paragraph('', F('_x', fontSize=7, leading=10)),
+        Paragraph('', F('_x', fontSize=7, leading=10)),
+    ])
+    it = Table(rws, colWidths=colw, repeatRows=1)
+    it.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('BACKGROUND',(0,0),(-1,0),TH), ('TEXTCOLOR',(0,0),(-1,0),WH),
+        ('BOX',(0,0),(-1,-1),0.5,C3), ('INNERGRID',(0,0),(-1,-1),0.3,C3),
+        ('TOPPADDING',(0,0),(-1,-1),2), ('BOTTOMPADDING',(0,0),(-1,-1),2),
+        ('LEFTPADDING',(0,0),(-1,-1),3), ('RIGHTPADDING',(0,0),(-1,-1),3),
+        ('BACKGROUND',(0,-1),(-1,-1),TH), ('TEXTCOLOR',(0,-1),(-1,-1),WH),
+        ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
+        ('ROWBACKGROUNDS',(0,1),(-2,-2),[WH, BG]),
+    ]))
+    els.append(it)
+    els.append(Spacer(1, 4*mm))
+    els.append(Paragraph(
+        '<font size=6.5 color="#6b7280">Generated on {}</font>'.format(datetime.now().strftime('%d-%b-%Y %I:%M %p')),
+        F('_ft', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
+
+    doc.build(els)
+    # Write buf to file
+    with open(str(output_path), 'wb') as f:
+        f.write(buf.getvalue())
+    # Cleanup temp logo files
+    for tmp in _logo_tmp_files:
+        try: os.unlink(tmp)
+        except: pass
     return str(output_path)
