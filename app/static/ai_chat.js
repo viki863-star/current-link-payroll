@@ -88,7 +88,11 @@
     setupMic();
 
     INPUT.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (voiceEntryActive) return; // tripsheet handles its own Enter
+        sendMessage();
+      }
     });
     INPUT.addEventListener('input', function() {
       this.style.height = 'auto';
@@ -199,9 +203,12 @@
         currentRecognition = null;
       }
       if (text && micResultCallback) {
+        // Show text in input box then auto-submit
+        INPUT.value = text;
         var cb = micResultCallback;
         micResultCallback = null;
-        cb(text);
+        // Small delay so user sees text before submit
+        setTimeout(function() { cb(text); }, 150);
       } else if (text) {
         INPUT.value = text;
         sendMessage();
@@ -270,6 +277,7 @@
         if (answered) return;
         answered = true;
         INPUT.removeEventListener('keydown', textHandler);
+        INPUT.value = ''; // clear text that was shown by onEnd
         addMessage('user', '🎤 ' + voiceText);
         entryData[f.id] = f.parse ? f.parse(voiceText) : voiceText;
         idx++; setTimeout(askNext, 300);
