@@ -2793,7 +2793,7 @@ def customer_tripsheet_report_pdf(cid):
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.units import mm
     from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
     from io import BytesIO
@@ -2822,6 +2822,7 @@ def customer_tripsheet_report_pdf(cid):
     try: TH = colors.HexColor(tc)
     except: TH = colors.HexColor("#1a3a5c")
     WH = colors.white
+    C4 = colors.HexColor("#111827")
     C5 = colors.HexColor("#6b7280")
 
     def F(name, **kw):
@@ -2829,14 +2830,62 @@ def customer_tripsheet_report_pdf(cid):
         kw.setdefault("leading", 10)
         return ParagraphStyle(name, **kw)
 
+    _logo_tmp_files = []
     els = []
     cn = company["company_name"] if company else "Current Link"
-    title = f"<b>{cn}</b>"
-    els.append(Paragraph(title, F("T", fontSize=12, textColor=TH, spaceAfter=2)))
+    trn = company["trn_no"] or "—" if company else "—"
+
+    # ── HEADER with logo & company info (same style as SOA/Invoice) ──
+    logo = None; LW = 0
+    if company and company["logo_data"]:
+        try:
+            import tempfile
+            lb = base64.b64decode(company["logo_data"])
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            f.write(lb); f.close()
+            logo = Image(f.name, width=50, height=50)
+            LW = 50
+            _logo_tmp_files.append(f.name)
+        except: pass
+
+    cl = [f"<font size=11><b>{cn}</b></font>"]
+    addr = company["address"] or ""; ph = company["phone_number"] or ""; em = company["email"] or ""
+    parts = [x for x in [addr] if x]
+    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != f"TRN: —"]
+    if parts or cparts:
+        info = " &middot; ".join(parts + cparts)
+        cl.append(f"<font size=6.5 color='#6b7280'>{info}</font>")
+    co_p = Paragraph("<br/>".join(cl), F("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
+    if logo:
+        lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm])
+        lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    else:
+        lh = co_p
     month_name = f"{calendar.month_name[int(month.split('-')[1])]} {month.split('-')[0]}" if '-' in month else month
-    els.append(Paragraph(f"<b>Tabreed Tripsheet Report — {month_name}</b>", F("S", fontSize=9, textColor=C5, spaceAfter=2)))
-    els.append(Paragraph(f"Customer: <b>{c['customer_name']}</b>", F("C", fontSize=8, textColor=C5, spaceAfter=8)))
-    els.append(Spacer(1, 3*mm))
+    rh = Paragraph(
+        f"<b>TRIPSHEET<br/>REPORT</b><br/>"
+        f"<font size=7 color='#6b7280'>{month_name}</font>",
+        F("TI", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
+    ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
+    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ht)
+
+    # Bottom border line
+    hr = Table([[""]], colWidths=[W], rowHeights=[2])
+    hr.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(hr)
+    els.append(Spacer(1, 4*mm))
+
+    # ── Customer info ──
+    cinfo = [
+        [Paragraph("<b>Customer</b>", F("_cl", fontSize=8, fontName="Helvetica-Bold", textColor=TH, leading=11)),
+         Paragraph(f"<b>{c['customer_name']}</b>", F("_cv", fontSize=9, fontName="Helvetica-Bold", textColor=TH, leading=12))],
+    ]
+    if c["trn"]: cinfo.append([Paragraph("TRN", F("_l", fontSize=7.5, textColor=C5, leading=10)), Paragraph(c["trn"], F("_v", fontSize=8.5, textColor=C4, leading=11))])
+    ct = Table(cinfo, colWidths=[50, W - 50])
+    ct.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),1),("BOTTOMPADDING",(0,0),(-1,-1),1),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ct)
+    els.append(Spacer(1, 4*mm))
 
     hdr = ["#", "Date", "Time In", "Time Out", "Total Reading", "Tanker GLN", "Trips", "Tanker Reg"]
     data = [hdr]
@@ -2874,6 +2923,9 @@ def customer_tripsheet_report_pdf(cid):
     els.append(tbl)
 
     doc.build(els)
+    for f in _logo_tmp_files:
+        try: os.remove(f)
+        except: pass
     buf.seek(0)
     fn = f"Tabreed_Tripsheet_{month}_{c['customer_name']}.pdf"
     return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=fn)
