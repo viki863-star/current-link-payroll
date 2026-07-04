@@ -4064,19 +4064,36 @@ def generate_fuel_report_pdf(entries, vehicle_filter, month_filter, output_dir, 
     els.append(Spacer(1, 4*mm))
 
     # ═══ TABLE ═══
-    def date_p(text):
+    from reportlab.pdfbase import pdfmetrics
+    PAD = 4 * 2.835
+    def _fit(col_mm, text, bold=False, fs_max=7):
+        w_pt = max(1, col_mm * 2.835 - PAD)
+        fn = 'Helvetica-Bold' if bold else 'Helvetica'
+        fs = fs_max
+        while fs >= 3:
+            ww = pdfmetrics.stringWidth(str(text), fn, fs)
+            if ww <= w_pt: return fs, fn
+            fs -= 0.5
+        return 3, fn
+    def date_p(text, col):
         t = str(text) or '-'
-        fs = 7 if len(t) < 12 else (6.5 if len(t) < 16 else 6)
+        fs, _ = _fit(col, t)
         return Paragraph(t, F('_d', fontSize=fs, leading=fs + 1.5, alignment=TA_CENTER))
-    def veh_p(text):
+    def veh_p(text, col):
         t = str(text) or '-'
-        fs = 7 if len(t) < 10 else (6.5 if len(t) < 14 else 6)
+        fs, _ = _fit(col, t, bold=True)
         return Paragraph('<b>{}</b>'.format(t), F('_p', fontSize=fs, fontName='Helvetica-Bold', textColor=C4, leading=fs + 1.5))
-    def supp_p(text):
+    def num_p(text, col, bold=False, color=C4):
+        t = str(text) or '0'
+        fs, fn = _fit(col, t, bold=bold)
+        return Paragraph(t, F('_n', fontSize=fs, fontName=fn, textColor=color, alignment=TA_RIGHT, leading=fs + 1.5))
+    def supp_p(text, col):
         t = str(text) or '-'
-        fs = 7 if len(t) < 12 else (6 if len(t) < 20 else (5 if len(t) < 28 else 4.5))
+        fs, _ = _fit(col, t)
         return Paragraph(t, F('_s', fontSize=fs, textColor=C5, leading=fs + 1.5))
-    colw = [36, 34, 28, 26, 30, W - 36 - 34 - 28 - 26 - 30]
+    cw_d, cw_v, cw_n, cw_r, cw_a = 36, 32, 26, 24, 28
+    cw_s = W - cw_d - cw_v - cw_n - cw_r - cw_a
+    colw = [cw_d, cw_v, cw_n, cw_r, cw_a, cw_s]
     hdr = [
         Paragraph('<b>Date</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph('<b>Vehicle</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=9)),
@@ -4088,12 +4105,12 @@ def generate_fuel_report_pdf(entries, vehicle_filter, month_filter, output_dir, 
     rws = [hdr]
     for r in rows:
         rws.append([
-            date_p(r.get('entry_date')),
-            veh_p(r.get('vehicle_plate')),
-            R('{:,.2f}'.format(float(r.get('gallons') or 0)), fontSize=7),
-            R('{:,.3f}'.format(float(r.get('rate_per_gallon') or 0)), fontSize=7),
-            R('{:,.2f}'.format(float(r.get('total_amount') or 0)), fontSize=7, fontName='Helvetica-Bold', textColor='#c62828'),
-            supp_p(r.get('supplier_name')),
+            date_p(r.get('entry_date'), cw_d),
+            veh_p(r.get('vehicle_plate'), cw_v),
+            num_p('{:,.2f}'.format(float(r.get('gallons') or 0)), cw_n),
+            num_p('{:,.3f}'.format(float(r.get('rate_per_gallon') or 0)), cw_r),
+            num_p('{:,.2f}'.format(float(r.get('total_amount') or 0)), cw_a, bold=True, color='#c62828'),
+            supp_p(r.get('supplier_name'), cw_s),
         ])
     rws.append([
         Paragraph('<b>Total</b>', F('_cb', fontSize=8, fontName='Helvetica-Bold', textColor=WH, leading=10)),
@@ -4271,7 +4288,40 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     els.append(Spacer(1, 4*mm))
 
     # ═══ TABLE ═══
-    colw = [34, 80, 26, 18, W - 34 - 80 - 26 - 18]
+    from reportlab.pdfbase import pdfmetrics
+    PAD = 4 * 2.835
+    def _fit(col_mm, text, bold=False, fs_max=7):
+        w_pt = max(1, col_mm * 2.835 - PAD)
+        fn = 'Helvetica-Bold' if bold else 'Helvetica'
+        fs = fs_max
+        while fs >= 3:
+            ww = pdfmetrics.stringWidth(str(text), fn, fs)
+            if ww <= w_pt: return fs, fn
+            fs -= 0.5
+        return 3, fn
+    def date_p(text, col):
+        t = str(text) or '-'
+        fs, _ = _fit(col, t)
+        return Paragraph(t, F('_d', fontSize=fs, leading=fs + 1.5, alignment=TA_CENTER))
+    def payee_p(text, col):
+        t = str(text) or '-'
+        fs, _ = _fit(col, t, bold=True)
+        return Paragraph('<b>{}</b>'.format(t), F('_p', fontSize=fs, fontName='Helvetica-Bold', textColor=C4, leading=fs + 1.5))
+    def amt_p(text, col):
+        t = str(text) or '0'
+        fs, _ = _fit(col, t, bold=True)
+        return Paragraph(t, F('_a', fontSize=fs, fontName='Helvetica-Bold', textColor='#c62828', alignment=TA_RIGHT, leading=fs + 1.5))
+    def ref_p(text, col):
+        t = str(text) or '-'
+        fs, _ = _fit(col, t)
+        return Paragraph(t, F('_ref', fontSize=fs, textColor=C5, alignment=TA_CENTER, leading=fs + 1.5))
+    def desc_p(text, col):
+        t = str(text) or '-'
+        fs, _ = _fit(col, t)
+        return Paragraph(t, F('_desc', fontSize=fs, textColor=C5, leading=fs + 1.5))
+    cw_d, cw_p, cw_a, cw_ref = 38, 76, 34, 18
+    cw_desc = W - cw_d - cw_p - cw_a - cw_ref
+    colw = [cw_d, cw_p, cw_a, cw_ref, cw_desc]
     hdr = [
         Paragraph('<b>Date</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph('<b>Payee</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=9)),
@@ -4279,26 +4329,14 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
         Paragraph('<b>Ref</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph('<b>Description</b>', F('_h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=9)),
     ]
-    def payee_p(text):
-        t = str(text) or '-'
-        fs = 7 if len(t) < 20 else (6 if len(t) < 30 else 5.5)
-        return Paragraph('<b>{}</b>'.format(t), F('_p', fontSize=fs, fontName='Helvetica-Bold', textColor=C4, leading=fs + 1.5))
-    def date_p(text):
-        t = str(text) or '-'
-        fs = 7 if len(t) < 14 else 6.5
-        return Paragraph(t, F('_d', fontSize=fs, leading=fs + 1.5, alignment=TA_CENTER))
-    def desc_p(text):
-        t = str(text) or '-'
-        fs = 7 if len(t) < 15 else (6 if len(t) < 25 else 5.5)
-        return Paragraph(t, F('_desc', fontSize=fs, textColor=C5, leading=fs + 1.5))
     rws = [hdr]
     for r in rows:
         rws.append([
-            date_p(r.get('entry_date')),
-            payee_p(r.get('payee')),
-            R('{:,.2f}'.format(float(r.get('amount') or 0)), fontSize=7, textColor='#c62828', fontName='Helvetica-Bold'),
-            Paragraph(str(r.get('reference_no') or '-'), F('_ref', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=8.5)),
-            desc_p(r.get('description')),
+            date_p(r.get('entry_date'), cw_d),
+            payee_p(r.get('payee'), cw_p),
+            amt_p('{:,.2f}'.format(float(r.get('amount') or 0)), cw_a),
+            ref_p(r.get('reference_no'), cw_ref),
+            desc_p(r.get('description'), cw_desc),
         ])
     rws.append([
         Paragraph('<b>Total</b>', F('_cb', fontSize=8, fontName='Helvetica-Bold', textColor=WH, leading=10)),
