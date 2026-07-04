@@ -2067,7 +2067,10 @@ class DatabaseAdapter:
         self.connection.rollback()
 
     def close(self):
-        self.connection.close()
+        try:
+            self.connection.close()
+        except Exception:
+            pass
 
 
 def init_db(app: Flask) -> None:

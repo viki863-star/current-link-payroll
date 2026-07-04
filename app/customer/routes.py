@@ -5,289 +5,277 @@ from markupsafe import Markup
 from . import customer_bp
 
 def _get_db():
-    import sqlite3
-    db_path = current_app.config.get("DATABASE") or "payroll.db"
-    db = sqlite3.connect(db_path)
-    db.row_factory = sqlite3.Row
-    return db
+    from ..database import open_db
+    return open_db()
 
 def _ensure_tables():
     db = _get_db()
-    db.executescript("""
-        CREATE TABLE IF NOT EXISTS customers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_name TEXT NOT NULL,
-            customer_code TEXT,
-            contact_person TEXT,
-            phone TEXT,
-            email TEXT,
-            address TEXT,
-            trn TEXT,
-            trade_license TEXT,
-            credit_limit REAL DEFAULT 0,
-            payment_terms TEXT,
-            status TEXT NOT NULL DEFAULT 'active',
-            notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        CREATE TABLE IF NOT EXISTS customer_invoices (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            invoice_no TEXT,
-            invoice_date TEXT NOT NULL,
-            amount REAL NOT NULL,
-            vat_percent REAL DEFAULT 5,
-            vat_amount REAL DEFAULT 0,
-            total_amount REAL NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        );
-        CREATE TABLE IF NOT EXISTS customer_payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            invoice_id INTEGER,
-            payment_date TEXT NOT NULL,
-            amount REAL NOT NULL,
-            payment_method TEXT DEFAULT 'Cash',
-            reference_no TEXT,
-            notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        );
-        CREATE TABLE IF NOT EXISTS customer_contracts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            contract_no TEXT,
-            contract_date TEXT NOT NULL,
-            start_date TEXT,
-            end_date TEXT,
-            contract_type TEXT DEFAULT 'rental',
-            amount REAL,
-            status TEXT NOT NULL DEFAULT 'active',
-            notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        );
-        CREATE TABLE IF NOT EXISTS customer_quotations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            quotation_no TEXT,
-            quotation_date TEXT NOT NULL,
-            amount REAL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        );
-        CREATE TABLE IF NOT EXISTS customer_lpos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            lpo_no TEXT,
-            lpo_date TEXT NOT NULL,
-            amount REAL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        );
-        CREATE TABLE IF NOT EXISTS lpo_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            lpo_id INTEGER NOT NULL,
-            description TEXT,
-            quantity REAL NOT NULL DEFAULT 1,
-            rate REAL NOT NULL DEFAULT 0,
-            amount REAL NOT NULL DEFAULT 0,
-            unit_type TEXT NOT NULL DEFAULT 'hour',
-            sort_order INTEGER DEFAULT 0,
-            FOREIGN KEY (lpo_id) REFERENCES customer_lpos(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS customer_documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            doc_type TEXT,
-            doc_name TEXT,
-            file_data TEXT,
-            file_type TEXT,
-            expiry_date TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        );
-        CREATE TABLE IF NOT EXISTS customer_invoice_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            invoice_id INTEGER NOT NULL,
-            description TEXT,
-            quantity REAL DEFAULT 1,
-            rate REAL DEFAULT 0,
-            amount REAL DEFAULT 0,
-            sort_order INTEGER DEFAULT 0,
-            FOREIGN KEY (invoice_id) REFERENCES customer_invoices(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS service_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            description TEXT NOT NULL UNIQUE,
-            default_rate REAL DEFAULT 0,
-            category TEXT DEFAULT '',
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-    """)
+    backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+    autoinc = "BIGSERIAL" if backend == "postgres" else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    now = "NOW()" if backend == "postgres" else "datetime('now')"
+    ignore = "ON CONFLICT DO NOTHING" if backend == "postgres" else "OR IGNORE"
+    int_type = "INTEGER" if backend == "postgres" else "INTEGER"
+    real_type = "DOUBLE PRECISION" if backend == "postgres" else "REAL"
+    try:
+        db.executescript(f"""
+            CREATE TABLE IF NOT EXISTS customers (
+                id {autoinc},
+                customer_name TEXT NOT NULL,
+                customer_code TEXT,
+                contact_person TEXT,
+                phone TEXT,
+                email TEXT,
+                address TEXT,
+                trn TEXT,
+                trade_license TEXT,
+                credit_limit {real_type} DEFAULT 0,
+                payment_terms TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT ({now})
+            );
+            CREATE TABLE IF NOT EXISTS customer_invoices (
+                id {autoinc},
+                customer_id {int_type} NOT NULL,
+                invoice_no TEXT,
+                invoice_date TEXT NOT NULL,
+                amount {real_type} NOT NULL,
+                vat_percent {real_type} DEFAULT 5,
+                vat_amount {real_type} DEFAULT 0,
+                total_amount {real_type} NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT ({now})
+            );
+            CREATE TABLE IF NOT EXISTS customer_payments (
+                id {autoinc},
+                customer_id {int_type} NOT NULL,
+                invoice_id {int_type},
+                payment_date TEXT NOT NULL,
+                amount {real_type} NOT NULL,
+                payment_method TEXT DEFAULT 'Cash',
+                reference_no TEXT,
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT ({now})
+            );
+            CREATE TABLE IF NOT EXISTS customer_contracts (
+                id {autoinc},
+                customer_id {int_type} NOT NULL,
+                contract_no TEXT,
+                contract_date TEXT NOT NULL,
+                start_date TEXT,
+                end_date TEXT,
+                contract_type TEXT DEFAULT 'rental',
+                amount {real_type},
+                status TEXT NOT NULL DEFAULT 'active',
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT ({now})
+            );
+            CREATE TABLE IF NOT EXISTS customer_quotations (
+                id {autoinc},
+                customer_id {int_type} NOT NULL,
+                quotation_no TEXT,
+                quotation_date TEXT NOT NULL,
+                amount {real_type},
+                status TEXT NOT NULL DEFAULT 'pending',
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT ({now})
+            );
+            CREATE TABLE IF NOT EXISTS customer_lpos (
+                id {autoinc},
+                customer_id {int_type} NOT NULL,
+                lpo_no TEXT,
+                lpo_date TEXT NOT NULL,
+                amount {real_type},
+                status TEXT NOT NULL DEFAULT 'pending',
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT ({now})
+            );
+            CREATE TABLE IF NOT EXISTS lpo_items (
+                id {autoinc},
+                lpo_id {int_type} NOT NULL,
+                description TEXT,
+                quantity {real_type} NOT NULL DEFAULT 1,
+                rate {real_type} NOT NULL DEFAULT 0,
+                amount {real_type} NOT NULL DEFAULT 0,
+                unit_type TEXT NOT NULL DEFAULT 'hour',
+                sort_order {int_type} DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS customer_documents (
+                id {autoinc},
+                customer_id {int_type} NOT NULL,
+                doc_type TEXT,
+                doc_name TEXT,
+                file_data TEXT,
+                file_type TEXT,
+                expiry_date TEXT,
+                created_at TEXT NOT NULL DEFAULT ({now})
+            );
+            CREATE TABLE IF NOT EXISTS customer_invoice_items (
+                id {autoinc},
+                invoice_id {int_type} NOT NULL,
+                description TEXT,
+                quantity {real_type} DEFAULT 1,
+                rate {real_type} DEFAULT 0,
+                amount {real_type} DEFAULT 0,
+                sort_order {int_type} DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS service_items (
+                id {autoinc},
+                description TEXT NOT NULL UNIQUE,
+                default_rate {real_type} DEFAULT 0,
+                category TEXT DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT ({now})
+            );
+            CREATE TABLE IF NOT EXISTS customer_service_orders (
+                id {autoinc},
+                customer_id {int_type} NOT NULL,
+                so_no TEXT,
+                so_date TEXT NOT NULL,
+                amount {real_type},
+                status TEXT NOT NULL DEFAULT 'pending',
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT ({now})
+            );
+            CREATE TABLE IF NOT EXISTS tabreed_tripsheets (
+                id {autoinc},
+                customer_id {int_type} NOT NULL,
+                entry_date TEXT NOT NULL,
+                time_in TEXT,
+                time_out TEXT,
+                meter_start {real_type} DEFAULT 0,
+                meter_stop {real_type} DEFAULT 0,
+                total_reading {real_type} DEFAULT 0,
+                tanker_gln TEXT,
+                trips {real_type} DEFAULT 1,
+                tanker_reg TEXT,
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT ({now})
+            );
+            CREATE TABLE IF NOT EXISTS customer_so_items (
+                id {autoinc},
+                so_id {int_type} NOT NULL,
+                description TEXT,
+                quantity {real_type} NOT NULL DEFAULT 1,
+                rate {real_type} NOT NULL DEFAULT 0,
+                amount {real_type} NOT NULL DEFAULT 0,
+                unit_type TEXT NOT NULL DEFAULT 'hour',
+                sort_order {int_type} DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS customer_quotation_items (
+                id {autoinc},
+                quotation_id {int_type} NOT NULL,
+                description TEXT,
+                quantity {real_type} DEFAULT 1,
+                rate {real_type} DEFAULT 0,
+                amount {real_type} DEFAULT 0,
+                unit TEXT DEFAULT 'hr',
+                sort_order {int_type} DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS quotation_sequence (last_number {int_type} DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS invoice_sequence (last_number {int_type} DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS customer_credit_notes (
+                id {autoinc},
+                customer_id {int_type} NOT NULL,
+                credit_note_no TEXT,
+                credit_note_date TEXT NOT NULL,
+                invoice_id {int_type},
+                amount {real_type} NOT NULL DEFAULT 0,
+                vat_percent {real_type} DEFAULT 0,
+                vat_amount {real_type} DEFAULT 0,
+                total_amount {real_type} NOT NULL DEFAULT 0,
+                reason TEXT,
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT ({now})
+            );
+        """)
+        db.commit()
+    except Exception:
+        db.rollback()
     # seed service_items from existing invoice items
     try:
-        db.execute("""
-            INSERT OR IGNORE INTO service_items (description)
+        db.execute(f"""
+            INSERT INTO service_items (description)
             SELECT DISTINCT TRIM(description) FROM customer_invoice_items
             WHERE description IS NOT NULL AND TRIM(description) != ''
+            {ignore}
         """)
         db.commit()
     except Exception:
         pass
-    for col, dtype in [("lpo_no", "TEXT"), ("lpo_date", "TEXT"), ("so_no", "TEXT"), ("project_no", "TEXT"),
-                       ("invoice_template", "TEXT DEFAULT 'standard'"), ("discount", "REAL DEFAULT 0"),
-                       ("ref_no", "TEXT")]:
+    # ALTER TABLE additions (best-effort on both backends)
+    alter_ops = [
+        ("customer_invoices", "lpo_no", "TEXT"),
+        ("customer_invoices", "lpo_date", "TEXT"),
+        ("customer_invoices", "so_no", "TEXT"),
+        ("customer_invoices", "project_no", "TEXT"),
+        ("customer_invoices", "invoice_template", "TEXT DEFAULT 'standard'"),
+        ("customer_invoices", "discount", real_type + " DEFAULT 0"),
+        ("customer_invoices", "ref_no", "TEXT"),
+        ("customer_invoices", "service_order_no", "TEXT"),
+        ("customer_invoices", "so_no", "TEXT"),
+        ("customer_invoice_items", "capacity_gallon", "TEXT"),
+        ("customer_invoice_items", "unit", "TEXT"),
+        ("customer_invoice_items", "vat_percent_item", real_type),
+        ("customer_invoice_items", "vat_amount_item", real_type),
+        ("customer_invoice_items", "total_incl_vat", real_type),
+        ("customer_invoice_items", "lpo_id", int_type),
+        ("customer_invoice_items", "unit", "TEXT"),
+        ("customer_lpos", "file_data", "TEXT"),
+        ("customer_lpos", "file_type", "TEXT"),
+        ("customer_lpos", "service_order_no", "TEXT"),
+        ("customer_quotations", "vat_percent", real_type + " DEFAULT 0"),
+        ("customer_quotations", "vat_amount", real_type + " DEFAULT 0"),
+        ("customer_quotations", "total_amount", real_type + " DEFAULT 0"),
+        ("customer_quotations", "terms", "TEXT DEFAULT ''"),
+        ("customer_quotations", "sub_total", real_type + " DEFAULT 0"),
+        ("customer_quotations", "location", "TEXT"),
+        ("customer_quotations", "contact_details", "TEXT"),
+        ("company_profile", "logo_data", "TEXT"),
+        ("company_profile", "logo_type", "TEXT"),
+        ("company_profile", "theme_color", "TEXT DEFAULT '#0F2B52'"),
+        ("company_profile", "bank_name", "TEXT"),
+        ("company_profile", "bank_account_name", "TEXT"),
+        ("company_profile", "bank_account_number", "TEXT"),
+        ("company_profile", "iban", "TEXT"),
+    ]
+    for table, col, dtype in alter_ops:
         try:
-            db.execute(f"ALTER TABLE customer_invoices ADD COLUMN {col} {dtype}")
+            db.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {dtype}" if backend == "postgres" else f"ALTER TABLE {table} ADD COLUMN {col} {dtype}")
+            db.commit()
         except Exception:
             pass
-    for col, dtype in [("capacity_gallon", "TEXT"), ("unit", "TEXT"),
-                       ("vat_percent_item", "REAL"), ("vat_amount_item", "REAL"),
-                       ("total_incl_vat", "REAL")]:
-        try:
-            db.execute(f"ALTER TABLE customer_invoice_items ADD COLUMN {col} {dtype}")
-        except Exception:
-            pass
-    for col, dtype in [("file_data", "TEXT"), ("file_type", "TEXT")]:
-        try:
-            db.execute(f"ALTER TABLE customer_lpos ADD COLUMN {col} {dtype}")
-        except Exception:
-            pass
-    for col, dtype in [("service_order_no", "TEXT")]:
-        try:
-            db.execute(f"ALTER TABLE customer_lpos ADD COLUMN {col} {dtype}")
-        except Exception:
-            pass
-
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS customer_service_orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            so_no TEXT,
-            so_date TEXT NOT NULL,
-            amount REAL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        )
-    """)
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS tabreed_tripsheets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            entry_date TEXT NOT NULL,
-            time_in TEXT,
-            time_out TEXT,
-            meter_start REAL DEFAULT 0,
-            meter_stop REAL DEFAULT 0,
-            total_reading REAL DEFAULT 0,
-            tanker_gln TEXT,
-            trips REAL DEFAULT 1,
-            tanker_reg TEXT,
-            notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        )
-    """)
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS customer_so_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            so_id INTEGER NOT NULL,
-            description TEXT,
-            quantity REAL NOT NULL DEFAULT 1,
-            rate REAL NOT NULL DEFAULT 0,
-            amount REAL NOT NULL DEFAULT 0,
-            unit_type TEXT NOT NULL DEFAULT 'hour',
-            sort_order INTEGER DEFAULT 0,
-            FOREIGN KEY (so_id) REFERENCES customer_service_orders(id) ON DELETE CASCADE
-        )
-    """)
-    for col, dtype in [("service_order_no", "TEXT"), ("so_no", "TEXT")]:
-        try:
-            db.execute(f"ALTER TABLE customer_invoices ADD COLUMN {col} {dtype}")
-        except Exception:
-            pass
-    for col, dtype in [("lpo_id", "INTEGER"), ("unit", "TEXT")]:
-        try:
-            db.execute(f"ALTER TABLE customer_invoice_items ADD COLUMN {col} {dtype}")
-        except Exception:
-            pass
-    for col, dtype in [("vat_percent", "REAL DEFAULT 0"), ("vat_amount", "REAL DEFAULT 0"),
-                       ("total_amount", "REAL DEFAULT 0"), ("terms", "TEXT DEFAULT ''"),
-                       ("sub_total", "REAL DEFAULT 0")]:
-        try:
-            db.execute(f"ALTER TABLE customer_quotations ADD COLUMN {col} {dtype}")
-        except Exception:
-            pass
-    for col, dtype in [("location", "TEXT"), ("contact_details", "TEXT")]:
-        try:
-            db.execute(f"ALTER TABLE customer_quotations ADD COLUMN {col} {dtype}")
-        except Exception:
-            pass
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS customer_quotation_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            quotation_id INTEGER NOT NULL,
-            description TEXT,
-            quantity REAL DEFAULT 1,
-            rate REAL DEFAULT 0,
-            amount REAL DEFAULT 0,
-            unit TEXT DEFAULT 'hr',
-            sort_order INTEGER DEFAULT 0,
-            FOREIGN KEY (quotation_id) REFERENCES customer_quotations(id) ON DELETE CASCADE
-        )
-    """)
+    try:
+        if backend == "postgres":
+            db.execute("ALTER TABLE customer_invoices DROP COLUMN IF EXISTS status")
+        else:
+            db.execute("ALTER TABLE customer_invoices DROP COLUMN status")
+        db.commit()
+    except Exception:
+        pass
+    try:
+        if backend == "postgres":
+            db.execute("ALTER TABLE customer_invoices DROP COLUMN IF EXISTS paid")
+        else:
+            db.execute("ALTER TABLE customer_invoices DROP COLUMN paid")
+        db.commit()
+    except Exception:
+        pass
+    try:
+        db.execute("INSERT INTO quotation_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM quotation_sequence)")
+        db.commit()
+    except Exception:
+        pass
+    try:
+        db.execute("INSERT INTO invoice_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM invoice_sequence)")
+        db.commit()
+    except Exception:
+        pass
     try:
         db.execute("ALTER TABLE customer_quotation_items ADD COLUMN unit TEXT DEFAULT 'hr'")
+        db.commit()
     except Exception:
         pass
-    db.execute("""CREATE TABLE IF NOT EXISTS quotation_sequence (last_number INTEGER DEFAULT 0)""")
-    db.execute("INSERT INTO quotation_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM quotation_sequence)")
-    for col, dtype in [("logo_data", "TEXT"), ("logo_type", "TEXT"), ("theme_color", "TEXT DEFAULT '#0F2B52'"),
-                       ("bank_name", "TEXT"), ("bank_account_name", "TEXT"), ("bank_account_number", "TEXT"),
-                       ("iban", "TEXT")]:
-        try:
-            db.execute(f"ALTER TABLE company_profile ADD COLUMN {col} {dtype}")
-        except Exception:
-            pass
-    try:
-        db.execute("ALTER TABLE customer_invoices DROP COLUMN status")
-    except Exception:
-        pass
-    try:
-        db.execute("ALTER TABLE customer_invoices DROP COLUMN paid")
-    except Exception:
-        pass
-    db.execute("""CREATE TABLE IF NOT EXISTS invoice_sequence (last_number INTEGER DEFAULT 0)""")
-    db.execute("INSERT INTO invoice_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM invoice_sequence)")
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS customer_credit_notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER NOT NULL,
-            credit_note_no TEXT,
-            credit_note_date TEXT NOT NULL,
-            invoice_id INTEGER,
-            amount REAL NOT NULL DEFAULT 0,
-            vat_percent REAL DEFAULT 0,
-            vat_amount REAL DEFAULT 0,
-            total_amount REAL NOT NULL DEFAULT 0,
-            reason TEXT,
-            notes TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        )
-    """)
-    db.commit()
-    db.close()
 
 # ─── HELPERS ───
 
