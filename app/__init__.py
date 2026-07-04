@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import click
 from flask import Flask
 from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
@@ -234,5 +235,54 @@ def create_app(test_config: dict | None = None) -> Flask:
         except Exception:
             app.logger.warning("Automatic daily backup skipped.", exc_info=True)
     register_routes(app)
+
+    @app.cli.command("migrate-customers")
+    def migrate_customers():
+        """Migrate customer tables from SQLite to PostgreSQL."""
+        import sqlite3
+        from pathlib import Path
+        from .database import open_db
+
+        sqlite_path = Path(app.config["DATABASE"])
+        if not sqlite_path.exists():
+            click.echo(f"SQLite DB not found at {sqlite_path}")
+            return
+
+        pg = open_db()
+        sq = sqlite3.connect(str(sqlite_path))
+        sq.row_factory = sqlite3.Row
+
+        tables = [
+            "customers", "customer_invoices", "customer_invoice_items",
+            "customer_payments", "customer_contracts", "customer_quotations",
+            "customer_quotation_items", "customer_lpos", "lpo_items",
+            "customer_documents", "customer_service_orders", "customer_so_items",
+            "customer_credit_notes", "tabreed_tripsheets",
+            "service_items", "quotation_sequence", "invoice_sequence",
+        ]
+
+        click.echo(f"Migrating from {sqlite_path} to PostgreSQL...")
+        for table in tables:
+            try:
+                rows = sq.execute(f"SELECT * FROM {table}").fetchall()
+                if not rows:
+                    click.echo(f"  {table}: 0 rows (skipped)")
+                    continue
+                columns = list(rows[0].keys())
+                placeholders = ",".join("?" for _ in columns)
+                col_list = ",".join(columns)
+                count = 0
+                for row in rows:
+                    vals = tuple(row[c] for c in columns)
+                    pg.execute(f"INSERT INTO {table} ({col_list}) VALUES ({placeholders})", vals)
+                    count += 1
+                pg.commit()
+                click.echo(f"  {table}: {count} rows migrated")
+            except Exception as e:
+                pg.rollback()
+                click.echo(f"  {table}: ERROR - {e}")
+        sq.close()
+        pg.close()
+        click.echo("Migration complete.")
 
     return app
