@@ -2448,6 +2448,70 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
     return str(output_path)
 
 
+def _draw_invoice_header(pdf, company_profile, title_text='', logo_size=14*mm):
+    company = company_profile or {}
+    c_name = company.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING')
+    c_addr = company.get('address', '')
+    c_ph = company.get('phone_number', '')
+    c_em = company.get('email', '')
+    c_trn = company.get('trn_no', '')
+
+    left_x = 16 * mm
+    top_y = PAGE_HEIGHT - 38 * mm
+    logo_data = company.get('logo_data')
+
+    # Logo
+    logo_x = left_x
+    if logo_data:
+        try:
+            lb = base64.b64decode(logo_data)
+            logo_img = ImageReader(BytesIO(lb))
+            pdf.drawImage(logo_img, left_x, top_y - logo_size, width=logo_size, height=logo_size, preserveAspectRatio=True, mask='auto')
+            logo_x = left_x + logo_size + 4 * mm
+        except Exception:
+            pass
+
+    # Company name
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont('Helvetica-Bold', 12)
+    pdf.drawString(logo_x, top_y, c_name)
+
+    # Address
+    pdf.setFillColor(MUTED)
+    pdf.setFont('Helvetica', 7)
+    ci_y = top_y - 5 * mm
+    if c_addr:
+        pdf.drawString(logo_x, ci_y, c_addr)
+        ci_y -= 4 * mm
+
+    # Phone + Email
+    contact_parts = []
+    if c_ph: contact_parts.append('Phone: {}'.format(c_ph))
+    if c_em: contact_parts.append('Email: {}'.format(c_em))
+    if contact_parts:
+        pdf.drawString(logo_x, ci_y, ' &middot; '.join(contact_parts))
+        ci_y -= 4 * mm
+    else:
+        ci_y -= 2 * mm
+
+    # TRN
+    if c_trn:
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont('Helvetica-Bold', 7)
+        pdf.drawString(logo_x, ci_y, 'TRN: {}'.format(c_trn))
+
+    # Right side title
+    if title_text:
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont('Helvetica-Bold', 14)
+        pdf.drawRightString(PAGE_WIDTH - 16 * mm, top_y, title_text)
+
+    # Theme hr below
+    hr_y = top_y - 28 * mm
+    pdf.setFillColor(BLUE)
+    pdf.rect(16 * mm, hr_y, PAGE_WIDTH - 32 * mm, 1.5 * mm, fill=1, stroke=0)
+
+
 def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict | None = None) -> None:
     company = company_profile or {}
 
@@ -3921,13 +3985,10 @@ def generate_fuel_report_pdf(entries, vehicle_filter: str, month_filter: str, ou
     for page_number, page_rows in enumerate(pages, start=1):
         pdf.setFillColor(colors.white)
         pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
-        _draw_header(pdf, assets_dir, company_profile)
+        _draw_invoice_header(pdf, company_profile, 'Fuel Consumption Report')
 
-        title = "Fuel Consumption Report"
-        subtitle = month_label + (f" | Vehicle: {vehicle_filter}" if vehicle_filter else "")
-        _draw_title(pdf, title, subtitle)
-
-        stats_y = PAGE_HEIGHT - 86 * mm
+        # Summary stats
+        stats_y = PAGE_HEIGHT - 82 * mm
         _draw_stat_box(pdf, 16 * mm, stats_y, 58 * mm, 14 * mm, "Total Gallons (GLN)", f"{format_currency(total_gallons)} GLN")
         _draw_stat_box(pdf, 78 * mm, stats_y, 58 * mm, 14 * mm, "Total Amount (AED)", f"AED {format_currency(total_amount)}")
         _draw_stat_box(pdf, 140 * mm, stats_y, 54 * mm, 14 * mm, "Total Entries", str(len(rows)))
@@ -4017,10 +4078,9 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     for page_number, page_rows in enumerate(pages, start=1):
         pdf.setFillColor(colors.white)
         pdf.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
-        _draw_header(pdf, assets_dir, company_profile)
-        _draw_title(pdf, 'ATM Withdrawal Report', month_label)
+        _draw_invoice_header(pdf, company_profile, 'ATM Withdrawal Report')
 
-        stats_y = PAGE_HEIGHT - 86 * mm
+        stats_y = PAGE_HEIGHT - 82 * mm
         _draw_stat_box(pdf, 16 * mm, stats_y, 58 * mm, 14 * mm, 'Total Withdrawals', str(len(rows)))
         _draw_stat_box(pdf, 78 * mm, stats_y, 58 * mm, 14 * mm, 'Total Amount (AED)', 'AED {}'.format(format_currency(total_amount)))
         avg = total_amount / len(rows) if rows else 0
