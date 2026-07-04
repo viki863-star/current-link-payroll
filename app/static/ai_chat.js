@@ -1,53 +1,59 @@
 (function() {
-  var TOGGLE, PANEL, MSGS, INPUT, SEND, TYPING, CLEAR, CLOSE, LANG_EN, LANG_UR;
+  var TOGGLE, PANEL, MSGS, INPUT, SEND, TYPING, CLEAR, CLOSE, MIC, LISTENING, LISTEN_TEXT;
+  var LANG_EN, LANG_UR;
   var HISTORY = [];
   var lang = 'en';
   var voiceEntryActive = false;
+  var isRecording = false;
+  var currentRecognition = null;
+  var micResultCallback = null; // set by tripsheet entry per-question
 
   var TEXTS = {
     en: {
-      welcome: 'Hi! I\'m your ERP assistant. Ask me about your data, or use the quick actions below.',
-      placeholder: 'Ask me anything about your ERP data...',
+      welcome: 'Hi! I\'m your ERP assistant. Ask me about your data, or tap <strong>Tripsheet Entry</strong> below.',
+      placeholder: 'Ask me anything...',
       placeholder2: 'Speak or type here...',
       tripsheetBtn: '📋 Tripsheet Entry',
-      tripsheetStart: '📋 Tripsheet Entry! I will ask questions, you can speak or type.',
+      tripsheetStart: '📋 Tripsheet Entry started! I will ask each question aloud.',
       noCustomer: 'Please open a customer profile page first, then start Tripsheet Entry.',
-      fieldDate: '📅 What is the date?',
-      fieldTimeIn: '⏰ What is the Time In?',
-      fieldTimeOut: '⏰ What is the Time Out?',
-      fieldMeter: '📊 What is the meter reading?',
-      fieldTrips: '🔄 How many trips?',
-      fieldGln: '⛽ What is the Tanker GLN?',
-      fieldReg: '🚛 What is the tanker registration number?',
-      saving: '⏳ Saving data...',
-      saved: '✅ Saved! Click',
+      fieldDate: 'What is the trip date?',
+      fieldTimeIn: 'What is the Time In?',
+      fieldTimeOut: 'What is the Time Out?',
+      fieldMeter: 'How many meter reading?',
+      fieldTrips: 'How many trips?',
+      fieldGln: 'What is the Tanker GLN?',
+      fieldReg: 'What is the tanker registration number?',
+      saving: 'Saving data...',
+      saved: 'Saved successfully! Tap',
       saved2: 'again for another entry.',
       error: 'Error',
       fail: 'Customer ID not found.',
       skipped: '(skipped)',
-      listenHint: ' (speak or type)',
+      listenHint: ' (press mic or type)',
+      listening: 'Listening... speak now',
     },
     ur: {
-      welcome: 'ہیلو! میں ERP اسسٹنٹ ہوں۔ ڈیٹا کے بارے میں پوچھیں، یا نیچے دیے گئے بٹن استعمال کریں۔',
-      placeholder: 'ERP ڈیٹا کے بارے میں پوچھیں...',
-      placeholder2: 'بولیں یا یہاں لکھیں...',
+      welcome: 'ہیلو! میں ERP اسسٹنٹ ہوں۔ ڈیٹا کے بارے میں پوچھیں، یا نیچے <strong>ٹرپ شیٹ انٹری</strong> دبائیں۔',
+      placeholder: 'کچھ پوچھیں...',
+      placeholder2: 'بولیں یا لکھیں...',
       tripsheetBtn: '📋 ٹرپ شیٹ انٹری',
-      tripsheetStart: '📋 ٹرپ شیٹ انٹری! میں سوال پوچھوں گا، آپ بول سکتے ہیں یا ٹائپ کر سکتے ہیں۔',
+      tripsheetStart: '📋 ٹرپ شیٹ انٹری شروع! ہر سوال میں اونچی آواز میں پوچھوں گا۔',
       noCustomer: 'پہلے کسی کسٹمر کا پروفائل کھولیں، پھر ٹرپ شیٹ انٹری شروع کریں۔',
-      fieldDate: '📅 تاریخ کیا ہے؟',
-      fieldTimeIn: '⏰ ٹائم ان کیا ہے؟',
-      fieldTimeOut: '⏰ ٹائم آؤٹ کیا ہے؟',
-      fieldMeter: '📊 میٹر ریڈنگ کتنی ہے؟',
-      fieldTrips: '🔄 کتنے ٹرپس ہیں؟',
-      fieldGln: '⛽ ٹینکر GLN کیا ہے؟',
-      fieldReg: '🚛 ٹینکر رجسٹریشن نمبر کیا ہے؟',
-      saving: '⏳ ڈیٹا محفوظ ہو رہا ہے...',
-      saved: '✅ محفوظ ہو گیا! دوبارہ انٹری کے لیے',
+      fieldDate: 'تاریخ کیا ہے؟',
+      fieldTimeIn: 'ٹائم ان کیا ہے؟',
+      fieldTimeOut: 'ٹائم آؤٹ کیا ہے؟',
+      fieldMeter: 'میٹر ریڈنگ کتنی ہے؟',
+      fieldTrips: 'کتنے ٹرپس ہیں؟',
+      fieldGln: 'ٹینکر GLN کیا ہے؟',
+      fieldReg: 'ٹینکر رجسٹریشن نمبر کیا ہے؟',
+      saving: 'ڈیٹا محفوظ ہو رہا ہے...',
+      saved: 'محفوظ ہو گیا! دوبارہ کے لیے',
       saved2: 'دوبارہ دبائیں۔',
       error: 'خرابی',
       fail: 'کسٹمر ID نہیں ملی۔',
       skipped: '(چھوڑ دیا)',
-      listenHint: ' (بولیں یا ٹائپ کریں)',
+      listenHint: ' (مائک دبائیں یا لکھیں)',
+      listening: 'سن رہا ہوں... بولیں',
     }
   };
 
@@ -62,6 +68,9 @@
     TYPING = document.getElementById('aiChatTyping');
     CLEAR = document.getElementById('aiChatClear');
     CLOSE = document.getElementById('aiChatClose');
+    MIC = document.getElementById('aiChatMic');
+    LISTENING = document.getElementById('aiChatListening');
+    LISTEN_TEXT = document.getElementById('aiChatListeningText');
     LANG_EN = document.getElementById('aiLangEn');
     LANG_UR = document.getElementById('aiLangUr');
     if (!TOGGLE || !PANEL) return;
@@ -75,6 +84,8 @@
     CLOSE.addEventListener('click', closeChat);
     if (LANG_EN) LANG_EN.addEventListener('click', function(){ setLang('en'); });
     if (LANG_UR) LANG_UR.addEventListener('click', function(){ setLang('ur'); });
+
+    setupMic();
 
     INPUT.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -102,9 +113,7 @@
 
   function updateWelcome() {
     var welcome = MSGS.querySelector('.ai-chat-msg.assistant');
-    if (welcome) {
-      welcome.innerHTML = '<div>' + t('welcome') + '</div>';
-    }
+    if (welcome) welcome.innerHTML = '<div>' + t('welcome') + '</div>';
     var actionBtn = document.querySelector('#aiQuickActions button');
     if (actionBtn) actionBtn.textContent = t('tripsheetBtn');
   }
@@ -112,14 +121,13 @@
   function showQuickActions() {
     var welcomeMsg = MSGS.querySelector('.ai-chat-msg.assistant');
     if (!welcomeMsg) return;
-    var actions = document.getElementById('aiQuickActions');
-    if (actions) return;
+    if (document.getElementById('aiQuickActions')) return;
     var div = document.createElement('div');
     div.id = 'aiQuickActions';
-    div.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px;';
+    div.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 10px;';
     var btn = document.createElement('button');
     btn.textContent = t('tripsheetBtn');
-    btn.style.cssText = 'background:var(--primary);color:#fff;border:none;border-radius:16px;padding:5px 14px;font-size:0.78rem;cursor:pointer;white-space:nowrap;';
+    btn.style.cssText = 'background:linear-gradient(135deg,#1a56db,#2563eb);color:#fff;border:none;border-radius:14px;padding:6px 16px;font-size:0.78rem;cursor:pointer;font-weight:500;';
     btn.addEventListener('click', function(e) { e.stopPropagation(); startTripsheetEntry(); });
     div.appendChild(btn);
     welcomeMsg.parentNode.insertBefore(div, welcomeMsg.nextSibling);
@@ -143,7 +151,72 @@
   function showTyping() { TYPING.style.display = 'flex'; MSGS.scrollTop = MSGS.scrollHeight; }
   function hideTyping() { TYPING.style.display = 'none'; }
 
-  // ─── Tripsheet Entry (Voice + Text) ───
+  // ─── Text-to-Speech ───
+  function speakText(text, cb) {
+    if (!window.speechSynthesis) { if (cb) setTimeout(cb,100); return; }
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = lang === 'ur' ? 'ur-PK' : 'en-US';
+    u.rate = 0.95; u.pitch = 1;
+    u.onend = function() { if (cb) setTimeout(cb,200); };
+    u.onerror = function() { if (cb) setTimeout(cb,200); };
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }
+
+  // ─── Push-to-Talk Mic ───
+  function setupMic() {
+    if (!MIC) return;
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) { MIC.style.display = 'none'; return; }
+
+    function onStart() {
+      if (isRecording) return;
+      isRecording = true;
+      MIC.classList.add('is-recording');
+      LISTENING.classList.add('is-active');
+      if (LISTEN_TEXT) LISTEN_TEXT.textContent = t('listening');
+      currentRecognition = new SpeechRecognition();
+      currentRecognition.lang = lang === 'ur' ? 'ur-PK' : 'en-US';
+      currentRecognition.continuous = true;
+      currentRecognition.interimResults = false;
+      currentRecognition.onresult = function(e) {
+        var last = e.results[e.results.length - 1];
+        if (last && last[0]) currentRecognition._latest = last[0].transcript.trim();
+      };
+      currentRecognition.onerror = function() { onEnd(); };
+      try { currentRecognition.start(); } catch(e) { onEnd(); }
+    }
+
+    function onEnd() {
+      if (!isRecording) return;
+      isRecording = false;
+      MIC.classList.remove('is-recording');
+      LISTENING.classList.remove('is-active');
+      var text = '';
+      if (currentRecognition) {
+        try { currentRecognition.stop(); } catch(e) {}
+        text = currentRecognition._latest || '';
+        currentRecognition = null;
+      }
+      if (text && micResultCallback) {
+        var cb = micResultCallback;
+        micResultCallback = null;
+        cb(text);
+      } else if (text) {
+        INPUT.value = text;
+        sendMessage();
+      }
+    }
+
+    MIC.addEventListener('mousedown', function(e) { e.preventDefault(); onStart(); });
+    MIC.addEventListener('mouseup', function(e) { e.preventDefault(); onEnd(); });
+    MIC.addEventListener('mouseleave', function() { if (isRecording) onEnd(); });
+    MIC.addEventListener('touchstart', function(e) { e.preventDefault(); onStart(); }, {passive: false});
+    MIC.addEventListener('touchend', function(e) { e.preventDefault(); onEnd(); }, {passive: false});
+    MIC.addEventListener('touchcancel', function() { if (isRecording) onEnd(); });
+  }
+
+  // ─── Tripsheet Entry ───
   function startTripsheetEntry() {
     if (voiceEntryActive) return;
     var cid = getCustomerId();
@@ -165,20 +238,18 @@
     ];
     var entryData = {};
     var idx = 0;
-    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     INPUT.placeholder = t('placeholder2');
     INPUT.focus();
 
     function askNext() {
-      if (idx >= fields.length) {
-        finishEntry();
-        return;
-      }
+      if (idx >= fields.length) { finishEntry(); return; }
       var f = fields[idx];
       var answered = false;
+
       addMessage('assistant', t(f.label) + t('listenHint'));
       INPUT.focus();
+      speakText(t(f.label));
 
       var textHandler = function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -186,68 +257,35 @@
           if (answered) return;
           answered = true;
           INPUT.removeEventListener('keydown', textHandler);
-          var text = INPUT.value.trim();
-          INPUT.value = '';
-          stopListening();
-          if (text) {
-            addMessage('user', text);
-            entryData[f.id] = f.parse ? f.parse(text) : text;
-          } else {
-            addMessage('user', t('skipped'));
-          }
-          idx++;
-          setTimeout(askNext, 200);
+          micResultCallback = null;
+          var text = INPUT.value.trim(); INPUT.value = '';
+          if (text) { addMessage('user', text); entryData[f.id] = f.parse ? f.parse(text) : text; }
+          else { addMessage('user', t('skipped')); }
+          idx++; setTimeout(askNext, 300);
         }
       };
       INPUT.addEventListener('keydown', textHandler);
 
-      var recognition = null;
-      function startListening() {
-        if (!SpeechRecognition) return;
-        try {
-          recognition = new SpeechRecognition();
-          recognition.lang = lang === 'ur' ? 'ur-PK' : 'en-US';
-          recognition.continuous = false;
-          recognition.interimResults = false;
-          recognition.onresult = function(e) {
-            if (answered) return;
-            answered = true;
-            INPUT.removeEventListener('keydown', textHandler);
-            stopListening();
-            var text = e.results[0][0].transcript.trim();
-            addMessage('user', '🎤 ' + text);
-            entryData[f.id] = f.parse ? f.parse(text) : text;
-            idx++;
-            setTimeout(askNext, 200);
-          };
-          recognition.onerror = function() {};
-          recognition.start();
-        } catch(e) {}
-      }
-      function stopListening() {
-        if (recognition) { try { recognition.stop(); } catch(e) {} recognition = null; }
-      }
-      startListening();
+      micResultCallback = function(voiceText) {
+        if (answered) return;
+        answered = true;
+        INPUT.removeEventListener('keydown', textHandler);
+        addMessage('user', '🎤 ' + voiceText);
+        entryData[f.id] = f.parse ? f.parse(voiceText) : voiceText;
+        idx++; setTimeout(askNext, 300);
+      };
     }
 
     function finishEntry() {
+      micResultCallback = null;
       var cid = getCustomerId();
-      if (!cid) {
-        addMessage('assistant', '❌ ' + t('fail'));
-        resetVoiceMode();
-        return;
-      }
+      if (!cid) { addMessage('assistant', '❌ ' + t('fail')); resetVoiceMode(); return; }
       addMessage('assistant', t('saving'));
       showTyping();
-
       var csrfMeta = document.querySelector('meta[name="csrf-token"]');
       var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
-      var payload = { customer_id: cid };
-      payload = { customer_id: cid, lang: lang };
-      fields.forEach(function(f) {
-        payload[f.id] = entryData[f.id] || '';
-      });
-
+      var payload = { customer_id: cid, lang: lang };
+      fields.forEach(function(f) { payload[f.id] = entryData[f.id] || ''; });
       fetch('/ai/tripsheet_save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
@@ -256,11 +294,8 @@
       .then(function(r) { return r.json(); })
       .then(function(data) {
         hideTyping();
-        if (data.error) {
-          addMessage('assistant', '❌ ' + t('error') + ': ' + data.error);
-        } else {
-          addMessage('assistant', t('saved') + ' "📋 ' + t('tripsheetBtn') + '" ' + t('saved2'));
-        }
+        if (data.error) { addMessage('assistant', '❌ ' + t('error') + ': ' + data.error); }
+        else { addMessage('assistant', t('saved') + ' "📋 ' + t('tripsheetBtn') + '" ' + t('saved2')); speakText('Entry saved successfully'); }
         resetVoiceMode();
       })
       .catch(function(err) {
@@ -281,6 +316,7 @@
     setTimeout(askNext, 500);
   }
 
+  // ─── Parsers ───
   function parseDate(s) {
     if (!s) return '';
     var d = new Date(s);
@@ -296,9 +332,7 @@
     if (/^\d{1,2}:\d{2}$/.test(s)) return s;
     return s;
   }
-  function parseNumber(s) {
-    var n = parseFloat(s); return isNaN(n) ? 0 : n;
-  }
+  function parseNumber(s) { var n = parseFloat(s); return isNaN(n) ? 0 : n; }
   function parseGln(s) {
     if (!s) return '';
     var up = s.toUpperCase();
@@ -342,7 +376,6 @@
     SEND.disabled = true;
     showTyping();
     HISTORY.push({role: 'user', content: text});
-
     var csrfMeta = document.querySelector('meta[name="csrf-token"]');
     var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
     fetch('/ai/chat', {
@@ -353,10 +386,7 @@
     .then(function(r) { return r.json(); })
     .then(function(data) {
       hideTyping();
-      if (data.error) {
-        addMessage('assistant', t('error') + ': ' + data.error);
-        return;
-      }
+      if (data.error) { addMessage('assistant', t('error') + ': ' + data.error); return; }
       addMessage('assistant', data.reply);
       HISTORY.push({role: 'assistant', content: data.reply});
     })
@@ -364,10 +394,7 @@
       hideTyping();
       addMessage('assistant', t('error') + ': ' + err.message);
     })
-    .finally(function() {
-      SEND.disabled = false;
-      INPUT.focus();
-    });
+    .finally(function() { SEND.disabled = false; INPUT.focus(); });
   }
 
   if (document.readyState === 'loading') {
