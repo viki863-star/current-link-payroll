@@ -15,6 +15,10 @@ TABLES = [
     "maintenance_papers", "parties", "suppliers", "supplier_invoices",
     "supplier_bills", "account_invoices", "account_invoice_lines",
     "account_payments", "fuel_entries",
+    "customers", "customer_invoices", "customer_invoice_items",
+    "customer_payments", "customer_contracts", "customer_quotations",
+    "customer_lpos", "customer_documents", "service_items",
+    "customer_service_orders", "tabreed_tripsheets",
 ]
 
 
@@ -43,9 +47,23 @@ def _get_schema():
     return "\n".join(lines)
 
 
+def _is_write_sql(sql):
+    s = sql.strip().upper()
+    return s.startswith("INSERT") or s.startswith("UPDATE") or s.startswith("DELETE")
+
+
 def _execute_sql(sql):
     db = open_db()
+    is_write = _is_write_sql(sql)
     try:
+        if is_write:
+            result = db.execute(sql)
+            db.commit()
+            if hasattr(result, "fetchone"):
+                row = result.fetchone()
+                if row:
+                    return {"affected": "insert", "row": dict(row)}
+            return {"affected": "success"}
         result = db.execute(sql).fetchall()
         return [dict(row) for row in result] if result else []
     except Exception as e:
@@ -65,11 +83,11 @@ def _call_llm(messages):
         "model": api_model,
         "messages": messages,
         "temperature": 0.1,
-        "max_tokens": 1024,
+        "max_tokens": 2048,
     }
 
     try:
-        resp = requests.post(api_url, json=payload, headers=headers, timeout=30)
+        resp = requests.post(api_url, json=payload, headers=headers, timeout=45)
         data = resp.json()
         if "choices" not in data or not data["choices"]:
             err = data.get("error", {}).get("message", str(data))
@@ -80,7 +98,7 @@ def _call_llm(messages):
         raw = re.sub(r'\s*```$', '', raw)
         raw = raw.strip()
 
-        json_match = re.search(r'\{[^{}]*"sql"[^{}]*\}', raw, re.DOTALL)
+        json_match = re.search(r'\{[^{}]*"(?:sql|explanation)"[^{}]*\}', raw, re.DOTALL)
         if json_match:
             try:
                 return json.loads(json_match.group()), None
@@ -121,10 +139,8 @@ def tripsheet_save():
             return jsonify({"error": "Date required"}), 400
         db = open_db()
         backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
-        # Auto-fill GLN as 10000 GLN
         if not tanker_gln:
             tanker_gln = "10000 GLN"
-        # Ensure table exists (backend-aware)
         if backend == "postgres":
             db.execute("""CREATE TABLE IF NOT EXISTS tabreed_tripsheets (
                 id SERIAL PRIMARY KEY,
@@ -158,7 +174,6 @@ def tripsheet_save():
             VALUES (?,?,?,?,?,?,?,?,?)""",
             (cid, entry_date, time_in or None, time_out or None, total_reading, tanker_gln, trips, tanker_reg or None, notes or None))
         db.commit()
-        # Verify by counting
         count = db.execute("SELECT COUNT(*) AS cnt FROM tabreed_tripsheets WHERE customer_id=? AND entry_date=?", (cid, entry_date)).fetchone()
         cnt = count["cnt"] if count else 0
         db.close()
@@ -183,20 +198,48 @@ def chat():
         schema = _get_schema()
 
         lang_instruction = (
-            "Respond in English." if chat_lang == "en"
+            "Respond in English."
+            if chat_lang == "en"
             else "Urdu mein jawab dein. (Respond in Urdu.)"
         )
+
+        company_desc = (
+            "Company: Current Link General Contracting LLC (currentlinkgc.com)\n"
+            "Developer: Waqar Hussain (Viki) — created this ERP system.\n"
+        )
+
         system = (
-            f"Date:{today}. ERP SQL assistant.\n"
-            f"Database schema (exact column names):\n{schema}\n"
-            f"{lang_instruction}\n"
-            "Reply ONLY JSON: {\"sql\":\"SELECT...\",\"explanation\":\"answer\"}. "
-            "SELECT only. ALWAYS use AS aliases. "
-            'Ex: {"sql":"SELECT count(*) AS cnt FROM drivers WHERE status=\'Active\'","explanation":"15 active drivers"}'
+            f"You are Current Link ERP Assistant — a highly professional AI assistant.\n"
+            f"Today: {today}\n"
+            f"{company_desc}"
+            f"{lang_instruction}\n\n"
+            f"Database tables and columns:\n{schema}\n\n"
+            "Capabilities:\n"
+            "1. READ: Answer questions by querying the database with SELECT SQL.\n"
+            "2. WRITE: Create, update, or delete records when the user asks. Execute INSERT/UPDATE/DELETE directly.\n"
+            "3. CHAT: Answer general questions without SQL (identity, greetings, etc.).\n\n"
+            "Identity facts (do NOT query the database for these):\n"
+            "- You were created by Waqar Hussain (Viki).\n"
+            "- You are the Current Link ERP Assistant for Current Link General Contracting LLC.\n"
+            "- The ERP system manages drivers, vehicles, employees, fuel, customers, invoices, suppliers, and more.\n\n"
+            "Reply ONLY with JSON. Choose the format based on the user's intent:\n"
+            '  - For READ: {"sql":"SELECT ...", "explanation":"answer for the user"}\n'
+            '  - For WRITE: {"sql":"INSERT/UPDATE/DELETE ...", "explanation":"what will be done"}\n'
+            '  - For CHAT/no SQL: {"explanation":"your reply", "sql":""}\n\n'
+            "Rules:\n"
+            "- Always use AS aliases for computed or ambiguous columns.\n"
+            "- Use PostgreSQL-compatible syntax (ILIKE for case-insensitive, %s style if needed — the adapter handles ? to %s conversion).\n"
+            "- For write operations, the SQL will be executed immediately and committed.\n"
+            "- Be concise, professional, and data-driven.\n"
+            "- When the user asks 'who created you' or similar, say 'Waqar Hussain (Viki)' — do NOT query the database.\n"
+            "Examples:\n"
+            '  {"sql":"SELECT count(*) AS cnt FROM drivers WHERE status=\'Active\'","explanation":"There are 15 active drivers."}\n'
+            '  {"sql":"INSERT INTO fuel_entries (vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_name) VALUES (\'ABC123\', \'2026-07-04\', 50, 2.5, 125, \'Adnoc\')","explanation":"Fuel entry created: 50 GLN at 2.5/GLN = AED 125 for ABC123."}\n'
+            '  {"explanation":"I was created by Waqar Hussain (Viki), the developer of Current Link ERP.","sql":""}\n'
         )
 
         messages = [{"role": "system", "content": system}]
-        for h in history[-8:]:
+        for h in history[-10:]:
             messages.append({"role": h["role"], "content": h["content"]})
         messages.append({"role": "user", "content": user_msg})
 
@@ -228,6 +271,14 @@ def chat():
                     break
         else:
             return jsonify({"reply": "Mujhe samajh nahi aaya. Kuch aur tarah se poochiye.", "sql": None, "data": None})
+
+        # For write operations, return the success message
+        if isinstance(rows, dict) and "affected" in rows:
+            return jsonify({
+                "reply": explanation or "Done.",
+                "sql": sql,
+                "data": rows.get("row") or rows.get("affected"),
+            })
 
         if rows and explanation:
             for row in rows[:1]:
