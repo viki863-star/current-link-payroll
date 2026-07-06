@@ -4141,37 +4141,61 @@ def generate_fuel_report_pdf(entries, vehicle_filter, month_filter, output_dir, 
     els.append(Spacer(1, 5*mm))
 
     # ═══════════════════════════════════════
-    # 5. TOP VEHICLES BAR CHART
+    # 5. TOP VEHICLES BAR CHART (REAL GRAPHICAL CHART)
     # ═══════════════════════════════════════
     if top_vehicles:
-        els.append(Paragraph('<b>Top Vehicles by Fuel Consumption</b>', ParagraphStyle('cht', fontSize=9, fontName='Helvetica-Bold', textColor=TH, leading=12)))
-        els.append(Spacer(1, 2*mm))
-
-        chart_data = []
+        from reportlab.graphics.shapes import Drawing, Rect, String, Line
+        from reportlab.graphics import renderPDF
+        CH = 155
+        d = Drawing(W, CH)
+        LM = 70; RM = 50; TM = 22; BM = 18
+        PW = W - LM - RM
+        PH = CH - TM - BM
         max_val = max(v for _, v in top_vehicles)
-        bar_max_w = int(W * 0.6)
-        label_w = int(W * 0.22)
-        val_w = int(W * 0.08)
-        bar_area_w = W - label_w - val_w
+        n = len(top_vehicles)
 
-        for plate, gal in top_vehicles[:10]:
-            pct = gal / max_val if max_val > 0 else 0
-            bw = max(4, int(pct * bar_area_w))
-            bar_html = '<table cellpadding="0" cellspacing="0"><tr><td bgcolor="#1C568B" width="{}" height="6" style="border-radius:3px">&nbsp;</td><td width="{}">&nbsp;</td></tr></table>'.format(bw, max(0, bar_area_w - bw))
-            chart_data.append([
-                Paragraph('<font size=6>{}</font>'.format(plate), ParagraphStyle('bp', fontSize=6, textColor=C4, leading=8, alignment=TA_LEFT)),
-                Paragraph(bar_html, ParagraphStyle('bb', fontSize=1, leading=7)),
-                Paragraph('<font size=6.5><b>{:,.0f}</b></font>'.format(gal), ParagraphStyle('bv', fontSize=6.5, fontName='Helvetica-Bold', textColor=C4, alignment=TA_RIGHT, leading=9)),
-            ])
+        # Title
+        d.add(String(W / 2, CH - 4, 'Top Vehicles by Fuel Consumption',
+               textAnchor='middle', fontSize=9, fontName='Helvetica-Bold', fillColor=TH))
 
-        ct = Table(chart_data, colWidths=[label_w, bar_area_w, val_w])
-        ct.setStyle(TableStyle([
-            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-            ('TOPPADDING',(0,0),(-1,-1),1.5), ('BOTTOMPADDING',(0,0),(-1,-1),1.5),
-            ('LEFTPADDING',(0,0),(-1,-1),2), ('RIGHTPADDING',(0,0),(-1,-1),2),
-            ('LINEBELOW',(0,0),(-1,-1),0.3,colors.HexColor('#e5e7eb')),
-        ]))
-        els.append(ct)
+        # Grid lines (light vertical)
+        for i in range(6):
+            x = LM + PW * i / 5
+            d.add(Line(x, BM, x, BM + PH, strokeColor=colors.Color(0.88, 0.88, 0.88), strokeWidth=0.4))
+
+        # X-axis line
+        d.add(Line(LM, BM, LM + PW, BM, strokeColor=colors.Color(0.7, 0.7, 0.7), strokeWidth=0.5))
+        # Grid labels
+        for i in range(6):
+            v = max_val * i / 5
+            x = LM + PW * i / 5
+            d.add(String(x, BM - 3, '{:,.0f}'.format(v), textAnchor='middle', fontSize=5.5, fillColor=C5))
+
+        bars = top_vehicles[:10]
+        bs = PH / (n + 0.5)
+        bh = bs * 0.6
+
+        for i, (plate, gal) in enumerate(bars):
+            y = BM + bs * (n - 1 - i) + (bs - bh) / 2
+            bw = (gal / max_val) * PW if max_val > 0 else 0
+
+            # Vehicle label (y-axis)
+            d.add(String(LM - 6, y + bh / 2, plate,
+                   textAnchor='end', fontSize=6, fontName='Helvetica', fillColor=C4))
+
+            # Bar
+            d.add(Rect(LM, y, max(bw, 1), bh, fillColor=colors.HexColor('#1C568B'), strokeColor=None))
+
+            # GLN value at end of bar
+            d.add(String(LM + max(bw, 0) + 3, y + bh / 2, '{:,.0f}'.format(gal),
+                   textAnchor='start', fontSize=6.5, fontName='Helvetica-Bold', fillColor=C4))
+
+        # X-axis label
+        d.add(String(LM + PW / 2, 2, 'Fuel Consumption (GLN)',
+               textAnchor='middle', fontSize=7, fontName='Helvetica', fillColor=C5))
+
+        els.append(Spacer(1, 2*mm))
+        els.append(d)
         els.append(Spacer(1, 4*mm))
 
     # ═══════════════════════════════════════
