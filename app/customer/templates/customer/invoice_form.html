@@ -168,6 +168,7 @@ function addItem(desc, qty, rate, unit, vehicle) {
         <input type="text" name="item_unit[]" value="${u}" readonly style="text-align:center;background:#f0f2f5;font-size:0.7rem;border:none;font-weight:600">
         <input type="number" name="item_rate[]" value="${r}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
         <span class="item-amt" id="itemAmt_${itemCount}">${(q * r).toFixed(2)}</span>
+        <input type="hidden" name="item_vehicle[]" value="${v}">
         <button type="button" class="btn-remove" onclick="removeItem(this)">&times;</button>
     `;
     // trigger auto-resize after DOM insert
@@ -222,7 +223,7 @@ function loadLpoItems() {
             });
             calcTotals();
         })
-        .catch(() => {});
+        .catch(e => console.error('loadLpoItems error:', e));
 }
 
 function loadSoItems() {
@@ -241,7 +242,7 @@ function loadSoItems() {
             });
             calcTotals();
         })
-        .catch(() => {});
+        .catch(e => console.error('loadSoItems error:', e));
 }
 
 var isEdit = {{ 'true' if edit else 'false' }};
