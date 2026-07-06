@@ -1435,11 +1435,33 @@ def employee_edit(employee_id):
     if request.method == "POST":
         values = employee_form_data()
         values["employee_id"] = employee_id
+
+        # Upload photo FIRST so it survives validation errors
+        uploaded_photo = None
+        try:
+            uploaded_photo = save_employee_photo(
+                current_app._get_current_object(), employee_id,
+                request.form.get("full_name", "").strip().title(),
+                request.files.get("photo_file"))
+        except Exception as exc:
+            flash(f"Photo upload failed: {exc}", "error")
+
         errors = validate_employee_form(values)
         if errors:
             for err in errors:
                 flash(err, "error")
             assigned_vehicle = values.get("vehicle_id", "")
+            # Save photo to DB even if other fields fail validation
+            if uploaded_photo:
+                try:
+                    db.execute(
+                        "UPDATE employees SET photo_name=?, photo_data=?, photo_content_type=?, updated_at=CURRENT_TIMESTAMP WHERE UPPER(employee_id)=?",
+                        (uploaded_photo["photo_name"], uploaded_photo["photo_data"],
+                         uploaded_photo["photo_content_type"], employee_id),
+                    )
+                    db.commit()
+                except Exception:
+                    db.rollback()
         else:
             salary = float(values["basic_salary"])
             ot_rate = float(values.get("ot_rate", 0) or 0)
@@ -1448,13 +1470,6 @@ def employee_edit(employee_id):
                     values["termination_date"] = date.today().isoformat()
             else:
                 values["termination_date"] = ""
-            try:
-                uploaded_photo = save_employee_photo(
-                    current_app._get_current_object(), employee_id,
-                    values["full_name"], request.files.get("photo_file"))
-            except Exception as exc:
-                flash(f"Photo upload failed: {exc}", "error")
-                uploaded_photo = None
 
             try:
                 db.execute(
