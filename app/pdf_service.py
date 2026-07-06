@@ -4027,6 +4027,7 @@ def generate_fuel_report_pdf(entries, vehicle_filter, month_filter, output_dir, 
     lh = co_p
     if logo:
         lh = Table([[logo, Spacer(1, 2*mm), co_p]], colWidths=[LW, 2*mm, W*0.65 - LW - 2*mm])
+        lh.setStyle(TableStyle([('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
 
     subtitle = month_label + (' | Vehicle: {}'.format(vehicle_filter) if vehicle_filter else '')
     rh = Paragraph(
@@ -4280,6 +4281,7 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     lh = co_p
     if logo:
         lh = Table([[logo, Spacer(1, 2*mm), co_p]], colWidths=[LW, 2*mm, W*0.65 - LW - 2*mm])
+        lh.setStyle(TableStyle([('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
 
     month_display = month_label.replace('-', ' ') if month_label != 'All Periods' else 'All Periods'
     rh = Paragraph(
