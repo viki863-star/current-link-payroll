@@ -74,7 +74,7 @@ def _ensure_tables():
             id {autoinc}, lpo_id {int_type} NOT NULL, description TEXT,
             quantity {real_type} NOT NULL DEFAULT 1, rate {real_type} NOT NULL DEFAULT 0,
             amount {real_type} NOT NULL DEFAULT 0, unit_type TEXT NOT NULL DEFAULT 'hour',
-            sort_order {int_type} DEFAULT 0
+            vehicle_no TEXT, sort_order {int_type} DEFAULT 0
         )""",
         f"""CREATE TABLE IF NOT EXISTS customer_documents (
             id {autoinc}, customer_id {int_type} NOT NULL,
@@ -109,7 +109,7 @@ def _ensure_tables():
             id {autoinc}, so_id {int_type} NOT NULL, description TEXT,
             quantity {real_type} NOT NULL DEFAULT 1, rate {real_type} NOT NULL DEFAULT 0,
             amount {real_type} NOT NULL DEFAULT 0, unit_type TEXT NOT NULL DEFAULT 'hour',
-            sort_order {int_type} DEFAULT 0
+            vehicle_no TEXT, sort_order {int_type} DEFAULT 0
         )""",
         f"""CREATE TABLE IF NOT EXISTS customer_quotation_items (
             id {autoinc}, quotation_id {int_type} NOT NULL, description TEXT,
@@ -158,6 +158,8 @@ def _ensure_tables():
         ("customer_lpos", "file_data", "TEXT"),
         ("customer_lpos", "file_type", "TEXT"),
         ("customer_lpos", "service_order_no", "TEXT"),
+        ("lpo_items", "vehicle_no", "TEXT"),
+        ("customer_so_items", "vehicle_no", "TEXT"),
         ("customer_quotations", "vat_percent", real_type + " DEFAULT 0"),
         ("customer_quotations", "vat_amount", real_type + " DEFAULT 0"),
         ("customer_quotations", "total_amount", real_type + " DEFAULT 0"),
