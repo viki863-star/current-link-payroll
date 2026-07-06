@@ -2764,33 +2764,33 @@ def customer_tripsheet_report_pdf(cid):
     els.append(hr)
     els.append(Spacer(1, 2*mm))
 
-    hdr = ["#", "Date", "In", "Out", "Reading", "Tanker", "Trips", "Reg #"]
-    hdr_p = [Paragraph(f"<b>{h}</b>", ParagraphStyle("h", fontSize=6, fontName="Helvetica-Bold", textColor=WH, leading=7, alignment=TA_CENTER)) for h in hdr]
+    PPS = lambda name, **kw: ParagraphStyle(name, **kw)
+    HDR = ["#", "Date", "Time In", "Time Out", "Total Reading", "Tanker GLN", "Trips", "Tanker Reg"]
+    hdr_p = [Paragraph(f"<b>{h}</b>", PPS("h", fontSize=6, fontName="Helvetica-Bold", textColor=WH, leading=7, alignment=TA_CENTER)) for h in HDR]
     data = [hdr_p]
     for idx, r in enumerate(rows, 1):
         data.append([
-            Paragraph(str(idx), ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["entry_date"] or "—", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph((r["time_in"] or "—")[:5], ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph((r["time_out"] or "—")[:5], ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(f"{r['total_reading'] or 0:,.0f}", ParagraphStyle("c", fontSize=FS, fontName="Helvetica-Bold", leading=FS + 0.5, alignment=TA_RIGHT)),
-            Paragraph(r["tanker_gln"] or "—", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(f"{r['trips'] or 0:,.0f}", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["tanker_reg"] or "—", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(str(idx), PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["entry_date"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["time_in"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["time_out"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(f"{r['total_reading'] or 0:,.2f}", PPS("c", fontSize=FS, fontName="Helvetica-Bold", leading=FS + 0.5, alignment=TA_RIGHT)),
+            Paragraph(r["tanker_gln"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(f"{r['trips'] or 0:,.0f}", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["tanker_reg"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
         ])
-    # Total row
     data.append([
-        Paragraph("<b>Total</b>", ParagraphStyle("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_CENTER)),
-        Paragraph("", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5)),
-        Paragraph("", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5)),
-        Paragraph("", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5)),
-        Paragraph(f"<b>{total_reading_sum:,.0f}</b>", ParagraphStyle("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_RIGHT)),
-        Paragraph("", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5)),
-        Paragraph(f"<b>{total_trips:,.0f}</b>", ParagraphStyle("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_CENTER)),
-        Paragraph("", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5)),
+        Paragraph("<b>Total</b>", PPS("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_CENTER)),
+        Paragraph("", PPS("c", fontSize=FS, leading=FS + 0.5)),
+        Paragraph("", PPS("c", fontSize=FS, leading=FS + 0.5)),
+        Paragraph("", PPS("c", fontSize=FS, leading=FS + 0.5)),
+        Paragraph(f"<b>{total_reading_sum:,.2f}</b>", PPS("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_RIGHT)),
+        Paragraph("", PPS("c", fontSize=FS, leading=FS + 0.5)),
+        Paragraph(f"<b>{total_trips:,.0f}</b>", PPS("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_CENTER)),
+        Paragraph("", PPS("c", fontSize=FS, leading=FS + 0.5)),
     ])
 
-    col_w = [7*mm, 22*mm, 18*mm, 18*mm, 30*mm, 30*mm, 12*mm, W - 7 - 22 - 18 - 18 - 30 - 30 - 12]
+    col_w = [7*mm, 24*mm, 20*mm, 20*mm, 28*mm, 32*mm, 12*mm, W - 7 - 24 - 20 - 20 - 28 - 32 - 12]
     tbl = Table(data, colWidths=col_w, repeatRows=1)
     tbl.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,0), TH), ("TEXTCOLOR", (0,0), (-1,0), WH),
@@ -2800,8 +2800,8 @@ def customer_tripsheet_report_pdf(cid):
         ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f5f8fe")),
         ("TOPPADDING", (0,0), (-1,-1), 0.5),
         ("BOTTOMPADDING", (0,0), (-1,-1), 0.5),
-        ("GRID", (0,0), (-1,-2), 0.2, colors.HexColor("#d0d8e8")),
-        ("LINEBELOW", (0,0), (-1,0), 0.5, TH),
+        ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#b0bed0")),
+        ("LINEBELOW", (0,0), (-1,0), 0.6, TH),
     ]))
     els.append(tbl)
 
