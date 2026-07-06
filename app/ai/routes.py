@@ -293,6 +293,244 @@ def anomaly_detection():
         return jsonify({"error": str(e)}), 500
 
 
+@ai_bp.route("/revenue-forecast", methods=["GET"])
+def revenue_forecast():
+    """AI-powered revenue forecasting from customer payments."""
+    try:
+        db = open_db()
+        months = request.args.get("months", "3")
+        
+        # Get historical customer payment data
+        historical = db.execute("""
+            SELECT payment_date, SUM(amount) AS total_revenue, COUNT(*) AS payment_count
+            FROM customer_payments
+            WHERE payment_date IS NOT NULL
+            GROUP BY payment_date
+            ORDER BY payment_date DESC
+            LIMIT 24
+        """).fetchall()
+        
+        if not historical:
+            return jsonify({
+                "forecast": None,
+                "message": "No historical payment data available for forecasting."
+            })
+        
+        # Get current active customers and average payment
+        current_customers = db.execute("""
+            SELECT COUNT(*) AS cnt, AVG(COALESCE(credit_limit, 0)) AS avg_credit
+            FROM customers
+            WHERE status = 'Active'
+        """).fetchone()
+        
+        # Prepare data for AI analysis
+        data_summary = []
+        for row in historical:
+            data_summary.append({
+                "date": row["payment_date"],
+                "total_revenue": float(row["total_revenue"] or 0),
+                "payment_count": row["payment_count"]
+            })
+        
+        current_count = current_customers["cnt"] or 0
+        avg_credit = float(current_customers["avg_credit"] or 0)
+        
+        # Use AI to forecast revenue with scenarios
+        prompt = f"""
+        Historical revenue data (last 24 payments):
+        {json.dumps(data_summary, indent=2)}
+        
+        Current active customers: {current_count}
+        Average credit limit: AED {avg_credit:.2f}
+        
+        Forecast revenue for the next {months} months with 3 scenarios:
+        1. Optimistic (best case - 15% higher than expected)
+        2. Base (most likely case)
+        3. Pessimistic (worst case - 15% lower than expected)
+        
+        For each month, provide:
+        - Month label (e.g., "2026-08", "2026-09")
+        - Optimistic forecast
+        - Base forecast
+        - Pessimistic forecast
+        - Trend direction
+        
+        Consider:
+        - Historical payment patterns and seasonality
+        - Current customer count and credit limits
+        - Typical payment cycles
+        
+        Respond with JSON only: {{"forecasts": [{{"month": "YYYY-MM", "optimistic": amount, "base": amount, "pessimistic": amount, "trend": "up/down/stable"}}], "summary": "brief insight", "confidence": "high/medium/low"}}
+        """
+        
+        result, err = _call_llm([{"role": "system", "content": "You are a financial forecasting AI. Respond with JSON only. Use realistic AED amounts."}, {"role": "user", "content": prompt}])
+        
+        if err:
+            # Fallback to simple calculation
+            base_monthly = current_count * avg_credit * 0.3  # Assume 30% of credit utilized monthly
+            forecasts = []
+            from datetime import datetime, timedelta
+            today = datetime.now()
+            for i in range(1, int(months) + 1):
+                future_month = (today.replace(day=1) + timedelta(days=32*i)).replace(day=1)
+                forecasts.append({
+                    "month": future_month.strftime("%Y-%m"),
+                    "optimistic": round(base_monthly * 1.15, 2),
+                    "base": round(base_monthly, 2),
+                    "pessimistic": round(base_monthly * 0.85, 2),
+                    "trend": "stable"
+                })
+            return jsonify({
+                "forecasts": forecasts,
+                "summary": f"Based on {current_count} active customers with average credit AED {avg_credit:.2f}",
+                "confidence": "medium",
+                "historical": data_summary[:6],
+                "current_customers": current_count,
+                "method": "calculation"
+            })
+        
+        if isinstance(result, dict):
+            forecasts = result.get("forecasts", [])
+            if not forecasts:
+                base_monthly = current_count * avg_credit * 0.3
+                forecasts = []
+                from datetime import datetime, timedelta
+                today = datetime.now()
+                for i in range(1, int(months) + 1):
+                    future_month = (today.replace(day=1) + timedelta(days=32*i)).replace(day=1)
+                    forecasts.append({
+                        "month": future_month.strftime("%Y-%m"),
+                        "optimistic": round(base_monthly * 1.15, 2),
+                        "base": round(base_monthly, 2),
+                        "pessimistic": round(base_monthly * 0.85, 2),
+                        "trend": "stable"
+                    })
+            return jsonify({
+                "forecasts": forecasts[:int(months)],
+                "summary": result.get("summary", ""),
+                "confidence": result.get("confidence", "medium"),
+                "historical": data_summary[:6],
+                "current_customers": current_count,
+                "method": "ai"
+            })
+        
+        return jsonify({"error": "Invalid AI response"}), 500
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error("Revenue forecast error: %s\n%s", e, traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@ai_bp.route("/expense-forecast", methods=["GET"])
+def expense_forecast():
+    """AI-powered expense forecasting (fuel, maintenance, suppliers)."""
+    try:
+        db = open_db()
+        months = request.args.get("months", "3")
+        category = request.args.get("category", "all")  # all, fuel, maintenance, suppliers
+        
+        forecasts_by_category = {}
+        
+        # Fuel expenses
+        if category in ["all", "fuel"]:
+            fuel_data = db.execute("""
+                SELECT entry_date, SUM(total_amount) AS total_fuel
+                FROM fuel_entries
+                WHERE entry_date IS NOT NULL
+                GROUP BY entry_date
+                ORDER BY entry_date DESC
+                LIMIT 24
+            """).fetchall()
+            
+            if fuel_data:
+                fuel_summary = [{"date": f["entry_date"], "amount": float(f["total_fuel"] or 0)} for f in fuel_data]
+                avg_fuel = sum(f["amount"] for f in fuel_summary) / len(fuel_summary) if fuel_summary else 0
+                
+                from datetime import datetime, timedelta
+                today = datetime.now()
+                fuel_forecasts = []
+                for i in range(1, int(months) + 1):
+                    future_month = (today.replace(day=1) + timedelta(days=32*i)).replace(day=1)
+                    fuel_forecasts.append({
+                        "month": future_month.strftime("%Y-%m"),
+                        "optimistic": round(avg_fuel * 0.85, 2),
+                        "base": round(avg_fuel, 2),
+                        "pessimistic": round(avg_fuel * 1.15, 2),
+                        "trend": "stable"
+                    })
+                forecasts_by_category["fuel"] = fuel_forecasts
+        
+        # Maintenance expenses
+        if category in ["all", "maintenance"]:
+            maint_data = db.execute("""
+                SELECT job_date, SUM(total_cost) AS total_maint
+                FROM maintenance_jobs
+                WHERE job_date IS NOT NULL
+                GROUP BY job_date
+                ORDER BY job_date DESC
+                LIMIT 24
+            """).fetchall()
+            
+            if maint_data:
+                maint_summary = [{"date": m["job_date"], "amount": float(m["total_maint"] or 0)} for m in maint_data]
+                avg_maint = sum(m["amount"] for m in maint_summary) / len(maint_summary) if maint_summary else 0
+                
+                from datetime import datetime, timedelta
+                today = datetime.now()
+                maint_forecasts = []
+                for i in range(1, int(months) + 1):
+                    future_month = (today.replace(day=1) + timedelta(days=32*i)).replace(day=1)
+                    maint_forecasts.append({
+                        "month": future_month.strftime("%Y-%m"),
+                        "optimistic": round(avg_maint * 0.8, 2),
+                        "base": round(avg_maint, 2),
+                        "pessimistic": round(avg_maint * 1.2, 2),
+                        "trend": "stable"
+                    })
+                forecasts_by_category["maintenance"] = maint_forecasts
+        
+        # Supplier expenses
+        if category in ["all", "suppliers"]:
+            supplier_data = db.execute("""
+                SELECT invoice_date, SUM(total_amount) AS total_supplier
+                FROM supplier_invoices
+                WHERE invoice_date IS NOT NULL
+                GROUP BY invoice_date
+                ORDER BY invoice_date DESC
+                LIMIT 24
+            """).fetchall()
+            
+            if supplier_data:
+                supplier_summary = [{"date": s["invoice_date"], "amount": float(s["total_supplier"] or 0)} for s in supplier_data]
+                avg_supplier = sum(s["amount"] for s in supplier_summary) / len(supplier_summary) if supplier_summary else 0
+                
+                from datetime import datetime, timedelta
+                today = datetime.now()
+                supplier_forecasts = []
+                for i in range(1, int(months) + 1):
+                    future_month = (today.replace(day=1) + timedelta(days=32*i)).replace(day=1)
+                    supplier_forecasts.append({
+                        "month": future_month.strftime("%Y-%m"),
+                        "optimistic": round(avg_supplier * 0.85, 2),
+                        "base": round(avg_supplier, 2),
+                        "pessimistic": round(avg_supplier * 1.15, 2),
+                        "trend": "stable"
+                    })
+                forecasts_by_category["suppliers"] = supplier_forecasts
+        
+        return jsonify({
+            "forecasts": forecasts_by_category,
+            "category": category,
+            "method": "calculation"
+        })
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error("Expense forecast error: %s\n%s", e, traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
 @ai_bp.route("/salary-forecast", methods=["GET"])
 def salary_forecast():
     """AI-powered multi-period salary cost forecasting with confidence intervals."""

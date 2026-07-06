@@ -14,3 +14,7 @@ generated/
 
 .tmp.drivedownload/
 pic/
+test_*.py
+check_*.py
+*.db
+*.pyc
