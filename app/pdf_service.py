@@ -4272,10 +4272,6 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     els.append(Spacer(1, 4*mm))
 
     # ═══ TABLE ═══
-    FS = 6
-    def cell(t, bold=False, color=C4, align=TA_LEFT, size=FS):
-        fn = 'Helvetica-Bold' if bold else 'Helvetica'
-        return Paragraph(str(t or '-'), ParagraphStyle('c', fontSize=size, fontName=fn, textColor=color, alignment=align, leading=size + 1))
     cw_d, cw_p, cw_a, cw_desc = 35, 70, 40, W - 35 - 70 - 40
     colw = [cw_d, cw_p, cw_a, cw_desc]
     hdr = [
@@ -4287,26 +4283,31 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     rws = [hdr]
     for r in rows:
         rws.append([
-            cell(r.get('entry_date'), align=TA_CENTER, size=FS),
-            cell(r.get('payee'), bold=True, size=FS),
-            cell('{:,.2f}'.format(float(r.get('amount') or 0)), bold=True, color='#c62828', align=TA_RIGHT, size=FS),
-            cell(r.get('description'), color=C5, size=FS),
+            str(r.get('entry_date') or '—'),
+            str(r.get('payee') or '—'),
+            '{:,.2f}'.format(float(r.get('amount') or 0)),
+            str(r.get('description') or '—'),
         ])
-    rws.append([
-        Paragraph('<b>Total</b>', ParagraphStyle('cb', fontSize=8, fontName='Helvetica-Bold', textColor=WH, leading=10)),
-        Paragraph('', ParagraphStyle('x', fontSize=FS, leading=FS + 1)),
-        Paragraph('<b>{:,.2f}</b>'.format(total_amount), ParagraphStyle('ct', fontSize=8, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=10)),
-        Paragraph('', ParagraphStyle('x', fontSize=FS, leading=FS + 1)),
-    ])
+    rws.append(['Total', '', '{:,.2f}'.format(total_amount), ''])
     it = Table(rws, colWidths=colw, repeatRows=1)
     it.setStyle(TableStyle([
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
         ('BACKGROUND',(0,0),(-1,0),TH), ('TEXTCOLOR',(0,0),(-1,0),WH),
-        ('BOX',(0,0),(-1,-1),0.5,C3), ('INNERGRID',(0,0),(-1,-1),0.3,C3),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('ALIGN',(2,1),(2,-1),'RIGHT'),
+        ('ALIGN',(1,1),(1,-1),'LEFT'),
+        ('ALIGN',(3,1),(3,-1),'LEFT'),
+        ('FONTSIZE',(0,0),(-1,-1),6),
+        ('FONTNAME',(1,1),(1,-1),'Helvetica-Bold'),
+        ('FONTNAME',(2,1),(2,-1),'Helvetica-Bold'),
+        ('TEXTCOLOR',(2,1),(2,-1),colors.HexColor('#c62828')),
         ('TOPPADDING',(0,0),(-1,-1),1), ('BOTTOMPADDING',(0,0),(-1,-1),1),
         ('LEFTPADDING',(0,0),(-1,-1),1), ('RIGHTPADDING',(0,0),(-1,-1),1),
-        ('BACKGROUND',(0,-1),(-1,-1),TH), ('TEXTCOLOR',(0,-1),(-1,-1),WH),
         ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
+        ('FONTSIZE',(0,-1),(-1,-1),8),
+        ('BACKGROUND',(0,-1),(-1,-1),TH), ('TEXTCOLOR',(0,-1),(-1,-1),WH),
+        ('BOX',(0,0),(-1,-1),0.5,C3), ('INNERGRID',(0,0),(-1,-1),0.3,C3),
+        ('LINEBELOW',(0,0),(-1,0),0.6,TH),
         ('ROWBACKGROUNDS',(0,1),(-2,-2),[WH, BG]),
     ]))
     els.append(it)
