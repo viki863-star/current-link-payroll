@@ -2717,28 +2717,24 @@ def customer_tripsheet_report_pdf(cid):
     db.close()
 
     buf = BytesIO()
-    LM, RM, TM, BM = 15*mm, 15*mm, 15*mm, 15*mm
-    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
-    W = landscape(A4)[0] - LM - RM
+    LM, RM, TM, BM = 12*mm, 12*mm, 10*mm, 10*mm
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = A4[0] - LM - RM
+    FS = 5
 
     tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
     try: TH = colors.HexColor(tc)
     except: TH = colors.HexColor("#1a3a5c")
     WH = colors.white
     C4 = colors.HexColor("#111827")
-    C5 = colors.HexColor("#6b7280")
-
-    def F(name, **kw):
-        kw.setdefault("fontSize", 7)
-        kw.setdefault("leading", 10)
-        return ParagraphStyle(name, **kw)
+    C5_g = colors.HexColor("#6b7280")
 
     _logo_tmp_files = []
     els = []
     cn = company["company_name"] if company else "Current Link"
     trn = company["trn_no"] or "—" if company else "—"
 
-    # ── HEADER with logo & company info (same style as SOA/Invoice) ──
+    # ── COMPACT HEADER ──
     logo = None; LW = 0
     if company and company["logo_data"]:
         try:
@@ -2746,82 +2742,66 @@ def customer_tripsheet_report_pdf(cid):
             lb = base64.b64decode(company["logo_data"])
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
             f.write(lb); f.close()
-            logo = Image(f.name, width=50, height=50)
-            LW = 50
+            logo = Image(f.name, width=30, height=30)
+            LW = 30
             _logo_tmp_files.append(f.name)
         except: pass
 
-    cl = [f"<font size=11><b>{cn}</b></font>"]
-    addr = company["address"] or ""; ph = company["phone_number"] or ""; em = company["email"] or ""
-    parts = [x for x in [addr] if x]
-    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != f"TRN: —"]
-    if parts or cparts:
-        info = " &middot; ".join(parts + cparts)
-        cl.append(f"<font size=6.5 color='#6b7280'>{info}</font>")
-    co_p = Paragraph("<br/>".join(cl), F("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
+    month_name = f"{calendar.month_name[int(month.split('-')[1])]} {month.split('-')[0]}" if '-' in month else month
+    co_text = f"<font size=9><b>{cn}</b></font><br/><font size=5.5 color='#6b7280'>{month_name} &middot; {c['customer_name']}</font>"
+    co_p = Paragraph(co_text, ParagraphStyle("CO", fontSize=9, fontName="Helvetica-Bold", textColor=TH, leading=11))
     if logo:
-        lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm])
+        lh = Table([[logo, Spacer(1, 2*mm), co_p]], colWidths=[LW, 2*mm, W - LW - 2*mm])
         lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     else:
         lh = co_p
-    month_name = f"{calendar.month_name[int(month.split('-')[1])]} {month.split('-')[0]}" if '-' in month else month
-    rh = Paragraph(
-        f"<b>TRIPSHEET<br/>REPORT</b><br/>"
-        f"<font size=7 color='#6b7280'>{month_name}</font>",
-        F("TI", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
+    rh = Paragraph(f"<b>TRIPSHEET REPORT</b>", ParagraphStyle("TI", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13, alignment=TA_RIGHT))
     ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
     ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(ht)
-
-    # Bottom border line
-    hr = Table([[""]], colWidths=[W], rowHeights=[2])
+    hr = Table([[""]], colWidths=[W], rowHeights=[1])
     hr.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(hr)
-    els.append(Spacer(1, 4*mm))
+    els.append(Spacer(1, 2*mm))
 
-    # ── Customer info ──
-    cinfo = [
-        [Paragraph("<b>Customer</b>", F("_cl", fontSize=8, fontName="Helvetica-Bold", textColor=TH, leading=11)),
-         Paragraph(f"<b>{c['customer_name']}</b>", F("_cv", fontSize=9, fontName="Helvetica-Bold", textColor=TH, leading=12))],
-    ]
-    if c["trn"]: cinfo.append([Paragraph("TRN", F("_l", fontSize=7.5, textColor=C5, leading=10)), Paragraph(c["trn"], F("_v", fontSize=8.5, textColor=C4, leading=11))])
-    ct = Table(cinfo, colWidths=[50, W - 50])
-    ct.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),1),("BOTTOMPADDING",(0,0),(-1,-1),1),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(ct)
-    els.append(Spacer(1, 4*mm))
-
-    hdr = ["#", "Date", "Time In", "Time Out", "Total Reading", "Tanker GLN", "Trips", "Tanker Reg"]
-    data = [hdr]
+    hdr = ["#", "Date", "In", "Out", "Reading", "Tanker", "Trips", "Reg #"]
+    hdr_p = [Paragraph(f"<b>{h}</b>", ParagraphStyle("h", fontSize=6, fontName="Helvetica-Bold", textColor=WH, leading=7, alignment=TA_CENTER)) for h in hdr]
+    data = [hdr_p]
     for idx, r in enumerate(rows, 1):
         data.append([
-            str(idx),
-            r["entry_date"] or "—",
-            r["time_in"] or "—",
-            r["time_out"] or "—",
-            f"{r['total_reading'] or 0:,.2f}",
-            r["tanker_gln"] or "—",
-            f"{r['trips'] or 0:,.0f}",
-            r["tanker_reg"] or "—",
+            Paragraph(str(idx), ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["entry_date"] or "—", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph((r["time_in"] or "—")[:5], ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph((r["time_out"] or "—")[:5], ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(f"{r['total_reading'] or 0:,.0f}", ParagraphStyle("c", fontSize=FS, fontName="Helvetica-Bold", leading=FS + 0.5, alignment=TA_RIGHT)),
+            Paragraph(r["tanker_gln"] or "—", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(f"{r['trips'] or 0:,.0f}", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["tanker_reg"] or "—", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
         ])
+    # Total row
+    data.append([
+        Paragraph("<b>Total</b>", ParagraphStyle("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_CENTER)),
+        Paragraph("", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5)),
+        Paragraph("", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5)),
+        Paragraph("", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5)),
+        Paragraph(f"<b>{total_reading_sum:,.0f}</b>", ParagraphStyle("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_RIGHT)),
+        Paragraph("", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5)),
+        Paragraph(f"<b>{total_trips:,.0f}</b>", ParagraphStyle("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_CENTER)),
+        Paragraph("", ParagraphStyle("c", fontSize=FS, leading=FS + 0.5)),
+    ])
 
-    data.append([""] * 8)
-    total_row = ["", "", "", "", f"{total_reading_sum:,.2f}", "", f"{total_trips:,.0f}", ""]
-    data.append(total_row)
-
-    col_w = [W*0.05, W*0.11, W*0.09, W*0.09, W*0.14, W*0.17, W*0.08, W*0.17]
+    col_w = [7*mm, 22*mm, 18*mm, 18*mm, 30*mm, 30*mm, 12*mm, W - 7 - 22 - 18 - 18 - 30 - 30 - 12]
     tbl = Table(data, colWidths=col_w, repeatRows=1)
     tbl.setStyle(TableStyle([
-        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-        ("FONTSIZE", (0,0), (-1,-1), 7),
-        ("BACKGROUND", (0,0), (-1,0), TH),
-        ("TEXTCOLOR", (0,0), (-1,0), WH),
+        ("BACKGROUND", (0,0), (-1,0), TH), ("TEXTCOLOR", (0,0), (-1,0), WH),
         ("ALIGN", (0,0), (-1,-1), "CENTER"),
-        ("ALIGN", (4,0), (4,-1), "RIGHT"),
+        ("ALIGN", (4,1), (4,-1), "RIGHT"),
         ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
         ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f5f8fe")),
-        ("TOPPADDING", (0,0), (-1,-1), 4),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-        ("GRID", (0,0), (-1,-2), 0.3, colors.HexColor("#d8e4f5")),
+        ("TOPPADDING", (0,0), (-1,-1), 0.5),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 0.5),
+        ("GRID", (0,0), (-1,-2), 0.2, colors.HexColor("#d0d8e8")),
+        ("LINEBELOW", (0,0), (-1,0), 0.5, TH),
     ]))
     els.append(tbl)
 
