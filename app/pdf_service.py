@@ -4276,14 +4276,12 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     def cell(t, bold=False, color=C4, align=TA_LEFT, size=FS):
         fn = 'Helvetica-Bold' if bold else 'Helvetica'
         return Paragraph(str(t or '-'), ParagraphStyle('c', fontSize=size, fontName=fn, textColor=color, alignment=align, leading=size + 1))
-    cw_d, cw_p, cw_a, cw_ref = 30, 60, 30, 20
-    cw_desc = W - cw_d - cw_p - cw_a - cw_ref
-    colw = [cw_d, cw_p, cw_a, cw_ref, cw_desc]
+    cw_d, cw_p, cw_a, cw_desc = 33, 66, 38, 37
+    colw = [cw_d, cw_p, cw_a, cw_desc]
     hdr = [
         Paragraph('<b>Date</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph('<b>Payee</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=9)),
         Paragraph('<b>Amount (AED)</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=9)),
-        Paragraph('<b>Ref</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph('<b>Description</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=9)),
     ]
     rws = [hdr]
@@ -4292,14 +4290,12 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
             cell(r.get('entry_date'), align=TA_CENTER, size=FS),
             cell(r.get('payee'), bold=True, size=FS),
             cell('{:,.2f}'.format(float(r.get('amount') or 0)), bold=True, color='#c62828', align=TA_RIGHT, size=FS),
-            cell(r.get('reference_no'), color=C5, align=TA_CENTER, size=FS),
             cell(r.get('description'), color=C5, size=FS),
         ])
     rws.append([
         Paragraph('<b>Total</b>', ParagraphStyle('cb', fontSize=8, fontName='Helvetica-Bold', textColor=WH, leading=10)),
         Paragraph('', ParagraphStyle('x', fontSize=FS, leading=FS + 1)),
         Paragraph('<b>{:,.2f}</b>'.format(total_amount), ParagraphStyle('ct', fontSize=8, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=10)),
-        Paragraph('', ParagraphStyle('x', fontSize=FS, leading=FS + 1)),
         Paragraph('', ParagraphStyle('x', fontSize=FS, leading=FS + 1)),
     ])
     it = Table(rws, colWidths=colw, repeatRows=1)
