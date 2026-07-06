@@ -184,6 +184,251 @@ def tripsheet_save():
         return jsonify({"error": str(e)}), 500
 
 
+@ai_bp.route("/anomaly-detection", methods=["GET"])
+def anomaly_detection():
+    """AI-powered anomaly detection for expenses, attendance, and payments."""
+    try:
+        db = open_db()
+        category = request.args.get("category", "all")  # all, expenses, attendance, payments
+        
+        anomalies = []
+        
+        # Expense Anomalies (fuel entries)
+        if category in ["all", "expenses"]:
+            fuel_entries = db.execute("""
+                SELECT vehicle_plate, entry_date, total_amount, gallons, rate_per_gallon
+                FROM fuel_entries
+                WHERE entry_date >= date('now', '-90 days')
+                ORDER BY entry_date DESC
+                LIMIT 100
+            """).fetchall()
+            
+            if fuel_entries:
+                amounts = [float(f["total_amount"] or 0) for f in fuel_entries]
+                if amounts:
+                    avg = sum(amounts) / len(amounts)
+                    std = (sum((x - avg) ** 2 for x in amounts) / len(amounts)) ** 0.5
+                    
+                    for entry in fuel_entries:
+                        amount = float(entry["total_amount"] or 0)
+                        if std > 0 and abs(amount - avg) > 2 * std:  # 2 standard deviations
+                            anomalies.append({
+                                "type": "expense",
+                                "severity": "high" if abs(amount - avg) > 3 * std else "medium",
+                                "description": f"Unusual fuel charge: AED {amount:.2f} for {entry['vehicle_plate']} on {entry['entry_date']}",
+                                "value": amount,
+                                "expected": round(avg, 2),
+                                "deviation": round(((amount - avg) / avg) * 100, 1) if avg > 0 else 0
+                            })
+        
+        # Payment Anomalies (supplier invoices)
+        if category in ["all", "payments"]:
+            invoices = db.execute("""
+                SELECT supplier_id, invoice_date, total_amount, invoice_number
+                FROM supplier_invoices
+                WHERE invoice_date >= date('now', '-90 days')
+                ORDER BY invoice_date DESC
+                LIMIT 100
+            """).fetchall()
+            
+            if invoices:
+                amounts = [float(i["total_amount"] or 0) for i in invoices]
+                if amounts:
+                    avg = sum(amounts) / len(amounts)
+                    std = (sum((x - avg) ** 2 for x in amounts) / len(amounts)) ** 0.5
+                    
+                    for invoice in invoices:
+                        amount = float(invoice["total_amount"] or 0)
+                        if std > 0 and abs(amount - avg) > 2 * std:
+                            anomalies.append({
+                                "type": "payment",
+                                "severity": "high" if abs(amount - avg) > 3 * std else "medium",
+                                "description": f"Unusual invoice amount: AED {amount:.2f} from supplier {invoice['supplier_id']}",
+                                "value": amount,
+                                "expected": round(avg, 2),
+                                "deviation": round(((amount - avg) / avg) * 100, 1) if avg > 0 else 0
+                            })
+        
+        # Attendance Anomalies (driver timesheets)
+        if category in ["all", "attendance"]:
+            timesheets = db.execute("""
+                SELECT driver_id, entry_date, hours_worked
+                FROM driver_timesheets
+                WHERE entry_date >= date('now', '-90 days')
+                ORDER BY entry_date DESC
+                LIMIT 100
+            """).fetchall()
+            
+            if timesheets:
+                hours = [float(t["hours_worked"] or 0) for t in timesheets]
+                if hours:
+                    avg = sum(hours) / len(hours)
+                    std = (sum((x - avg) ** 2 for x in hours) / len(hours)) ** 0.5
+                    
+                    for ts in timesheets:
+                        hours_worked = float(ts["hours_worked"] or 0)
+                        if std > 0 and abs(hours_worked - avg) > 2 * std:
+                            anomalies.append({
+                                "type": "attendance",
+                                "severity": "high" if hours_worked > avg + 3 * std or hours_worked < avg - 3 * std else "medium",
+                                "description": f"Unusual hours: {hours_worked:.1f}h for driver {ts['driver_id']} on {ts['entry_date']}",
+                                "value": hours_worked,
+                                "expected": round(avg, 1),
+                                "deviation": round(((hours_worked - avg) / avg) * 100, 1) if avg > 0 else 0
+                            })
+        
+        # Sort by severity and recency
+        severity_order = {"high": 0, "medium": 1, "low": 2}
+        anomalies.sort(key=lambda x: (severity_order.get(x["severity"], 2), -x.get("value", 0)))
+        
+        return jsonify({
+            "anomalies": anomalies[:20],  # Return top 20
+            "total": len(anomalies),
+            "category": category
+        })
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error("Anomaly detection error: %s\n%s", e, traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@ai_bp.route("/salary-forecast", methods=["GET"])
+def salary_forecast():
+    """AI-powered multi-period salary cost forecasting with confidence intervals."""
+    try:
+        db = open_db()
+        months = request.args.get("months", "3")  # 3, 6, or 12 months
+        
+        # Get historical salary data from salary_payments
+        historical = db.execute("""
+            SELECT salary_month, SUM(net_payable) AS total_salary, COUNT(*) AS employee_count
+            FROM salary_payments
+            WHERE salary_month IS NOT NULL
+            GROUP BY salary_month
+            ORDER BY salary_month DESC
+            LIMIT 24
+        """).fetchall()
+        
+        if not historical:
+            return jsonify({
+                "forecast": None,
+                "message": "No historical salary data available for forecasting."
+            })
+        
+        # Get current employee count and average salary
+        current_employees = db.execute("""
+            SELECT COUNT(*) AS cnt, AVG(basic_salary) AS avg_salary
+            FROM employees
+            WHERE status = 'Active'
+        """).fetchone()
+        
+        if not current_employees:
+            return jsonify({
+                "forecast": None,
+                "message": "No active employees found."
+            })
+        
+        # Prepare data for AI analysis
+        data_summary = []
+        for row in historical:
+            data_summary.append({
+                "month": row["salary_month"],
+                "total_salary": float(row["total_salary"] or 0),
+                "employee_count": row["employee_count"]
+            })
+        
+        current_count = current_employees["cnt"] or 0
+        avg_salary = float(current_employees["avg_salary"] or 0)
+        
+        # Use AI to forecast for multiple periods with scenarios
+        prompt = f"""
+        Historical salary data (last 24 months):
+        {json.dumps(data_summary, indent=2)}
+        
+        Current active employees: {current_count}
+        Average basic salary: {avg_salary:.2f}
+        
+        Forecast salary costs for the next {months} months with 3 scenarios:
+        1. Optimistic (best case - 10% lower than expected)
+        2. Base (most likely case)
+        3. Pessimistic (worst case - 10% higher than expected)
+        
+        For each month, provide:
+        - Month label (e.g., "2026-08", "2026-09")
+        - Optimistic forecast
+        - Base forecast
+        - Pessimistic forecast
+        - Trend direction for that month
+        
+        Consider:
+        - Historical trends and seasonality
+        - Current employee count and average salary
+        - Typical overtime patterns (10-15% of base salary)
+        
+        Respond with JSON only: {{"forecasts": [{{"month": "YYYY-MM", "optimistic": amount, "base": amount, "pessimistic": amount, "trend": "up/down/stable"}}], "summary": "brief insight", "confidence": "high/medium/low"}}
+        """
+        
+        result, err = _call_llm([{"role": "system", "content": "You are a financial forecasting AI. Respond with JSON only. Use realistic AED amounts."}, {"role": "user", "content": prompt}])
+        
+        if err:
+            # Fallback to simple calculation if AI fails
+            base_monthly = current_count * avg_salary * 1.1  # Add 10% buffer
+            forecasts = []
+            from datetime import datetime, timedelta
+            today = datetime.now()
+            for i in range(1, int(months) + 1):
+                future_month = (today.replace(day=1) + timedelta(days=32*i)).replace(day=1)
+                forecasts.append({
+                    "month": future_month.strftime("%Y-%m"),
+                    "optimistic": round(base_monthly * 0.9, 2),
+                    "base": round(base_monthly, 2),
+                    "pessimistic": round(base_monthly * 1.1, 2),
+                    "trend": "stable"
+                })
+            return jsonify({
+                "forecasts": forecasts,
+                "summary": f"Based on {current_count} active employees with average salary AED {avg_salary:.2f}",
+                "confidence": "medium",
+                "historical": data_summary[:6],
+                "current_employees": current_count,
+                "method": "calculation"
+            })
+        
+        if isinstance(result, dict):
+            forecasts = result.get("forecasts", [])
+            if not forecasts:
+                # Generate fallback if AI returns empty forecasts
+                base_monthly = current_count * avg_salary * 1.1
+                forecasts = []
+                from datetime import datetime, timedelta
+                today = datetime.now()
+                for i in range(1, int(months) + 1):
+                    future_month = (today.replace(day=1) + timedelta(days=32*i)).replace(day=1)
+                    forecasts.append({
+                        "month": future_month.strftime("%Y-%m"),
+                        "optimistic": round(base_monthly * 0.9, 2),
+                        "base": round(base_monthly, 2),
+                        "pessimistic": round(base_monthly * 1.1, 2),
+                        "trend": "stable"
+                    })
+            return jsonify({
+                "forecasts": forecasts[:int(months)],
+                "summary": result.get("summary", ""),
+                "confidence": result.get("confidence", "medium"),
+                "historical": data_summary[:6],
+                "current_employees": current_count,
+                "method": "ai"
+            })
+        
+        return jsonify({"error": "Invalid AI response"}), 500
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error("Salary forecast error: %s\n%s", e, traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
 @ai_bp.route("/chat", methods=["POST"])
 def chat():
     try:
