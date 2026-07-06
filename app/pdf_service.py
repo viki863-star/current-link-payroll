@@ -4012,7 +4012,7 @@ def generate_fuel_report_pdf(entries, vehicle_filter, month_filter, output_dir, 
 
     addr = cp.get('address') or ''; ph = cp.get('phone_number') or ''; em = cp.get('email') or ''
     parts = [x for x in [addr] if x]
-    cparts = [x for x in [ph, em, 'TRN: {}'.format(trn)] if x and x != 'TRN: —']
+    cparts = [x for x in [ph, em] if x]
     info = ''
     if parts or cparts:
         info = ' &middot; '.join(parts + cparts)
@@ -4020,12 +4020,13 @@ def generate_fuel_report_pdf(entries, vehicle_filter, month_filter, output_dir, 
     cl = ['<font size=10><b>{}</b></font>'.format(cn)]
     if info:
         cl.append('<font size=6 color="#6b7280">{}</font>'.format(info))
+    if trn and trn != '—':
+        cl.append('<font size=6 color="#6b7280">TRN: {}</font>'.format(trn))
     co_p = Paragraph('<br/>'.join(cl), ParagraphStyle('CO', fontSize=10, fontName='Helvetica-Bold', textColor=TH, leading=12))
 
     lh = co_p
     if logo:
-        lh = Table([[logo, Spacer(1, 2*mm), co_p]], colWidths=[LW, 2*mm, W - LW - 2*mm])
-        lh.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
+        lh = Table([[logo, Spacer(1, 2*mm), co_p]], colWidths=[LW, 2*mm, W*0.65 - LW - 2*mm])
 
     subtitle = month_label + (' | Vehicle: {}'.format(vehicle_filter) if vehicle_filter else '')
     rh = Paragraph(
@@ -4240,7 +4241,7 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
 
     addr = cp.get('address') or ''; ph = cp.get('phone_number') or ''; em = cp.get('email') or ''
     parts = [x for x in [addr] if x]
-    cparts = [x for x in [ph, em, 'TRN: {}'.format(trn)] if x and x != 'TRN: —']
+    cparts = [x for x in [ph, em] if x]
     info = ''
     if parts or cparts:
         info = ' &middot; '.join(parts + cparts)
@@ -4248,12 +4249,13 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     cl = ['<font size=10><b>{}</b></font>'.format(cn)]
     if info:
         cl.append('<font size=6 color="#6b7280">{}</font>'.format(info))
+    if trn and trn != '—':
+        cl.append('<font size=6 color="#6b7280">TRN: {}</font>'.format(trn))
     co_p = Paragraph('<br/>'.join(cl), ParagraphStyle('CO', fontSize=10, fontName='Helvetica-Bold', textColor=TH, leading=12))
 
     lh = co_p
     if logo:
-        lh = Table([[logo, Spacer(1, 2*mm), co_p]], colWidths=[LW, 2*mm, W - LW - 2*mm])
-        lh.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
+        lh = Table([[logo, Spacer(1, 2*mm), co_p]], colWidths=[LW, 2*mm, W*0.65 - LW - 2*mm])
 
     month_display = month_label.replace('-', ' ') if month_label != 'All Periods' else 'All Periods'
     rh = Paragraph(

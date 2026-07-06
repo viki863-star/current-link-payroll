@@ -2751,7 +2751,7 @@ def customer_tripsheet_report_pdf(cid):
     co_text = f"<font size=9><b>{cn}</b></font><br/><font size=5.5 color='#6b7280'>{month_name} &middot; {c['customer_name']}</font>"
     co_p = Paragraph(co_text, ParagraphStyle("CO", fontSize=9, fontName="Helvetica-Bold", textColor=TH, leading=11))
     if logo:
-        lh = Table([[logo, Spacer(1, 2*mm), co_p]], colWidths=[LW, 2*mm, W - LW - 2*mm])
+        lh = Table([[logo, Spacer(1, 2*mm), co_p]], colWidths=[LW, 2*mm, W*0.65 - LW - 2*mm])
         lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     else:
         lh = co_p
