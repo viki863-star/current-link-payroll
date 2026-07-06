@@ -3,7 +3,7 @@ import re
 import os
 import requests
 from datetime import date
-from flask import request, jsonify, current_app
+from flask import render_template, request, jsonify, current_app, session
 from . import ai_bp
 from ..database import open_db
 from app import csrf
@@ -115,6 +115,13 @@ def _call_llm(messages):
         return {"explanation": prefix or raw, "sql": ""}, None
     except Exception as e:
         return None, str(e)
+
+
+@ai_bp.route("/")
+def ai_dashboard():
+    if session.get("current_role") != "admin":
+        return render_template("login-premium.html")
+    return render_template("ai_dashboard.html")
 
 
 @ai_bp.route("/tripsheet_save", methods=["POST"])
