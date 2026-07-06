@@ -4190,75 +4190,77 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     try: TH = colors.HexColor(tc)
     except: TH = colors.HexColor('#1a3a5c')
     BG = colors.HexColor('#f4f6f9'); WH = colors.white; C3 = colors.HexColor('#d1d5db')
-    C4 = colors.HexColor('#111827'); C5 = colors.HexColor('#6b7280')
+    C4 = colors.HexColor('#111827'); C5 = colors.HexColor('#6b7280'); RD = colors.HexColor('#c62828')
 
-    def F(name, **kw):
-        kw.setdefault('fontSize', 8); kw.setdefault('leading', 12)
-        return ParagraphStyle(name, **kw)
-
-    def R(t, **kw):
-        kw.setdefault('alignment', TA_RIGHT)
-        return Paragraph(str(t), F('_R', **kw))
-    def C(t, **kw):
-        kw.setdefault('alignment', TA_CENTER)
-        return Paragraph(str(t), F('_C', **kw))
-    def L(t, **kw):
-        kw.setdefault('textColor', C5)
-        return Paragraph(str(t), F('_L', **kw))
-
-    els = []
     cn = cp.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING')
     trn = cp.get('trn_no') or '—'
+    els = []
 
-    # ═══ HEADER (matches SOA/invoice style) ═══
+    # ═══════════════════════════════════════
+    # 1. HEADER
+    # ═══════════════════════════════════════
     logo = None; LW = 0
     if cp.get('logo_data'):
         try:
             lb = base64.b64decode(cp['logo_data'])
             f = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
             f.write(lb); f.close()
-            logo = Image(f.name, width=50, height=50)
-            LW = 50
+            logo = Image(f.name, width=40, height=40)
+            LW = 40
             _logo_tmp_files.append(f.name)
         except: pass
 
-    cl = ['<font size=11><b>{}</b></font>'.format(cn)]
     addr = cp.get('address') or ''; ph = cp.get('phone_number') or ''; em = cp.get('email') or ''
     parts = [x for x in [addr] if x]
     cparts = [x for x in [ph, em, 'TRN: {}'.format(trn)] if x and x != 'TRN: —']
+    info = ''
     if parts or cparts:
         info = ' &middot; '.join(parts + cparts)
-        cl.append('<font size=6.5 color="#6b7280">{}</font>'.format(info))
-    co_p = Paragraph('<br/>'.join(cl), F('CO', fontSize=11, fontName='Helvetica-Bold', textColor=TH, leading=13))
+
+    cl = ['<font size=10><b>{}</b></font>'.format(cn)]
+    if info:
+        cl.append('<font size=6 color="#6b7280">{}</font>'.format(info))
+    co_p = Paragraph('<br/>'.join(cl), ParagraphStyle('CO', fontSize=10, fontName='Helvetica-Bold', textColor=TH, leading=12))
+
+    lh = co_p
     if logo:
-        lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm])
+        lh = Table([[logo, Spacer(1, 2*mm), co_p]], colWidths=[LW, 2*mm, W - LW - 2*mm])
         lh.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
-    else:
-        lh = co_p
+
+    month_display = month_label.replace('-', ' ') if month_label != 'All Periods' else 'All Periods'
     rh = Paragraph(
-        '<b>ATM WITHDRAWAL<br/>REPORT</b>',
-        F('TI', fontSize=14, fontName='Helvetica-Bold', textColor=TH, leading=18, alignment=TA_RIGHT))
+        '<b>ATM WITHDRAWAL<br/>REPORT</b><br/><font size=6.5 color="#6b7280">{}</font>'.format(month_display),
+        ParagraphStyle('TI', fontSize=13, fontName='Helvetica-Bold', textColor=TH, leading=16, alignment=TA_RIGHT))
+
     ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
     ht.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
     els.append(ht)
     els.append(Spacer(1, 2*mm))
-    hr = Table([['']], colWidths=[W], rowHeights=[2])
+    hr = Table([['']], colWidths=[W], rowHeights=[1.5])
     hr.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),TH),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)]))
     els.append(hr)
     els.append(Spacer(1, 4*mm))
 
-    # PERIOD INFO
-    els.append(Paragraph(
-        '<font size=7 color="#6b7280">{}</font>'.format(month_label if month_label != 'All Periods' else 'All Periods'),
-        F('_pr', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
-    els.append(Spacer(1, 2*mm))
+    # ═══════════════════════════════════════
+    # 2. PERIOD BADGE
+    # ═══════════════════════════════════════
+    badge_text = month_display
+    badge = Table([[Paragraph('<b>{}</b>'.format(badge_text), ParagraphStyle('b', fontSize=7, fontName='Helvetica-Bold', textColor=TH, alignment=TA_CENTER, leading=9))]], colWidths=[80])
+    badge.setStyle(TableStyle([
+        ('BOX',(0,0),(-1,-1),0.5,TH), ('TOPPADDING',(0,0),(-1,-1),3), ('BOTTOMPADDING',(0,0),(-1,-1),3),
+        ('LEFTPADDING',(0,0),(-1,-1),8), ('RIGHTPADDING',(0,0),(-1,-1),8), ('ALIGN',(0,0),(-1,-1),'CENTER'),
+    ]))
+    els.append(badge)
+    els.append(Spacer(1, 4*mm))
 
-    # ═══ SUMMARY CARDS (SOA style) ═══
+    # ═══════════════════════════════════════
+    # 3. SUMMARY CARDS
+    # ═══════════════════════════════════════
     avg = total_amount / len(rows) if rows else 0
     sdata = [[
-        Paragraph('<b>Total Withdrawals</b><br/><font size=10 color="#1a3a5c">{}</font>'.format(len(rows)), F('_s1', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        Paragraph('<b>Total Amount</b><br/><font size=10 color="#c62828">AED {:,.2f}</font>'.format(total_amount), F('_s2', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        Paragraph('<b>Average</b><br/><font size=10 color="#1a3a5c">AED {:,.2f}</font>'.format(avg), F('_s3', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph('<b>Total Withdrawals</b><br/><font size=10 color="#1a3a5c">{}</font>'.format(len(rows)), ParagraphStyle('_s1', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph('<b>Total Amount</b><br/><font size=10 color="#c62828">AED {:,.2f}</font>'.format(total_amount), ParagraphStyle('_s2', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        Paragraph('<b>Average</b><br/><font size=10 color="#1a3a5c">AED {:,.2f}</font>'.format(avg), ParagraphStyle('_s3', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
     ]]
     st = Table(sdata, colWidths=[W/3, W/3, W/3])
     st.setStyle(TableStyle([
@@ -4269,58 +4271,73 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
         ('BACKGROUND',(0,0),(-1,-1),BG),
     ]))
     els.append(st)
-    els.append(Spacer(1, 4*mm))
+    els.append(Spacer(1, 5*mm))
 
-    # ═══ TABLE ═══
-    cw_d, cw_p, cw_a, cw_desc = 32, 75, 45, W - 32 - 75 - 45
-    colw = [cw_d, cw_p, cw_a, cw_desc]
+    # ═══════════════════════════════════════
+    # 4. DATA TABLE
+    # ═══════════════════════════════════════
+    # Column proportions: Date 12%, Payee 28%, Amount 15%, Description 45%
+    cw_d = int(W * 0.12)
+    cw_p = int(W * 0.28)
+    cw_a = int(W * 0.15)
+    cw_desc = W - cw_d - cw_p - cw_a
+
     hdr = [
         Paragraph('<b>Date</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=9)),
-        Paragraph('<b>Payee</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=9)),
+        Paragraph('<b>Payee</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_LEFT, leading=9)),
         Paragraph('<b>Amount (AED)</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_RIGHT, leading=9)),
-        Paragraph('<b>Description</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, leading=9)),
+        Paragraph('<b>Description</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_LEFT, leading=9)),
     ]
+
+    def desc_p(t):
+        return Paragraph(str(t or '—'), ParagraphStyle('d', fontSize=6, textColor=C5, leading=7.5, alignment=TA_LEFT))
+
     rws = [hdr]
     for r in rows:
         rws.append([
             str(r.get('entry_date') or '—'),
             str(r.get('payee') or '—'),
             '{:,.2f}'.format(float(r.get('amount') or 0)),
-            str(r.get('description') or '—'),
+            desc_p(r.get('description')),
         ])
-    rws.append(['Total', '', '{:,.2f}'.format(total_amount), ''])
-    it = Table(rws, colWidths=colw, repeatRows=1)
+
+    rws.append(['Total', '', '{:,.2f}'.format(total_amount), Paragraph('<b>—</b>', ParagraphStyle('t', fontSize=6, fontName='Helvetica-Bold', textColor=WH, leading=7.5))])
+
+    it = Table(rws, colWidths=[cw_d, cw_p, cw_a, cw_desc], repeatRows=1)
     it.setStyle(TableStyle([
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
         ('BACKGROUND',(0,0),(-1,0),TH), ('TEXTCOLOR',(0,0),(-1,0),WH),
-        ('ALIGN',(0,0),(-1,-1),'CENTER'),
-        ('ALIGN',(2,1),(2,-1),'RIGHT'),
+        ('ALIGN',(0,1),(0,-1),'CENTER'),
         ('ALIGN',(1,1),(1,-1),'LEFT'),
+        ('ALIGN',(2,1),(2,-1),'RIGHT'),
         ('ALIGN',(3,1),(3,-1),'LEFT'),
-        ('FONTSIZE',(0,0),(-1,-1),6),
-        ('FONTNAME',(1,1),(1,-1),'Helvetica-Bold'),
-        ('FONTNAME',(2,1),(2,-1),'Helvetica-Bold'),
-        ('TEXTCOLOR',(2,1),(2,-1),colors.HexColor('#c62828')),
-        ('TOPPADDING',(0,0),(-1,-1),1), ('BOTTOMPADDING',(0,0),(-1,-1),1),
-        ('LEFTPADDING',(0,0),(-1,-1),1), ('RIGHTPADDING',(0,0),(-1,-1),1),
+        ('FONTSIZE',(0,1),(2,-2),6),
+        ('FONTNAME',(1,1),(1,-2),'Helvetica-Bold'),
+        ('FONTNAME',(2,1),(2,-2),'Helvetica-Bold'),
+        ('TEXTCOLOR',(2,1),(2,-2),RD),
+        ('TOPPADDING',(0,0),(-1,-1),1.5), ('BOTTOMPADDING',(0,0),(-1,-1),1.5),
+        ('LEFTPADDING',(0,0),(-1,-1),2), ('RIGHTPADDING',(0,0),(-1,-1),2),
         ('FONTNAME',(0,-1),(-1,-1),'Helvetica-Bold'),
         ('FONTSIZE',(0,-1),(-1,-1),8),
         ('BACKGROUND',(0,-1),(-1,-1),TH), ('TEXTCOLOR',(0,-1),(-1,-1),WH),
         ('BOX',(0,0),(-1,-1),0.5,C3), ('INNERGRID',(0,0),(-1,-1),0.3,C3),
         ('LINEBELOW',(0,0),(-1,0),0.6,TH),
         ('ROWBACKGROUNDS',(0,1),(-2,-2),[WH, BG]),
+        ('LINEABOVE',(0,-1),(-1,-1),0.6,TH),
     ]))
     els.append(it)
-    els.append(Spacer(1, 4*mm))
+    els.append(Spacer(1, 5*mm))
+
+    # ═══════════════════════════════════════
+    # 5. FOOTER
+    # ═══════════════════════════════════════
     els.append(Paragraph(
         '<font size=6.5 color="#6b7280">Generated on {}</font>'.format(datetime.now().strftime('%d-%b-%Y %I:%M %p')),
-        F('_ft', fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
+        ParagraphStyle('_ft', fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=9)))
 
     doc.build(els)
-    # Write buf to file
     with open(str(output_path), 'wb') as f:
         f.write(buf.getvalue())
-    # Cleanup temp logo files
     for tmp in _logo_tmp_files:
         try: os.unlink(tmp)
         except: pass
