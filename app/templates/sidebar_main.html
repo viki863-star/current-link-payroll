@@ -57,27 +57,12 @@
                 <span class="erp-nav-copy"><strong>Dashboard</strong></span>
             </a>
 
-            {# Fleet (expandable) #}
-            {% set fleet_children = [
-                {"label": "Dashboard", "endpoint": "fleet.fleet_dashboard", "icon": "layout"},
-                {"label": "Vehicles", "endpoint": "fleet.vehicle_list", "icon": "truck"},
-            ] %}
-            {% set fleet_endpoints = [] %}
-            {% for ch in fleet_children %}{% set _ = fleet_endpoints.append(ch.endpoint) %}{% endfor %}
-            {% set is_on_fleet = request.endpoint and (request.endpoint in fleet_endpoints or request.endpoint.startswith('fleet.')) %}
-            <button class="erp-nav-expandable {{ 'is-expanded' if is_on_fleet }}" type="button" id="fleetExpandBtn" aria-expanded="{{ 'true' if is_on_fleet else 'false' }}">
+            {# Fleet (direct link to dashboard) #}
+            {% set is_on_fleet = request.endpoint and request.endpoint.startswith('fleet.') %}
+            <a class="erp-nav-link {{ 'is-active' if is_on_fleet }}" href="{{ url_for('fleet.fleet_dashboard') }}">
                 <span class="erp-nav-icon">{{ nav_icon('truck') }}</span>
                 <span class="erp-nav-copy"><strong>Fleet</strong></span>
-                {{ nav_icon('chevron') }}
-            </button>
-            <div class="erp-nav-children {{ 'is-expanded' if is_on_fleet }}" id="fleetChildren">
-                {% for ch in fleet_children %}
-                <a class="erp-nav-link erp-nav-child {{ 'is-active' if request.endpoint == ch.endpoint }}" href="{{ url_for(ch.endpoint) }}">
-                    <span class="erp-nav-icon">{{ nav_icon(ch.icon) }}</span>
-                    <span class="erp-nav-copy">{{ ch.label }}</span>
-                </a>
-                {% endfor %}
-            </div>
+            </a>
 
             {# HR & Employees #}
             {% set is_hr = request.endpoint and request.endpoint.startswith('hr.') %}
