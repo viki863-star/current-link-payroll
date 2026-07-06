@@ -4272,7 +4272,7 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     els.append(Spacer(1, 4*mm))
 
     # ═══ TABLE ═══
-    cw_d, cw_p, cw_a, cw_desc = 35, 70, 40, W - 35 - 70 - 40
+    cw_d, cw_p, cw_a, cw_desc = 32, 75, 45, W - 32 - 75 - 45
     colw = [cw_d, cw_p, cw_a, cw_desc]
     hdr = [
         Paragraph('<b>Date</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=9)),
