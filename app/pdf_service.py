@@ -4181,7 +4181,7 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
 
     _logo_tmp_files = []
     buf = BytesIO()
-    LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 15*mm
+    LM, RM, TM, BM = 12*mm, 12*mm, 15*mm, 15*mm
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
     W = A4[0] - LM - RM
 
@@ -4276,7 +4276,7 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     def cell(t, bold=False, color=C4, align=TA_LEFT, size=FS):
         fn = 'Helvetica-Bold' if bold else 'Helvetica'
         return Paragraph(str(t or '-'), ParagraphStyle('c', fontSize=size, fontName=fn, textColor=color, alignment=align, leading=size + 1))
-    cw_d, cw_p, cw_a, cw_desc = 33, 66, 38, 37
+    cw_d, cw_p, cw_a, cw_desc = 35, 70, 40, W - 35 - 70 - 40
     colw = [cw_d, cw_p, cw_a, cw_desc]
     hdr = [
         Paragraph('<b>Date</b>', ParagraphStyle('h', fontSize=7, fontName='Helvetica-Bold', textColor=WH, alignment=TA_CENTER, leading=9)),
