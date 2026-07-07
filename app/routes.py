@@ -7953,7 +7953,7 @@ def register_routes(app: Flask) -> None:
                         return redirect(url_for("owner_fund"))
 
             incoming, outgoing, balance = _owner_fund_totals(db)
-            view_rows = _owner_fund_statement(db, reverse=True, filters=filters)
+            view_rows = _owner_fund_statement(db, reverse=False, filters=filters)
             view_incoming, view_outgoing, view_net, view_closing = _owner_fund_view_totals(view_rows)
             entries = db.execute(
                 """
