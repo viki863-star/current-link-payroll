@@ -798,7 +798,7 @@ def customer_invoice_pdf(cid, iid):
     # Estimate fixed content height (in points)
     fixed_pt = 35*mm + 4*mm + 35*mm + 4*mm + 2*mm + 20*mm + 3*mm + 7*mm + (7*mm if inv["notes"] else 0) + 10*mm + 8*mm + 8*mm
     avail_pt = A4[1] - TM - BM - fixed_pt
-    num_rows = len(items)
+    num_rows = len(items) - (1 if is_nmdc else 0)
     fs = 7.0
     if num_rows > 0:
         target = avail_pt / (num_rows + 1)
@@ -816,12 +816,6 @@ def customer_invoice_pdf(cid, iid):
 
     if is_nmdc:
         nmdc_main_desc = items[0]["description"] if items else ""
-        nmdc_equip_items = items[1:] if len(items) > 1 else []
-        if nmdc_main_desc:
-            els.append(Paragraph(
-                f"<b>Description of Service:</b><br/>{nmdc_main_desc}",
-                S("_nd", fontSize=9, textColor=C4, leading=14)))
-            els.append(Spacer(1, 3*mm))
         try:
             import json
             nmdc_meta = json.loads(inv.get("notes", "{}"))
@@ -831,6 +825,11 @@ def customer_invoice_pdf(cid, iid):
         nmdc_pt = nmdc_meta.get("period_to", "") or ""
         nmdc_mr = nmdc_meta.get("monthly_rate", 0) or 0
         nmdc_ml = nmdc_meta.get("month_label", "") or ""
+        if nmdc_main_desc:
+            els.append(Paragraph(
+                f"<b>Description of Service:</b><br/>{nmdc_main_desc}",
+                S("_nd", fontSize=9, textColor=C4, leading=14)))
+            els.append(Spacer(1, 2*mm))
         if nmdc_pf or nmdc_pt or nmdc_mr:
             period_html = f"<b>Period:</b> {nmdc_pf} to {nmdc_pt}" if nmdc_pf or nmdc_pt else ""
             if nmdc_mr:
@@ -838,53 +837,7 @@ def customer_invoice_pdf(cid, iid):
             if nmdc_ml:
                 period_html += f" &nbsp;&nbsp; <b>Month:</b> {nmdc_ml}"
             els.append(Paragraph(period_html, S("_np", fontSize=8, textColor=C4, leading=13)))
-            els.append(Spacer(1, 3*mm))
-        if nmdc_equip_items:
-            vh, vcw = 6.5, [8*mm, W*0.25, W*0.22, W*0.15, W*0.15, W*0.18]
-            vhdr = [
-                Paragraph("<b>#</b>", S("_vh0", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=vh*1.4)),
-                Paragraph("<b>Plant No.</b>", S("_vh1", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, leading=vh*1.4)),
-                Paragraph("<b>Equipment Reg #</b>", S("_vh1b", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, leading=vh*1.4)),
-                Paragraph("<b>Hours</b>", S("_vh2", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=vh*1.4)),
-                Paragraph("<b>QYT (Mo)</b>", S("_vh3", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=vh*1.4)),
-                Paragraph("<b>Amount</b>", S("_vh4", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=vh*1.4)),
-            ]
-            vrws = [vhdr]
-            tot_h, tot_q, tot_a = 0, 0, 0
-            for idx, it in enumerate(nmdc_equip_items):
-                hrs = float(it["capacity_gallon"]) if it.get("capacity_gallon") and float(it["capacity_gallon"]) > 0 else round(it["quantity"] * NMDC_CONV_HOURS, 0)
-                qyt = it["quantity"]
-                tot_h += hrs
-                tot_q += qyt
-                tot_a += it["amount"] or 0
-                vrws.append([
-                    _pc(str(idx+1), alignment=TA_CENTER, fontName="Helvetica-Bold"),
-                    _pc(it["vehicle_no"] or "—"),
-                    _pc(it["description"] or "—"),
-                    _pc(f"{hrs:,.2f}", alignment=TA_RIGHT),
-                    _pc(f"{qyt:,.3f}", alignment=TA_RIGHT),
-                    _pc(f"{it['amount'] or 0:,.2f}", alignment=TA_RIGHT),
-                ])
-            vrws.append([
-                Paragraph("<b>Total</b>", S("_vft", fontSize=vh, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=vh*1.4)),
-                Paragraph("", S("_vfe", fontSize=vh, leading=vh*1.4)),
-                Paragraph("", S("_vfe2", fontSize=vh, leading=vh*1.4)),
-                Paragraph(f"<b>{tot_h:,.2f}</b>", S("_vftr", fontSize=vh, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=vh*1.4)),
-                Paragraph(f"<b>{tot_q:,.3f}</b>", S("_vftr2", fontSize=vh, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=vh*1.4)),
-                Paragraph(f"<b>{tot_a:,.2f}</b>", S("_vftr3", fontSize=vh, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=vh*1.4)),
-            ])
-            vtt = Table(vrws, colWidths=vcw, repeatRows=1)
-            vtt.setStyle(TableStyle([
-                ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-                ("BACKGROUND",(0,0),(-1,0),DH), ("TEXTCOLOR",(0,0),(-1,0),WH),
-                ("BOX",(0,0),(-1,-1),0.5,C3),
-                ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-                ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
-                ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
-                ("BACKGROUND",(0,-1),(-1,-1),BG),
-            ]))
-            els.append(vtt)
-            els.append(Spacer(1, 4*mm))
+            els.append(Spacer(1, 2*mm))
 
     cw = [10*mm, 36*mm, 20*mm, 10*mm, 16*mm, 20*mm, 14*mm, 18*mm, 28*mm]
     hdr = [
@@ -899,16 +852,21 @@ def customer_invoice_pdf(cid, iid):
         Paragraph("<b>Total Amount<br/>(Including VAT)</b>", S("_h7", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
     ]
     rws = [hdr]
-    for idx, it in enumerate(items):
+    table_items = items[1:] if is_nmdc else items
+    for idx, it in enumerate(table_items):
         vp_item = it["vat_percent_item"] or inv["vat_percent"] or 5
         va_item = it["vat_amount_item"] or (it["amount"] * vp_item / 100)
         ti_item = it["total_incl_vat"] or (it["amount"] + va_item)
+        eq_hours = f"<br/><font size=1 color='#94a3b8'>Hours: {float(it['capacity_gallon']):,.2f}</font>" if is_nmdc and it.get("capacity_gallon") and float(it["capacity_gallon"]) > 0 else ""
+        desc_html = (it["description"] or "—")
+        if is_nmdc and it.get("vehicle_no"):
+            desc_html = f"{it['vehicle_no']} &middot; {desc_html}"
         rws.append([
             _pc(str(idx+1), alignment=TA_CENTER, fontName="Helvetica-Bold"),
-            _pc(it["description"] or "—"),
-            _pc(f"{it['quantity'] or 0:,.2f}", alignment=TA_CENTER),
-            _pc((it['unit'] or 'hr'), alignment=TA_CENTER),
-            _pc(f"{it['rate'] or 0:,.3f}", alignment=TA_RIGHT),
+            _pc(desc_html + eq_hours, fontSize=fs, leading=ldr*1.1),
+            _pc(f"{it['quantity'] or 0:,.3f}", alignment=TA_CENTER),
+            _pc((it['unit'] or 'mo'), alignment=TA_CENTER),
+            _pc(f"{it['rate'] or 0:,.2f}", alignment=TA_RIGHT),
             _pc(f"{it['amount'] or 0:,.2f}", alignment=TA_RIGHT),
             _pc(f"{vp_item:.2f}%", alignment=TA_CENTER),
             _pc(f"{va_item:,.2f}", alignment=TA_RIGHT, textColor=C6),
