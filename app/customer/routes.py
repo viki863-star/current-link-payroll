@@ -21,10 +21,19 @@ def _safe_execute(db, sql, params=()):
     except Exception:
         _safe_rollback(db)
 
-def _ensure_tables():
-    db = _get_db()
-    _safe_rollback(db)
+def _open_db():
+    from ..database import DatabaseAdapter, _connect_postgres, _connect_sqlite
     backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+    if backend == "postgres":
+        connection = _connect_postgres(current_app.config["DATABASE_URL"])
+    else:
+        connection = _connect_sqlite(current_app.config["DATABASE_PATH"])
+    return DatabaseAdapter(connection, backend)
+
+def _ensure_tables():
+    backend = current_app.config.get("DATABASE_BACKEND", "postgres")
+    db = _open_db()
+    _safe_rollback(db)
     autoinc = "BIGSERIAL PRIMARY KEY" if backend == "postgres" else "INTEGER PRIMARY KEY AUTOINCREMENT"
     now = "NOW()" if backend == "postgres" else "datetime('now')"
     ignore = "ON CONFLICT DO NOTHING" if backend == "postgres" else "OR IGNORE"
@@ -184,7 +193,7 @@ def _ensure_tables():
     _safe_execute(db, "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS paid" if backend == "postgres" else "ALTER TABLE customer_invoices DROP COLUMN paid")
     _safe_execute(db, "INSERT INTO quotation_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM quotation_sequence)")
     _safe_execute(db, "INSERT INTO invoice_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM invoice_sequence)")
-    _safe_execute(db, "ALTER TABLE customer_quotation_items ADD COLUMN unit TEXT DEFAULT 'hr'")
+    _safe_execute(db, "ALTER TABLE customer_quotation_items ADD COLUMN IF NOT EXISTS unit TEXT DEFAULT 'hr'" if backend == "postgres" else "ALTER TABLE customer_quotation_items ADD COLUMN unit TEXT DEFAULT 'hr'")
     # Ensure customer_id columns exist on tables that may have been created without them
     for tbl in ["customer_invoices","customer_payments","customer_contracts","customer_quotations",
                 "customer_lpos","customer_documents","customer_invoice_items",
@@ -195,6 +204,7 @@ def _ensure_tables():
     for tbl in ["customer_documents","customer_invoice_items","customer_so_items",
                 "customer_quotation_items","lpo_items","service_items"]:
         _safe_execute(db, f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS created_at TEXT" if backend == "postgres" else f"ALTER TABLE {tbl} ADD COLUMN created_at TEXT")
+    db.close()
 
 # ─── HELPERS ───
 
@@ -355,6 +365,7 @@ def customer_invoice_add(cid):
     svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
     if request.method == "POST":
         try:
+            _safe_rollback(db)
             inv_date = request.form.get("invoice_date", date.today().isoformat())
             inv_no = request.form.get("invoice_no", "").strip() or next_no
             existing = db.execute("SELECT id FROM customer_invoices WHERE invoice_no=?", (inv_no,)).fetchone()
