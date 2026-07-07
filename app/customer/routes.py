@@ -22,13 +22,9 @@ def _safe_execute(db, sql, params=()):
         _safe_rollback(db)
 
 def _ensure_tables():
-    from ..database import DatabaseAdapter, _connect_sqlite, _connect_postgres
+    db = _get_db()
+    _safe_rollback(db)
     backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
-    if backend == "postgres":
-        conn = _connect_postgres(current_app.config["DATABASE_URL"])
-    else:
-        conn = _connect_sqlite(current_app.config["DATABASE_PATH"])
-    db = DatabaseAdapter(conn, backend)
     autoinc = "BIGSERIAL PRIMARY KEY" if backend == "postgres" else "INTEGER PRIMARY KEY AUTOINCREMENT"
     now = "NOW()" if backend == "postgres" else "datetime('now')"
     ignore = "ON CONFLICT DO NOTHING" if backend == "postgres" else "OR IGNORE"
@@ -180,10 +176,6 @@ def _ensure_tables():
         ("company_profile", "bank_account_name", "TEXT"),
         ("company_profile", "bank_account_number", "TEXT"),
         ("company_profile", "iban", "TEXT"),
-        ("customer_invoices", "nmdc_period_from", "TEXT"),
-        ("customer_invoices", "nmdc_period_to", "TEXT"),
-        ("customer_invoices", "nmdc_monthly_rate", real_type + " DEFAULT 0"),
-        ("customer_invoices", "nmdc_month_label", "TEXT"),
     ]
     for table, col, dtype in alter_ops:
         sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {dtype}" if backend == "postgres" else f"ALTER TABLE {table} ADD COLUMN {col} {dtype}"
@@ -203,7 +195,6 @@ def _ensure_tables():
     for tbl in ["customer_documents","customer_invoice_items","customer_so_items",
                 "customer_quotation_items","lpo_items","service_items"]:
         _safe_execute(db, f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS created_at TEXT" if backend == "postgres" else f"ALTER TABLE {tbl} ADD COLUMN created_at TEXT")
-    db.close()
 
 # ─── HELPERS ───
 
@@ -364,7 +355,6 @@ def customer_invoice_add(cid):
     svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
     if request.method == "POST":
         try:
-            _safe_rollback(db)
             inv_date = request.form.get("invoice_date", date.today().isoformat())
             inv_no = request.form.get("invoice_no", "").strip() or next_no
             existing = db.execute("SELECT id FROM customer_invoices WHERE invoice_no=?", (inv_no,)).fetchone()
@@ -437,19 +427,18 @@ def customer_invoice_add(cid):
                     return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
             vat_amt = round(sub_total * vat_pct / 100, 2)
             total = round(sub_total + vat_amt, 2)
-            nmdc_fields = {}
             if is_nmdc:
-                nmdc_fields = {
-                    "nmdc_period_from": request.form.get("period_from", ""),
-                    "nmdc_period_to": request.form.get("period_to", ""),
-                    "nmdc_monthly_rate": float(request.form.get("monthly_rate", 0) or 0),
-                    "nmdc_month_label": request.form.get("month_label", ""),
+                import json
+                nmdc_meta = {
+                    "period_from": request.form.get("period_from", ""),
+                    "period_to": request.form.get("period_to", ""),
+                    "monthly_rate": float(request.form.get("monthly_rate", 0) or 0),
+                    "month_label": request.form.get("month_label", ""),
                 }
-            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,so_no,notes,nmdc_period_from,nmdc_period_to,nmdc_monthly_rate,nmdc_month_label)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, so_no, notes,
-                 nmdc_fields.get("nmdc_period_from", ""), nmdc_fields.get("nmdc_period_to", ""),
-                 nmdc_fields.get("nmdc_monthly_rate", 0), nmdc_fields.get("nmdc_month_label", "")))
+                notes = json.dumps(nmdc_meta) if not notes else json.dumps(nmdc_meta) + "\n" + notes
+            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, None, None, so_no, None, notes))
             inv_id = c_inv.lastrowid
             for idx, it in enumerate(items):
                 db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order,capacity_gallon) VALUES (?,?,?,?,?,?,?,?,?)",
@@ -608,14 +597,20 @@ def customer_invoice_view(cid, iid):
     except (IndexError, KeyError):
         tmpl_t = "standard"
     is_nmdc = "nmdc" in (c["customer_name"] or "").lower()
+    nmdc_meta = {}
     if is_nmdc:
         tmpl = "customer/invoice_view_nmdc.html"
+        try:
+            import json
+            nmdc_meta = json.loads(inv.get("notes", "{}"))
+        except Exception:
+            nmdc_meta = {}
     else:
         tmpl = "customer/invoice_view.html"
     sum_taxable = sum(it["amount"] or 0 for it in items)
     sum_vat = sum(it["vat_amount_item"] or 0 for it in items)
     sum_total = sum((it["total_incl_vat"] or (it["amount"] or 0) + (it["vat_amount_item"] or 0)) for it in items)
-    return render_template(tmpl, c=c, inv=inv, items=items, company=company, sum_taxable=sum_taxable, sum_vat=sum_vat, sum_total=sum_total)
+    return render_template(tmpl, c=c, inv=inv, items=items, company=company, nmdc_meta=nmdc_meta, sum_taxable=sum_taxable, sum_vat=sum_vat, sum_total=sum_total)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/pdf")
 def customer_invoice_pdf(cid, iid):
@@ -815,10 +810,15 @@ def customer_invoice_pdf(cid, iid):
                 f"<b>Description of Service:</b><br/>{nmdc_main_desc}",
                 S("_nd", fontSize=9, textColor=C4, leading=14)))
             els.append(Spacer(1, 3*mm))
-        nmdc_pf = inv.get("nmdc_period_from", "") or ""
-        nmdc_pt = inv.get("nmdc_period_to", "") or ""
-        nmdc_mr = inv.get("nmdc_monthly_rate", 0) or 0
-        nmdc_ml = inv.get("nmdc_month_label", "") or ""
+        try:
+            import json
+            nmdc_meta = json.loads(inv.get("notes", "{}"))
+        except Exception:
+            nmdc_meta = {}
+        nmdc_pf = nmdc_meta.get("period_from", "") or ""
+        nmdc_pt = nmdc_meta.get("period_to", "") or ""
+        nmdc_mr = nmdc_meta.get("monthly_rate", 0) or 0
+        nmdc_ml = nmdc_meta.get("month_label", "") or ""
         if nmdc_pf or nmdc_pt or nmdc_mr:
             period_html = f"<b>Period:</b> {nmdc_pf} to {nmdc_pt}" if nmdc_pf or nmdc_pt else ""
             if nmdc_mr:
