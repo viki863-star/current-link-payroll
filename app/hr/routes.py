@@ -50,6 +50,7 @@ def ensure_employees_table():
 
     # Migration: add missing columns for tables created before schema was expanded
     employee_cols = [
+        ("employee_id", "TEXT"),
         ("email", "TEXT"),
         ("gender", "TEXT"),
         ("shift", "TEXT DEFAULT 'Morning'"),
@@ -313,7 +314,9 @@ def employee_new():
     if not values["employee_id"]:
         try:
             values["employee_id"] = next_employee_id(db)
-        except Exception:
+        except Exception as exc:
+            import traceback
+            current_app.logger.error("next_employee_id failed: %s\n%s", exc, traceback.format_exc())
             values["employee_id"] = ""
 
     # Get vehicles if table exists, otherwise empty list
