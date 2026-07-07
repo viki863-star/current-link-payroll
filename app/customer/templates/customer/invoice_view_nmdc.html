@@ -93,7 +93,7 @@
                 <th style="text-align:center;width:28px">#</th>
                 <th style="text-align:left">Description</th>
                 <th style="text-align:right;width:65px">Qty</th>
-                <th style="text-align:center;width:50px">Unit</th>
+                <th style="text-align:center;width:65px">Unit</th>
                 <th style="text-align:right;width:75px">Unit Price</th>
                 <th style="text-align:right;width:80px">Taxable Amt</th>
                 <th style="text-align:center;width:42px">VAT %</th>
@@ -126,12 +126,11 @@
             <tr>
                 <td style="text-align:center;font-weight:600;color:#64748b">{{ loop.index + 1 }}</td>
                 <td>
-                    <div style="font-weight:500;color:#0f172a;line-height:1.3">
-                        {% if it.vehicle_no %}Plant No: {{ it.vehicle_no }}{% endif %}
-                        {% if it.vehicle_no and it.description %} &middot; {% endif %}
-                        {% if it.description %}{{ it.description }}{% endif %}
+                    <div style="font-weight:500;color:#0f172a;line-height:1.4">
+                        {% if it.vehicle_no %}Plant No: {{ it.vehicle_no }}<br>{% endif %}
+                        {% if it.description %}Reg No: {{ it.description }}{% endif %}
                     </div>
-                    <div style="font-size:0.7rem;color:#94a3b8;margin-top:2px">
+                    <div style="font-size:0.68rem;color:#94a3b8;margin-top:2px;line-height:1.3">
                         {% if eq_p.get('from') or eq_p.get('to') %}
                             Period: {{ eq_p.get('from', '—') }} to {{ eq_p.get('to', '—') }}
                         {% endif %}

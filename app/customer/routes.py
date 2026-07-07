@@ -906,7 +906,7 @@ def customer_invoice_pdf(cid, iid):
         nmdc_ml = nmdc_meta.get("month_label", "") or ""
         nmdc_eq_periods = nmdc_meta.get("eq_periods", []) or []
 
-    cw = [10*mm, 36*mm, 20*mm, 10*mm, 16*mm, 20*mm, 14*mm, 18*mm, 28*mm]
+    cw = [10*mm, 36*mm, 20*mm, 14*mm, 16*mm, 20*mm, 14*mm, 18*mm, 28*mm]
     hdr = [
         Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
         Paragraph("<b>Description</b>", S("_h1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
@@ -943,8 +943,10 @@ def customer_invoice_pdf(cid, iid):
             eq_period_text += f" | Period: {eq_p.get('from','')} to {eq_p.get('to','')}"
         eq_hours = f"<br/><font size=1 color='#94a3b8'>Hours: {float(it['capacity_gallon']):,.2f}</font>" if is_nmdc and it.get("capacity_gallon") and float(it["capacity_gallon"]) > 0 else ""
         desc_html = (it["description"] or "—")
-        if is_nmdc and it.get("vehicle_no"):
-            desc_html = f"Plant No: {it['vehicle_no']}" + (f" &middot; {desc_html}" if desc_html != "—" else "")
+        if is_nmdc:
+            plant_line = f"<b>Plant No:</b> {it['vehicle_no']}<br/>" if it.get("vehicle_no") else ""
+            reg_line = f"<b>Reg No:</b> {desc_html}<br/>" if desc_html != "—" else ""
+            desc_html = plant_line + reg_line
         rws.append([
             _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(desc_html + eq_period_text + eq_hours, fontSize=fs, leading=ldr*1.1),
