@@ -861,27 +861,6 @@ def customer_invoice_pdf(cid, iid):
             _pc("—", alignment=TA_RIGHT),
             _pc("—", alignment=TA_RIGHT),
         ])
-        # Row 2: Global period info
-        period_text = ""
-        if nmdc_pf or nmdc_pt:
-            period_text += f"Period: {nmdc_pf} to {nmdc_pt}"
-        if nmdc_mr:
-            if period_text: period_text += " | "
-            period_text += f"Monthly Rate: AED {nmdc_mr:,.2f}"
-        if nmdc_ml:
-            if period_text: period_text += " | "
-            period_text += f"Month: {nmdc_ml}"
-        rws.append([
-            _pc("2", alignment=TA_CENTER, fontName="Helvetica-Bold"),
-            _pc(period_text or "—", fontSize=fs, leading=ldr),
-            _pc("—", alignment=TA_CENTER),
-            _pc("—", alignment=TA_CENTER),
-            _pc("—", alignment=TA_RIGHT),
-            _pc("—", alignment=TA_RIGHT),
-            _pc("—", alignment=TA_CENTER),
-            _pc("—", alignment=TA_RIGHT),
-            _pc("—", alignment=TA_RIGHT),
-        ])
     table_items = items[1:] if is_nmdc else items
     for idx, it in enumerate(table_items):
         vp_item = it["vat_percent_item"] or inv["vat_percent"] or 5
@@ -896,7 +875,7 @@ def customer_invoice_pdf(cid, iid):
         if is_nmdc and it.get("vehicle_no"):
             desc_html = f"Plant No: {it['vehicle_no']}" + (f" &middot; {desc_html}" if desc_html != "—" else "")
         rws.append([
-            _pc(str(idx + (3 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
+            _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(desc_html + eq_period_text + eq_hours, fontSize=fs, leading=ldr*1.1),
             _pc(f"{it['quantity'] or 0:,.3f}", alignment=TA_CENTER),
             _pc((it['unit'] or 'mo'), alignment=TA_CENTER),

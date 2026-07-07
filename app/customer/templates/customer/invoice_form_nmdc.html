@@ -72,19 +72,19 @@
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px">
             <div>
                 <label style="font-size:0.65rem;color:#94a3b8">Period From</label>
-                <input type="date" name="period_from" id="periodFrom" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem" onchange="updatePeriod()">
+                <input type="date" name="period_from" id="periodFrom" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
             </div>
             <div>
                 <label style="font-size:0.65rem;color:#94a3b8">Period To</label>
-                <input type="date" name="period_to" id="periodTo" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem" onchange="updatePeriod()">
+                <input type="date" name="period_to" id="periodTo" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
             </div>
             <div>
                 <label style="font-size:0.65rem;color:#94a3b8">Monthly Rate (AED)</label>
-                <input type="number" name="monthly_rate" id="monthlyRate" value="0" min="0" step="any" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem" oninput="calcAll();updatePeriod()">
+                <input type="number" name="monthly_rate" id="monthlyRate" value="0" min="0" step="any" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem" oninput="calcAll()">
             </div>
             <div>
                 <label style="font-size:0.65rem;color:#94a3b8">Month</label>
-                <input type="text" name="month_label" id="monthLabel" placeholder="e.g. April-2026" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem" oninput="updatePeriod()">
+                <input type="text" name="month_label" id="monthLabel" placeholder="e.g. April-2026" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
             </div>
         </div>
 
@@ -128,22 +128,7 @@
                         <td style="text-align:right;color:#94a3b8">-</td>
                         <td></td>
                     </tr>
-                    <tr id="row_period">
-                        <td style="text-align:center;font-weight:600;color:#64748b">2</td>
-                        <td id="periodDesc" style="font-size:0.76rem;color:#475569">
-                            Period: <span id="pfDisplay">-</span> to <span id="ptDisplay">-</span>
-                            &nbsp;|&nbsp; Monthly Rate: AED <span id="mrDisplay">0.00</span>
-                            &nbsp;|&nbsp; Month: <span id="mlDisplay">-</span>
-                        </td>
-                        <td style="text-align:right;color:#94a3b8">-</td>
-                        <td style="text-align:center;color:#94a3b8">-</td>
-                        <td style="text-align:right;color:#94a3b8">-</td>
-                        <td style="text-align:right;color:#94a3b8">-</td>
-                        <td style="text-align:center;color:#94a3b8">-</td>
-                        <td style="text-align:right;color:#94a3b8">-</td>
-                        <td style="text-align:right;color:#94a3b8">-</td>
-                        <td></td>
-                    </tr>
+
                 </tbody>
             </table>
         </div>
@@ -183,7 +168,7 @@ function getDefPeriod() {
 function addRow(plant, reg, hours, pf, pt) {
     rowId++;
     const tbody = document.getElementById('tableBody');
-    const idx = document.querySelectorAll('#tableBody tr[id^="eqrow_"]').length + 3;
+    const idx = document.querySelectorAll('#tableBody tr[id^="eqrow_"]').length + 2;
     if (pf === undefined) { const dp = getDefPeriod(); pf = dp.from; pt = dp.to; }
     const tr = document.createElement('tr');
     tr.id = 'eqrow_' + rowId;
@@ -197,7 +182,7 @@ function addRow(plant, reg, hours, pf, pt) {
         '<span>To: <input type="date" name="eq_period_to[]" value="' + pt + '" style="width:110px;font-size:0.65rem"></span>' +
         '</div>' +
         '<div style="font-size:0.65rem;color:#94a3b8;margin-top:2px">' +
-        'Hours: <input type="number" name="eq_hours[]" value="' + (hours||0) + '" min="0" step="0.01" class="hours-input" oninput="calcRow(this)">' +
+        'Hours: <input type="number" name="eq_hours[]" value="' + (hours||0) + '" min="0" step="0.01" class="hours-input" oninput="calcRow(this);calcAll()">' +
         '<input type="hidden" name="eq_qyt[]" value="0">' +
         '</div></td>' +
         '<td><span class="eq_disp eq_qty" style="color:#0f172a">0.000</span></td>' +
@@ -209,7 +194,7 @@ function addRow(plant, reg, hours, pf, pt) {
         '<td><span class="eq_disp eq_total" style="color:#0f172a;font-weight:700">0.00</span></td>' +
         '<td><button type="button" class="btn-icon" onclick="removeRow(this)">&times;</button></td>';
     tbody.appendChild(tr);
-    if (!hours || hours <= 0) calcRow(tr.querySelector('.hours-input'));
+    calcAll();
 }
 
 function removeRow(btn) {
@@ -222,7 +207,7 @@ function removeRow(btn) {
 function renumber() {
     const rows = document.querySelectorAll('#tableBody tr[id^="eqrow_"]');
     rows.forEach(function(r, i) {
-        r.cells[0].textContent = i + 3;
+        r.cells[0].textContent = i + 2;
     });
 }
 
@@ -242,7 +227,6 @@ function calcRow(el) {
     row.querySelector('.eq_taxable').textContent = taxable.toFixed(2);
     row.querySelector('.eq_vat').textContent = vatAmt.toFixed(2);
     row.querySelector('.eq_total').textContent = total.toFixed(2);
-    calcAll();
 }
 
 function calcAll() {
@@ -262,17 +246,6 @@ function calcAll() {
     document.getElementById('totalDisplay').textContent = total.toFixed(2);
 }
 
-function updatePeriod() {
-    var pf = document.getElementById('periodFrom').value || '-';
-    var pt = document.getElementById('periodTo').value || '-';
-    var mr = parseFloat(document.getElementById('monthlyRate').value) || 0;
-    var ml = document.getElementById('monthLabel').value || '-';
-    document.getElementById('pfDisplay').textContent = pf;
-    document.getElementById('ptDisplay').textContent = pt;
-    document.getElementById('mrDisplay').textContent = mr.toFixed(2);
-    document.getElementById('mlDisplay').textContent = ml;
-}
-
 function loadSoData() {
     var sel = document.getElementById('soSelect');
     var sid = sel.value;
@@ -289,7 +262,7 @@ function loadSoData() {
             var desc = first.description || '';
             document.getElementById('monthlyRate').value = rate;
             document.getElementById('mainDesc').value = desc + ' in the month of ';
-            calcAll(); updatePeriod();
+            calcAll();
             var monthInput = document.getElementById('monthLabel');
             monthInput.addEventListener('input', function listener() {
                 document.getElementById('mainDesc').value = desc + ' in the month of ' + this.value;
