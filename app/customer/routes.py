@@ -659,6 +659,7 @@ def customer_invoice_pdf(cid, iid):
     WH = colors.white; BG = colors.HexColor("#f8fafc")
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64738b"); C6 = colors.HexColor("#dc2626")
+    DH = colors.HexColor("#1e293b")
 
     cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
     c_addr = (company["address"] or "") if company else ""
@@ -885,7 +886,6 @@ def customer_invoice_pdf(cid, iid):
             els.append(vtt)
             els.append(Spacer(1, 4*mm))
 
-    DH = colors.HexColor("#1e293b")
     cw = [10*mm, 36*mm, 20*mm, 10*mm, 16*mm, 20*mm, 14*mm, 18*mm, 28*mm]
     hdr = [
         Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
