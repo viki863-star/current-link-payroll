@@ -87,7 +87,7 @@ def _call_llm(messages):
     }
 
     try:
-        resp = requests.post(api_url, json=payload, headers=headers, timeout=45)
+        resp = requests.post(api_url, json=payload, headers=headers, timeout=10)
         data = resp.json()
         if "choices" not in data or not data["choices"]:
             err = data.get("error", {}).get("message", str(data))
@@ -540,12 +540,22 @@ def expense_forecast():
 
 @ai_bp.route("/salary-forecast", methods=["GET"])
 def salary_forecast():
-    """AI-powered multi-period salary cost forecasting with confidence intervals."""
+    """Salary cost forecast with calculation fallback."""
     try:
         db = open_db()
-        months = request.args.get("months", "3")  # 3, 6, or 12 months
+        months = int(request.args.get("months", "3"))
         
-        # Get historical salary data from salary_payments
+        # Get current employee count and average salary
+        current_employees = db.execute("""
+            SELECT COUNT(*) AS cnt, AVG(basic_salary) AS avg_salary
+            FROM employees
+            WHERE status = 'Active'
+        """).fetchone()
+        
+        current_count = current_employees["cnt"] or 0 if current_employees else 0
+        avg_salary = float(current_employees["avg_salary"] or 0) if current_employees else 0
+        
+        # Get historical data
         historical = db.execute("""
             SELECT salary_month, SUM(net_payable) AS total_salary, COUNT(*) AS employee_count
             FROM salary_payments
@@ -555,123 +565,75 @@ def salary_forecast():
             LIMIT 24
         """).fetchall()
         
-        if not historical:
-            return jsonify({
-                "forecast": None,
-                "message": "No historical salary data available for forecasting."
+        data_summary = [{
+            "month": r["salary_month"],
+            "total_salary": float(r["total_salary"] or 0),
+            "employee_count": r["employee_count"]
+        } for r in historical]
+        
+        # Fast calculation fallback (always works)
+        base_monthly = max(current_count * avg_salary * 1.1, 1)
+        from datetime import datetime, timedelta
+        today = datetime.now()
+        forecasts = []
+        for i in range(1, months + 1):
+            future_month = (today.replace(day=1) + timedelta(days=32*i)).replace(day=1)
+            forecasts.append({
+                "month": future_month.strftime("%Y-%m"),
+                "optimistic": round(base_monthly * 0.9, 2),
+                "base": round(base_monthly, 2),
+                "pessimistic": round(base_monthly * 1.1, 2),
+                "trend": "stable"
             })
         
-        # Get current employee count and average salary
-        current_employees = db.execute("""
-            SELECT COUNT(*) AS cnt, AVG(basic_salary) AS avg_salary
-            FROM employees
-            WHERE status = 'Active'
-        """).fetchone()
+        # Try AI enhancement with short timeout
+        if current_count > 0 and data_summary:
+            try:
+                prompt = f"""
+                Historical salary data (last 24 months):
+                {json.dumps(data_summary, indent=2)}
+                
+                Current active employees: {current_count}
+                Average basic salary: {avg_salary:.2f}
+                
+                Forecast salary costs for the next {months} months with 3 scenarios:
+                1. Optimistic, 2. Base, 3. Pessimistic
+                
+                Respond with JSON only: {{"forecasts": [{{"month": "YYYY-MM", "optimistic": amount, "base": amount, "pessimistic": amount, "trend": "up/down/stable"}}], "summary": "brief insight", "confidence": "high/medium/low"}}
+                """
+                result, err = _call_llm([{"role": "system", "content": "You are a financial forecasting AI. Respond with JSON only. Use realistic AED amounts."}, {"role": "user", "content": prompt}])
+                if not err and isinstance(result, dict):
+                    ai_forecasts = result.get("forecasts", [])
+                    if ai_forecasts:
+                        return jsonify({
+                            "forecasts": ai_forecasts[:months],
+                            "summary": result.get("summary", ""),
+                            "confidence": result.get("confidence", "medium"),
+                            "historical": data_summary[:6],
+                            "current_employees": current_count,
+                            "method": "ai"
+                        })
+            except Exception:
+                pass
         
-        if not current_employees:
-            return jsonify({
-                "forecast": None,
-                "message": "No active employees found."
-            })
-        
-        # Prepare data for AI analysis
-        data_summary = []
-        for row in historical:
-            data_summary.append({
-                "month": row["salary_month"],
-                "total_salary": float(row["total_salary"] or 0),
-                "employee_count": row["employee_count"]
-            })
-        
-        current_count = current_employees["cnt"] or 0
-        avg_salary = float(current_employees["avg_salary"] or 0)
-        
-        # Use AI to forecast for multiple periods with scenarios
-        prompt = f"""
-        Historical salary data (last 24 months):
-        {json.dumps(data_summary, indent=2)}
-        
-        Current active employees: {current_count}
-        Average basic salary: {avg_salary:.2f}
-        
-        Forecast salary costs for the next {months} months with 3 scenarios:
-        1. Optimistic (best case - 10% lower than expected)
-        2. Base (most likely case)
-        3. Pessimistic (worst case - 10% higher than expected)
-        
-        For each month, provide:
-        - Month label (e.g., "2026-08", "2026-09")
-        - Optimistic forecast
-        - Base forecast
-        - Pessimistic forecast
-        - Trend direction for that month
-        
-        Consider:
-        - Historical trends and seasonality
-        - Current employee count and average salary
-        - Typical overtime patterns (10-15% of base salary)
-        
-        Respond with JSON only: {{"forecasts": [{{"month": "YYYY-MM", "optimistic": amount, "base": amount, "pessimistic": amount, "trend": "up/down/stable"}}], "summary": "brief insight", "confidence": "high/medium/low"}}
-        """
-        
-        result, err = _call_llm([{"role": "system", "content": "You are a financial forecasting AI. Respond with JSON only. Use realistic AED amounts."}, {"role": "user", "content": prompt}])
-        
-        if err:
-            # Fallback to simple calculation if AI fails
-            base_monthly = current_count * avg_salary * 1.1  # Add 10% buffer
-            forecasts = []
-            from datetime import datetime, timedelta
-            today = datetime.now()
-            for i in range(1, int(months) + 1):
-                future_month = (today.replace(day=1) + timedelta(days=32*i)).replace(day=1)
-                forecasts.append({
-                    "month": future_month.strftime("%Y-%m"),
-                    "optimistic": round(base_monthly * 0.9, 2),
-                    "base": round(base_monthly, 2),
-                    "pessimistic": round(base_monthly * 1.1, 2),
-                    "trend": "stable"
-                })
-            return jsonify({
-                "forecasts": forecasts,
-                "summary": f"Based on {current_count} active employees with average salary AED {avg_salary:.2f}",
-                "confidence": "medium",
-                "historical": data_summary[:6],
-                "current_employees": current_count,
-                "method": "calculation"
-            })
-        
-        if isinstance(result, dict):
-            forecasts = result.get("forecasts", [])
-            if not forecasts:
-                # Generate fallback if AI returns empty forecasts
-                base_monthly = current_count * avg_salary * 1.1
-                forecasts = []
-                from datetime import datetime, timedelta
-                today = datetime.now()
-                for i in range(1, int(months) + 1):
-                    future_month = (today.replace(day=1) + timedelta(days=32*i)).replace(day=1)
-                    forecasts.append({
-                        "month": future_month.strftime("%Y-%m"),
-                        "optimistic": round(base_monthly * 0.9, 2),
-                        "base": round(base_monthly, 2),
-                        "pessimistic": round(base_monthly * 1.1, 2),
-                        "trend": "stable"
-                    })
-            return jsonify({
-                "forecasts": forecasts[:int(months)],
-                "summary": result.get("summary", ""),
-                "confidence": result.get("confidence", "medium"),
-                "historical": data_summary[:6],
-                "current_employees": current_count,
-                "method": "ai"
-            })
-        
-        return jsonify({"error": "Invalid AI response"}), 500
+        return jsonify({
+            "forecasts": forecasts,
+            "summary": f"Based on {current_count} active employees, avg salary AED {avg_salary:.2f}",
+            "confidence": "medium",
+            "historical": data_summary[:6],
+            "current_employees": current_count,
+            "method": "calculation"
+        })
         
     except Exception as e:
         import traceback
         current_app.logger.error("Salary forecast error: %s\n%s", e, traceback.format_exc())
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "forecasts": [],
+            "summary": "Unable to compute forecast.",
+            "confidence": "low",
+            "method": "error"
+        })
 
 
 @ai_bp.route("/chat", methods=["POST"])
