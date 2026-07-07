@@ -551,7 +551,11 @@ def customer_invoice_view(cid, iid):
         tmpl_t = inv["invoice_template"] or "standard"
     except (IndexError, KeyError):
         tmpl_t = "standard"
-    tmpl = "customer/invoice_view.html"
+    is_nmdc = "nmdc" in (c["customer_name"] or "").lower()
+    if is_nmdc:
+        tmpl = "customer/invoice_view_nmdc.html"
+    else:
+        tmpl = "customer/invoice_view.html"
     sum_taxable = sum(it["amount"] or 0 for it in items)
     sum_vat = sum(it["vat_amount_item"] or 0 for it in items)
     sum_total = sum((it["total_incl_vat"] or (it["amount"] or 0) + (it["vat_amount_item"] or 0)) for it in items)
@@ -580,6 +584,8 @@ def customer_invoice_pdf(cid, iid):
         flash("Invoice not found.", "error")
         return redirect(url_for("customer.customer_dashboard"))
 
+    is_nmdc = "nmdc" in (c["customer_name"] or "").lower()
+
     buf = BytesIO()
     LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 12*mm
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
@@ -590,7 +596,7 @@ def customer_invoice_pdf(cid, iid):
     except: TH = colors.HexColor("#1a3a5c")
     WH = colors.white; BG = colors.HexColor("#f8fafc")
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
-    C5 = colors.HexColor("#64748b"); C6 = colors.HexColor("#dc2626")
+    C5 = colors.HexColor("#64738b"); C6 = colors.HexColor("#dc2626")
 
     cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
     c_addr = (company["address"] or "") if company else ""
@@ -630,6 +636,8 @@ def customer_invoice_pdf(cid, iid):
     els = []
     inv_no = inv["invoice_no"] or "—"
     inv_dt = inv["invoice_date"] or "—"
+
+    NMDC_CONV_HOURS = 260
 
     # ═══════════════════════════════════
     # 1. HEADER (matching web view)
@@ -736,12 +744,63 @@ def customer_invoice_pdf(cid, iid):
     pad_t = max(1.5, fs * 0.5)
     pad_b = max(1.5, fs * 0.5)
 
-    DH = colors.HexColor("#1e293b")
-    cw = [10*mm, 36*mm, 20*mm, 10*mm, 16*mm, 20*mm, 14*mm, 18*mm, 28*mm]
     def _pc(t, **kw):
         kw.setdefault("fontSize", fs)
         kw.setdefault("leading", ldr)
         return Paragraph(str(t), S("_pc", **kw))
+
+    sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
+
+    if is_nmdc:
+        nmdc_main_desc = items[0]["description"] if items else ""
+        nmdc_vehicle_items = items[1:] if len(items) > 1 else []
+        if nmdc_main_desc:
+            els.append(Paragraph(
+                f"<b>Description of Service:</b><br/>{nmdc_main_desc}",
+                S("_nd", fontSize=9, textColor=C4, leading=14)))
+            els.append(Spacer(1, 3*mm))
+        if nmdc_vehicle_items:
+            vh, vcw = 6.5, [8*mm, W*0.45, W*0.235, W*0.235]
+            vhdr = [
+                Paragraph("<b>#</b>", S("_vh0", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=vh*1.4)),
+                Paragraph("<b>Vehicle / Plant No.</b>", S("_vh1", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, leading=vh*1.4)),
+                Paragraph("<b>Total Hours</b>", S("_vh2", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=vh*1.4)),
+                Paragraph("<b>QYT (Months)</b>", S("_vh3", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=vh*1.4)),
+            ]
+            vrws = [vhdr]
+            tot_h, tot_q = 0, 0
+            for idx, it in enumerate(nmdc_vehicle_items):
+                qyt = round(it["quantity"] / NMDC_CONV_HOURS, 3) if it["quantity"] else 0
+                tot_h += it["quantity"] or 0
+                tot_q += qyt
+                vlabel = it["vehicle_no"] or it["description"] or "—"
+                vrws.append([
+                    _pc(str(idx+1), alignment=TA_CENTER, fontName="Helvetica-Bold"),
+                    _pc(vlabel),
+                    _pc(f"{it['quantity'] or 0:,.2f}", alignment=TA_RIGHT),
+                    _pc(f"{qyt:,.3f}", alignment=TA_RIGHT),
+                ])
+            vrws.append([
+                Paragraph("<b>Total</b>", S("_vft", fontSize=vh, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=vh*1.4)),
+                Paragraph("", S("_vfe", fontSize=vh, leading=vh*1.4)),
+                Paragraph(f"<b>{tot_h:,.2f}</b>", S("_vftr", fontSize=vh, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=vh*1.4)),
+                Paragraph(f"<b>{tot_q:,.3f}</b>", S("_vftr2", fontSize=vh, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=vh*1.4)),
+            ])
+            vtt = Table(vrws, colWidths=vcw, repeatRows=1)
+            vtt.setStyle(TableStyle([
+                ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+                ("BACKGROUND",(0,0),(-1,0),DH), ("TEXTCOLOR",(0,0),(-1,0),WH),
+                ("BOX",(0,0),(-1,-1),0.5,C3),
+                ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+                ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
+                ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
+                ("BACKGROUND",(0,-1),(-1,-1),BG),
+            ]))
+            els.append(vtt)
+            els.append(Spacer(1, 4*mm))
+
+    DH = colors.HexColor("#1e293b")
+    cw = [10*mm, 36*mm, 20*mm, 10*mm, 16*mm, 20*mm, 14*mm, 18*mm, 28*mm]
     hdr = [
         Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
         Paragraph("<b>Description</b>", S("_h1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
@@ -769,8 +828,6 @@ def customer_invoice_pdf(cid, iid):
             _pc(f"{va_item:,.2f}", alignment=TA_RIGHT, textColor=C6),
             Paragraph(f"<b>{ti_item:,.2f}</b>", S("_b", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr)),
         ])
-
-    sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
 
     itt = Table(rws, colWidths=cw, repeatRows=1)
     itt.setStyle(TableStyle([
@@ -1894,25 +1951,23 @@ def customer_so_add(cid):
         qtys = request.form.getlist("item_qty[]")
         units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
-        vehicles = request.form.getlist("item_vehicle[]")
         total = 0; items = []
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
-            vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
         total = round(total, 2)
         cur = db.execute("INSERT INTO customer_service_orders (customer_id,so_no,so_date,amount,status,notes) VALUES (?,?,?,?,?,?)",
             (cid, so_no, so_date, total, status, notes))
         so_id = cur.lastrowid
         for idx, it in enumerate(items):
             db.execute("INSERT INTO customer_so_items (so_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
-                (so_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
+                (so_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], "", idx))
         db.commit()
         db.close()
         flash("Service Order added.", "success")
@@ -1940,18 +1995,16 @@ def customer_so_edit(cid, sid):
         qtys = request.form.getlist("item_qty[]")
         units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
-        vehicles = request.form.getlist("item_vehicle[]")
         total = 0; items = []
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
-            vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
         total = round(total, 2)
         db.execute("UPDATE customer_service_orders SET so_no=?,so_date=?,amount=?,status=?,notes=? WHERE id=?",
             (so_no, so_date, total, status, notes, sid))

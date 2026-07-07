@@ -36,7 +36,6 @@
                 <tr>
                     <th>#</th>
                     <th>Description</th>
-                    <th style="text-align:center">Vehicle</th>
                     <th style="text-align:center">QTY</th>
                     <th style="text-align:center">Unit</th>
                     <th style="text-align:right">Rate (AED)</th>
@@ -48,7 +47,6 @@
                 <tr>
                     <td>{{ loop.index }}</td>
                     <td>{{ it.description or '—' }}</td>
-                    <td style="text-align:center">{{ it.vehicle_no or '—' }}</td>
                     <td style="text-align:center">{{ it.quantity }}</td>
                     <td style="text-align:center">{{ it.unit_type }}</td>
                     <td style="text-align:right">{{ "%.2f"|format(it.rate) }}</td>
@@ -58,7 +56,7 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="6" style="text-align:right;font-weight:700;font-size:1rem">Total</td>
+                    <td colspan="5" style="text-align:right;font-weight:700;font-size:1rem">Total</td>
                     <td style="text-align:right;font-weight:800;font-size:1rem;color:var(--primary)">AED {{ "%.2f"|format(so.amount or 0) }}</td>
                 </tr>
             </tfoot>

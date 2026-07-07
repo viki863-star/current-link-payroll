@@ -5,7 +5,7 @@
 {% block content %}
 <div class="profile-shell" style="max-width:700px;margin:0 auto">
 <style>
-.so-item-row { display:grid; grid-template-columns:1fr 100px 70px 110px 90px 100px 36px; gap:6px; align-items:center; margin-bottom:4px; }
+.so-item-row { display:grid; grid-template-columns:1fr 70px 110px 90px 100px 36px; gap:6px; align-items:center; margin-bottom:4px; }
 .so-item-row input, .so-item-row select { padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; outline:none; }
 .so-item-row input:focus, .so-item-row select:focus { border-color:var(--primary); }
 .so-item-row .item-amt { font-weight:600; font-size:0.85rem; text-align:right; padding:6px 8px; }
@@ -49,9 +49,8 @@
                 <button type="button" class="btn btn-outline btn-sm" onclick="addItem()">+ Add Line</button>
             </div>
             <div style="background:#f8fafc;border-radius:10px;padding:10px;border:1px solid #eef2f6">
-                <div style="display:grid;grid-template-columns:1fr 100px 70px 110px 90px 100px 36px;gap:6px;margin-bottom:6px;padding:0 4px">
+                <div style="display:grid;grid-template-columns:1fr 70px 110px 90px 100px 36px;gap:6px;margin-bottom:6px;padding:0 4px">
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600">Description</span>
-                    <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">Vehicle</span>
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">QTY</span>
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">Unit</span>
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:right">Rate (AED)</span>
@@ -63,7 +62,6 @@
                     {% for it in items %}
                     <div class="so-item-row">
                         <input type="text" name="item_desc[]" value="{{ it.description or '' }}" placeholder="Service description">
-                        <input type="text" name="item_vehicle[]" value="{{ it.vehicle_no or '' }}" placeholder="Plate no" style="text-align:center;text-transform:uppercase">
                         <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
                         <select name="item_unit[]" class="form-control" onchange="calcTotals()">
                             <option value="hour" {% if it.unit_type == 'hour' %}selected{% endif %}>Hour</option>
@@ -85,7 +83,6 @@
                 {% else %}
                     <div class="so-item-row">
                         <input type="text" name="item_desc[]" placeholder="Service description">
-                        <input type="text" name="item_vehicle[]" placeholder="Plate no" style="text-align:center;text-transform:uppercase">
                         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
                         <select name="item_unit[]" class="form-control" onchange="calcTotals()">
                             <option value="hour">Hour</option>
@@ -134,7 +131,6 @@ function addItem() {
     row.className = 'so-item-row';
     row.innerHTML = `
         <input type="text" name="item_desc[]" placeholder="Service description">
-        <input type="text" name="item_vehicle[]" placeholder="Plate no" style="text-align:center;text-transform:uppercase">
         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
         <select name="item_unit[]" class="form-control" onchange="calcTotals()">
             <option value="hour">Hour</option>
