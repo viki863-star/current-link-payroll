@@ -5,19 +5,19 @@
 {% block content %}
 <div class="profile-shell" style="max-width:1000px;margin:0 auto">
 <style>
-.inv-box { background:#fff; border:2px solid #e2e8f0; border-radius:14px; padding:24px 28px; }
+.inv-box { background:#fff; border:2px solid #e2e8f0; border-radius:14px; padding:16px 20px; }
 .inv-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
 .inv-table thead { background:#1e293b; }
-.inv-table th { padding:8px 6px; font-size:0.6rem; text-transform:uppercase; letter-spacing:0.5px; color:#fff; font-weight:700; white-space:nowrap; border:1px solid #1e293b; }
-.inv-table td { padding:6px; border:1px solid #e2e8f0; vertical-align:middle; }
+.inv-table th { padding:6px 4px; font-size:0.55rem; text-transform:uppercase; letter-spacing:0.4px; color:#fff; font-weight:700; white-space:nowrap; border:1px solid #1e293b; }
+.inv-table td { padding:5px 4px; border:1px solid #e2e8f0; vertical-align:middle; }
 .inv-table tbody tr:nth-child(even) { background:#f8fafc; }
-.inv-table input, .inv-table select { width:100%; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.78rem; outline:none; box-sizing:border-box; }
+.inv-table input, .inv-table select { width:100%; padding:3px 5px; border:1px solid #e2e8f0; border-radius:3px; font-size:0.72rem; outline:none; box-sizing:border-box; }
 .inv-table input:focus { border-color:#1a3a5c; }
 .inv-table input[readonly] { background:#f0f2f5; }
-.info-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:10px; padding:12px 14px; }
-.info-card h4 { margin:0 0 6px; font-size:0.6rem; text-transform:uppercase; color:#94a3b8; letter-spacing:0.6px; font-weight:700; }
-.info-line { font-size:0.76rem; padding:2px 0; color:#475569; }
-.info-line .lbl { color:#94a3b8; min-width:80px; display:inline-block; }
+.info-card { background:#fff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; }
+.info-card h4 { margin:0 0 3px; font-size:0.55rem; text-transform:uppercase; color:#94a3b8; letter-spacing:0.5px; font-weight:700; }
+.info-line { font-size:0.7rem; padding:1px 0; color:#475569; }
+.info-line .lbl { color:#94a3b8; min-width:60px; display:inline-block; }
 .btn-icon { width:28px; height:28px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:#c62828; font-size:0.9rem; padding:0; }
 .btn-icon:hover { background:#fee; }
 .hours-input { width:80px; padding:2px 4px; border:1px solid #e2e8f0; border-radius:3px; font-size:0.72rem; text-align:center; }
@@ -30,10 +30,10 @@
         <input type="hidden" name="is_nmdc" value="1">
 
         {# HEADER: Bill To | Invoice Details #}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
             <div class="info-card">
                 <h4>Bill To</h4>
-                <div style="font-size:0.88rem;font-weight:600;color:#0f172a;margin-bottom:4px">{{ c.customer_name }}</div>
+                <div style="font-size:0.82rem;font-weight:600;color:#0f172a;">{{ c.customer_name }}</div>
                 {% if c.address %}<div class="info-line">{{ c.address }}</div>{% endif %}
                 {% if c.trn %}<div class="info-line"><span class="lbl">TRN:</span> {{ c.trn }}</div>{% endif %}
                 {% if c.phone %}<div class="info-line"><span class="lbl">Phone:</span> {{ c.phone }}</div>{% endif %}
@@ -41,19 +41,19 @@
             </div>
             <div class="info-card">
                 <h4>Invoice Details</h4>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
                     <div>
-                        <label style="font-size:0.65rem;color:#94a3b8">Invoice No.</label>
-                        <input type="text" name="invoice_no" placeholder="{{ next_no }}" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
-                        {% if next_no %}<span style="font-size:0.6rem;color:#94a3b8">Auto: {{ next_no }}</span>{% endif %}
+                        <label style="font-size:0.6rem;color:#94a3b8">Invoice No.</label>
+                        <input type="text" name="invoice_no" placeholder="{{ next_no }}" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
+                        {% if next_no %}<span style="font-size:0.55rem;color:#94a3b8">Auto: {{ next_no }}</span>{% endif %}
                     </div>
                     <div>
-                        <label style="font-size:0.65rem;color:#94a3b8">Invoice Date</label>
-                        <input type="date" name="invoice_date" value="{{ today }}" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
+                        <label style="font-size:0.6rem;color:#94a3b8">Invoice Date</label>
+                        <input type="date" name="invoice_date" value="{{ today }}" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
                     </div>
                     <div>
-                        <label style="font-size:0.65rem;color:#94a3b8">SO No.</label>
-                        <select name="so_id" id="soSelect" onchange="loadSoData()" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
+                        <label style="font-size:0.6rem;color:#94a3b8">SO No.</label>
+                        <select name="so_id" id="soSelect" onchange="loadSoData()" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
                             <option value="">Select SO</option>
                             {% for s in sos %}
                             <option value="{{ s.id }}" data-amount="{{ s.amount or 0 }}" data-date="{{ s.so_date or '' }}">{{ s.so_no or '' }} | {{ s.so_date }} | AED {{ '%.0f'|format(s.amount) if s.amount else '0' }}</option>
@@ -61,44 +61,42 @@
                         </select>
                     </div>
                     <div>
-                        <label style="font-size:0.65rem;color:#94a3b8">SO Date</label>
-                        <input type="text" id="soDateDisplay" readonly style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;background:#f0f2f5">
+                        <label style="font-size:0.6rem;color:#94a3b8">SO Date</label>
+                        <input type="text" id="soDateDisplay" readonly style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem;background:#f0f2f5">
                     </div>
                 </div>
             </div>
         </div>
 
         {# PERIOD / RATE / MONTH #}
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 80px;gap:6px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:10px">
             <div>
-                <label style="font-size:0.65rem;color:#94a3b8">Period From</label>
-                <input type="date" name="period_from" id="periodFrom" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
+                <label style="font-size:0.6rem;color:#94a3b8">Period From</label>
+                <input type="date" name="period_from" id="periodFrom" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
             </div>
             <div>
-                <label style="font-size:0.65rem;color:#94a3b8">Period To</label>
-                <input type="date" name="period_to" id="periodTo" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
+                <label style="font-size:0.6rem;color:#94a3b8">Period To</label>
+                <input type="date" name="period_to" id="periodTo" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
             </div>
             <div>
-                <label style="font-size:0.65rem;color:#94a3b8">Monthly Rate (AED)</label>
-                <input type="number" name="monthly_rate" id="monthlyRate" value="0" min="0" step="any" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem" oninput="calcAll()">
+                <label style="font-size:0.6rem;color:#94a3b8">Rate (AED)</label>
+                <input type="number" name="monthly_rate" id="monthlyRate" value="0" min="0" step="any" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem" oninput="calcAll()">
             </div>
             <div>
-                <label style="font-size:0.65rem;color:#94a3b8">Month</label>
-                <input type="text" name="month_label" id="monthLabel" placeholder="e.g. April-2026" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
+                <label style="font-size:0.6rem;color:#94a3b8">Month</label>
+                <input type="text" name="month_label" id="monthLabel" placeholder="e.g. April-2026" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
             </div>
-        </div>
-
-        {# VAT % #}
-        <div style="margin-bottom:14px">
-            <label style="font-size:0.72rem;color:#94a3b8">VAT %</label>
-            <input type="number" name="vat_percent" id="vatPercent" value="5" step="any" min="0" oninput="calcAll()" style="width:100px;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem">
+            <div>
+                <label style="font-size:0.6rem;color:#94a3b8">VAT %</label>
+                <input type="number" name="vat_percent" id="vatPercent" value="5" step="any" min="0" oninput="calcAll()" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
+            </div>
         </div>
 
         {# SINGLE TABLE #}
-        <div style="margin-bottom:16px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <h4 style="margin:0;font-size:0.85rem;font-weight:600">Invoice Items</h4>
-                <button type="button" class="btn btn-outline btn-sm" onclick="addRow()">+ Add Equipment</button>
+        <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <h4 style="margin:0;font-size:0.78rem;font-weight:600">Invoice Items</h4>
+                <button type="button" class="btn btn-outline btn-sm" onclick="addRow()" style="padding:3px 10px;font-size:0.72rem">+ Add</button>
             </div>
             <table class="inv-table" id="mainTable">
                 <thead>
@@ -134,22 +132,22 @@
         </div>
 
         {# TOTALS #}
-        <div style="margin-left:auto;width:320px;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:14px;background:#f8fafc">
-            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem">
+        <div style="margin-left:auto;width:280px;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;margin-bottom:10px;background:#f8fafc">
+            <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:0.78rem">
                 <span>Sub Total</span><span class="mono" id="subTotalDisplay" style="font-weight:600">0.00</span>
             </div>
-            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem">
+            <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:0.78rem">
                 <span>VAT @ <span id="vatLabel">5</span>%</span><span class="mono" id="vatDisplay" style="font-weight:600;color:#c62828">0.00</span>
             </div>
-            <div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:2px solid #1a3a5c;margin-top:4px;font-size:1rem">
-                <span style="font-weight:700">Total Due</span><span class="mono" id="totalDisplay" style="font-weight:800;font-size:1.1rem;color:#1a3a5c">0.00</span>
+            <div style="display:flex;justify-content:space-between;padding:4px 0 0;border-top:2px solid #1a3a5c;margin-top:2px;font-size:0.9rem">
+                <span style="font-weight:700">Total Due</span><span class="mono" id="totalDisplay" style="font-weight:800;font-size:1rem;color:#1a3a5c">0.00</span>
             </div>
         </div>
-
+        
         {# NOTES #}
-        <div style="margin-bottom:14px">
-            <label style="font-size:0.72rem;color:#94a3b8;display:block;margin-bottom:2px">Notes</label>
-            <textarea name="notes" rows="1" style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.82rem;resize:vertical" placeholder="Additional notes..."></textarea>
+        <div style="margin-bottom:10px">
+            <label style="font-size:0.65rem;color:#94a3b8;display:block;margin-bottom:2px">Notes</label>
+            <textarea name="notes" rows="1" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem;resize:vertical" placeholder="Additional notes..."></textarea>
         </div>
 
         <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;font-size:1rem">Create Invoice</button>

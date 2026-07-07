@@ -628,7 +628,17 @@ def customer_invoice_view(cid, iid):
     sum_taxable = sum(it["amount"] or 0 for it in items)
     sum_vat = sum(it["vat_amount_item"] or 0 for it in items)
     sum_total = sum((it["total_incl_vat"] or (it["amount"] or 0) + (it["vat_amount_item"] or 0)) for it in items)
-    return render_template(tmpl, c=c, inv=inv, items=items, company=company, nmdc_meta=nmdc_meta, sum_taxable=sum_taxable, sum_vat=sum_vat, sum_total=sum_total)
+    display_notes = inv.get("notes", "") or ""
+    if is_nmdc and display_notes:
+        import json
+        lines = display_notes.split("\n", 1)
+        if lines and lines[0].strip().startswith("{"):
+            try:
+                json.loads(lines[0])
+                display_notes = lines[1].strip() if len(lines) > 1 else ""
+            except Exception:
+                pass
+    return render_template(tmpl, c=c, inv=inv, items=items, company=company, nmdc_meta=nmdc_meta, sum_taxable=sum_taxable, sum_vat=sum_vat, sum_total=sum_total, display_notes=display_notes)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/pdf")
 def customer_invoice_pdf(cid, iid):
@@ -961,10 +971,20 @@ def customer_invoice_pdf(cid, iid):
     ab.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
     els.append(ab)
 
-    if inv["notes"]:
-        els.append(Spacer(1, 3*mm))
-        nb = Table([[Paragraph(f"<b>Notes:</b> {inv['notes']}", S("NW", fontSize=9, textColor=C4, leading=13))]], colWidths=[W])
-        nb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f8fafc")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
+    display_notes = inv.get("notes", "") or ""
+    if is_nmdc and display_notes:
+        import json
+        lines = display_notes.split("\n", 1)
+        if lines and lines[0].strip().startswith("{"):
+            try:
+                json.loads(lines[0])
+                display_notes = lines[1].strip() if len(lines) > 1 else ""
+            except Exception:
+                pass
+    if display_notes:
+        els.append(Spacer(1, 2*mm))
+        nb = Table([[Paragraph(f"<b>Notes:</b> {display_notes}", S("NW", fontSize=8, textColor=C4, leading=12))]], colWidths=[W])
+        nb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f8fafc")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4)]))
         els.append(nb)
 
     # ═══════════════════════════════════
