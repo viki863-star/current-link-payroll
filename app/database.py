@@ -2025,13 +2025,26 @@ class Record(dict):
 
 
 class QueryResult:
-    def __init__(self, cursor, backend: str):
+    def __init__(self, cursor, backend: str, is_insert=False):
         self.cursor = cursor
         self.backend = backend
+        self._is_insert = is_insert
+        self._lastrowid = None
+        if backend == "postgres" and is_insert:
+            try:
+                row = cursor.fetchone()
+                self._lastrowid = row[0] if row else None
+            except Exception:
+                pass
+        elif backend == "sqlite" and is_insert:
+            try:
+                self._lastrowid = cursor.lastrowid
+            except AttributeError:
+                pass
 
     @property
     def lastrowid(self):
-        return self.cursor.lastrowid
+        return self._lastrowid
 
     def fetchone(self):
         row = self.cursor.fetchone()
@@ -2049,8 +2062,12 @@ class DatabaseAdapter:
 
     def execute(self, query: str, params=()):
         cursor = self.connection.cursor()
-        cursor.execute(_prepare_query(query, self.backend), params or ())
-        return QueryResult(cursor, self.backend)
+        sql = _prepare_query(query, self.backend)
+        is_insert = bool(sql.strip().upper().startswith("INSERT"))
+        if self.backend == "postgres" and is_insert:
+            sql += " RETURNING id"
+        cursor.execute(sql, params or ())
+        return QueryResult(cursor, self.backend, is_insert=is_insert)
 
     def executemany(self, query: str, params_seq):
         cursor = self.connection.cursor()
