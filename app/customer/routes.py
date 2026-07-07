@@ -22,8 +22,13 @@ def _safe_execute(db, sql, params=()):
         _safe_rollback(db)
 
 def _ensure_tables():
-    db = _get_db()
+    from ..database import DatabaseAdapter, _connect_sqlite, _connect_postgres
     backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+    if backend == "postgres":
+        conn = _connect_postgres(current_app.config["DATABASE_URL"])
+    else:
+        conn = _connect_sqlite(current_app.config["DATABASE_PATH"])
+    db = DatabaseAdapter(conn, backend)
     autoinc = "BIGSERIAL PRIMARY KEY" if backend == "postgres" else "INTEGER PRIMARY KEY AUTOINCREMENT"
     now = "NOW()" if backend == "postgres" else "datetime('now')"
     ignore = "ON CONFLICT DO NOTHING" if backend == "postgres" else "OR IGNORE"
@@ -198,6 +203,7 @@ def _ensure_tables():
     for tbl in ["customer_documents","customer_invoice_items","customer_so_items",
                 "customer_quotation_items","lpo_items","service_items"]:
         _safe_execute(db, f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS created_at TEXT" if backend == "postgres" else f"ALTER TABLE {tbl} ADD COLUMN created_at TEXT")
+    db.close()
 
 # ─── HELPERS ───
 
@@ -358,6 +364,7 @@ def customer_invoice_add(cid):
     svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
     if request.method == "POST":
         try:
+            _safe_rollback(db)
             inv_date = request.form.get("invoice_date", date.today().isoformat())
             inv_no = request.form.get("invoice_no", "").strip() or next_no
             existing = db.execute("SELECT id FROM customer_invoices WHERE invoice_no=?", (inv_no,)).fetchone()
