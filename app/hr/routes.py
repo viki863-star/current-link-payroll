@@ -792,7 +792,6 @@ def employee_salary_store_delete(employee_id, store_id):
     ensure_employees_table()
     try:
         db = open_db()
-    try:
         employee = _fetch_employee(db, employee_id)
         if employee is None:
             flash("Employee not found.", "error")
