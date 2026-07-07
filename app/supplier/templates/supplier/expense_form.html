@@ -11,7 +11,7 @@
 .ef-hdr .back { margin-left:auto; color:rgba(255,255,255,0.85); font-size:0.78rem; text-decoration:none; }
 .ef-hdr .back:hover { color:#fff; }
 .ef-body { padding:20px 22px 22px; }
-.ef-type-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+.ef-type-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:16px; }
 .ef-type-btn { padding:10px; border:2px solid var(--line); border-radius:8px; text-align:center; cursor:pointer; transition:all 0.15s; background:#fff; font-weight:600; font-size:0.82rem; color:#475569; }
 .ef-type-btn:hover { border-color:#94a3b8; }
 .ef-type-btn.active { border-color:var(--primary); background:#eef2ff; color:var(--primary); }
@@ -46,7 +46,7 @@
       <div class="ef-row">
         <label>Basis / Type</label>
         <div class="ef-type-grid" id="typeGrid">
-{% set ef_type = exp.earning_type if exp and exp.earning_type in ('fixed','trip','hour') else 'fixed' %}
+{% set ef_type = exp.earning_type if exp and exp.earning_type in ('fixed','trip','hour','monthly') else 'fixed' %}
           <label class="ef-type-btn {{ 'active' if ef_type == 'fixed' else '' }}">
             <input type="radio" name="earning_type" value="fixed" {{ 'checked' if ef_type == 'fixed' else '' }} onchange="toggleType(this)">
             <div style="font-size:1.2rem;margin-bottom:2px">💰</div> Fixed
@@ -59,17 +59,21 @@
             <input type="radio" name="earning_type" value="hour" {{ 'checked' if ef_type == 'hour' else '' }} onchange="toggleType(this)">
             <div style="font-size:1.2rem;margin-bottom:2px">⏱️</div> Hour
           </label>
+          <label class="ef-type-btn {{ 'active' if ef_type == 'monthly' else '' }}">
+            <input type="radio" name="earning_type" value="monthly" {{ 'checked' if ef_type == 'monthly' else '' }} onchange="toggleType(this)">
+            <div style="font-size:1.2rem;margin-bottom:2px">📅</div> Monthly
+          </label>
         </div>
       </div>
 
-      <div id="efFixed" style="display:{{ 'none' if ef_type != 'fixed' else '' }}">
+      <div id="efFixed" style="display:{{ 'none' if ef_type not in ('fixed','monthly') else '' }}">
         <div class="ef-row">
           <label>Amount *</label>
-          <input type="number" name="amount" step="0.01" min="0" class="form-control" placeholder="0.00" value="{{ exp.amount if ef_type == 'fixed' and exp else '' }}">
+          <input type="number" name="amount" step="0.01" min="0" class="form-control" placeholder="0.00" value="{{ exp.amount if ef_type in ('fixed','monthly') and exp else '' }}">
         </div>
       </div>
 
-      <div id="efQty" style="display:{{ 'none' if ef_type == 'fixed' else '' }}">
+      <div id="efQty" style="display:{{ 'none' if ef_type in ('fixed','monthly') else '' }}">
         <div class="ef-grid-2">
           <div class="ef-row">
             <label id="qtyLbl">{{ 'Hours' if ef_type == 'hour' else 'Trip Count' }}</label>
@@ -80,7 +84,7 @@
             <input type="number" name="rate" step="0.01" min="0" class="form-control" id="rateInput" oninput="calcEFTotal()" placeholder="0.00" value="{{ exp.rate if exp else '' }}">
           </div>
         </div>
-        <div class="ef-total">Total: AED <span id="efTotalDisplay">{{ "%.2f"|format(exp.amount|float) if ef_type != 'fixed' and exp else '0.00' }}</span></div>
+        <div class="ef-total">Total: AED <span id="efTotalDisplay">{{ "%.2f"|format(exp.amount|float) if ef_type not in ('fixed','monthly') and exp else '0.00' }}</span></div>
       </div>
 
       <div class="ef-row">
@@ -134,8 +138,9 @@ function toggleType(el) {
   document.querySelectorAll('.ef-type-btn').forEach(function(b){b.classList.remove('active')});
   el.closest('.ef-type-btn').classList.add('active');
   var t = el.value;
-  document.getElementById('efFixed').style.display = t === 'fixed' ? '' : 'none';
-  document.getElementById('efQty').style.display = t !== 'fixed' ? '' : 'none';
+  var isFixedLike = t === 'fixed' || t === 'monthly';
+  document.getElementById('efFixed').style.display = isFixedLike ? '' : 'none';
+  document.getElementById('efQty').style.display = isFixedLike ? 'none' : '';
   if (t === 'trip') { document.getElementById('qtyLbl').textContent = 'Trip Count'; document.getElementById('rateLbl').textContent = 'Rate per Trip'; }
   else if (t === 'hour') { document.getElementById('qtyLbl').textContent = 'Hours'; document.getElementById('rateLbl').textContent = 'Rate per Hour'; }
   calcEFTotal();
@@ -145,7 +150,7 @@ function calcEFTotal() {
   var r = parseFloat(document.getElementById('rateInput').value) || 0;
   document.getElementById('efTotalDisplay').textContent = (q * r).toFixed(2);
 }
-{% if ef_type != 'fixed' %}
+{% if ef_type not in ('fixed','monthly') %}
 calcEFTotal();
 {% endif %}
 </script>
