@@ -41,7 +41,7 @@
 </style>
 
 {% set main_desc = items[0].description if items else '' %}
-{% set vehicle_items = items[1:] if items|length > 1 else [] %}
+{% set equip_items = items[1:] if items|length > 1 else [] %}
 {% set conv_hours = 260 %}
 
 <div class="inv-box" style="{% if company and company.theme_color %}--primary:{{ company.theme_color }}{% endif %}">
@@ -95,49 +95,73 @@
     </div>
     {% endif %}
 
-    {# ─── VEHICLE DETAILS TABLE ─── #}
-    {% if vehicle_items %}
+    {# ─── PERIOD & RATE INFO ─── #}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;padding:12px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:0.82rem">
+        <div>
+            <span style="color:#94a3b8;font-size:0.7rem">Period</span><br>
+            <span style="font-weight:600">{{ inv.nmdc_period_from or '—' }} to {{ inv.nmdc_period_to or '—' }}</span>
+        </div>
+        <div>
+            <span style="color:#94a3b8;font-size:0.7rem">Monthly Rate</span><br>
+            <span style="font-weight:600;font-family:mono">AED {{ "%.2f"|format(inv.nmdc_monthly_rate or 0) }}</span>
+        </div>
+        <div>
+            <span style="color:#94a3b8;font-size:0.7rem">Month</span><br>
+            <span style="font-weight:600">{{ inv.nmdc_month_label or '—' }}</span>
+        </div>
+    </div>
+
+    {# ─── EQUIPMENT DETAILS TABLE ─── #}
+    {% if equip_items %}
     <table class="inv-table">
         <thead>
             <tr>
                 <th style="text-align:center;width:32px">#</th>
-                <th style="text-align:left">Vehicle / Plant No.</th>
-                <th style="text-align:right;width:100px">Total Hours</th>
-                <th style="text-align:right;width:100px">QYT (Months)</th>
+                <th style="text-align:left">Plant No.</th>
+                <th style="text-align:left">Equipment Reg #</th>
+                <th style="text-align:right;width:90px">Hours</th>
+                <th style="text-align:right;width:90px">QYT (Mo)</th>
+                <th style="text-align:right;width:100px">Amount</th>
             </tr>
         </thead>
         <tbody>
-            {% set total_hours = namespace(v=0) %}
-            {% set total_qyt = namespace(v=0) %}
-            {% for it in vehicle_items %}
-            {% set qyt = (it.quantity / conv_hours)|round(2) %}
-            {% set total_hours.v = total_hours.v + it.quantity %}
-            {% set total_qyt.v = total_qyt.v + qyt %}
+            {% set tot_h = namespace(v=0) %}
+            {% set tot_q = namespace(v=0) %}
+            {% set tot_a = namespace(v=0) %}
+            {% for it in equip_items %}
+            {% set hrs = (it.capacity_gallon|float) if it.capacity_gallon and it.capacity_gallon|float > 0 else (it.quantity * conv_hours)|round(0) %}
+            {% set qyt_mo = it.quantity %}
+            {% set tot_h.v = tot_h.v + hrs %}
+            {% set tot_q.v = tot_q.v + qyt_mo %}
+            {% set tot_a.v = tot_a.v + (it.amount or 0) %}
             <tr>
                 <td style="text-align:center;font-weight:600;color:#64748b">{{ loop.index }}</td>
-                <td style="font-weight:500;color:#0f172a">{{ it.vehicle_no or it.description or '—' }}</td>
-                <td style="text-align:right;font-family:mono">{{ "{:,.2f}".format(it.quantity) }} <span style="font-size:0.65rem;color:#94a3b8">hrs</span></td>
-                <td style="text-align:right;font-family:mono;font-weight:600">{{ "{:,.3f}".format(qyt) }}</td>
+                <td style="font-weight:500;color:#0f172a">{{ it.vehicle_no or '—' }}</td>
+                <td style="font-weight:500;color:#0f172a;font-family:mono">{{ it.description or '—' }}</td>
+                <td style="text-align:right;font-family:mono">{{ "{:,.2f}".format(hrs) }}</td>
+                <td style="text-align:right;font-family:mono;font-weight:600">{{ "{:,.3f}".format(qyt_mo) }}</td>
+                <td style="text-align:right;font-family:mono;font-weight:600">{{ "%.2f"|format(it.amount or 0) }}</td>
             </tr>
             {% endfor %}
         </tbody>
         <tfoot>
             <tr style="background:#f1f5f9;font-weight:700">
-                <td colspan="2" style="text-align:right;font-size:0.85rem">Total</td>
-                <td style="text-align:right;font-family:mono">{{ "{:,.2f}".format(total_hours.v) }} <span style="font-size:0.65rem;color:#94a3b8">hrs</span></td>
-                <td style="text-align:right;font-family:mono">{{ "{:,.3f}".format(total_qyt.v) }}</td>
+                <td colspan="3" style="text-align:right;font-size:0.85rem">Total</td>
+                <td style="text-align:right;font-family:mono">{{ "{:,.2f}".format(tot_h.v) }}</td>
+                <td style="text-align:right;font-family:mono">{{ "{:,.3f}".format(tot_q.v) }}</td>
+                <td style="text-align:right;font-family:mono">{{ "%.2f"|format(tot_a.v) }}</td>
             </tr>
         </tfoot>
     </table>
     {% endif %}
 
-    {# ─── STANDARD ITEMS TABLE (first item + any non-vehicle items) ─── #}
+    {# ─── STANDARD FINANCIAL TABLE ─── #}
     <table class="inv-table">
         <thead>
             <tr>
                 <th style="text-align:center;width:32px">#</th>
                 <th style="text-align:left">Description</th>
-                <th style="text-align:right;width:130px">QTY</th>
+                <th style="text-align:right;width:100px">QTY (Mo)</th>
                 <th style="text-align:right;width:80px">Unit Price</th>
                 <th style="text-align:right;width:85px">Taxable Amt</th>
                 <th style="text-align:center;width:50px">VAT %</th>
@@ -153,7 +177,7 @@
             <tr>
                 <td style="text-align:center;font-weight:600;color:#64748b">{{ loop.index }}</td>
                 <td style="font-weight:500;color:#0f172a">{{ it.description or '—' }}</td>
-                <td style="text-align:right;font-family:mono">{{ "{:,.2f}".format(it.quantity) }} <span style="font-size:0.65rem;color:#94a3b8">{{ it.unit or 'hr' }}</span></td>
+                <td style="text-align:right;font-family:mono">{{ "{:,.3f}".format(it.quantity) }} <span style="font-size:0.65rem;color:#94a3b8">{{ it.unit or 'mo' }}</span></td>
                 <td style="text-align:right;font-family:mono">{{ "%.3f" % it.rate }}</td>
                 <td style="text-align:right;font-family:mono">{{ "%.2f" % it.amount }}</td>
                 <td style="text-align:center;font-family:mono">{{ "%.2f" % vat_pct_item }}%</td>

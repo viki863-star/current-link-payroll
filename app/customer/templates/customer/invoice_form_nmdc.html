@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}New Invoice — NMDC{% endblock %}
+{% block page_title %}Invoice — {{ c.customer_name }}{% endblock %}
+
+{% block content %}
+<div class="profile-shell" style="max-width:900px;margin:0 auto">
+<style>
+.eq-row { display:grid; grid-template-columns:1fr 1fr 90px 80px 100px 32px; gap:6px; align-items:center; margin-bottom:4px; }
+.eq-row input { padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; outline:none; }
+.eq-row input:focus { border-color:var(--primary); }
+.eq-row .eq-amt { font-weight:600; font-size:0.85rem; text-align:right; padding:6px 8px; }
+.eq-row .btn-remove { width:32px; height:32px; border-radius:6px; border:1px solid #e0e0e0; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#c62828; font-size:1rem; }
+.eq-row .btn-remove:hover { background:#fee; }
+.nmdc-section { background:#f8fafc; border:1px solid #eef2f6; border-radius:10px; padding:14px; margin-bottom:16px; }
+</style>
+
+<div class="profile-card">
+    <div style="margin-bottom:16px">
+        <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='invoices') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+    </div>
+
+    <h3 style="margin:0 0 4px;font-size:1.1rem">New Tax Invoice — NMDC Format</h3>
+    <p style="color:var(--muted);font-size:0.82rem;margin:0 0 16px">
+        Customer: <strong>{{ c.customer_name }}</strong>
+        {% if c.trn %} &middot; TRN: <span class="mono">{{ c.trn }}</span>{% endif %}
+    </p>
+
+    <form method="POST" id="invoiceForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="is_nmdc" value="1">
+
+        {# ─── Invoice Details ─── #}
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Invoice Date</label>
+                <input type="date" name="invoice_date" value="{{ today }}" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+            </div>
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Invoice No.</label>
+                <input type="text" name="invoice_no" value="" placeholder="{{ next_no }}" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                {% if next_no %}<span style="font-size:0.65rem;color:var(--muted)">Auto: {{ next_no }}</span>{% endif %}
+            </div>
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">VAT %</label>
+                <input type="number" name="vat_percent" value="5" step="any" min="0" id="vatPercent" oninput="calcTotals()" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+            </div>
+        </div>
+
+        {# ─── SO Selection ─── #}
+        <div class="nmdc-section">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <div>
+                    <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Service Order</label>
+                    <select name="so_id" id="soSelect" onchange="loadSoData()" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                        <option value="">— Select SO —</option>
+                        {% for s in sos %}
+                        <option value="{{ s.id }}" data-amount="{{ s.amount or 0 }}">{{ s.so_no or '—' }} | {{ s.so_date }} | AED {{ "%.0f"|format(s.amount) if s.amount else '0' }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Month</label>
+                    <input type="text" name="month_label" id="monthLabel" placeholder="e.g. April-2026" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+                <div>
+                    <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Period From</label>
+                    <input type="date" name="period_from" id="periodFrom" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                </div>
+                <div>
+                    <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Period To</label>
+                    <input type="date" name="period_to" id="periodTo" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+                </div>
+                <div>
+                    <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Monthly Rate (AED)</label>
+                    <input type="number" name="monthly_rate" id="monthlyRate" value="0" min="0" step="any" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem" oninput="calcTotals()">
+                </div>
+            </div>
+
+            {# ─── Auto-generated Description ─── #}
+            <div>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Description (auto-generated)</label>
+                <input type="text" name="main_description" id="mainDesc" readonly style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.82rem;background:#f0f2f5">
+            </div>
+        </div>
+
+        {# ─── Equipment Table ─── #}
+        <div style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <h4 style="margin:0;font-size:0.9rem;font-weight:600">Equipment Details</h4>
+                <button type="button" class="btn btn-outline btn-sm" onclick="addEquipment()">+ Add Equipment</button>
+            </div>
+            <div style="background:#f8fafc;border-radius:10px;padding:10px;border:1px solid #eef2f6">
+                <div style="display:grid;grid-template-columns:1fr 1fr 90px 80px 100px 32px;gap:6px;margin-bottom:6px;padding:0 4px">
+                    <span style="font-size:0.65rem;color:var(--muted);font-weight:600">Plant No.</span>
+                    <span style="font-size:0.65rem;color:var(--muted);font-weight:600">Equipment Reg #</span>
+                    <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">Hours</span>
+                    <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">QYT (Mo)</span>
+                    <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:right">Amount</span>
+                    <span></span>
+                </div>
+                <div id="equipContainer">
+                    <div class="eq-row">
+                        <input type="text" name="eq_plant[]" placeholder="Plant No">
+                        <input type="text" name="eq_reg[]" placeholder="Reg No">
+                        <input type="number" name="eq_hours[]" value="0" min="0" step="0.01" style="text-align:center" oninput="calcEquipment(this)">
+                        <input type="text" name="eq_qyt[]" value="0.000" readonly style="text-align:center;background:#f0f2f5;font-weight:600">
+                        <span class="eq-amt" id="eqAmt_0">0.00</span>
+                        <button type="button" class="btn-remove" onclick="removeEquipment(this)" style="display:none">&times;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ─── Totals ─── #}
+        <div style="margin-left:auto;width:320px;border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:16px;background:#f8fafc">
+            <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
+                <span>Sub Total</span><span class="mono" id="subTotalDisplay" style="font-weight:600">0.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
+                <span>VAT <span id="vatLabel">@ 5%</span></span><span class="mono" id="vatDisplay" style="font-weight:600;color:#c62828">0.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:2px solid var(--primary);margin-top:4px;font-size:1.05rem">
+                <span style="font-weight:700">Total Due</span><span class="mono" id="totalDisplay" style="font-weight:800;font-size:1.2rem;color:var(--primary)">0.00</span>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Additional notes..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top:6px;width:100%;padding:12px;font-size:1rem">Create Invoice</button>
+    </form>
+</div>
+</div>
+
+<script>
+const convHours = 260;
+let eqCount = 1;
+
+function addEquipment(plant, reg, hours) {
+    const container = document.getElementById('equipContainer');
+    const row = document.createElement('div');
+    row.className = 'eq-row';
+    const p = plant || '';
+    const r = reg || '';
+    const h = hours || 0;
+    row.innerHTML = `
+        <input type="text" name="eq_plant[]" placeholder="Plant No" value="${p}">
+        <input type="text" name="eq_reg[]" placeholder="Reg No" value="${r}">
+        <input type="number" name="eq_hours[]" value="${h}" min="0" step="0.01" style="text-align:center" oninput="calcEquipment(this)">
+        <input type="text" name="eq_qyt[]" value="0.000" readonly style="text-align:center;background:#f0f2f5;font-weight:600">
+        <span class="eq-amt" id="eqAmt_${eqCount}">0.00</span>
+        <button type="button" class="btn-remove" onclick="removeEquipment(this)">&times;</button>
+    `;
+    container.appendChild(row);
+    eqCount++;
+}
+
+function removeEquipment(btn) {
+    const rows = document.querySelectorAll('.eq-row');
+    if (rows.length <= 1) return;
+    btn.closest('.eq-row').remove();
+    calcTotals();
+}
+
+function calcEquipment(el) {
+    const row = el.closest('.eq-row');
+    const hours = parseFloat(row.querySelector('input[name*="eq_hours"]').value) || 0;
+    const rate = parseFloat(document.getElementById('monthlyRate').value) || 0;
+    const qyt = hours / convHours;
+    const amt = qyt * rate;
+    row.querySelector('input[name*="eq_qyt"]').value = qyt.toFixed(3);
+    row.querySelector('.eq-amt').textContent = amt.toFixed(2);
+    calcTotals();
+}
+
+function calcTotals() {
+    const rows = document.querySelectorAll('.eq-row');
+    let sub = 0;
+    rows.forEach(row => {
+        const hours = parseFloat(row.querySelector('input[name*="eq_hours"]').value) || 0;
+        const rate = parseFloat(document.getElementById('monthlyRate').value) || 0;
+        sub += (hours / convHours) * rate;
+    });
+    const vatPct = parseFloat(document.getElementById('vatPercent').value) || 0;
+    const vat = sub * vatPct / 100;
+    const total = sub + vat;
+    document.getElementById('subTotalDisplay').textContent = sub.toFixed(2);
+    document.getElementById('vatLabel').textContent = '@ ' + vatPct + '%';
+    document.getElementById('vatDisplay').textContent = vat.toFixed(2);
+    document.getElementById('totalDisplay').textContent = total.toFixed(2);
+}
+
+function loadSoData() {
+    const sel = document.getElementById('soSelect');
+    const sid = sel.value;
+    if (!sid) return;
+    fetch('{{ url_for("customer.customer_so_items", cid=c.id, sid=999) }}'.replace('999', sid))
+        .then(r => r.json())
+        .then(data => {
+            if (!data || !data.items || data.items.length === 0) return;
+            const first = data.items[0];
+            const rate = first.rate || 0;
+            const desc = first.description || '';
+            document.getElementById('monthlyRate').value = rate;
+            document.getElementById('mainDesc').value = desc + ' in the month of ';
+            calcTotals();
+            const monthInput = document.getElementById('monthLabel');
+            monthInput.addEventListener('input', function() {
+                document.getElementById('mainDesc').value = desc + ' in the month of ' + this.value;
+            });
+            if (monthInput.value) {
+                document.getElementById('mainDesc').value = desc + ' in the month of ' + monthInput.value;
+            }
+        })
+        .catch(e => console.error('loadSoData error:', e));
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var sel = document.getElementById('soSelect');
+    if (sel && sel.value) { loadSoData(); }
+});
+</script>
+{% endblock %}

@@ -175,6 +175,10 @@ def _ensure_tables():
         ("company_profile", "bank_account_name", "TEXT"),
         ("company_profile", "bank_account_number", "TEXT"),
         ("company_profile", "iban", "TEXT"),
+        ("customer_invoices", "nmdc_period_from", "TEXT"),
+        ("customer_invoices", "nmdc_period_to", "TEXT"),
+        ("customer_invoices", "nmdc_monthly_rate", real_type + " DEFAULT 0"),
+        ("customer_invoices", "nmdc_month_label", "TEXT"),
     ]
     for table, col, dtype in alter_ops:
         sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {dtype}" if backend == "postgres" else f"ALTER TABLE {table} ADD COLUMN {col} {dtype}"
@@ -346,6 +350,7 @@ def customer_invoice_add(cid):
     _ensure_tables()
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
+    is_nmdc = "nmdc" in (c["customer_name"] or "").lower()
     db = _get_db()
     next_no = _next_invoice_no(db)
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
@@ -358,55 +363,89 @@ def customer_invoice_add(cid):
         if existing:
             flash(f"Invoice number '{inv_no}' already exists. Use a different number.", "error")
             db.close()
-            return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+            tmpl = "customer/invoice_form_nmdc.html" if is_nmdc else "customer/invoice_form.html"
+            return render_template(tmpl, c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
         vat_pct = float(request.form.get("vat_percent", 5))
-        lpo_id = request.form.get("lpo_id", "").strip()
-        lpo_no = None
-        lpo_date = request.form.get("lpo_date", "").strip() or None
-        if lpo_id:
-            lpo_row = db.execute("SELECT lpo_no,lpo_date FROM customer_lpos WHERE id=? AND customer_id=?", (lpo_id, cid)).fetchone()
-            if lpo_row:
-                lpo_no = lpo_row["lpo_no"]
-                if not lpo_date:
-                    lpo_date = lpo_row["lpo_date"]
         so_id = request.form.get("so_id", "").strip()
         so_no = None
         if so_id:
             so_row = db.execute("SELECT so_no FROM customer_service_orders WHERE id=? AND customer_id=?", (so_id, cid)).fetchone()
             if so_row:
                 so_no = so_row["so_no"]
-        project_no = request.form.get("project_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
-        descs = request.form.getlist("item_desc[]")
-        qtys = request.form.getlist("item_qty[]")
-        units = request.form.getlist("item_unit[]")
-        rates = request.form.getlist("item_rate[]")
-        vehicles = request.form.getlist("item_vehicle[]")
         items = []
         sub_total = 0
-        for i in range(len(descs)):
-            desc = descs[i].strip()
-            qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
-            unit = units[i] if i < len(units) else "hour"
-            rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
-            vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
-            if desc or rate > 0:
-                amt = round(qty * rate, 2)
-                sub_total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
-        if not items:
-            flash("At least one line item is required.", "error")
-            db.close()
-            return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+
+        if is_nmdc:
+            main_desc = request.form.get("main_description", "").strip()
+            nmdc_monthly_rate = float(request.form.get("monthly_rate", 0))
+            eq_plants = request.form.getlist("eq_plant[]")
+            eq_regs = request.form.getlist("eq_reg[]")
+            eq_hours_list = request.form.getlist("eq_hours[]")
+            if main_desc:
+                items.append({"desc": main_desc, "qty": 1, "rate": nmdc_monthly_rate, "amt": 0, "unit": "month", "vehicle": "", "hours": 0})
+            for i in range(len(eq_plants)):
+                plant = eq_plants[i].strip()
+                reg = eq_regs[i].strip() if i < len(eq_regs) else ""
+                hours = float(eq_hours_list[i]) if i < len(eq_hours_list) and eq_hours_list[i].strip() else 0
+                if hours > 0:
+                    qyt = round(hours / 260, 3)
+                    amt = round(qyt * nmdc_monthly_rate, 2)
+                    items.append({"desc": reg, "qty": qyt, "rate": nmdc_monthly_rate, "amt": amt, "unit": "month", "vehicle": plant, "hours": hours})
+                    sub_total += amt
+            if not items:
+                flash("At least one equipment with hours is required.", "error")
+                db.close()
+                return render_template("customer/invoice_form_nmdc.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+        else:
+            lpo_id = request.form.get("lpo_id", "").strip()
+            lpo_no = None
+            lpo_date = request.form.get("lpo_date", "").strip() or None
+            if lpo_id:
+                lpo_row = db.execute("SELECT lpo_no,lpo_date FROM customer_lpos WHERE id=? AND customer_id=?", (lpo_id, cid)).fetchone()
+                if lpo_row:
+                    lpo_no = lpo_row["lpo_no"]
+                    if not lpo_date:
+                        lpo_date = lpo_row["lpo_date"]
+            project_no = request.form.get("project_no", "").strip() or None
+            descs = request.form.getlist("item_desc[]")
+            qtys = request.form.getlist("item_qty[]")
+            units = request.form.getlist("item_unit[]")
+            rates = request.form.getlist("item_rate[]")
+            vehicles = request.form.getlist("item_vehicle[]")
+            for i in range(len(descs)):
+                desc = descs[i].strip()
+                qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+                unit = units[i] if i < len(units) else "hour"
+                rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+                vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
+                if desc or rate > 0:
+                    amt = round(qty * rate, 2)
+                    sub_total += amt
+                    items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle, "hours": 0})
+            if not items:
+                flash("At least one line item is required.", "error")
+                db.close()
+                return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
-        c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes))
+        nmdc_fields = {}
+        if is_nmdc:
+            nmdc_fields = {
+                "nmdc_period_from": request.form.get("period_from", ""),
+                "nmdc_period_to": request.form.get("period_to", ""),
+                "nmdc_monthly_rate": float(request.form.get("monthly_rate", 0)),
+                "nmdc_month_label": request.form.get("month_label", ""),
+            }
+        c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,so_no,notes,nmdc_period_from,nmdc_period_to,nmdc_monthly_rate,nmdc_month_label)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, so_no, notes,
+             nmdc_fields.get("nmdc_period_from", ""), nmdc_fields.get("nmdc_period_to", ""),
+             nmdc_fields.get("nmdc_monthly_rate", 0), nmdc_fields.get("nmdc_month_label", "")))
         inv_id = c_inv.lastrowid
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
-                (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
+            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order,capacity_gallon) VALUES (?,?,?,?,?,?,?,?,?)",
+                (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx, str(it.get("hours", 0))))
             if it["desc"]:
                 try:
                     db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
@@ -417,7 +456,8 @@ def customer_invoice_add(cid):
         flash(f"Invoice {inv_no} created.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
     db.close()
-    return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+    tmpl = "customer/invoice_form_nmdc.html" if is_nmdc else "customer/invoice_form.html"
+    return render_template(tmpl, c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
 
 @customer_bp.route("/service-items/search")
 def service_items_search():
@@ -753,38 +793,57 @@ def customer_invoice_pdf(cid, iid):
 
     if is_nmdc:
         nmdc_main_desc = items[0]["description"] if items else ""
-        nmdc_vehicle_items = items[1:] if len(items) > 1 else []
+        nmdc_equip_items = items[1:] if len(items) > 1 else []
         if nmdc_main_desc:
             els.append(Paragraph(
                 f"<b>Description of Service:</b><br/>{nmdc_main_desc}",
                 S("_nd", fontSize=9, textColor=C4, leading=14)))
             els.append(Spacer(1, 3*mm))
-        if nmdc_vehicle_items:
-            vh, vcw = 6.5, [8*mm, W*0.45, W*0.235, W*0.235]
+        nmdc_pf = inv.get("nmdc_period_from", "") or ""
+        nmdc_pt = inv.get("nmdc_period_to", "") or ""
+        nmdc_mr = inv.get("nmdc_monthly_rate", 0) or 0
+        nmdc_ml = inv.get("nmdc_month_label", "") or ""
+        if nmdc_pf or nmdc_pt or nmdc_mr:
+            period_html = f"<b>Period:</b> {nmdc_pf} to {nmdc_pt}" if nmdc_pf or nmdc_pt else ""
+            if nmdc_mr:
+                period_html += f" &nbsp;&nbsp; <b>Monthly Rate:</b> AED {nmdc_mr:,.2f}"
+            if nmdc_ml:
+                period_html += f" &nbsp;&nbsp; <b>Month:</b> {nmdc_ml}"
+            els.append(Paragraph(period_html, S("_np", fontSize=8, textColor=C4, leading=13)))
+            els.append(Spacer(1, 3*mm))
+        if nmdc_equip_items:
+            vh, vcw = 6.5, [8*mm, W*0.25, W*0.22, W*0.15, W*0.15, W*0.18]
             vhdr = [
                 Paragraph("<b>#</b>", S("_vh0", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=vh*1.4)),
-                Paragraph("<b>Vehicle / Plant No.</b>", S("_vh1", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, leading=vh*1.4)),
-                Paragraph("<b>Total Hours</b>", S("_vh2", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=vh*1.4)),
-                Paragraph("<b>QYT (Months)</b>", S("_vh3", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=vh*1.4)),
+                Paragraph("<b>Plant No.</b>", S("_vh1", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, leading=vh*1.4)),
+                Paragraph("<b>Equipment Reg #</b>", S("_vh1b", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, leading=vh*1.4)),
+                Paragraph("<b>Hours</b>", S("_vh2", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=vh*1.4)),
+                Paragraph("<b>QYT (Mo)</b>", S("_vh3", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=vh*1.4)),
+                Paragraph("<b>Amount</b>", S("_vh4", fontSize=vh, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=vh*1.4)),
             ]
             vrws = [vhdr]
-            tot_h, tot_q = 0, 0
-            for idx, it in enumerate(nmdc_vehicle_items):
-                qyt = round(it["quantity"] / NMDC_CONV_HOURS, 3) if it["quantity"] else 0
-                tot_h += it["quantity"] or 0
+            tot_h, tot_q, tot_a = 0, 0, 0
+            for idx, it in enumerate(nmdc_equip_items):
+                hrs = float(it["capacity_gallon"]) if it.get("capacity_gallon") and float(it["capacity_gallon"]) > 0 else round(it["quantity"] * NMDC_CONV_HOURS, 0)
+                qyt = it["quantity"]
+                tot_h += hrs
                 tot_q += qyt
-                vlabel = it["vehicle_no"] or it["description"] or "—"
+                tot_a += it["amount"] or 0
                 vrws.append([
                     _pc(str(idx+1), alignment=TA_CENTER, fontName="Helvetica-Bold"),
-                    _pc(vlabel),
-                    _pc(f"{it['quantity'] or 0:,.2f}", alignment=TA_RIGHT),
+                    _pc(it["vehicle_no"] or "—"),
+                    _pc(it["description"] or "—"),
+                    _pc(f"{hrs:,.2f}", alignment=TA_RIGHT),
                     _pc(f"{qyt:,.3f}", alignment=TA_RIGHT),
+                    _pc(f"{it['amount'] or 0:,.2f}", alignment=TA_RIGHT),
                 ])
             vrws.append([
                 Paragraph("<b>Total</b>", S("_vft", fontSize=vh, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=vh*1.4)),
                 Paragraph("", S("_vfe", fontSize=vh, leading=vh*1.4)),
+                Paragraph("", S("_vfe2", fontSize=vh, leading=vh*1.4)),
                 Paragraph(f"<b>{tot_h:,.2f}</b>", S("_vftr", fontSize=vh, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=vh*1.4)),
                 Paragraph(f"<b>{tot_q:,.3f}</b>", S("_vftr2", fontSize=vh, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=vh*1.4)),
+                Paragraph(f"<b>{tot_a:,.2f}</b>", S("_vftr3", fontSize=vh, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=vh*1.4)),
             ])
             vtt = Table(vrws, colWidths=vcw, repeatRows=1)
             vtt.setStyle(TableStyle([
