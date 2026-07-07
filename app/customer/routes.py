@@ -391,17 +391,23 @@ def customer_invoice_add(cid):
                 eq_plants = request.form.getlist("eq_plant[]")
                 eq_regs = request.form.getlist("eq_reg[]")
                 eq_hours_list = request.form.getlist("eq_hours[]")
+                eq_pf_list = request.form.getlist("eq_period_from[]")
+                eq_pt_list = request.form.getlist("eq_period_to[]")
+                eq_periods = []
                 if main_desc:
                     items.append({"desc": main_desc, "qty": 1, "rate": nmdc_monthly_rate, "amt": 0, "unit": "month", "vehicle": "", "hours": 0})
                 for i in range(len(eq_plants)):
                     plant = eq_plants[i].strip()
                     reg = eq_regs[i].strip() if i < len(eq_regs) else ""
                     hours = float(eq_hours_list[i]) if i < len(eq_hours_list) and eq_hours_list[i].strip() else 0
+                    eq_pf = eq_pf_list[i].strip() if i < len(eq_pf_list) else ""
+                    eq_pt = eq_pt_list[i].strip() if i < len(eq_pt_list) else ""
                     if hours > 0:
                         qyt = round(hours / 260, 3)
                         amt = round(qyt * nmdc_monthly_rate, 2)
                         items.append({"desc": reg, "qty": qyt, "rate": nmdc_monthly_rate, "amt": amt, "unit": "month", "vehicle": plant, "hours": hours})
                         sub_total += amt
+                        eq_periods.append({"from": eq_pf, "to": eq_pt})
                 if not items:
                     flash("At least one equipment with hours is required.", "error")
                     db.close()
@@ -445,6 +451,7 @@ def customer_invoice_add(cid):
                     "period_to": request.form.get("period_to", ""),
                     "monthly_rate": float(request.form.get("monthly_rate", 0) or 0),
                     "month_label": request.form.get("month_label", ""),
+                    "eq_periods": eq_periods,
                 }
                 notes = json.dumps(nmdc_meta) if not notes else json.dumps(nmdc_meta) + "\n" + notes
             c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes)
@@ -798,7 +805,7 @@ def customer_invoice_pdf(cid, iid):
     # Estimate fixed content height (in points)
     fixed_pt = 35*mm + 4*mm + 35*mm + 4*mm + 2*mm + 20*mm + 3*mm + 7*mm + (7*mm if inv["notes"] else 0) + 10*mm + 8*mm + 8*mm
     avail_pt = A4[1] - TM - BM - fixed_pt
-    num_rows = len(items) - (1 if is_nmdc else 0)
+    num_rows = len(items) + (1 if is_nmdc else 0)
     fs = 7.0
     if num_rows > 0:
         target = avail_pt / (num_rows + 1)
@@ -814,6 +821,7 @@ def customer_invoice_pdf(cid, iid):
 
     sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
 
+    nmdc_eq_periods = []
     if is_nmdc:
         nmdc_main_desc = items[0]["description"] if items else ""
         try:
@@ -825,19 +833,7 @@ def customer_invoice_pdf(cid, iid):
         nmdc_pt = nmdc_meta.get("period_to", "") or ""
         nmdc_mr = nmdc_meta.get("monthly_rate", 0) or 0
         nmdc_ml = nmdc_meta.get("month_label", "") or ""
-        if nmdc_main_desc:
-            els.append(Paragraph(
-                f"<b>Description of Service:</b><br/>{nmdc_main_desc}",
-                S("_nd", fontSize=9, textColor=C4, leading=14)))
-            els.append(Spacer(1, 2*mm))
-        if nmdc_pf or nmdc_pt or nmdc_mr:
-            period_html = f"<b>Period:</b> {nmdc_pf} to {nmdc_pt}" if nmdc_pf or nmdc_pt else ""
-            if nmdc_mr:
-                period_html += f" &nbsp;&nbsp; <b>Monthly Rate:</b> AED {nmdc_mr:,.2f}"
-            if nmdc_ml:
-                period_html += f" &nbsp;&nbsp; <b>Month:</b> {nmdc_ml}"
-            els.append(Paragraph(period_html, S("_np", fontSize=8, textColor=C4, leading=13)))
-            els.append(Spacer(1, 2*mm))
+        nmdc_eq_periods = nmdc_meta.get("eq_periods", []) or []
 
     cw = [10*mm, 36*mm, 20*mm, 10*mm, 16*mm, 20*mm, 14*mm, 18*mm, 28*mm]
     hdr = [
@@ -852,18 +848,56 @@ def customer_invoice_pdf(cid, iid):
         Paragraph("<b>Total Amount<br/>(Including VAT)</b>", S("_h7", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
     ]
     rws = [hdr]
+    if is_nmdc:
+        # Row 1: Main description
+        rws.append([
+            _pc("1", alignment=TA_CENTER, fontName="Helvetica-Bold"),
+            _pc(nmdc_main_desc or "—", fontSize=fs, leading=ldr),
+            _pc("—", alignment=TA_CENTER),
+            _pc("—", alignment=TA_CENTER),
+            _pc("—", alignment=TA_RIGHT),
+            _pc("—", alignment=TA_RIGHT),
+            _pc("—", alignment=TA_CENTER),
+            _pc("—", alignment=TA_RIGHT),
+            _pc("—", alignment=TA_RIGHT),
+        ])
+        # Row 2: Global period info
+        period_text = ""
+        if nmdc_pf or nmdc_pt:
+            period_text += f"Period: {nmdc_pf} to {nmdc_pt}"
+        if nmdc_mr:
+            if period_text: period_text += " | "
+            period_text += f"Monthly Rate: AED {nmdc_mr:,.2f}"
+        if nmdc_ml:
+            if period_text: period_text += " | "
+            period_text += f"Month: {nmdc_ml}"
+        rws.append([
+            _pc("2", alignment=TA_CENTER, fontName="Helvetica-Bold"),
+            _pc(period_text or "—", fontSize=fs, leading=ldr),
+            _pc("—", alignment=TA_CENTER),
+            _pc("—", alignment=TA_CENTER),
+            _pc("—", alignment=TA_RIGHT),
+            _pc("—", alignment=TA_RIGHT),
+            _pc("—", alignment=TA_CENTER),
+            _pc("—", alignment=TA_RIGHT),
+            _pc("—", alignment=TA_RIGHT),
+        ])
     table_items = items[1:] if is_nmdc else items
     for idx, it in enumerate(table_items):
         vp_item = it["vat_percent_item"] or inv["vat_percent"] or 5
         va_item = it["vat_amount_item"] or (it["amount"] * vp_item / 100)
         ti_item = it["total_incl_vat"] or (it["amount"] + va_item)
+        eq_p = nmdc_eq_periods[idx] if is_nmdc and idx < len(nmdc_eq_periods) else {}
+        eq_period_text = ""
+        if is_nmdc and (eq_p.get("from") or eq_p.get("to")):
+            eq_period_text += f" | Period: {eq_p.get('from','')} to {eq_p.get('to','')}"
         eq_hours = f"<br/><font size=1 color='#94a3b8'>Hours: {float(it['capacity_gallon']):,.2f}</font>" if is_nmdc and it.get("capacity_gallon") and float(it["capacity_gallon"]) > 0 else ""
         desc_html = (it["description"] or "—")
         if is_nmdc and it.get("vehicle_no"):
-            desc_html = f"{it['vehicle_no']} &middot; {desc_html}"
+            desc_html = f"Plant No: {it['vehicle_no']}" + (f" &middot; {desc_html}" if desc_html != "—" else "")
         rws.append([
-            _pc(str(idx+1), alignment=TA_CENTER, fontName="Helvetica-Bold"),
-            _pc(desc_html + eq_hours, fontSize=fs, leading=ldr*1.1),
+            _pc(str(idx + (3 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
+            _pc(desc_html + eq_period_text + eq_hours, fontSize=fs, leading=ldr*1.1),
             _pc(f"{it['quantity'] or 0:,.3f}", alignment=TA_CENTER),
             _pc((it['unit'] or 'mo'), alignment=TA_CENTER),
             _pc(f"{it['rate'] or 0:,.2f}", alignment=TA_RIGHT),
