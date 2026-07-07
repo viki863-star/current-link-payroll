@@ -357,104 +357,113 @@ def customer_invoice_add(cid):
     sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
     svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
     if request.method == "POST":
-        inv_date = request.form.get("invoice_date", date.today().isoformat())
-        inv_no = request.form.get("invoice_no", "").strip() or next_no
-        existing = db.execute("SELECT id FROM customer_invoices WHERE invoice_no=?", (inv_no,)).fetchone()
-        if existing:
-            flash(f"Invoice number '{inv_no}' already exists. Use a different number.", "error")
+        try:
+            inv_date = request.form.get("invoice_date", date.today().isoformat())
+            inv_no = request.form.get("invoice_no", "").strip() or next_no
+            existing = db.execute("SELECT id FROM customer_invoices WHERE invoice_no=?", (inv_no,)).fetchone()
+            if existing:
+                flash(f"Invoice number '{inv_no}' already exists. Use a different number.", "error")
+                db.close()
+                tmpl = "customer/invoice_form_nmdc.html" if is_nmdc else "customer/invoice_form.html"
+                return render_template(tmpl, c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+            vat_pct = float(request.form.get("vat_percent", 5))
+            so_id = request.form.get("so_id", "").strip()
+            so_no = None
+            if so_id:
+                so_row = db.execute("SELECT so_no FROM customer_service_orders WHERE id=? AND customer_id=?", (so_id, cid)).fetchone()
+                if so_row:
+                    so_no = so_row["so_no"]
+            notes = request.form.get("notes", "").strip()
+            items = []
+            sub_total = 0
+
+            if is_nmdc:
+                main_desc = request.form.get("main_description", "").strip()
+                nmdc_monthly_rate = float(request.form.get("monthly_rate", 0) or 0)
+                eq_plants = request.form.getlist("eq_plant[]")
+                eq_regs = request.form.getlist("eq_reg[]")
+                eq_hours_list = request.form.getlist("eq_hours[]")
+                if main_desc:
+                    items.append({"desc": main_desc, "qty": 1, "rate": nmdc_monthly_rate, "amt": 0, "unit": "month", "vehicle": "", "hours": 0})
+                for i in range(len(eq_plants)):
+                    plant = eq_plants[i].strip()
+                    reg = eq_regs[i].strip() if i < len(eq_regs) else ""
+                    hours = float(eq_hours_list[i]) if i < len(eq_hours_list) and eq_hours_list[i].strip() else 0
+                    if hours > 0:
+                        qyt = round(hours / 260, 3)
+                        amt = round(qyt * nmdc_monthly_rate, 2)
+                        items.append({"desc": reg, "qty": qyt, "rate": nmdc_monthly_rate, "amt": amt, "unit": "month", "vehicle": plant, "hours": hours})
+                        sub_total += amt
+                if not items:
+                    flash("At least one equipment with hours is required.", "error")
+                    db.close()
+                    return render_template("customer/invoice_form_nmdc.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+            else:
+                lpo_id = request.form.get("lpo_id", "").strip()
+                lpo_no = None
+                lpo_date = request.form.get("lpo_date", "").strip() or None
+                if lpo_id:
+                    lpo_row = db.execute("SELECT lpo_no,lpo_date FROM customer_lpos WHERE id=? AND customer_id=?", (lpo_id, cid)).fetchone()
+                    if lpo_row:
+                        lpo_no = lpo_row["lpo_no"]
+                        if not lpo_date:
+                            lpo_date = lpo_row["lpo_date"]
+                project_no = request.form.get("project_no", "").strip() or None
+                descs = request.form.getlist("item_desc[]")
+                qtys = request.form.getlist("item_qty[]")
+                units = request.form.getlist("item_unit[]")
+                rates = request.form.getlist("item_rate[]")
+                vehicles = request.form.getlist("item_vehicle[]")
+                for i in range(len(descs)):
+                    desc = descs[i].strip()
+                    qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
+                    unit = units[i] if i < len(units) else "hour"
+                    rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
+                    vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
+                    if desc or rate > 0:
+                        amt = round(qty * rate, 2)
+                        sub_total += amt
+                        items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle, "hours": 0})
+                if not items:
+                    flash("At least one line item is required.", "error")
+                    db.close()
+                    return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+            vat_amt = round(sub_total * vat_pct / 100, 2)
+            total = round(sub_total + vat_amt, 2)
+            nmdc_fields = {}
+            if is_nmdc:
+                nmdc_fields = {
+                    "nmdc_period_from": request.form.get("period_from", ""),
+                    "nmdc_period_to": request.form.get("period_to", ""),
+                    "nmdc_monthly_rate": float(request.form.get("monthly_rate", 0) or 0),
+                    "nmdc_month_label": request.form.get("month_label", ""),
+                }
+            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,so_no,notes,nmdc_period_from,nmdc_period_to,nmdc_monthly_rate,nmdc_month_label)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, so_no, notes,
+                 nmdc_fields.get("nmdc_period_from", ""), nmdc_fields.get("nmdc_period_to", ""),
+                 nmdc_fields.get("nmdc_monthly_rate", 0), nmdc_fields.get("nmdc_month_label", "")))
+            inv_id = c_inv.lastrowid
+            for idx, it in enumerate(items):
+                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order,capacity_gallon) VALUES (?,?,?,?,?,?,?,?,?)",
+                    (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx, str(it.get("hours", 0))))
+                if it["desc"]:
+                    try:
+                        db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
+                    except Exception:
+                        pass
+            db.commit()
             db.close()
+            flash(f"Invoice {inv_no} created.", "success")
+            return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
+        except Exception as e:
+            db.rollback()
+            db.close()
+            import traceback
+            current_app.logger.error("Invoice add failed: %s\n%s", e, traceback.format_exc())
+            flash(f"Error creating invoice: {e}", "error")
             tmpl = "customer/invoice_form_nmdc.html" if is_nmdc else "customer/invoice_form.html"
             return render_template(tmpl, c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
-        vat_pct = float(request.form.get("vat_percent", 5))
-        so_id = request.form.get("so_id", "").strip()
-        so_no = None
-        if so_id:
-            so_row = db.execute("SELECT so_no FROM customer_service_orders WHERE id=? AND customer_id=?", (so_id, cid)).fetchone()
-            if so_row:
-                so_no = so_row["so_no"]
-        notes = request.form.get("notes", "").strip()
-        items = []
-        sub_total = 0
-
-        if is_nmdc:
-            main_desc = request.form.get("main_description", "").strip()
-            nmdc_monthly_rate = float(request.form.get("monthly_rate", 0))
-            eq_plants = request.form.getlist("eq_plant[]")
-            eq_regs = request.form.getlist("eq_reg[]")
-            eq_hours_list = request.form.getlist("eq_hours[]")
-            if main_desc:
-                items.append({"desc": main_desc, "qty": 1, "rate": nmdc_monthly_rate, "amt": 0, "unit": "month", "vehicle": "", "hours": 0})
-            for i in range(len(eq_plants)):
-                plant = eq_plants[i].strip()
-                reg = eq_regs[i].strip() if i < len(eq_regs) else ""
-                hours = float(eq_hours_list[i]) if i < len(eq_hours_list) and eq_hours_list[i].strip() else 0
-                if hours > 0:
-                    qyt = round(hours / 260, 3)
-                    amt = round(qyt * nmdc_monthly_rate, 2)
-                    items.append({"desc": reg, "qty": qyt, "rate": nmdc_monthly_rate, "amt": amt, "unit": "month", "vehicle": plant, "hours": hours})
-                    sub_total += amt
-            if not items:
-                flash("At least one equipment with hours is required.", "error")
-                db.close()
-                return render_template("customer/invoice_form_nmdc.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
-        else:
-            lpo_id = request.form.get("lpo_id", "").strip()
-            lpo_no = None
-            lpo_date = request.form.get("lpo_date", "").strip() or None
-            if lpo_id:
-                lpo_row = db.execute("SELECT lpo_no,lpo_date FROM customer_lpos WHERE id=? AND customer_id=?", (lpo_id, cid)).fetchone()
-                if lpo_row:
-                    lpo_no = lpo_row["lpo_no"]
-                    if not lpo_date:
-                        lpo_date = lpo_row["lpo_date"]
-            project_no = request.form.get("project_no", "").strip() or None
-            descs = request.form.getlist("item_desc[]")
-            qtys = request.form.getlist("item_qty[]")
-            units = request.form.getlist("item_unit[]")
-            rates = request.form.getlist("item_rate[]")
-            vehicles = request.form.getlist("item_vehicle[]")
-            for i in range(len(descs)):
-                desc = descs[i].strip()
-                qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
-                unit = units[i] if i < len(units) else "hour"
-                rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
-                vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
-                if desc or rate > 0:
-                    amt = round(qty * rate, 2)
-                    sub_total += amt
-                    items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle, "hours": 0})
-            if not items:
-                flash("At least one line item is required.", "error")
-                db.close()
-                return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
-        vat_amt = round(sub_total * vat_pct / 100, 2)
-        total = round(sub_total + vat_amt, 2)
-        nmdc_fields = {}
-        if is_nmdc:
-            nmdc_fields = {
-                "nmdc_period_from": request.form.get("period_from", ""),
-                "nmdc_period_to": request.form.get("period_to", ""),
-                "nmdc_monthly_rate": float(request.form.get("monthly_rate", 0)),
-                "nmdc_month_label": request.form.get("month_label", ""),
-            }
-        c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,so_no,notes,nmdc_period_from,nmdc_period_to,nmdc_monthly_rate,nmdc_month_label)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, so_no, notes,
-             nmdc_fields.get("nmdc_period_from", ""), nmdc_fields.get("nmdc_period_to", ""),
-             nmdc_fields.get("nmdc_monthly_rate", 0), nmdc_fields.get("nmdc_month_label", "")))
-        inv_id = c_inv.lastrowid
-        for idx, it in enumerate(items):
-            db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order,capacity_gallon) VALUES (?,?,?,?,?,?,?,?,?)",
-                (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx, str(it.get("hours", 0))))
-            if it["desc"]:
-                try:
-                    db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
-                except Exception:
-                    pass
-        db.commit()
-        db.close()
-        flash(f"Invoice {inv_no} created.", "success")
-        return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
     db.close()
     tmpl = "customer/invoice_form_nmdc.html" if is_nmdc else "customer/invoice_form.html"
     return render_template(tmpl, c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
