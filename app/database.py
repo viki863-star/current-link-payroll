@@ -2161,7 +2161,9 @@ def _connect_postgres(database_url: str):
             'Postgres mode requires psycopg. Install it with pip install "psycopg[binary]".'
         ) from exc
 
-    return psycopg.connect(database_url)
+    conn = psycopg.connect(database_url)
+    conn.autocommit = True
+    return conn
 
 
 def _sqlite_row_factory(cursor, row):
