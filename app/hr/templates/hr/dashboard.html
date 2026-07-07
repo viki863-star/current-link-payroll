@@ -58,12 +58,7 @@
             <div class="kpi-number" style="color:#d32f2f">{{ advances_pending }}</div>
             <div class="kpi-sub">unsettled</div>
         </div>
-        <div class="kpi-card" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none">
-            <div class="kpi-icon" style="color:#fff"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><circle cx="9" cy="9" r="2"/><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-            <div class="kpi-title" style="color:#fff">AI Salary Forecast</div>
-            <div class="kpi-number" style="color:#fff;font-size:1.05rem" id="aiForecast">Loading...</div>
-            <div class="kpi-sub" style="color:#fff;opacity:0.9" id="aiTrend">Next month</div>
-        </div>
+
     </div>
 
     {# ─── Charts Row ─── #}
@@ -196,38 +191,6 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
         });
-    }
-
-    // AI Salary Forecast Widget
-    var aiForecastEl = document.getElementById('aiForecast');
-    var aiTrendEl = document.getElementById('aiTrend');
-    if (aiForecastEl) {
-        fetch('/ai/salary-forecast?months=3')
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.forecasts && data.forecasts.length > 0) {
-                    var nextMonth = data.forecasts[0];
-                    var baseForecast = nextMonth.base;
-                    var trend = nextMonth.trend;
-                    var trendIcon = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→';
-                    var trendText = trend === 'up' ? 'Increasing' : trend === 'down' ? 'Decreasing' : 'Stable';
-                    
-                    aiForecastEl.textContent = 'AED ' + baseForecast.toLocaleString('en-AE', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-                    aiTrendEl.textContent = trendIcon + ' ' + trendText + ' (Next month)';
-                    
-                    if (data.summary) {
-                        aiTrendEl.title = data.summary;
-                    }
-                } else if (data.message) {
-                    aiForecastEl.textContent = 'N/A';
-                    aiTrendEl.textContent = data.message;
-                }
-            })
-            .catch(function(err) {
-                aiForecastEl.textContent = 'Error';
-                aiTrendEl.textContent = 'Failed to load';
-                console.error('AI forecast error:', err);
-            });
     }
 });
 </script>
