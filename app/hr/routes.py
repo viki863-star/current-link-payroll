@@ -792,10 +792,12 @@ def employee_salary_store_delete(employee_id, store_id):
     ensure_employees_table()
     try:
         db = open_db()
+    try:
         employee = _fetch_employee(db, employee_id)
         if employee is None:
             flash("Employee not found.", "error")
             return redirect(url_for("hr.employee_list"))
+
         eid = employee["employee_id"]
         row = db.execute(
             "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
@@ -993,40 +995,22 @@ def employee_salary_slip(employee_id):
                             )
                             slip_id = existing_slip["id"]
                         else:
-                            if db.backend == "postgres":
-                                result = db.execute(
-                                    """
-                                    INSERT INTO salary_slips (
-                                        driver_id, salary_store_id, salary_month, source_filter,
-                                        total_deductions, available_advance, remaining_advance,
-                                        salary_after_deduction, actual_paid_amount,
-                                        company_balance_due, payment_source, paid_by, net_payable, pdf_path
-                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
-                                    """,
-                                    (eid, selected_salary["id"], selected_salary["salary_month"], "",
-                                     deduction_amount, available_advance, remaining_advance,
-                                     salary_after_deduction, 0.0, salary_after_deduction,
-                                     values["payment_source"], values["paid_by"] or None,
-                                     salary_after_deduction, ""),
-                                )
-                                slip_id = result.fetchone()["id"]
-                            else:
-                                db.execute(
-                                    """
-                                    INSERT INTO salary_slips (
-                                        driver_id, salary_store_id, salary_month, source_filter,
-                                        total_deductions, available_advance, remaining_advance,
-                                        salary_after_deduction, actual_paid_amount,
-                                        company_balance_due, payment_source, paid_by, net_payable, pdf_path
-                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                    """,
-                                    (eid, selected_salary["id"], selected_salary["salary_month"], "",
-                                     deduction_amount, available_advance, remaining_advance,
-                                     salary_after_deduction, 0.0, salary_after_deduction,
-                                     values["payment_source"], values["paid_by"] or None,
-                                     salary_after_deduction, ""),
-                                )
-                                slip_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+                            result = db.execute(
+                                """
+                                INSERT INTO salary_slips (
+                                    driver_id, salary_store_id, salary_month, source_filter,
+                                    total_deductions, available_advance, remaining_advance,
+                                    salary_after_deduction, actual_paid_amount,
+                                    company_balance_due, payment_source, paid_by, net_payable, pdf_path
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """,
+                                (eid, selected_salary["id"], selected_salary["salary_month"], "",
+                                 deduction_amount, available_advance, remaining_advance,
+                                 salary_after_deduction, 0.0, salary_after_deduction,
+                                 values["payment_source"], values["paid_by"] or None,
+                                 salary_after_deduction, ""),
+                            )
+                            slip_id = result.lastrowid
 
                         # Save linked transactions to salary_slip_deductions
                         db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip_id,))
