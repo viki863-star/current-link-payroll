@@ -148,6 +148,7 @@ def _ensure_tables():
         ("customer_invoices", "ref_no", "TEXT"),
         ("customer_invoices", "service_order_no", "TEXT"),
         ("customer_invoices", "so_no", "TEXT"),
+        ("customer_invoice_items", "vehicle_no", "TEXT"),
         ("customer_invoice_items", "capacity_gallon", "TEXT"),
         ("customer_invoice_items", "unit", "TEXT"),
         ("customer_invoice_items", "vat_percent_item", real_type),
@@ -1714,16 +1715,24 @@ def customer_lpo_add(cid):
                 total += amt
                 items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
         total = round(total, 2)
-        cur = db.execute("INSERT INTO customer_lpos (customer_id,lpo_no,lpo_date,amount,status,service_order_no,notes,file_data,file_type) VALUES (?,?,?,?,?,?,?,?,?)",
-            (cid, lpo_no, lpo_date, total, status, so_no, notes, file_data, file_type))
-        lpo_id = cur.lastrowid
-        for idx, it in enumerate(items):
-            db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
-                (lpo_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
-        db.commit()
-        db.close()
-        flash("LPO added.", "success")
-        return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
+        try:
+            cur = db.execute("INSERT INTO customer_lpos (customer_id,lpo_no,lpo_date,amount,status,service_order_no,notes,file_data,file_type) VALUES (?,?,?,?,?,?,?,?,?)",
+                (cid, lpo_no, lpo_date, total, status, so_no, notes, file_data, file_type))
+            lpo_id = cur.lastrowid
+            for idx, it in enumerate(items):
+                db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
+                    (lpo_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
+            db.commit()
+            db.close()
+            flash("LPO added.", "success")
+            return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
+        except Exception as e:
+            db.rollback()
+            db.close()
+            import traceback
+            current_app.logger.error("LPO add failed: %s\n%s", e, traceback.format_exc())
+            flash(f"Error adding LPO: {e}", "error")
+            return render_template("customer/lpo_form.html", c=c, lpo={}, items=[], today=date.today().isoformat())
     db.close()
     return render_template("customer/lpo_form.html", c=c, lpo={}, items=[], today=date.today().isoformat())
 
