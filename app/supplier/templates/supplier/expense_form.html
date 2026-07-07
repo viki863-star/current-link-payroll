@@ -85,12 +85,12 @@
 
       <div class="ef-row">
         <label>Category *</label>
-        <select name="category" class="form-control" required>
-          <option value="">Select Category</option>
+        <input type="text" name="category" class="form-control" list="catList" placeholder="Type or select category" value="{{ exp.category or '' }}" required autocomplete="off">
+        <datalist id="catList">
           {% for c in ['Parts','Transport','Fuel','Food','Stationery','Cleaning','Safety','Tools','Other'] %}
-          <option value="{{ c }}" {{ 'selected' if exp and exp.category == c else '' }}>{{ c }}</option>
+          <option value="{{ c }}">
           {% endfor %}
-        </select>
+        </datalist>
       </div>
 
       <div class="ef-grid-2">
