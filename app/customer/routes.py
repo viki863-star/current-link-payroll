@@ -1200,6 +1200,7 @@ def customer_invoice_pdf(cid, iid):
         els.append(p)
         els.append(Spacer(1, 0.5*mm))
 
+    doc.build(els)
     for f in _logo_tmp_files:
         try: os.remove(f)
         except: pass
