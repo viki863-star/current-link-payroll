@@ -1849,17 +1849,25 @@ def _salary_dashboard_data(status_filter=""):
     ).fetchall()
 
     store_rows = db.execute(
-        "SELECT driver_id, salary_month, net_salary, ot_amount FROM salary_store"
+        "SELECT driver_id, salary_month, net_salary, ot_amount, monthly_basic_salary, basic_salary FROM salary_store"
     ).fetchall()
     store_by_emp = {}
     ot_hist = {}
+    basic_by_emp = {}
     for r in store_rows:
         store_by_emp.setdefault(r["driver_id"], {})[r["salary_month"]] = r["net_salary"]
         ot_hist.setdefault(r["driver_id"], []).append((r["salary_month"], float(r["ot_amount"] or 0)))
+        bs = float(r["monthly_basic_salary"] or r["basic_salary"] or 0)
+        if bs > 0:
+            basic_by_emp.setdefault(r["driver_id"], []).append((r["salary_month"], bs))
     ot_sort = {}
     for eid, lst in ot_hist.items():
         lst.sort(key=lambda x: x[0], reverse=True)
         ot_sort[eid] = lst
+    basic_sort = {}
+    for eid, lst in basic_by_emp.items():
+        lst.sort(key=lambda x: x[0], reverse=True)
+        basic_sort[eid] = lst
 
     slip_rows = db.execute(
         "SELECT driver_id, salary_month, salary_after_deduction, actual_paid_amount "
@@ -1911,6 +1919,8 @@ def _salary_dashboard_data(status_filter=""):
             recent = [x[1] for x in ot_history[:3] if x[1] > 0]
             if recent:
                 est = sum(recent) / len(recent)
+        basic_list = basic_sort.get(eid, [])
+        basic_val = basic_list[0][1] if basic_list else 0.0
         emp_list.append({
             "id": eid,
             "name": emp["full_name"],
@@ -1920,6 +1930,7 @@ def _salary_dashboard_data(status_filter=""):
             "statuses": statuses,
             "amounts": amounts,
             "estimated": round(est, 0),
+            "basic_salary": basic_val,
         })
 
     db.close()
@@ -1983,7 +1994,7 @@ def salary_dashboard_excel():
     thin = Side(style="thin", color="d8e4f5")
     border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-    heads = ["#", "Employee Name", "Department", "Status", f"Salary ({_month_name(selected_month)})", "Est. OT (AI)", "Salary Status"]
+    heads = ["#", "Employee Name", "Department", "Status", "Basic Salary", "Est. OT (AI)", "Total (Basic+OT)", "Salary Status"]
     for ci, h in enumerate(heads, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
@@ -2002,11 +2013,13 @@ def salary_dashboard_excel():
             continue
         amt = emp["amounts"].get(selected_month, 0)
         est = emp.get("estimated", 0)
-        vals = [row_idx - 1, emp["name"], emp["department"], emp["emp_status"], amt, est, st]
+        basic = emp.get("basic_salary", 0)
+        total = basic + est
+        vals = [row_idx - 1, emp["name"], emp["department"], emp["emp_status"], basic, est, total if total > 0 else "", st]
         for ci, v in enumerate(vals, 1):
             c = ws.cell(row=row_idx, column=ci, value=v)
             c.border = border
-            if ci in (5, 6):
+            if ci in (5, 6, 7):
                 c.number_format = '#,##0.00'
                 c.alignment = right
             sf = status_fills.get(st)
@@ -2018,9 +2031,10 @@ def salary_dashboard_excel():
     ws.column_dimensions["B"].width = 32
     ws.column_dimensions["C"].width = 18
     ws.column_dimensions["D"].width = 14
-    ws.column_dimensions["E"].width = 22
-    ws.column_dimensions["F"].width = 20
+    ws.column_dimensions["E"].width = 16
+    ws.column_dimensions["F"].width = 16
     ws.column_dimensions["G"].width = 18
+    ws.column_dimensions["H"].width = 18
 
     buf = BytesIO()
     wb.save(buf)

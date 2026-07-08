@@ -70,7 +70,7 @@
 {% set paid_count = namespace(v=0) %}
 {% set unpaid_count = namespace(v=0) %}
 {% set pending_count = namespace(v=0) %}
-{% set total_salary = namespace(v=0) %}
+{% set total_basic = namespace(v=0) %}
 {% set total_est = namespace(v=0) %}
 {% for e in visible %}
   {% set s = e.statuses.get(sel_month_val, 'No Record') %}
@@ -78,7 +78,7 @@
   {% elif s == 'Unpaid' %}{% set unpaid_count.v = unpaid_count.v + 1 %}
   {% elif s == 'Pending' %}{% set pending_count.v = pending_count.v + 1 %}
   {% endif %}
-  {% set total_salary.v = total_salary.v + e.amounts.get(sel_month_val, 0) %}
+  {% set total_basic.v = total_basic.v + e.basic_salary %}
   {% if e.estimated > 0 %}{% set total_est.v = total_est.v + e.estimated %}{% endif %}
 {% endfor %}
 
@@ -113,8 +113,8 @@
     </div>
     <div class="sd-summary-card">
       <div class="sd-s-icon" style="background:#6366f1;color:#6366f1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-      <div class="num" style="color:#6366f1;font-size:1.15rem">AED {{ '{:,.0f}'.format(total_salary.v) }}</div>
-      <div class="label" style="color:#64748b">Total Salary</div>
+      <div class="num" style="color:#6366f1;font-size:1.15rem">AED {{ '{:,.0f}'.format(total_basic.v) }}</div>
+      <div class="label" style="color:#64748b">Total Basic Salary</div>
     </div>
     <div class="sd-summary-card" style="border-color:#c7d2fe;background:#f5f3ff">
       <div class="sd-s-icon" style="background:#8b5cf6;color:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10 10 10 0 0 0-10-10z"/><path d="M12 6v6l4 2"/></svg></div>
@@ -155,8 +155,9 @@
           <th>Employee Name</th>
           <th>Department</th>
           <th>Status</th>
-          <th>Salary (AED)</th>
+          <th>Basic Salary</th>
           <th>Est. OT (AI)</th>
+          <th>Total (Basic+OT)</th>
           <th>Payment Status</th>
         </tr>
       </thead>
@@ -188,8 +189,9 @@
             </span>
             {% else %}—{% endif %}
           </td>
-          <td class="sd-amt">{{ '{:,.0f}'.format(amt) if amt > 0 else '<span class="sd-amt-null">—</span>'|safe }}</td>
+          <td class="sd-amt">{{ '{:,.0f}'.format(e.basic_salary) if e.basic_salary > 0 else '<span class="sd-amt-null">—</span>'|safe }}</td>
           <td style="font-size:.78rem;color:#6366f1;font-weight:600">{{ '{:,.0f}'.format(e.estimated) if e.estimated > 0 else '<span style="color:#cbd5e1">—</span>'|safe }}</td>
+          <td class="sd-amt" style="color:#059669">{{ '{:,.0f}'.format(e.basic_salary + e.estimated) if e.basic_salary > 0 or e.estimated > 0 else '<span class="sd-amt-null">—</span>'|safe }}</td>
           <td>
             <span class="sd-status {{ cls }}">
               <span class="sd-status-dot"></span>
