@@ -808,12 +808,10 @@ def customer_invoice_pdf(cid, iid):
             lb = base64.b64decode(company["logo_data"])
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
             f.write(lb); f.close()
-            logo = Image(f.name, width=90, height=90)
-            LW = 90
             _logo_tmp_files.append(f.name)
         except: pass
 
-    # Company info lines (matching web: phone/email, TRN on separate lines; address moved to footer)
+    # Company info lines
     ci_lines = []
     c_contact = []
     if c_ph: c_contact.append(f"Phone: {c_ph}")
@@ -823,8 +821,32 @@ def customer_invoice_pdf(cid, iid):
     ci_html = f"<font size=10><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
     co_p = Paragraph(ci_html, S("CO", fontSize=10, fontName="Helvetica-Bold", textColor=TH, leading=12))
 
+    # Measure the company text height, then size logo to match
+    logo_w = 0
+    if _logo_tmp_files:
+        try:
+            from PIL import Image as PILImage
+            with PILImage.open(_logo_tmp_files[-1]) as img:
+                ow, oh = img.size
+            from reportlab.pdfgen import canvas as rlcanvas
+            from io import BytesIO
+            tmp_buf = BytesIO()
+            tmp_c = rlcanvas.Canvas(tmp_buf)
+            ci_width = W*0.65 - 4*mm
+            co_p.wrapOn(tmp_c, ci_width, 1000)
+            text_h = co_p.height
+            tmp_c.save()
+            target_h = text_h
+            ratio = target_h / oh
+            logo_w = int(ow * ratio)
+            logo_h = int(target_h)
+            logo = Image(_logo_tmp_files[-1], width=logo_w, height=logo_h)
+            LW = logo_w
+        except:
+            pass
+
     if logo:
-        lh = Table([[logo, Spacer(1, 4*mm), co_p]], colWidths=[LW, 4*mm, W*0.65 - LW - 4*mm])
+        lh = Table([[logo, Spacer(1, 4*mm), co_p]], colWidths=[LW if LW else 0, 4*mm, W*0.65 - (LW if LW else 0) - 4*mm])
         lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     else:
         lh = co_p
