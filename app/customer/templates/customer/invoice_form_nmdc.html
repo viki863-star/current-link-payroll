@@ -76,18 +76,10 @@
             </div>
         </div>
 
-        {# PERIOD / RATE / MONTH / VAT #}
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 80px;gap:6px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:10px">
+        {# RATE / MONTH / VAT #}
+        <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:6px;padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:10px">
             <div>
-                <label style="font-size:0.6rem;color:#94a3b8">Period From</label>
-                <input type="date" name="period_from" id="periodFrom" value="{{ nmdc_pf }}" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
-            </div>
-            <div>
-                <label style="font-size:0.6rem;color:#94a3b8">Period To</label>
-                <input type="date" name="period_to" id="periodTo" value="{{ nmdc_pt }}" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
-            </div>
-            <div>
-                <label style="font-size:0.6rem;color:#94a3b8">Rate (AED)</label>
+                <label style="font-size:0.6rem;color:#94a3b8">Rate (AED/month)</label>
                 <input type="number" name="monthly_rate" id="monthlyRate" value="{{ nmdc_mr }}" min="0" step="any" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem" oninput="calcAll()">
             </div>
             <div>
@@ -170,7 +162,7 @@ const convHours = 260;
 let rowId = 0;
 
 function getDefPeriod() {
-    return { from: document.getElementById('periodFrom').value || '', to: document.getElementById('periodTo').value || '' };
+    return { from: '', to: '' };
 }
 
 function addRow(plant, reg, hours, pf, pt) {
