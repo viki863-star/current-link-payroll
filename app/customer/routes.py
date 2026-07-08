@@ -2393,10 +2393,10 @@ def customer_soa_pdf(cid):
             from PIL import Image as PILImage
             with PILImage.open(f.name) as img:
                 ow, oh = img.size
-            max_w = 90
-            ratio = max_w / ow
-            lw = int(max_w)
-            lh = int(oh * ratio)
+            max_h = 38
+            ratio = max_h / oh
+            lw = int(ow * ratio)
+            lh = int(max_h)
             logo = Image(f.name, width=lw, height=lh)
             LW = lw
             _logo_tmp_files.append(f.name)
