@@ -1852,8 +1852,14 @@ def _salary_dashboard_data(status_filter=""):
         "SELECT driver_id, salary_month, net_salary FROM salary_store"
     ).fetchall()
     store_by_emp = {}
+    store_hist = {}
     for r in store_rows:
         store_by_emp.setdefault(r["driver_id"], {})[r["salary_month"]] = r["net_salary"]
+        store_hist.setdefault(r["driver_id"], []).append((r["salary_month"], r["net_salary"]))
+    hist_sort = {}
+    for eid, lst in store_hist.items():
+        lst.sort(key=lambda x: x[0], reverse=True)
+        hist_sort[eid] = lst
 
     slip_rows = db.execute(
         "SELECT driver_id, salary_month, salary_after_deduction, actual_paid_amount "
@@ -1899,6 +1905,12 @@ def _salary_dashboard_data(status_filter=""):
                 else:
                     statuses[m] = "Pending"
                 amounts[m] = float(store_by_emp[eid][m]) if eid in store_by_emp and m in store_by_emp[eid] else 0.0
+        sal_history = hist_sort.get(eid, [])
+        est = 0.0
+        if sal_history:
+            recent = [x[1] for x in sal_history[:3] if x[1] > 0]
+            if recent:
+                est = sum(recent) / len(recent)
         emp_list.append({
             "id": eid,
             "name": emp["full_name"],
@@ -1907,6 +1919,7 @@ def _salary_dashboard_data(status_filter=""):
             "term_date": term_date,
             "statuses": statuses,
             "amounts": amounts,
+            "estimated": round(est, 0),
         })
 
     db.close()
@@ -1970,7 +1983,7 @@ def salary_dashboard_excel():
     thin = Side(style="thin", color="d8e4f5")
     border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-    heads = ["#", "Employee Name", "Department", "Status", f"Salary ({_month_name(selected_month)})", "Salary Status"]
+    heads = ["#", "Employee Name", "Department", "Status", f"Salary ({_month_name(selected_month)})", "Est. Salary (AI)", "Salary Status"]
     for ci, h in enumerate(heads, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
@@ -1988,11 +2001,12 @@ def salary_dashboard_excel():
         if st == "No Record":
             continue
         amt = emp["amounts"].get(selected_month, 0)
-        vals = [row_idx - 1, emp["name"], emp["department"], emp["emp_status"], amt, st]
+        est = emp.get("estimated", 0)
+        vals = [row_idx - 1, emp["name"], emp["department"], emp["emp_status"], amt, est, st]
         for ci, v in enumerate(vals, 1):
             c = ws.cell(row=row_idx, column=ci, value=v)
             c.border = border
-            if ci == 5:
+            if ci in (5, 6):
                 c.number_format = '#,##0.00'
                 c.alignment = right
             sf = status_fills.get(st)
@@ -2005,7 +2019,8 @@ def salary_dashboard_excel():
     ws.column_dimensions["C"].width = 18
     ws.column_dimensions["D"].width = 14
     ws.column_dimensions["E"].width = 22
-    ws.column_dimensions["F"].width = 18
+    ws.column_dimensions["F"].width = 20
+    ws.column_dimensions["G"].width = 18
 
     buf = BytesIO()
     wb.save(buf)
