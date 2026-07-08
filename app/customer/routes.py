@@ -1099,6 +1099,8 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════
     # 7. SIGNATURES — stamp & sign side by side
     # ═══════════════════════════════════
+    els.append(Spacer(1, 2*mm))
+    sg = ParagraphStyle("SG", fontSize=8, alignment=TA_CENTER, leading=11)
     stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
     sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
     auth_img = []
