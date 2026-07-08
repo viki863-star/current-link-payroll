@@ -2390,8 +2390,15 @@ def customer_soa_pdf(cid):
             lb = base64.b64decode(company["logo_data"])
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
             f.write(lb); f.close()
-            logo = Image(f.name, width=50, height=50)
-            LW = 50
+            from PIL import Image as PILImage
+            with PILImage.open(f.name) as img:
+                ow, oh = img.size
+            max_w = 90
+            ratio = max_w / ow
+            lw = int(max_w)
+            lh = int(oh * ratio)
+            logo = Image(f.name, width=lw, height=lh)
+            LW = lw
             _logo_tmp_files.append(f.name)
         except: pass
 
