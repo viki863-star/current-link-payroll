@@ -2729,16 +2729,19 @@ def supplier_soa(sup_id):
         "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no, description FROM supplier_expenses WHERE supplier_id = ?",
         (sup_id,),
     ).fetchall():
-        if exp["earning_type"] == "trip":
-            desc = f"Trip: {exp['quantity']} x {exp['rate']}"
-        elif exp["earning_type"] == "hour":
-            desc = f"Hours: {exp['quantity']} x {exp['rate']}"
-        else:
-            desc = f"Expense: {exp['ref']}"
-        if exp["vehicle_no"]:
-            desc += f" [{exp['vehicle_no']}]"
         if exp["description"]:
-            desc += f" — {exp['description']}"
+            desc = exp["description"]
+            if exp["vehicle_no"]:
+                desc += f" [{exp['vehicle_no']}]"
+        else:
+            if exp["earning_type"] == "trip":
+                desc = f"Trip: {exp['quantity']} x {exp['rate']}"
+            elif exp["earning_type"] == "hour":
+                desc = f"Hours: {exp['quantity']} x {exp['rate']}"
+            else:
+                desc = f"Expense: {exp['ref']}"
+            if exp["vehicle_no"]:
+                desc += f" [{exp['vehicle_no']}]"
         ledger.append({
             "date": exp["dt"],
             "type": "expense",
@@ -2757,17 +2760,19 @@ def supplier_soa(sup_id):
            WHERE pr.supplier_id = ?""",
         (sup_id,),
     ).fetchall():
-        parts = [f"Payment: {pay['ref']}"]
-        if pay["reference_no"]:
-            parts.append(pay["reference_no"])
-        if pay["invoice_no"]:
-            parts.append(f"→ {pay['invoice_no']}")
         if pay["notes"]:
-            parts.append(pay["notes"])
+            desc = pay["notes"]
+        else:
+            parts = [f"Payment: {pay['ref']}"]
+            if pay["reference_no"]:
+                parts.append(pay["reference_no"])
+            if pay["invoice_no"]:
+                parts.append(f"→ {pay['invoice_no']}")
+            desc = " — ".join(parts)
         ledger.append({
             "date": pay["dt"],
             "type": "payment",
-            "description": " — ".join(parts),
+            "description": desc,
             "debit": pay["amt"],
             "credit": 0,
             "ref": pay["ref"],
@@ -2826,28 +2831,35 @@ def supplier_soa_pdf(sup_id):
             parts.append(inv['description'])
         ledger.append({"date": inv["dt"], "type": "Invoice", "ref": " — ".join(parts), "dr": 0, "cr": inv["amt"]})
     for exp in db.execute(
-        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no FROM supplier_expenses WHERE supplier_id = ?",
+        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no, description FROM supplier_expenses WHERE supplier_id = ?",
         (sup_id,),
     ).fetchall():
-        if exp["earning_type"] == "trip":
-            d = f"Trip: {exp['quantity']} x {exp['rate']}"
-        elif exp["earning_type"] == "hour":
-            d = f"Hours: {exp['quantity']} x {exp['rate']}"
+        if exp["description"]:
+            d = exp["description"]
+            if exp["vehicle_no"]:
+                d += f" [{exp['vehicle_no']}]"
         else:
-            d = f"Expense: {exp['ref']}"
-        if exp["vehicle_no"]:
-            d += f" [{exp['vehicle_no']}]"
+            if exp["earning_type"] == "trip":
+                d = f"Trip: {exp['quantity']} x {exp['rate']}"
+            elif exp["earning_type"] == "hour":
+                d = f"Hours: {exp['quantity']} x {exp['rate']}"
+            else:
+                d = f"Expense: {exp['ref']}"
+            if exp["vehicle_no"]:
+                d += f" [{exp['vehicle_no']}]"
         ledger.append({"date": exp["dt"], "type": "Expense", "ref": d, "dr": 0, "cr": exp["amt"]})
     for pay in db.execute(
         "SELECT id, payment_date as dt, payment_method as ref, amount as amt, reference_no, notes, invoice_id FROM supplier_payment_records WHERE supplier_id = ?",
         (sup_id,),
     ).fetchall():
-        parts = [f"Payment: {pay['ref']}"]
-        if pay["reference_no"]:
-            parts.append(pay["reference_no"])
         if pay["notes"]:
-            parts.append(pay["notes"])
-        ledger.append({"date": pay["dt"], "type": "Payment", "ref": " — ".join(parts), "dr": pay["amt"], "cr": 0})
+            d = pay["notes"]
+        else:
+            parts = [f"Payment: {pay['ref']}"]
+            if pay["reference_no"]:
+                parts.append(pay["reference_no"])
+            d = " — ".join(parts)
+        ledger.append({"date": pay["dt"], "type": "Payment", "ref": d, "dr": pay["amt"], "cr": 0})
 
     ledger.sort(key=lambda x: x["date"])
     running = 0
