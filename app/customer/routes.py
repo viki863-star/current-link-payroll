@@ -813,9 +813,8 @@ def customer_invoice_pdf(cid, iid):
             _logo_tmp_files.append(f.name)
         except: pass
 
-    # Company info lines (matching web: address, phone/email, TRN on separate lines)
+    # Company info lines (matching web: phone/email, TRN on separate lines; address moved to footer)
     ci_lines = []
-    if c_addr: ci_lines.append(f"<font size=7 color='#64748b'>{c_addr}</font>")
     c_contact = []
     if c_ph: c_contact.append(f"Phone: {c_ph}")
     if c_em: c_contact.append(f"Email: {c_em}")
@@ -902,9 +901,9 @@ def customer_invoice_pdf(cid, iid):
     if num_rows > 0:
         target = avail_pt / (num_rows + 1)
         fs = max(4.0, min(7.0, target / 2.6))
-    ldr = fs * 1.25
-    pad_t = max(1.0, fs * 0.35)
-    pad_b = max(1.0, fs * 0.35)
+    ldr = fs * 1.15
+    pad_t = max(1.0, fs * 0.25)
+    pad_b = max(1.0, fs * 0.25)
 
     def _pc(t, **kw):
         kw.setdefault("fontSize", fs)
@@ -965,12 +964,14 @@ def customer_invoice_pdf(cid, iid):
         eq_hours = f"<br/><font size=1 color='#94a3b8'>Hours: {float(it['capacity_gallon']):,.2f}</font>" if is_nmdc and it.get("capacity_gallon") and float(it["capacity_gallon"]) > 0 else ""
         desc_html = (it["description"] or "—")
         if is_nmdc:
-            plant_line = f"<b>Plant No:</b> {it['vehicle_no']}<br/>" if it.get("vehicle_no") else ""
-            reg_line = f"<b>Reg#</b> {desc_html}<br/>" if desc_html != "—" else ""
-            desc_html = plant_line + reg_line
+            parts = []
+            if it.get("vehicle_no"): parts.append(f"<b>Plant No:</b> {it['vehicle_no']}")
+            if desc_html != "—": parts.append(f"<b>Reg#</b> {desc_html}")
+            plant_reg = " | ".join(parts)
+            desc_html = plant_reg + eq_period_text + eq_hours
         rws.append([
             _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
-            _pc(desc_html + eq_period_text + eq_hours, fontSize=fs, leading=ldr*0.95),
+            _pc(desc_html, fontSize=fs, leading=ldr*0.9),
             _pc(f"{it['quantity'] or 0:,.3f}", alignment=TA_CENTER),
             _pc((it['unit'] or 'mo'), alignment=TA_CENTER),
             _pc(f"{it['rate'] or 0:,.2f}", alignment=TA_RIGHT),
@@ -1141,8 +1142,11 @@ def customer_invoice_pdf(cid, iid):
     els.append(sgt)
 
     # ═══════════════════════════════════
-    # 8. FOOTER
+    # 8. COMPANY ADDRESS / FOOTER
     # ═══════════════════════════════════
+    if c_addr:
+        els.append(Spacer(1, 2*mm))
+        els.append(Paragraph(f"<font size=7 color='#64748b'>{c_addr}</font>", S("_ad", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
     els.append(Spacer(1, 4*mm))
     pp = []
     if company:
