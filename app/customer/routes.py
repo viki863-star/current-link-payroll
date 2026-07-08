@@ -811,7 +811,6 @@ def customer_invoice_pdf(cid, iid):
             _logo_tmp_files.append(f.name)
         except: pass
 
-    # ── Company info (left side with accent bar) ──
     ci_lines = []
     c_contact = []
     if c_ph: c_contact.append(f"Phone: {c_ph}")
@@ -820,13 +819,6 @@ def customer_invoice_pdf(cid, iid):
     ci_lines.append(f"<font size=6 color='#64748b'><b>TRN: {c_trn}</b></font>")
     ci_html = f"<font size=11><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
     co_p = Paragraph(ci_html, S("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
-
-    # Left accent bar
-    accent_bar = Table([[""]], colWidths=[2*mm], rowHeights=[1])
-    accent_bar.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,-1),TH),
-        ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
-    ]))
 
     logo_w = 0
     if _logo_tmp_files:
@@ -838,7 +830,7 @@ def customer_invoice_pdf(cid, iid):
             from io import BytesIO
             tmp_buf = BytesIO()
             tmp_c = rlcanvas.Canvas(tmp_buf)
-            ci_width = W*0.60 - 8*mm
+            ci_width = W*0.65 - 4*mm
             co_p.wrapOn(tmp_c, ci_width, 1000)
             text_h = co_p.height
             tmp_c.save()
@@ -851,79 +843,41 @@ def customer_invoice_pdf(cid, iid):
         except:
             pass
 
-    # Left block: [accent_bar, [logo, company_info]]
     if logo:
-        left_inner = Table([[logo, Spacer(1, 4*mm), co_p]], colWidths=[LW, 4*mm, W*0.60 - LW - 8*mm])
-        left_inner.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+        sec_h_left = Table([[logo, Spacer(1, 4*mm), co_p]], colWidths=[LW if LW else 0, 4*mm, W*0.65 - (LW if LW else 0) - 4*mm])
+        sec_h_left.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     else:
-        left_inner = co_p
+        sec_h_left = co_p
 
-    # Wrap left side with accent bar
-    sec_left_block = Table([[accent_bar, Spacer(1, 3*mm), left_inner]], colWidths=[2*mm, 3*mm, W*0.60 - 5*mm])
-    sec_left_block.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-
-    # ── Right side: centered TAX INVOICE + Voucher Code + underline ──
-    rh_title = Paragraph(
-        "<b>TAX INVOICE</b>",
-        S("TI", fontSize=15, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_CENTER))
-    rh_voucher = Paragraph(
-        f"<font size=7 color='{tc}'><b>VOUCHER # {inv_no}</b></font>",
-        S("TV", fontSize=7, fontName="Helvetica-Bold", textColor=TH, leading=9, alignment=TA_CENTER))
-    rh_date = Paragraph(
-        f"<font size=6 color='#64748b'>Date: {inv_dt}</font>",
-        S("TD", fontSize=6, textColor=C5, leading=8, alignment=TA_CENTER))
-
-    # Underline rule
-    title_rule = Table([[""]], colWidths=[W*0.30], rowHeights=[1.5])
-    title_rule.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,-1),TH),
-        ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
-    ]))
-
-    rh_block = Table([
-        [rh_title],
-        [Spacer(1, 1*mm)],
-        [title_rule],
-        [Spacer(1, 1*mm)],
-        [rh_voucher],
-        [Spacer(1, 0.5*mm)],
-        [rh_date],
-    ], colWidths=[W*0.35])
-    rh_block.setStyle(TableStyle([
-        ("ALIGN",(0,0),(-1,-1),"CENTER"),
-        ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
-    ]))
-
-    sec_header_row = Table([[sec_left_block, rh_block]], colWidths=[W*0.65, W*0.35])
+    rh = Paragraph(
+        f"<b>TAX INVOICE</b><br/>"
+        f"<font size=6 color='#64748b'># {inv_no}<br/>{inv_dt}</font>",
+        S("TI", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=16, alignment=TA_RIGHT))
+    sec_header_row = Table([[sec_h_left, rh]], colWidths=[W*0.65, W*0.35])
     sec_header_row.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
 
     sec_divider = Table([[""]], colWidths=[W], rowHeights=[1.5])
     sec_divider.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
 
     # ── Bill To / Invoice Info ──
-    def card(title, pairs, left_accent=False, tint_bg=False):
+    def card(title, pairs):
         cw = W*0.50
         r = [[
-            Paragraph(f"<b>{title}</b>", S("_ch", fontSize=6.5, fontName="Helvetica-Bold", textColor=C5, leading=8)),
+            Paragraph(f"<b>{title}</b>", S("_ch", fontSize=6, fontName="Helvetica-Bold", textColor=C5, leading=7.5)),
             Paragraph("", S("_cs", fontSize=1.5, leading=1.5)),
         ]]
         for a, b in pairs:
             r.append([
-                Paragraph(a, S("_cl", fontSize=7, textColor=C5, leading=9)),
-                Paragraph(f"{b}", S("_cv", fontSize=7.5, fontName="Helvetica-Bold", textColor=C4, leading=10)),
+                Paragraph(a, S("_cl", fontSize=6.5, textColor=C5, leading=8.5)),
+                Paragraph(f"{b}", S("_cv", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=9)),
             ])
         t = Table(r, colWidths=[cw*0.28, cw*0.72])
-        style_cmds = [
+        t.setStyle(TableStyle([
             ("VALIGN",(0,0),(-1,-1),"TOP"),
-            ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+            ("TOPPADDING",(0,0),(-1,-1),1.5), ("BOTTOMPADDING",(0,0),(-1,-1),1.5),
             ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
-            ("BOX",(0,0),(-1,-1),0.5,C3),
-        ]
-        if left_accent:
-            style_cmds.append(("LINEBEFORE",(0,0),(-1,-1),2,TH))
-        if tint_bg:
-            style_cmds.append(("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f8fafc")))
-        t.setStyle(TableStyle(style_cmds))
+            ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
+        ]))
         return t
 
     bd = [("Customer", safe(c["customer_name"])), ("TRN", safe(c["trn"]))]
@@ -942,7 +896,7 @@ def customer_invoice_pdf(cid, iid):
         if inv.get("ref_no"): id_.append(("Ref No.", inv["ref_no"]))
     except (IndexError, KeyError): pass
 
-    sec_info = Table([[card("BILL TO", bd, left_accent=True), Spacer(1, 3*mm), card("INVOICE INFO", id_, tint_bg=True)]], colWidths=[W*0.50, 3*mm, W*0.50])
+    sec_info = Table([[card("BILL TO", bd), Spacer(1, 2*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 2*mm, W*0.50])
     sec_info.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
 
     # ── Items Table ──
@@ -1043,7 +997,6 @@ def customer_invoice_pdf(cid, iid):
         Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=8, textColor=C5, leading=11)),
         Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=8, fontName="Helvetica-Bold", textColor=C6, leading=11, alignment=TA_RIGHT)),
     ])
-    # Grand Total with double line above
     trows.append([
         Paragraph("<b>Grand Total</b>", S("_td", fontSize=10, fontName="Helvetica-Bold", textColor=C4, leading=13)),
         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=14, alignment=TA_RIGHT)),
@@ -1054,8 +1007,6 @@ def customer_invoice_pdf(cid, iid):
         ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
         ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
         ("BOX",(0,0),(-1,-1),0.5,C3),
-        # Double line: thin + thick above Grand Total
-        ("LINEABOVE",(0,-1),(-1,-1),0.5,C4),
         ("LINEABOVE",(0,-1),(-1,-1),1.5,TH),
     ]))
     sec_totals = Table([["", sec_totals]], colWidths=[W - tw, tw])
@@ -1132,7 +1083,7 @@ def customer_invoice_pdf(cid, iid):
             sec_bank = Table([[bk_title], [bkt]], colWidths=[W])
             sec_bank.setStyle(TableStyle([("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
 
-    # ── Signature with dotted guide line ──
+    # ── Signature ──
     sg = ParagraphStyle("SG", fontSize=8, alignment=TA_CENTER, leading=11)
     stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
     sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
@@ -1148,10 +1099,8 @@ def customer_invoice_pdf(cid, iid):
         ]))
     else:
         auth_imgs = Paragraph("", sg)
-    # Dotted line for signature
-    dots = "." * 120
     auth_cell = Table([
-        [Paragraph(f"<font color='#94a3b8' size=8>{dots}</font>", S("_dl", fontSize=8, textColor=C5, alignment=TA_CENTER, leading=9))],
+        [Paragraph("_________________________", sg)],
         [auth_imgs],
         [Paragraph("<b>Authorized Signatory</b>", sg)],
     ], colWidths=[W*0.38])
@@ -1228,6 +1177,7 @@ def customer_invoice_pdf(cid, iid):
 
     stretch_ratio = content_avail / total_natural
 
+    # Adjust stretch based on item count
     if num_items <= 5:
         stretch_ratio *= 1.3
     elif num_items >= 15:
@@ -1235,9 +1185,11 @@ def customer_invoice_pdf(cid, iid):
 
     stretch_ratio = max(0.55, min(2.0, stretch_ratio))
 
+    # Build final els: each section wrapped in a table with proportional padding
     els = []
     for i, (name, el) in enumerate(flex):
         nh = max(heights[name], 1)
+        share = nh / total_natural
         target_h = nh * stretch_ratio
         extra = max(0, target_h - nh)
         top_pad = extra * 0.4
@@ -1252,7 +1204,7 @@ def customer_invoice_pdf(cid, iid):
         ]))
         els.append(wrapped)
 
-    # ── Footer ──
+    # ── Footer (anchored at bottom) ──
     els.append(sec_footer_line)
     els.append(Spacer(1, 1*mm))
     for item in sec_footer_items:
@@ -1260,7 +1212,6 @@ def customer_invoice_pdf(cid, iid):
         els.append(Spacer(1, 0.5*mm))
 
     doc.build(els)
-
 
     for f in _logo_tmp_files:
         try: os.remove(f)
