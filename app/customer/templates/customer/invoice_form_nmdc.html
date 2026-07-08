@@ -182,7 +182,7 @@ function addRow(plant, reg, hours, pf, pt) {
     tr.id = 'eqrow_' + rowId;
     tr.innerHTML = '<td style="text-align:center;font-weight:600;color:#64748b">' + idx + '</td>' +
         '<td><div style="font-size:0.65rem;color:#475569">Plant No: <input type="text" name="eq_plant[]" value="' + (plant||'') + '" style="width:calc(100% - 60px);padding:2px 4px;border:1px solid #e2e8f0;border-radius:3px;font-size:0.65rem"></div>' +
-        '<div style="font-size:0.65rem;color:#475569;margin-top:2px">Reg No: <input type="text" name="eq_reg[]" value="' + (reg||'') + '" style="width:calc(100% - 56px);padding:2px 4px;border:1px solid #e2e8f0;border-radius:3px;font-size:0.65rem"></div>' +
+        '<div style="font-size:0.65rem;color:#475569;margin-top:2px">Reg# <input type="text" name="eq_reg[]" value="' + (reg||'') + '" style="width:calc(100% - 56px);padding:2px 4px;border:1px solid #e2e8f0;border-radius:3px;font-size:0.65rem"></div>' +
         '<div style="display:flex;gap:6px;margin-top:3px;font-size:0.6rem;color:#94a3b8">' +
         '<span>From: <input type="date" name="eq_period_from[]" value="' + pf + '" style="width:105px;font-size:0.6rem;padding:1px 3px"></span>' +
         '<span>To: <input type="date" name="eq_period_to[]" value="' + pt + '" style="width:105px;font-size:0.6rem;padding:1px 3px"></span>' +
@@ -192,7 +192,7 @@ function addRow(plant, reg, hours, pf, pt) {
         '<input type="hidden" name="eq_qyt[]" value="0">' +
         '</div></td>' +
         '<td><span class="eq_disp eq_qty" style="color:#0f172a">0.000</span></td>' +
-        '<td style="text-align:center;color:#475569">Month</td>' +
+        '<td style="text-align:center;color:#475569;white-space:nowrap">Month</td>' +
         '<td><span class="eq_disp eq_uprice" style="color:#0f172a">0.00</span></td>' +
         '<td><span class="eq_disp eq_taxable" style="color:#0f172a">0.00</span></td>' +
         '<td style="text-align:center;color:#475569;font-size:0.72rem">5%</td>' +

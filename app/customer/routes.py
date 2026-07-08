@@ -954,7 +954,7 @@ def customer_invoice_pdf(cid, iid):
         desc_html = (it["description"] or "—")
         if is_nmdc:
             plant_line = f"<b>Plant No:</b> {it['vehicle_no']}<br/>" if it.get("vehicle_no") else ""
-            reg_line = f"<b>Reg No:</b> {desc_html}<br/>" if desc_html != "—" else ""
+            reg_line = f"<b>Reg#</b> {desc_html}<br/>" if desc_html != "—" else ""
             desc_html = plant_line + reg_line
         rws.append([
             _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
