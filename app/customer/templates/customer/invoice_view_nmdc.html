@@ -83,6 +83,7 @@
             <div class="inv-info-line"><span class="lbl">Invoice #:</span> <span class="val">{{ inv.invoice_no }}</span></div>
             <div class="inv-info-line"><span class="lbl">Date:</span> <span class="val">{{ inv.invoice_date }}</span></div>
             {% if inv.so_no %}<div class="inv-info-line"><span class="lbl">SO No.:</span> <span class="val">{{ inv.so_no }}</span></div>{% endif %}
+            {% if so_date %}<div class="inv-info-line"><span class="lbl">SO Date:</span> <span class="val">{{ so_date }}</span></div>{% endif %}
         </div>
     </div>
 

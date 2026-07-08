@@ -679,6 +679,11 @@ def customer_invoice_view(cid, iid):
         return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
     items = db.execute("SELECT * FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    so_date_val = None
+    if inv.get("so_no"):
+        so_row = db.execute("SELECT so_date FROM customer_service_orders WHERE so_no=? AND customer_id=?", (inv["so_no"], cid)).fetchone()
+        if so_row:
+            so_date_val = so_row["so_date"]
     db.close()
     try:
         tmpl_t = inv["invoice_template"] or "standard"
@@ -708,7 +713,7 @@ def customer_invoice_view(cid, iid):
                 display_notes = lines[1].strip() if len(lines) > 1 else ""
             except Exception:
                 pass
-    return render_template(tmpl, c=c, inv=inv, items=items, company=company, nmdc_meta=nmdc_meta, sum_taxable=sum_taxable, sum_vat=sum_vat, sum_total=sum_total, display_notes=display_notes)
+    return render_template(tmpl, c=c, inv=inv, items=items, company=company, nmdc_meta=nmdc_meta, sum_taxable=sum_taxable, sum_vat=sum_vat, sum_total=sum_total, display_notes=display_notes, so_date=so_date_val)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/pdf")
 def customer_invoice_pdf(cid, iid):
@@ -728,6 +733,11 @@ def customer_invoice_pdf(cid, iid):
     inv = db.execute("SELECT * FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     items = db.execute("SELECT * FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    pdf_so_date = None
+    if inv.get("so_no"):
+        so_r = db.execute("SELECT so_date FROM customer_service_orders WHERE so_no=? AND customer_id=?", (inv["so_no"], cid)).fetchone()
+        if so_r:
+            pdf_so_date = so_r["so_date"]
     db.close()
     if not c or not inv:
         flash("Invoice not found.", "error")
@@ -863,36 +873,38 @@ def customer_invoice_pdf(cid, iid):
     if c["email"]: bd.append(("Email", c["email"]))
     if c["address"]: bd.append(("Address", c["address"]))
     id_ = [("Invoice #", inv_no), ("Date", inv_dt)]
-    if inv["lpo_no"]: id_.append(("LPO No.", inv["lpo_no"]))
-    if inv["lpo_date"]: id_.append(("LPO Date", inv["lpo_date"]))
+    if inv.get("so_no"): id_.append(("SO No.", inv["so_no"]))
+    if pdf_so_date: id_.append(("SO Date", pdf_so_date))
+    if inv.get("lpo_no"): id_.append(("LPO No.", inv["lpo_no"]))
+    if inv.get("lpo_date"): id_.append(("LPO Date", inv["lpo_date"]))
     try:
-        if inv["project_no"]: id_.append(("Project No.", inv["project_no"]))
+        if inv.get("project_no"): id_.append(("Project No.", inv["project_no"]))
     except (IndexError, KeyError):
         pass
     try:
-        if inv["ref_no"]: id_.append(("Ref No.", inv["ref_no"]))
+        if inv.get("ref_no"): id_.append(("Ref No.", inv["ref_no"]))
     except (IndexError, KeyError):
         pass
 
-    iw = Table([[card("BILL TO", bd), Spacer(1, 4*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 4*mm, W*0.50])
+    iw = Table([[card("BILL TO", bd), Spacer(1, 3*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 3*mm, W*0.50])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(iw)
-    els.append(Spacer(1, 5*mm))
+    els.append(Spacer(1, 3*mm))
 
     # ═══════════════════════════════════
     # 3. ITEMS TABLE — auto-fit on one page
     # ═══════════════════════════════════
     # Estimate fixed content height (in points)
-    fixed_pt = 35*mm + 4*mm + 35*mm + 4*mm + 2*mm + 20*mm + 3*mm + 7*mm + (7*mm if inv["notes"] else 0) + 10*mm + 8*mm + 8*mm
+    fixed_pt = 30*mm + 3*mm + 30*mm + 3*mm + 2*mm + 15*mm + 3*mm + 7*mm + (5*mm if inv["notes"] else 0) + 8*mm + 6*mm + 6*mm
     avail_pt = A4[1] - TM - BM - fixed_pt
     num_rows = len(items) + (1 if is_nmdc else 0)
     fs = 7.0
     if num_rows > 0:
         target = avail_pt / (num_rows + 1)
-        fs = max(4.0, min(7.0, target / 2.8))
-    ldr = fs * 1.35
-    pad_t = max(1.5, fs * 0.5)
-    pad_b = max(1.5, fs * 0.5)
+        fs = max(4.0, min(7.0, target / 2.6))
+    ldr = fs * 1.25
+    pad_t = max(1.0, fs * 0.35)
+    pad_b = max(1.0, fs * 0.35)
 
     def _pc(t, **kw):
         kw.setdefault("fontSize", fs)
@@ -932,7 +944,7 @@ def customer_invoice_pdf(cid, iid):
         # Row 1: Main description
         rws.append([
             _pc("1", alignment=TA_CENTER, fontName="Helvetica-Bold"),
-            _pc(nmdc_main_desc or "—", fontSize=fs, leading=ldr),
+            _pc(nmdc_main_desc or "—", fontSize=fs, leading=ldr*0.95),
             _pc("—", alignment=TA_CENTER),
             _pc("—", alignment=TA_CENTER),
             _pc("—", alignment=TA_RIGHT),
@@ -958,7 +970,7 @@ def customer_invoice_pdf(cid, iid):
             desc_html = plant_line + reg_line
         rws.append([
             _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
-            _pc(desc_html + eq_period_text + eq_hours, fontSize=fs, leading=ldr*1.1),
+            _pc(desc_html + eq_period_text + eq_hours, fontSize=fs, leading=ldr*0.95),
             _pc(f"{it['quantity'] or 0:,.3f}", alignment=TA_CENTER),
             _pc((it['unit'] or 'mo'), alignment=TA_CENTER),
             _pc(f"{it['rate'] or 0:,.2f}", alignment=TA_RIGHT),
