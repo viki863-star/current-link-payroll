@@ -918,14 +918,26 @@ def customer_invoice_pdf(cid, iid):
     # Estimate fixed content height (in points)
     fixed_pt = 22*mm + 1.5*mm + 22*mm + 2*mm + 2*mm + 12*mm + 2*mm + 5*mm + (3*mm if inv["notes"] else 0) + 6*mm + 5*mm + 5*mm
     avail_pt = A4[1] - TM - BM - fixed_pt
+    table_hdr_h = 14
     num_rows = len(items) + (1 if is_nmdc else 0)
     fs = 7.0
+    extra_row_fill = 0
+    min_data_h = 20
     if num_rows > 0:
         target = avail_pt / (num_rows + 1)
-        fs = max(4.0, min(7.0, target / 2.6))
-    ldr = fs * 1.15
-    pad_t = max(1.0, fs * 0.25)
-    pad_b = max(1.0, fs * 0.25)
+        fs = max(4.0, min(9.0, target / 2.2))
+        ldr = fs * 1.15
+        pad_t = max(1.0, fs * 0.25)
+        pad_b = max(1.0, fs * 0.25)
+        min_data_h = ldr * 1.5 + pad_t + pad_b
+        data_total = num_rows * min_data_h + table_hdr_h
+        if data_total < avail_pt:
+            extra = avail_pt - data_total
+            extra_row_fill = extra / num_rows
+    else:
+        ldr = fs * 1.15
+        pad_t = max(1.0, fs * 0.25)
+        pad_b = max(1.0, fs * 0.25)
 
     def _pc(t, **kw):
         kw.setdefault("fontSize", fs)
@@ -1003,8 +1015,9 @@ def customer_invoice_pdf(cid, iid):
             Paragraph(f"<b>{ti_item:,.2f}</b>", S("_b", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr)),
         ])
 
-    itt = Table(rws, colWidths=cw, repeatRows=1)
-    itt.setStyle(TableStyle([
+    row_hts = [table_hdr_h] + [min_data_h + extra_row_fill] * (len(rws) - 1) if extra_row_fill > 2 else None
+    itt = Table(rws, colWidths=cw, repeatRows=1, rowHeights=row_hts)
+    ts = [
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("BACKGROUND",(0,0),(-1,0),DH), ("TEXTCOLOR",(0,0),(-1,0),WH),
         ("BOX",(0,0),(-1,-1),0.5,C3),
@@ -1012,7 +1025,8 @@ def customer_invoice_pdf(cid, iid):
         ("TOPPADDING",(0,0),(-1,-1),pad_t), ("BOTTOMPADDING",(0,0),(-1,-1),pad_b),
         ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
         ("ROWBACKGROUNDS",(0,1),(-1,-1),[WH, colors.HexColor("#f8fafc")]),
-    ]))
+    ]
+    itt.setStyle(TableStyle(ts))
     els.append(itt)
 
     # ═══════════════════════════════════
