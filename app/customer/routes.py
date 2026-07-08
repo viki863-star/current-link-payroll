@@ -913,25 +913,8 @@ def customer_invoice_pdf(cid, iid):
     els.append(Spacer(1, 2*mm))
 
     # ═══════════════════════════════════
-    # 3. ITEMS TABLE — auto-fit on one page
+    # 3. ITEMS TABLE — simpler columns
     # ═══════════════════════════════════
-    # Estimate fixed content height (in points)
-    fixed_pt = 22*mm + 1.5*mm + 22*mm + 2*mm + 2*mm + 12*mm + 2*mm + 5*mm + (3*mm if inv["notes"] else 0) + 6*mm + 5*mm + 5*mm
-    avail_pt = A4[1] - TM - BM - fixed_pt
-    num_rows = len(items) + (1 if is_nmdc else 0)
-    fs = 7.0
-    if num_rows > 0:
-        target = avail_pt / (num_rows + 1)
-        fs = max(4.0, min(7.0, target / 2.6))
-    ldr = fs * 1.15
-    pad_t = max(1.0, fs * 0.25)
-    pad_b = max(1.0, fs * 0.25)
-
-    def _pc(t, **kw):
-        kw.setdefault("fontSize", fs)
-        kw.setdefault("leading", ldr)
-        return Paragraph(str(t), S("_pc", **kw))
-
     sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
 
     nmdc_eq_periods = []
@@ -942,43 +925,57 @@ def customer_invoice_pdf(cid, iid):
             nmdc_meta = json.loads(inv.get("notes", "{}"))
         except Exception:
             nmdc_meta = {}
-        nmdc_pf = nmdc_meta.get("period_from", "") or ""
-        nmdc_pt = nmdc_meta.get("period_to", "") or ""
-        nmdc_mr = nmdc_meta.get("monthly_rate", 0) or 0
-        nmdc_ml = nmdc_meta.get("month_label", "") or ""
         nmdc_eq_periods = nmdc_meta.get("eq_periods", []) or []
 
-    cw = [9*mm, 44*mm, 16*mm, 12*mm, 15*mm, 18*mm, 13*mm, 16*mm, 25*mm]
+    # Estimate available height for items
+    fixed_pt = sum([
+        22*mm,  # header
+        1.5*mm,  # line
+        22*mm,  # bill-to/invoice cards
+        2*mm,   # spacer
+        2*mm,   # spacer
+        12*mm,  # totals
+        2*mm,   # spacer
+        5*mm,   # amount-in-words
+        2*mm,   # notes spacer
+        8*mm,   # bank details
+        8*mm,   # signatures
+        6*mm,   # footer
+    ])
+    avail_pt = A4[1] - TM - BM - fixed_pt
+    num_rows = len(items) + (1 if is_nmdc else 0)
+    fs = 7.0
+    if num_rows > 0:
+        target = avail_pt / (num_rows + 1)
+        fs = max(4.0, min(7.0, target / 2.6))
+    ldr = fs * 1.15
+    pad_t = max(0.8, fs * 0.2)
+    pad_b = max(0.8, fs * 0.2)
+
+    def _pc(t, **kw):
+        kw.setdefault("fontSize", fs)
+        kw.setdefault("leading", ldr)
+        return Paragraph(str(t), S("_pc", **kw))
+
+    cw = [8*mm, W - 8*mm - 16*mm - 22*mm - 22*mm, 16*mm, 22*mm, 22*mm]
     hdr = [
         Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
         Paragraph("<b>Description</b>", S("_h1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
         Paragraph("<b>Qty</b>", S("_h2", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
-        Paragraph("<b>Unit</b>", S("_hu", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
-        Paragraph("<b>Unit Price</b>", S("_h3", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
-        Paragraph("<b>Taxable Amount</b>", S("_h4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
-        Paragraph("<b>VAT %</b>", S("_h5", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
-        Paragraph("<b>VAT Amount</b>", S("_h6", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
-        Paragraph("<b>Total Amount<br/>(Including VAT)</b>", S("_h7", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>Unit Price (AED)</b>", S("_h3", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>Total (AED)</b>", S("_h4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
     ]
     rws = [hdr]
     if is_nmdc:
-        # Row 1: Main description
         rws.append([
             _pc("1", alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(nmdc_main_desc or "—", fontSize=fs, leading=ldr*0.95),
-            _pc("—", alignment=TA_CENTER),
-            _pc("—", alignment=TA_CENTER),
-            _pc("—", alignment=TA_RIGHT),
-            _pc("—", alignment=TA_RIGHT),
             _pc("—", alignment=TA_CENTER),
             _pc("—", alignment=TA_RIGHT),
             _pc("—", alignment=TA_RIGHT),
         ])
     table_items = items[1:] if is_nmdc else items
     for idx, it in enumerate(table_items):
-        vp_item = it["vat_percent_item"] or inv["vat_percent"] or 5
-        va_item = it["vat_amount_item"] or (it["amount"] * vp_item / 100)
-        ti_item = it["total_incl_vat"] or (it["amount"] + va_item)
         eq_p = nmdc_eq_periods[idx] if is_nmdc and idx < len(nmdc_eq_periods) else {}
         eq_period_text = ""
         if is_nmdc and (eq_p.get("from") or eq_p.get("to")):
@@ -991,16 +988,15 @@ def customer_invoice_pdf(cid, iid):
             if desc_html != "—": parts.append(f"<b>Reg#</b> {desc_html}")
             plant_reg = " | ".join(parts)
             desc_html = plant_reg + eq_period_text + eq_hours
+        qty = it['quantity'] or 0
+        rate = it['rate'] or 0
+        amount = it['amount'] or 0
         rws.append([
             _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(desc_html, fontSize=fs, leading=ldr*0.9),
-            _pc(f"{it['quantity'] or 0:,.3f}", alignment=TA_CENTER),
-            _pc((it['unit'] or 'mo'), alignment=TA_CENTER),
-            _pc(f"{it['rate'] or 0:,.2f}", alignment=TA_RIGHT),
-            _pc(f"{it['amount'] or 0:,.2f}", alignment=TA_RIGHT),
-            _pc(f"{vp_item:.2f}%", alignment=TA_CENTER),
-            _pc(f"{va_item:,.2f}", alignment=TA_RIGHT, textColor=C6),
-            Paragraph(f"<b>{ti_item:,.2f}</b>", S("_b", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr)),
+            _pc(f"{qty:,.3f}", alignment=TA_CENTER),
+            _pc(f"{rate:,.2f}", alignment=TA_RIGHT),
+            Paragraph(f"<b>{amount:,.2f}</b>", S("_b", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr)),
         ])
 
     itt = Table(rws, colWidths=cw, repeatRows=1)
@@ -1016,30 +1012,41 @@ def customer_invoice_pdf(cid, iid):
     els.append(itt)
 
     # ═══════════════════════════════════
-    # 4. TOTALS (matching web)
+    # 4. TOTALS
     # ═══════════════════════════════════
     tw = 80*mm
     trows = [
-        [Paragraph("Sub Total", S("_st", fontSize=8, textColor=C5, leading=11)),
+        [Paragraph("Subtotal", S("_st", fontSize=8, textColor=C5, leading=11)),
          Paragraph(f"<b>AED {sub:,.2f}</b>", S("_stv", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11, alignment=TA_RIGHT))],
-        [Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=8, textColor=C5, leading=11)),
-         Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=8, fontName="Helvetica-Bold", textColor=C6, leading=11, alignment=TA_RIGHT))],
-        [Paragraph("<b>Total Due</b>", S("_td", fontSize=10, fontName="Helvetica-Bold", textColor=C4, leading=13)),
-         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=14, alignment=TA_RIGHT))],
     ]
+    discount = inv.get("discount_amount", 0) or 0
+    if discount:
+        trows.append([
+            Paragraph("Discount", S("_dt", fontSize=8, textColor=C5, leading=11)),
+            Paragraph(f"<b>-AED {discount:,.2f}</b>", S("_dtv", fontSize=8, fontName="Helvetica-Bold", textColor=C6, leading=11, alignment=TA_RIGHT)),
+        ])
+    trows.append([
+        Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=8, textColor=C5, leading=11)),
+        Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=8, fontName="Helvetica-Bold", textColor=C6, leading=11, alignment=TA_RIGHT)),
+    ])
+    trows.append([
+        Paragraph("<b>Grand Total</b>", S("_td", fontSize=10, fontName="Helvetica-Bold", textColor=C4, leading=13)),
+        Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=14, alignment=TA_RIGHT)),
+    ])
     tt = Table(trows, colWidths=[tw*0.45, tw*0.55])
     tt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
         ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
         ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
-        ("LINEABOVE",(0,2),(-1,2),1.5,TH),
+        ("LINEABOVE",(0,-1),(-1,-1),1.5,TH),
     ]))
 
     ft = Table([["", tt]], colWidths=[W - tw, tw])
     ft.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(Spacer(1, 1*mm))
     els.append(ft)
+
     # ═══════════════════════════════════
     # 5. AMOUNT IN WORDS
     # ═══════════════════════════════════
@@ -1193,7 +1200,6 @@ def customer_invoice_pdf(cid, iid):
         els.append(p)
         els.append(Spacer(1, 0.5*mm))
 
-    doc.build(els)
     for f in _logo_tmp_files:
         try: os.remove(f)
         except: pass
