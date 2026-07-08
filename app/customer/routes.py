@@ -818,8 +818,8 @@ def customer_invoice_pdf(cid, iid):
     if c_em: c_contact.append(f"Email: {c_em}")
     if c_contact: ci_lines.append('<font size=6 color="#64748b">' + ' &middot; '.join(c_contact) + '</font>')
     ci_lines.append(f"<font size=6 color='#64748b'><b>TRN: {c_trn}</b></font>")
-    ci_html = f"<font size=10><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
-    co_p = Paragraph(ci_html, S("CO", fontSize=10, fontName="Helvetica-Bold", textColor=TH, leading=12))
+    ci_html = f"<font size=11><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
+    co_p = Paragraph(ci_html, S("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
 
     # Measure the company text height, then size logo to match
     logo_w = 0
