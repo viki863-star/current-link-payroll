@@ -746,7 +746,7 @@ def customer_invoice_pdf(cid, iid):
     is_nmdc = "nmdc" in (c["customer_name"] or "").lower()
 
     buf = BytesIO()
-    LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 12*mm
+    LM, RM, TM, BM = 14*mm, 14*mm, 10*mm, 8*mm
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
     W = A4[0] - LM - RM
 
@@ -818,10 +818,10 @@ def customer_invoice_pdf(cid, iid):
     c_contact = []
     if c_ph: c_contact.append(f"Phone: {c_ph}")
     if c_em: c_contact.append(f"Email: {c_em}")
-    if c_contact: ci_lines.append('<font size=7 color="#64748b">' + ' &middot; '.join(c_contact) + '</font>')
-    ci_lines.append(f"<font size=7 color='#64748b'><b>TRN: {c_trn}</b></font>")
-    ci_html = f"<font size=12><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
-    co_p = Paragraph(ci_html, S("CO", fontSize=12, fontName="Helvetica-Bold", textColor=TH, leading=16))
+    if c_contact: ci_lines.append('<font size=6 color="#64748b">' + ' &middot; '.join(c_contact) + '</font>')
+    ci_lines.append(f"<font size=6 color='#64748b'><b>TRN: {c_trn}</b></font>")
+    ci_html = f"<font size=10><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
+    co_p = Paragraph(ci_html, S("CO", fontSize=10, fontName="Helvetica-Bold", textColor=TH, leading=12))
 
     if logo:
         lh = Table([[logo, Spacer(1, 4*mm), co_p]], colWidths=[LW, 4*mm, W*0.65 - LW - 4*mm])
@@ -831,18 +831,18 @@ def customer_invoice_pdf(cid, iid):
 
     rh = Paragraph(
         f"<b>TAX INVOICE</b><br/>"
-        f"<font size=7 color='#64748b'># {inv_no}<br/>{inv_dt}</font>",
-        S("TI", fontSize=16, fontName="Helvetica-Bold", textColor=TH, leading=20, alignment=TA_RIGHT))
+        f"<font size=6 color='#64748b'># {inv_no}<br/>{inv_dt}</font>",
+        S("TI", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=16, alignment=TA_RIGHT))
 
     ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
     ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(ht)
 
-    # Bottom border line (matching web: 3px solid theme-color)
-    bl = Table([[""]], colWidths=[W], rowHeights=[3])
+    # Bottom border line
+    bl = Table([[""]], colWidths=[W], rowHeights=[1.5])
     bl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(bl)
-    els.append(Spacer(1, 5*mm))
+    els.append(Spacer(1, 3*mm))
 
     # ═══════════════════════════════════
     # 2. BILL TO / INVOICE INFO (matching web)
@@ -850,19 +850,19 @@ def customer_invoice_pdf(cid, iid):
     def card(title, pairs):
         cw = W*0.50
         r = [[
-            Paragraph(f"<b>{title}</b>", S("_ch", fontSize=6.5, fontName="Helvetica-Bold", textColor=C5, leading=9)),
-            Paragraph("", S("_cs", fontSize=2, leading=2)),
+            Paragraph(f"<b>{title}</b>", S("_ch", fontSize=6, fontName="Helvetica-Bold", textColor=C5, leading=7.5)),
+            Paragraph("", S("_cs", fontSize=1.5, leading=1.5)),
         ]]
         for a, b in pairs:
             r.append([
-                Paragraph(a, S("_cl", fontSize=7.5, textColor=C5, leading=11)),
-                Paragraph(f"{b}", S("_cv", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11.5)),
+                Paragraph(a, S("_cl", fontSize=6.5, textColor=C5, leading=8.5)),
+                Paragraph(f"{b}", S("_cv", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=9)),
             ])
         t = Table(r, colWidths=[cw*0.28, cw*0.72])
         t.setStyle(TableStyle([
             ("VALIGN",(0,0),(-1,-1),"TOP"),
-            ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
-            ("LEFTPADDING",(0,0),(-1,-1),10), ("RIGHTPADDING",(0,0),(-1,-1),10),
+            ("TOPPADDING",(0,0),(-1,-1),1.5), ("BOTTOMPADDING",(0,0),(-1,-1),1.5),
+            ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
             ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
         ]))
         return t
@@ -885,16 +885,16 @@ def customer_invoice_pdf(cid, iid):
     except (IndexError, KeyError):
         pass
 
-    iw = Table([[card("BILL TO", bd), Spacer(1, 3*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 3*mm, W*0.50])
+    iw = Table([[card("BILL TO", bd), Spacer(1, 2*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 2*mm, W*0.50])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(iw)
-    els.append(Spacer(1, 3*mm))
+    els.append(Spacer(1, 2*mm))
 
     # ═══════════════════════════════════
     # 3. ITEMS TABLE — auto-fit on one page
     # ═══════════════════════════════════
     # Estimate fixed content height (in points)
-    fixed_pt = 30*mm + 3*mm + 30*mm + 3*mm + 2*mm + 15*mm + 3*mm + 7*mm + (5*mm if inv["notes"] else 0) + 8*mm + 6*mm + 6*mm
+    fixed_pt = 22*mm + 1.5*mm + 22*mm + 2*mm + 2*mm + 12*mm + 2*mm + 5*mm + (3*mm if inv["notes"] else 0) + 6*mm + 5*mm + 5*mm
     avail_pt = A4[1] - TM - BM - fixed_pt
     num_rows = len(items) + (1 if is_nmdc else 0)
     fs = 7.0
@@ -996,29 +996,28 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════
     # 4. TOTALS (matching web)
     # ═══════════════════════════════════
-    tw = 90*mm
+    tw = 80*mm
     trows = [
-        [Paragraph("Sub Total", S("_st", fontSize=9, textColor=C5, leading=14)),
-         Paragraph(f"<b>AED {sub:,.2f}</b>", S("_stv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=14, alignment=TA_RIGHT))],
-        [Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=9, textColor=C5, leading=14)),
-         Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=9, fontName="Helvetica-Bold", textColor=C6, leading=14, alignment=TA_RIGHT))],
-        [Paragraph("<b>Total Due</b>", S("_td", fontSize=11, fontName="Helvetica-Bold", textColor=C4, leading=16)),
-         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))],
+        [Paragraph("Sub Total", S("_st", fontSize=8, textColor=C5, leading=11)),
+         Paragraph(f"<b>AED {sub:,.2f}</b>", S("_stv", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11, alignment=TA_RIGHT))],
+        [Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=8, textColor=C5, leading=11)),
+         Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=8, fontName="Helvetica-Bold", textColor=C6, leading=11, alignment=TA_RIGHT))],
+        [Paragraph("<b>Total Due</b>", S("_td", fontSize=10, fontName="Helvetica-Bold", textColor=C4, leading=13)),
+         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=14, alignment=TA_RIGHT))],
     ]
     tt = Table(trows, colWidths=[tw*0.45, tw*0.55])
     tt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
-        ("LEFTPADDING",(0,0),(-1,-1),12), ("RIGHTPADDING",(0,0),(-1,-1),12),
+        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
         ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
-        ("LINEABOVE",(0,2),(-1,2),2,TH),
+        ("LINEABOVE",(0,2),(-1,2),1.5,TH),
     ]))
 
     ft = Table([["", tt]], colWidths=[W - tw, tw])
     ft.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(Spacer(1, 2*mm))
+    els.append(Spacer(1, 1*mm))
     els.append(ft)
-
     # ═══════════════════════════════════
     # 5. AMOUNT IN WORDS
     # ═══════════════════════════════════
@@ -1067,9 +1066,9 @@ def customer_invoice_pdf(cid, iid):
             except Exception:
                 pass
     if display_notes:
-        els.append(Spacer(1, 2*mm))
-        nb = Table([[Paragraph(f"<b>Notes:</b> {display_notes}", S("NW", fontSize=8, textColor=C4, leading=12))]], colWidths=[W])
-        nb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f8fafc")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4)]))
+        els.append(Spacer(1, 1.5*mm))
+        nb = Table([[Paragraph(f"<b>Notes:</b> {display_notes}", S("NW", fontSize=7, textColor=C4, leading=9))]], colWidths=[W])
+        nb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f8fafc")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
         els.append(nb)
 
     # ═══════════════════════════════════
@@ -1083,16 +1082,16 @@ def customer_invoice_pdf(cid, iid):
         if company["iban"]: bk_items.append(("IBAN", company["iban"]))
         if company["swift_code"]: bk_items.append(("Swift", company["swift_code"]))
         if bk_items:
-            els.append(Spacer(1, 2*mm))
-            els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=8, fontName="Helvetica-Bold", textColor=C5, leading=10, spaceAfter=2)))
+            els.append(Spacer(1, 1.5*mm))
+            els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=8, spaceAfter=1)))
             bk_rows = [[
-                Paragraph(f"<font color='#64748b'>{lbl}:</font>", S("_bkl", fontSize=8, textColor=C5, leading=12)),
-                Paragraph(f"<b>{val}</b>", S("_bkv", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=12)),
+                Paragraph(f"<font color='#64748b'>{lbl}:</font>", S("_bkl", fontSize=7, textColor=C5, leading=9)),
+                Paragraph(f"<b>{val}</b>", S("_bkv", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=9)),
             ] for lbl, val in bk_items]
-            bkt = Table(bk_rows, colWidths=[22*mm, W - 22*mm])
+            bkt = Table(bk_rows, colWidths=[20*mm, W - 20*mm])
             bkt.setStyle(TableStyle([
                 ("VALIGN",(0,0),(-1,-1),"TOP"),
-                ("TOPPADDING",(0,0),(-1,-1),1.5), ("BOTTOMPADDING",(0,0),(-1,-1),1.5),
+                ("TOPPADDING",(0,0),(-1,-1),1), ("BOTTOMPADDING",(0,0),(-1,-1),1),
                 ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
             ]))
             els.append(bkt)
@@ -1100,18 +1099,15 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════
     # 7. SIGNATURES — stamp & sign side by side
     # ═══════════════════════════════════
-    els.append(Spacer(1, 3*mm))
-    sg = ParagraphStyle("SG", fontSize=9, alignment=TA_CENTER, leading=14)
     stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
     sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
-    # Top: line + "Authorized Signatory"
     auth_img = []
     if os.path.exists(stamp_path):
-        auth_img.append(Image(stamp_path, width=35, height=35))
+        auth_img.append(Image(stamp_path, width=28, height=28))
     if os.path.exists(sign_path):
-        auth_img.append(Image(sign_path, width=35, height=35))
+        auth_img.append(Image(sign_path, width=28, height=28))
     if auth_img:
-        auth_imgs = Table([auth_img], colWidths=[35]*len(auth_img))
+        auth_imgs = Table([auth_img], colWidths=[28]*len(auth_img))
         auth_imgs.setStyle(TableStyle([
             ("ALIGN",(0,0),(-1,-1),"CENTER"),
             ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
@@ -1124,6 +1120,10 @@ def customer_invoice_pdf(cid, iid):
         [auth_imgs],
         [Paragraph("<b>Authorized Signatory</b>", sg)],
     ], colWidths=[W*0.38])
+    auth_cell.setStyle(TableStyle([
+        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),0),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
     auth_cell.setStyle(TableStyle([
         ("ALIGN",(0,0),(-1,-1),"CENTER"),
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
@@ -1140,14 +1140,14 @@ def customer_invoice_pdf(cid, iid):
         ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
     ]))
     els.append(sgt)
-
     # ═══════════════════════════════════
     # 8. COMPANY ADDRESS / FOOTER
     # ═══════════════════════════════════
     if c_addr:
-        els.append(Spacer(1, 2*mm))
-        els.append(Paragraph(f"<font size=7 color='#64748b'>{c_addr}</font>", S("_ad", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
-    els.append(Spacer(1, 4*mm))
+        els.append(Spacer(1, 1.5*mm))
+        els.append(Paragraph(f"<font size=6 color='#64748b'>{c_addr}</font>", S("_ad", fontSize=6, textColor=C5, alignment=TA_CENTER, leading=7)))
+    els.append(Spacer(1, 2*mm))
+
     pp = []
     if company:
         parts = []
@@ -1155,19 +1155,19 @@ def customer_invoice_pdf(cid, iid):
         if company["bank_account_number"]: parts.append(f"A/C: <b>{company['bank_account_number']}</b>")
         if company["iban"]: parts.append(f"IBAN: <b>{company['iban']}</b>")
         if parts:
-            pp.append(Paragraph("Payable at: " + " | ".join(parts), S("FP", fontSize=7.5, textColor=C4, alignment=TA_CENTER, leading=10)))
+            pp.append(Paragraph("Payable at: " + " | ".join(parts), S("FP", fontSize=6.5, textColor=C4, alignment=TA_CENTER, leading=8)))
 
     pp.append(Paragraph(
         "This is a computer-generated Tax Invoice. Valid without signature.",
-        S("FN", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
+        S("FN", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8)))
 
-    fh = Table([[""]], colWidths=[W], rowHeights=[0.5])
+    fh = Table([[""]], colWidths=[W], rowHeights=[0.3])
     fh.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(fh)
-    els.append(Spacer(1, 2*mm))
+    els.append(Spacer(1, 1*mm))
     for p in pp:
         els.append(p)
-        els.append(Spacer(1, 1*mm))
+        els.append(Spacer(1, 0.5*mm))
 
     doc.build(els)
     for f in _logo_tmp_files:
