@@ -799,9 +799,9 @@ def customer_invoice_pdf(cid, iid):
 
     NMDC_CONV_HOURS = 260
 
-    # ═══════════════════════════════════
-    # 1. HEADER (matching web view)
-    # ═══════════════════════════════════
+    # ════════════════════════════════════════════════════════
+    # BUILD ALL SECTIONS, THEN MEASURE AND STRETCH TO FILL A4
+    # ════════════════════════════════════════════════════════
     logo = None; LW = 0
     if company and company["logo_data"]:
         try:
@@ -811,7 +811,6 @@ def customer_invoice_pdf(cid, iid):
             _logo_tmp_files.append(f.name)
         except: pass
 
-    # Company info lines
     ci_lines = []
     c_contact = []
     if c_ph: c_contact.append(f"Phone: {c_ph}")
@@ -821,7 +820,6 @@ def customer_invoice_pdf(cid, iid):
     ci_html = f"<font size=11><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
     co_p = Paragraph(ci_html, S("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
 
-    # Measure the company text height, then size logo to match
     logo_w = 0
     if _logo_tmp_files:
         try:
@@ -846,29 +844,22 @@ def customer_invoice_pdf(cid, iid):
             pass
 
     if logo:
-        lh = Table([[logo, Spacer(1, 4*mm), co_p]], colWidths=[LW if LW else 0, 4*mm, W*0.65 - (LW if LW else 0) - 4*mm])
-        lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+        sec_h_left = Table([[logo, Spacer(1, 4*mm), co_p]], colWidths=[LW if LW else 0, 4*mm, W*0.65 - (LW if LW else 0) - 4*mm])
+        sec_h_left.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     else:
-        lh = co_p
+        sec_h_left = co_p
 
     rh = Paragraph(
         f"<b>TAX INVOICE</b><br/>"
         f"<font size=6 color='#64748b'># {inv_no}<br/>{inv_dt}</font>",
         S("TI", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=16, alignment=TA_RIGHT))
+    sec_header_row = Table([[sec_h_left, rh]], colWidths=[W*0.65, W*0.35])
+    sec_header_row.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
 
-    ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
-    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(ht)
+    sec_divider = Table([[""]], colWidths=[W], rowHeights=[1.5])
+    sec_divider.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
 
-    # Bottom border line
-    bl = Table([[""]], colWidths=[W], rowHeights=[1.5])
-    bl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(bl)
-    els.append(Spacer(1, 3*mm))
-
-    # ═══════════════════════════════════
-    # 2. BILL TO / INVOICE INFO (matching web)
-    # ═══════════════════════════════════
+    # ── Bill To / Invoice Info ──
     def card(title, pairs):
         cw = W*0.50
         r = [[
@@ -900,23 +891,16 @@ def customer_invoice_pdf(cid, iid):
     if inv.get("lpo_date"): id_.append(("LPO Date", inv["lpo_date"]))
     try:
         if inv.get("project_no"): id_.append(("Project No.", inv["project_no"]))
-    except (IndexError, KeyError):
-        pass
+    except (IndexError, KeyError): pass
     try:
         if inv.get("ref_no"): id_.append(("Ref No.", inv["ref_no"]))
-    except (IndexError, KeyError):
-        pass
+    except (IndexError, KeyError): pass
 
-    iw = Table([[card("BILL TO", bd), Spacer(1, 2*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 2*mm, W*0.50])
-    iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(iw)
-    els.append(Spacer(1, 2*mm))
+    sec_info = Table([[card("BILL TO", bd), Spacer(1, 2*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 2*mm, W*0.50])
+    sec_info.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
 
-    # ═══════════════════════════════════
-    # 3. ITEMS TABLE — simpler columns
-    # ═══════════════════════════════════
+    # ── Items Table ──
     sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
-
     nmdc_eq_periods = []
     if is_nmdc:
         nmdc_main_desc = items[0]["description"] if items else ""
@@ -927,30 +911,17 @@ def customer_invoice_pdf(cid, iid):
             nmdc_meta = {}
         nmdc_eq_periods = nmdc_meta.get("eq_periods", []) or []
 
-    # Estimate available height for items
-    fixed_pt = sum([
-        22*mm,  # header
-        1.5*mm,  # line
-        22*mm,  # bill-to/invoice cards
-        2*mm,   # spacer
-        2*mm,   # spacer
-        12*mm,  # totals
-        2*mm,   # spacer
-        5*mm,   # amount-in-words
-        2*mm,   # notes spacer
-        8*mm,   # bank details
-        8*mm,   # signatures
-        6*mm,   # footer
-    ])
-    avail_pt = A4[1] - TM - BM - fixed_pt
-    num_rows = len(items) + (1 if is_nmdc else 0)
+    num_items = len(items)
+    num_rows = num_items + (1 if is_nmdc else 0)
+
     fs = 7.0
-    if num_rows > 0:
-        target = avail_pt / (num_rows + 1)
-        fs = max(4.0, min(7.0, target / 2.6))
+    if num_rows > 25: fs = 5.0
+    elif num_rows > 18: fs = 5.5
+    elif num_rows > 12: fs = 6.0
+    elif num_rows <= 5: fs = 7.5
     ldr = fs * 1.15
-    pad_t = max(0.8, fs * 0.2)
-    pad_b = max(0.8, fs * 0.2)
+    pad_t = max(0.5, fs * 0.22)
+    pad_b = max(0.5, fs * 0.22)
 
     def _pc(t, **kw):
         kw.setdefault("fontSize", fs)
@@ -988,9 +959,9 @@ def customer_invoice_pdf(cid, iid):
             if desc_html != "—": parts.append(f"<b>Reg#</b> {desc_html}")
             plant_reg = " | ".join(parts)
             desc_html = plant_reg + eq_period_text + eq_hours
-        qty = it['quantity'] or 0
-        rate = it['rate'] or 0
-        amount = it['amount'] or 0
+        qty = it["quantity"] or 0
+        rate = it["rate"] or 0
+        amount = it["amount"] or 0
         rws.append([
             _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(desc_html, fontSize=fs, leading=ldr*0.9),
@@ -999,8 +970,8 @@ def customer_invoice_pdf(cid, iid):
             Paragraph(f"<b>{amount:,.2f}</b>", S("_b", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr)),
         ])
 
-    itt = Table(rws, colWidths=cw, repeatRows=1)
-    itt.setStyle(TableStyle([
+    sec_items = Table(rws, colWidths=cw, repeatRows=1)
+    sec_items.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("BACKGROUND",(0,0),(-1,0),DH), ("TEXTCOLOR",(0,0),(-1,0),WH),
         ("BOX",(0,0),(-1,-1),0.5,C3),
@@ -1009,11 +980,8 @@ def customer_invoice_pdf(cid, iid):
         ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
         ("ROWBACKGROUNDS",(0,1),(-1,-1),[WH, colors.HexColor("#f8fafc")]),
     ]))
-    els.append(itt)
 
-    # ═══════════════════════════════════
-    # 4. TOTALS
-    # ═══════════════════════════════════
+    # ── Totals ──
     tw = 80*mm
     trows = [
         [Paragraph("Subtotal", S("_st", fontSize=8, textColor=C5, leading=11)),
@@ -1033,23 +1001,18 @@ def customer_invoice_pdf(cid, iid):
         Paragraph("<b>Grand Total</b>", S("_td", fontSize=10, fontName="Helvetica-Bold", textColor=C4, leading=13)),
         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=14, alignment=TA_RIGHT)),
     ])
-    tt = Table(trows, colWidths=[tw*0.45, tw*0.55])
-    tt.setStyle(TableStyle([
+    sec_totals = Table(trows, colWidths=[tw*0.45, tw*0.55])
+    sec_totals.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
         ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
-        ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
+        ("BOX",(0,0),(-1,-1),0.5,C3),
         ("LINEABOVE",(0,-1),(-1,-1),1.5,TH),
     ]))
+    sec_totals = Table([["", sec_totals]], colWidths=[W - tw, tw])
+    sec_totals.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
 
-    ft = Table([["", tt]], colWidths=[W - tw, tw])
-    ft.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(Spacer(1, 1*mm))
-    els.append(ft)
-
-    # ═══════════════════════════════════
-    # 5. AMOUNT IN WORDS
-    # ═══════════════════════════════════
+    # ── Amount in Words ──
     def n2w(n):
         if n == 0: return "Zero"
         o = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve",
@@ -1064,8 +1027,7 @@ def customer_invoice_pdf(cid, iid):
             if num and r: r += " "
             if num > 0: r += o[num]
             return r.strip()
-        ip = int(n)
-        dp = min(int(round((n - ip) * 100)), 99)
+        ip = int(n); dp = min(int(round((n - ip) * 100)), 99)
         if ip == 0: w = "Zero"
         else:
             w = ""; i = 0
@@ -1079,11 +1041,11 @@ def customer_invoice_pdf(cid, iid):
         if dp: w += f" and {dp:02d}/100"
         return "AED " + w + " Only"
 
-    els.append(Spacer(1, 3*mm))
-    ab = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=13))]], colWidths=[W])
-    ab.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
-    els.append(ab)
+    sec_words = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=13))]], colWidths=[W])
+    sec_words.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
 
+    # ── Notes (conditional) ──
+    sec_notes = None
     display_notes = inv.get("notes", "") or ""
     if is_nmdc and display_notes:
         import json
@@ -1092,17 +1054,13 @@ def customer_invoice_pdf(cid, iid):
             try:
                 json.loads(lines[0])
                 display_notes = lines[1].strip() if len(lines) > 1 else ""
-            except Exception:
-                pass
+            except Exception: pass
     if display_notes:
-        els.append(Spacer(1, 1.5*mm))
-        nb = Table([[Paragraph(f"<b>Notes:</b> {display_notes}", S("NW", fontSize=7, textColor=C4, leading=9))]], colWidths=[W])
-        nb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f8fafc")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
-        els.append(nb)
+        sec_notes = Table([[Paragraph(f"<b>Notes:</b> {display_notes}", S("NW", fontSize=7, textColor=C4, leading=9))]], colWidths=[W])
+        sec_notes.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f8fafc")),("BOX",(0,0),(-1,-1),0.5,C3),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
 
-    # ═══════════════════════════════════
-    # 6. BANK DETAILS (single column label-value pairs)
-    # ═══════════════════════════════════
+    # ── Bank Details (conditional) ──
+    sec_bank = None
     if company and (company["bank_name"] or company["bank_account_name"] or company["bank_account_number"] or company["iban"]):
         bk_items = []
         if company["bank_name"]: bk_items.append(("Bank", company["bank_name"]))
@@ -1111,8 +1069,7 @@ def customer_invoice_pdf(cid, iid):
         if company["iban"]: bk_items.append(("IBAN", company["iban"]))
         if company["swift_code"]: bk_items.append(("Swift", company["swift_code"]))
         if bk_items:
-            els.append(Spacer(1, 1.5*mm))
-            els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=8, spaceAfter=1)))
+            bk_title = Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=8, spaceAfter=1))
             bk_rows = [[
                 Paragraph(f"<font color='#64748b'>{lbl}:</font>", S("_bkl", fontSize=7, textColor=C5, leading=9)),
                 Paragraph(f"<b>{val}</b>", S("_bkv", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=9)),
@@ -1123,20 +1080,16 @@ def customer_invoice_pdf(cid, iid):
                 ("TOPPADDING",(0,0),(-1,-1),1), ("BOTTOMPADDING",(0,0),(-1,-1),1),
                 ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
             ]))
-            els.append(bkt)
+            sec_bank = Table([[bk_title], [bkt]], colWidths=[W])
+            sec_bank.setStyle(TableStyle([("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
 
-    # ═══════════════════════════════════
-    # 7. SIGNATURES — stamp & sign side by side
-    # ═══════════════════════════════════
-    els.append(Spacer(1, 2*mm))
+    # ── Signature ──
     sg = ParagraphStyle("SG", fontSize=8, alignment=TA_CENTER, leading=11)
     stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
     sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
     auth_img = []
-    if os.path.exists(stamp_path):
-        auth_img.append(Image(stamp_path, width=28, height=28))
-    if os.path.exists(sign_path):
-        auth_img.append(Image(sign_path, width=28, height=28))
+    if os.path.exists(stamp_path): auth_img.append(Image(stamp_path, width=28, height=28))
+    if os.path.exists(sign_path): auth_img.append(Image(sign_path, width=28, height=28))
     if auth_img:
         auth_imgs = Table([auth_img], colWidths=[28]*len(auth_img))
         auth_imgs.setStyle(TableStyle([
@@ -1154,53 +1107,112 @@ def customer_invoice_pdf(cid, iid):
     auth_cell.setStyle(TableStyle([
         ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),0),
         ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
-    ]))
-    auth_cell.setStyle(TableStyle([
         ("ALIGN",(0,0),(-1,-1),"CENTER"),
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),1),
     ]))
-    sgt = Table([[
+    sec_signature = Table([[
         auth_cell,
         C("", fontSize=4),
         Paragraph("", sg),
     ]], colWidths=[W*0.38, W*0.24, W*0.38])
-    sgt.setStyle(TableStyle([
+    sec_signature.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"TOP"),
         ("LINEABOVE",(0,0),(0,0),0.5,C5), ("LINEABOVE",(2,0),(2,0),0.5,C5),
         ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
     ]))
-    els.append(sgt)
-    # ═══════════════════════════════════
-    # 8. COMPANY ADDRESS / FOOTER
-    # ═══════════════════════════════════
-    if c_addr:
-        els.append(Spacer(1, 1.5*mm))
-        els.append(Paragraph(f"<font size=6 color='#64748b'>{c_addr}</font>", S("_ad", fontSize=6, textColor=C5, alignment=TA_CENTER, leading=7)))
-    els.append(Spacer(1, 2*mm))
 
-    pp = []
+    # ── Footer ──
+    sec_footer_items = []
+    if c_addr:
+        sec_footer_items.append(Paragraph(f"<font size=6 color='#64748b'>{c_addr}</font>", S("_ad", fontSize=6, textColor=C5, alignment=TA_CENTER, leading=7)))
     if company:
         parts = []
         if company["bank_name"]: parts.append(f"Bank: <b>{company['bank_name']}</b>")
         if company["bank_account_number"]: parts.append(f"A/C: <b>{company['bank_account_number']}</b>")
         if company["iban"]: parts.append(f"IBAN: <b>{company['iban']}</b>")
         if parts:
-            pp.append(Paragraph("Payable at: " + " | ".join(parts), S("FP", fontSize=6.5, textColor=C4, alignment=TA_CENTER, leading=8)))
-
-    pp.append(Paragraph(
+            sec_footer_items.append(Paragraph("Payable at: " + " | ".join(parts), S("FP", fontSize=6.5, textColor=C4, alignment=TA_CENTER, leading=8)))
+    sec_footer_items.append(Paragraph(
         "This is a computer-generated Tax Invoice. Valid without signature.",
         S("FN", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8)))
+    sec_footer_line = Table([[""]], colWidths=[W], rowHeights=[0.3])
+    sec_footer_line.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
 
-    fh = Table([[""]], colWidths=[W], rowHeights=[0.3])
-    fh.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(fh)
+    # ═══════════════════════════════════════════════════
+    # MEASURE & STRETCH PROPORTIONALLY
+    # ═══════════════════════════════════════════════════
+
+    FOOTER_GUARD = 15*mm
+    content_avail = A4[1] - TM - BM - FOOTER_GUARD
+
+    flex = [
+        ("header",    sec_header_row),
+        ("divider",   sec_divider),
+        ("info",      sec_info),
+        ("items",     sec_items),
+        ("totals",    sec_totals),
+        ("words",     sec_words),
+    ]
+    if sec_notes: flex.append(("notes", sec_notes))
+    if sec_bank:  flex.append(("bank", sec_bank))
+    flex.append(("signature", sec_signature))
+
+    from reportlab.pdfgen import canvas as rlcanvas
+    tmp_buf = BytesIO()
+    tmp_c = rlcanvas.Canvas(tmp_buf)
+
+    heights = {}
+    for name, el in flex:
+        if hasattr(el, 'wrapOn'):
+            w, h = el.wrapOn(tmp_c, W, 10000)
+            heights[name] = h
+        elif hasattr(el, 'wrap'):
+            w, h = el.wrap(W, 10000)
+            heights[name] = h
+        else:
+            heights[name] = 0
+
+    tmp_c.save()
+    total_natural = sum(heights.values()) or 1
+
+    stretch_ratio = content_avail / total_natural
+
+    # Adjust stretch based on item count
+    if num_items <= 5:
+        stretch_ratio *= 1.3
+    elif num_items >= 15:
+        stretch_ratio *= 0.82
+
+    stretch_ratio = max(0.55, min(2.0, stretch_ratio))
+
+    # Build final els: each section wrapped in a table with proportional padding
+    els = []
+    for i, (name, el) in enumerate(flex):
+        nh = max(heights[name], 1)
+        share = nh / total_natural
+        target_h = nh * stretch_ratio
+        extra = max(0, target_h - nh)
+        top_pad = extra * 0.4
+        bot_pad = extra * 0.6
+
+        wrapped = Table([[el]], colWidths=[W])
+        wrapped.setStyle(TableStyle([
+            ("TOPPADDING", (0,0), (-1,-1), max(0, top_pad)),
+            ("BOTTOMPADDING", (0,0), (-1,-1), max(0, bot_pad)),
+            ("LEFTPADDING", (0,0), (-1,-1), 0),
+            ("RIGHTPADDING", (0,0), (-1,-1), 0),
+        ]))
+        els.append(wrapped)
+
+    # ── Footer (anchored at bottom) ──
+    els.append(sec_footer_line)
     els.append(Spacer(1, 1*mm))
-    for p in pp:
-        els.append(p)
+    for item in sec_footer_items:
+        els.append(item)
         els.append(Spacer(1, 0.5*mm))
 
     doc.build(els)
+
     for f in _logo_tmp_files:
         try: os.remove(f)
         except: pass
