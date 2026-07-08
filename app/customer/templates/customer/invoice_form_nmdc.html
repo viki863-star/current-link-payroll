@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}New Invoice — NMDC{% endblock %}
+{% block title %}{{ 'Edit' if edit else 'New' }} Invoice — NMDC{% endblock %}
 {% block page_title %}Invoice — {{ c.customer_name }}{% endblock %}
 
 {% block content %}
@@ -20,16 +20,24 @@
 .info-line .lbl { color:#94a3b8; min-width:60px; display:inline-block; }
 .btn-icon { width:28px; height:28px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:#c62828; font-size:0.9rem; padding:0; }
 .btn-icon:hover { background:#fee; }
-.hours-input { width:80px; padding:2px 4px; border:1px solid #e2e8f0; border-radius:3px; font-size:0.72rem; text-align:center; }
 .eq-disp { display:block; text-align:right; font-weight:600; font-family:monospace; font-size:0.78rem; }
 </style>
+
+{% set nmdc_main_desc = items[0].description if edit and items else '' %}
+{% set nmdc_equip_items = items[1:] if edit and items|length > 1 else [] %}
+{% set nmdc_pf = nmdc_meta.get('period_from', '') if edit else '' %}
+{% set nmdc_pt = nmdc_meta.get('period_to', '') if edit else '' %}
+{% set nmdc_mr = nmdc_meta.get('monthly_rate', 0) if edit else 0 %}
+{% set nmdc_ml = nmdc_meta.get('month_label', '') if edit else '' %}
+{% set nmdc_vat = inv.vat_percent if edit else 5 %}
+{% set nmdc_eq_periods = nmdc_meta.get('eq_periods', []) if edit else [] %}
 
 <div class="inv-box">
     <form method="POST" id="invoiceForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="is_nmdc" value="1">
 
-        {# HEADER: Bill To | Invoice Details #}
+        {# HEADER #}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
             <div class="info-card">
                 <h4>Bill To</h4>
@@ -44,19 +52,19 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
                     <div>
                         <label style="font-size:0.6rem;color:#94a3b8">Invoice No.</label>
-                        <input type="text" name="invoice_no" placeholder="{{ next_no }}" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
-                        {% if next_no %}<span style="font-size:0.55rem;color:#94a3b8">Auto: {{ next_no }}</span>{% endif %}
+                        <input type="text" name="invoice_no" value="{{ inv.invoice_no or '' }}" placeholder="{{ next_no }}" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
+                        {% if not edit and next_no %}<span style="font-size:0.55rem;color:#94a3b8">Auto: {{ next_no }}</span>{% endif %}
                     </div>
                     <div>
                         <label style="font-size:0.6rem;color:#94a3b8">Invoice Date</label>
-                        <input type="date" name="invoice_date" value="{{ today }}" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
+                        <input type="date" name="invoice_date" value="{{ inv.invoice_date or today }}" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
                     </div>
                     <div>
                         <label style="font-size:0.6rem;color:#94a3b8">SO No.</label>
                         <select name="so_id" id="soSelect" onchange="loadSoData()" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
                             <option value="">Select SO</option>
                             {% for s in sos %}
-                            <option value="{{ s.id }}" data-amount="{{ s.amount or 0 }}" data-date="{{ s.so_date or '' }}">{{ s.so_no or '' }} | {{ s.so_date }} | AED {{ '%.0f'|format(s.amount) if s.amount else '0' }}</option>
+                            <option value="{{ s.id }}" {% if edit and selected_so_id == s.id %}selected{% endif %} data-amount="{{ s.amount or 0 }}" data-date="{{ s.so_date or '' }}">{{ s.so_no or '' }} | {{ s.so_date }} | AED {{ '%.0f'|format(s.amount) if s.amount else '0' }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -68,27 +76,27 @@
             </div>
         </div>
 
-        {# PERIOD / RATE / MONTH #}
+        {# PERIOD / RATE / MONTH / VAT #}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 80px;gap:6px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:10px">
             <div>
                 <label style="font-size:0.6rem;color:#94a3b8">Period From</label>
-                <input type="date" name="period_from" id="periodFrom" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
+                <input type="date" name="period_from" id="periodFrom" value="{{ nmdc_pf }}" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
             </div>
             <div>
                 <label style="font-size:0.6rem;color:#94a3b8">Period To</label>
-                <input type="date" name="period_to" id="periodTo" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
+                <input type="date" name="period_to" id="periodTo" value="{{ nmdc_pt }}" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
             </div>
             <div>
                 <label style="font-size:0.6rem;color:#94a3b8">Rate (AED)</label>
-                <input type="number" name="monthly_rate" id="monthlyRate" value="0" min="0" step="any" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem" oninput="calcAll()">
+                <input type="number" name="monthly_rate" id="monthlyRate" value="{{ nmdc_mr }}" min="0" step="any" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem" oninput="calcAll()">
             </div>
             <div>
                 <label style="font-size:0.6rem;color:#94a3b8">Month</label>
-                <input type="text" name="month_label" id="monthLabel" placeholder="e.g. April-2026" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
+                <input type="text" name="month_label" id="monthLabel" value="{{ nmdc_ml }}" placeholder="e.g. April-2026" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
             </div>
             <div>
                 <label style="font-size:0.6rem;color:#94a3b8">VAT %</label>
-                <input type="number" name="vat_percent" id="vatPercent" value="5" step="any" min="0" oninput="calcAll()" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
+                <input type="number" name="vat_percent" id="vatPercent" value="{{ nmdc_vat }}" step="any" min="0" oninput="calcAll()" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
             </div>
         </div>
 
@@ -116,7 +124,7 @@
                 <tbody id="tableBody">
                     <tr id="row_desc">
                         <td style="text-align:center;font-weight:600;color:#64748b">1</td>
-                        <td><textarea name="main_description" id="mainDesc" rows="2" placeholder="Description of Service..." style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.78rem;resize:vertical;box-sizing:border-box"></textarea></td>
+                        <td><textarea name="main_description" id="mainDesc" rows="2" placeholder="Description of Service..." style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.78rem;resize:vertical;box-sizing:border-box">{{ nmdc_main_desc }}</textarea></td>
                         <td style="text-align:right;color:#94a3b8">-</td>
                         <td style="text-align:center;color:#94a3b8">-</td>
                         <td style="text-align:right;color:#94a3b8">-</td>
@@ -126,31 +134,33 @@
                         <td style="text-align:right;color:#94a3b8">-</td>
                         <td></td>
                     </tr>
-
                 </tbody>
             </table>
         </div>
 
         {# TOTALS #}
+        {% set edit_sub = inv.amount if edit else 0 %}
+        {% set edit_vat = inv.vat_amount if edit else 0 %}
+        {% set edit_total = inv.total_amount if edit else 0 %}
         <div style="margin-left:auto;width:280px;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;margin-bottom:10px;background:#f8fafc">
             <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:0.78rem">
-                <span>Sub Total</span><span class="mono" id="subTotalDisplay" style="font-weight:600">0.00</span>
+                <span>Sub Total</span><span class="mono" id="subTotalDisplay" style="font-weight:600">{{ "%.2f" % edit_sub if edit else '0.00' }}</span>
             </div>
             <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:0.78rem">
-                <span>VAT @ <span id="vatLabel">5</span>%</span><span class="mono" id="vatDisplay" style="font-weight:600;color:#c62828">0.00</span>
+                <span>VAT @ <span id="vatLabel">{{ nmdc_vat }}</span>%</span><span class="mono" id="vatDisplay" style="font-weight:600;color:#c62828">{{ "%.2f" % edit_vat if edit else '0.00' }}</span>
             </div>
             <div style="display:flex;justify-content:space-between;padding:4px 0 0;border-top:2px solid #1a3a5c;margin-top:2px;font-size:0.9rem">
-                <span style="font-weight:700">Total Due</span><span class="mono" id="totalDisplay" style="font-weight:800;font-size:1rem;color:#1a3a5c">0.00</span>
+                <span style="font-weight:700">Total Due</span><span class="mono" id="totalDisplay" style="font-weight:800;font-size:1rem;color:#1a3a5c">{{ "%.2f" % edit_total if edit else '0.00' }}</span>
             </div>
         </div>
-        
+
         {# NOTES #}
         <div style="margin-bottom:10px">
             <label style="font-size:0.65rem;color:#94a3b8;display:block;margin-bottom:2px">Notes</label>
-            <textarea name="notes" rows="1" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem;resize:vertical" placeholder="Additional notes..."></textarea>
+            <textarea name="notes" rows="1" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem;resize:vertical" placeholder="Additional notes...">{{ display_notes if edit else '' }}</textarea>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;font-size:1rem">Create Invoice</button>
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;font-size:1rem">{{ 'Update Invoice' if edit else 'Create Invoice' }}</button>
     </form>
 </div>
 </div>
@@ -190,7 +200,6 @@ function addRow(plant, reg, hours, pf, pt) {
         '<td><span class="eq_disp eq_total" style="color:#0f172a;font-weight:700">0.00</span></td>' +
         '<td><button type="button" class="btn-icon" onclick="removeRow(this)">&times;</button></td>';
     tbody.appendChild(tr);
-    calcAll();
 }
 
 function removeRow(btn) {
@@ -271,6 +280,13 @@ function loadSoData() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    {% if edit and nmdc_equip_items %}
+    {% for it in nmdc_equip_items %}
+    {% set ep = nmdc_eq_periods[loop.index0] if loop.index0 < nmdc_eq_periods|length else {} %}
+    addRow({{ it.vehicle_no|tojson if it.vehicle_no else '' }}, {{ it.description|tojson }}, {{ it.capacity_gallon|float if it.capacity_gallon else 0 }}, {{ ep.get('from', '')|tojson }}, {{ ep.get('to', '')|tojson }});
+    {% endfor %}
+    calcAll();
+    {% endif %}
     var sel = document.getElementById('soSelect');
     if (sel && sel.value) loadSoData();
 });

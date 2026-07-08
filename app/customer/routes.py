@@ -648,14 +648,23 @@ def customer_invoice_edit(cid, iid):
             return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id)
     db.close()
     nmdc_meta = {}
+    display_notes = inv.get("notes", "") or ""
     if is_nmdc_edit:
         try:
             import json
             nmdc_meta = json.loads(inv.get("notes", "{}"))
         except Exception:
             nmdc_meta = {}
+        if display_notes:
+            lines = display_notes.split("\n", 1)
+            if lines and lines[0].strip().startswith("{"):
+                try:
+                    json.loads(lines[0])
+                    display_notes = lines[1].strip() if len(lines) > 1 else ""
+                except Exception:
+                    pass
     tmpl_e = "customer/invoice_form_nmdc.html" if is_nmdc_edit else "customer/invoice_form.html"
-    return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, nmdc_meta=nmdc_meta)
+    return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, nmdc_meta=nmdc_meta, display_notes=display_notes)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>")
 def customer_invoice_view(cid, iid):
