@@ -2064,10 +2064,18 @@ class DatabaseAdapter:
         cursor = self.connection.cursor()
         sql = _prepare_query(query, self.backend)
         is_insert = bool(sql.strip().upper().startswith("INSERT"))
+        returning = False
         if self.backend == "postgres" and is_insert:
-            sql += " RETURNING id"
-        cursor.execute(sql, params or ())
-        return QueryResult(cursor, self.backend, is_insert=is_insert)
+            sql_with_returning = sql + " RETURNING id"
+            try:
+                cursor.execute(sql_with_returning, params or ())
+                returning = True
+            except Exception:
+                cursor = self.connection.cursor()
+                cursor.execute(sql, params or ())
+        else:
+            cursor.execute(sql, params or ())
+        return QueryResult(cursor, self.backend, is_insert=is_insert and returning)
 
     def executemany(self, query: str, params_seq):
         cursor = self.connection.cursor()
