@@ -384,6 +384,9 @@ def customer_invoice_add(cid):
             notes = request.form.get("notes", "").strip()
             items = []
             sub_total = 0
+            lpo_no = None
+            lpo_date = None
+            project_no = None
 
             if is_nmdc:
                 main_desc = request.form.get("main_description", "").strip()
@@ -456,7 +459,7 @@ def customer_invoice_add(cid):
                 notes = json.dumps(nmdc_meta) if not notes else json.dumps(nmdc_meta) + "\n" + notes
             c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, None, None, so_no, None, notes))
+                (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes))
             inv_id = c_inv.lastrowid
             for idx, it in enumerate(items):
                 db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order,capacity_gallon) VALUES (?,?,?,?,?,?,?,?,?)",
@@ -551,6 +554,9 @@ def customer_invoice_edit(cid, iid):
             notes = request.form.get("notes", "").strip()
             new_items = []
             sub_total = 0
+            lpo_no = None
+            lpo_date = None
+            project_no = None
             if is_nmdc_edit:
                 main_desc = request.form.get("main_description", "").strip()
                 nmdc_monthly_rate = float(request.form.get("monthly_rate", 0) or 0)
@@ -620,9 +626,6 @@ def customer_invoice_edit(cid, iid):
                 return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id)
             vat_amt = round(sub_total * vat_pct / 100, 2)
             total = round(sub_total + vat_amt, 2)
-            lpo_no = None if is_nmdc_edit else (request.form.get("lpo_no", "") if "lpo_no" in request.form else None)
-            lpo_date = None if is_nmdc_edit else (request.form.get("lpo_date", "") or None)
-            project_no = None if is_nmdc_edit else (request.form.get("project_no", "") or None)
             db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,so_no=?,project_no=?,notes=? WHERE id=?""",
                 (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, iid))
             db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
