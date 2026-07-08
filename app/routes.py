@@ -1237,33 +1237,38 @@ def register_routes(app: Flask) -> None:
         pending_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Pending'", (technician_code,)).fetchone()["c"] or 0
         approved_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["c"] or 0
         if request.method == "POST":
-            vehicle_id = request.form.get("vehicle_id", "").strip()
-            amount = request.form.get("amount", "").strip()
-            category = request.form.get("category", "").strip()
-            description = request.form.get("description", "").strip()
-            if not amount:
-                flash("Amount is required.", "error")
+            try:
+                vehicle_id = request.form.get("vehicle_id", "").strip()
+                amount = request.form.get("amount", "").strip()
+                category = request.form.get("category", "").strip()
+                description = request.form.get("description", "").strip()
+                if not amount:
+                    flash("Amount is required.", "error")
+                    return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v=request.form)
+                attachment_name = None
+                attachment_data = None
+                attachment_type = None
+                if "attachment" in request.files:
+                    f = request.files["attachment"]
+                    if f.filename:
+                        attachment_name = f.filename
+                        attachment_data = base64.b64encode(f.read()).decode("utf-8")
+                        attachment_type = f.content_type
+                db.execute(
+                    "INSERT INTO vehicles (plate_no, vehicle_type, status) VALUES ('N/A', 'Other', 'Inactive') ON CONFLICT (plate_no) DO NOTHING"
+                )
+                db.execute(
+                    "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status) VALUES (?,?,?,?,?,?,?,?,'pending')",
+                    (vehicle_id or "N/A", technician_code, float(amount), category or "Other", description, attachment_name, attachment_data, attachment_type),
+                )
+                db.commit()
+                flash("Job submitted for approval.", "success")
+                return redirect(url_for("technician_simple"))
+            except Exception as e:
+                db.rollback()
+                current_app.logger.error("technician_simple POST error: %s", e, exc_info=True)
+                flash(f"Error submitting job: {e}", "error")
                 return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v=request.form)
-            attachment_name = None
-            attachment_data = None
-            attachment_type = None
-            if "attachment" in request.files:
-                f = request.files["attachment"]
-                if f.filename:
-                    import base64
-                    attachment_name = f.filename
-                    attachment_data = base64.b64encode(f.read()).decode("utf-8")
-                    attachment_type = f.content_type
-            db.execute(
-                "INSERT INTO vehicles (plate_no, vehicle_type, status) VALUES ('N/A', 'Other', 'Inactive') ON CONFLICT (plate_no) DO NOTHING"
-            )
-            db.execute(
-                "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status) VALUES (?,?,?,?,?,?,?,?,'pending')",
-                (vehicle_id or "N/A", technician_code, float(amount), category or "Other", description, attachment_name, attachment_data, attachment_type),
-            )
-            db.commit()
-            flash("Job submitted for approval.", "success")
-            return redirect(url_for("technician_simple"))
         return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v={},
                                total_received=total_received, total_spent=total_spent, balance=balance,
                                pending_count=pending_count, approved_count=approved_count)
