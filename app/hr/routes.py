@@ -1849,17 +1849,17 @@ def _salary_dashboard_data(status_filter=""):
     ).fetchall()
 
     store_rows = db.execute(
-        "SELECT driver_id, salary_month, net_salary FROM salary_store"
+        "SELECT driver_id, salary_month, net_salary, ot_amount FROM salary_store"
     ).fetchall()
     store_by_emp = {}
-    store_hist = {}
+    ot_hist = {}
     for r in store_rows:
         store_by_emp.setdefault(r["driver_id"], {})[r["salary_month"]] = r["net_salary"]
-        store_hist.setdefault(r["driver_id"], []).append((r["salary_month"], r["net_salary"]))
-    hist_sort = {}
-    for eid, lst in store_hist.items():
+        ot_hist.setdefault(r["driver_id"], []).append((r["salary_month"], float(r["ot_amount"] or 0)))
+    ot_sort = {}
+    for eid, lst in ot_hist.items():
         lst.sort(key=lambda x: x[0], reverse=True)
-        hist_sort[eid] = lst
+        ot_sort[eid] = lst
 
     slip_rows = db.execute(
         "SELECT driver_id, salary_month, salary_after_deduction, actual_paid_amount "
@@ -1905,10 +1905,10 @@ def _salary_dashboard_data(status_filter=""):
                 else:
                     statuses[m] = "Pending"
                 amounts[m] = float(store_by_emp[eid][m]) if eid in store_by_emp and m in store_by_emp[eid] else 0.0
-        sal_history = hist_sort.get(eid, [])
+        ot_history = ot_sort.get(eid, [])
         est = 0.0
-        if sal_history:
-            recent = [x[1] for x in sal_history[:3] if x[1] > 0]
+        if ot_history:
+            recent = [x[1] for x in ot_history[:3] if x[1] > 0]
             if recent:
                 est = sum(recent) / len(recent)
         emp_list.append({
@@ -1983,7 +1983,7 @@ def salary_dashboard_excel():
     thin = Side(style="thin", color="d8e4f5")
     border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-    heads = ["#", "Employee Name", "Department", "Status", f"Salary ({_month_name(selected_month)})", "Est. Salary (AI)", "Salary Status"]
+    heads = ["#", "Employee Name", "Department", "Status", f"Salary ({_month_name(selected_month)})", "Est. OT (AI)", "Salary Status"]
     for ci, h in enumerate(heads, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
