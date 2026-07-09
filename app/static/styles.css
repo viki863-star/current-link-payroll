@@ -2542,7 +2542,11 @@ label span {
 }
 
 .workspace-customers {
-    background: linear-gradient(145deg, rgba(246, 255, 250, 0.99), rgba(231, 249, 240, 0.98));
+    background: #fff;
+}
+
+.workspace-hr {
+    background: #fff;
 }
 
 .workspace-accounts {

@@ -46,7 +46,8 @@ def _ensure_tables():
             contact_person TEXT, phone TEXT, email TEXT, address TEXT,
             trn TEXT, trade_license TEXT, credit_limit {real_type} DEFAULT 0,
             payment_terms TEXT, status TEXT NOT NULL DEFAULT 'active',
-            notes TEXT, created_at TEXT NOT NULL DEFAULT ({now})
+            notes TEXT, logo_data TEXT, logo_type TEXT,
+            created_at TEXT NOT NULL DEFAULT ({now})
         )""",
         f"""CREATE TABLE IF NOT EXISTS customer_invoices (
             id {autoinc}, customer_id {int_type} NOT NULL, invoice_no TEXT,
@@ -178,6 +179,8 @@ def _ensure_tables():
         ("customer_quotations", "sub_total", real_type + " DEFAULT 0"),
         ("customer_quotations", "location", "TEXT"),
         ("customer_quotations", "contact_details", "TEXT"),
+        ("customers", "logo_data", "TEXT"),
+        ("customers", "logo_type", "TEXT"),
         ("company_profile", "logo_data", "TEXT"),
         ("company_profile", "logo_type", "TEXT"),
         ("company_profile", "theme_color", "TEXT DEFAULT '#0F2B52'"),
@@ -316,11 +319,21 @@ def customer_edit(cid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     if request.method == "POST":
         db = _get_db()
-        db.execute("""UPDATE customers SET customer_name=?,contact_person=?,phone=?,email=?,address=?,trn=?,trade_license=?,credit_limit=?,payment_terms=?,status=?,notes=? WHERE id=?""",
+        logo_data = c["logo_data"]
+        logo_type = c["logo_type"]
+        remove_logo = request.form.get("remove_logo") == "1"
+        if remove_logo:
+            logo_data = None; logo_type = None
+        elif request.files.get("logo") and request.files["logo"].filename:
+            f = request.files["logo"]
+            logo_data = base64.b64encode(f.read()).decode("utf-8")
+            logo_type = f.content_type or "image/png"
+        db.execute("""UPDATE customers SET customer_name=?,contact_person=?,phone=?,email=?,address=?,trn=?,trade_license=?,credit_limit=?,payment_terms=?,status=?,notes=?,logo_data=?,logo_type=? WHERE id=?""",
             (request.form.get("customer_name"), request.form.get("contact_person"), request.form.get("phone"),
              request.form.get("email"), request.form.get("address"), request.form.get("trn"),
              request.form.get("trade_license"), float(request.form.get("credit_limit", 0) or 0),
-             request.form.get("payment_terms"), request.form.get("status", "active"), request.form.get("notes"), cid))
+             request.form.get("payment_terms"), request.form.get("status", "active"), request.form.get("notes"),
+             logo_data, logo_type, cid))
         db.commit()
         db.close()
         flash("Customer updated.", "success")
@@ -377,6 +390,7 @@ def customer_invoice_add(cid):
     if request.method == "POST":
         try:
             _safe_rollback(db)
+            print("INV_ADD form data:", dict(request.form))
             inv_date = request.form.get("invoice_date", date.today().isoformat())
             inv_no = request.form.get("invoice_no", "").strip() or next_no
             existing = db.execute("SELECT id FROM customer_invoices WHERE invoice_no=?", (inv_no,)).fetchone()
@@ -473,8 +487,8 @@ def customer_invoice_add(cid):
                 (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes))
             inv_id = c_inv.lastrowid
             for idx, it in enumerate(items):
-                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
-                    (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order,unit,vehicle_no) VALUES (?,?,?,?,?,?,?,?)",
+                    (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], idx, it.get("unit", "hour"), it.get("vehicle", "")))
                 if it["desc"]:
                     try:
                         db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
@@ -547,6 +561,7 @@ def customer_invoice_edit(cid, iid):
     if request.method == "POST":
         try:
             _safe_rollback(db)
+            print("INV_EDIT form data for iid=%s:", iid, dict(request.form))
             inv_date = request.form.get("invoice_date", date.today().isoformat())
             inv_no = request.form.get("invoice_no", "").strip() or inv["invoice_no"]
             dup = db.execute("SELECT id FROM customer_invoices WHERE invoice_no=? AND id!=?", (inv_no, iid)).fetchone()
@@ -641,8 +656,8 @@ def customer_invoice_edit(cid, iid):
                 (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, iid))
             db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
             for idx, it in enumerate(new_items):
-                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
-                    (iid, it["desc"], it["qty"], it["rate"], it["amt"], idx))
+                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order,unit,vehicle_no) VALUES (?,?,?,?,?,?,?,?)",
+                    (iid, it["desc"], it["qty"], it["rate"], it["amt"], idx, it.get("unit", "hour"), it.get("vehicle", "")))
                 if it["desc"]:
                     try:
                         db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))

@@ -33,7 +33,11 @@ td .mono-sm { font-size:0.75rem; }
 {# ─── Header ─── #}
 <div class="profile-header">
     <div class="profile-avatar">
+        {% if c.logo_data %}
+        <img src="data:{{ c.logo_type or 'image/png' }};base64,{{ c.logo_data }}" style="width:64px;height:64px;border-radius:12px;object-fit:contain;border:1px solid var(--line);background:#fff">
+        {% else %}
         <div class="avatar">{{ c.customer_name[:2]|upper }}</div>
+        {% endif %}
     </div>
     <div class="profile-meta">
         <h1>{{ c.customer_name }}

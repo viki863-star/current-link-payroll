@@ -11,9 +11,24 @@
         <h3 style="margin:0 0 4px;font-size:1.1rem">{% if cus.id %}Edit Customer{% else %}Register New Customer{% endif %}</h3>
         <p style="color:var(--muted);font-size:0.82rem;margin:0 0 16px">Company jis ko aap invoice aur statement provide karein gay</p>
 
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div style="display:grid;gap:14px">
+                {% if cus.id and cus.logo_data %}
+                <div class="form-row">
+                    <label class="form-label">Current Logo</label>
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <img src="data:{{ cus.logo_type or 'image/png' }};base64,{{ cus.logo_data }}" style="max-height:64px;border:1px solid var(--line);border-radius:8px;padding:4px">
+                        <label style="font-size:0.78rem;color:var(--muted);cursor:pointer">
+                            <input type="checkbox" name="remove_logo" value="1"> Remove logo
+                        </label>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="form-row">
+                    <label class="form-label">Company Logo</label>
+                    <input type="file" name="logo" accept="image/*" class="form-control" style="padding:6px">
+                </div>
                 <div class="form-row">
                     <label class="form-label">Company Name *</label>
                     <input type="text" name="customer_name" class="form-control" required value="{{ cus.customer_name or '' }}" placeholder="e.g. Al Futtaim Logistics">

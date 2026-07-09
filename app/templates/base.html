@@ -8,13 +8,17 @@
     <meta name="theme-color" content="#0F2B52">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest', v='20260415a') }}">
-    <link rel="icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.svg', v='20260415a') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest', v='20260709a') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.png', v='20260709b') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon.png', v='20260709b') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon.png', v='20260709b') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icon-192.png', v='20260709b') }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='icon-512.png', v='20260709b') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png', v='20260709b') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260521a') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260709a') }}">
     {% set tc = company.theme_color if company and company.theme_color else '#37474f' %}
     <style>:root{--primary:{{ tc }};--primary-light:{{ tc }}22;--primary-dark:{{ tc }};}</style>
     <style>

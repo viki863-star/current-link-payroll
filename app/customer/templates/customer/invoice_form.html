@@ -260,5 +260,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (sel && sel.value) { loadLpoItems(); }
     {% endif %}
 });
+
+document.getElementById('invoiceForm').addEventListener('submit', function(e) {
+    var descs = Array.from(document.querySelectorAll('textarea[name="item_desc[]"]')).map(t => t.value);
+    var qtys = Array.from(document.querySelectorAll('input[name="item_qty[]"]')).map(t => t.value);
+    var rates = Array.from(document.querySelectorAll('input[name="item_rate[]"]')).map(t => t.value);
+    console.log('INV_SUBMIT:', JSON.stringify({descs: descs, qtys: qtys, rates: rates}));
+});
 </script>
 {% endblock %}

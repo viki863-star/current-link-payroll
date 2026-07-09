@@ -21,8 +21,8 @@
 .inv-info-line .val { color:#0f172a; font-weight:600; }
 .inv-table { width:100%; border-collapse:collapse; margin-bottom:16px; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
 .inv-table thead { background:#1e293b; }
-.inv-table th { padding:11px 10px; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.6px; color:#fff; font-weight:700; white-space:nowrap; }
-.inv-table td { padding:10px 10px; font-size:0.82rem; border-bottom:1px solid #f1f5f9; }
+.inv-table th { padding:14px 12px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.6px; color:#fff; font-weight:700; white-space:nowrap; }
+.inv-table td { padding:14px 12px; font-size:0.85rem; border-bottom:1px solid #f1f5f9; }
 .inv-table tbody tr:nth-child(even) { background:#f8fafc; }
 .inv-table tbody tr:hover { background:#eef2ff; }
 .inv-table tbody tr:last-child td { border-bottom:none; }
@@ -39,7 +39,7 @@
 }
 </style>
 
-<div class="inv-box" style="{% if company and company.theme_color %}--primary:{{ company.theme_color }}{% endif %}">
+<div class="inv-box" style="{% if company and company.theme_color %}--primary:{{ company.theme_color }}{% endif %};font-size:0.88rem">
     {# ─── HEADER ─── #}
     <div class="inv-header">
         <div class="inv-company" style="display:flex;gap:16px;align-items:flex-start">
@@ -49,15 +49,15 @@
             </div>
             {% endif %}
             <div style="padding-top:{% if company and company.logo_data %}4px{% else %}0{% endif %}">
-                <h2 style="font-size:1.4rem;font-weight:800">{{ company.company_name if company else "AL SAQR TRANSPORT" }}</h2>
-                <div class="detail" style="font-size:0.78rem;margin-top:4px">{{ company.address if company else "Dubai, UAE" }}</div>
-                <div class="detail" style="font-size:0.78rem">Phone: {{ company.phone_number or "+971" if company else "+971" }} &middot; Email: {{ company.email if company else "info@example.ae" }}</div>
-                <div class="detail" style="font-size:0.78rem;font-weight:700">TRN: {{ company.trn_no if company else "XXXXXXXXXX" }}</div>
+                <h2 style="font-size:1.6rem;font-weight:800;line-height:1.2">{{ company.company_name if company else "AL SAQR TRANSPORT" }}</h2>
+                <div class="detail" style="font-size:0.85rem;margin-top:4px">{{ company.address if company else "Dubai, UAE" }}</div>
+                <div class="detail" style="font-size:0.85rem">Phone: {{ company.phone_number or "+971" if company else "+971" }} &middot; Email: {{ company.email if company else "info@example.ae" }}</div>
+                <div class="detail" style="font-size:0.85rem;font-weight:700">TRN: {{ company.trn_no if company else "XXXXXXXXXX" }}</div>
             </div>
         </div>
         <div class="inv-title" style="min-width:200px">
-            <h1 style="font-size:1.6rem">TAX INVOICE</h1>
-            <div class="meta" style="font-size:0.85rem;margin-top:4px"># {{ inv.invoice_no }} &middot; {{ inv.invoice_date }}</div>
+            <h1 style="font-size:1.9rem;letter-spacing:1.5px">TAX INVOICE</h1>
+            <div class="meta" style="font-size:0.9rem;margin-top:6px"># {{ inv.invoice_no }} &middot; {{ inv.invoice_date }}</div>
         </div>
     </div>
 
@@ -87,15 +87,15 @@
     <table class="inv-table">
         <thead>
             <tr>
-                <th style="text-align:center;width:32px">#</th>
+                <th style="text-align:center;width:36px">#</th>
                 <th style="text-align:left">Description</th>
-                <th style="text-align:center;width:80px">Vehicle</th>
-                <th style="text-align:right;width:130px">QTY</th>
-                <th style="text-align:right;width:80px">Unit Price</th>
-                <th style="text-align:right;width:85px">Taxable Amt</th>
-                <th style="text-align:center;width:50px">VAT %</th>
-                <th style="text-align:right;width:75px">VAT Amt</th>
-                <th style="text-align:right;width:90px">Total Incl.</th>
+                <th style="text-align:center;width:60px">Unit</th>
+                <th style="text-align:right;width:70px">QTY</th>
+                <th style="text-align:right;width:85px">Unit Price</th>
+                <th style="text-align:right;width:90px">Taxable Amt</th>
+                <th style="text-align:center;width:52px">VAT %</th>
+                <th style="text-align:right;width:80px">VAT Amt</th>
+                <th style="text-align:right;width:95px">Total Incl.</th>
             </tr>
         </thead>
         <tbody>
@@ -104,15 +104,15 @@
             {% set vat_amt_item = it.vat_amount_item or (it.amount * vat_pct_item / 100) %}
             {% set total_incl = it.total_incl_vat or (it.amount + vat_amt_item) %}
             <tr>
-                <td style="text-align:center;font-weight:600;color:#64748b">{{ loop.index }}</td>
+                <td style="text-align:center;font-weight:700;color:#64748b;font-size:0.9rem">{{ loop.index }}</td>
                 <td style="font-weight:500;color:#0f172a">{{ it.description or '—' }}</td>
-                <td style="text-align:center;font-family:mono;color:#64748b">{% if it.get('vehicle_no') %}{{ it.vehicle_no }}{% else %}—{% endif %}</td>
-                <td style="text-align:right;font-family:mono">{{ "{:,.2f}".format(it.quantity) }} <span style="font-size:0.65rem;color:#94a3b8">{{ it.get('unit') or 'hr' }}</span></td>
+                <td style="text-align:center;color:#475569;font-weight:600">{{ it.get('unit') or 'hr' }}</td>
+                <td style="text-align:right;font-family:mono;font-weight:600">{{ "%.3f" % it.quantity }}</td>
                 <td style="text-align:right;font-family:mono">{{ "%.3f" % it.rate }}</td>
-                <td style="text-align:right;font-family:mono">{{ "%.2f" % it.amount }}</td>
-                <td style="text-align:center;font-family:mono">{{ "%.2f" % vat_pct_item }}%</td>
-                <td style="text-align:right;font-family:mono;color:#c62828">{{ "%.2f" % vat_amt_item }}</td>
-                <td style="text-align:right;font-weight:700;font-family:mono;color:#0f172a">{{ "%.2f" % total_incl }}</td>
+                <td style="text-align:right;font-family:mono;font-weight:600">{{ "%.2f" % it.amount }}</td>
+                <td style="text-align:center;font-family:mono;color:#64748b">{{ "%.2f" % vat_pct_item }}%</td>
+                <td style="text-align:right;font-family:mono;color:#dc2626;font-weight:600">{{ "%.2f" % vat_amt_item }}</td>
+                <td style="text-align:right;font-weight:800;font-family:mono;color:#0f172a;font-size:0.9rem">{{ "%.2f" % total_incl }}</td>
             </tr>
             {% endfor %}
         </tbody>
