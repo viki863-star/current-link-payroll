@@ -520,7 +520,7 @@ def customer_invoice_edit(cid, iid):
         flash("Invoice not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
     selected_lpo_id = None
-    if inv["lpo_no"]:
+    if inv.get("lpo_no"):
         row = db.execute("SELECT id FROM customer_lpos WHERE lpo_no=? AND customer_id=?", (inv["lpo_no"], cid)).fetchone()
         if row:
             selected_lpo_id = row["id"]
@@ -2005,8 +2005,8 @@ def customer_lpo_edit(cid, lid):
         status = request.form.get("status", "pending")
         so_no = request.form.get("service_order_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
-        file_data = lpo["file_data"]
-        file_type = lpo["file_type"]
+        file_data = lpo.get("file_data")
+        file_type = lpo.get("file_type")
         file = request.files.get("lpo_file")
         if file and file.filename:
             file_data = base64.b64encode(file.read()).decode("utf-8")
@@ -2102,16 +2102,17 @@ def customer_so_items(cid, sid):
 
 @customer_bp.route("/<int:cid>/lpo/<int:lid>/file")
 def customer_lpo_file(cid, lid):
+    _ensure_tables()
     db = _get_db()
     lpo = db.execute("SELECT * FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
     db.close()
-    if not lpo or not lpo["file_data"]:
+    if not lpo or not lpo.get("file_data"):
         flash("LPO file not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
     import io
     data = base64.b64decode(lpo["file_data"])
-    return send_file(io.BytesIO(data), mimetype=lpo["file_type"] or "application/pdf",
-        as_attachment=True, download_name=f"LPO_{lpo['lpo_no'] or lid}.pdf")
+    return send_file(io.BytesIO(data), mimetype=lpo.get("file_type") or "application/pdf",
+        as_attachment=True, download_name=f"LPO_{lpo.get('lpo_no') or lid}.pdf")
 
 @customer_bp.route("/<int:cid>/lpo/<int:lid>/view")
 def customer_lpo_view(cid, lid):
