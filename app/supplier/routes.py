@@ -357,7 +357,7 @@ def _ensure_tables():
             except Exception:
                 pass
 
-    for col, dtype in [("fund_source", "TEXT DEFAULT 'cash_bank'")]:
+    for col, dtype in [("fund_source", "TEXT DEFAULT 'cash_bank'"), ("bank_name", "TEXT"), ("cheque_drawer", "TEXT")]:
         try:
             db.execute(f"ALTER TABLE supplier_payment_records ADD COLUMN {col} {dtype}")
             db.commit()

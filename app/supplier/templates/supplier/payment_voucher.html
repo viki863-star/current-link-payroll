@@ -4,168 +4,212 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Payment Voucher — {{ s.supplier_code }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root { --primary:#1a3a5c; --line:#e2e8f0; --muted:#94a3b8; }
-@page { margin:15mm 18mm; }
+:root { --primary:#1e3a5f; --accent:#d4781e; --line:#dce1e8; --muted:#8896a8; }
+@page { size:A4 portrait; margin:10mm 12mm; }
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Segoe UI',Arial,sans-serif; font-size:13px; color:#0f172a; line-height:1.5; background:#f1f5f9; padding:20px; }
-.profile-shell { max-width:800px; margin:0 auto; }
+body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1a2332; background:#f0f3f7; padding:20px; -webkit-font-smoothing:antialiased; }
+.pv-wrap { max-width:540px; margin:0 auto; }
 
-/* ── Exact same header as customer invoice ── */
-.inv-box { background:#fff; border:2px solid var(--line); border-radius:14px; padding:30px 32px; }
-.inv-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid var(--primary); padding-bottom:16px; margin-bottom:20px; }
-.inv-company h2 { margin:0; font-size:1.3rem; font-weight:800; color:var(--primary); }
-.inv-company .detail { font-size:0.75rem; color:var(--muted); margin-top:2px; }
-.inv-title { text-align:right; }
-.inv-title h1 { margin:0; font-size:1.5rem; font-weight:800; color:var(--primary); letter-spacing:1px; }
-.inv-title .meta { font-size:0.8rem; color:var(--muted); margin-top:2px; }
+.pv-box { background:#fff; box-shadow:0 2px 16px rgba(0,0,0,0.04); overflow:hidden; border:1px solid #e4e9f0; position:relative; }
 
-.inv-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
-.inv-info-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:10px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
-.inv-info-card h4 { margin:0 0 8px; font-size:0.6rem; text-transform:uppercase; color:#94a3b8; letter-spacing:0.7px; font-weight:700; }
-.inv-info-line { font-size:0.76rem; padding:2px 0; color:#475569; line-height:1.4; }
-.inv-info-line .lbl { color:#94a3b8; display:inline-block; min-width:80px; }
-.inv-info-line .val { color:#0f172a; font-weight:600; }
+/* ── Paid Stamp ── */
+.pv-stamp { position:absolute; top:80px; right:28px; transform:rotate(-20deg); z-index:2; pointer-events:none; }
+.pv-stamp span { display:inline-block; font-size:1.3rem; font-weight:800; color:#dc2626; letter-spacing:4px; text-transform:uppercase; border:3px double #dc2626; padding:4px 14px; font-family:'Georgia',serif; opacity:0.55; }
 
-.inv-table { width:100%; border-collapse:collapse; margin-bottom:16px; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
-.inv-table thead { background:var(--primary); }
-.inv-table th { padding:11px 10px; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.6px; color:#fff; font-weight:700; white-space:nowrap; }
-.inv-table td { padding:10px 10px; font-size:0.82rem; border-bottom:1px solid #f1f5f9; }
-.inv-table tbody tr:last-child td { border-bottom:none; }
-.inv-table th:last-child, .inv-table td:last-child { text-align:right; }
-.inv-tfoot td { background:#f8fafc; font-weight:700; font-size:0.85rem; border-bottom:none; }
+/* ── Header ── */
+.pv-hdr { padding:22px 28px 14px; border-bottom:2px solid var(--primary); display:flex; justify-content:space-between; align-items:flex-start; }
+.pv-company { display:flex; gap:10px; align-items:flex-start; flex:1; }
+.pv-company .logo { width:60px; height:60px; flex-shrink:0; border:1px solid #eef2f6; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#fff; }
+.pv-company .logo img { width:100%; height:100%; object-fit:contain; }
+.pv-company .info { padding-top:2px; }
+.pv-company .info h2 { font-size:1rem; font-weight:800; color:var(--primary); letter-spacing:-0.3px; line-height:1.2; text-transform:uppercase; }
+.pv-company .info .det { font-size:0.6rem; color:var(--muted); margin-top:1px; line-height:1.35; }
+.pv-company .info .det b { color:var(--primary); }
+.pv-title { text-align:right; min-width:150px; }
+.pv-title h1 { font-size:1.2rem; font-weight:800; color:var(--primary); letter-spacing:2px; text-transform:uppercase; line-height:1.1; }
+.pv-title .meta { font-size:0.65rem; color:var(--muted); margin-top:2px; }
+.pv-title .meta strong { color:var(--primary); font-weight:700; }
 
-.words { font-size:0.82rem; margin-bottom:14px; padding:10px 14px; background:#f8fafc; border-left:3px solid var(--primary); border-radius:4px; }
+/* ── Body ── */
+.pv-body { padding:16px 28px 18px; }
 
-.sign { display:flex; justify-content:space-between; margin-top:20px; padding-top:14px; border-top:1.5px solid #e2e8f0; }
-.sign-item { text-align:center; font-size:0.7rem; color:var(--muted); min-width:130px; }
-.sign-line { width:130px; border-top:1.5px solid #94a3b8; margin:0 auto 4px; padding-top:4px; }
+/* Info rows */
+.pv-info { display:grid; grid-template-columns:1fr 1fr; gap:1px; margin-bottom:14px; border:1px solid var(--line); }
+.pv-info .col { padding:10px 14px; background:#fafbfc; }
+.pv-info .col h4 { font-size:0.5rem; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--muted); margin-bottom:6px; }
+.pv-info .col .r { font-size:0.72rem; padding:2px 0; display:flex; gap:4px; }
+.pv-info .col .r .l { color:var(--muted); min-width:48px; font-size:0.65rem; flex-shrink:0; }
+.pv-info .col .r .v { color:#0f172a; font-weight:600; }
+.pv-info .col .r .v.hl { color:var(--accent); font-weight:700; }
 
-.foot { text-align:center; font-size:0.68rem; color:var(--muted); margin-top:14px; padding-top:8px; border-top:1px solid #e2e8f0; }
+/* Cheque */
+.cheque-box { border:1px solid #fde68a; padding:10px 14px; margin-bottom:12px; background:#fffbeb; display:none; }
+.cheque-box.show { display:block; }
+.cheque-box h4 { font-size:0.5rem; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#92400e; margin-bottom:4px; }
+.cheque-box .g { display:grid; grid-template-columns:1fr 1fr; gap:2px 12px; }
+.cheque-box .g .r { font-size:0.72rem; display:flex; gap:3px; }
+.cheque-box .g .r .l { color:#a16207; min-width:44px; font-size:0.65rem; }
+.cheque-box .g .r .v { color:#713f12; font-weight:600; }
 
-@media (max-width:600px) { .inv-box { padding:16px; } .inv-header { flex-direction:column; gap:12px; } .inv-title { text-align:left; width:100%; } .inv-info-grid { grid-template-columns:1fr; } }
-@media print { body{background:#fff;padding:0} .inv-box{border:none;padding:20px 32px} .inv-table thead{background:var(--primary);-webkit-print-color-adjust:exact;print-color-adjust:exact} }
+/* Table */
+.pv-tbl { width:100%; border-collapse:collapse; margin-bottom:12px; border:1px solid var(--line); }
+.pv-tbl thead th { background:var(--primary); color:#fff; padding:8px 12px; font-size:0.55rem; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; text-align:left; }
+.pv-tbl thead th:last-child { text-align:right; width:120px; }
+.pv-tbl td { padding:8px 12px; font-size:0.75rem; border-bottom:1px solid #f1f5f9; color:#1a2332; }
+.pv-tbl td:last-child { text-align:right; font-weight:600; }
+.pv-tbl tbody tr:last-child td { border-bottom:none; }
+.pv-tbl tfoot td { background:#f4f7fa; font-weight:700; font-size:0.82rem; padding:8px 12px; border-top:2px solid var(--primary); }
+.pv-tbl tfoot td:last-child { font-size:0.92rem; font-weight:800; color:var(--primary); }
+
+/* Words */
+.pv-words { font-size:0.73rem; padding:10px 14px; background:#f8fafc; border-left:3px solid var(--accent); margin-bottom:12px; color:#334155; line-height:1.5; }
+.pv-words strong { color:var(--primary); }
+
+/* Sign */
+.pv-sign { display:flex; justify-content:space-between; margin-top:14px; padding-top:10px; border-top:1px dashed var(--line); }
+.pv-sign .item { text-align:center; font-size:0.6rem; color:var(--muted); min-width:100px; }
+.pv-sign .item .ln { width:100px; height:30px; border-bottom:1.5px solid #94a3b8; margin:0 auto 3px; }
+
+/* Footer */
+.pv-foot { display:flex; justify-content:space-between; align-items:center; padding:8px 28px 12px; border-top:1px solid var(--line); font-size:0.52rem; color:var(--muted); }
+
+@media print {
+  body{background:#fff;padding:0} .pv-wrap{max-width:100%} .pv-box{border:none;box-shadow:none}
+  .pv-stamp span{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pv-tbl thead th{background:var(--primary)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pv-words{background:#f8fafc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cheque-box{background:#fffbeb!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 </style>
 </head>
 <body>
-<div class="profile-shell">
+<div class="pv-wrap">
 {% set cn = (company['company_name'] if company else 'CURRENT LINK TRANSPORT') or 'CURRENT LINK TRANSPORT' %}
-{% set addr = (company['address'] if company else '') or '' %}
-{% set ph = (company['phone_number'] if company else '') or '' %}
-{% set em = (company['email'] if company else '') or '' %}
+{% set addr = (company['address'] if company else '') or 'Dubai, UAE' %}
+{% set ph = (company['phone_number'] if company else '') or '+971' %}
+{% set em = (company['email'] if company else '') or 'info@currentlinktgc.com' %}
 {% set trn = (company['trn_no'] if company else 'XXXXXXXXXX') or 'XXXXXXXXXX' %}
+{% set tc = company.theme_color if company and company.theme_color else '#1e3a5f' %}
 
-<div class="inv-box" style="{% if company and company.theme_color %}--primary:{{ company.theme_color }}{% endif %}">
-  {# ─── HEADER (exact match to customer invoice) ─── #}
-  <div class="inv-header">
-    <div class="inv-company" style="display:flex;gap:16px;align-items:flex-start">
+<div class="pv-box" style="--primary:{{ tc }}">
+  <div class="pv-stamp"><span>PAID</span></div>
+
+  <div class="pv-hdr">
+    <div class="pv-company">
       {% if company and company.logo_data %}
-      <div style="width:120px;height:120px;flex-shrink:0;border-radius:10px;border:1px solid #eef2f6;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff">
-        <img src="data:{{ company.logo_type }};base64,{{ company.logo_data }}" style="width:100%;height:100%;object-fit:contain">
-      </div>
+      <div class="logo"><img src="data:{{ company.logo_type }};base64,{{ company.logo_data }}" alt=""></div>
       {% endif %}
-      <div style="padding-top:{% if company and company.logo_data %}4px{% else %}0{% endif %}">
-        <h2 style="font-size:1.4rem;font-weight:800">{{ cn }}</h2>
-        <div class="detail" style="font-size:0.78rem;margin-top:4px">{{ addr if addr else 'Dubai, UAE' }}</div>
-        <div class="detail" style="font-size:0.78rem">Phone: {{ ph if ph else '+971' }} &middot; Email: {{ em if em else 'info@example.ae' }}</div>
-        <div class="detail" style="font-size:0.78rem;font-weight:700">TRN: {{ trn }}</div>
+      <div class="info">
+        <h2>{{ cn }}</h2>
+        <div class="det">{{ addr }}</div>
+        <div class="det">Phone: {{ ph }} &middot; {{ em }}</div>
+        <div class="det"><b>TRN:</b> {{ trn }}</div>
       </div>
     </div>
-    <div class="inv-title" style="min-width:200px">
-      <h1 style="font-size:1.6rem">PAYMENT VOUCHER</h1>
-      <div class="meta" style="font-size:0.85rem;margin-top:4px"># {{ pay.reference_no or 'PV-' ~ pay.id }} &middot; {{ pay.payment_date }}</div>
+    <div class="pv-title">
+      <h1>PAYMENT<br>VOUCHER</h1>
+      <div class="meta"># <strong>{{ pay.reference_no or 'PV-%05d'|format(pay.id) }}</strong></div>
+      <div class="meta">{{ pay.payment_date }}</div>
     </div>
   </div>
 
-  {# ─── INFO CARDS (matching invoice style) ─── #}
-  <div class="inv-info-grid">
-    <div class="inv-info-card">
-      <h4>Supplier</h4>
-      <div class="inv-info-line"><span class="lbl">Name:</span> <span class="val">{{ s.supplier_name }}</span></div>
-      <div class="inv-info-line"><span class="lbl">Code:</span> <span class="val">{{ s.supplier_code }}</span></div>
-      {% if s.trn %}<div class="inv-info-line"><span class="lbl">TRN:</span> <span class="val">{{ s.trn }}</span></div>{% endif %}
+  <div class="pv-body">
+    <div class="pv-info">
+      <div class="col">
+        <h4>Payee</h4>
+        <div class="r"><span class="l">Name</span><span class="v">{{ s.supplier_name }}</span></div>
+        <div class="r"><span class="l">Code</span><span class="v" style="font-family:monospace">{{ s.supplier_code }}</span></div>
+        {% if s.trn %}<div class="r"><span class="l">VAT</span><span class="v">{{ s.trn }}</span></div>{% endif %}
+        {% if s.phone_number %}<div class="r"><span class="l">Phone</span><span class="v">{{ s.phone_number }}</span></div>{% endif %}
+      </div>
+      <div class="col">
+        <h4>Payment</h4>
+        <div class="r"><span class="l">Date</span><span class="v">{{ pay.payment_date }}</span></div>
+        <div class="r"><span class="l">Method</span><span class="v hl">{{ pay.payment_method }}</span></div>
+        {% if pay.reference_no and pay.payment_method != 'Cheque' %}
+        <div class="r"><span class="l">Ref No.</span><span class="v" style="font-family:monospace">{{ pay.reference_no }}</span></div>
+        {% endif %}
+        {% if pay.get('fund_source','') %}
+        <div class="r"><span class="l">Source</span><span class="v">{{ pay.fund_source|replace('_',' ')|title }}</span></div>
+        {% endif %}
+      </div>
     </div>
-    <div class="inv-info-card">
-      <h4>Payment Details</h4>
-      <div class="inv-info-line"><span class="lbl">Date:</span> <span class="val">{{ pay.payment_date }}</span></div>
-      <div class="inv-info-line"><span class="lbl">Method:</span> <span class="val">{{ pay.payment_method }}</span></div>
-      {% if pay.reference_no %}<div class="inv-info-line"><span class="lbl">Ref No.:</span> <span class="val">{{ pay.reference_no }}</span></div>{% endif %}
+
+    {% if pay.payment_method == 'Cheque' %}
+    <div class="cheque-box show">
+      <h4>Cheque Details</h4>
+      <div class="g">
+        <div class="r"><span class="l">Number</span><span class="v">{{ pay.cheque_number or '—' }}</span></div>
+        <div class="r"><span class="l">Date</span><span class="v">{{ pay.cheque_date or '—' }}</span></div>
+        <div class="r"><span class="l">Bank</span><span class="v">{{ pay.get('bank_name','') or '—' }}</span></div>
+        <div class="r"><span class="l">Drawer</span><span class="v">{{ pay.get('cheque_drawer','') or cn }}</span></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <table class="pv-tbl">
+      <thead><tr><th>Description</th><th>Amount (AED)</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>
+            <div style="font-weight:600;color:#0f172a">Payment to {{ s.supplier_name }}</div>
+            {% if invoices %}
+            <div style="color:var(--muted);font-size:0.65rem;margin-top:3px;line-height:1.4">
+              Inv: {% for inv in invoices %}<span style="font-family:monospace">{{ inv.invoice_no }}</span>{% if not loop.last %}, {% endif %}{% endfor %}
+            </div>
+            {% elif inv %}
+            <div style="color:var(--muted);font-size:0.65rem;margin-top:3px">Invoice: <span style="font-family:monospace">{{ inv.invoice_no }}</span> ({{ inv.invoice_date }})</div>
+            {% elif expense_rows %}
+            <div style="color:var(--muted);font-size:0.65rem;margin-top:3px">Expenses: {% for exp in expense_rows %}{{ exp.description or exp.category or 'Expense' }}{% if not loop.last %}, {% endif %}{% endfor %}</div>
+            {% endif %}
+            {% if pay.notes %}<div style="color:#64748b;font-size:0.65rem;margin-top:3px;font-style:italic">{{ pay.notes }}</div>{% endif %}
+          </td>
+          <td style="font-weight:700;font-size:0.85rem">{{ "%.2f"|format(pay.amount) }}</td>
+        </tr>
+      </tbody>
+      <tfoot><tr><td>TOTAL</td><td>AED {{ "%.2f"|format(pay.amount) }}</td></tr></tfoot>
+    </table>
+
+    <div class="pv-words">
+      <strong>Amount in Words:</strong>
+      <span id="amtWords"></span>
+    </div>
+
+    <div class="pv-sign">
+      <div class="item"><div class="ln"></div>Prepared By</div>
+      <div class="item"><div class="ln"></div>Approved By</div>
+      <div class="item"><div class="ln"></div>Received By</div>
     </div>
   </div>
 
-  {# ─── TABLE ─── #}
-  <table class="inv-table">
-    <thead>
-      <tr>
-        <th style="text-align:left">Description</th>
-        <th style="width:160px">Amount (AED)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td style="font-weight:500;color:#0f172a">
-          Payment to {{ s.supplier_name }}
-          {% if invoices %}
-          <br><span style="color:#64748b;font-size:0.78rem">
-            Against invoices:
-            {% for inv in invoices %}
-            {{ inv.invoice_no }} ({{ inv.invoice_date }}){% if not loop.last %}, {% endif %}
-            {% endfor %}
-          </span>
-          {% elif inv %}
-          <br><span style="color:#64748b;font-size:0.78rem">Invoice: {{ inv.invoice_no }} ({{ inv.invoice_date }})</span>
-          {% elif expense_rows %}
-          <br><span style="color:#64748b;font-size:0.78rem">
-            Against expenses:
-            {% for exp in expense_rows %}
-            {{ exp.description or exp.category or 'Expense' }}{% if not loop.last %}, {% endif %}
-            {% endfor %}
-          </span>
-          {% endif %}
-          {% if pay.notes %}<br><span style="color:#64748b;font-size:0.78rem">{{ pay.notes }}</span>{% endif %}
-        </td>
-        <td style="font-weight:700">{{ "%.2f"|format(pay.amount) }}</td>
-      </tr>
-    </tbody>
-    <tfoot>
-      <tr class="inv-tfoot"><td>TOTAL</td><td style="font-weight:800;font-size:1rem">{{ "%.2f"|format(pay.amount) }}</td></tr>
-    </tfoot>
-  </table>
-
-  <div class="words">
-    <strong>Amount in Words:</strong>
-    <span id="amtWords"></span>
+  <div class="pv-foot">
+    <span>Computer-generated voucher</span>
+    <span>{{ today }}</span>
   </div>
-
-  {# ─── SIGNATURES ─── #}
-  <div class="sign">
-    <div class="sign-item"><div class="sign-line">Prepared By</div></div>
-    <div class="sign-item"><div class="sign-line">Approved By</div></div>
-    <div class="sign-item"><div class="sign-line">Received By</div></div>
-  </div>
-
-  <div class="foot">This is a computer-generated voucher &middot; Generated on: {{ today }}</div>
 </div>
 </div>
 
 <script>
 function numToWords(n) {
   if (n === 0) return 'Zero';
-  var ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
-  var tens = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
-  function convert(num) {
-    if (num < 20) return ones[num];
-    if (num < 100) return tens[Math.floor(num/10)] + (num%10 ? ' ' + ones[num%10] : '');
-    if (num < 1000) return ones[Math.floor(num/100)] + ' Hundred' + (num%100 ? ' ' + convert(num%100) : '');
-    if (num < 1000000) return convert(Math.floor(num/1000)) + ' Thousand' + (num%1000 ? ' ' + convert(num%1000) : '');
-    if (num < 1000000000) return convert(Math.floor(num/1000000)) + ' Million' + (num%1000000 ? ' ' + convert(num%1000000) : '');
-    return convert(Math.floor(num/1000000000)) + ' Billion' + (num%1000000000 ? ' ' + convert(num%1000000000) : '');
-  }
-  var intPart = Math.floor(n);
-  var decPart = Math.round((n - intPart) * 100);
-  var words = convert(intPart);
-  if (decPart) words += ' and ' + decPart + '/100';
-  return 'AED ' + words + ' Only';
+  var a = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  var b = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  var fn = function(num) {
+    if (num < 20) return a[num];
+    if (num < 100) return b[Math.floor(num/10)] + (num%10 ? '-' + a[num%10] : '');
+    if (num < 1000) return a[Math.floor(num/100)] + ' Hundred' + (num%100 ? ' ' + fn(num%100) : '');
+    if (num < 1000000) return fn(Math.floor(num/1000)) + ' Thousand' + (num%1000 ? ' ' + fn(num%1000) : '');
+    if (num < 1000000000) return fn(Math.floor(num/1000000)) + ' Million' + (num%1000000 ? ' ' + fn(num%1000000) : '');
+    return fn(Math.floor(num/1000000000)) + ' Billion' + (num%1000000000 ? ' ' + fn(num%1000000000) : '');
+  };
+  var i = Math.floor(n), d = Math.round((n-i)*100);
+  var w = fn(i);
+  if (d) w += ' and ' + d + '/100';
+  return 'AED ' + w + ' Only';
 }
 document.getElementById('amtWords').textContent = numToWords({{ pay.amount }});
 window.print();
