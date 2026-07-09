@@ -218,9 +218,20 @@ def _next_code(db):
     return f"CUS-{n:04d}"
 
 def _next_invoice_no(db):
-    db.execute("UPDATE invoice_sequence SET last_number = last_number + 1")
-    n = db.execute("SELECT last_number FROM invoice_sequence").fetchone()[0]
-    return f"NS{n + 883}"
+    rows = db.execute("SELECT invoice_no FROM customer_invoices").fetchall()
+    max_num = 0
+    for r in rows:
+        inv = r["invoice_no"]
+        if inv and inv.startswith("NS"):
+            try:
+                num = int(inv[2:])
+                if num > max_num:
+                    max_num = num
+            except (ValueError, TypeError):
+                pass
+    if max_num == 0:
+        return "NS884"
+    return f"NS{max_num + 1}"
 
 def _get_customer_or_404(cid):
     db = _get_db()
