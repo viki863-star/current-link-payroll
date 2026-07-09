@@ -52,7 +52,7 @@ def _ensure_tables():
             id {autoinc}, customer_id {int_type} NOT NULL, invoice_no TEXT,
             invoice_date TEXT NOT NULL, amount {real_type} NOT NULL,
             vat_percent {real_type} DEFAULT 5, vat_amount {real_type} DEFAULT 0,
-            total_amount {real_type} NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+            total_amount {real_type} NOT NULL,
             notes TEXT, created_at TEXT NOT NULL DEFAULT ({now})
         )""",
         f"""CREATE TABLE IF NOT EXISTS customer_payments (
@@ -189,8 +189,8 @@ def _ensure_tables():
     for table, col, dtype in alter_ops:
         sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {dtype}" if backend == "postgres" else f"ALTER TABLE {table} ADD COLUMN {col} {dtype}"
         _safe_execute(db, sql)
-    _safe_execute(db, "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS status" if backend == "postgres" else "ALTER TABLE customer_invoices DROP COLUMN status")
-    _safe_execute(db, "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS paid" if backend == "postgres" else "ALTER TABLE customer_invoices DROP COLUMN paid")
+    _safe_execute(db, "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS status" if backend == "postgres" else "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS status")
+    _safe_execute(db, "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS paid" if backend == "postgres" else "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS paid")
     _safe_execute(db, "INSERT INTO quotation_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM quotation_sequence)")
     _safe_execute(db, "INSERT INTO invoice_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM invoice_sequence)")
     _safe_execute(db, "ALTER TABLE customer_quotation_items ADD COLUMN IF NOT EXISTS unit TEXT DEFAULT 'hr'" if backend == "postgres" else "ALTER TABLE customer_quotation_items ADD COLUMN unit TEXT DEFAULT 'hr'")
@@ -462,8 +462,8 @@ def customer_invoice_add(cid):
                 (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes))
             inv_id = c_inv.lastrowid
             for idx, it in enumerate(items):
-                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order,capacity_gallon) VALUES (?,?,?,?,?,?,?,?,?)",
-                    (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx, str(it.get("hours", 0))))
+                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
+                    (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], idx))
                 if it["desc"]:
                     try:
                         db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
@@ -630,8 +630,8 @@ def customer_invoice_edit(cid, iid):
                 (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, iid))
             db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
             for idx, it in enumerate(new_items):
-                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,unit,vehicle_no,sort_order,capacity_gallon) VALUES (?,?,?,?,?,?,?,?,?)",
-                    (iid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx, str(it.get("hours", 0))))
+                db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order) VALUES (?,?,?,?,?,?)",
+                    (iid, it["desc"], it["qty"], it["rate"], it["amt"], idx))
                 if it["desc"]:
                     try:
                         db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
@@ -703,9 +703,9 @@ def customer_invoice_view(cid, iid):
             nmdc_meta = {}
     else:
         tmpl = "customer/invoice_view.html"
-    sum_taxable = sum(it["amount"] or 0 for it in items)
-    sum_vat = sum(it["vat_amount_item"] or 0 for it in items)
-    sum_total = sum((it["total_incl_vat"] or (it["amount"] or 0) + (it["vat_amount_item"] or 0)) for it in items)
+    sum_taxable = sum(float(it.get("amount") or 0) for it in items)
+    sum_vat = sum(float(it.get("vat_amount_item") or 0) for it in items)
+    sum_total = sum(float(it.get("total_incl_vat") or (float(it.get("amount") or 0) + float(it.get("vat_amount_item") or 0))) for it in items)
     display_notes = inv.get("notes", "") or ""
     if is_nmdc and display_notes:
         import json
@@ -979,15 +979,17 @@ def customer_invoice_pdf(cid, iid):
         ])
     table_items = items[1:] if is_nmdc else items
     for idx, it in enumerate(table_items):
-        vp_item = it["vat_percent_item"] or inv["vat_percent"] or 5
-        va_item = it["vat_amount_item"] or (it["amount"] * vp_item / 100)
-        ti_item = it["total_incl_vat"] or (it["amount"] + va_item)
+        vp_item = float(it.get("vat_percent_item") or inv["vat_percent"] or 5)
+        amt = float(it.get("amount") or 0)
+        va_item = float(it.get("vat_amount_item") or (amt * vp_item / 100))
+        ti_item = float(it.get("total_incl_vat") or (amt + va_item))
         eq_p = nmdc_eq_periods[idx] if is_nmdc and idx < len(nmdc_eq_periods) else {}
         eq_period_text = ""
         if is_nmdc and (eq_p.get("from") or eq_p.get("to")):
             eq_period_text += f" | Period: {eq_p.get('from','')} to {eq_p.get('to','')}"
-        eq_hours = f"<br/><font size=1 color='#94a3b8'>Hours: {float(it['capacity_gallon']):,.2f}</font>" if is_nmdc and it.get("capacity_gallon") and float(it["capacity_gallon"]) > 0 else ""
-        desc_html = (it["description"] or "—")
+        cap = it.get("capacity_gallon")
+        eq_hours = f"<br/><font size=1 color='#94a3b8'>Hours: {float(cap):,.2f}</font>" if is_nmdc and cap and float(cap) > 0 else ""
+        desc_html = (it.get("description") or "—")
         if is_nmdc:
             parts = []
             if it.get("vehicle_no"): parts.append(f"<b>Plant No:</b> {it['vehicle_no']}")
@@ -997,10 +999,10 @@ def customer_invoice_pdf(cid, iid):
         rws.append([
             _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(desc_html, fontSize=fs, leading=ldr*0.9),
-            _pc(f"{it['quantity'] or 0:,.3f}", alignment=TA_CENTER),
-            _pc((it['unit'] or 'mo'), alignment=TA_CENTER),
-            _pc(f"{it['rate'] or 0:,.2f}", alignment=TA_RIGHT),
-            _pc(f"{it['amount'] or 0:,.2f}", alignment=TA_RIGHT),
+            _pc(f"{float(it.get('quantity') or 0):,.3f}", alignment=TA_CENTER),
+            _pc((it.get('unit') or 'mo'), alignment=TA_CENTER),
+            _pc(f"{float(it.get('rate') or 0):,.2f}", alignment=TA_RIGHT),
+            _pc(f"{amt:,.2f}", alignment=TA_RIGHT),
             _pc(f"{vp_item:.2f}%", alignment=TA_CENTER),
             _pc(f"{va_item:,.2f}", alignment=TA_RIGHT, textColor=C6),
             Paragraph(f"<b>{ti_item:,.2f}</b>", S("_b", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr)),
