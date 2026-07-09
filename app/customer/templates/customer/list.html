@@ -4,60 +4,48 @@
 
 {% block content %}
 <style>.status-chip.active { background: rgba(0,0,0,0.04); color: #333; }</style>
-<section class="admin-desk-shell">
-    <article class="card admin-desk-toolbar">
-        <div class="admin-toolbar-row">
-            <div class="admin-toolbar-actions">
-                <a class="button button-secondary" href="{{ url_for('customer.customer_dashboard') }}">Dashboard</a>
-                <span class="button button-primary" style="background-color:#1c568b;border-color:#1c568b;cursor:default;">Customers</span>
-                <a class="button" href="{{ url_for('customer.customer_add') }}">New Customer</a>
-            </div>
-            <div class="admin-mini-stats">
-                <span><strong>{{ customers|length }}</strong><small>Customers</small></span>
-            </div>
-        </div>
-        <form method="get" class="admin-filter-grid desk-single-filter">
-            <label>
-                <span>Search</span>
-                <input type="search" name="search" value="{{ search }}" placeholder="Name, phone, email...">
-            </label>
-            <div class="admin-filter-actions">
-                <button class="button" type="submit">Search</button>
-                {% if search %}
-                    <a class="button button-secondary" href="{{ url_for('customer.customer_list') }}">Clear</a>
-                {% endif %}
-            </div>
-        </form>
-    </article>
+<div class="profile-shell" style="background:#fff;min-height:calc(100vh - 80px);border-radius:0">
+    <style>
+    .cus-card { display:flex; align-items:center; gap:16px; padding:18px; border-radius:12px; border:1px solid var(--line); background:var(--surface); cursor:pointer; transition:box-shadow 0.15s; text-decoration:none; color:inherit; }
+    .cus-card:hover { box-shadow:0 2px 12px rgba(0,0,0,0.08); }
+    .cus-avatar { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:700; color:#fff; background:var(--primary); flex-shrink:0; }
+    .cus-info { flex:1; min-width:0; }
+    .cus-info .name { font-weight:600; font-size:0.95rem; }
+    .cus-info .meta { font-size:0.75rem; color:var(--muted); margin-top:2px; }
+    .cus-info .meta span { margin-right:8px; }
+    </style>
 
-    <section class="directory-card-grid">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <h3 style="margin:0;font-size:1rem;font-weight:600">All Customers</h3>
+        <div style="display:flex;gap:8px">
+            <form method="get" style="display:flex;gap:6px">
+                <input type="text" name="search" class="form-control" placeholder="Search by name, phone..." value="{{ search }}" style="width:220px">
+                <button class="btn btn-outline btn-sm" type="submit">Search</button>
+                {% if search %}<a href="{{ url_for('customer.customer_list') }}" class="btn btn-outline btn-sm">Clear</a>{% endif %}
+            </form>
+            <a href="{{ url_for('customer.customer_add') }}" class="btn btn-primary btn-sm">+ Add Customer</a>
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">
         {% for c in customers %}
-            <article class="card directory-card">
-                <div class="directory-card-head">
-                    <span class="vehicle-icon-chip" aria-hidden="true">
-                        {% if c.logo_data %}<img src="data:{{ c.logo_type or 'image/png' }};base64,{{ c.logo_data }}" style="width:32px;height:32px;border-radius:8px;object-fit:contain;background:#fff;vertical-align:middle">{% else %}{{ c.customer_name[:2]|upper }}{% endif %}
-                    </span>
-                    <span class="status-chip {{ c.status|lower }}">{{ c.status }}</span>
+        <a href="{{ url_for('customer.customer_profile', cid=c.id) }}" class="cus-card">
+            <div class="cus-avatar">{% if c.logo_data %}<img src="data:{{ c.logo_type or 'image/png' }};base64,{{ c.logo_data }}" style="width:48px;height:48px;border-radius:12px;object-fit:contain;background:#fff">{% else %}{{ c.customer_name[:2]|upper }}{% endif %}</div>
+            <div class="cus-info">
+                <div class="name">{{ c.customer_name }}</div>
+                <div class="meta">
+                    <span class="mono">{{ c.customer_code or '' }}</span>
+                    <span>{{ c.phone or '' }}</span>
+                    {% if c.trn %}<span>TRN: {{ c.trn }}</span>{% endif %}
                 </div>
-                <div class="directory-card-body">
-                    <h2>{{ c.customer_name }}</h2>
-                    <div class="directory-card-lines">
-                        <span class="directory-line"><strong>Code</strong><small>{{ c.customer_code or '-' }}</small></span>
-                        <span class="directory-line"><strong>Contact</strong><small>{{ c.phone or c.email or '-' }}</small></span>
-                        {% if c.trn %}<span class="directory-line"><strong>TRN</strong><small>{{ c.trn }}</small></span>{% endif %}
-                    </div>
-                </div>
-                <div class="directory-card-foot split-actions">
-                    <a class="button button-secondary directory-open" href="{{ url_for('customer.customer_profile', cid=c.id) }}">Open</a>
-                    <a class="button button-secondary directory-open" href="{{ url_for('customer.customer_edit', cid=c.id) }}">Edit</a>
-                </div>
-            </article>
+            </div>
+            <span class="status-badge {{ 'active' if c.status == 'active' else 'pending' }}">{{ c.status }}</span>
+        </a>
         {% else %}
-            <article class="card directory-empty">
-                <h2>No Customers Found</h2>
-                <p>Add your first customer.</p>
-            </article>
+        <div class="profile-card" style="grid-column:1/-1;text-align:center;padding:50px">
+            <p class="empty-state" style="margin:0">No customers found. <a href="{{ url_for('customer.customer_add') }}">Register your first customer</a>.</p>
+        </div>
         {% endfor %}
-    </section>
-</section>
+    </div>
+</div>
 {% endblock %}

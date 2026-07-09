@@ -57,15 +57,6 @@
                 <span class="erp-nav-copy"><strong>Dashboard</strong></span>
             </a>
 
-            {# AI Overview #}
-            {% set is_ai = request.endpoint and request.endpoint.startswith('ai.') %}
-            <a class="erp-nav-link {{ 'is-active' if is_ai }}" href="{{ url_for('ai.ai_dashboard') }}">
-                <span class="erp-nav-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M12 2a4 4 0 0 1 4 4v1a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M4 18v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/><circle cx="12" cy="6" r="1.5"/><path d="M7.5 14.5L12 18l4.5-3.5"/></svg>
-                </span>
-                <span class="erp-nav-copy"><strong>AI Overview</strong></span>
-            </a>
-
             {# Fleet (direct link to dashboard) #}
             {% set is_on_fleet = request.endpoint and request.endpoint.startswith('fleet.') %}
             <a class="erp-nav-link {{ 'is-active' if is_on_fleet }}" href="{{ url_for('fleet.fleet_dashboard') }}">
