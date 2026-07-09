@@ -29,7 +29,7 @@
         {% if c.trn %} &middot; TRN: <span class="mono">{{ c.trn }}</span>{% endif %}
     </p>
 
-    <form method="POST" id="invoiceForm">
+    <form method="POST" id="invoiceForm" autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
 
@@ -100,8 +100,8 @@
                 {% if edit and items %}
                     {% for it in items %}
                     <div class="line-item-row">
-                        <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)">{{ it.description or '' }}</textarea>
-                        <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
+                        <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)" autocomplete="off">{{ it.description or '' }}</textarea>
+                        <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()" autocomplete="off">
                         <select name="item_unit[]" style="width:100%;text-align:center;padding:6px 4px;border:1px solid var(--line);border-radius:6px;font-size:0.75rem;background:#fff" onchange="calcTotals()">
                             <option value="hour" {% if (it.unit or 'hour') == 'hour' %}selected{% endif %}>Hour</option>
                             <option value="trip" {% if (it.unit or 'hour') == 'trip' %}selected{% endif %}>Trip</option>
@@ -121,8 +121,8 @@
                     {% endfor %}
                 {% else %}
                     <div class="line-item-row">
-                        <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)"></textarea>
-                        <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
+                        <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)" autocomplete="off"></textarea>
+                        <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()" autocomplete="off">
                         <select name="item_unit[]" style="width:100%;text-align:center;padding:6px 4px;border:1px solid var(--line);border-radius:6px;font-size:0.75rem;background:#fff" onchange="calcTotals()">
                             <option value="hour" selected>Hour</option>
                             <option value="trip">Trip</option>
@@ -188,8 +188,8 @@ function addItem(desc, qty, rate, unit, vehicle) {
     const unitOptions = ['hour','trip','month','day','week','ton','kg','gal','each','set'];
     const unitHtml = unitOptions.map(uo => `<option value="${uo}"${uo === u?' selected':''}>${uo.charAt(0).toUpperCase()+uo.slice(1)}</option>`).join('');
     row.innerHTML = `
-        <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)">${d}</textarea>
-        <input type="number" name="item_qty[]" value="${q}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
+        <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)" autocomplete="off">${d}</textarea>
+        <input type="number" name="item_qty[]" value="${q}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()" autocomplete="off">
         <select name="item_unit[]" style="text-align:center;padding:6px 4px;border:1px solid var(--line);border-radius:6px;font-size:0.75rem;background:#fff" onchange="calcTotals()">${unitHtml}</select>
         <input type="number" name="item_rate[]" value="${r}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
         <span class="item-amt" id="itemAmt_${itemCount}">${(q * r).toFixed(2)}</span>
