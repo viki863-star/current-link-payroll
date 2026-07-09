@@ -918,24 +918,21 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════
     # 3. ITEMS TABLE — auto-fit on one page
     # ═══════════════════════════════════
-    # Estimate fixed content height (in points)
-    fixed_pt = 22*mm + 1.5*mm + 22*mm + 2*mm + 2*mm + 12*mm + 2*mm + 5*mm + (3*mm if inv["notes"] else 0) + 6*mm + 5*mm + 5*mm
-    avail_pt = A4[1] - TM - BM - fixed_pt
-    num_rows = len(items) + (1 if is_nmdc else 0)
+    sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
+    num_rows = len(items) + (1 if is_nmdc else 0) + 1
     fs = 7.0
     if num_rows > 0:
-        target = avail_pt / (num_rows + 1)
-        fs = max(4.0, min(7.0, target / 2.6))
-    ldr = fs * 1.15
-    pad_t = max(1.0, fs * 0.25)
-    pad_b = max(1.0, fs * 0.25)
+        avail_pt = A4[1] - TM - BM - 130*mm
+        target = avail_pt / max(num_rows, 1)
+        fs = max(5.0, min(8.0, target / 3.0))
+    ldr = fs * 1.2
+    pad_t = max(1.0, fs * 0.3)
+    pad_b = max(1.0, fs * 0.3)
 
     def _pc(t, **kw):
         kw.setdefault("fontSize", fs)
         kw.setdefault("leading", ldr)
         return Paragraph(str(t), S("_pc", **kw))
-
-    sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
 
     nmdc_eq_periods = []
     if is_nmdc:
@@ -1043,7 +1040,7 @@ def customer_invoice_pdf(cid, iid):
 
     ft = Table([["", tt]], colWidths=[W - tw, tw])
     ft.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(Spacer(1, 1*mm))
+    els.append(Spacer(1, 2*mm))
     els.append(ft)
     # ═══════════════════════════════════
     # 5. AMOUNT IN WORDS
@@ -1077,8 +1074,8 @@ def customer_invoice_pdf(cid, iid):
         if dp: w += f" and {dp:02d}/100"
         return "AED " + w + " Only"
 
-    els.append(Spacer(1, 3*mm))
-    ab = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=13))]], colWidths=[W])
+    els.append(Spacer(1, 4*mm))
+    ab = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=14))]], colWidths=[W])
     ab.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
     els.append(ab)
 
@@ -1093,8 +1090,8 @@ def customer_invoice_pdf(cid, iid):
             except Exception:
                 pass
     if display_notes:
-        els.append(Spacer(1, 1.5*mm))
-        nb = Table([[Paragraph(f"<b>Notes:</b> {display_notes}", S("NW", fontSize=7, textColor=C4, leading=9))]], colWidths=[W])
+        els.append(Spacer(1, 3*mm))
+        nb = Table([[Paragraph(f"<b>Notes:</b> {display_notes}", S("NW", fontSize=7.5, textColor=C4, leading=10))]], colWidths=[W])
         nb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f8fafc")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
         els.append(nb)
 
@@ -1109,8 +1106,8 @@ def customer_invoice_pdf(cid, iid):
         if company["iban"]: bk_items.append(("IBAN", company["iban"]))
         if company["swift_code"]: bk_items.append(("Swift", company["swift_code"]))
         if bk_items:
-            els.append(Spacer(1, 1.5*mm))
-            els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=8, spaceAfter=1)))
+            els.append(Spacer(1, 3*mm))
+            els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=9, spaceAfter=2)))
             bk_rows = [[
                 Paragraph(f"<font color='#64748b'>{lbl}:</font>", S("_bkl", fontSize=7, textColor=C5, leading=9)),
                 Paragraph(f"<b>{val}</b>", S("_bkv", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=9)),
@@ -1126,17 +1123,17 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════
     # 7. SIGNATURES — stamp & sign side by side
     # ═══════════════════════════════════
-    els.append(Spacer(1, 2*mm))
+    els.append(Spacer(1, 4*mm))
     sg = ParagraphStyle("SG", fontSize=8, alignment=TA_CENTER, leading=11)
     stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
     sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
     auth_img = []
     if os.path.exists(stamp_path):
-        auth_img.append(Image(stamp_path, width=28, height=28))
+        auth_img.append(Image(stamp_path, width=30, height=30))
     if os.path.exists(sign_path):
-        auth_img.append(Image(sign_path, width=28, height=28))
+        auth_img.append(Image(sign_path, width=30, height=30))
     if auth_img:
-        auth_imgs = Table([auth_img], colWidths=[28]*len(auth_img))
+        auth_imgs = Table([auth_img], colWidths=[30]*len(auth_img))
         auth_imgs.setStyle(TableStyle([
             ("ALIGN",(0,0),(-1,-1),"CENTER"),
             ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
@@ -1173,9 +1170,9 @@ def customer_invoice_pdf(cid, iid):
     # 8. COMPANY ADDRESS / FOOTER
     # ═══════════════════════════════════
     if c_addr:
-        els.append(Spacer(1, 1.5*mm))
-        els.append(Paragraph(f"<font size=6 color='#64748b'>{c_addr}</font>", S("_ad", fontSize=6, textColor=C5, alignment=TA_CENTER, leading=7)))
-    els.append(Spacer(1, 2*mm))
+        els.append(Spacer(1, 3*mm))
+        els.append(Paragraph(f"<font size=6.5 color='#64748b'>{c_addr}</font>", S("_ad", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8)))
+    els.append(Spacer(1, 3*mm))
 
     pp = []
     if company:
