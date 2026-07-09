@@ -5,7 +5,7 @@
 {% block content %}
 <div class="profile-shell" style="max-width:780px;margin:0 auto">
 <style>
-.line-item-row { display:grid; grid-template-columns:1.8fr 70px 55px 90px 95px 32px; gap:6px; align-items:start; margin-bottom:4px; }
+.line-item-row { display:grid; grid-template-columns:1.8fr 70px 80px 90px 95px 32px; gap:6px; align-items:start; margin-bottom:4px; }
 .line-item-row input, .line-item-row textarea { padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; outline:none; font-family:inherit; }
 .line-item-row input:focus, .line-item-row textarea:focus { border-color:var(--primary); }
 .line-item-row textarea { resize:none; overflow:hidden; min-height:34px; max-height:72px; line-height:1.4; }
@@ -88,7 +88,7 @@
 
             <div style="background:#f8fafc;border-radius:10px;padding:10px;border:1px solid #eef2f6">
                 {# Header #}
-                <div style="display:grid;grid-template-columns:1.8fr 70px 55px 90px 95px 32px;gap:6px;margin-bottom:6px;padding:0 4px">
+                <div style="display:grid;grid-template-columns:1.8fr 70px 80px 90px 95px 32px;gap:6px;margin-bottom:6px;padding:0 4px">
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600">Description</span>
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">QTY</span>
                     <span style="font-size:0.65rem;color:var(--muted);font-weight:600;text-align:center">Unit</span>
@@ -102,7 +102,18 @@
                     <div class="line-item-row">
                         <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)">{{ it.description or '' }}</textarea>
                         <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
-                        <input type="text" name="item_unit[]" value="{{ it.unit or 'hour' }}" readonly style="width:100%;text-align:center;background:#f0f2f5;font-size:0.7rem;border:none;font-weight:600">
+                        <select name="item_unit[]" style="width:100%;text-align:center;padding:6px 4px;border:1px solid var(--line);border-radius:6px;font-size:0.75rem;background:#fff" onchange="calcTotals()">
+                            <option value="hour" {% if (it.unit or 'hour') == 'hour' %}selected{% endif %}>Hour</option>
+                            <option value="trip" {% if (it.unit or 'hour') == 'trip' %}selected{% endif %}>Trip</option>
+                            <option value="month" {% if (it.unit or 'hour') == 'month' %}selected{% endif %}>Month</option>
+                            <option value="day" {% if (it.unit or 'hour') == 'day' %}selected{% endif %}>Day</option>
+                            <option value="week" {% if (it.unit or 'hour') == 'week' %}selected{% endif %}>Week</option>
+                            <option value="ton" {% if (it.unit or 'hour') == 'ton' %}selected{% endif %}>Ton</option>
+                            <option value="kg" {% if (it.unit or 'hour') == 'kg' %}selected{% endif %}>Kg</option>
+                            <option value="gal" {% if (it.unit or 'hour') == 'gal' %}selected{% endif %}>Gallon</option>
+                            <option value="each" {% if (it.unit or 'hour') == 'each' %}selected{% endif %}>Each</option>
+                            <option value="set" {% if (it.unit or 'hour') == 'set' %}selected{% endif %}>Set</option>
+                        </select>
                         <input type="number" name="item_rate[]" value="{{ it.rate or 0 }}" min="0" step="any" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
                         <span class="item-amt" id="itemAmt_{{ loop.index0 }}">{{ "%.2f"|format(it.amount) }}</span>
                         <button type="button" class="btn-remove" onclick="removeItem(this)" {% if loop.first %}style="display:none"{% endif %}>&times;</button>
@@ -112,7 +123,18 @@
                     <div class="line-item-row">
                         <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)"></textarea>
                         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()">
-                        <input type="text" name="item_unit[]" value="hour" readonly style="width:100%;text-align:center;background:#f0f2f5;font-size:0.7rem;border:none;font-weight:600">
+                        <select name="item_unit[]" style="width:100%;text-align:center;padding:6px 4px;border:1px solid var(--line);border-radius:6px;font-size:0.75rem;background:#fff" onchange="calcTotals()">
+                            <option value="hour" selected>Hour</option>
+                            <option value="trip">Trip</option>
+                            <option value="month">Month</option>
+                            <option value="day">Day</option>
+                            <option value="week">Week</option>
+                            <option value="ton">Ton</option>
+                            <option value="kg">Kg</option>
+                            <option value="gal">Gallon</option>
+                            <option value="each">Each</option>
+                            <option value="set">Set</option>
+                        </select>
                         <input type="number" name="item_rate[]" value="0" min="0" step="any" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
                         <span class="item-amt" id="itemAmt_0">0.00</span>
                         <button type="button" class="btn-remove" onclick="removeItem(this)" style="display:none">&times;</button>
@@ -154,6 +176,7 @@ let itemCount = {{ items|length if edit and items else 1 }};
 let lpoItemsCache = {};
 
 function addItem(desc, qty, rate, unit, vehicle) {
+    unit = unit || 'hour';
     const container = document.getElementById('itemsContainer');
     const row = document.createElement('div');
     row.className = 'line-item-row';
@@ -162,10 +185,12 @@ function addItem(desc, qty, rate, unit, vehicle) {
     const r = rate || 0;
     const u = unit || 'hour';
     const v = vehicle || '';
+    const unitOptions = ['hour','trip','month','day','week','ton','kg','gal','each','set'];
+    const unitHtml = unitOptions.map(uo => `<option value="${uo}"${uo === u?' selected':''}>${uo.charAt(0).toUpperCase()+uo.slice(1)}</option>`).join('');
     row.innerHTML = `
         <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)">${d}</textarea>
         <input type="number" name="item_qty[]" value="${q}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
-        <input type="text" name="item_unit[]" value="${u}" readonly style="text-align:center;background:#f0f2f5;font-size:0.7rem;border:none;font-weight:600">
+        <select name="item_unit[]" style="text-align:center;padding:6px 4px;border:1px solid var(--line);border-radius:6px;font-size:0.75rem;background:#fff" onchange="calcTotals()">${unitHtml}</select>
         <input type="number" name="item_rate[]" value="${r}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
         <span class="item-amt" id="itemAmt_${itemCount}">${(q * r).toFixed(2)}</span>
         <input type="hidden" name="item_vehicle[]" value="${v}">

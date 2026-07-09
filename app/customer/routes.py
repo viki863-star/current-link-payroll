@@ -1016,16 +1016,16 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════
     # 4. TOTALS (matching web)
     # ═══════════════════════════════════
-    tw = 80*mm
+    tw = 90*mm
     trows = [
-        [Paragraph("Sub Total", S("_st", fontSize=8, textColor=C5, leading=11)),
-         Paragraph(f"<b>AED {sub:,.2f}</b>", S("_stv", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11, alignment=TA_RIGHT))],
-        [Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=8, textColor=C5, leading=11)),
-         Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=8, fontName="Helvetica-Bold", textColor=C6, leading=11, alignment=TA_RIGHT))],
-        [Paragraph("<b>Total Due</b>", S("_td", fontSize=10, fontName="Helvetica-Bold", textColor=C4, leading=13)),
-         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=14, alignment=TA_RIGHT))],
+        [Paragraph("Sub Total", S("_st", fontSize=9, textColor=C5, leading=12)),
+         Paragraph(f"<b>AED {sub:,.2f}</b>", S("_stv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12, alignment=TA_RIGHT))],
+        [Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=9, textColor=C5, leading=12)),
+         Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=9, fontName="Helvetica-Bold", textColor=C6, leading=12, alignment=TA_RIGHT))],
+        [Paragraph("<b>Total Due</b>", S("_td", fontSize=12, fontName="Helvetica-Bold", textColor=C4, leading=15)),
+         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=16, alignment=TA_RIGHT))],
     ]
-    tt = Table(trows, colWidths=[tw*0.45, tw*0.55])
+    tt = Table(trows, colWidths=[tw*0.40, tw*0.60])
     tt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
