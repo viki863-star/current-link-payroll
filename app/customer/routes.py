@@ -820,8 +820,8 @@ def customer_invoice_pdf(cid, iid):
     if c_em: c_contact.append(f"Email: {c_em}")
     if c_contact: ci_lines.append('<font size=7 color="#64748b">' + ' &middot; '.join(c_contact) + '</font>')
     ci_lines.append(f"<font size=7 color='#64748b'><b>TRN: {c_trn}</b></font>")
-    ci_html = f"<font size=13><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
-    co_p = Paragraph(ci_html, S("CO", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=15))
+    ci_html = f"<font size=14><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
+    co_p = Paragraph(ci_html, S("CO", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=17))
 
     logo_w = 0; logo_h = 0
     if _logo_tmp_files:
@@ -835,7 +835,7 @@ def customer_invoice_pdf(cid, iid):
             tmp_c = rlcanvas.Canvas(tmp_buf)
             ci_width = W*0.65 - 6*mm
             co_p.wrapOn(tmp_c, ci_width, 1000)
-            text_h = max(co_p.height, 18*mm)
+            text_h = max(co_p.height, 22*mm)
             tmp_c.save()
             ratio = text_h / oh
             logo_w = int(ow * ratio)
@@ -853,17 +853,17 @@ def customer_invoice_pdf(cid, iid):
 
     rh = Paragraph(
         f"<b>TAX INVOICE</b><br/>"
-        f"<font size=7 color='#64748b'># {inv_no}<br/>{inv_dt}</font>",
-        S("TI", fontSize=15, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
+        f"<font size=8 color='#64748b'># {inv_no}<br/>{inv_dt}</font>",
+        S("TI", fontSize=16, fontName="Helvetica-Bold", textColor=TH, leading=20, alignment=TA_RIGHT))
 
     ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
     ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(ht)
 
-    bl = Table([[""]], colWidths=[W], rowHeights=[1.5])
+    bl = Table([[""]], colWidths=[W], rowHeights=[2])
     bl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(bl)
-    els.append(Spacer(1, 4*mm))
+    els.append(Spacer(1, 5*mm))
 
     # ═══════════════════════════════════
     # 2. BILL TO / INVOICE INFO — bigger cards
@@ -909,7 +909,7 @@ def customer_invoice_pdf(cid, iid):
     iw = Table([[card("BILL TO", bd), Spacer(1, 3*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 3*mm, W*0.50])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(iw)
-    els.append(Spacer(1, 3*mm))
+    els.append(Spacer(1, 5*mm))
 
     # ═══════════════════════════════════
     # 3. ITEMS TABLE — auto-fill A4 height
@@ -1183,13 +1183,14 @@ def customer_invoice_pdf(cid, iid):
         "This is a computer-generated Tax Invoice. Valid without signature.",
         S("FN", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8)))
 
-    fh = Table([[""]], colWidths=[W], rowHeights=[0.3])
+    els.append(Spacer(1, 8*mm))
+    fh = Table([[""]], colWidths=[W], rowHeights=[1.2])
     fh.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(fh)
-    els.append(Spacer(1, 1*mm))
+    els.append(Spacer(1, 2*mm))
     for p in pp:
         els.append(p)
-        els.append(Spacer(1, 0.5*mm))
+        els.append(Spacer(1, 0.75*mm))
 
     doc.build(els)
     for f in _logo_tmp_files:
