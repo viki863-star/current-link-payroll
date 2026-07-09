@@ -803,7 +803,7 @@ def customer_invoice_pdf(cid, iid):
     NMDC_CONV_HOURS = 260
 
     # ═══════════════════════════════════
-    # 1. HEADER (matching web view)
+    # 1. HEADER — bigger logo, bigger company info
     # ═══════════════════════════════════
     logo = None; LW = 0
     if company and company["logo_data"]:
@@ -814,18 +814,16 @@ def customer_invoice_pdf(cid, iid):
             _logo_tmp_files.append(f.name)
         except: pass
 
-    # Company info lines
     ci_lines = []
     c_contact = []
     if c_ph: c_contact.append(f"Phone: {c_ph}")
     if c_em: c_contact.append(f"Email: {c_em}")
-    if c_contact: ci_lines.append('<font size=6 color="#64748b">' + ' &middot; '.join(c_contact) + '</font>')
-    ci_lines.append(f"<font size=6 color='#64748b'><b>TRN: {c_trn}</b></font>")
-    ci_html = f"<font size=11><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
-    co_p = Paragraph(ci_html, S("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
+    if c_contact: ci_lines.append('<font size=7 color="#64748b">' + ' &middot; '.join(c_contact) + '</font>')
+    ci_lines.append(f"<font size=7 color='#64748b'><b>TRN: {c_trn}</b></font>")
+    ci_html = f"<font size=13><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
+    co_p = Paragraph(ci_html, S("CO", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=15))
 
-    # Measure the company text height, then size logo to match
-    logo_w = 0
+    logo_w = 0; logo_h = 0
     if _logo_tmp_files:
         try:
             from PIL import Image as PILImage
@@ -835,59 +833,57 @@ def customer_invoice_pdf(cid, iid):
             from io import BytesIO
             tmp_buf = BytesIO()
             tmp_c = rlcanvas.Canvas(tmp_buf)
-            ci_width = W*0.65 - 4*mm
+            ci_width = W*0.65 - 6*mm
             co_p.wrapOn(tmp_c, ci_width, 1000)
-            text_h = co_p.height
+            text_h = max(co_p.height, 18*mm)
             tmp_c.save()
-            target_h = text_h
-            ratio = target_h / oh
+            ratio = text_h / oh
             logo_w = int(ow * ratio)
-            logo_h = int(target_h)
+            logo_h = int(text_h)
             logo = Image(_logo_tmp_files[-1], width=logo_w, height=logo_h)
             LW = logo_w
         except:
             pass
 
     if logo:
-        lh = Table([[logo, Spacer(1, 4*mm), co_p]], colWidths=[LW if LW else 0, 4*mm, W*0.65 - (LW if LW else 0) - 4*mm])
-        lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+        lh = Table([[logo, Spacer(1, 6*mm), co_p]], colWidths=[LW if LW else 0, 6*mm, W*0.65 - (LW if LW else 0) - 6*mm])
+        lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     else:
         lh = co_p
 
     rh = Paragraph(
         f"<b>TAX INVOICE</b><br/>"
-        f"<font size=6 color='#64748b'># {inv_no}<br/>{inv_dt}</font>",
-        S("TI", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=16, alignment=TA_RIGHT))
+        f"<font size=7 color='#64748b'># {inv_no}<br/>{inv_dt}</font>",
+        S("TI", fontSize=15, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
 
     ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
-    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(ht)
 
-    # Bottom border line
     bl = Table([[""]], colWidths=[W], rowHeights=[1.5])
     bl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(bl)
-    els.append(Spacer(1, 3*mm))
+    els.append(Spacer(1, 4*mm))
 
     # ═══════════════════════════════════
-    # 2. BILL TO / INVOICE INFO (matching web)
+    # 2. BILL TO / INVOICE INFO — bigger cards
     # ═══════════════════════════════════
     def card(title, pairs):
         cw = W*0.50
         r = [[
-            Paragraph(f"<b>{title}</b>", S("_ch", fontSize=6, fontName="Helvetica-Bold", textColor=C5, leading=7.5)),
-            Paragraph("", S("_cs", fontSize=1.5, leading=1.5)),
+            Paragraph(f"<b>{title}</b>", S("_ch", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=9)),
+            Paragraph("", S("_cs", fontSize=2, leading=2)),
         ]]
         for a, b in pairs:
             r.append([
-                Paragraph(a, S("_cl", fontSize=6.5, textColor=C5, leading=8.5)),
-                Paragraph(f"{b}", S("_cv", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=9)),
+                Paragraph(a, S("_cl", fontSize=7, textColor=C5, leading=9.5)),
+                Paragraph(f"{b}", S("_cv", fontSize=7.5, fontName="Helvetica-Bold", textColor=C4, leading=10)),
             ])
-        t = Table(r, colWidths=[cw*0.28, cw*0.72])
+        t = Table(r, colWidths=[cw*0.25, cw*0.75])
         t.setStyle(TableStyle([
             ("VALIGN",(0,0),(-1,-1),"TOP"),
-            ("TOPPADDING",(0,0),(-1,-1),1.5), ("BOTTOMPADDING",(0,0),(-1,-1),1.5),
-            ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
+            ("TOPPADDING",(0,0),(-1,-1),2.5), ("BOTTOMPADDING",(0,0),(-1,-1),2.5),
+            ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
             ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
         ]))
         return t
@@ -910,19 +906,19 @@ def customer_invoice_pdf(cid, iid):
     except (IndexError, KeyError):
         pass
 
-    iw = Table([[card("BILL TO", bd), Spacer(1, 2*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 2*mm, W*0.50])
+    iw = Table([[card("BILL TO", bd), Spacer(1, 3*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 3*mm, W*0.50])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(iw)
-    els.append(Spacer(1, 2*mm))
+    els.append(Spacer(1, 3*mm))
 
     # ═══════════════════════════════════
-    # 3. ITEMS TABLE — auto-fit on one page
+    # 3. ITEMS TABLE — auto-fill A4 height
     # ═══════════════════════════════════
     sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
     num_rows = len(items) + (1 if is_nmdc else 0) + 1
     fs = 7.0
     if num_rows > 0:
-        avail_pt = A4[1] - TM - BM - 130*mm
+        avail_pt = A4[1] - TM - BM - 140*mm
         target = avail_pt / max(num_rows, 1)
         fs = max(5.0, min(8.0, target / 3.0))
     ldr = fs * 1.2
