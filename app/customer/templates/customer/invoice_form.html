@@ -235,13 +235,15 @@ function loadLpoItems() {
     const sel = document.getElementById('lpoSelect');
     const lid = sel.value;
     if (!lid) return;
-    fetch('{{ url_for("customer.customer_lpo_items", cid=c.id, lid=999) }}'.replace('999', lid))
+    const url = '/customer/{{ c.id }}/lpo/' + lid + '/items';
+    fetch(url)
         .then(r => r.json())
         .then(data => {
+            console.log('loadLpoItems response:', JSON.stringify(data));
             if (!data || !data.items || data.items.length === 0) return;
             document.getElementById('lpoDate').value = data.lpo_date || '';
             const container = document.getElementById('itemsContainer');
-            container.innerHTML = '';
+            container.replaceChildren();
             itemCount = 0;
             data.items.forEach(it => {
                 addItem(it.description, it.quantity, it.rate, it.unit_type, it.vehicle_no);
@@ -255,12 +257,14 @@ function loadSoItems() {
     const sel = document.getElementById('soSelect');
     const sid = sel.value;
     if (!sid) return;
-    fetch('{{ url_for("customer.customer_so_items", cid=c.id, sid=999) }}'.replace('999', sid))
+    const url = '/customer/{{ c.id }}/so/' + sid + '/items';
+    fetch(url)
         .then(r => r.json())
         .then(data => {
+            console.log('loadSoItems response:', JSON.stringify(data));
             if (!data || !data.items || data.items.length === 0) return;
             const container = document.getElementById('itemsContainer');
-            container.innerHTML = '';
+            container.replaceChildren();
             itemCount = 0;
             data.items.forEach(it => {
                 addItem(it.description, it.quantity, it.rate, it.unit_type, it.vehicle_no);

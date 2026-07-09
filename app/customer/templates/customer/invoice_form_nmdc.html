@@ -250,7 +250,7 @@ function loadSoData() {
     if (!sid || !opt) return;
     var soDate = opt.getAttribute('data-date') || '';
     document.getElementById('soDateDisplay').value = soDate;
-    fetch('{{ url_for("customer.customer_so_items", cid=c.id, sid=999) }}'.replace('999', sid))
+    fetch('/customer/{{ c.id }}/so/' + sid + '/items')
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data || !data.items || data.items.length === 0) return;
