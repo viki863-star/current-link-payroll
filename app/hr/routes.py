@@ -553,11 +553,22 @@ def employee_transactions(employee_id):
                 flash(f"Transaction #{edit_id} updated.", "success")
                 return redirect(url_for("hr.employee_transactions", employee_id=eid))
             else:
-                db.execute(
+                result = db.execute(
                     """INSERT INTO driver_transactions (driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (eid, form_values["entry_date"], salary_month, txn_type, form_values["source"],
                      form_values["given_by"], amount, form_values["details"]),
                 )
+                new_txn_id = result.lastrowid
+                if form_values["source"] == "Owner Fund" and new_txn_id:
+                    try:
+                        db.execute(
+                            """INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details, source_table, source_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            (form_values["given_by"], form_values["entry_date"], amount,
+                             form_values["given_by"], "Cash", "OUT",
+                             form_values["details"], "driver_transactions", new_txn_id),
+                        )
+                    except Exception:
+                        pass
                 _audit_log(db, "employee_transaction_created", entity_type="employee_transaction", entity_id=eid, details=f"AED {amount:.2f} / {form_values['source']} / {form_values['details']}")
                 db.commit()
                 flash(f"Transaction of AED {amount:.2f} recorded for {employee['full_name']}.", "success")
@@ -620,17 +631,46 @@ def employee_transactions(employee_id):
     )
 
 
-@hr_bp.route("/hr/employees/<employee_id>/transactions/<int:txn_id>/delete", methods=["POST"])
+@hr_bp.route("/hr/employees/<employee_id>/transactions/<int:txn_id>/delete", methods=["GET", "POST"])
 @_login_required("admin")
 def employee_transaction_delete(employee_id, txn_id):
     _touch_admin_workspace("hr")
     ensure_employees_table()
     db = open_db()
+
+    txn = db.execute("SELECT * FROM driver_transactions WHERE id=? AND driver_id=?", (txn_id, employee_id)).fetchone()
+    if txn is None:
+        flash("Transaction not found.", "error")
+        return redirect(url_for("hr.employee_transactions", employee_id=employee_id))
+
+    # Check for linked owner fund entry
+    owner_fund_entry = db.execute(
+        "SELECT * FROM owner_fund_entries WHERE source_table='driver_transactions' AND source_id=?",
+        (txn_id,),
+    ).fetchone()
+
+    if request.method == "GET" and owner_fund_entry:
+        return render_template(
+            "hr/delete_transaction_confirm.html",
+            employee_id=employee_id,
+            txn=dict(txn),
+            owner_fund_entry=dict(owner_fund_entry),
+        )
+
+    delete_owner_fund = request.form.get("delete_owner_fund") == "yes"
     try:
         db.execute("DELETE FROM driver_transactions WHERE id=? AND driver_id=?", (txn_id, employee_id))
-        _audit_log(db, "employee_transaction_deleted", entity_type="employee_transaction", entity_id=employee_id, details=f"txn#{txn_id}")
+        if delete_owner_fund and owner_fund_entry:
+            db.execute("DELETE FROM owner_fund_entries WHERE id=?", (owner_fund_entry["id"],))
+            of_detail = f" + owner fund #{owner_fund_entry['id']}"
+        else:
+            of_detail = ""
+        _audit_log(db, "employee_transaction_deleted", entity_type="employee_transaction", entity_id=employee_id, details=f"txn#{txn_id}{of_detail}")
         db.commit()
-        flash("Transaction deleted.", "info")
+        if delete_owner_fund and owner_fund_entry:
+            flash("Transaction + linked Owner Fund entry deleted.", "info")
+        else:
+            flash("Transaction deleted.", "info")
     except Exception as e:
         db.rollback()
         flash(f"Error deleting transaction: {e}", "error")

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Delete Transaction — Confirm{% endblock %}
+{% block body_class %}detail-body{% endblock %}
+{% block page_title %}Confirm Delete{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    <div class="card" style="max-width:600px;margin:2rem auto;padding:2rem">
+        <h2 style="margin-bottom:1.5rem;color:#d32f2f">Delete Transaction #{{ txn.id }}?</h2>
+
+        <table class="info-table" style="width:100%;margin-bottom:1.5rem">
+            <tr><th>Date</th><td>{{ txn.entry_date }}</td></tr>
+            <tr><th>Type</th><td>{{ txn.txn_type }}</td></tr>
+            <tr><th>Amount</th><td><strong>AED {{ "%.0f"|format(txn.amount or 0) }}</strong></td></tr>
+            <tr><th>Source</th><td>{{ txn.source }}</td></tr>
+            <tr><th>Given By</th><td>{{ txn.given_by or '-' }}</td></tr>
+            <tr><th>Details</th><td>{{ txn.details }}</td></tr>
+        </table>
+
+        {% if owner_fund_entry %}
+        <div class="alert alert-warning" style="background:#fff3e0;border:1px solid #ffcc02;padding:1rem;border-radius:8px;margin-bottom:1.5rem">
+            <p style="margin:0;font-weight:600;color:#e65100">&#9888; This transaction is linked to Owner Fund entry #{{ owner_fund_entry.id }}
+            (AED {{ "%.0f"|format(owner_fund_entry.amount or 0) }})</p>
+            <p style="margin:0.5rem 0 0;color:#555">Do you want to delete the linked Owner Fund entry too?</p>
+        </div>
+        {% endif %}
+
+        <div class="act-group" style="display:flex;gap:1rem;justify-content:center">
+            <form method="POST" action="{{ url_for('hr.employee_transaction_delete', employee_id=employee_id, txn_id=txn.id) }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="delete_owner_fund" value="yes">
+                <button type="submit" class="btn btn-danger" style="background:#d32f2f;color:#fff;padding:0.75rem 1.5rem;border:none;border-radius:6px;cursor:pointer">
+                    {% if owner_fund_entry %}Yes, delete both{% else %}Delete{% endif %}
+                </button>
+            </form>
+            {% if owner_fund_entry %}
+            <form method="POST" action="{{ url_for('hr.employee_transaction_delete', employee_id=employee_id, txn_id=txn.id) }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="delete_owner_fund" value="no">
+                <button type="submit" class="btn btn-outline" style="padding:0.75rem 1.5rem;border:1px solid #ccc;border-radius:6px;cursor:pointer;background:#fff">
+                    No, keep Owner Fund entry
+                </button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('hr.employee_transactions', employee_id=employee_id) }}" class="btn btn-outline" style="padding:0.75rem 1.5rem;border:1px solid #ccc;border-radius:6px;cursor:pointer;text-decoration:none;color:#333">Cancel</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.info-table { border-collapse: collapse; }
+.info-table th, .info-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
+.info-table th { width: 120px; color: #666; font-weight: 500; }
+.act-group { margin-top: 1rem; }
+</style>
+{% endblock %}

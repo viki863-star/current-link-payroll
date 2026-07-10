@@ -198,10 +198,7 @@
                                         <td class="c">
                                             <div class="act-group">
                                                 <a href="{{ url_for('hr.employee_transactions', employee_id=employee.employee_id) }}?edit={{ txn.id }}" class="act-btn edit" title="Edit">&#9998;</a>
-                                                <form method="POST" action="{{ url_for('hr.employee_transaction_delete', employee_id=employee.employee_id, txn_id=txn.id) }}" style="display:inline" onsubmit="return confirm('Delete this transaction?')">
-                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                    <button type="submit" class="act-btn del" title="Delete">&#128465;</button>
-                                                </form>
+                                                <a href="{{ url_for('hr.employee_transaction_delete', employee_id=employee.employee_id, txn_id=txn.id) }}" class="act-btn del" title="Delete">&#128465;</a>
                                             </div>
                                         </td>
                                     </tr>
