@@ -118,6 +118,8 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
   </div>
 
   <div class="pv-body">
+    {% set disc = pay.get('discount')|float %}
+    {% set net_amt = pay.amount - disc %}
     <div class="pv-info">
       <div class="col">
         <h4>Payee</h4>
@@ -153,9 +155,6 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
       </div>
     </div>
     {% endif %}
-
-    {% set disc = pay.get('discount')|float %}
-    {% set net_amt = pay.amount - disc %}
 
     <table class="pv-tbl">
       <thead><tr><th>Description</th><th>Amount (AED)</th></tr></thead>
