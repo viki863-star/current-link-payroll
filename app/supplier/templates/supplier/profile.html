@@ -186,7 +186,7 @@
   }) %}
 {% endfor %}
 {% for e in expenses %}
-  {% set is_inv = e.get('is_tax_bill') and e.earning_type == 'invoice' %}
+  {% set is_inv = e.earning_type == 'invoice' %}
   {% set lbl = 'Invoice' if is_inv else (e.earning_type|title if e.earning_type else 'Fixed') %}
   {% set detail = e.description or e.category %}
   {% if e.quantity and e.rate and not is_inv %}{% set detail = detail ~ ' (' ~ e.quantity ~ ' × ' ~ ("%.0f"|format(e.rate)) ~ ')' %}{% endif %}

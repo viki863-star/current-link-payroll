@@ -395,17 +395,17 @@ def _ensure_tables():
             except Exception:
                 pass
 
-    # Fix existing tax bills: update linked expenses to show as Invoice with inc-VAT amount
+    # Convert ALL bill-linked expenses to show as Invoice in profile
     try:
         db.execute(
             """UPDATE supplier_expenses
                SET earning_type='invoice', is_tax_bill=1, amount=(
                    SELECT b.total_amount FROM supplier_bills b WHERE b.source_expense_id=supplier_expenses.id
                )
-               WHERE earning_type='fixed' AND id IN (
+               WHERE id IN (
                    SELECT source_expense_id FROM supplier_bills
-                   WHERE source_expense_id IS NOT NULL AND COALESCE(vat_amount,0) > 0
-               )"""
+                   WHERE source_expense_id IS NOT NULL
+               ) AND earning_type != 'invoice'"""
         )
         db.commit()
     except Exception:
@@ -3423,8 +3423,8 @@ def supplier_bill_add():
         bill_desc = f"Bill {bill_no} — {vehicle_plate}"
         if description:
             bill_desc += f" ({description})"
-        exp_earning_type = 'invoice' if is_tax_bill else 'fixed'
-        exp_amount = total_amount if is_tax_bill else net_amount
+        exp_earning_type = 'invoice'
+        exp_amount = total_amount
         if db.backend == "postgres":
             bill_result = db.execute(
                 """INSERT INTO supplier_bills (supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, vat_percentage, vat_amount, discount, net_amount)
@@ -3502,8 +3502,8 @@ def supplier_bill_edit(bill_id):
             (supplier["id"], vehicle_plate, bill_no, bill_date, description, total_amount, vat_percentage, vat_amount, discount, net_amount, bill_id),
         )
         if bill["source_expense_id"]:
-            exp_earning_type = 'invoice' if is_tax_bill else 'fixed'
-            exp_amount = total_amount if is_tax_bill else net_amount
+            exp_earning_type = 'invoice'
+            exp_amount = total_amount
             db.execute(
                 """UPDATE supplier_expenses SET expense_date=?, amount=?, category='Parts', description=?, earning_type=?, quantity=NULL, rate=NULL, vehicle_no=?, is_tax_bill=?
                    WHERE id=?""",
@@ -3558,8 +3558,8 @@ def supplier_bills_batch():
         bill_desc = f"Bill {bill_no} — {vehicle_plate}"
         if description:
             bill_desc += f" ({description})"
-        exp_earning_type = 'invoice' if is_tax else 'fixed'
-        exp_amount = total_amount if is_tax else net_amount
+        exp_earning_type = 'invoice'
+        exp_amount = total_amount
         if db.backend == "postgres":
             br = db.execute(
                 """INSERT INTO supplier_bills (supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, vat_percentage, vat_amount, discount, net_amount)
