@@ -543,11 +543,33 @@ def employee_transactions(employee_id):
             salary_month = request.form.get("salary_month", "").strip() or _current_month_value()
 
             if edit_id and edit_id.isdigit():
+                old_txn = db.execute("SELECT source FROM driver_transactions WHERE id=? AND driver_id=?", (int(edit_id), eid)).fetchone()
+                old_source = old_txn["source"] if old_txn else None
                 db.execute(
                     """UPDATE driver_transactions SET entry_date=?, salary_month=?, txn_type=?, source=?, given_by=?, amount=?, details=? WHERE id=? AND driver_id=?""",
                     (form_values["entry_date"], salary_month, txn_type, form_values["source"],
                      form_values["given_by"], amount, form_values["details"], int(edit_id), eid),
                 )
+                new_source = form_values["source"]
+                if old_source != new_source:
+                    existing_of = db.execute(
+                        "SELECT id FROM owner_fund_entries WHERE source_table='driver_transactions' AND source_id=?",
+                        (int(edit_id),),
+                    ).fetchone()
+                    if new_source == "Owner Fund" and not existing_of:
+                        db.execute(
+                            """INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details, source_table, source_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            (form_values["given_by"], form_values["entry_date"], amount,
+                             form_values["given_by"], "Cash", "OUT",
+                             form_values["details"], "driver_transactions", int(edit_id)),
+                        )
+                    elif old_source == "Owner Fund" and existing_of:
+                        db.execute("DELETE FROM owner_fund_entries WHERE id=?", (existing_of["id"],))
+                elif new_source == "Owner Fund":
+                    db.execute(
+                        """UPDATE owner_fund_entries SET owner_name=?, entry_date=?, amount=?, details=? WHERE source_table='driver_transactions' AND source_id=?""",
+                        (form_values["given_by"], form_values["entry_date"], amount, form_values["details"], int(edit_id)),
+                    )
                 _audit_log(db, "employee_transaction_updated", entity_type="employee_transaction", entity_id=eid, details=f"AED {amount:.2f} / txn#{edit_id}")
                 db.commit()
                 flash(f"Transaction #{edit_id} updated.", "success")
