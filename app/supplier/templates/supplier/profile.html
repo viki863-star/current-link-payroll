@@ -145,7 +145,7 @@
       <thead><tr><th class="r">Amount</th><th class="r" style="color:#16a34a">Disc</th><th>Date</th><th>Method</th><th>Reference</th></tr></thead>
       <tbody>
         {% for p in payments[:5] %}
-        {% set disc = p.get('discount')|float %}
+        {% set disc = p.discount|float if p.discount else 0 %}
         <tr>
           <td class="r mono" style="font-weight:600;color:var(--green)">{{ "%.0f"|format(p.amount) }}</td>
           <td class="r mono" style="font-weight:600;color:#16a34a;font-size:0.78rem">{{ "%.0f"|format(disc) if disc > 0 else '-' }}</td>
@@ -276,7 +276,7 @@
         <thead><tr><th>Date</th><th class="r">Gross</th><th class="r" style="color:#16a34a">Disc</th><th class="r">Net</th><th>Method</th><th>Reference</th><th>Details</th><th>Voucher</th><th></th></tr></thead>
       <tbody>
         {% for p in payments %}
-        {% set disc = p.get('discount')|float %}
+        {% set disc = p.discount|float if p.discount else 0 %}
         <tr>
           <td class="mono">{{ p.payment_date }}</td>
           <td class="r mono">{{ "%.0f"|format(p.amount) }}</td>
@@ -380,7 +380,7 @@
   {% set _ = ledger.append({'date': e.expense_date, 'desc': lbl, 'credit': e.amount, 'debit': 0}) %}
 {% endfor %}
 {% for p in payments %}
-  {% set disc = p.get('discount')|float %}
+  {% set disc = p.discount|float if p.discount else 0 %}
   {% set net_amt = p.amount - disc %}
   {% set desc = 'Payment (' ~ p.payment_method ~ ')' %}
   {% if disc > 0 %}{% set desc = desc ~ ' [Disc: ' ~ '%.0f'|format(disc) ~ ']' %}{% endif %}

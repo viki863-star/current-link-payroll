@@ -2471,7 +2471,8 @@ def supplier_payment_voucher(sup_id, pay_id):
         company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
     except Exception:
         company = None
-    return render_template("supplier/payment_voucher.html", s=s, pay=pay, inv=inv, invoices=invoices, expense_rows=expense_rows, company=company, today=date.today().isoformat())
+    pay_dict = dict(pay) if hasattr(pay, 'keys') else pay
+    return render_template("supplier/payment_voucher.html", s=s, pay=pay_dict, inv=inv, invoices=invoices, expense_rows=expense_rows, company=company, today=date.today().isoformat())
 
 
 @supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/cheque")
