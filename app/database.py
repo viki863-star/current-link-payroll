@@ -1080,13 +1080,6 @@ CREATE TABLE IF NOT EXISTS owner_fund_entries (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='owner_fund_entries' AND column_name='source_table') THEN
-        ALTER TABLE owner_fund_entries ADD COLUMN source_table TEXT;
-        ALTER TABLE owner_fund_entries ADD COLUMN source_id BIGINT;
-    END IF;
-END $$;
-
 CREATE TABLE IF NOT EXISTS company_profile (
     id BIGSERIAL PRIMARY KEY,
     company_name TEXT NOT NULL,
