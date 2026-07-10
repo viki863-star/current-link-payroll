@@ -3,30 +3,57 @@
 {% block page_title %}Payment{% endblock %}
 
 {% block content %}
-<div class="form-shell" style="max-width:540px">
+<div class="form-shell" style="max-width:560px">
 <style>
-.pf-wrap { background:#fff; border:2px solid var(--line); border-radius:14px; overflow:hidden; }
-.pf-hdr { background:var(--primary); padding:14px 22px; display:flex; align-items:center; gap:10px; }
-.pf-hdr h3 { margin:0; font-size:0.95rem; font-weight:700; color:#fff; }
-.pf-hdr .back { margin-left:auto; color:rgba(255,255,255,0.85); font-size:0.78rem; text-decoration:none; }
-.pf-hdr .back:hover { color:#fff; }
-.pf-body { padding:20px 22px 22px; }
-.pf-row { margin-bottom:14px; }
-.pf-row label { display:block; font-size:0.7rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
-.pf-row .form-control { font-size:0.85rem; }
-.pf-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.pf-wrap { background:#fff; border:1px solid #e4e9f0; border-radius:16px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.04); }
+.pf-top { background:linear-gradient(135deg,var(--primary),#152d4a); padding:16px 24px; display:flex; align-items:center; gap:12px; }
+.pf-top-icon { width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.pf-top-icon svg { width:18px; height:18px; stroke:#fff; }
+.pf-top h3 { margin:0; font-size:0.95rem; font-weight:700; color:#fff; letter-spacing:-0.2px; }
+.pf-top .back { margin-left:auto; color:rgba(255,255,255,0.7); font-size:0.78rem; text-decoration:none; padding:4px 10px; border-radius:6px; transition:all 0.15s; }
+.pf-top .back:hover { background:rgba(255,255,255,0.1); color:#fff; }
+.pf-body { padding:20px 24px 24px; }
+.pf-supplier { display:flex; align-items:center; gap:10px; margin-bottom:18px; padding:12px 14px; background:#f8fafc; border-radius:10px; border:1px solid #eef2f6; }
+.pf-supplier-av { width:34px; height:34px; border-radius:8px; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem; }
+.pf-supplier-info { flex:1; }
+.pf-supplier-name { font-weight:700; font-size:0.9rem; color:#0f172a; }
+.pf-supplier-code { font-size:0.72rem; color:var(--muted); font-family:monospace; }
+.pf-row { margin-bottom:16px; }
+.pf-row label { display:block; font-size:0.68rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px; }
+.pf-row .form-control { font-size:0.88rem; border-radius:10px; border:1.5px solid #e2e8f0; padding:10px 12px; transition:border-color 0.15s; }
+.pf-row .form-control:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(30,58,95,0.08); }
+.pf-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.pf-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+.pf-divider { height:1px; background:linear-gradient(90deg,var(--line),transparent); margin:18px 0; }
+.pf-summary { background:#fafbfc; border:1px solid #eef2f6; border-radius:10px; padding:12px 14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; }
+.pf-summary-label { font-size:0.7rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
+.pf-summary-value { font-size:1.05rem; font-weight:800; color:var(--primary); }
+.pf-summary-value.green { color:#16a34a; }
+.pf-submit { width:100%; padding:12px; background:linear-gradient(135deg,var(--primary),#152d4a); color:#fff; border:none; border-radius:10px; font-size:0.95rem; font-weight:700; cursor:pointer; transition:opacity 0.15s; letter-spacing:0.3px; }
+.pf-submit:hover { opacity:0.9; }
+.pf-submit:active { opacity:0.8; }
+.inv-checklist { max-height:180px; overflow-y:auto; border:1.5px solid #e2e8f0; border-radius:10px; padding:4px 6px; background:#fafafa; }
+.inv-checklist label { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:0.82rem; transition:background 0.1s; }
+.inv-checklist label:hover { background:#f1f5f9; }
+.inv-checklist input:checked + span { color:var(--primary); font-weight:600; }
 </style>
 
 <div class="pf-wrap">
-  <div class="pf-hdr">
-    <h3>💳 {{ 'Edit' if pay else 'Record' }} Payment</h3>
-    <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='payments') }}" class="back">← Back</a>
+  <div class="pf-top">
+    <div class="pf-top-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+    </div>
+    <h3>{{ 'Edit' if pay else 'Record' }} Payment</h3>
+    <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id, tab='payments') }}" class="back">← Back to Profile</a>
   </div>
   <div class="pf-body">
-    <p style="font-size:0.85rem;color:var(--muted);margin:0 0 14px">
-      Supplier: <strong style="color:#0f172a">{{ s.supplier_name }}</strong>
-      <span class="mono" style="font-size:0.78rem;color:var(--muted)"> · {{ s.supplier_code }}</span>
-    </p>
+    <div class="pf-supplier">
+      <div class="pf-supplier-av">{{ s.supplier_name[0]|upper }}</div>
+      <div class="pf-supplier-info">
+        <div class="pf-supplier-name">{{ s.supplier_name }}</div>
+        <div class="pf-supplier-code">{{ s.supplier_code }}</div>
+      </div>
+    </div>
 
     <form method="POST">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -37,38 +64,94 @@
           <input type="date" name="payment_date" value="{{ pay.payment_date or today }}" class="form-control">
         </div>
         <div class="pf-row">
-          <label>Amount *</label>
-          <input type="number" name="amount" step="0.01" min="0" class="form-control" required placeholder="0.00" value="{{ pay.amount or '' }}">
+          <label>Payment Method</label>
+          <select name="payment_method" class="form-control" id="paymentMethod" onchange="toggleChequeFields()">
+            {% for m in ['Cash','Bank Transfer','Cheque','Card'] %}
+            <option value="{{ m }}" {{ 'selected' if pay and pay.payment_method == m else '' }}>{{ m }}</option>
+            {% endfor %}
+          </select>
         </div>
       </div>
 
+      <div id="chequeFields" class="pf-grid-2" style="display:none">
+        <div class="pf-row">
+          <label>Cheque Number</label>
+          <input type="text" name="cheque_number" class="form-control" placeholder="e.g. 123456" value="{{ pay.cheque_number or '' }}">
+        </div>
+        <div class="pf-row">
+          <label>Cheque Date</label>
+          <input type="date" name="cheque_date" class="form-control" value="{{ pay.cheque_date or pay.payment_date or '' }}">
+        </div>
+      </div>
+
+      <script>
+      function toggleChequeFields() {
+        document.getElementById('chequeFields').style.display =
+          document.getElementById('paymentMethod').value === 'Cheque' ? 'grid' : 'none';
+      }
+      toggleChequeFields();
+      </script>
+
+      <div class="pf-grid-3">
+        <div class="pf-row">
+          <label>Gross Amount *</label>
+          <input type="number" name="amount" step="0.01" min="0" class="form-control" required placeholder="0.00" value="{{ pay.amount or '' }}" id="grossAmount" oninput="calcNet()">
+        </div>
+        <div class="pf-row">
+          <label>Discount</label>
+          <div style="position:relative">
+            <input type="number" name="discount" step="0.01" min="0" class="form-control" placeholder="0.00" value="{{ pay.discount or '0' }}" id="discountAmount" oninput="calcNet()" style="padding-right:32px">
+            <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:0.65rem;font-weight:700;color:#16a34a;text-transform:uppercase;pointer-events:none">−</span>
+          </div>
+        </div>
+        <div class="pf-row">
+          <label>Net Amount</label>
+          <div style="position:relative">
+            <input type="text" class="form-control" id="netAmountDisplay" readonly style="background:#f0fdf4;border-color:#86efac;color:#16a34a;font-weight:700;padding-right:32px" value="{{ '%.2f'|format((pay.amount or 0) - (pay.discount or 0)) }}">
+            <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:0.65rem;font-weight:700;color:#16a34a;pointer-events:none">=</span>
+          </div>
+        </div>
+      </div>
+
+      <script>
+      function calcNet() {
+        var gross = parseFloat(document.getElementById('grossAmount').value) || 0;
+        var disc = parseFloat(document.getElementById('discountAmount').value) || 0;
+        document.getElementById('netAmountDisplay').value = (gross - disc).toFixed(2);
+      }
+      </script>
+
+      <div class="pf-divider"></div>
+
       <div class="pf-row">
-        <label>Invoices (select one or more)</label>
-        <div class="inv-checklist" style="max-height:180px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fafafa">
+        <label>Invoices <span style="font-weight:400;text-transform:none;color:#94a3b8">(select one or more)</span></label>
+        <div class="inv-checklist">
           {% for inv in invoices %}
-          <label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;font-size:0.82rem">
-            <input type="checkbox" name="invoice_ids" value="{{ inv.id }}" class="pay-check" data-amount="{{ inv.total_amount }}">
+          <label>
+            <input type="checkbox" name="invoice_ids" value="{{ inv.id }}" class="pay-check" data-amount="{{ inv.total_amount }}"
+              {{ 'checked' if pay and pay.invoice_ids and inv.id|string in pay.invoice_ids.split(',') else '' }}>
             <span style="flex:1">{{ inv.invoice_no }} — AED {{ "%.0f"|format(inv.total_amount) }}</span>
           </label>
           {% else %}
-          <div class="empty-state" style="padding:16px 0;font-size:0.82rem">No unpaid invoices.</div>
+          <div class="empty-state" style="padding:16px 0;font-size:0.82rem;text-align:center;color:var(--muted)">No unpaid invoices.</div>
           {% endfor %}
         </div>
       </div>
 
       <div class="pf-row">
-        <label>Earnings / Expenses (select one or more)</label>
-        <div class="inv-checklist" style="max-height:180px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fafafa">
+        <label>Earnings / Expenses <span style="font-weight:400;text-transform:none;color:#94a3b8">(select one or more)</span></label>
+        <div class="inv-checklist">
           {% for exp in expenses %}
-          <label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;font-size:0.82rem">
-            <input type="checkbox" name="expense_ids" value="{{ exp.id }}" class="pay-check" data-amount="{{ exp.amount }}">
+          <label>
+            <input type="checkbox" name="expense_ids" value="{{ exp.id }}" class="pay-check" data-amount="{{ exp.amount }}"
+              {{ 'checked' if pay and pay.expense_ids and exp.id|string in pay.expense_ids.split(',') else '' }}>
             <span style="flex:1">{{ exp.description or exp.category }} — AED {{ "%.2f"|format(exp.amount) }}</span>
           </label>
           {% else %}
-          <div class="empty-state" style="padding:16px 0;font-size:0.82rem">No unpaid earnings/expenses.</div>
+          <div class="empty-state" style="padding:16px 0;font-size:0.82rem;text-align:center;color:var(--muted)">No unpaid earnings/expenses.</div>
           {% endfor %}
         </div>
-        <div style="margin-top:6px;font-size:0.8rem;color:var(--muted);display:flex;justify-content:space-between">
+        <div style="margin-top:8px;font-size:0.8rem;color:var(--muted);display:flex;justify-content:space-between;padding:0 2px">
           <span>Selected: <strong id="payCount">0</strong> items</span>
           <span>Total: <strong id="selectedTotal">AED 0.00</strong></span>
         </div>
@@ -86,57 +169,30 @@
           document.getElementById('selectedTotal').textContent = 'AED ' + total.toFixed(2);
         }
         checks.forEach(function(c) { c.addEventListener('change', updateTotal); });
+        updateTotal();
       });
       </script>
 
       <div class="pf-grid-2">
         <div class="pf-row">
-          <label>Payment Method</label>
-          <select name="payment_method" class="form-control" id="paymentMethod" onchange="toggleChequeFields()">
-            {% for m in ['Cash','Bank Transfer','Cheque','Card'] %}
-            <option value="{{ m }}" {{ 'selected' if pay and pay.payment_method == m else '' }}>{{ m }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="pf-row">
           <label>Reference No.</label>
           <input type="text" name="reference_no" class="form-control" placeholder="Optional" value="{{ pay.reference_no or '' }}">
         </div>
-      </div>
-
-      <div id="chequeFields" class="pf-grid-2" style="display:none">
         <div class="pf-row">
-          <label>Cheque Number *</label>
-          <input type="text" name="cheque_number" class="form-control" placeholder="e.g. 123456" value="{{ pay.cheque_number or '' }}">
+          <label>Fund Source</label>
+          <select name="fund_source" class="form-control">
+            <option value="cash_bank" {{ 'selected' if not pay or pay.fund_source == 'cash_bank' else '' }}>Cash / Bank</option>
+            <option value="owner_fund" {{ 'selected' if pay and pay.fund_source == 'owner_fund' else '' }}>Owner Fund</option>
+          </select>
         </div>
-        <div class="pf-row">
-          <label>Cheque Date</label>
-          <input type="date" name="cheque_date" class="form-control" value="{{ pay.cheque_date or pay.payment_date or '' }}">
-        </div>
-      </div>
-
-      <script>
-      function toggleChequeFields() {
-        var el = document.getElementById('chequeFields');
-        el.style.display = document.getElementById('paymentMethod').value === 'Cheque' ? 'grid' : 'none';
-      }
-      toggleChequeFields();
-      </script>
-
-      <div class="pf-row">
-        <label>Fund Source</label>
-        <select name="fund_source" class="form-control">
-          <option value="cash_bank" {{ 'selected' if not pay or pay.fund_source == 'cash_bank' else '' }}>Cash / Bank</option>
-          <option value="owner_fund" {{ 'selected' if pay and pay.fund_source == 'owner_fund' else '' }}>Owner Fund</option>
-        </select>
       </div>
 
       <div class="pf-row">
         <label>Details / Description *</label>
-        <textarea name="notes" class="form-control" rows="3" required placeholder="What is this payment for? e.g. March transport services">{{ pay.notes or '' }}</textarea>
+        <textarea name="notes" class="form-control" rows="3" required placeholder="e.g. March transport services">{{ pay.notes or '' }}</textarea>
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px;padding:10px">{{ 'Update' if pay else 'Save' }} Payment</button>
+      <button type="submit" class="pf-submit">{{ 'Update' if pay else 'Save' }} Payment</button>
     </form>
   </div>
 </div>

@@ -119,7 +119,7 @@ html, body {
   <div class="payee-field">{{ s.supplier_name }}</div>
 
   {# ── AMOUNT IN WORDS ── #}
-  {% set amt = pay.amount|float %}
+  {% set amt = net_amt|default(pay.amount)|float %}
   <div class="words-line1">
     AED {{ amount_words }} Only
   </div>

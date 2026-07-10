@@ -357,6 +357,16 @@ def _ensure_tables():
             except Exception:
                 pass
 
+    for col, dtype in [("discount", "REAL DEFAULT 0")]:
+        try:
+            db.execute(f"ALTER TABLE supplier_payment_records ADD COLUMN {col} {dtype}")
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
     for col, dtype in [("fund_source", "TEXT DEFAULT 'cash_bank'"), ("bank_name", "TEXT"), ("cheque_drawer", "TEXT")]:
         try:
             db.execute(f"ALTER TABLE supplier_payment_records ADD COLUMN {col} {dtype}")
@@ -2338,6 +2348,13 @@ def supplier_payment_add(sup_id):
             except:
                 try: db.rollback()
                 except: pass
+        for col,dtype in [("discount","REAL DEFAULT 0")]:
+            try:
+                db.execute(f"ALTER TABLE supplier_payment_records ADD COLUMN {col} {dtype}")
+                db.commit()
+            except:
+                try: db.rollback()
+                except: pass
         for col,dtype in [("payment_date","TEXT"),("payment_method","TEXT"),("payment_ref","TEXT")]:
             try:
                 db.execute(f"ALTER TABLE supplier_expenses ADD COLUMN {col} {dtype}")
@@ -2346,10 +2363,13 @@ def supplier_payment_add(sup_id):
                 try: db.rollback()
                 except: pass
 
+        discount = request.form.get("discount", "0").strip()
+        discount_f = float(discount) if discount else 0
+
         # Create one payment record for the batch
         db.execute(
-            "INSERT INTO supplier_payment_records (supplier_id, invoice_id, invoice_ids, expense_ids, payment_date, amount, payment_method, reference_no, notes, fund_source, cheque_number, cheque_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-            (sup_id, None, invoice_ids_str, expense_ids_str, payment_date, amount_f, payment_method, reference_no, notes, fund_source, cheque_number or None, cheque_date or None),
+            "INSERT INTO supplier_payment_records (supplier_id, invoice_id, invoice_ids, expense_ids, payment_date, amount, payment_method, reference_no, notes, fund_source, cheque_number, cheque_date, discount) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (sup_id, None, invoice_ids_str, expense_ids_str, payment_date, amount_f, payment_method, reference_no, notes, fund_source, cheque_number or None, cheque_date or None, discount_f),
         )
 
         # Mark all selected invoices as paid
@@ -2452,9 +2472,10 @@ def supplier_cheque_print(sup_id, pay_id):
         if dp: w += f" and {dp}/100"
         return w
 
-    amt = pay["amount"] or 0
+    disc = float(pay.get("discount") or 0)
+    amt = max(0, (pay["amount"] or 0) - disc)
     amount_words = num_to_words(amt)
-    return render_template("supplier/cheque_print.html", s=s, pay=pay, company=company, amount_words=amount_words)
+    return render_template("supplier/cheque_print.html", s=s, pay=pay, company=company, amount_words=amount_words, net_amt=amt)
 
 
 @supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/edit", methods=["GET", "POST"])
@@ -2513,13 +2534,15 @@ def supplier_payment_edit(sup_id, pay_id):
             if eid:
                 db.execute("UPDATE supplier_expenses SET status='paid', payment_date=?, payment_method=?, payment_ref=? WHERE id=?", (payment_date, payment_method, reference_no, eid))
 
+        discount = request.form.get("discount", "0").strip()
+        discount_f = float(discount) if discount else 0
         cheque_number = request.form.get("cheque_number", "").strip()
         cheque_date = request.form.get("cheque_date", "").strip()
         invoice_ids_str = ",".join(invoice_ids)
         expense_ids_str = ",".join(expense_ids)
         db.execute(
-            "UPDATE supplier_payment_records SET payment_date=?, amount=?, invoice_id=NULL, invoice_ids=?, expense_ids=?, payment_method=?, reference_no=?, notes=?, fund_source=?, cheque_number=?, cheque_date=? WHERE id=?",
-            (payment_date, amount_f, invoice_ids_str, expense_ids_str, payment_method, reference_no, notes, fund_source, cheque_number or None, cheque_date or None, pay_id),
+            "UPDATE supplier_payment_records SET payment_date=?, amount=?, invoice_id=NULL, invoice_ids=?, expense_ids=?, payment_method=?, reference_no=?, notes=?, fund_source=?, cheque_number=?, cheque_date=?, discount=? WHERE id=?",
+            (payment_date, amount_f, invoice_ids_str, expense_ids_str, payment_method, reference_no, notes, fund_source, cheque_number or None, cheque_date or None, discount_f, pay_id),
         )
         db.commit()
         flash("Payment updated.", "success")

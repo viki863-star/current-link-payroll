@@ -136,6 +136,9 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
         {% if pay.get('fund_source','') %}
         <div class="r"><span class="l">Source</span><span class="v">{{ pay.fund_source|replace('_',' ')|title }}</span></div>
         {% endif %}
+        {% if disc > 0 %}
+        <div class="r"><span class="l">Discount</span><span class="v" style="color:#16a34a">AED {{ "%.2f"|format(disc) }}</span></div>
+        {% endif %}
       </div>
     </div>
 
@@ -150,6 +153,9 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
       </div>
     </div>
     {% endif %}
+
+    {% set disc = pay.get('discount')|float %}
+    {% set net_amt = pay.amount - disc %}
 
     <table class="pv-tbl">
       <thead><tr><th>Description</th><th>Amount (AED)</th></tr></thead>
@@ -170,13 +176,20 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
           </td>
           <td style="font-weight:700;font-size:0.85rem">{{ "%.2f"|format(pay.amount) }}</td>
         </tr>
+        {% if disc > 0 %}
+        <tr style="color:#16a34a">
+          <td style="font-weight:600">Discount</td>
+          <td style="font-weight:600">− {{ "%.2f"|format(disc) }}</td>
+        </tr>
+        {% endif %}
       </tbody>
-      <tfoot><tr><td>TOTAL</td><td>AED {{ "%.2f"|format(pay.amount) }}</td></tr></tfoot>
+      <tfoot><tr><td>TOTAL</td><td>AED {{ "%.2f"|format(net_amt) }}</td></tr></tfoot>
     </table>
 
     <div class="pv-words">
       <strong>Amount in Words:</strong>
       <span id="amtWords"></span>
+      {% if disc > 0 %}<span style="display:block;margin-top:3px;font-size:0.65rem;color:#16a34a">(after discount of AED {{ "%.2f"|format(disc) }})</span>{% endif %}
     </div>
 
     <div class="pv-sign">
@@ -211,7 +224,7 @@ function numToWords(n) {
   if (d) w += ' and ' + d + '/100';
   return 'AED ' + w + ' Only';
 }
-document.getElementById('amtWords').textContent = numToWords({{ pay.amount }});
+document.getElementById('amtWords').textContent = numToWords({{ net_amt }});
 window.print();
 </script>
 </body>
