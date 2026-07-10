@@ -384,6 +384,18 @@ def _ensure_tables():
                 db.rollback()
             except Exception:
                 pass
+
+    for col, dtype in [("is_tax_bill", "INTEGER DEFAULT 0")]:
+        try:
+            db.execute(f"ALTER TABLE supplier_expenses ADD COLUMN {col} {dtype}")
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
+    for col, dtype in [("fund_source", "TEXT DEFAULT 'cash_bank'"), ("bank_name", "TEXT"), ("cheque_drawer", "TEXT")]:
         try:
             db.execute(f"ALTER TABLE supplier_loans ADD COLUMN {col} {dtype}")
             db.commit()
@@ -3392,6 +3404,8 @@ def supplier_bill_add():
         bill_desc = f"Bill {bill_no} — {vehicle_plate}"
         if description:
             bill_desc += f" ({description})"
+        exp_earning_type = 'invoice' if is_tax_bill else 'fixed'
+        exp_amount = total_amount if is_tax_bill else net_amount
         if db.backend == "postgres":
             bill_result = db.execute(
                 """INSERT INTO supplier_bills (supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, vat_percentage, vat_amount, discount, net_amount)
@@ -3400,9 +3414,9 @@ def supplier_bill_add():
             )
             bill_id = bill_result.fetchone()[0]
             exp_result = db.execute(
-                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
-                   VALUES (?, ?, ?, 'Parts', ?, 'fixed', NULL, NULL, ?, 'approved') RETURNING id""",
-                (supplier["id"], bill_date, net_amount, bill_desc, vehicle_plate),
+                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status, is_tax_bill)
+                   VALUES (?, ?, ?, 'Parts', ?, ?, NULL, NULL, ?, 'approved', ?) RETURNING id""",
+                (supplier["id"], bill_date, exp_amount, bill_desc, exp_earning_type, vehicle_plate, 1 if is_tax_bill else 0),
             )
             expense_id = exp_result.fetchone()[0]
         else:
@@ -3413,9 +3427,9 @@ def supplier_bill_add():
             )
             bill_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
             db.execute(
-                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
-                   VALUES (?, ?, ?, 'Parts', ?, 'fixed', NULL, NULL, ?, 'approved')""",
-                (supplier["id"], bill_date, net_amount, bill_desc, vehicle_plate),
+                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status, is_tax_bill)
+                   VALUES (?, ?, ?, 'Parts', ?, ?, NULL, NULL, ?, 'approved', ?)""",
+                (supplier["id"], bill_date, exp_amount, bill_desc, exp_earning_type, vehicle_plate, 1 if is_tax_bill else 0),
             )
             expense_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
         db.execute("UPDATE supplier_bills SET source_expense_id = ? WHERE id = ?", (expense_id, bill_id))
@@ -3469,10 +3483,12 @@ def supplier_bill_edit(bill_id):
             (supplier["id"], vehicle_plate, bill_no, bill_date, description, total_amount, vat_percentage, vat_amount, discount, net_amount, bill_id),
         )
         if bill["source_expense_id"]:
+            exp_earning_type = 'invoice' if is_tax_bill else 'fixed'
+            exp_amount = total_amount if is_tax_bill else net_amount
             db.execute(
-                """UPDATE supplier_expenses SET expense_date=?, amount=?, category='Parts', description=?, earning_type='fixed', quantity=NULL, rate=NULL, vehicle_no=?
+                """UPDATE supplier_expenses SET expense_date=?, amount=?, category='Parts', description=?, earning_type=?, quantity=NULL, rate=NULL, vehicle_no=?, is_tax_bill=?
                    WHERE id=?""",
-                (bill_date, net_amount, bill_desc, vehicle_plate, bill["source_expense_id"]),
+                (bill_date, exp_amount, bill_desc, exp_earning_type, vehicle_plate, 1 if is_tax_bill else 0, bill["source_expense_id"]),
             )
         db.commit()
         flash(f"Bill #{bill_no} updated.", "success")
@@ -3523,6 +3539,8 @@ def supplier_bills_batch():
         bill_desc = f"Bill {bill_no} — {vehicle_plate}"
         if description:
             bill_desc += f" ({description})"
+        exp_earning_type = 'invoice' if is_tax else 'fixed'
+        exp_amount = total_amount if is_tax else net_amount
         if db.backend == "postgres":
             br = db.execute(
                 """INSERT INTO supplier_bills (supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, vat_percentage, vat_amount, discount, net_amount)
@@ -3531,9 +3549,9 @@ def supplier_bills_batch():
             )
             bill_id = br.fetchone()[0]
             er = db.execute(
-                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
-                   VALUES (?,?,?,'Parts',?,'fixed',NULL,NULL,?,'approved') RETURNING id""",
-                (supplier["id"], bill_date, net_amount, bill_desc, vehicle_plate),
+                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status, is_tax_bill)
+                   VALUES (?,?,?,'Parts',?,?,NULL,NULL,?,'approved',?) RETURNING id""",
+                (supplier["id"], bill_date, exp_amount, bill_desc, exp_earning_type, vehicle_plate, 1 if is_tax else 0),
             )
             expense_id = er.fetchone()[0]
         else:
@@ -3544,9 +3562,9 @@ def supplier_bills_batch():
             )
             bill_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
             db.execute(
-                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
-                   VALUES (?,?,?,'Parts',?,'fixed',NULL,NULL,?,'approved')""",
-                (supplier["id"], bill_date, net_amount, bill_desc, vehicle_plate),
+                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status, is_tax_bill)
+                   VALUES (?,?,?,'Parts',?,?,NULL,NULL,?,'approved',?)""",
+                (supplier["id"], bill_date, exp_amount, bill_desc, exp_earning_type, vehicle_plate, 1 if is_tax else 0),
             )
             expense_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
         db.execute("UPDATE supplier_bills SET source_expense_id = ? WHERE id = ?", (expense_id, bill_id))

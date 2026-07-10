@@ -186,9 +186,10 @@
   }) %}
 {% endfor %}
 {% for e in expenses %}
-  {% set lbl = e.earning_type|title if e.earning_type else 'Fixed' %}
+  {% set is_inv = e.get('is_tax_bill') and e.earning_type == 'invoice' %}
+  {% set lbl = 'Invoice' if is_inv else (e.earning_type|title if e.earning_type else 'Fixed') %}
   {% set detail = e.description or e.category %}
-  {% if e.quantity and e.rate %}{% set detail = detail ~ ' (' ~ e.quantity ~ ' × ' ~ ("%.0f"|format(e.rate)) ~ ')' %}{% endif %}
+  {% if e.quantity and e.rate and not is_inv %}{% set detail = detail ~ ' (' ~ e.quantity ~ ' × ' ~ ("%.0f"|format(e.rate)) ~ ')' %}{% endif %}
   {% set _ = all_earnings.append({
     'date': e.expense_date, 'ref': lbl, 'type': lbl,
     'detail': detail, 'vehicle': e.vehicle_no or '-',
