@@ -395,6 +395,25 @@ def _ensure_tables():
             except Exception:
                 pass
 
+    # Fix existing tax bills: update linked expenses to show as Invoice with inc-VAT amount
+    try:
+        db.execute(
+            """UPDATE supplier_expenses
+               SET earning_type='invoice', is_tax_bill=1, amount=(
+                   SELECT b.total_amount FROM supplier_bills b WHERE b.source_expense_id=supplier_expenses.id
+               )
+               WHERE earning_type='fixed' AND id IN (
+                   SELECT source_expense_id FROM supplier_bills
+                   WHERE source_expense_id IS NOT NULL AND COALESCE(vat_amount,0) > 0
+               )"""
+        )
+        db.commit()
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
     for col, dtype in [("fund_source", "TEXT DEFAULT 'cash_bank'"), ("bank_name", "TEXT"), ("cheque_drawer", "TEXT")]:
         try:
             db.execute(f"ALTER TABLE supplier_loans ADD COLUMN {col} {dtype}")
