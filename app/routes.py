@@ -17515,12 +17515,24 @@ def _owner_fund_totals(db):
     incoming = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM owner_fund_entries WHERE transaction_type = 'IN'").fetchone()[0])
     outgoing_owner_fund = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM owner_fund_entries WHERE transaction_type = 'OUT'").fetchone()[0])
     outgoing_transactions = float(
-        db.execute("SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE source = 'Owner Fund'").fetchone()[0]
+        db.execute("""
+            SELECT COALESCE(SUM(amount), 0) FROM driver_transactions
+            WHERE source = 'Owner Fund'
+              AND NOT EXISTS (
+                  SELECT 1 FROM owner_fund_entries
+                  WHERE source_table = 'driver_transactions' AND source_id = driver_transactions.id
+              )
+        """).fetchone()[0]
     )
     outgoing_salary = float(
-        db.execute(
-            "SELECT COALESCE(SUM(amount), 0) FROM salary_payments WHERE payment_source = 'Owner Fund'"
-        ).fetchone()[0]
+        db.execute("""
+            SELECT COALESCE(SUM(amount), 0) FROM salary_payments
+            WHERE payment_source = 'Owner Fund'
+              AND NOT EXISTS (
+                  SELECT 1 FROM owner_fund_entries
+                  WHERE source_table = 'salary_payments' AND source_id = salary_payments.id
+              )
+        """).fetchone()[0]
     )
     outgoing_legacy_salary = float(
         db.execute(
@@ -17529,18 +17541,26 @@ def _owner_fund_totals(db):
             FROM salary_slips
             WHERE salary_slips.payment_source = 'Owner Fund'
               AND NOT EXISTS (
-                  SELECT 1
-                  FROM salary_payments
+                  SELECT 1 FROM salary_payments
                   WHERE salary_payments.driver_id = salary_slips.driver_id
                     AND salary_payments.salary_month = salary_slips.salary_month
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM owner_fund_entries
+                  WHERE source_table = 'salary_slips' AND source_id = salary_slips.id
               )
             """
         ).fetchone()[0]
     )
     outgoing_field_staff = float(
-        db.execute(
-            "SELECT COALESCE(SUM(amount), 0) FROM maintenance_staff_advances WHERE funding_source = 'Owner Fund'"
-        ).fetchone()[0]
+        db.execute("""
+            SELECT COALESCE(SUM(amount), 0) FROM maintenance_staff_advances
+            WHERE funding_source = 'Owner Fund'
+              AND NOT EXISTS (
+                  SELECT 1 FROM owner_fund_entries
+                  WHERE source_table = 'staff_advances' AND source_id = maintenance_staff_advances.id
+              )
+        """).fetchone()[0]
     )
     outgoing = outgoing_owner_fund + outgoing_transactions + outgoing_salary + outgoing_legacy_salary + outgoing_field_staff
     return incoming, outgoing, incoming - outgoing
@@ -17610,6 +17630,10 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         FROM driver_transactions
         LEFT JOIN drivers ON drivers.driver_id = driver_transactions.driver_id
         WHERE source = 'Owner Fund'
+          AND NOT EXISTS (
+              SELECT 1 FROM owner_fund_entries
+              WHERE source_table = 'driver_transactions' AND source_id = driver_transactions.id
+          )
         ORDER BY driver_transactions.entry_date ASC, driver_transactions.id ASC
         """
     ).fetchall():
@@ -17633,6 +17657,10 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         FROM salary_payments
         LEFT JOIN drivers ON drivers.driver_id = salary_payments.driver_id
         WHERE salary_payments.payment_source = 'Owner Fund'
+          AND NOT EXISTS (
+              SELECT 1 FROM owner_fund_entries
+              WHERE source_table = 'salary_payments' AND source_id = salary_payments.id
+          )
         ORDER BY salary_payments.payment_date ASC, salary_payments.id ASC
         """
     ).fetchall():
@@ -17662,6 +17690,10 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
               FROM salary_payments
               WHERE salary_payments.driver_id = salary_slips.driver_id
                 AND salary_payments.salary_month = salary_slips.salary_month
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM owner_fund_entries
+              WHERE source_table = 'salary_slips' AND source_id = salary_slips.id
           )
         ORDER BY salary_slips.generated_at ASC, salary_slips.id ASC
         """
@@ -17693,6 +17725,10 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         LEFT JOIN maintenance_staff staff ON staff.staff_code = adv.staff_code
         LEFT JOIN technicians tech ON tech.technician_code = adv.staff_code
         WHERE adv.funding_source = 'Owner Fund'
+          AND NOT EXISTS (
+              SELECT 1 FROM owner_fund_entries
+              WHERE source_table = 'staff_advances' AND source_id = adv.id
+          )
         ORDER BY adv.entry_date ASC, adv.id ASC
         """
     ).fetchall():
