@@ -313,18 +313,10 @@ function loadSoData() {
             document.querySelectorAll('#tableBody tr[id^="eqrow_"], #tableBody tr[id^="descrow_"]').forEach(function(r) { r.remove(); });
             // Store items globally for "Add" buttons
             window._soItems = data.items;
-            // Build combined description from ALL items
-            var lines = data.items.map(function(it, idx) {
-                var parts = [];
-                if (it.vehicle_no) parts.push(it.vehicle_no);
-                if (it.description) parts.push(it.description);
-                var detail = (idx + 1) + '. ' + parts.join(' - ');
-                if (it.quantity && it.unit_type) detail += ' (' + it.quantity + ' ' + it.unit_type + ')';
-                return detail;
-            });
-            var combinedBase = lines.join('\n');
             var first = data.items[0];
             document.getElementById('monthlyRate').value = first.rate || 0;
+            // Clear main description — user adds lines manually via + Add
+            document.getElementById('mainDesc').value = '';
             // Populate SO items list with "Add" buttons
             var listDiv = document.getElementById('soItemsList');
             var container = document.getElementById('soItemsContainer');
@@ -351,15 +343,6 @@ function loadSoData() {
                 container.appendChild(row);
             });
             listDiv.style.display = 'block';
-            // Update main desc with month label
-            function updateDesc() {
-                var ml = document.getElementById('monthLabel').value;
-                document.getElementById('mainDesc').value = combinedBase + '\n\n in the month of ' + ml;
-            }
-            // Replace previous listener via data attr
-            document.getElementById('monthLabel')._soDescUpdater = updateDesc;
-            document.getElementById('monthLabel').oninput = function() { this._soDescUpdater(); };
-            updateDesc();
             calcAll();
         })
         .catch(function(e) { console.error('loadSoData error:', e); });
