@@ -3,7 +3,7 @@ from datetime import date
 from flask import request
 
 
-EMPLOYEE_TYPES = ["Driver", "Staff", "Admin", "Technician", "Supervisor", "Manager"]
+EMPLOYEE_TYPES = ["Driver", "Staff", "Admin", "Technician", "Supervisor", "Manager", "Crane Operator"]
 DEPARTMENTS = ["Transport", "Logistics", "Admin", "Accounts", "HR", "Maintenance", "Management", "Sales", "Other"]
 DESIGNATIONS = [
     "Driver", "Senior Driver", "Supervisor", "Coordinator", "Manager", "Accountant",

@@ -29,8 +29,8 @@
             <div class="profile-mini-stats">
                 <span><strong>Salary:</strong> <span class="salary-amount">AED {{ "%.0f"|format(employee.basic_salary or 0) }}</span></span>
                 <span><strong>Phone:</strong> {{ employee.phone_number or '-' }}</span>
-                {% if employee.employee_type == 'Driver' %}
-                <span><strong>Vehicle:</strong> {% if current_vehicle %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ current_vehicle.vehicle_id }}</span>{% else %}<span style="color:var(--muted)">—</span>{% endif %}</span>
+                {% if employee.employee_type in ('Driver', 'Crane Operator') %}
+                <span><strong>Vehicle / Crane:</strong> {% if current_vehicle %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ current_vehicle.vehicle_id }}</span>{% else %}<span style="color:var(--muted)">—</span>{% endif %}</span>
                 {% endif %}
             </div>
         </div>
@@ -46,8 +46,8 @@
         </div>
     </div>
 
-    {# ─── Vehicle Assignment History (Drivers only) ─── #}
-    {% if employee.employee_type == 'Driver' %}
+    {# ─── Vehicle Assignment History (Drivers / Crane Operators) ─── #}
+    {% if employee.employee_type in ('Driver', 'Crane Operator') %}
     {% set veh_history = employee_vehicle_history(employee.employee_id) %}
     {% if veh_history and veh_history|length > 1 %}
     <div style="padding:8px 16px;background:#f8fafc;border-radius:8px;margin:8px 0;border:1px solid #eef2f6;font-size:0.78rem">

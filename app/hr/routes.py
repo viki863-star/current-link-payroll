@@ -617,7 +617,7 @@ def employee_transactions(employee_id):
 
     # Fetch current vehicle directly (same logic as edit page)
     current_vehicle = None
-    if employee.get("employee_type") == "Driver":
+    if employee.get("employee_type") in ("Driver", "Crane Operator"):
         veh_row = db.execute(
             "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model "
             "FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id "
@@ -1567,7 +1567,7 @@ def employee_edit(employee_id):
             except Exception:
                 pass  # drivers table may not exist
 
-            if values.get("employee_type") == "Driver":
+            if values.get("employee_type") in ("Driver", "Crane Operator"):
                 if values["vehicle_id"]:
                     db.execute(
                         "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",

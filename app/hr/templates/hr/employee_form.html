@@ -46,8 +46,8 @@
 
             <div class="form-section">
                 <h3>Employment Details</h3>
-                <div class="form-group" id="vehicleGroup" style="display:none">
-                    <label>Assigned Vehicle (for Drivers)</label>
+                    <div class="form-group" id="vehicleGroup" style="display:none">
+                        <label>Assigned Vehicle / Crane</label>
                     <select name="vehicle_id" class="form-control">
                         <option value="">No vehicle</option>
                         {% for v in vehicles %}
@@ -217,7 +217,8 @@
     var vehGroup = document.getElementById('vehicleGroup');
     function toggleVehicle() {
         if (typeSel && vehGroup) {
-            vehGroup.style.display = (typeSel.value === 'Driver') ? 'block' : 'none';
+            var showFor = ['Driver', 'Crane Operator'];
+            vehGroup.style.display = showFor.includes(typeSel.value) ? 'block' : 'none';
         }
     }
     if (typeSel) {
