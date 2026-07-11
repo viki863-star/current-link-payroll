@@ -209,15 +209,16 @@ function addSoItem(idx) {
     rm.innerHTML = '<button type="button" class="btn-icon" onclick="removeRow(this)">&times;</button>';
     tbody.appendChild(dtr);
     // Equipment row underneath (vehicle/plant/period/hours)
-    addRow(it.vehicle_no || '', '', 0, '', '');
+    addRow(it.vehicle_no || '', '', 0, '', '', it.unit_type || 'Month');
     renumberAll();
     calcAll();
 }
 
-function addRow(plant, reg, hours, pf, pt) {
+function addRow(plant, reg, hours, pf, pt, unit) {
     rowId++;
     const tbody = document.getElementById('tableBody');
     if (pf === undefined) { const dp = getDefPeriod(); pf = dp.from; pt = dp.to; }
+    unit = unit || 'Month';
     const tr = document.createElement('tr');
     tr.id = 'eqrow_' + rowId;
     tr.innerHTML = '<td style="text-align:center;font-weight:600;color:#64748b" class="rn">0</td>' +
@@ -232,7 +233,7 @@ function addRow(plant, reg, hours, pf, pt) {
         '<input type="hidden" name="eq_qyt[]" value="0">' +
         '</div></td>' +
         '<td><span class="eq_disp eq_qty" style="color:#0f172a">0.000</span></td>' +
-        '<td style="text-align:center;color:#475569;white-space:nowrap">Month</td>' +
+        '<td style="text-align:center;color:#475569;white-space:nowrap">' + unit + '<input type="hidden" name="eq_unit[]" value="' + unit + '"></td>' +
         '<td><span class="eq_disp eq_uprice" style="color:#0f172a">0.00</span></td>' +
         '<td><span class="eq_disp eq_taxable" style="color:#0f172a">0.00</span></td>' +
         '<td style="text-align:center;color:#475569;font-size:0.72rem">5%</td>' +
@@ -368,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if edit and nmdc_equip_items %}
     {% for it in nmdc_equip_items %}
     {% set ep = nmdc_eq_periods[loop.index0] if loop.index0 < nmdc_eq_periods|length else {} %}
-    addRow({{ it.vehicle_no|tojson if it.vehicle_no else '' }}, {{ it.description|tojson }}, {{ it.capacity_gallon|float if it.capacity_gallon else 0 }}, {{ ep.get('from', '')|tojson }}, {{ ep.get('to', '')|tojson }});
+    addRow({{ it.vehicle_no|tojson if it.vehicle_no else '' }}, {{ it.description|tojson }}, {{ it.capacity_gallon|float if it.capacity_gallon else 0 }}, {{ ep.get('from', '')|tojson }}, {{ ep.get('to', '')|tojson }}, {{ it.unit|tojson if it.unit else 'Month' }});
     {% endfor %}
     renumberAll();
     calcAll();
