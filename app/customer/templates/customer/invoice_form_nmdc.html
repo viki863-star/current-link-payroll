@@ -102,7 +102,7 @@
         <div style="margin-bottom:10px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
                 <h4 style="margin:0;font-size:0.78rem;font-weight:600">Invoice Items</h4>
-                <button type="button" class="btn btn-outline btn-sm" onclick="addRow()" style="padding:3px 10px;font-size:0.72rem">+ Add</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="addRow();renumberAll();calcAll()" style="padding:3px 10px;font-size:0.72rem">+ Add</button>
             </div>
             <table class="inv-table" id="mainTable">
                 <thead>
@@ -175,18 +175,52 @@ function addSoItem(idx) {
     var items = window._soItems || [];
     var it = items[idx];
     if (!it) return;
-    addRow(it.vehicle_no || '', it.description || '', 0, '', '');
+    rowId++;
+    var tbody = document.getElementById('tableBody');
+    // Description row — same column layout as main desc row
+    var dtr = document.createElement('tr');
+    dtr.id = 'descrow_' + rowId;
+    dtr.style.background = '#fafcff';
+    // Build label safely
+    var parts = [];
+    if (it.vehicle_no) parts.push(it.vehicle_no);
+    if (it.description) parts.push(it.description);
+    var label = parts.join(' - ');
+    if (it.quantity && it.unit_type) label += ' (' + it.quantity + ' ' + it.unit_type + ')';
+    // Number cell
+    var c0 = dtr.insertCell();
+    c0.className = 'rn';
+    c0.style.cssText = 'text-align:center;font-weight:600;color:#64748b';
+    c0.textContent = '0';
+    // Description cell
+    var c1 = dtr.insertCell();
+    c1.style.cssText = 'font-weight:600;color:#0f172a;font-size:0.78rem;padding:6px 5px;line-height:1.4';
+    c1.textContent = label;
+    // Dashed cells (qty, unit, rate, taxable, vat%, vat, total)
+    var dashStyles = ['text-align:right', 'text-align:center', 'text-align:right', 'text-align:right', 'text-align:center', 'text-align:right', 'text-align:right'];
+    for (var ci = 0; ci < 7; ci++) {
+        var dc = dtr.insertCell();
+        dc.style.cssText = dashStyles[ci] + ';color:#94a3b8';
+        dc.textContent = '-';
+    }
+    // Remove button
+    var rm = dtr.insertCell();
+    rm.style.textAlign = 'center';
+    rm.innerHTML = '<button type="button" class="btn-icon" onclick="removeRow(this)">&times;</button>';
+    tbody.appendChild(dtr);
+    // Equipment row underneath (vehicle/plant/period/hours)
+    addRow(it.vehicle_no || '', '', 0, '', '');
+    renumberAll();
     calcAll();
 }
 
 function addRow(plant, reg, hours, pf, pt) {
     rowId++;
     const tbody = document.getElementById('tableBody');
-    const idx = document.querySelectorAll('#tableBody tr[id^="eqrow_"]').length + 2;
     if (pf === undefined) { const dp = getDefPeriod(); pf = dp.from; pt = dp.to; }
     const tr = document.createElement('tr');
     tr.id = 'eqrow_' + rowId;
-    tr.innerHTML = '<td style="text-align:center;font-weight:600;color:#64748b">' + idx + '</td>' +
+    tr.innerHTML = '<td style="text-align:center;font-weight:600;color:#64748b" class="rn">0</td>' +
         '<td><div style="font-size:0.65rem;color:#475569">Plant No: <input type="text" name="eq_plant[]" value="' + (plant||'') + '" style="width:calc(100% - 60px);padding:2px 4px;border:1px solid #e2e8f0;border-radius:3px;font-size:0.65rem"></div>' +
         '<div style="font-size:0.65rem;color:#475569;margin-top:2px">Reg# <input type="text" name="eq_reg[]" value="' + (reg||'') + '" style="width:calc(100% - 56px);padding:2px 4px;border:1px solid #e2e8f0;border-radius:3px;font-size:0.65rem"></div>' +
         '<div style="display:flex;gap:6px;margin-top:3px;font-size:0.6rem;color:#94a3b8">' +
@@ -209,16 +243,22 @@ function addRow(plant, reg, hours, pf, pt) {
 }
 
 function removeRow(btn) {
-    if (document.querySelectorAll('#tableBody tr[id^="eqrow_"]').length <= 1) return;
-    btn.closest('tr').remove();
-    renumber();
+    var tr = btn.closest('tr');
+    var isDesc = tr.id && tr.id.indexOf('descrow_') === 0;
+    var eqCount = document.querySelectorAll('#tableBody tr[id^="eqrow_"]').length;
+    // If last equipment row and no desc rows, keep at least 1 eq row
+    if (!isDesc && eqCount <= 1 && document.querySelectorAll('#tableBody tr[id^="descrow_"]').length === 0) return;
+    tr.remove();
+    renumberAll();
     calcAll();
 }
 
-function renumber() {
-    const rows = document.querySelectorAll('#tableBody tr[id^="eqrow_"]');
+function renumberAll() {
+    // Skip main desc row (id="row_desc"), number remaining rows 2, 3, ...
+    var rows = document.querySelectorAll('#tableBody tr:not([id="row_desc"])');
     rows.forEach(function(r, i) {
-        r.cells[0].textContent = i + 2;
+        var cell = r.querySelector('.rn');
+        if (cell) cell.textContent = i + 2;
     });
 }
 
@@ -268,8 +308,8 @@ function loadSoData() {
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data || !data.items || data.items.length === 0) return;
-            // Clear existing equipment rows
-            document.querySelectorAll('#tableBody tr[id^="eqrow_"]').forEach(function(r) { r.remove(); });
+            // Clear existing rows from previous SO selection
+            document.querySelectorAll('#tableBody tr[id^="eqrow_"], #tableBody tr[id^="descrow_"]').forEach(function(r) { r.remove(); });
             // Store items globally for "Add" buttons
             window._soItems = data.items;
             // Build combined description from ALL items
@@ -330,6 +370,7 @@ document.addEventListener('DOMContentLoaded', function() {
     {% set ep = nmdc_eq_periods[loop.index0] if loop.index0 < nmdc_eq_periods|length else {} %}
     addRow({{ it.vehicle_no|tojson if it.vehicle_no else '' }}, {{ it.description|tojson }}, {{ it.capacity_gallon|float if it.capacity_gallon else 0 }}, {{ ep.get('from', '')|tojson }}, {{ ep.get('to', '')|tojson }});
     {% endfor %}
+    renumberAll();
     calcAll();
     {% endif %}
     var sel = document.getElementById('soSelect');
