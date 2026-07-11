@@ -268,7 +268,9 @@ function calcRow(el) {
     var row = el.closest('tr');
     var hours = parseFloat(row.querySelector('[name="eq_hours[]"]').value) || 0;
     var rate = parseFloat(document.getElementById('monthlyRate').value) || 0;
-    var qyt = hours / convHours;
+    var unitEl = row.querySelector('[name="eq_unit[]"]');
+    var unit = unitEl ? unitEl.value : 'month';
+    var qyt = unit === 'month' ? hours / convHours : hours;
     var taxable = qyt * rate;
     var vatPct = parseFloat(document.getElementById('vatPercent').value) || 5;
     var vatAmt = taxable * vatPct / 100;
@@ -287,7 +289,9 @@ function calcAll() {
     var sub = 0;
     document.querySelectorAll('#tableBody tr[id^="eqrow_"]').forEach(function(r) {
         var h = parseFloat(r.querySelector('[name="eq_hours[]"]').value) || 0;
-        sub += (h / convHours) * rate;
+        var ue = r.querySelector('[name="eq_unit[]"]');
+        var u = ue ? ue.value : 'month';
+        sub += (u === 'month' ? h / convHours : h) * rate;
         calcRow(r.querySelector('[name="eq_hours[]"]'));
     });
     var vat = sub * vatPct / 100;

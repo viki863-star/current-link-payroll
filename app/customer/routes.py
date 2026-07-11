@@ -433,7 +433,7 @@ def customer_invoice_add(cid):
                     eq_pt = eq_pt_list[i].strip() if i < len(eq_pt_list) else ""
                     unit = eq_units[i].strip() if i < len(eq_units) and eq_units[i].strip() else "month"
                     if hours > 0:
-                        qyt = round(hours / 260, 3)
+                        qyt = round(hours / 260 if unit == "month" else hours, 3)
                         amt = round(qyt * nmdc_monthly_rate, 2)
                         items.append({"desc": reg, "qty": qyt, "rate": nmdc_monthly_rate, "amt": amt, "unit": unit, "vehicle": plant, "hours": hours})
                         sub_total += amt
@@ -605,7 +605,7 @@ def customer_invoice_edit(cid, iid):
                     eq_pt = eq_pt_list[i].strip() if i < len(eq_pt_list) else ""
                     unit = eq_units[i].strip() if i < len(eq_units) and eq_units[i].strip() else "month"
                     if hours > 0:
-                        qyt = round(hours / 260, 3)
+                        qyt = round(hours / 260 if unit == "month" else hours, 3)
                         amt = round(qyt * nmdc_monthly_rate, 2)
                         new_items.append({"desc": reg, "qty": qyt, "rate": nmdc_monthly_rate, "amt": amt, "unit": unit, "vehicle": plant, "hours": hours})
                         sub_total += amt
