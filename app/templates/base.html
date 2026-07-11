@@ -19,6 +19,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260709a') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='design-v2.css', v='20260711a') }}">
     {% set tc = company.theme_color if company and company.theme_color else '#37474f' %}
     <style>:root{--primary:{{ tc }};--primary-light:{{ tc }}22;--primary-dark:{{ tc }};}</style>
     <style>
