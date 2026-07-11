@@ -318,9 +318,20 @@ function loadSoData() {
             window._soItems = data.items;
             var first = data.items[0];
             document.getElementById('monthlyRate').value = first.rate || 0;
-            document.getElementById('mainDesc').value = '';
-            // Auto-add ALL items as desc + equipment rows
-            data.items.forEach(function(it, idx) {
+            // First SO item → main description textarea
+            var firstParts = [];
+            if (first.vehicle_no) firstParts.push(first.vehicle_no);
+            if (first.description) firstParts.push(first.description);
+            var firstLabel = firstParts.join(' - ');
+            if (first.quantity && first.unit_type) firstLabel += ' (' + first.quantity + ' ' + first.unit_type + ')';
+            var ml = document.getElementById('monthLabel').value;
+            document.getElementById('mainDesc').value = firstLabel + '\n\n in the month of ' + ml;
+            document.getElementById('monthLabel').oninput = function() {
+                document.getElementById('mainDesc').value = firstLabel + '\n\n in the month of ' + this.value;
+            };
+            // Auto-add items 2+ as desc + equipment rows
+            for (var ai = 1; ai < data.items.length; ai++) {
+                var it = data.items[ai];
                 rowId++;
                 var tbody = document.getElementById('tableBody');
                 // Description row
@@ -350,10 +361,9 @@ function loadSoData() {
                 tbody.appendChild(dtr);
                 // Equipment row underneath
                 addRow(it.vehicle_no || '', it.description || '', 0, '', '', it.unit_type || 'Month');
-            });
+            }
             renumberAll();
             calcAll();
-            // Hide SO items list if visible
             document.getElementById('soItemsList').style.display = 'none';
         })
         .catch(function(e) { console.error('loadSoData error:', e); });
