@@ -86,11 +86,13 @@ def sync_drivers_to_employees(db):
         created = d.get("created_at") if "created_at" in columns else None
 
         existing = db.execute(
-            "SELECT id FROM employees WHERE employee_id = ?",
+            "SELECT id, join_date FROM employees WHERE employee_id = ?",
             (emp_id,),
         ).fetchone()
 
         if existing:
+            if not duty_start:
+                duty_start = existing["join_date"] if "join_date" in existing else date.today().isoformat()
             db.execute(
                 """
                 UPDATE employees SET
