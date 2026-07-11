@@ -8946,6 +8946,10 @@ def register_routes(app: Flask) -> None:
         ).fetchone()
         if existing_payment is not None:
             db.execute(
+                "DELETE FROM owner_fund_entries WHERE source_table='salary_payments' AND source_id=?",
+                (slip_id,),
+            )
+            db.execute(
                 "DELETE FROM salary_payments WHERE id = ? AND driver_id = ?",
                 (slip_id, driver_id),
             )
@@ -9226,6 +9230,10 @@ def register_routes(app: Flask) -> None:
         if driver is None:
             flash("Driver not found.", "error")
             return redirect(url_for("dashboard"))
+        slip_ids = db.execute("SELECT id FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (salary_id, driver_id)).fetchall()
+        for s in slip_ids:
+            db.execute("DELETE FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?", (s["id"],))
+        db.execute("DELETE FROM owner_fund_entries WHERE source_table='salary_payments' AND source_id IN (SELECT id FROM salary_payments WHERE salary_store_id = ? AND driver_id = ?)", (salary_id, driver_id))
         db.execute("DELETE FROM salary_store WHERE id = ? AND driver_id = ?", (salary_id, driver_id))
         db.execute("DELETE FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (salary_id, driver_id))
         db.execute("DELETE FROM salary_payments WHERE salary_store_id = ? AND driver_id = ?", (salary_id, driver_id))
@@ -9519,6 +9527,39 @@ def register_routes(app: Flask) -> None:
                                 payment_message = "Payment added"
                             else:
                                 payment_message = "Statement updated"
+
+                            # Auto-create/update owner_fund_entry when payment source is Owner Fund
+                            if values["payment_source"] == "Owner Fund":
+                                pay_id = existing_payment["id"] if existing_payment else None
+                                if not pay_id:
+                                    latest = db.execute(
+                                        "SELECT id FROM salary_payments WHERE driver_id=? AND salary_store_id=? ORDER BY id DESC LIMIT 1",
+                                        (driver_id, selected_salary["id"]),
+                                    ).fetchone()
+                                    if latest:
+                                        pay_id = latest["id"]
+                                if pay_id:
+                                    existing_of = db.execute(
+                                        "SELECT id FROM owner_fund_entries WHERE source_table='salary_payments' AND source_id=?",
+                                        (pay_id,),
+                                    ).fetchone()
+                                    if existing_of:
+                                        db.execute(
+                                            "UPDATE owner_fund_entries SET amount=?, owner_name=?, entry_date=?, details=? WHERE id=?",
+                                            (actual_paid_amount, values["paid_by"] or driver["full_name"],
+                                             values["payment_date"],
+                                             f"Salary Payment {selected_salary['salary_month']} — {driver['full_name']}",
+                                             existing_of["id"]),
+                                        )
+                                    else:
+                                        db.execute(
+                                            """INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details, source_table, source_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                            (values["paid_by"] or driver["full_name"], values["payment_date"],
+                                             actual_paid_amount, values["paid_by"] or driver["full_name"],
+                                             "Cash", "OUT",
+                                             f"Salary Payment {selected_salary['salary_month']} — {driver['full_name']}",
+                                             "salary_payments", pay_id),
+                                        )
 
                             payment_rows = _statement_payment_rows(
                                 db,

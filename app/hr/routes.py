@@ -868,6 +868,9 @@ def employee_salary_store_delete(employee_id, store_id):
             flash("Salary store not found.", "error")
         else:
             db.execute("DELETE FROM salary_payments WHERE salary_store_id = ? AND driver_id = ?", (store_id, eid))
+            slip_ids = db.execute("SELECT id FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (store_id, eid)).fetchall()
+            for s in slip_ids:
+                db.execute("DELETE FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?", (s["id"],))
             db.execute("DELETE FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (store_id, eid))
             db.execute("DELETE FROM salary_store WHERE id = ? AND driver_id = ?", (store_id, eid))
             _audit_log(db, "employee_salary_store_deleted", entity_type="salary_store", entity_id=f"{eid}:{row['salary_month']}")
@@ -1090,6 +1093,24 @@ def employee_salary_slip(employee_id):
                                             (slip_id, txn["id"], remaining),
                                         )
 
+                        # Auto-create owner_fund_entry when payment source is Owner Fund
+                        if values["payment_source"] == "Owner Fund":
+                            slip_row_check = db.execute("SELECT * FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
+                            existing_of = db.execute(
+                                "SELECT id FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?",
+                                (slip_id,),
+                            ).fetchone()
+                            if not existing_of:
+                                of_amount = float(salary_after_deduction)
+                                of_paid_by = values["paid_by"] or employee["full_name"]
+                                db.execute(
+                                    """INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details, source_table, source_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                    (of_paid_by, values["payment_date"], of_amount,
+                                     of_paid_by, "Cash", "OUT",
+                                     f"Salary Slip {selected_salary['salary_month']} — {employee['full_name']}",
+                                     "salary_slips", slip_id),
+                                )
+
                         slip_row = db.execute("SELECT * FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
                         driver_display = {"driver_id": eid, "full_name": employee["full_name"],
                                           "basic_salary": employee["basic_salary"] or 0,
@@ -1174,6 +1195,7 @@ def employee_salary_slip_delete(employee_id, store_id):
         flash("Salary slip not found.", "error")
     else:
         db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip["id"],))
+        db.execute("DELETE FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?", (slip["id"],))
         db.execute("DELETE FROM salary_slips WHERE id = ?", (slip["id"],))
         _audit_log(db, "employee_salary_slip_deleted", entity_type="salary_slip",
                     entity_id=f"{eid}:{slip['salary_month']}")
