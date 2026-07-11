@@ -14,7 +14,7 @@ from ..pdf_service import generate_fuel_report_pdf
 from . import fleet_bp
 
 
-VEHICLE_TYPES = ["Tanker", "Trailer", "Box Truck", "Flatbed", "Other"]
+VEHICLE_TYPES = ["Tanker", "Trailer", "Box Truck", "Flatbed", "Crane", "Other"]
 OWNERSHIP_TYPES = ["Standard", "Partnership"]
 MAINTENANCE_CATEGORIES = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
 
