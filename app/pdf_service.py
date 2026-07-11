@@ -2778,7 +2778,7 @@ def _draw_salary_footer(pdf: canvas.Canvas, driver, slip_payload, assets_dir: st
     pdf.line(sign_x + 22 * mm, sign_y + 14.6 * mm, sign_x + 100 * mm, sign_y + 14.6 * mm)
     pdf.setFillColor(MUTED)
     pdf.setFont("Helvetica", 6.5)
-    pdf.drawString(sign_x + 4 * mm, sign_y + 2.5 * mm, "System Generated — Salary Slip")
+    pdf.drawString(sign_x + 4 * mm, sign_y + 2.5 * mm, f"System Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}")
     _draw_paid_stamp(pdf, sign_x + 80 * mm, sign_y + 7.5 * mm)
 
     # ═══ DISCLAIMER ═══
