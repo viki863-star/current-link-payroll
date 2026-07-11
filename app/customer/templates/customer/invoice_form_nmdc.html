@@ -209,7 +209,7 @@ function addSoItem(idx) {
     rm.innerHTML = '<button type="button" class="btn-icon" onclick="removeRow(this)">&times;</button>';
     tbody.appendChild(dtr);
     // Equipment row underneath (vehicle/plant/period/hours)
-    addRow(it.vehicle_no || '', '', 0, '', '', it.unit_type || 'Month');
+    addRow(it.vehicle_no || '', it.description || '', 0, '', '', it.unit_type || 'Month');
     renumberAll();
     calcAll();
 }
