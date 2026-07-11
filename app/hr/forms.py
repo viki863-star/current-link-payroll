@@ -6,7 +6,7 @@ from flask import request
 EMPLOYEE_TYPES = ["Driver", "Staff", "Admin", "Technician", "Supervisor", "Manager", "Crane Operator"]
 DEPARTMENTS = ["Transport", "Logistics", "Admin", "Accounts", "HR", "Maintenance", "Management", "Sales", "Other"]
 DESIGNATIONS = [
-    "Driver", "Senior Driver", "Supervisor", "Coordinator", "Manager", "Accountant",
+    "Driver", "Senior Driver", "Crane Operator", "Supervisor", "Coordinator", "Manager", "Accountant",
     "Cashier", "Admin Staff", "Technician", "Mechanic", "Helper", "Cleaner", "Security", "Other"
 ]
 STATUS_OPTIONS = ["Active", "Inactive", "On Leave", "Terminated"]
