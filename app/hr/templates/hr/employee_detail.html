@@ -544,7 +544,7 @@
                             <a href="{{ url_for('hr.employee_deduction_statement', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" target="_blank" class="btn btn-outline" style="border-color:var(--primary);color:var(--primary)">
                                 Download Deduction Statement
                             </a>
-                            <a href="{{ url_for('hr.employee_salary_slip_delete', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" class="btn btn-outline" style="color:#d32f2f;margin-left:8px" onclick="return confirm('Delete salary slip for {{ slip_selected_salary.salary_month }}?')">&#128465; Delete</a>
+                            <a href="{{ url_for('hr.employee_salary_slip_delete', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" class="btn btn-outline" style="color:#d32f2f;margin-left:8px">&#128465; Delete</a>
                         </div>
                         {% endif %}
 

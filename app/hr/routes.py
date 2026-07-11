@@ -1176,7 +1176,7 @@ def employee_salary_slip(employee_id):
     )
 
 
-@hr_bp.route("/hr/employees/<employee_id>/salary-slip/<int:store_id>/delete", methods=["GET"])
+@hr_bp.route("/hr/employees/<employee_id>/salary-slip/<int:store_id>/delete", methods=["GET", "POST"])
 @_login_required("admin")
 def employee_salary_slip_delete(employee_id, store_id):
     _touch_admin_workspace("hr")
@@ -1193,14 +1193,35 @@ def employee_salary_slip_delete(employee_id, store_id):
     ).fetchone()
     if slip is None:
         flash("Salary slip not found.", "error")
+        return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
+
+    owner_fund_entry = db.execute(
+        "SELECT * FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?",
+        (slip["id"],),
+    ).fetchone()
+
+    if request.method == "GET" and owner_fund_entry:
+        return render_template(
+            "hr/delete_transaction_confirm.html",
+            employee_id=employee_id,
+            txn=dict(slip),
+            owner_fund_entry=dict(owner_fund_entry),
+            is_salary_slip=True,
+        )
+
+    delete_owner_fund = request.form.get("delete_owner_fund") == "yes"
+    db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip["id"],))
+    if delete_owner_fund and owner_fund_entry:
+        db.execute("DELETE FROM owner_fund_entries WHERE id=?", (owner_fund_entry["id"],))
+        of_detail = f" + owner fund #{owner_fund_entry['id']}"
     else:
-        db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip["id"],))
-        db.execute("DELETE FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?", (slip["id"],))
-        db.execute("DELETE FROM salary_slips WHERE id = ?", (slip["id"],))
-        _audit_log(db, "employee_salary_slip_deleted", entity_type="salary_slip",
-                    entity_id=f"{eid}:{slip['salary_month']}")
-        db.commit()
-        flash(f"Salary slip for {slip['salary_month']} deleted.", "success")
+        of_detail = ""
+    db.execute("DELETE FROM salary_slips WHERE id = ?", (slip["id"],))
+    _audit_log(db, "employee_salary_slip_deleted", entity_type="salary_slip",
+                entity_id=f"{eid}:{slip['salary_month']}",
+                details=f"store#{store_id}{of_detail}")
+    db.commit()
+    flash(f"Salary slip for {slip['salary_month']} deleted.{of_detail}", "success")
     return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
 
 

@@ -1,32 +1,48 @@
 {% extends "base.html" %}
-{% block title %}Delete Transaction — Confirm{% endblock %}
+{% block title %}Delete — Confirm{% endblock %}
 {% block body_class %}detail-body{% endblock %}
 {% block page_title %}Confirm Delete{% endblock %}
 
 {% block content %}
 <div class="profile-shell">
     <div class="card" style="max-width:600px;margin:2rem auto;padding:2rem">
-        <h2 style="margin-bottom:1.5rem;color:#d32f2f">Delete Transaction #{{ txn.id }}?</h2>
+        <h2 style="margin-bottom:1.5rem;color:#d32f2f">
+            {% if is_salary_slip %}
+            Delete Salary Slip ({{ txn.salary_month }})?
+            {% else %}
+            Delete Transaction #{{ txn.id }}?
+            {% endif %}
+        </h2>
 
         <table class="info-table" style="width:100%;margin-bottom:1.5rem">
+            {% if is_salary_slip %}
+            <tr><th>Month</th><td>{{ txn.salary_month }}</td></tr>
+            <tr><th>Net Payable</th><td><strong>AED {{ "%.0f"|format(txn.net_payable or 0) }}</strong></td></tr>
+            <tr><th>Source</th><td>{{ txn.payment_source or '-' }}</td></tr>
+            <tr><th>Paid By</th><td>{{ txn.paid_by or '-' }}</td></tr>
+            {% else %}
             <tr><th>Date</th><td>{{ txn.entry_date }}</td></tr>
             <tr><th>Type</th><td>{{ txn.txn_type }}</td></tr>
             <tr><th>Amount</th><td><strong>AED {{ "%.0f"|format(txn.amount or 0) }}</strong></td></tr>
             <tr><th>Source</th><td>{{ txn.source }}</td></tr>
             <tr><th>Given By</th><td>{{ txn.given_by or '-' }}</td></tr>
             <tr><th>Details</th><td>{{ txn.details }}</td></tr>
+            {% endif %}
         </table>
 
         {% if owner_fund_entry %}
         <div class="alert alert-warning" style="background:#fff3e0;border:1px solid #ffcc02;padding:1rem;border-radius:8px;margin-bottom:1.5rem">
-            <p style="margin:0;font-weight:600;color:#e65100">&#9888; This transaction is linked to Owner Fund entry #{{ owner_fund_entry.id }}
+            <p style="margin:0;font-weight:600;color:#e65100">&#9888; This entry is linked to Owner Fund #{{ owner_fund_entry.id }}
             (AED {{ "%.0f"|format(owner_fund_entry.amount or 0) }})</p>
-            <p style="margin:0.5rem 0 0;color:#555">Do you want to delete the linked Owner Fund entry too?</p>
+            <p style="margin:0.5rem 0 0;color:#555">Do you want to delete this from Owner Fund report too?</p>
         </div>
         {% endif %}
 
+        {% set delete_url = url_for('hr.employee_salary_slip_delete', employee_id=employee_id, store_id=txn.salary_store_id or txn.id) if is_salary_slip else url_for('hr.employee_transaction_delete', employee_id=employee_id, txn_id=txn.id) %}
+        {% set cancel_url = url_for('hr.employee_salary_slip', employee_id=employee_id, salary_store_id=txn.salary_store_id) if is_salary_slip else url_for('hr.employee_transactions', employee_id=employee_id) %}
+
         <div class="act-group" style="display:flex;gap:1rem;justify-content:center">
-            <form method="POST" action="{{ url_for('hr.employee_transaction_delete', employee_id=employee_id, txn_id=txn.id) }}" style="display:inline">
+            <form method="POST" action="{{ delete_url }}" style="display:inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="delete_owner_fund" value="yes">
                 <button type="submit" class="btn btn-danger" style="background:#d32f2f;color:#fff;padding:0.75rem 1.5rem;border:none;border-radius:6px;cursor:pointer">
@@ -34,7 +50,7 @@
                 </button>
             </form>
             {% if owner_fund_entry %}
-            <form method="POST" action="{{ url_for('hr.employee_transaction_delete', employee_id=employee_id, txn_id=txn.id) }}" style="display:inline">
+            <form method="POST" action="{{ delete_url }}" style="display:inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="delete_owner_fund" value="no">
                 <button type="submit" class="btn btn-outline" style="padding:0.75rem 1.5rem;border:1px solid #ccc;border-radius:6px;cursor:pointer;background:#fff">
@@ -42,7 +58,7 @@
                 </button>
             </form>
             {% endif %}
-            <a href="{{ url_for('hr.employee_transactions', employee_id=employee_id) }}" class="btn btn-outline" style="padding:0.75rem 1.5rem;border:1px solid #ccc;border-radius:6px;cursor:pointer;text-decoration:none;color:#333">Cancel</a>
+            <a href="{{ cancel_url }}" class="btn btn-outline" style="padding:0.75rem 1.5rem;border:1px solid #ccc;border-radius:6px;cursor:pointer;text-decoration:none;color:#333">Cancel</a>
         </div>
     </div>
 </div>
@@ -50,7 +66,7 @@
 <style>
 .info-table { border-collapse: collapse; }
 .info-table th, .info-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
-.info-table th { width: 120px; color: #666; font-weight: 500; }
+.info-table th { width: 140px; color: #666; font-weight: 500; }
 .act-group { margin-top: 1rem; }
 </style>
 {% endblock %}
