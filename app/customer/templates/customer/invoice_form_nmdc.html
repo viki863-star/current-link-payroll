@@ -254,19 +254,35 @@ function loadSoData() {
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data || !data.items || data.items.length === 0) return;
-            var first = data.items[0];
-            var rate = first.rate || 0;
-            var desc = first.description || '';
-            document.getElementById('monthlyRate').value = rate;
-            document.getElementById('mainDesc').value = desc + ' in the month of ';
-            calcAll();
-            var monthInput = document.getElementById('monthLabel');
-            monthInput.addEventListener('input', function listener() {
-                document.getElementById('mainDesc').value = desc + ' in the month of ' + this.value;
+            // Clear existing equipment rows
+            document.querySelectorAll('#tableBody tr[id^="eqrow_"]').forEach(function(r) { r.remove(); });
+            // Build combined description from ALL items
+            var lines = data.items.map(function(it, idx) {
+                var parts = [];
+                if (it.vehicle_no) parts.push(it.vehicle_no);
+                if (it.description) parts.push(it.description);
+                var detail = (idx + 1) + '. ' + parts.join(' - ');
+                if (it.quantity && it.unit_type) detail += ' (' + it.quantity + ' ' + it.unit_type + ')';
+                return detail;
             });
-            if (monthInput.value) {
-                document.getElementById('mainDesc').value = desc + ' in the month of ' + monthInput.value;
+            var combinedBase = lines.join('\n');
+            var first = data.items[0];
+            document.getElementById('monthlyRate').value = first.rate || 0;
+            // Add items 1+ as equipment rows
+            for (var i = 1; i < data.items.length; i++) {
+                var it = data.items[i];
+                addRow(it.vehicle_no || '', it.description || '', 0, '', '');
             }
+            // Update main desc with month label
+            function updateDesc() {
+                var ml = document.getElementById('monthLabel').value;
+                document.getElementById('mainDesc').value = combinedBase + '\n\n in the month of ' + ml;
+            }
+            // Replace previous listener via data attr
+            document.getElementById('monthLabel')._soDescUpdater = updateDesc;
+            document.getElementById('monthLabel').oninput = function() { this._soDescUpdater(); };
+            updateDesc();
+            calcAll();
         })
         .catch(function(e) { console.error('loadSoData error:', e); });
 }
