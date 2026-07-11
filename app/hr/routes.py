@@ -1527,6 +1527,10 @@ def employee_edit(employee_id):
         values = employee_form_data()
         values["employee_id"] = employee_id
 
+        import logging
+        logging.warning("EMPLOYEE EDIT POST: join_date from form='%s', all keys=%s", 
+                        request.form.get("join_date", ""), list(request.form.keys()))
+
         # Upload photo FIRST so it survives validation errors
         uploaded_photo = None
         try:
@@ -1563,6 +1567,8 @@ def employee_edit(employee_id):
                 values["termination_date"] = ""
 
             try:
+                import logging
+                logging.warning("EMPLOYEE EDIT UPDATE: join_date value='%s', employee_id='%s'", values["join_date"], employee_id)
                 db.execute(
                     """
                     UPDATE employees SET
