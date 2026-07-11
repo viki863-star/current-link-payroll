@@ -1601,6 +1601,8 @@ def employee_edit(employee_id):
                         employee_id,
                     ),
                 )
+                verify = db.execute("SELECT join_date FROM employees WHERE employee_id=?", (employee_id,)).fetchone()
+                logging.warning("EMPLOYEE EDIT VERIFY: after UPDATE join_date='%s'", verify["join_date"] if verify else "NOT FOUND")
             except Exception as exc:
                 flash(f"Database error updating employee: {exc}", "error")
                 db.rollback()
