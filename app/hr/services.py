@@ -179,7 +179,7 @@ def employee_search_filter(query, status_filter, department_filter, employee_typ
 def next_employee_id(db):
     # Get all existing employee IDs to find the maximum numeric suffix
     existing_ids = db.execute(
-        "SELECT employee_id FROM employees WHERE employee_id LIKE 'EMP-%'"
+        "SELECT employee_id FROM employees WHERE employee_id LIKE 'EMP-%%'"
     ).fetchall()
     
     if not existing_ids:
