@@ -850,11 +850,6 @@ def customer_invoice_pdf(cid, iid):
             gp.close()
             canvas.setFillColor(GOLD)
             canvas.drawPath(gp, fill=1, stroke=0)
-            # Gold accent line (diagonal, parallel to hypotenuse)
-            off = 2.5*mm * 0.7071
-            canvas.setStrokeColor(GOLD)
-            canvas.setLineWidth(1.0)
-            canvas.line(A4[0] - CS + off, A4[1] - off, A4[0] - off, A4[1] - CS + off)
             # ════════════════════════════════════════════
             #  FOOTER
             # ════════════════════════════════════════════
@@ -906,23 +901,23 @@ def customer_invoice_pdf(cid, iid):
                 pass
 
         ci_html = (
-            "<font size=32 color='#011a41'><b>CURRENT</b></font>"
-            "<font size=32 color='#f6a202'><b> LINK</b></font><br/>"
+            "<font size=36 color='#011a41'><b>CURRENT</b></font>"
+            "<font size=36 color='#f6a202'><b> LINK</b></font><br/>"
             "<font size=6 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>"
         )
-        co_p = Paragraph(ci_html, S("CO", fontSize=32, leading=32))
+        co_p = Paragraph(ci_html, S("CO", fontSize=36, leading=36))
 
         ci_title = Paragraph(
-            "<font size=32 color='#011a41'><b>CURRENT</b></font><font size=32 color='#f6a202'><b> LINK</b></font>",
-            S("ci_t", fontSize=32, fontName="Helvetica-Bold", leading=32))
+            "<font size=36 color='#011a41'><b>CURRENT</b></font><font size=36 color='#f6a202'><b> LINK</b></font>",
+            S("ci_t", fontSize=36, fontName="Helvetica-Bold", leading=36))
         ci_sub = Paragraph(
             "<font size=6 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>",
             S("ci_s", fontSize=6, leading=6))
         co_tbl = Table([[ci_title], [ci_sub]], colWidths=[W2])
         co_tbl.setStyle(TableStyle([
-            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4*mm), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 1*mm),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 2*mm),
             ("BOTTOMPADDING", (0, 1), (-1, 1), 0),
         ]))
 
