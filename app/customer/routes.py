@@ -1005,7 +1005,7 @@ def customer_invoice_pdf(cid, iid):
         desc_html = (it.get("description") or "—")
         if is_nmdc:
             parts = []
-            if desc_html != "—": parts.append(f"<b>Description:</b> {desc_html}")
+            if desc_html != "—": parts.append(f"{desc_html}")
             if it.get("vehicle_no"): parts.append(f"<b>Plant No:</b> {it['vehicle_no']}")
             plant_reg = " | ".join(parts)
             desc_html = plant_reg + eq_period_text + eq_hours
