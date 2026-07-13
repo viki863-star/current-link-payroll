@@ -909,9 +909,9 @@ def customer_invoice_pdf(cid, iid):
         ci_html = (
             f"<font size=32 color='#011a41'><b>CURRENT</b></font>"
             f"<font size=32 color='#f6a202'><b> LINK</b></font><br/>"
-            f"<font size=6.5 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>"
+            f"<font size=6 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>"
         )
-        co_p = Paragraph(ci_html, S("CO", fontSize=32, leading=34))
+        co_p = Paragraph(ci_html, S("CO", fontSize=32, leading=32))
 
         if _logo_tmp_files:
             try:
