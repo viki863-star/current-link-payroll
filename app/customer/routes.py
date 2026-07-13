@@ -1109,16 +1109,23 @@ def customer_invoice_pdf(cid, iid):
         if dp: w += f" and {dp:02d}/100"
         return "AED " + w + " Only"
 
+    lbw = 28*mm
     words_box = Table([
-        [Paragraph("<b>Amount in Words</b>", S("AW", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=9))],
-        [Paragraph(n2w(tot), S("AW2", fontSize=7.5, textColor=C4, leading=10))],
-    ], colWidths=[W*0.55])
+        [Paragraph("<b>Amount in Words</b>", S("AW", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=8)),
+         Paragraph("", S("_e", fontSize=1))],
+        [Paragraph(n2w(tot), S("AW2", fontSize=7, textColor=C4, leading=9)),
+         ""],
+    ], colWidths=[lbw, W*0.55 - lbw])
     words_box.setStyle(TableStyle([
         ("BACKGROUND",(0,0),(0,0),NAV),
-        ("BACKGROUND",(0,1),(0,1),WH),
+        ("BACKGROUND",(1,0),(-1,-1),WH),
         ("BOX",(0,0),(-1,-1),0.5,C3),
-        ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
-        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,1),(0,1),5),
+        ("TOPPADDING",(0,0),(1,0),3), ("BOTTOMPADDING",(0,0),(1,0),3),
+        ("LEFTPADDING",(0,0),(0,0),6), ("RIGHTPADDING",(0,0),(0,0),6),
+        ("TOPPADDING",(0,1),(-1,1),5), ("BOTTOMPADDING",(0,1),(-1,1),5),
+        ("LEFTPADDING",(0,1),(-1,1),6), ("RIGHTPADDING",(0,1),(-1,1),6),
+        ("SPAN",(0,1),(-1,1)),
+        ("VALIGN",(0,0),(0,0),"MIDDLE"),
     ]))
 
     # Totals box (right) — matching web: navy row for Total Due
