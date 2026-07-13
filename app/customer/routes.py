@@ -878,12 +878,13 @@ def customer_invoice_pdf(cid, iid):
             _logo_tmp_files.append(f.name)
         except: pass
 
-    # Company text: big "CURRENT LINK" in gold + small below
+    # Company text: "CURRENT" in navy + "LINK" in gold, big + sub below
     ci_html = (
-        f"<font size=22 color='#f6a202'><b>CURRENT LINK</b></font><br/>"
-        f"<font size=6 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>"
+        f"<font size=28 color='#011a41'><b>CURRENT</b></font>"
+        f"<font size=28 color='#f6a202'><b> LINK</b></font><br/>"
+        f"<font size=6.5 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>"
     )
-    co_p = Paragraph(ci_html, S("CO", fontSize=22, fontName="Helvetica-Bold", textColor=GOLD, leading=26))
+    co_p = Paragraph(ci_html, S("CO", fontSize=28, leading=32))
 
     logo_w = 0; logo_h = 0
     if _logo_tmp_files:
@@ -933,6 +934,10 @@ def customer_invoice_pdf(cid, iid):
     ht = Table([[lh, rh_full]], colWidths=[W*0.65, W*0.35])
     ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(ht)
+    # Gold separator line across full width
+    gold_line = Table([[""]], colWidths=[W], rowHeights=[0.8])
+    gold_line.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),GOLD),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(gold_line)
     els.append(Spacer(1, 5*mm))
 
     # ═════════ INFO CARDS (matching web: navy header, gold icon box, clean data) ═════════
