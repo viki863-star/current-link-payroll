@@ -949,18 +949,13 @@ def customer_invoice_pdf(cid, iid):
                 hi = Image(os.path.join(icon_base, header_icon), width=4*mm, height=4*mm)
             except:
                 hi = Paragraph("<b>?</b>", S("_ic", fontSize=5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=6))
-            hdr = Table([
-                [hi,
-                 Paragraph(f"<font color='white' size=6.5><b>{title}</b></font>", S("_ch", fontSize=6.5, leading=8))]
-            ], colWidths=[icon_w, cw - icon_w])
-            hdr.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (0, 0), GOLD), ("BACKGROUND", (1, 0), (1, 0), NAV),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                ("LEFTPADDING", (0, 0), (0, 0), 2), ("RIGHTPADDING", (0, 0), (0, 0), 2),
-                ("LEFTPADDING", (1, 0), (1, 0), 4), ("ALIGN", (0, 0), (0, 0), "CENTER"),
-            ]))
-            rows = [[hdr]]
+            rows = []
+            # Header row
+            rows.append([
+                hi,
+                Paragraph(f"<font color='white' size=6.5><b>{title}</b></font>", S("_ch", fontSize=6.5, leading=8)),
+                Paragraph("", S("_e", fontSize=1))
+            ])
             for i, (a, b) in enumerate(pairs):
                 ri = row_icons[i] if i < len(row_icons) else ""
                 try:
@@ -968,21 +963,20 @@ def customer_invoice_pdf(cid, iid):
                 except:
                     ri_img = Paragraph("", S("_e", fontSize=1))
                 rows.append([
-                    Table([
-                        [ri_img,
-                         Paragraph(
-                             f"<font color='#777' size=6><b>{a}</b></font>",
-                             S("_rl", fontSize=6, textColor=C5, leading=8)),
-                         Paragraph(
-                             f"<font color='#222' size=6><b>{b}</b></font>",
-                             S("_rv", fontSize=6, fontName="Helvetica-Bold", textColor=C4, leading=8))]
-                    ], colWidths=[3*mm, 14*mm, cw - 3*mm - 14*mm])
+                    ri_img,
+                    Paragraph(f"<font color='#777' size=5.5><b>{a}</b></font>", S("_rl", fontSize=5.5, textColor=C5, leading=7.5)),
+                    Paragraph(f"<font color='#222' size=5.5><b>{b}</b></font>", S("_rv", fontSize=5.5, fontName="Helvetica-Bold", textColor=C4, leading=7.5)),
                 ])
-            t = Table(rows, colWidths=[cw])
+            t = Table(rows, colWidths=[icon_w, 14*mm, cw - icon_w - 14*mm])
             t.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (0, 0), GOLD),
+                ("BACKGROUND", (1, 0), (2, 0), NAV),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 1), (-1, -1), 1), ("BOTTOMPADDING", (0, 1), (-1, -1), 1),
-                ("LEFTPADDING", (0, 1), (-1, -1), 0), ("RIGHTPADDING", (0, 1), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("LEFTPADDING", (0, 1), (-1, -1), 2), ("RIGHTPADDING", (0, 1), (-1, -1), 2),
+                ("LEFTPADDING", (1, 0), (2, 0), 4), ("RIGHTPADDING", (0, 0), (0, 0), 2),
+                ("ALIGN", (0, 0), (0, 0), "CENTER"),
+                ("ALIGN", (0, 1), (0, -1), "CENTER"),
                 ("BOX", (0, 0), (-1, -1), 0.4, C3),
             ]))
             return t
