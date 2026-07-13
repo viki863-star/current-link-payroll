@@ -966,7 +966,6 @@ def customer_invoice_pdf(cid, iid):
 
     nmdc_eq_periods = []
     if is_nmdc:
-        nmdc_main_desc = items[0]["description"] if items else ""
         try:
             import json
             nmdc_meta = json.loads(inv.get("notes", "{}"))
@@ -991,20 +990,7 @@ def customer_invoice_pdf(cid, iid):
         Paragraph("<b>Total Amount<br/>(Including VAT)</b>", S("_h7", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
     ]
     rws = [hdr]
-    if is_nmdc:
-        # Row 1: Main description
-        rws.append([
-            _pc("1", alignment=TA_CENTER, fontName="Helvetica-Bold"),
-            _pc(nmdc_main_desc or "—", fontSize=fs, leading=ldr*0.95),
-            _pc("—", alignment=TA_CENTER),
-            _pc("—", alignment=TA_CENTER),
-            _pc("—", alignment=TA_RIGHT),
-            _pc("—", alignment=TA_RIGHT),
-            _pc("—", alignment=TA_CENTER),
-            _pc("—", alignment=TA_RIGHT),
-            _pc("—", alignment=TA_RIGHT),
-        ])
-    table_items = items[1:] if is_nmdc else items
+    table_items = items if is_nmdc else items
     for idx, it in enumerate(table_items):
         vp_item = float(it.get("vat_percent_item") or inv["vat_percent"] or 5)
         amt = float(it.get("amount") or 0)
@@ -1019,12 +1005,12 @@ def customer_invoice_pdf(cid, iid):
         desc_html = (it.get("description") or "—")
         if is_nmdc:
             parts = []
-            if it.get("vehicle_no"): parts.append(f"<b>Plant No:</b> {it['vehicle_no']}")
             if desc_html != "—": parts.append(f"<b>Description:</b> {desc_html}")
+            if it.get("vehicle_no"): parts.append(f"<b>Plant No:</b> {it['vehicle_no']}")
             plant_reg = " | ".join(parts)
             desc_html = plant_reg + eq_period_text + eq_hours
         rws.append([
-            _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
+            _pc(str(idx + 1), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(desc_html, fontSize=fs, leading=ldr*0.9),
             _pc(f"{float(it.get('quantity') or 0):,.3f}", alignment=TA_CENTER),
             _pc((it.get('unit') or 'mo'), alignment=TA_CENTER),

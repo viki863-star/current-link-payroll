@@ -252,10 +252,10 @@ body { background:#eee; }
         {% set eq_p = eq_periods[loop.index0] if loop.index0 < eq_periods|length else {} %}
         <tr>
           <td class="td-center" style="font-weight:700;color:#001F54">{{ loop.index + 1 }}</td>
-          <td>
+            <td>
             <div style="font-weight:600;color:#222;line-height:1.4">
-              {% if it.vehicle_no %}Plant No: {{ it.vehicle_no }}<br>{% endif %}
               {% if it.description %}Description: {{ it.description }}{% endif %}
+              {% if it.vehicle_no %}<br>Plant No: {{ it.vehicle_no }}{% endif %}
             </div>
             <div class="eq-sub">
               {% if eq_p.get('from') or eq_p.get('to') %}
