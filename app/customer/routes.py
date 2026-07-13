@@ -832,29 +832,43 @@ def customer_invoice_pdf(cid, iid):
             #  TOP-RIGHT CORNER DESIGN (unified flowing)
             # ════════════════════════════════════════════
             CS = 30*mm
-            # Flowing navy shape: corner → curve along top → curve down right edge
+            TR = (A4[0], A4[1])
+            # Navy base triangle
             p = canvas.beginPath()
-            p.moveTo(A4[0], A4[1])
+            p.moveTo(*TR)
             p.lineTo(A4[0] - CS, A4[1])
-            p.curveTo(A4[0] - CS, A4[1] - CS*0.7, A4[0] - CS*0.3, A4[1] - CS, A4[0], A4[1] - CS)
+            p.lineTo(A4[0], A4[1] - CS)
             p.close()
             canvas.setFillColor(NAV)
             canvas.drawPath(p, fill=1, stroke=0)
-            # Flowing gold line inside the shape
-            d = 6*mm
-            gd = d * 0.7071
-            canvas.setStrokeColor(GOLD)
-            canvas.setLineWidth(0.8)
-            canvas.line(A4[0] - CS + gd, A4[1] - gd, A4[0] - gd, A4[1] - CS + gd)
-            # Gold tip accent at corner
-            gt = 4*mm
+            # Teal accent triangle (inner layer)
+            cs2 = 18*mm
+            p2 = canvas.beginPath()
+            p2.moveTo(*TR)
+            p2.lineTo(A4[0] - cs2, A4[1])
+            p2.lineTo(A4[0], A4[1] - cs2)
+            p2.close()
+            canvas.setFillColor(colors.HexColor("#0D5E5E"))
+            canvas.drawPath(p2, fill=1, stroke=0)
+            # Gold tip at corner
+            gt = 6*mm
             gp = canvas.beginPath()
-            gp.moveTo(A4[0], A4[1])
+            gp.moveTo(*TR)
             gp.lineTo(A4[0] - gt, A4[1])
             gp.lineTo(A4[0], A4[1] - gt)
             gp.close()
             canvas.setFillColor(GOLD)
             canvas.drawPath(gp, fill=1, stroke=0)
+            # Gold flowing accent line (diagonal)
+            off = 2*mm * 0.7071
+            canvas.setStrokeColor(GOLD)
+            canvas.setLineWidth(1.2)
+            canvas.line(A4[0] - CS + off, A4[1] - off, A4[0] - off, A4[1] - CS + off)
+            # White fine accent line just above the gold
+            woff = 1*mm * 0.7071
+            canvas.setStrokeColor(colors.white)
+            canvas.setLineWidth(0.5)
+            canvas.line(A4[0] - CS + off + woff, A4[1] - off - woff, A4[0] - off - woff, A4[1] - CS + off + woff)
             # ════════════════════════════════════════════
             #  FOOTER
             # ════════════════════════════════════════════
