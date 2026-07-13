@@ -23,8 +23,7 @@
 .eq-disp { display:block; text-align:right; font-weight:600; font-family:monospace; font-size:0.78rem; }
 </style>
 
-{% set nmdc_main_desc = items[0].description if edit and items else '' %}
-{% set nmdc_equip_items = items[1:] if edit and items|length > 1 else [] %}
+{% set nmdc_equip_items = items if edit and items else [] %}
 {% set nmdc_pf = nmdc_meta.get('period_from', '') if edit else '' %}
 {% set nmdc_pt = nmdc_meta.get('period_to', '') if edit else '' %}
 {% set nmdc_mr = nmdc_meta.get('monthly_rate', 0) if edit else 0 %}
@@ -120,18 +119,6 @@
                     </tr>
                 </thead>
                 <tbody id="tableBody">
-                    <tr id="row_desc">
-                        <td style="text-align:center;font-weight:600;color:#64748b">1</td>
-                        <td><textarea name="main_description" id="mainDesc" rows="2" placeholder="Description of Service..." style="width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.78rem;resize:vertical;box-sizing:border-box">{{ nmdc_main_desc }}</textarea></td>
-                        <td style="text-align:right;color:#94a3b8">-</td>
-                        <td style="text-align:center;color:#94a3b8">-</td>
-                        <td style="text-align:right;color:#94a3b8">-</td>
-                        <td style="text-align:right;color:#94a3b8">-</td>
-                        <td style="text-align:center;color:#94a3b8">-</td>
-                        <td style="text-align:right;color:#94a3b8">-</td>
-                        <td style="text-align:right;color:#94a3b8">-</td>
-                        <td></td>
-                    </tr>
                 </tbody>
             </table>
         </div>
@@ -243,7 +230,7 @@ function renumberAll() {
     var rows = document.querySelectorAll('#tableBody tr[id^="eqrow_"]');
     rows.forEach(function(r, i) {
         var cell = r.querySelector('.rn');
-        if (cell) cell.textContent = i + 2;
+        if (cell) cell.textContent = i + 1;
     });
 }
 
@@ -300,7 +287,6 @@ function loadSoData() {
     document.getElementById('soDateDisplay').value = soDate;
     // Clear existing rows
     document.querySelectorAll('#tableBody tr[id^="eqrow_"]').forEach(function(r) { r.remove(); });
-    document.getElementById('mainDesc').value = '';
     document.getElementById('monthLabel').value = '';
     window._soItems = [];
     _soItemIdx = 0;
