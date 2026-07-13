@@ -1212,6 +1212,31 @@ def customer_invoice_pdf(cid, iid):
         els.append(p)
         els.append(Spacer(1, 0.75*mm))
 
+    els.append(Spacer(1, 2*mm))
+    # Certificate logos
+    cert_files = [
+        ("app/static/IOS 14001.png", "ISO 14001"),
+        ("app/static/ICV-Certificate logo.png", "ICV"),
+        ("app/static/VMS Logo.png", "VMS"),
+    ]
+    cert_imgs = []
+    for cf, alt in cert_files:
+        try:
+            cert_imgs.append(Image(cf, height=5*mm, width=5*mm))
+        except:
+            cert_imgs.append(Paragraph(f"<b>{alt}</b>", S("_c", fontSize=6, textColor=C4, alignment=TA_CENTER)))
+    if cert_imgs:
+        cert_row = []
+        for ci in cert_imgs:
+            cert_row.append(ci)
+            cert_row.append(C("", fontSize=2))
+        cert_t = Table([cert_row[:-1]], colWidths=[5*mm, 2*mm]*len(cert_imgs))
+        cert_t.setStyle(TableStyle([
+            ("ALIGN",(0,0),(-1,-1),"CENTER"),
+            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ]))
+        els.append(cert_t)
+
     doc.build(els)
     for f in _logo_tmp_files:
         try: os.remove(f)
