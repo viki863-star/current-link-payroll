@@ -826,22 +826,54 @@ def customer_invoice_pdf(cid, iid):
             ("app/static/VMS Logo.png", "VMS"),
         ]
 
-        def draw_footer(canvas, doc):
+        def draw_page(canvas, doc):
             canvas.saveState()
+            # ════════════════════════════════════════════
+            #  TOP-RIGHT CORNER DESIGN (premium corporate)
+            # ════════════════════════════════════════════
+            CS = 70*mm  # corner triangle size
+            TR = (A4[0], A4[1])  # top-right corner
+            # Large navy triangle
+            p = canvas.beginPath()
+            p.moveTo(*TR)
+            p.lineTo(A4[0] - CS, A4[1])
+            p.lineTo(A4[0], A4[1] - CS)
+            p.close()
+            canvas.setFillColor(NAV)
+            canvas.drawPath(p, fill=1, stroke=0)
+            # Gold accent line 1 (parallel to hypotenuse, inset 3mm)
+            t1 = 3*mm
+            off = t1 * 0.7071
+            canvas.setStrokeColor(GOLD)
+            canvas.setLineWidth(1.5)
+            canvas.line(A4[0] - CS - off, A4[1] - off, A4[0] - off, A4[1] - CS - off)
+            # Gold accent line 2 (parallel, inset 6mm)
+            t2 = 6*mm
+            off2 = t2 * 0.7071
+            canvas.setLineWidth(0.8)
+            canvas.line(A4[0] - CS - off2, A4[1] - off2, A4[0] - off2, A4[1] - CS - off2)
+            # Gold abstract streaks (speed/engineering)
+            canvas.setLineWidth(0.6)
+            canvas.setStrokeColor(GOLD)
+            # Streak 1 — upper area
+            canvas.line(A4[0] - CS * 0.55, A4[1], A4[0] - CS * 0.45, A4[1] - CS * 0.15)
+            # Streak 2 — right area
+            canvas.line(A4[0], A4[1] - CS * 0.55, A4[0] - CS * 0.15, A4[1] - CS * 0.45)
+            # Streak 3 — subtle inner streak
+            canvas.line(A4[0] - CS * 0.5, A4[1] - CS * 0.15, A4[0] - CS * 0.15, A4[1] - CS * 0.5)
+            # ════════════════════════════════════════════
+            #  FOOTER
+            # ════════════════════════════════════════════
             fy = BM2
-            # Gold accent line
             canvas.setStrokeColor(GOLD)
             canvas.setLineWidth(1.5)
             canvas.line(LM2, fy, A4[0] - RM2, fy)
-            # Navy background
             canvas.setFillColor(NAV)
             canvas.roundRect(LM2, fy - 16*mm, W2, 16*mm, 2, fill=1, stroke=0)
-            # Address on left
             canvas.setFillColor(colors.white)
             canvas.setFont("Helvetica", 7)
             cx1 = LM2 + 4*mm; cy = fy - 3.5*mm
             canvas.drawString(cx1, cy, c_addr2 or "Confident property management building, Mussaffah")
-            # Contact info below
             canvas.setFont("Helvetica", 6.5)
             contact_parts = []
             if c_ph2: contact_parts.append(f"Tel: {c_ph2}")
@@ -849,7 +881,6 @@ def customer_invoice_pdf(cid, iid):
             if lic_text2: contact_parts.append(lic_text2)
             contact_parts.append(f"TRN: {c_trn2}")
             canvas.drawString(cx1, cy - 4.5*mm, "  |  ".join(contact_parts))
-            # Certificate logos aligned right (within navy bg)
             cx3 = A4[0] - RM2 - 4*mm
             cl_y = fy - 12*mm
             cl_spacing = 0
@@ -859,7 +890,6 @@ def customer_invoice_pdf(cid, iid):
                     cl_spacing += 8*mm
                 except:
                     pass
-            # Page number
             canvas.setFont("Helvetica", 6)
             canvas.setFillColor(colors.HexColor("#99aabb"))
             canvas.drawRightString(A4[0] - RM2 - 3*mm, fy - 13*mm, f"Page {doc.page}")
@@ -1187,7 +1217,7 @@ def customer_invoice_pdf(cid, iid):
         els2.append(TopPadder(sig_w))
 
         # ── BUILD ──
-        doc2.build(els2, onFirstPage=draw_footer, onLaterPages=draw_footer)
+        doc2.build(els2, onFirstPage=draw_page, onLaterPages=draw_page)
         for f in _logo_tmp_files:
             try: os.remove(f)
             except: pass
