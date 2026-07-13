@@ -300,7 +300,7 @@
                                 <div class="dv2-form-row">
                                     <div class="dv2-form-group">
                                         <label class="dv2-form-label">OT Rate (AED/hr)</label>
-                                        <input type="number" name="ot_rate" value="{{ salary_form.ot_rate or employee.ot_rate or '0' }}" class="dv2-input" step="0.5" min="0" placeholder="e.g. 18.75">
+                                        <input type="number" name="ot_rate" value="{{ employee.ot_rate or '0' }}" class="dv2-input" step="0.5" min="0" placeholder="e.g. 18.75" readonly>
                                     </div>
                                     <div class="dv2-form-group">
                                         <label class="dv2-form-label">Personal Expenses (AED)</label>
