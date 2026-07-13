@@ -935,14 +935,24 @@ def customer_invoice_pdf(cid, iid):
     els.append(ht)
     els.append(Spacer(1, 5*mm))
 
-    # ═════════ INFO CARDS (matching web: navy header, gold icon box) ═════════
-    def info_card(title, pairs):
+    # ═════════ INFO CARDS (matching web: navy header, gold icon box, clean data) ═════════
+    def info_card(title, pairs, icon="☰"):
         cw = W*0.50 - 1.5*mm
-        icon_svg = "■"  # fallback for gold icon box
-        hdr = Paragraph(
-            f"<font color='#D4A017' size=8>■</font>&nbsp;"
-            f"<font color='white' size=7><b>{title}</b></font>",
-            S("_ch", fontSize=7, leading=9))
+        # Header row: gold icon box + navy title
+        icon_w = 5*mm
+        hdr = Table([
+            [Paragraph(f"<b>{icon}</b>", S("_ic", fontSize=6, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=7)),
+             Paragraph(f"<font color='white' size=7><b>{title}</b></font>", S("_ch", fontSize=7, leading=9))]
+        ], colWidths=[icon_w, cw - icon_w])
+        hdr.setStyle(TableStyle([
+            ("BACKGROUND",(0,0),(0,0),GOLD),
+            ("BACKGROUND",(1,0),(1,0),NAV),
+            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+            ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
+            ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+            ("LEFTPADDING",(1,0),(1,0),4),
+            ("ALIGN",(0,0),(0,0),"CENTER"),
+        ]))
         rows = [[hdr]]
         for a, b in pairs:
             rows.append([
@@ -950,14 +960,11 @@ def customer_invoice_pdf(cid, iid):
                     f"<font color='#777' size=6.5>{a}</font>"
                     f"&nbsp;&nbsp;"
                     f"<font color='#222' size=6.5><b>{b}</b></font>",
-                    S("_cr", fontSize=6.5, leading=9))
+                    S("_cr", fontSize=6.5, leading=9.5))
             ])
         t = Table(rows, colWidths=[cw])
         t.setStyle(TableStyle([
             ("VALIGN",(0,0),(-1,-1),"TOP"),
-            ("BACKGROUND",(0,0),(0,0),NAV),
-            ("TOPPADDING",(0,0),(0,0),4), ("BOTTOMPADDING",(0,0),(0,0),4),
-            ("LEFTPADDING",(0,0),(0,0),6), ("RIGHTPADDING",(0,0),(0,0),6),
             ("TOPPADDING",(0,1),(-1,-1),1.5), ("BOTTOMPADDING",(0,1),(-1,-1),1.5),
             ("LEFTPADDING",(0,1),(-1,-1),6), ("RIGHTPADDING",(0,1),(-1,-1),6),
             ("BOX",(0,0),(-1,-1),0.5,C3),
@@ -974,7 +981,7 @@ def customer_invoice_pdf(cid, iid):
     if inv.get("lpo_no"): id_.append(("LPO No.", inv["lpo_no"]))
     if inv.get("lpo_date"): id_.append(("LPO Date", inv["lpo_date"]))
 
-    iw = Table([[info_card("Bill To", bd), Spacer(1, 3*mm), info_card("Invoice Details", id_)]], colWidths=[W*0.50, 3*mm, W*0.50])
+    iw = Table([[info_card("Bill To", bd, "☰"), Spacer(1, 3*mm), info_card("Invoice Details", id_, "✓")]], colWidths=[W*0.50, 3*mm, W*0.50])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(iw)
     els.append(Spacer(1, 5*mm))
