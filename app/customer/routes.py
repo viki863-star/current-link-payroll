@@ -829,32 +829,32 @@ def customer_invoice_pdf(cid, iid):
         def draw_page(canvas, doc):
             canvas.saveState()
             # ════════════════════════════════════════════
-            #  TOP-RIGHT CORNER DESIGN (premium corporate)
+            #  TOP-RIGHT CORNER DESIGN (unified flowing)
             # ════════════════════════════════════════════
-            CS = 35*mm  # prominent corner covers more area
-            TR = (A4[0], A4[1])
+            CS = 30*mm
+            # Flowing navy shape: corner → curve along top → curve down right edge
             p = canvas.beginPath()
-            p.moveTo(*TR)
+            p.moveTo(A4[0], A4[1])
             p.lineTo(A4[0] - CS, A4[1])
-            p.lineTo(A4[0], A4[1] - CS)
+            p.curveTo(A4[0] - CS, A4[1] - CS*0.7, A4[0] - CS*0.3, A4[1] - CS, A4[0], A4[1] - CS)
             p.close()
             canvas.setFillColor(NAV)
             canvas.drawPath(p, fill=1, stroke=0)
-            # Gold tip accent
-            gt = 5*mm
+            # Flowing gold line inside the shape
+            d = 6*mm
+            gd = d * 0.7071
+            canvas.setStrokeColor(GOLD)
+            canvas.setLineWidth(0.8)
+            canvas.line(A4[0] - CS + gd, A4[1] - gd, A4[0] - gd, A4[1] - CS + gd)
+            # Gold tip accent at corner
+            gt = 4*mm
             gp = canvas.beginPath()
-            gp.moveTo(*TR)
+            gp.moveTo(A4[0], A4[1])
             gp.lineTo(A4[0] - gt, A4[1])
             gp.lineTo(A4[0], A4[1] - gt)
             gp.close()
             canvas.setFillColor(GOLD)
             canvas.drawPath(gp, fill=1, stroke=0)
-            # Gold line parallel to hypotenuse
-            t1 = 2.5*mm
-            off = t1 * 0.7071
-            canvas.setStrokeColor(GOLD)
-            canvas.setLineWidth(0.7)
-            canvas.line(A4[0] - CS - off, A4[1] - off, A4[0] - off, A4[1] - CS - off)
             # ════════════════════════════════════════════
             #  FOOTER
             # ════════════════════════════════════════════
@@ -894,7 +894,7 @@ def customer_invoice_pdf(cid, iid):
         # ═══════════════════════════════════════════
         els2 = []
 
-        # ── HEADER: Logo left + Company name + TAX INVOICE right ──
+        # ── HEADER: Logo left + Company name ──
         logo = None; LW = 0
         if company and company["logo_data"]:
             try:
@@ -920,7 +920,7 @@ def customer_invoice_pdf(cid, iid):
                 from reportlab.pdfgen import canvas as rlcanvas
                 tmp_buf = BytesIO()
                 tmp_c = rlcanvas.Canvas(tmp_buf)
-                ci_width = W2 * 0.55
+                ci_width = W2
                 co_p.wrapOn(tmp_c, ci_width, 1000)
                 text_h = max(co_p.height, 18*mm)
                 tmp_c.save()
@@ -933,32 +933,29 @@ def customer_invoice_pdf(cid, iid):
                 pass
 
         if logo:
-            lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW if LW else 0, 3*mm, W2 * 0.50])
-            lh.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+            ht = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW if LW else 0, 3*mm, W2 - LW - 3*mm])
+            ht.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         else:
-            lh = co_p
-
-        rh_title = Paragraph(
-            "<font size=18><b>TAX INVOICE</b></font>",
-            S("TI", fontSize=18, fontName="Helvetica-Bold", textColor=NAV, leading=22, alignment=TA_RIGHT))
-        rh_meta = Paragraph(
-            f"<font size=7.5 color='#888'># <b>{inv_no}</b> &middot; {inv_dt}</font>",
-            S("TM", fontSize=7.5, textColor=C5, leading=10, alignment=TA_RIGHT))
-        rh_full = Table([[rh_title], [rh_meta]], colWidths=[W2 * 0.40])
-        rh_full.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
-            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ]))
-
-        ht = Table([[lh, rh_full]], colWidths=[W2 * 0.60, W2 * 0.40])
-        ht.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
-        els2.append(Spacer(1, 25*mm))
+            ht = co_p
         els2.append(ht)
 
         gold_line = Table([[""]], colWidths=[W2], rowHeights=[0.8])
         gold_line.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), GOLD), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         els2.append(gold_line)
+
+        els2.append(Spacer(1, 2*mm))
+        ti_block = Table([
+            [Paragraph("<font size=18><b>TAX INVOICE</b></font>",
+                       S("ti_t", fontSize=18, fontName="Helvetica-Bold", textColor=NAV, leading=22, alignment=TA_RIGHT))],
+            [Paragraph(f"<font size=7.5 color='#888'># <b>{inv_no}</b> &middot; {inv_dt}</font>",
+                       S("ti_m", fontSize=7.5, textColor=C5, leading=10, alignment=TA_RIGHT))],
+        ], colWidths=[W2])
+        ti_block.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        els2.append(ti_block)
         els2.append(Spacer(1, 4*mm))
 
         # ── INFO CARDS (big icons, spaced rows) ──
