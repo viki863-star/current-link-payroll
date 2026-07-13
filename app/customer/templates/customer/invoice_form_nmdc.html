@@ -6,30 +6,29 @@
 <div class="profile-shell" style="max-width:1000px;margin:0 auto">
 <style>
 .inv-box { background:#fff; border:2px solid #e2e8f0; border-radius:14px; padding:16px 20px; }
-.inv-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
-.inv-table thead { background:#1e293b; }
-.inv-table th { padding:6px 4px; font-size:0.55rem; text-transform:uppercase; letter-spacing:0.4px; color:#fff; font-weight:700; white-space:nowrap; border:1px solid #1e293b; }
-.inv-table td { padding:5px 4px; border:1px solid #e2e8f0; vertical-align:middle; }
-.inv-table tbody tr:nth-child(even) { background:#f8fafc; }
-.inv-table input, .inv-table select { width:100%; padding:3px 5px; border:1px solid #e2e8f0; border-radius:3px; font-size:0.72rem; outline:none; box-sizing:border-box; }
-.inv-table input:focus { border-color:#1a3a5c; }
-.inv-table input[readonly] { background:#f0f2f5; }
+.so-group { background:#fff; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:10px; }
+.so-header { background:#f1f5f9; padding:8px 12px; border-bottom:1px solid #e2e8f0; border-radius:8px 8px 0 0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.so-header label { font-size:0.6rem; color:#94a3b8; font-weight:600; text-transform:uppercase; }
+.so-header input { padding:3px 6px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.75rem; }
+.eq-table { width:100%; border-collapse:collapse; font-size:0.72rem; }
+.eq-table thead { background:#1e293b; }
+.eq-table th { padding:5px 4px; font-size:0.55rem; text-transform:uppercase; letter-spacing:0.4px; color:#fff; font-weight:700; white-space:nowrap; border:1px solid #1e293b; }
+.eq-table td { padding:4px; border:1px solid #e2e8f0; vertical-align:middle; }
+.eq-table tbody tr:nth-child(even) { background:#f8fafc; }
+.eq-table input, .eq-table select { width:100%; padding:2px 4px; border:1px solid #e2e8f0; border-radius:3px; font-size:0.65rem; outline:none; box-sizing:border-box; }
+.eq-table input:focus { border-color:#1a3a5c; }
+.eq-table input[readonly] { background:#f0f2f5; }
+.btn-icon-sm { width:24px; height:24px; border-radius:4px; border:1px solid #e2e8f0; background:#fff; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:#c62828; font-size:0.8rem; padding:0; }
+.btn-icon-sm:hover { background:#fee; }
+.eq-disp { display:block; text-align:right; font-weight:600; font-family:monospace; font-size:0.72rem; }
 .info-card { background:#fff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; }
 .info-card h4 { margin:0 0 3px; font-size:0.55rem; text-transform:uppercase; color:#94a3b8; letter-spacing:0.5px; font-weight:700; }
 .info-line { font-size:0.7rem; padding:1px 0; color:#475569; }
 .info-line .lbl { color:#94a3b8; min-width:60px; display:inline-block; }
-.btn-icon { width:28px; height:28px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:#c62828; font-size:0.9rem; padding:0; }
-.btn-icon:hover { background:#fee; }
-.eq-disp { display:block; text-align:right; font-weight:600; font-family:monospace; font-size:0.78rem; }
 </style>
 
 {% set nmdc_equip_items = items if edit and items else [] %}
-{% set nmdc_pf = nmdc_meta.get('period_from', '') if edit else '' %}
-{% set nmdc_pt = nmdc_meta.get('period_to', '') if edit else '' %}
-{% set nmdc_mr = nmdc_meta.get('monthly_rate', 0) if edit else 0 %}
-{% set nmdc_ml = nmdc_meta.get('month_label', '') if edit else '' %}
 {% set nmdc_vat = inv.vat_percent if edit else 5 %}
-{% set nmdc_eq_periods = nmdc_meta.get('eq_periods', []) if edit else [] %}
 
 <div class="inv-box">
     <form method="POST" id="invoiceForm">
@@ -60,7 +59,7 @@
                     </div>
                     <div>
                         <label style="font-size:0.6rem;color:#94a3b8">SO No.</label>
-                        <select name="so_id" id="soSelect" onchange="loadSoData()" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
+                        <select name="so_id" id="soSelect" onchange="onSoChange()" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
                             <option value="">Select SO</option>
                             {% for s in sos %}
                             <option value="{{ s.id }}" {% if edit and selected_so_id == s.id %}selected{% endif %} data-amount="{{ s.amount or 0 }}" data-date="{{ s.so_date or '' }}">{{ s.so_no or '' }} | {{ s.so_date }} | AED {{ '%.0f'|format(s.amount) if s.amount else '0' }}</option>
@@ -75,41 +74,17 @@
             </div>
         </div>
 
-        {# RATE / MONTH / VAT (hidden, used by JS) #}
-        <input type="hidden" name="monthly_rate" id="monthlyRate" value="{{ nmdc_mr }}">
-        <input type="hidden" name="month_label" id="monthLabel" value="{{ nmdc_ml }}">
         <input type="hidden" name="vat_percent" id="vatPercent" value="{{ nmdc_vat }}">
 
-        {# ─── SO Items List (hidden until SO selected) ─── #}
-        <div id="soItemsList" style="display:none;margin-bottom:10px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
-            <h4 style="margin:0 0 6px;font-size:0.78rem;font-weight:600">Service Order Items</h4>
-            <div id="soItemsContainer"></div>
-        </div>
-
-        {# SINGLE TABLE #}
+        {# ─── SO GROUPS ─── #}
         <div style="margin-bottom:10px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                <h4 style="margin:0;font-size:0.78rem;font-weight:600">Invoice Items</h4>
-                <button type="button" class="btn btn-outline btn-sm" onclick="addNextSoItem()" style="padding:3px 10px;font-size:0.72rem">+ Add</button>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h4 style="margin:0;font-size:0.78rem;font-weight:600">Service Orders &amp; Equipment</h4>
+                <div style="display:flex;gap:6px">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="addSo()" style="padding:3px 10px;font-size:0.72rem">+ SO</button>
+                </div>
             </div>
-            <table class="inv-table" id="mainTable">
-                <thead>
-                    <tr>
-                        <th style="text-align:center;width:28px">#</th>
-                        <th style="text-align:left">Description</th>
-                        <th style="text-align:right;width:65px">Qty</th>
-                        <th style="text-align:center;width:65px">Unit</th>
-                        <th style="text-align:right;width:75px">Unit Price</th>
-                        <th style="text-align:right;width:80px">Taxable Amt</th>
-                        <th style="text-align:center;width:42px">VAT %</th>
-                        <th style="text-align:right;width:70px">VAT Amt</th>
-                        <th style="text-align:right;width:85px">Total (Incl.)</th>
-                        <th style="text-align:center;width:30px"></th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                </tbody>
-            </table>
+            <div id="soContainer"></div>
         </div>
 
         {# TOTALS #}
@@ -141,84 +116,107 @@
 
 <script>
 const convHours = 260;
-let rowId = 0;
-var _soItemIdx = 0;
-
-function getDefPeriod() {
-    return { from: '', to: '' };
-}
-
-function addSoItem(idx) {
-    var items = window._soItems || [];
-    var it = items[idx];
-    if (!it) return;
-    addRow(it.vehicle_no || '', it.description || '', 0, '', '', it.unit_type || 'Month', it.rate || 0);
-    renumberAll();
-    calcAll();
-}
-
-function addNextSoItem() {
-    var items = window._soItems || [];
-    if (items.length > 0 && _soItemIdx < items.length) {
-        addSoItem(_soItemIdx);
-        _soItemIdx++;
-    } else {
-        addRow();
-        renumberAll();
-        calcAll();
-    }
-}
+let soId = 0;
+let eqId = 0;
 
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function addRow(plant, reg, hours, pf, pt, unit, rate) {
-    rowId++;
-    const tbody = document.getElementById('tableBody');
-    if (pf === undefined) { const dp = getDefPeriod(); pf = dp.from; pt = dp.to; }
-    unit = unit || 'Month';
-    rate = rate || 0;
-    const monthlyRate = parseFloat(document.getElementById('monthlyRate').value) || 0;
-    const displayRate = rate || monthlyRate;
-    const tr = document.createElement('tr');
-    tr.id = 'eqrow_' + rowId;
-    tr.innerHTML = '<td style="text-align:center;font-weight:600;color:#64748b" class="rn">0</td>' +
-        '<td><div style="font-size:0.65rem;color:#475569">Description: <input type="text" name="eq_reg[]" value="' + esc(reg) + '" style="width:calc(100% - 72px);padding:2px 4px;border:1px solid #e2e8f0;border-radius:3px;font-size:0.65rem"></div>' +
-        '<div style="font-size:0.65rem;color:#475569;margin-top:2px">Plant No: <input type="text" name="eq_plant[]" value="' + esc(plant) + '" style="width:calc(100% - 60px);padding:2px 4px;border:1px solid #e2e8f0;border-radius:3px;font-size:0.65rem"></div>' +
-        '<div style="display:flex;gap:6px;margin-top:3px;font-size:0.6rem;color:#94a3b8">' +
-        '<span>From: <input type="date" name="eq_period_from[]" value="' + esc(pf) + '" style="width:105px;font-size:0.6rem;padding:1px 3px"></span>' +
-        '<span>To: <input type="date" name="eq_period_to[]" value="' + esc(pt) + '" style="width:105px;font-size:0.6rem;padding:1px 3px"></span>' +
+function addSo(soDesc, soRate) {
+    soId++;
+    var idx = soId;
+    var container = document.getElementById('soContainer');
+    var div = document.createElement('div');
+    div.className = 'so-group';
+    div.id = 'so_' + idx;
+    div.innerHTML =
+        '<div class="so-header">' +
+            '<label>Description</label><input type="text" name="so_desc[]" value="' + esc(soDesc || '') + '" style="flex:1;min-width:150px" placeholder="e.g. Hiring of 12M Trailer">' +
+            '<label>Rate</label><input type="number" name="so_rate[]" value="' + (soRate || 0) + '" step="0.01" style="width:100px" onchange="calcAll()">' +
+            '<button type="button" class="btn btn-outline btn-sm" onclick="addEq(' + idx + ')" style="padding:2px 8px;font-size:0.65rem">+ Equipment</button>' +
+            '<button type="button" class="btn-icon-sm" onclick="removeSo(' + idx + ')" title="Remove SO">&times;</button>' +
         '</div>' +
-        '<div style="font-size:0.6rem;color:#94a3b8;margin-top:2px">' +
-        'Hours: <input type="number" name="eq_hours[]" value="' + esc(hours) + '" min="0" step="0.01" style="width:70px;font-size:0.6rem;padding:1px 3px;border:1px solid #e2e8f0;border-radius:3px;text-align:center" oninput="calcRow(this);calcAll()">' +
-        '<input type="hidden" name="eq_qyt[]" value="0">' +
-        '<input type="hidden" name="eq_rate[]" value="' + esc(rate) + '">' +
-        '</div></td>' +
-        '<td><span class="eq_disp eq_qty" style="color:#0f172a">0.000</span></td>' +
-        '<td style="text-align:center;color:#475569;white-space:nowrap">' + esc(unit) + '<input type="hidden" name="eq_unit[]" value="' + esc(unit) + '"></td>' +
-        '<td><span class="eq_disp eq_uprice" style="color:#0f172a">' + displayRate.toFixed(2) + '</span></td>' +
-        '<td><span class="eq_disp eq_taxable" style="color:#0f172a">0.00</span></td>' +
-        '<td style="text-align:center;color:#475569;font-size:0.72rem">5%</td>' +
-        '<td><span class="eq_disp eq_vat" style="color:#c62828">0.00</span></td>' +
-        '<td><span class="eq_disp eq_total" style="color:#0f172a;font-weight:700">0.00</span></td>' +
-        '<td><button type="button" class="btn-icon" onclick="removeRow(this)">&times;</button></td>';
-    tbody.appendChild(tr);
-    // If rate was provided, set it in the hidden field and update display
-    if (rate) {
-        tr.querySelector('.eq_uprice').textContent = rate.toFixed(2);
-    }
+        '<div style="overflow-x:auto">' +
+        '<table class="eq-table" id="eqtbl_' + idx + '">' +
+            '<thead>' +
+                '<tr>' +
+                    '<th style="text-align:center;width:28px">#</th>' +
+                    '<th style="text-align:left">Plant No</th>' +
+                    '<th style="text-align:left">Description</th>' +
+                    '<th style="text-align:center;width:140px">Period</th>' +
+                    '<th style="text-align:center;width:65px">Hours</th>' +
+                    '<th style="text-align:center;width:55px">Unit</th>' +
+                    '<th style="text-align:right;width:70px">Rate</th>' +
+                    '<th style="text-align:right;width:70px">Qty</th>' +
+                    '<th style="text-align:right;width:75px">Taxable</th>' +
+                    '<th style="text-align:center;width:35px">VAT%</th>' +
+                    '<th style="text-align:right;width:65px">VAT</th>' +
+                    '<th style="text-align:right;width:75px">Total</th>' +
+                    '<th style="text-align:center;width:24px"></th>' +
+                '</tr>' +
+            '</thead>' +
+            '<tbody id="eqbody_' + idx + '"></tbody>' +
+        '</table></div>';
+    container.appendChild(div);
+    return idx;
 }
 
-function removeRow(btn) {
-    var tr = btn.closest('tr');
-    tr.remove();
-    renumberAll();
+function addEq(soIdx, plant, reg, hours, pf, pt, unit, rate) {
+    eqId++;
+    var tbody = document.getElementById('eqbody_' + soIdx);
+    if (!tbody) return;
+    var tr = document.createElement('tr');
+    tr.id = 'eqrow_' + eqId;
+    tr.innerHTML =
+        '<td style="text-align:center;font-weight:600;color:#64748b" class="eqn">0</td>' +
+        '<td><input type="text" name="eq_plant[]" value="' + esc(plant || '') + '" style="width:100%" placeholder="Plant No"></td>' +
+        '<td><input type="text" name="eq_reg[]" value="' + esc(reg || '') + '" style="width:100%" placeholder="Description"></td>' +
+        '<td style="white-space:nowrap">' +
+            '<input type="date" name="eq_period_from[]" value="' + esc(pf || '') + '" style="width:65px;display:inline">' +
+            ' <span style="color:#94a3b8;font-size:0.6rem">to</span> ' +
+            '<input type="date" name="eq_period_to[]" value="' + esc(pt || '') + '" style="width:65px;display:inline">' +
+        '</td>' +
+        '<td><input type="number" name="eq_hours[]" value="' + esc(hours || 0) + '" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcRow(this);calcAll()"></td>' +
+        '<td style="text-align:center">' +
+            '<select name="eq_unit[]" style="width:100%" onchange="calcRow(this);calcAll()">' +
+                '<option value="month"' + (unit === 'month' ? ' selected' : '') + '>Month</option>' +
+                '<option value="hour"' + (unit === 'hour' ? ' selected' : '') + '>Hour</option>' +
+                '<option value="day"' + (unit === 'day' ? ' selected' : '') + '>Day</option>' +
+                '<option value="trip"' + (unit === 'trip' ? ' selected' : '') + '>Trip</option>' +
+            '</select>' +
+        '</td>' +
+        '<td><input type="number" name="eq_rate[]" value="' + esc(rate || 0) + '" step="0.01" style="width:100%;text-align:right" oninput="calcRow(this);calcAll()"></td>' +
+        '<input type="hidden" name="eq_so_idx[]" value="' + soIdx + '">' +
+        '<input type="hidden" name="eq_qyt[]" value="0">' +
+        '<td style="text-align:right;font-weight:600;font-family:monospace;font-size:0.72rem" class="eq_qty">0.000</td>' +
+        '<td style="text-align:right;font-weight:600;font-family:monospace;font-size:0.72rem" class="eq_taxable">0.00</td>' +
+        '<td style="text-align:center;color:#475569;font-size:0.65rem">5%</td>' +
+        '<td style="text-align:right;font-weight:600;font-family:monospace;font-size:0.72rem;color:#c62828" class="eq_vat">0.00</td>' +
+        '<td style="text-align:right;font-weight:700;font-family:monospace;font-size:0.72rem" class="eq_total">0.00</td>' +
+        '<td><button type="button" class="btn-icon-sm" onclick="removeEq(this)">&times;</button></td>';
+    tbody.appendChild(tr);
+    renumberEq(soIdx);
     calcAll();
 }
 
-function renumberAll() {
-    var rows = document.querySelectorAll('#tableBody tr[id^="eqrow_"]');
+function removeSo(idx) {
+    var el = document.getElementById('so_' + idx);
+    if (el) el.remove();
+    calcAll();
+}
+
+function removeEq(btn) {
+    var tr = btn.closest('tr');
+    var soIdx = tr.querySelector('[name="eq_so_idx[]"]');
+    soIdx = soIdx ? soIdx.value : null;
+    tr.remove();
+    if (soIdx) renumberEq(parseInt(soIdx));
+    calcAll();
+}
+
+function renumberEq(soIdx) {
+    var rows = document.querySelectorAll('#eqbody_' + soIdx + ' tr');
     rows.forEach(function(r, i) {
-        var cell = r.querySelector('.rn');
+        var cell = r.querySelector('.eqn');
         if (cell) cell.textContent = i + 1;
     });
 }
@@ -229,35 +227,34 @@ function calcRow(el) {
     var hours = parseFloat(row.querySelector('[name="eq_hours[]"]').value) || 0;
     var rateEl = row.querySelector('[name="eq_rate[]"]');
     var rate = rateEl ? parseFloat(rateEl.value) : 0;
-    if (!rate) rate = parseFloat(document.getElementById('monthlyRate').value) || 0;
     var unitEl = row.querySelector('[name="eq_unit[]"]');
     var unit = unitEl ? unitEl.value : 'month';
-    var qyt = unit === 'month' ? hours / convHours : hours;
-    var taxable = qyt * rate;
+    var qty = unit === 'month' ? hours / convHours : hours;
+    var taxable = qty * rate;
     var vatPct = parseFloat(document.getElementById('vatPercent').value) || 5;
     var vatAmt = taxable * vatPct / 100;
     var total = taxable + vatAmt;
-    row.querySelector('[name="eq_qyt[]"]').value = qyt.toFixed(3);
-    row.querySelector('.eq_qty').textContent = qyt.toFixed(3);
-    row.querySelector('.eq_uprice').textContent = rate.toFixed(2);
+    row.querySelector('[name="eq_qyt[]"]').value = qty.toFixed(3);
+    row.querySelector('.eq_qty').textContent = qty.toFixed(3);
     row.querySelector('.eq_taxable').textContent = taxable.toFixed(2);
     row.querySelector('.eq_vat').textContent = vatAmt.toFixed(2);
     row.querySelector('.eq_total').textContent = total.toFixed(2);
 }
 
 function calcAll() {
-    var rate = parseFloat(document.getElementById('monthlyRate').value) || 0;
     var vatPct = parseFloat(document.getElementById('vatPercent').value) || 5;
     var sub = 0;
-    document.querySelectorAll('#tableBody tr[id^="eqrow_"]').forEach(function(r) {
-        var h = parseFloat(r.querySelector('[name="eq_hours[]"]').value) || 0;
-        var ue = r.querySelector('[name="eq_unit[]"]');
-        var u = ue ? ue.value : 'month';
-        var re = r.querySelector('[name="eq_rate[]"]');
-        var rr = re ? parseFloat(re.value) : 0;
-        if (!rr) rr = parseFloat(document.getElementById('monthlyRate').value) || 0;
-        sub += (u === 'month' ? h / convHours : h) * rr;
-        calcRow(r.querySelector('[name="eq_hours[]"]'));
+    document.querySelectorAll('#soContainer .so-group').forEach(function(sog) {
+        var soRate = parseFloat(sog.querySelector('[name="so_rate[]"]')?.value) || 0;
+        sog.querySelectorAll('#eqbody_' + sog.id.split('_')[1] + ' tr').forEach(function(r) {
+            var hours = parseFloat(r.querySelector('[name="eq_hours[]"]')?.value) || 0;
+            var unitEl = r.querySelector('[name="eq_unit[]"]');
+            var unit = unitEl ? unitEl.value : 'month';
+            var rateEl = r.querySelector('[name="eq_rate[]"]');
+            var rate = rateEl ? parseFloat(rateEl.value) : 0;
+            if (!rate) rate = soRate;
+            sub += (unit === 'month' ? hours / convHours : hours) * rate;
+        });
     });
     var vat = sub * vatPct / 100;
     var total = sub + vat;
@@ -267,70 +264,56 @@ function calcAll() {
     document.getElementById('totalDisplay').textContent = total.toFixed(2);
 }
 
-function loadSoData() {
+function onSoChange() {
     var sel = document.getElementById('soSelect');
     var sid = sel.value;
     var opt = sel.options[sel.selectedIndex];
     if (!sid || !opt) return;
-    var soDate = opt.getAttribute('data-date') || '';
-    document.getElementById('soDateDisplay').value = soDate;
-    // Clear existing rows
-    document.querySelectorAll('#tableBody tr[id^="eqrow_"]').forEach(function(r) { r.remove(); });
-    document.getElementById('monthLabel').value = '';
-    window._soItems = [];
-    _soItemIdx = 0;
+    document.getElementById('soDateDisplay').value = opt.getAttribute('data-date') || '';
+    // Clear existing SO groups
+    document.getElementById('soContainer').innerHTML = '';
+    soId = 0; eqId = 0;
     fetch('/customer/{{ c.id }}/so/' + sid + '/items')
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data || !data.items || data.items.length === 0) return;
-            window._soItems = data.items;
-            _soItemIdx = 0;
-            document.getElementById('monthlyRate').value = data.items[0].rate || 0;
-            // Show SO items list with Add buttons
-            var container = document.getElementById('soItemsContainer');
-            container.innerHTML = '';
-            data.items.forEach(function(it, i) {
-                var parts = [];
-                if (it.vehicle_no) parts.push(it.vehicle_no);
-                if (it.description) parts.push(it.description);
-                var label = parts.join(' - ');
-                if (it.quantity && it.unit_type) label += ' (' + it.quantity + ' ' + it.unit_type + ')';
-                var div = document.createElement('div');
-                div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #e2e8f0;font-size:0.72rem';
-                div.innerHTML = '<span>' + esc(label) + '</span>' +
-                    '<button type="button" class="btn btn-outline btn-sm" onclick="addSoItemFromList(' + i + ')" style="padding:2px 10px;font-size:0.65rem">+ Add</button>';
-                container.appendChild(div);
+            var items = data.items;
+            var first = items[0];
+            var soIdx = addSo(first.description || '', first.rate || 0);
+            // Add equipment rows from SO items
+            items.forEach(function(it, i) {
+                addEq(soIdx, it.vehicle_no || '', it.description || '', 0, '', '', it.unit_type || 'Month', it.rate || 0);
             });
-            document.getElementById('soItemsList').style.display = 'block';
             calcAll();
         })
         .catch(function(e) { console.error('loadSoData error:', e); });
 }
 
-function addSoItemFromList(idx) {
-    addSoItem(idx);
-    // Mark item as added (optional visual feedback)
-    var container = document.getElementById('soItemsContainer');
-    var btns = container.querySelectorAll('button');
-    if (btns[idx]) {
-        btns[idx].textContent = 'Added';
-        btns[idx].disabled = true;
-        btns[idx].style.opacity = '0.5';
-    }
-}
-
 document.addEventListener('DOMContentLoaded', function() {
-    {% if edit and nmdc_equip_items %}
-    {% for it in nmdc_equip_items %}
-    {% set ep = nmdc_eq_periods[loop.index0] if loop.index0 < nmdc_eq_periods|length else {} %}
-    addRow({{ it.vehicle_no|tojson if it.vehicle_no else '' }}, {{ it.description|tojson }}, {{ it.capacity_gallon|float if it.capacity_gallon else 0 }}, {{ ep.get('from', '')|tojson }}, {{ ep.get('to', '')|tojson }}, {{ it.unit|tojson if it.unit else 'Month' }}, {{ it.rate|float }});
-    {% endfor %}
-    renumberAll();
+    {% if edit %}
+    var meta = {{ nmdc_meta|tojson }};
+    var eqItems = {{ nmdc_equip_items|tojson }};
+    var soDescs = meta.so_descs || [];
+    var soRates = meta.so_rates || [];
+    var eqPeriods = meta.eq_periods || [];
+    if (soDescs.length === 0 && eqItems.length > 0) {
+        // Legacy data: create a single SO group
+        addSo('', 0);
+    }
+    soDescs.forEach(function(sd, si) {
+        var sr = soRates[si] || 0;
+        addSo(sd, sr);
+    });
+    eqItems.forEach(function(it, i) {
+        var ep = eqPeriods[i] || {};
+        // Find which SO index this eq belongs to from eq_so_idx
+        addEq(1, it.vehicle_no || '', it.description || '', it.capacity_gallon || 0, ep.from || '', ep.to || '', it.unit || 'Month', it.rate || 0);
+    });
     calcAll();
     {% endif %}
     {% if not edit %}
     var sel = document.getElementById('soSelect');
-    if (sel && sel.value) loadSoData();
+    if (sel && sel.value) onSoChange();
     {% endif %}
 });
 </script>

@@ -414,8 +414,8 @@ def customer_invoice_add(cid):
             project_no = None
 
             if is_nmdc:
-                main_desc = request.form.get("main_description", "").strip()
-                nmdc_monthly_rate = float(request.form.get("monthly_rate", 0) or 0)
+                so_descs = request.form.getlist("so_desc[]")
+                so_rates = request.form.getlist("so_rate[]")
                 eq_plants = request.form.getlist("eq_plant[]")
                 eq_regs = request.form.getlist("eq_reg[]")
                 eq_hours_list = request.form.getlist("eq_hours[]")
@@ -423,23 +423,34 @@ def customer_invoice_add(cid):
                 eq_pt_list = request.form.getlist("eq_period_to[]")
                 eq_units = request.form.getlist("eq_unit[]")
                 eq_rates = request.form.getlist("eq_rate[]")
+                eq_so_idxs = request.form.getlist("eq_so_idx[]")
                 eq_periods = []
-                if main_desc:
-                    items.append({"desc": main_desc, "qty": 1, "rate": nmdc_monthly_rate, "amt": 0, "unit": "month", "vehicle": "", "hours": 0})
-                for i in range(len(eq_plants)):
-                    plant = eq_plants[i].strip()
-                    reg = eq_regs[i].strip() if i < len(eq_regs) else ""
-                    hours = float(eq_hours_list[i]) if i < len(eq_hours_list) and eq_hours_list[i].strip() else 0
-                    eq_pf = eq_pf_list[i].strip() if i < len(eq_pf_list) else ""
-                    eq_pt = eq_pt_list[i].strip() if i < len(eq_pt_list) else ""
-                    unit = eq_units[i].strip() if i < len(eq_units) and eq_units[i].strip() else "month"
-                    row_rate = float(eq_rates[i]) if i < len(eq_rates) and eq_rates[i].strip() else nmdc_monthly_rate
-                    if hours > 0:
-                        qyt = round(hours / 260 if unit == "month" else hours, 3)
-                        amt = round(qyt * row_rate, 2)
-                        items.append({"desc": reg, "qty": qyt, "rate": row_rate, "amt": amt, "unit": unit, "vehicle": plant, "hours": hours})
-                        sub_total += amt
-                        eq_periods.append({"from": eq_pf, "to": eq_pt})
+                if not so_descs:
+                    flash("At least one SO line is required.", "error")
+                    db.close()
+                    return render_template("customer/invoice_form_nmdc.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+                for si, sd in enumerate(so_descs):
+                    sd = sd.strip()
+                    sr = float(so_rates[si]) if si < len(so_rates) and so_rates[si].strip() else 0
+                    if not sd:
+                        continue
+                    items.append({"desc": sd, "qty": 1, "rate": sr, "amt": 0, "unit": "month", "vehicle": "", "hours": 0})
+                    for ei in range(len(eq_plants)):
+                        if ei >= len(eq_so_idxs) or int(eq_so_idxs[ei]) != si:
+                            continue
+                        plant = eq_plants[ei].strip()
+                        reg = eq_regs[ei].strip() if ei < len(eq_regs) else ""
+                        hours = float(eq_hours_list[ei]) if ei < len(eq_hours_list) and eq_hours_list[ei].strip() else 0
+                        eq_pf = eq_pf_list[ei].strip() if ei < len(eq_pf_list) else ""
+                        eq_pt = eq_pt_list[ei].strip() if ei < len(eq_pt_list) else ""
+                        unit = eq_units[ei].strip() if ei < len(eq_units) and eq_units[ei].strip() else "month"
+                        row_rate = float(eq_rates[ei]) if ei < len(eq_rates) and eq_rates[ei].strip() else sr
+                        if hours > 0:
+                            qyt = round(hours / 260 if unit == "month" else hours, 3)
+                            amt = round(qyt * row_rate, 2)
+                            items.append({"desc": reg, "qty": qyt, "rate": row_rate, "amt": amt, "unit": unit, "vehicle": plant, "hours": hours})
+                            sub_total += amt
+                            eq_periods.append({"from": eq_pf, "to": eq_pt})
                 if not items:
                     flash("At least one equipment with hours is required.", "error")
                     db.close()
@@ -479,10 +490,8 @@ def customer_invoice_add(cid):
             if is_nmdc:
                 import json
                 nmdc_meta = {
-                    "period_from": request.form.get("period_from", ""),
-                    "period_to": request.form.get("period_to", ""),
-                    "monthly_rate": float(request.form.get("monthly_rate", 0) or 0),
-                    "month_label": request.form.get("month_label", ""),
+                    "so_descs": so_descs,
+                    "so_rates": so_rates,
                     "eq_periods": eq_periods,
                 }
                 notes = json.dumps(nmdc_meta) if not notes else json.dumps(nmdc_meta) + "\n" + notes
