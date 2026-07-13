@@ -833,7 +833,7 @@ def customer_invoice_pdf(cid, iid):
             # ════════════════════════════════════════════
             CS = 30*mm
             TR = (A4[0], A4[1])
-            # Navy base triangle
+            # Navy triangle
             p = canvas.beginPath()
             p.moveTo(*TR)
             p.lineTo(A4[0] - CS, A4[1])
@@ -841,17 +841,8 @@ def customer_invoice_pdf(cid, iid):
             p.close()
             canvas.setFillColor(NAV)
             canvas.drawPath(p, fill=1, stroke=0)
-            # Teal accent triangle (inner layer)
-            cs2 = 18*mm
-            p2 = canvas.beginPath()
-            p2.moveTo(*TR)
-            p2.lineTo(A4[0] - cs2, A4[1])
-            p2.lineTo(A4[0], A4[1] - cs2)
-            p2.close()
-            canvas.setFillColor(colors.HexColor("#0D5E5E"))
-            canvas.drawPath(p2, fill=1, stroke=0)
             # Gold tip at corner
-            gt = 6*mm
+            gt = 5*mm
             gp = canvas.beginPath()
             gp.moveTo(*TR)
             gp.lineTo(A4[0] - gt, A4[1])
@@ -859,16 +850,11 @@ def customer_invoice_pdf(cid, iid):
             gp.close()
             canvas.setFillColor(GOLD)
             canvas.drawPath(gp, fill=1, stroke=0)
-            # Gold flowing accent line (diagonal)
-            off = 2*mm * 0.7071
+            # Gold accent line (diagonal, parallel to hypotenuse)
+            off = 2.5*mm * 0.7071
             canvas.setStrokeColor(GOLD)
-            canvas.setLineWidth(1.2)
+            canvas.setLineWidth(1.0)
             canvas.line(A4[0] - CS + off, A4[1] - off, A4[0] - off, A4[1] - CS + off)
-            # White fine accent line just above the gold
-            woff = 1*mm * 0.7071
-            canvas.setStrokeColor(colors.white)
-            canvas.setLineWidth(0.5)
-            canvas.line(A4[0] - CS + off + woff, A4[1] - off - woff, A4[0] - off - woff, A4[1] - CS + off + woff)
             # ════════════════════════════════════════════
             #  FOOTER
             # ════════════════════════════════════════════
@@ -920,11 +906,23 @@ def customer_invoice_pdf(cid, iid):
                 pass
 
         ci_html = (
-            f"<font size=32 color='#011a41'><b>CURRENT</b></font>"
-            f"<font size=32 color='#f6a202'><b> LINK</b></font><br/>"
-            f"<font size=6 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>"
+            "<font size=32 color='#011a41'><b>CURRENT</b></font>"
+            "<font size=32 color='#f6a202'><b> LINK</b></font><br/>"
+            "<font size=6 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>"
         )
         co_p = Paragraph(ci_html, S("CO", fontSize=32, leading=32))
+
+        ci_title = Paragraph(
+            "<font size=32 color='#011a41'><b>CURRENT</b></font><font size=32 color='#f6a202'><b> LINK</b></font>",
+            S("ci_t", fontSize=32, fontName="Helvetica-Bold", leading=32))
+        ci_sub = Paragraph(
+            "<font size=6 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>",
+            S("ci_s", fontSize=6, leading=6))
+        co_tbl = Table([[ci_title], [ci_sub]], colWidths=[W2])
+        co_tbl.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, 1), 0),
+        ]))
 
         if _logo_tmp_files:
             try:
@@ -947,10 +945,10 @@ def customer_invoice_pdf(cid, iid):
                 pass
 
         if logo:
-            ht = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW if LW else 0, 3*mm, W2 - LW - 3*mm])
+            ht = Table([[logo, Spacer(1, 3*mm), co_tbl]], colWidths=[LW if LW else 0, 3*mm, W2 - LW - 3*mm])
             ht.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         else:
-            ht = co_p
+            ht = co_tbl
         els2.append(ht)
 
         gold_line = Table([[""]], colWidths=[W2], rowHeights=[0.8])
