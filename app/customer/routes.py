@@ -996,7 +996,6 @@ def customer_invoice_pdf(cid, iid):
         bd_icons = ["USER.png"]
         if c["address"]: bd.append(("Address", c["address"])); bd_icons.append("ADDRESS.png")
         bd.append(("TRN", safe(c["trn"]))); bd_icons.append("TRN.png")
-        if c["phone"]: bd.append(("Phone", c["phone"])); bd_icons.append("Phone.png")
 
         id_ = [("Invoice #", inv_no)]
         id_icons = ["INVOICE.png"]
