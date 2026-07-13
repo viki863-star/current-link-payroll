@@ -1110,14 +1110,15 @@ def customer_invoice_pdf(cid, iid):
         return "AED " + w + " Only"
 
     words_box = Table([
-        [Paragraph("<b>Amount in Words</b>", S("AW", fontSize=7, fontName="Helvetica-Bold", textColor=NAV, leading=9))],
+        [Paragraph("<b>Amount in Words</b>", S("AW", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=9))],
         [Paragraph(n2w(tot), S("AW2", fontSize=7.5, textColor=C4, leading=10))],
     ], colWidths=[W*0.55])
     words_box.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,-1),BG),
+        ("BACKGROUND",(0,0),(0,0),NAV),
+        ("BACKGROUND",(0,1),(0,1),WH),
         ("BOX",(0,0),(-1,-1),0.5,C3),
         ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
-        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
+        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,1),(0,1),5),
     ]))
 
     # Totals box (right) — matching web: navy row for Total Due
