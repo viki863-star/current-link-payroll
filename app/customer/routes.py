@@ -938,25 +938,19 @@ def customer_invoice_pdf(cid, iid):
         els2.append(gold_line)
         els2.append(Spacer(1, 4*mm))
 
-        # ── INFO CARDS (premium, heading icon only, clean rows) ──
+        # ── INFO CARDS (clean text, no icons) ──
         cwc = (W2 - 4*mm) / 2
-        icon_base = os.path.join(current_app.root_path, '..', 'media', 'ICON')
-        def simple_card(title, pairs, header_icon):
-            try:
-                hi = Image(os.path.join(icon_base, header_icon), width=5*mm, height=5*mm)
-            except:
-                hi = Paragraph("", S("_e", fontSize=1))
-            rows = [[hi, Paragraph(f"<b>{title}</b>", S("_ch", fontSize=10, fontName="Helvetica-Bold", textColor=NAV, leading=13))]]
+        def simple_card(title, pairs):
+            rows = [
+                [Paragraph(f"<b>{title}</b>", S("_ch", fontSize=10, fontName="Helvetica-Bold", textColor=NAV, leading=13))],
+            ]
             for a, b in pairs:
                 rows.append([
-                    Paragraph("", S("_e", fontSize=1)),
                     Paragraph(f"<font color='#475569' size=8><b>{a}:</b></font>  <font color='#0f172a' size=8>{b}</font>",
                              S("_rv", fontSize=8, leading=11)),
                 ])
-            t = Table(rows, colWidths=[6*mm, cwc - 6*mm])
+            t = Table(rows, colWidths=[cwc])
             t.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("ALIGN", (0, 0), (0, 0), "CENTER"),
                 ("TOPPADDING", (0, 0), (-1, -1), 1.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ]))
@@ -973,9 +967,10 @@ def customer_invoice_pdf(cid, iid):
         if pdf_so_date: id_.append(("SO Date", pdf_so_date))
         id_.append(("TRN", c_trn2))
 
-        iw = Table([[simple_card("Bill To", bd, "USER.png"), Spacer(1, 3*mm), simple_card("Invoice Details", id_, "INVOICE.png")]], colWidths=[cwc, 3*mm, cwc])
+        iw = Table([[simple_card("Bill To", bd), Spacer(1, 3*mm), simple_card("Invoice Details", id_)]], colWidths=[cwc, 3*mm, cwc])
         iw.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         els2.append(iw)
+        els2.append(Spacer(1, 3*mm))
 
         # ── ITEMS TABLE (premium, bigger) ──
         sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
