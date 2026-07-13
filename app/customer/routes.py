@@ -939,8 +939,8 @@ def customer_invoice_pdf(cid, iid):
             lh = co_p
 
         rh_title = Paragraph(
-            "<font size=24><b>TAX INVOICE</b></font>",
-            S("TI", fontSize=24, fontName="Helvetica-Bold", textColor=NAV, leading=28, alignment=TA_RIGHT))
+            "<font size=18><b>TAX INVOICE</b></font>",
+            S("TI", fontSize=18, fontName="Helvetica-Bold", textColor=NAV, leading=22, alignment=TA_RIGHT))
         gul = Table([[""]], colWidths=[W2 * 0.40], rowHeights=[0.8])
         gul.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), GOLD), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         rh_meta = Paragraph(
@@ -955,6 +955,7 @@ def customer_invoice_pdf(cid, iid):
 
         ht = Table([[lh, rh_full]], colWidths=[W2 * 0.60, W2 * 0.40])
         ht.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+        els2.append(Spacer(1, 6*mm))
         els2.append(ht)
 
         gold_line = Table([[""]], colWidths=[W2], rowHeights=[0.8])
