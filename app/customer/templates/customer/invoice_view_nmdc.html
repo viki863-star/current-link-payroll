@@ -13,24 +13,6 @@ body { background:#eee; }
   padding:14mm 12mm 10mm; position:relative; overflow:hidden;
   box-shadow:0 2px 12px rgba(0,0,0,0.08);
 }
-/* Diagonal corner graphic */
-.invoice-page::before {
-  content:''; position:absolute; top:0; right:0;
-  width:160px; height:160px;
-  background:linear-gradient(135deg,transparent 40%,#001F54 40%,#001F54 60%,transparent 60%);
-  pointer-events:none; z-index:0;
-}
-.invoice-page::after {
-  content:''; position:absolute; top:0; right:0;
-  width:160px; height:160px;
-  background:linear-gradient(135deg,transparent 46%,#f6a202 46%,#f6a202 48%,transparent 48%);
-  pointer-events:none; z-index:1;
-}
-.corner-accent {
-  position:absolute; top:0; right:0; width:160px; height:160px;
-  background:linear-gradient(135deg,transparent 42%,rgba(212,160,23,0.15) 42%,rgba(212,160,23,0.15) 44%,transparent 44%);
-  pointer-events:none; z-index:1;
-}
 .inv-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10mm; position:relative; z-index:2; }
 .inv-logo-area { display:flex; gap:4mm; align-items:flex-start; }
 .inv-logo-box { width:28mm; height:28mm; border:1px solid #e6e6e6; border-radius:2mm; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#fff; flex-shrink:0; }
@@ -148,7 +130,6 @@ body { background:#eee; }
 {% set grand_total = sum_total or 0 %}
 
 <div class="invoice-page">
-  <div class="corner-accent"></div>
 
   {# ═══════ HEADER ═══════ #}
   <div class="inv-header">
