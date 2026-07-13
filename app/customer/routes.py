@@ -1177,7 +1177,7 @@ def customer_invoice_pdf(cid, iid):
         sign_img = Image(sign_path, width=50, height=50) if os.path.exists(sign_path) else None
 
         # Receiver Signature box (navy header + signing area, like Amount in Words)
-        scw = W2 * 0.30
+        scw = W2 * 0.33
         rsw = stringWidth("Receiver Signature", "Helvetica-Bold", 8) + 6*mm
         rc_box = Table([
             [Paragraph("<b>Receiver Signature</b>", S("_rs", fontSize=8, fontName="Helvetica-Bold", textColor=WH, leading=10)),
@@ -1189,9 +1189,9 @@ def customer_invoice_pdf(cid, iid):
             ("BACKGROUND", (0, 0), (0, 0), NAV), ("BACKGROUND", (1, 0), (-1, -1), WH),
             ("BOX", (0, 0), (-1, -1), 0.4, C3),
             ("SPAN", (0, 1), (-1, 1)),
-            ("TOPPADDING", (0, 0), (1, 0), 3), ("BOTTOMPADDING", (0, 0), (1, 0), 3),
+            ("TOPPADDING", (0, 0), (1, 0), 4), ("BOTTOMPADDING", (0, 0), (1, 0), 4),
             ("LEFTPADDING", (0, 0), (0, 0), 3), ("RIGHTPADDING", (0, 0), (0, 0), 3),
-            ("TOPPADDING", (0, 1), (-1, 1), 6), ("BOTTOMPADDING", (0, 1), (-1, 1), 6),
+            ("TOPPADDING", (0, 1), (-1, 1), 12), ("BOTTOMPADDING", (0, 1), (-1, 1), 12),
             ("LEFTPADDING", (0, 1), (-1, 1), 5), ("RIGHTPADDING", (0, 1), (-1, 1), 5),
             ("VALIGN", (0, 0), (0, 0), "MIDDLE"),
         ]))
