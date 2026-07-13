@@ -129,7 +129,6 @@ body { background:#eee; }
   .invoice-page { margin:0; box-shadow:none; padding:10mm 8mm 8mm; }
   .inv-actions,.btn,.btn-primary,.btn-outline { display:none !important; }
   .inv-table tbody tr:nth-child(even) { background:#fafbfc; }
-  .desc-row { background:#f5f7fa !important; }
   @page { margin:0; size:A4; }
 }
 @media (max-width:800px) {
@@ -143,8 +142,6 @@ body { background:#eee; }
 }
 </style>
 
-{% set main_desc = items[0].description if items else '' %}
-{% set equip_items = items[1:] if items|length > 1 else [] %}
 {% set eq_periods = nmdc_meta.get('eq_periods', []) %}
 {% set vat_pct = inv.vat_percent or 5 %}
 {% set sub_total = sum_taxable or 0 %}
@@ -231,27 +228,14 @@ body { background:#eee; }
         </tr>
       </thead>
       <tbody>
-        {# Row 1: Main description #}
-        <tr class="desc-row">
-          <td class="td-center">1</td>
-          <td>{{ main_desc }}</td>
-          <td class="td-center">-</td>
-          <td class="td-center">-</td>
-          <td class="td-right">-</td>
-          <td class="td-right">-</td>
-          <td class="td-center">-</td>
-          <td class="td-right">-</td>
-          <td class="td-right">-</td>
-        </tr>
-        {# Equipment rows #}
-        {% for it in equip_items %}
+        {% for it in items %}
         {% set vp_item = it.vat_percent_item or vat_pct %}
         {% set amt_item = it.amount or 0 %}
         {% set va_item = it.vat_amount_item or (amt_item * vp_item / 100) %}
         {% set ti_item = it.total_incl_vat or (amt_item + va_item) %}
         {% set eq_p = eq_periods[loop.index0] if loop.index0 < eq_periods|length else {} %}
         <tr>
-          <td class="td-center" style="font-weight:700;color:#001F54">{{ loop.index + 1 }}</td>
+          <td class="td-center" style="font-weight:700;color:#001F54">{{ loop.index }}</td>
             <td>
             <div style="font-weight:600;color:#222;line-height:1.4">
               {% if it.description %}Description: {{ it.description }}{% endif %}
