@@ -921,7 +921,9 @@ def customer_invoice_pdf(cid, iid):
         co_tbl = Table([[ci_title], [ci_sub]], colWidths=[W2])
         co_tbl.setStyle(TableStyle([
             ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, 1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 1*mm),
+            ("BOTTOMPADDING", (0, 1), (-1, 1), 0),
         ]))
 
         if _logo_tmp_files:
