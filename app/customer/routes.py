@@ -418,6 +418,7 @@ def customer_invoice_add(cid):
                 nmdc_monthly_rate = float(request.form.get("monthly_rate", 0) or 0)
                 eq_plants = request.form.getlist("eq_plant[]")
                 eq_regs = request.form.getlist("eq_reg[]")
+                eq_reg2 = request.form.getlist("eq_reg2[]")
                 eq_hours_list = request.form.getlist("eq_hours[]")
                 eq_pf_list = request.form.getlist("eq_period_from[]")
                 eq_pt_list = request.form.getlist("eq_period_to[]")
@@ -429,6 +430,9 @@ def customer_invoice_add(cid):
                 for i in range(len(eq_plants)):
                     plant = eq_plants[i].strip()
                     reg = eq_regs[i].strip() if i < len(eq_regs) else ""
+                    reg2 = eq_reg2[i].strip() if i < len(eq_reg2) else ""
+                    if reg2:
+                        reg = reg + " | <b>Reg#:</b> " + reg2
                     hours = float(eq_hours_list[i]) if i < len(eq_hours_list) and eq_hours_list[i].strip() else 0
                     eq_pf = eq_pf_list[i].strip() if i < len(eq_pf_list) else ""
                     eq_pt = eq_pt_list[i].strip() if i < len(eq_pt_list) else ""
@@ -592,6 +596,7 @@ def customer_invoice_edit(cid, iid):
                 nmdc_monthly_rate = float(request.form.get("monthly_rate", 0) or 0)
                 eq_plants = request.form.getlist("eq_plant[]")
                 eq_regs = request.form.getlist("eq_reg[]")
+                eq_reg2 = request.form.getlist("eq_reg2[]")
                 eq_hours_list = request.form.getlist("eq_hours[]")
                 eq_pf_list = request.form.getlist("eq_period_from[]")
                 eq_pt_list = request.form.getlist("eq_period_to[]")
@@ -603,6 +608,9 @@ def customer_invoice_edit(cid, iid):
                 for i in range(len(eq_plants)):
                     plant = eq_plants[i].strip()
                     reg = eq_regs[i].strip() if i < len(eq_regs) else ""
+                    reg2 = eq_reg2[i].strip() if i < len(eq_reg2) else ""
+                    if reg2:
+                        reg = reg + " | <b>Reg#:</b> " + reg2
                     hours = float(eq_hours_list[i]) if i < len(eq_hours_list) and eq_hours_list[i].strip() else 0
                     eq_pf = eq_pf_list[i].strip() if i < len(eq_pf_list) else ""
                     eq_pt = eq_pt_list[i].strip() if i < len(eq_pt_list) else ""
@@ -1460,8 +1468,8 @@ def customer_invoice_pdf(cid, iid):
         desc_html = (it.get("description") or "—")
         if is_nmdc:
             parts = []
+            if desc_html != "—": parts.append(desc_html)
             if it.get("vehicle_no"): parts.append(f"<b>Plant No:</b> {it['vehicle_no']}")
-            if desc_html != "—": parts.append(f"<b>Reg#</b> {desc_html}")
             plant_reg = " | ".join(parts)
             desc_html = plant_reg + eq_period_text + eq_hours
         rws.append([
