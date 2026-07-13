@@ -1015,9 +1015,9 @@ def customer_invoice_pdf(cid, iid):
             eq_p = nmdc_eq_periods[idx] if idx < len(nmdc_eq_periods) else {}
             eq_period_text = ""
             if eq_p.get("from") or eq_p.get("to"):
-                eq_period_text += f"<br/><font size=1.5 color='#666'>Period: {eq_p.get('from','')} to {eq_p.get('to','')}</font>"
+                eq_period_text += f"<br/><font color='#666'>Period: {eq_p.get('from','')} to {eq_p.get('to','')}</font>"
             cap = it.get("capacity_gallon")
-            eq_hours = f"<br/><font size=1.5 color='#666'>Hours: {float(cap):,.2f}</font>" if cap and float(cap) > 0 else ""
+            eq_hours = f"<br/><font color='#666'>Hours: {float(cap):,.2f}</font>" if cap and float(cap) > 0 else ""
             desc_html = (it.get("description") or "—")
             parts = []
             if desc_html != "—": parts.append(desc_html)
