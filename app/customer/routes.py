@@ -996,9 +996,11 @@ def customer_invoice_pdf(cid, iid):
     num_rows = len(items) + 1
     fs = 7.0
     if num_rows > 0:
-        avail_pt = A4[1] - TM - BM - 140*mm
+        # Reserve space for: header ~35mm, cards ~40mm, totals ~30mm, notes ~10mm, signatures ~25mm, footer ~18mm, spacers ~15mm
+        reserved = 173*mm
+        avail_pt = A4[1] - TM - BM - reserved
         target = avail_pt / max(num_rows, 1)
-        fs = max(5.0, min(8.0, target / 3.0))
+        fs = max(5.0, min(8.0, target / 2.8))
     ldr = fs * 1.2
     pad_t = max(1.0, fs * 0.3)
     pad_b = max(1.0, fs * 0.3)
@@ -1197,21 +1199,12 @@ def customer_invoice_pdf(cid, iid):
     els.append(sig_t)
 
     # ═════════ FOOTER (auto-anchored at page bottom via fill spacer) ═════════
-    from reportlab.platypus import Flowable
-    class SpacerFill(Flowable):
-        def __init__(self):
-            Flowable.__init__(self)
-            self.width = 1
-            self.height = 0
-        def wrap(self, availWidth, availHeight):
-            self.height = max(0, availHeight - 3*mm)
-            return (availWidth, self.height)
-        def draw(self):
-            pass
-    els.append(SpacerFill())
-    els.append(Spacer(1, 2*mm))
+    els.append(sig_t)
 
-    # Gold gradient bar
+    # ═════════ FOOTER ═════════
+    els.append(Spacer(1, 3*mm))
+
+    # Gold gradient bar (navy-gold-navy matching web)
     fbar = Table([[""]], colWidths=[W], rowHeights=[1.5])
     fbar.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),GOLD),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(fbar)
@@ -1224,18 +1217,16 @@ def customer_invoice_pdf(cid, iid):
     lic_text = f"License: {company['trade_license_no']}" if company and company.get("trade_license_no") else ""
 
     col1_items = []
-    col1_items.append(f"<font color='#ffffff' size=5.5>{addr_text}</font>")
-    if ph_text:
-        col1_items.append(f"<font color='#ffffff' size=5.5>{ph_text}</font>")
-    col1 = Paragraph("<br/>".join(col1_items), S("F1", fontSize=5.5, textColor=WH, leading=7.5))
+    if addr_text: col1_items.append(f"📍 {addr_text}")
+    if ph_text: col1_items.append(f"📞 {ph_text}")
+    col1 = Paragraph("<br/>".join(col1_items), S("F1", fontSize=5.5, textColor=WH, leading=8))
 
     col2_items = []
-    col2_items.append(f"<font color='#ffffff' size=5.5>{em_text}</font>")
-    if lic_text:
-        col2_items.append(f"<font color='#ffffff' size=5.5>{lic_text}</font>")
-    col2 = Paragraph("<br/>".join(col2_items), S("F2", fontSize=5.5, textColor=WH, leading=7.5))
+    if em_text: col2_items.append(f"✉ {em_text}")
+    if lic_text: col2_items.append(f"🏛 {lic_text}")
+    col2 = Paragraph("<br/>".join(col2_items), S("F2", fontSize=5.5, textColor=WH, leading=8))
 
-    # Certificate logos (right column)
+    # Certificate logos (right column) — using media/ceritifacte images
     cert_files = [
         ("app/static/IOS 14001.png", "ISO 14001"),
         ("app/static/ICV-Certificate logo.png", "ICV"),
@@ -1244,15 +1235,15 @@ def customer_invoice_pdf(cid, iid):
     cert_imgs = []
     for cf, alt in cert_files:
         try:
-            cert_imgs.append(Image(cf, height=5*mm, width=5*mm))
+            cert_imgs.append(Image(cf, height=6*mm, width=6*mm))
         except:
             cert_imgs.append(Paragraph(f"<b>{alt}</b>", S("_c", fontSize=5, textColor=GOLD, alignment=TA_CENTER)))
     if cert_imgs:
-        cert_table = Table([cert_imgs], colWidths=[5*mm]*len(cert_imgs))
+        cert_table = Table([cert_imgs], colWidths=[6*mm]*len(cert_imgs))
         cert_table.setStyle(TableStyle([
             ("ALIGN",(0,0),(-1,-1),"CENTER"),
             ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-            ("LEFTPADDING",(0,0),(-1,-1),1), ("RIGHTPADDING",(0,0),(-1,-1),1),
+            ("LEFTPADDING",(0,0),(-1,-1),1.5), ("RIGHTPADDING",(0,0),(-1,-1),1.5),
         ]))
     else:
         cert_table = Paragraph("", S("_e", fontSize=2))
@@ -1265,8 +1256,10 @@ def customer_invoice_pdf(cid, iid):
     footer_bg = Table([[footer_row]], colWidths=[W])
     footer_bg.setStyle(TableStyle([
         ("BACKGROUND",(0,0),(-1,-1),NAV),
-        ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
-        ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
+        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
+        ("TOPPADDING",(0,0),(-1,-1),5), ("BOTTOMPADDING",(0,0),(-1,-1),5),
+        # Subtle rounded border effect
+        ("BOX",(0,0),(-1,-1),0.3,NAV),
     ]))
     els.append(footer_bg)
 
