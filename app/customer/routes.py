@@ -940,10 +940,10 @@ def customer_invoice_pdf(cid, iid):
 
         rh_title = Paragraph(
             "<font size=18><b>TAX INVOICE</b></font>",
-            S("TI", fontSize=18, fontName="Helvetica-Bold", textColor=colors.white, leading=22, alignment=TA_RIGHT))
+            S("TI", fontSize=18, fontName="Helvetica-Bold", textColor=NAV, leading=22, alignment=TA_RIGHT))
         rh_meta = Paragraph(
-            f"<font size=7.5 color='white'># <b>{inv_no}</b> &middot; {inv_dt}</font>",
-            S("TM", fontSize=7.5, textColor=colors.white, leading=10, alignment=TA_RIGHT))
+            f"<font size=7.5 color='#888'># <b>{inv_no}</b> &middot; {inv_dt}</font>",
+            S("TM", fontSize=7.5, textColor=C5, leading=10, alignment=TA_RIGHT))
         rh_full = Table([[rh_title], [rh_meta]], colWidths=[W2 * 0.40])
         rh_full.setStyle(TableStyle([
             ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
@@ -953,6 +953,7 @@ def customer_invoice_pdf(cid, iid):
 
         ht = Table([[lh, rh_full]], colWidths=[W2 * 0.60, W2 * 0.40])
         ht.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+        els2.append(Spacer(1, 25*mm))
         els2.append(ht)
 
         gold_line = Table([[""]], colWidths=[W2], rowHeights=[0.8])
