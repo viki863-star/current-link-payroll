@@ -831,9 +831,8 @@ def customer_invoice_pdf(cid, iid):
             # ════════════════════════════════════════════
             #  TOP-RIGHT CORNER DESIGN (premium corporate)
             # ════════════════════════════════════════════
-            CS = 28*mm  # refined small corner
+            CS = 15*mm  # small extreme corner, no content overlap
             TR = (A4[0], A4[1])
-            # Navy triangle
             p = canvas.beginPath()
             p.moveTo(*TR)
             p.lineTo(A4[0] - CS, A4[1])
@@ -841,8 +840,8 @@ def customer_invoice_pdf(cid, iid):
             p.close()
             canvas.setFillColor(NAV)
             canvas.drawPath(p, fill=1, stroke=0)
-            # Gold tip accent (small triangle at the very corner)
-            gt = 4.5*mm
+            # Gold tip accent
+            gt = 3*mm
             gp = canvas.beginPath()
             gp.moveTo(*TR)
             gp.lineTo(A4[0] - gt, A4[1])
@@ -850,11 +849,11 @@ def customer_invoice_pdf(cid, iid):
             gp.close()
             canvas.setFillColor(GOLD)
             canvas.drawPath(gp, fill=1, stroke=0)
-            # Elegant gold line parallel to hypotenuse
-            t1 = 2*mm
+            # Gold line parallel to hypotenuse
+            t1 = 1.5*mm
             off = t1 * 0.7071
             canvas.setStrokeColor(GOLD)
-            canvas.setLineWidth(0.8)
+            canvas.setLineWidth(0.7)
             canvas.line(A4[0] - CS - off, A4[1] - off, A4[0] - off, A4[1] - CS - off)
             # ════════════════════════════════════════════
             #  FOOTER
@@ -934,7 +933,7 @@ def customer_invoice_pdf(cid, iid):
                 pass
 
         if logo:
-            lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW if LW else 0, 3*mm, W2 * 0.55])
+            lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW if LW else 0, 3*mm, W2 * 0.50])
             lh.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         else:
             lh = co_p
@@ -942,19 +941,19 @@ def customer_invoice_pdf(cid, iid):
         rh_title = Paragraph(
             "<font size=24><b>TAX INVOICE</b></font>",
             S("TI", fontSize=24, fontName="Helvetica-Bold", textColor=NAV, leading=28, alignment=TA_RIGHT))
-        gul = Table([[""]], colWidths=[W2 * 0.35], rowHeights=[0.8])
+        gul = Table([[""]], colWidths=[W2 * 0.40], rowHeights=[0.8])
         gul.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), GOLD), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         rh_meta = Paragraph(
             f"<font size=7.5 color='#888'># <b>{inv_no}</b> &middot; {inv_dt}</font>",
             S("TM", fontSize=7.5, textColor=C5, leading=10, alignment=TA_RIGHT))
-        rh_full = Table([[rh_title], [gul], [rh_meta]], colWidths=[W2 * 0.35])
+        rh_full = Table([[rh_title], [gul], [rh_meta]], colWidths=[W2 * 0.40])
         rh_full.setStyle(TableStyle([
             ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
             ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
             ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
         ]))
 
-        ht = Table([[lh, rh_full]], colWidths=[W2 * 0.65, W2 * 0.35])
+        ht = Table([[lh, rh_full]], colWidths=[W2 * 0.60, W2 * 0.40])
         ht.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         els2.append(ht)
 
