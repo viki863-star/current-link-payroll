@@ -941,8 +941,9 @@ def customer_invoice_pdf(cid, iid):
     els.append(Spacer(1, 5*mm))
 
     # ═════════ INFO CARDS (matching web: navy header, gold icon box, clean data) ═════════
+    col_w_card = (W - 3*mm) / 2
     def info_card(title, pairs, icon="☰"):
-        cw = W*0.50 - 1.5*mm
+        cw = col_w_card
         # Header row: gold icon box + navy title
         icon_w = 5*mm
         hdr = Table([
@@ -986,7 +987,7 @@ def customer_invoice_pdf(cid, iid):
     if inv.get("lpo_no"): id_.append(("LPO No.", inv["lpo_no"]))
     if inv.get("lpo_date"): id_.append(("LPO Date", inv["lpo_date"]))
 
-    iw = Table([[info_card("Bill To", bd, "☰"), Spacer(1, 3*mm), info_card("Invoice Details", id_, "✓")]], colWidths=[W*0.50, 3*mm, W*0.50])
+    iw = Table([[info_card("Bill To", bd, "☰"), Spacer(1, 3*mm), info_card("Invoice Details", id_, "✓")]], colWidths=[col_w_card, 3*mm, col_w_card])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(iw)
     els.append(Spacer(1, 5*mm))
@@ -1172,9 +1173,9 @@ def customer_invoice_pdf(cid, iid):
     stamp_img = None
     sign_img = None
     if os.path.exists(stamp_path):
-        stamp_img = Image(stamp_path, width=22, height=22)
+        stamp_img = Image(stamp_path, width=35, height=35)
     if os.path.exists(sign_path):
-        sign_img = Image(sign_path, width=22, height=22)
+        sign_img = Image(sign_path, width=35, height=35)
 
     def sig_col(label, img=None):
         cells = [
@@ -1196,9 +1197,6 @@ def customer_invoice_pdf(cid, iid):
         ("ALIGN",(0,0),(-1,-1),"CENTER"),
         ("LEFTPADDING",(0,0),(-1,-1),2), ("RIGHTPADDING",(0,0),(-1,-1),2),
     ]))
-    els.append(sig_t)
-
-    # ═════════ FOOTER (auto-anchored at page bottom via fill spacer) ═════════
     els.append(sig_t)
 
     # ═════════ FOOTER ═════════
