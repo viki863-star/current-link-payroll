@@ -858,30 +858,30 @@ def customer_invoice_pdf(cid, iid):
             canvas.setLineWidth(1.5)
             canvas.line(LM2, fy, A4[0] - RM2, fy)
             canvas.setFillColor(NAV)
-            canvas.roundRect(LM2, fy - 16*mm, W2, 16*mm, 2, fill=1, stroke=0)
+            canvas.roundRect(LM2, fy - 18*mm, W2, 18*mm, 3, fill=1, stroke=0)
             canvas.setFillColor(colors.white)
-            canvas.setFont("Helvetica", 7)
-            cx1 = LM2 + 4*mm; cy = fy - 3.5*mm
+            canvas.setFont("Helvetica", 8)
+            cx1 = LM2 + 5*mm; cy = fy - 4*mm
             canvas.drawString(cx1, cy, c_addr2 or "Confident property management building, Mussaffah")
-            canvas.setFont("Helvetica", 6.5)
+            canvas.setFont("Helvetica", 7.5)
             contact_parts = []
             if c_ph2: contact_parts.append(f"Tel: {c_ph2}")
             if c_em2: contact_parts.append(c_em2)
             if lic_text2: contact_parts.append(lic_text2)
             contact_parts.append(f"TRN: {c_trn2}")
-            canvas.drawString(cx1, cy - 4.5*mm, "  |  ".join(contact_parts))
-            cx3 = A4[0] - RM2 - 4*mm
-            cl_y = fy - 12*mm
+            canvas.drawString(cx1, cy - 5.5*mm, "  |  ".join(contact_parts))
+            cx3 = A4[0] - RM2 - 5*mm
+            cl_y = fy - 13*mm
             cl_spacing = 0
             for cf, alt in cert_files2:
                 try:
-                    canvas.drawImage(cf, cx3 - (cl_spacing + 7*mm), cl_y, width=7*mm, height=7*mm, preserveAspectRatio=True, anchor='c')
-                    cl_spacing += 8*mm
+                    canvas.drawImage(cf, cx3 - (cl_spacing + 8*mm), cl_y, width=8*mm, height=8*mm, preserveAspectRatio=True, anchor='c')
+                    cl_spacing += 9*mm
                 except:
                     pass
-            canvas.setFont("Helvetica", 6)
-            canvas.setFillColor(colors.HexColor("#99aabb"))
-            canvas.drawRightString(A4[0] - RM2 - 3*mm, fy - 13*mm, f"Page {doc.page}")
+            canvas.setFont("Helvetica", 7)
+            canvas.setFillColor(colors.HexColor("#aac5db"))
+            canvas.drawRightString(A4[0] - RM2 - 5*mm, fy - 15.5*mm, f"Page {doc.page}")
             canvas.restoreState()
 
         # ═══════════════════════════════════════════
@@ -1191,7 +1191,7 @@ def customer_invoice_pdf(cid, iid):
             ("SPAN", (0, 1), (-1, 1)),
             ("TOPPADDING", (0, 0), (1, 0), 4), ("BOTTOMPADDING", (0, 0), (1, 0), 4),
             ("LEFTPADDING", (0, 0), (0, 0), 3), ("RIGHTPADDING", (0, 0), (0, 0), 3),
-            ("TOPPADDING", (0, 1), (-1, 1), 12), ("BOTTOMPADDING", (0, 1), (-1, 1), 12),
+            ("TOPPADDING", (0, 1), (-1, 1), 20), ("BOTTOMPADDING", (0, 1), (-1, 1), 20),
             ("LEFTPADDING", (0, 1), (-1, 1), 5), ("RIGHTPADDING", (0, 1), (-1, 1), 5),
             ("VALIGN", (0, 0), (0, 0), "MIDDLE"),
         ]))
