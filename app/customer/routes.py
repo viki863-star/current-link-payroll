@@ -941,10 +941,8 @@ def customer_invoice_pdf(cid, iid):
         # ── INFO CARDS (bigger icons per row) ──
         cwc = (W2 - 4*mm) / 2
         icon_base = os.path.join(current_app.root_path, '..', 'media', 'ICON')
-        def simple_card(title, pairs, row_icons):
-            rows = [
-                [Paragraph(f"<b>{title}</b>", S("_ch", fontSize=10, fontName="Helvetica-Bold", textColor=NAV, leading=13))],
-            ]
+        def simple_card(pairs, row_icons):
+            rows = []
             for i, (a, b) in enumerate(pairs):
                 ri = row_icons[i] if i < len(row_icons) else ""
                 try:
@@ -960,7 +958,6 @@ def customer_invoice_pdf(cid, iid):
             t.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("ALIGN", (0, 0), (0, -1), "CENTER"),
-                ("SPAN", (0, 0), (-1, 0)),
                 ("TOPPADDING", (0, 0), (-1, -1), 1.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ]))
@@ -979,7 +976,7 @@ def customer_invoice_pdf(cid, iid):
         if pdf_so_date: id_.append(("SO Date", pdf_so_date)); id_icons.append("So  Date .png")
         id_.append(("TRN", c_trn2)); id_icons.append("TRN.png")
 
-        iw = Table([[simple_card("Bill To", bd, bd_icons), Spacer(1, 3*mm), simple_card("Invoice Details", id_, id_icons)]], colWidths=[cwc, 3*mm, cwc])
+        iw = Table([[simple_card(bd, bd_icons), Spacer(1, 3*mm), simple_card(id_, id_icons)]], colWidths=[cwc, 3*mm, cwc])
         iw.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         els2.append(iw)
         els2.append(Spacer(1, 3*mm))
