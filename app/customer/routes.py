@@ -832,7 +832,7 @@ def customer_invoice_pdf(cid, iid):
 
     NMDC_CONV_HOURS = 260
     NAV = colors.HexColor("#001F54")
-    GOLD = colors.HexColor("#D4A017")
+    GOLD = colors.HexColor("#f6a202")
     WH = colors.white
     BG = colors.HexColor("#fafbfc")
     C3 = colors.HexColor("#e2e8f0")
@@ -880,7 +880,7 @@ def customer_invoice_pdf(cid, iid):
 
     # Company text: big "CURRENT LINK" in gold + small below
     ci_html = (
-        f"<font size=22 color='#D4A017'><b>CURRENT LINK</b></font><br/>"
+        f"<font size=22 color='#f6a202'><b>CURRENT LINK</b></font><br/>"
         f"<font size=6 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>"
     )
     co_p = Paragraph(ci_html, S("CO", fontSize=22, fontName="Helvetica-Bold", textColor=GOLD, leading=26))
