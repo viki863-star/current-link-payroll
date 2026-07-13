@@ -828,43 +828,46 @@ def customer_invoice_pdf(cid, iid):
 
         def draw_footer(canvas, doc):
             canvas.saveState()
-            fy = BM2  # bottom edge of content area — footer draws BELOW this
-            # Gold accent line (just above the navy area)
+            fy = BM2
+            # Gold accent line
             canvas.setStrokeColor(GOLD)
-            canvas.setLineWidth(1.2)
+            canvas.setLineWidth(1.5)
             canvas.line(LM2, fy, A4[0] - RM2, fy)
-            # Navy background (below the content area, in the margin)
+            # Navy background
             canvas.setFillColor(NAV)
-            canvas.roundRect(LM2, fy - 16*mm, W2, 16*mm, 1.5, fill=1, stroke=0)
+            canvas.roundRect(LM2, fy - 18*mm, W2, 18*mm, 2, fill=1, stroke=0)
             # White text
             canvas.setFillColor(colors.white)
-            canvas.setFont("Helvetica", 5.5)
             # Col 1: Address / Phone
-            cx1 = LM2 + 3*mm
+            canvas.setFont("Helvetica", 6.5)
+            cx1 = LM2 + 4*mm
             cy = fy - 4*mm
             canvas.drawString(cx1, cy, c_addr2 or "ABU DHABI")
             if c_ph2:
-                canvas.drawString(cx1, cy - 3.5*mm, f"Tel: {c_ph2}")
+                canvas.setFont("Helvetica", 6)
+                canvas.drawString(cx1, cy - 4*mm, f"Tel: {c_ph2}")
             # Col 2: Email / License / TRN
-            cx2 = LM2 + W2 * 0.33
+            canvas.setFont("Helvetica", 6.5)
+            cx2 = LM2 + W2 * 0.32
             canvas.drawString(cx2, cy, c_em2 or "info@currentlink.ae")
+            canvas.setFont("Helvetica", 6)
             if lic_text2:
-                canvas.drawString(cx2, cy - 3.5*mm, lic_text2)
-            canvas.drawString(cx2, cy - 7*mm, f"TRN: {c_trn2}")
+                canvas.drawString(cx2, cy - 4*mm, lic_text2)
+            canvas.drawString(cx2, cy - 8*mm, f"TRN: {c_trn2}")
             # Col 3: Certificate logos
-            cx3 = A4[0] - RM2 - 3*mm
-            cl_y = fy - 6*mm
+            cx3 = A4[0] - RM2 - 4*mm
+            cl_y = fy - 5*mm
             cl_spacing = 0
             for cf, alt in cert_files2:
                 try:
-                    canvas.drawImage(cf, cx3 - (cl_spacing + 6*mm), cl_y, width=6*mm, height=6*mm, preserveAspectRatio=True, anchor='c')
-                    cl_spacing += 7*mm
+                    canvas.drawImage(cf, cx3 - (cl_spacing + 7*mm), cl_y, width=7*mm, height=7*mm, preserveAspectRatio=True, anchor='c')
+                    cl_spacing += 8*mm
                 except:
                     pass
             # Page number
-            canvas.setFont("Helvetica", 5)
-            canvas.setFillColor(colors.HexColor("#aaa"))
-            canvas.drawRightString(A4[0] - RM2 - 2*mm, fy - 14*mm, f"Page {doc.page}")
+            canvas.setFont("Helvetica", 5.5)
+            canvas.setFillColor(colors.HexColor("#99aabb"))
+            canvas.drawRightString(A4[0] - RM2 - 3*mm, fy - 15*mm, f"Page {doc.page}")
             canvas.restoreState()
 
         # ═══════════════════════════════════════════
@@ -940,54 +943,36 @@ def customer_invoice_pdf(cid, iid):
         els2.append(gold_line)
         els2.append(Spacer(1, 4*mm))
 
-        # ── INFO CARDS (simple, no box) ──
+        # ── INFO CARDS (no icons, bigger font) ──
         cwc = (W2 - 3*mm) / 2
-        icon_base = os.path.join(current_app.root_path, '..', 'media', 'ICON')
-        def simple_card(title, pairs, header_icon, row_icons):
-            rows = []
-            try:
-                hi = Image(os.path.join(icon_base, header_icon), width=3.5*mm, height=3.5*mm)
-            except:
-                hi = Paragraph("", S("_e", fontSize=1))
-            rows.append([
-                hi,
-                Paragraph(f"<b>{title}</b>", S("_ch", fontSize=7, fontName="Helvetica-Bold", textColor=NAV, leading=9)),
-                Paragraph("", S("_e", fontSize=1)),
-            ])
-            for i, (a, b) in enumerate(pairs):
-                ri = row_icons[i] if i < len(row_icons) else ""
-                try:
-                    ri_img = Image(os.path.join(icon_base, ri), width=2.5*mm, height=2.5*mm) if ri else Paragraph("", S("_e", fontSize=1))
-                except:
-                    ri_img = Paragraph("", S("_e", fontSize=1))
+        def simple_card(title, pairs):
+            rows = [
+                [Paragraph(f"<b>{title}</b>", S("_ch", fontSize=9, fontName="Helvetica-Bold", textColor=NAV, leading=12))],
+            ]
+            for a, b in pairs:
                 rows.append([
-                    ri_img,
-                    Paragraph(f"<font color='#666'>{a}:</font>", S("_rl", fontSize=6, textColor=C5, leading=8)),
-                    Paragraph(f"<b>{b}</b>", S("_rv", fontSize=6, fontName="Helvetica-Bold", textColor=C4, leading=8)),
+                    Paragraph(f"<font color='#475569' size=7><b>{a}:</b></font>  <font color='#0f172a' size=7>{b}</font>",
+                             S("_rv", fontSize=7, leading=10)),
                 ])
-            t = Table(rows, colWidths=[5*mm, 13*mm, cwc - 5*mm - 13*mm])
+            t = Table(rows, colWidths=[cwc])
             t.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("TOPPADDING", (0, 0), (-1, -1), 0.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 0.5),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0.5), ("RIGHTPADDING", (0, 0), (-1, -1), 0.5),
-                ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ]))
             return t
 
         bd = [("Customer", safe(c["customer_name"]))]
-        bd_icons = ["USER.png"]
-        if c["address"]: bd.append(("Address", c["address"])); bd_icons.append("ADDRESS.png")
-        bd.append(("TRN", safe(c["trn"]))); bd_icons.append("TRN.png")
-        if c["phone"]: bd.append(("Phone", c["phone"])); bd_icons.append("Phone.png")
+        if c["address"]: bd.append(("Address", c["address"]))
+        bd.append(("TRN", safe(c["trn"])))
+        if c["phone"]: bd.append(("Phone", c["phone"]))
 
         id_ = [("Invoice #", inv_no)]
-        id_icons = ["INVOICE.png"]
-        if inv.get("so_no"): id_.append(("SO No.", inv["so_no"])); id_icons.append("SO.png")
-        id_.append(("Date", inv_dt)); id_icons.append("DATE.png")
-        if pdf_so_date: id_.append(("SO Date", pdf_so_date)); id_icons.append("So  Date .png")
-        id_.append(("TRN", c_trn2)); id_icons.append("TRN.png")
+        if inv.get("so_no"): id_.append(("SO No.", inv["so_no"]))
+        id_.append(("Date", inv_dt))
+        if pdf_so_date: id_.append(("SO Date", pdf_so_date))
+        id_.append(("TRN", c_trn2))
 
-        iw = Table([[simple_card("Bill To", bd, "USER.png", bd_icons), Spacer(1, 3*mm), simple_card("Invoice Details", id_, "INVOICE.png", id_icons)]], colWidths=[cwc, 3*mm, cwc])
+        iw = Table([[simple_card("Bill To", bd), Spacer(1, 3*mm), simple_card("Invoice Details", id_)]], colWidths=[cwc, 3*mm, cwc])
         iw.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         els2.append(iw)
 
@@ -1149,15 +1134,15 @@ def customer_invoice_pdf(cid, iid):
             els2.append(nb)
 
         # ── SIGNATURES (auto-pushed to bottom via TopPadder) ──
-        sg = ParagraphStyle("SG", fontSize=6.5, alignment=TA_CENTER, leading=9, textColor=C5)
+        sg = ParagraphStyle("SG", fontSize=7, alignment=TA_CENTER, leading=10, textColor=C5)
         stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
         sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
         stamp_img = None
         sign_img = None
         if os.path.exists(stamp_path):
-            stamp_img = Image(stamp_path, width=32, height=32)
+            stamp_img = Image(stamp_path, width=40, height=40)
         if os.path.exists(sign_path):
-            sign_img = Image(sign_path, width=32, height=32)
+            sign_img = Image(sign_path, width=40, height=40)
 
         def sig_col(label, img=None):
             cells = [
@@ -1174,7 +1159,9 @@ def customer_invoice_pdf(cid, iid):
         ], colWidths=[scw, scw, scw])
         sig_t.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+            ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4), ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("LINEABOVE", (0, 0), (-1, -1), 0.3, C3),
         ]))
         els2.append(TopPadder(sig_t))
 
