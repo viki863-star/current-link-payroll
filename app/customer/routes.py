@@ -1186,10 +1186,10 @@ def customer_invoice_pdf(cid, iid):
 
     # Navy footer content
     footer_items = []
-    if c_addr: footer_items.append(f"<font color='rgba(255,255,255,0.85)' size=6>{c_addr}</font>")
-    if c_ph: footer_items.append(f"<font color='rgba(255,255,255,0.85)' size=6>Phone: {c_ph}</font>")
-    if c_em: footer_items.append(f"<font color='rgba(255,255,255,0.85)' size=6>{c_em}</font>")
-    if inv.get("so_no"): footer_items.append(f"<font color='rgba(255,255,255,0.85)' size=6>SO: {inv['so_no']}</font>")
+    if c_addr: footer_items.append(f"<font color='#ffffff' size=6>{c_addr}</font>")
+    if c_ph: footer_items.append(f"<font color='#ffffff' size=6>Phone: {c_ph}</font>")
+    if c_em: footer_items.append(f"<font color='#ffffff' size=6>{c_em}</font>")
+    if inv.get("so_no"): footer_items.append(f"<font color='#ffffff' size=6>SO: {inv['so_no']}</font>")
     footer_left = "<br/>".join(footer_items) if footer_items else ""
 
     # Certificate logos
@@ -1204,15 +1204,19 @@ def customer_invoice_pdf(cid, iid):
             cert_imgs.append(Image(cf, height=5*mm, width=5*mm))
         except:
             cert_imgs.append(Paragraph(f"<b>{alt}</b>", S("_c", fontSize=6, textColor=GOLD, alignment=TA_CENTER)))
-    cert_row = []
-    for ci in cert_imgs:
-        cert_row.append(ci)
-        cert_row.append(Spacer(1, 1*mm))
-    cert_imgs_table = Table([cert_row[:-1]], colWidths=[5*mm, 1*mm]*len(cert_imgs)) if cert_imgs else Paragraph("", S("_e", fontSize=2))
+    if cert_imgs:
+        cert_table = Table([cert_imgs], colWidths=[5*mm]*len(cert_imgs))
+        cert_table.setStyle(TableStyle([
+            ("ALIGN",(0,0),(-1,-1),"CENTER"),
+            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+            ("LEFTPADDING",(0,0),(-1,-1),1), ("RIGHTPADDING",(0,0),(-1,-1),1),
+        ]))
+    else:
+        cert_table = Paragraph("", S("_e", fontSize=2))
 
     footer_content = Table([
         [Paragraph(footer_left, S("FL", fontSize=6, textColor=WH, leading=8)),
-         cert_imgs_table]
+         cert_table]
     ], colWidths=[W*0.65, W*0.35])
     footer_content.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
