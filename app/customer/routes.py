@@ -831,9 +831,9 @@ def customer_invoice_pdf(cid, iid):
             # ════════════════════════════════════════════
             #  TOP-RIGHT CORNER DESIGN (premium corporate)
             # ════════════════════════════════════════════
-            CS = 70*mm  # corner triangle size
-            TR = (A4[0], A4[1])  # top-right corner
-            # Large navy triangle
+            CS = 28*mm  # refined small corner
+            TR = (A4[0], A4[1])
+            # Navy triangle
             p = canvas.beginPath()
             p.moveTo(*TR)
             p.lineTo(A4[0] - CS, A4[1])
@@ -841,26 +841,21 @@ def customer_invoice_pdf(cid, iid):
             p.close()
             canvas.setFillColor(NAV)
             canvas.drawPath(p, fill=1, stroke=0)
-            # Gold accent line 1 (parallel to hypotenuse, inset 3mm)
-            t1 = 3*mm
+            # Gold tip accent (small triangle at the very corner)
+            gt = 4.5*mm
+            gp = canvas.beginPath()
+            gp.moveTo(*TR)
+            gp.lineTo(A4[0] - gt, A4[1])
+            gp.lineTo(A4[0], A4[1] - gt)
+            gp.close()
+            canvas.setFillColor(GOLD)
+            canvas.drawPath(gp, fill=1, stroke=0)
+            # Elegant gold line parallel to hypotenuse
+            t1 = 2*mm
             off = t1 * 0.7071
             canvas.setStrokeColor(GOLD)
-            canvas.setLineWidth(1.5)
-            canvas.line(A4[0] - CS - off, A4[1] - off, A4[0] - off, A4[1] - CS - off)
-            # Gold accent line 2 (parallel, inset 6mm)
-            t2 = 6*mm
-            off2 = t2 * 0.7071
             canvas.setLineWidth(0.8)
-            canvas.line(A4[0] - CS - off2, A4[1] - off2, A4[0] - off2, A4[1] - CS - off2)
-            # Gold abstract streaks (speed/engineering)
-            canvas.setLineWidth(0.6)
-            canvas.setStrokeColor(GOLD)
-            # Streak 1 — upper area
-            canvas.line(A4[0] - CS * 0.55, A4[1], A4[0] - CS * 0.45, A4[1] - CS * 0.15)
-            # Streak 2 — right area
-            canvas.line(A4[0], A4[1] - CS * 0.55, A4[0] - CS * 0.15, A4[1] - CS * 0.45)
-            # Streak 3 — subtle inner streak
-            canvas.line(A4[0] - CS * 0.5, A4[1] - CS * 0.15, A4[0] - CS * 0.15, A4[1] - CS * 0.5)
+            canvas.line(A4[0] - CS - off, A4[1] - off, A4[0] - off, A4[1] - CS - off)
             # ════════════════════════════════════════════
             #  FOOTER
             # ════════════════════════════════════════════
