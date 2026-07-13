@@ -90,7 +90,7 @@
         <div style="margin-bottom:10px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
                 <h4 style="margin:0;font-size:0.78rem;font-weight:600">Invoice Items</h4>
-                <button type="button" class="btn btn-outline btn-sm" onclick="addNextSoItem()" style="padding:3px 10px;font-size:0.72rem">+ Add</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="addNextSoItem()" style="padding:3px 10px;font-size:0.72rem">+ Equipment</button>
             </div>
             <table class="inv-table" id="mainTable">
                 <thead>
@@ -152,26 +152,20 @@ function addSoItem(idx) {
     var items = window._soItems || [];
     var it = items[idx];
     if (!it) return;
-    addRow(it.vehicle_no || '', it.description || '', 0, '', '', it.unit_type || 'Month', it.rate || 0);
+    addSoRow(it.vehicle_no || '', it.description || '', 0, '', '', it.unit_type || 'Month', it.rate || 0);
     renumberAll();
     calcAll();
 }
 
 function addNextSoItem() {
-    var items = window._soItems || [];
-    if (items.length > 0 && _soItemIdx < items.length) {
-        addSoItem(_soItemIdx);
-        _soItemIdx++;
-    } else {
-        addRow();
-        renumberAll();
-        calcAll();
-    }
+    addEquipmentRow();
+    renumberAll();
+    calcAll();
 }
 
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function addRow(plant, reg, hours, pf, pt, unit, rate) {
+function addSoRow(plant, reg, hours, pf, pt, unit, rate) {
     rowId++;
     const tbody = document.getElementById('tableBody');
     if (pf === undefined) { const dp = getDefPeriod(); pf = dp.from; pt = dp.to; }
@@ -202,7 +196,43 @@ function addRow(plant, reg, hours, pf, pt, unit, rate) {
         '<td><span class="eq_disp eq_total" style="color:#0f172a;font-weight:700">0.00</span></td>' +
         '<td><button type="button" class="btn-icon" onclick="removeRow(this)">&times;</button></td>';
     tbody.appendChild(tr);
-    // If rate was provided, set it in the hidden field and update display
+    if (rate) {
+        tr.querySelector('.eq_uprice').textContent = rate.toFixed(2);
+    }
+}
+
+function addEquipmentRow(plant, reg, hours, pf, pt, unit, rate) {
+    rowId++;
+    const tbody = document.getElementById('tableBody');
+    if (pf === undefined) { const dp = getDefPeriod(); pf = dp.from; pt = dp.to; }
+    unit = unit || 'Month';
+    rate = rate || 0;
+    const monthlyRate = parseFloat(document.getElementById('monthlyRate').value) || 0;
+    const displayRate = rate || monthlyRate;
+    const tr = document.createElement('tr');
+    tr.id = 'eqrow_' + rowId;
+    tr.innerHTML = '<td style="text-align:center;font-weight:600;color:#64748b" class="rn">0</td>' +
+        '<td>' +
+        '<div style="font-size:0.65rem;color:#475569">Plant No: <input type="text" name="eq_plant[]" value="' + esc(plant) + '" style="width:calc(100% - 60px);padding:2px 4px;border:1px solid #e2e8f0;border-radius:3px;font-size:0.65rem"></div>' +
+        '<div style="font-size:0.65rem;color:#475569;margin-top:2px">Reg#: <input type="text" name="eq_reg[]" value="' + esc(reg) + '" style="width:calc(100% - 36px);padding:2px 4px;border:1px solid #e2e8f0;border-radius:3px;font-size:0.65rem"></div>' +
+        '<div style="display:flex;gap:6px;margin-top:3px;font-size:0.6rem;color:#94a3b8">' +
+        '<span>From: <input type="date" name="eq_period_from[]" value="' + esc(pf) + '" style="width:105px;font-size:0.6rem;padding:1px 3px"></span>' +
+        '<span>To: <input type="date" name="eq_period_to[]" value="' + esc(pt) + '" style="width:105px;font-size:0.6rem;padding:1px 3px"></span>' +
+        '</div>' +
+        '<div style="font-size:0.6rem;color:#94a3b8;margin-top:2px">' +
+        'Hours: <input type="number" name="eq_hours[]" value="' + esc(hours) + '" min="0" step="0.01" style="width:70px;font-size:0.6rem;padding:1px 3px;border:1px solid #e2e8f0;border-radius:3px;text-align:center" oninput="calcRow(this);calcAll()">' +
+        '<input type="hidden" name="eq_qyt[]" value="0">' +
+        '<input type="hidden" name="eq_rate[]" value="' + esc(rate) + '">' +
+        '</div></td>' +
+        '<td><span class="eq_disp eq_qty" style="color:#0f172a">0.000</span></td>' +
+        '<td style="text-align:center;color:#475569;white-space:nowrap">' + esc(unit) + '<input type="hidden" name="eq_unit[]" value="' + esc(unit) + '"></td>' +
+        '<td><span class="eq_disp eq_uprice" style="color:#0f172a">' + displayRate.toFixed(2) + '</span></td>' +
+        '<td><span class="eq_disp eq_taxable" style="color:#0f172a">0.00</span></td>' +
+        '<td style="text-align:center;color:#475569;font-size:0.72rem">5%</td>' +
+        '<td><span class="eq_disp eq_vat" style="color:#c62828">0.00</span></td>' +
+        '<td><span class="eq_disp eq_total" style="color:#0f172a;font-weight:700">0.00</span></td>' +
+        '<td><button type="button" class="btn-icon" onclick="removeRow(this)">&times;</button></td>';
+    tbody.appendChild(tr);
     if (rate) {
         tr.querySelector('.eq_uprice').textContent = rate.toFixed(2);
     }
@@ -323,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if edit and nmdc_equip_items %}
     {% for it in nmdc_equip_items %}
     {% set ep = nmdc_eq_periods[loop.index0] if loop.index0 < nmdc_eq_periods|length else {} %}
-    addRow({{ it.vehicle_no|tojson if it.vehicle_no else '' }}, {{ it.description|tojson }}, {{ it.capacity_gallon|float if it.capacity_gallon else 0 }}, {{ ep.get('from', '')|tojson }}, {{ ep.get('to', '')|tojson }}, {{ it.unit|tojson if it.unit else 'Month' }}, {{ it.rate|float }});
+    addEquipmentRow({{ it.vehicle_no|tojson if it.vehicle_no else '' }}, {{ it.description|tojson }}, {{ it.capacity_gallon|float if it.capacity_gallon else 0 }}, {{ ep.get('from', '')|tojson }}, {{ ep.get('to', '')|tojson }}, {{ it.unit|tojson if it.unit else 'Month' }}, {{ it.rate|float }});
     {% endfor %}
     renumberAll();
     calcAll();
