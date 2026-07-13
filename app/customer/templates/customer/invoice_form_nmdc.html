@@ -75,21 +75,10 @@
             </div>
         </div>
 
-        {# RATE / MONTH / VAT #}
-        <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:6px;padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:10px">
-            <div>
-                <label style="font-size:0.6rem;color:#94a3b8">Rate (AED/month)</label>
-                <input type="number" name="monthly_rate" id="monthlyRate" value="{{ nmdc_mr }}" min="0" step="any" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem" oninput="calcAll()">
-            </div>
-            <div>
-                <label style="font-size:0.6rem;color:#94a3b8">Month</label>
-                <input type="text" name="month_label" id="monthLabel" value="{{ nmdc_ml }}" placeholder="e.g. April-2026" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
-            </div>
-            <div>
-                <label style="font-size:0.6rem;color:#94a3b8">VAT %</label>
-                <input type="number" name="vat_percent" id="vatPercent" value="{{ nmdc_vat }}" step="any" min="0" oninput="calcAll()" style="width:100%;padding:3px 5px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.75rem">
-            </div>
-        </div>
+        {# RATE / MONTH / VAT (hidden, used by JS) #}
+        <input type="hidden" name="monthly_rate" id="monthlyRate" value="{{ nmdc_mr }}">
+        <input type="hidden" name="month_label" id="monthLabel" value="{{ nmdc_ml }}">
+        <input type="hidden" name="vat_percent" id="vatPercent" value="{{ nmdc_vat }}">
 
         {# ─── SO Items List (hidden until SO selected) ─── #}
         <div id="soItemsList" style="display:none;margin-bottom:10px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
