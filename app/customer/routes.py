@@ -941,12 +941,10 @@ def customer_invoice_pdf(cid, iid):
         rh_title = Paragraph(
             "<font size=18><b>TAX INVOICE</b></font>",
             S("TI", fontSize=18, fontName="Helvetica-Bold", textColor=NAV, leading=22, alignment=TA_RIGHT))
-        gul = Table([[""]], colWidths=[W2 * 0.40], rowHeights=[0.8])
-        gul.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), GOLD), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         rh_meta = Paragraph(
             f"<font size=7.5 color='#888'># <b>{inv_no}</b> &middot; {inv_dt}</font>",
             S("TM", fontSize=7.5, textColor=C5, leading=10, alignment=TA_RIGHT))
-        rh_full = Table([[rh_title], [gul], [rh_meta]], colWidths=[W2 * 0.40])
+        rh_full = Table([[rh_title], [rh_meta]], colWidths=[W2 * 0.40])
         rh_full.setStyle(TableStyle([
             ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
             ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
