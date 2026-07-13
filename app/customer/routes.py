@@ -868,7 +868,7 @@ def customer_invoice_pdf(cid, iid):
     inv_no = inv["invoice_no"] or "—"
     inv_dt = inv["invoice_date"] or "—"
 
-    # ═════════ HEADER ═════════
+    # ═════════ HEADER: Left = Logo + CURRENT LINK (big) + sub (small), Right = TAX INVOICE + gold line ═════════
     logo = None; LW = 0
     if company and company["logo_data"]:
         try:
@@ -878,12 +878,12 @@ def customer_invoice_pdf(cid, iid):
             _logo_tmp_files.append(f.name)
         except: pass
 
-    ci_lines = []
-    ci_lines.append(f"<font size=13><b>{cn}</b></font>")
-    ci_lines.append('<font size=6 color="#555">TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>')
-    ci_lines.append(f'<font size=6 color="#777"><b>TRN: {c_trn}</b></font>')
-    ci_html = "<br/>".join(ci_lines)
-    co_p = Paragraph(ci_html, S("CO", fontSize=13, fontName="Helvetica-Bold", textColor=NAV, leading=16))
+    # Company text: big "CURRENT LINK" + small below
+    ci_html = (
+        f"<font size=16><b>CURRENT LINK</b></font><br/>"
+        f"<font size=6 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>"
+    )
+    co_p = Paragraph(ci_html, S("CO", fontSize=16, fontName="Helvetica-Bold", textColor=NAV, leading=20))
 
     logo_w = 0; logo_h = 0
     if _logo_tmp_files:
@@ -913,15 +913,22 @@ def customer_invoice_pdf(cid, iid):
     else:
         lh = co_p
 
-    rh = Paragraph(
-        f"<font size=20><b>TAX INVOICE</b></font><br/>"
-        f"<font size=7 color='#777'># <b>{inv_no}</b> &middot; {inv_dt}</font>",
-        S("TI", fontSize=20, fontName="Helvetica-Bold", textColor=NAV, leading=24, alignment=TA_RIGHT))
-    # Gold underline for title
-    gul = Table([[""]], colWidths=[W*0.35], rowHeights=[0.4])
+    # Right side: TAX INVOICE + gold line + meta
+    rh_title = Paragraph(
+        "<font size=22><b>TAX INVOICE</b></font>",
+        S("TI", fontSize=22, fontName="Helvetica-Bold", textColor=NAV, leading=26, alignment=TA_RIGHT))
+    # Gold gradient line
+    gul = Table([[""]], colWidths=[W*0.35], rowHeights=[0.5])
     gul.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),GOLD),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    rh_full = Table([[rh], [gul]], colWidths=[W*0.35])
-    rh_full.setStyle(TableStyle([("ALIGN",(0,0),(-1,-1),"RIGHT"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    rh_meta = Paragraph(
+        f"<font size=7 color='#777'># <b>{inv_no}</b> &middot; {inv_dt}</font>",
+        S("TM", fontSize=7, textColor=C5, leading=9, alignment=TA_RIGHT))
+    rh_full = Table([[rh_title], [gul], [rh_meta]], colWidths=[W*0.35])
+    rh_full.setStyle(TableStyle([
+        ("ALIGN",(0,0),(-1,-1),"RIGHT"),
+        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),1),
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
 
     ht = Table([[lh, rh_full]], colWidths=[W*0.65, W*0.35])
     ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
@@ -1177,22 +1184,33 @@ def customer_invoice_pdf(cid, iid):
     ]))
     els.append(sig_t)
 
-    # ═════════ FOOTER (matching web: navy bg, gold bar, cert logos) ═════════
+    # ═════════ FOOTER (matching web: gold bar, navy bg, contact + certs) ═════════
     els.append(Spacer(1, 8*mm))
     # Gold gradient bar
     fbar = Table([[""]], colWidths=[W], rowHeights=[1.5])
     fbar.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),GOLD),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(fbar)
 
-    # Navy footer content
-    footer_items = []
-    if c_addr: footer_items.append(f"<font color='#ffffff' size=6>{c_addr}</font>")
-    if c_ph: footer_items.append(f"<font color='#ffffff' size=6>Phone: {c_ph}</font>")
-    if c_em: footer_items.append(f"<font color='#ffffff' size=6>{c_em}</font>")
-    if inv.get("so_no"): footer_items.append(f"<font color='#ffffff' size=6>SO: {inv['so_no']}</font>")
-    footer_left = "<br/>".join(footer_items) if footer_items else ""
+    # Contact info columns (matching web: address+phone | email+license | cert logos)
+    col_w = W / 3
+    addr_text = c_addr or "ABU DHABI"
+    ph_text = f"Phone: {c_ph}" if c_ph else ""
+    em_text = c_em or "info@currentlink.ae"
+    lic_text = f"License: {company['trade_license_no']}" if company and company.get("trade_license_no") else ""
 
-    # Certificate logos
+    col1_items = []
+    col1_items.append(f"<font color='#ffffff' size=5.5>{addr_text}</font>")
+    if ph_text:
+        col1_items.append(f"<font color='#ffffff' size=5.5>{ph_text}</font>")
+    col1 = Paragraph("<br/>".join(col1_items), S("F1", fontSize=5.5, textColor=WH, leading=7.5))
+
+    col2_items = []
+    col2_items.append(f"<font color='#ffffff' size=5.5>{em_text}</font>")
+    if lic_text:
+        col2_items.append(f"<font color='#ffffff' size=5.5>{lic_text}</font>")
+    col2 = Paragraph("<br/>".join(col2_items), S("F2", fontSize=5.5, textColor=WH, leading=7.5))
+
+    # Certificate logos (right column)
     cert_files = [
         ("app/static/IOS 14001.png", "ISO 14001"),
         ("app/static/ICV-Certificate logo.png", "ICV"),
@@ -1203,7 +1221,7 @@ def customer_invoice_pdf(cid, iid):
         try:
             cert_imgs.append(Image(cf, height=5*mm, width=5*mm))
         except:
-            cert_imgs.append(Paragraph(f"<b>{alt}</b>", S("_c", fontSize=6, textColor=GOLD, alignment=TA_CENTER)))
+            cert_imgs.append(Paragraph(f"<b>{alt}</b>", S("_c", fontSize=5, textColor=GOLD, alignment=TA_CENTER)))
     if cert_imgs:
         cert_table = Table([cert_imgs], colWidths=[5*mm]*len(cert_imgs))
         cert_table.setStyle(TableStyle([
@@ -1214,15 +1232,12 @@ def customer_invoice_pdf(cid, iid):
     else:
         cert_table = Paragraph("", S("_e", fontSize=2))
 
-    footer_content = Table([
-        [Paragraph(footer_left, S("FL", fontSize=6, textColor=WH, leading=8)),
-         cert_table]
-    ], colWidths=[W*0.65, W*0.35])
-    footer_content.setStyle(TableStyle([
+    footer_row = Table([[col1, col2, cert_table]], colWidths=[col_w, col_w, col_w])
+    footer_row.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
     ]))
-    footer_bg = Table([[footer_content]], colWidths=[W])
+    footer_bg = Table([[footer_row]], colWidths=[W])
     footer_bg.setStyle(TableStyle([
         ("BACKGROUND",(0,0),(-1,-1),NAV),
         ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
