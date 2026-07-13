@@ -759,6 +759,7 @@ def customer_invoice_pdf(cid, iid):
     from reportlab.lib.units import mm
     from reportlab.lib import colors
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.platypus.flowables import TopPadder
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
     from reportlab.pdfbase.pdfmetrics import stringWidth
@@ -1155,27 +1156,7 @@ def customer_invoice_pdf(cid, iid):
             ]))
             els2.append(nb)
 
-        # ── DYNAMIC SPACER (push signatures down when space available) ──
-        from reportlab.pdfgen import canvas as rlcanvas
-        _tmp_buf = BytesIO()
-        _tmp_c = rlcanvas.Canvas(_tmp_buf)
-        _used = 0
-        _avail = A4[1] - TM2 - BM2
-        for _el in els2:
-            try:
-                _, _eh = _el.wrap(_tmp_c, W2, _avail)
-                _used += _eh
-            except:
-                _used += 5*mm
-        _tmp_buf.close()
-        _sig_h = 26*mm
-        _rem = _avail - _used
-        if _rem > _sig_h + 4*mm:
-            els2.append(Spacer(1, _rem - _sig_h))
-        else:
-            els2.append(Spacer(1, 2*mm))
-
-        # ── SIGNATURES ──
+        # ── SIGNATURES (auto-pushed to bottom via TopPadder) ──
         sg = ParagraphStyle("SG", fontSize=6.5, alignment=TA_CENTER, leading=9, textColor=C5)
         stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
         sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
@@ -1203,7 +1184,7 @@ def customer_invoice_pdf(cid, iid):
             ("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2),
         ]))
-        els2.append(sig_t)
+        els2.append(TopPadder(sig_t))
 
         # ── BUILD ──
         doc2.build(els2, onFirstPage=draw_footer, onLaterPages=draw_footer)
