@@ -255,7 +255,7 @@ body { background:#eee; }
           <td>
             <div style="font-weight:600;color:#222;line-height:1.4">
               {% if it.vehicle_no %}Plant No: {{ it.vehicle_no }}<br>{% endif %}
-              {% if it.description %}Reg# {{ it.description }}{% endif %}
+              {% if it.description %}Description: {{ it.description }}{% endif %}
             </div>
             <div class="eq-sub">
               {% if eq_p.get('from') or eq_p.get('to') %}
