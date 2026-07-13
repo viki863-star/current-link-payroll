@@ -175,41 +175,7 @@ function addSoItem(idx) {
     var items = window._soItems || [];
     var it = items[idx];
     if (!it) return;
-    rowId++;
-    var tbody = document.getElementById('tableBody');
-    // Description row — same column layout as main desc row
-    var dtr = document.createElement('tr');
-    dtr.id = 'descrow_' + rowId;
-    dtr.style.background = '#fafcff';
-    // Build label safely
-    var parts = [];
-    if (it.vehicle_no) parts.push(it.vehicle_no);
-    if (it.description) parts.push(it.description);
-    var label = parts.join(' - ');
-    if (it.quantity && it.unit_type) label += ' (' + it.quantity + ' ' + it.unit_type + ')';
-    // Number cell
-    var c0 = dtr.insertCell();
-    c0.className = 'rn';
-    c0.style.cssText = 'text-align:center;font-weight:600;color:#64748b';
-    c0.textContent = '0';
-    // Description cell
-    var c1 = dtr.insertCell();
-    c1.style.cssText = 'font-weight:600;color:#0f172a;font-size:0.78rem;padding:6px 5px;line-height:1.4';
-    c1.textContent = label;
-    // Dashed cells (qty, unit, rate, taxable, vat%, vat, total)
-    var dashStyles = ['text-align:right', 'text-align:center', 'text-align:right', 'text-align:right', 'text-align:center', 'text-align:right', 'text-align:right'];
-    for (var ci = 0; ci < 7; ci++) {
-        var dc = dtr.insertCell();
-        dc.style.cssText = dashStyles[ci] + ';color:#94a3b8';
-        dc.textContent = '-';
-    }
-    // Remove button
-    var rm = dtr.insertCell();
-    rm.style.textAlign = 'center';
-    rm.innerHTML = '<button type="button" class="btn-icon" onclick="removeRow(this)">&times;</button>';
-    tbody.appendChild(dtr);
-    // Equipment row underneath (vehicle/plant/period/hours)
-                addRow(it.vehicle_no || '', it.description || '', 0, '', '', it.unit_type || 'Month', it.rate || 0);
+    addRow(it.vehicle_no || '', it.description || '', 0, '', '', it.unit_type || 'Month', it.rate || 0);
     renumberAll();
     calcAll();
 }
@@ -255,18 +221,15 @@ function addRow(plant, reg, hours, pf, pt, unit, rate) {
 
 function removeRow(btn) {
     var tr = btn.closest('tr');
-    var isDesc = tr.id && tr.id.indexOf('descrow_') === 0;
     var eqCount = document.querySelectorAll('#tableBody tr[id^="eqrow_"]').length;
-    // If last equipment row and no desc rows, keep at least 1 eq row
-    if (!isDesc && eqCount <= 1 && document.querySelectorAll('#tableBody tr[id^="descrow_"]').length === 0) return;
+    if (eqCount <= 1) return;
     tr.remove();
     renumberAll();
     calcAll();
 }
 
 function renumberAll() {
-    // Skip main desc row (id="row_desc"), number remaining rows 2, 3, ...
-    var rows = document.querySelectorAll('#tableBody tr:not([id="row_desc"])');
+    var rows = document.querySelectorAll('#tableBody tr[id^="eqrow_"]');
     rows.forEach(function(r, i) {
         var cell = r.querySelector('.rn');
         if (cell) cell.textContent = i + 2;
@@ -329,7 +292,7 @@ function loadSoData() {
         .then(function(data) {
             if (!data || !data.items || data.items.length === 0) return;
             // Clear existing rows from previous SO selection
-            document.querySelectorAll('#tableBody tr[id^="eqrow_"], #tableBody tr[id^="descrow_"]').forEach(function(r) { r.remove(); });
+            document.querySelectorAll('#tableBody tr[id^="eqrow_"]').forEach(function(r) { r.remove(); });
             window._soItems = data.items;
             var first = data.items[0];
             document.getElementById('monthlyRate').value = first.rate || 0;
@@ -344,38 +307,10 @@ function loadSoData() {
             document.getElementById('monthLabel').oninput = function() {
                 document.getElementById('mainDesc').value = firstLabel + '\n\n in the month of ' + this.value;
             };
-            // Auto-add items 2+ as desc + equipment rows
+            // Auto-add items 2+ as equipment rows
             for (var ai = 1; ai < data.items.length; ai++) {
                 var it = data.items[ai];
-                rowId++;
-                var tbody = document.getElementById('tableBody');
-                // Description row
-                var dtr = document.createElement('tr');
-                dtr.id = 'descrow_' + rowId;
-                dtr.style.background = '#fafcff';
-                var parts = [];
-                if (it.vehicle_no) parts.push(it.vehicle_no);
-                if (it.description) parts.push(it.description);
-                var label = parts.join(' - ');
-                if (it.quantity && it.unit_type) label += ' (' + it.quantity + ' ' + it.unit_type + ')';
-                var c0 = dtr.insertCell();
-                c0.className = 'rn'; c0.style.cssText = 'text-align:center;font-weight:600;color:#64748b';
-                c0.textContent = '0';
-                var c1 = dtr.insertCell();
-                c1.style.cssText = 'font-weight:600;color:#0f172a;font-size:0.78rem;padding:6px 5px;line-height:1.4';
-                c1.textContent = label;
-                var dashStyles = ['text-align:right','text-align:center','text-align:right','text-align:right','text-align:center','text-align:right','text-align:right'];
-                for (var ci = 0; ci < 7; ci++) {
-                    var dc = dtr.insertCell();
-                    dc.style.cssText = dashStyles[ci] + ';color:#94a3b8';
-                    dc.textContent = '-';
-                }
-                var rm = dtr.insertCell();
-                rm.style.textAlign = 'center';
-                rm.innerHTML = '<button type="button" class="btn-icon" onclick="removeRow(this)">&times;</button>';
-                tbody.appendChild(dtr);
-                // Equipment row underneath
-    addRow(it.vehicle_no || '', it.description || '', 0, '', '', it.unit_type || 'Month', it.rate || 0);
+                addRow(it.vehicle_no || '', it.description || '', 0, '', '', it.unit_type || 'Month', it.rate || 0);
             }
             renumberAll();
             calcAll();
