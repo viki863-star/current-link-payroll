@@ -917,7 +917,7 @@ def customer_invoice_pdf(cid, iid):
         co_tbl.setStyle(TableStyle([
             ("LEFTPADDING", (0, 0), (-1, -1), 4*mm), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 2*mm),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 4*mm),
             ("BOTTOMPADDING", (0, 1), (-1, 1), 0),
         ]))
 
