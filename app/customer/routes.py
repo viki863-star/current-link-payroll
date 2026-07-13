@@ -1138,21 +1138,22 @@ def customer_invoice_pdf(cid, iid):
             ]))
             els2.append(nb)
 
-        # ── SIGNATURES (Receiver box + Stamp/Sign right, auto-pushed via TopPadder) ──
+        # ── SIGNATURES (Receiver box + Stamp/Sign horizontal, auto-pushed via TopPadder) ──
         sg = ParagraphStyle("SG", fontSize=8, alignment=TA_CENTER, leading=11, textColor=C5)
         stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
         sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
         stamp_img = Image(stamp_path, width=50, height=50) if os.path.exists(stamp_path) else None
         sign_img = Image(sign_path, width=50, height=50) if os.path.exists(sign_path) else None
 
-        # Left: Receiver Signature box (like Amount in Words)
+        # Receiver Signature box (navy header + signing area, like Amount in Words)
+        scw = W2 * 0.30
         rsw = stringWidth("Receiver Signature", "Helvetica-Bold", 8) + 6*mm
         rc_box = Table([
             [Paragraph("<b>Receiver Signature</b>", S("_rs", fontSize=8, fontName="Helvetica-Bold", textColor=WH, leading=10)),
              Paragraph("", S("_e", fontSize=1))],
             [Paragraph("_________________________", S("_rsl", fontSize=8, textColor=C5, alignment=TA_CENTER, leading=10)),
              ""],
-        ], colWidths=[rsw, W2*0.50 - rsw])
+        ], colWidths=[rsw, scw - rsw])
         rc_box.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (0, 0), NAV), ("BACKGROUND", (1, 0), (-1, -1), WH),
             ("BOX", (0, 0), (-1, -1), 0.4, C3),
@@ -1164,25 +1165,21 @@ def customer_invoice_pdf(cid, iid):
             ("VALIGN", (0, 0), (0, 0), "MIDDLE"),
         ]))
 
-        # Right: Company Stamp + Authorized Signature stacked
-        rt_rows = [
-            [Paragraph("_________________________", sg)],
-        ]
-        if stamp_img:
-            rt_rows.append([stamp_img])
-        rt_rows.append([Paragraph("<b>Company Stamp</b>", sg)])
-        rt_rows.append([Paragraph("_________________________", sg)])
-        if sign_img:
-            rt_rows.append([sign_img])
-        rt_rows.append([Paragraph("<b>Authorized Signature</b>", sg)])
-        rt_t = Table(rt_rows, colWidths=[W2*0.42])
-        rt_t.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
+        def sig_col(label, img=None):
+            cells = [[Paragraph("_________________________", sg)]]
+            if img:
+                cells.append([img])
+            cells.append([Paragraph(f"<b>{label}</b>", sg)])
+            t = Table(cells, colWidths=[scw])
+            t.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ]))
+            return t
 
-        sig_w = Table([[rc_box, Spacer(1, 4*mm), rt_t]], colWidths=[W2*0.50, 4*mm, W2*0.42])
+        sig_w = Table([[rc_box, Spacer(1, 3*mm), sig_col("Company Stamp", stamp_img), Spacer(1, 3*mm), sig_col("Authorized Signature", sign_img)]],
+                      colWidths=[scw, 3*mm, scw, 3*mm, scw])
         sig_w.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
