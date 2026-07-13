@@ -837,11 +837,11 @@ def customer_invoice_pdf(cid, iid):
         def draw_page(canvas, doc):
             canvas.saveState()
             # ════════════════════════════════════════════
-            #  TOP-RIGHT CORNER DESIGN (unified flowing)
+            #  TOP-RIGHT CORNER DESIGN (layered premium)
             # ════════════════════════════════════════════
             CS = 30*mm
             TR = (A4[0], A4[1])
-            # Navy triangle
+            # Navy triangle (base)
             p = canvas.beginPath()
             p.moveTo(*TR)
             p.lineTo(A4[0] - CS, A4[1])
@@ -849,8 +849,12 @@ def customer_invoice_pdf(cid, iid):
             p.close()
             canvas.setFillColor(NAV)
             canvas.drawPath(p, fill=1, stroke=0)
-            # Gold tip at corner
-            gt = 5*mm
+            # Gold hypotenuse stroke
+            canvas.setStrokeColor(GOLD)
+            canvas.setLineWidth(1.2)
+            canvas.line(A4[0] - CS, A4[1], A4[0], A4[1] - CS)
+            # Gold corner tip (outer)
+            gt = 7*mm
             gp = canvas.beginPath()
             gp.moveTo(*TR)
             gp.lineTo(A4[0] - gt, A4[1])
@@ -858,6 +862,15 @@ def customer_invoice_pdf(cid, iid):
             gp.close()
             canvas.setFillColor(GOLD)
             canvas.drawPath(gp, fill=1, stroke=0)
+            # Navy inset (inner triangle, creates gold border)
+            ni = 3*mm
+            np2 = canvas.beginPath()
+            np2.moveTo(*TR)
+            np2.lineTo(A4[0] - ni, A4[1])
+            np2.lineTo(A4[0], A4[1] - ni)
+            np2.close()
+            canvas.setFillColor(NAV)
+            canvas.drawPath(np2, fill=1, stroke=0)
             # ════════════════════════════════════════════
             #  FOOTER
             # ════════════════════════════════════════════
