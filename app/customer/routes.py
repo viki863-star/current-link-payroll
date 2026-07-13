@@ -827,20 +827,20 @@ def customer_invoice_pdf(cid, iid):
 
         def draw_footer(canvas, doc):
             canvas.saveState()
-            fy = BM2  # bottom edge of content area
-            # Gold accent line
+            fy = BM2  # bottom edge of content area — footer draws BELOW this
+            # Gold accent line (just above the navy area)
             canvas.setStrokeColor(GOLD)
             canvas.setLineWidth(1.2)
-            canvas.line(LM2, fy + 17*mm, A4[0] - RM2, fy + 17*mm)
-            # Navy background
+            canvas.line(LM2, fy, A4[0] - RM2, fy)
+            # Navy background (below the content area, in the margin)
             canvas.setFillColor(NAV)
-            canvas.roundRect(LM2, fy + 1*mm, W2, 16*mm, 1.5, fill=1, stroke=0)
+            canvas.roundRect(LM2, fy - 16*mm, W2, 16*mm, 1.5, fill=1, stroke=0)
             # White text
             canvas.setFillColor(colors.white)
             canvas.setFont("Helvetica", 5.5)
             # Col 1: Address / Phone
             cx1 = LM2 + 3*mm
-            cy = fy + 12*mm
+            cy = fy - 4*mm
             canvas.drawString(cx1, cy, c_addr2 or "ABU DHABI")
             if c_ph2:
                 canvas.drawString(cx1, cy - 3.5*mm, f"Tel: {c_ph2}")
@@ -852,7 +852,7 @@ def customer_invoice_pdf(cid, iid):
             canvas.drawString(cx2, cy - 7*mm, f"TRN: {c_trn2}")
             # Col 3: Certificate logos
             cx3 = A4[0] - RM2 - 3*mm
-            cl_y = fy + 10*mm
+            cl_y = fy - 6*mm
             cl_spacing = 0
             for cf, alt in cert_files2:
                 try:
@@ -863,7 +863,7 @@ def customer_invoice_pdf(cid, iid):
             # Page number
             canvas.setFont("Helvetica", 5)
             canvas.setFillColor(colors.HexColor("#aaa"))
-            canvas.drawRightString(A4[0] - RM2 - 2*mm, fy + 2*mm, f"Page {doc.page}")
+            canvas.drawRightString(A4[0] - RM2 - 2*mm, fy - 14*mm, f"Page {doc.page}")
             canvas.restoreState()
 
         # ═══════════════════════════════════════════
