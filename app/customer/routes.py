@@ -868,7 +868,7 @@ def customer_invoice_pdf(cid, iid):
     inv_no = inv["invoice_no"] or "—"
     inv_dt = inv["invoice_date"] or "—"
 
-    # ═════════ HEADER: Left = Logo + CURRENT LINK (big) + sub (small), Right = TAX INVOICE + gold line ═════════
+    # ═════════ HEADER: Left = Logo + CURRENT LINK (big, gold) + sub (small), Right = TAX INVOICE + gold line ═════════
     logo = None; LW = 0
     if company and company["logo_data"]:
         try:
@@ -878,12 +878,12 @@ def customer_invoice_pdf(cid, iid):
             _logo_tmp_files.append(f.name)
         except: pass
 
-    # Company text: big "CURRENT LINK" + small below
+    # Company text: big "CURRENT LINK" in gold + small below
     ci_html = (
-        f"<font size=16><b>CURRENT LINK</b></font><br/>"
+        f"<font size=22 color='#D4A017'><b>CURRENT LINK</b></font><br/>"
         f"<font size=6 color='#555'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>"
     )
-    co_p = Paragraph(ci_html, S("CO", fontSize=16, fontName="Helvetica-Bold", textColor=NAV, leading=20))
+    co_p = Paragraph(ci_html, S("CO", fontSize=22, fontName="Helvetica-Bold", textColor=GOLD, leading=26))
 
     logo_w = 0; logo_h = 0
     if _logo_tmp_files:
@@ -1191,8 +1191,21 @@ def customer_invoice_pdf(cid, iid):
     ]))
     els.append(sig_t)
 
-    # ═════════ FOOTER (matching web: gold bar, navy bg, contact + certs) ═════════
-    els.append(Spacer(1, 8*mm))
+    # ═════════ FOOTER (auto-anchored at page bottom via fill spacer) ═════════
+    from reportlab.platypus import Flowable
+    class SpacerFill(Flowable):
+        def __init__(self):
+            Flowable.__init__(self)
+            self.width = 1
+            self.height = 0
+        def wrap(self, availWidth, availHeight):
+            self.height = max(0, availHeight - 3*mm)
+            return (availWidth, self.height)
+        def draw(self):
+            pass
+    els.append(SpacerFill())
+    els.append(Spacer(1, 2*mm))
+
     # Gold gradient bar
     fbar = Table([[""]], colWidths=[W], rowHeights=[1.5])
     fbar.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),GOLD),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
