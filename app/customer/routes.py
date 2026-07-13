@@ -984,12 +984,12 @@ def customer_invoice_pdf(cid, iid):
         bd = [("Customer", safe(c["customer_name"])), ("TRN", safe(c["trn"]))]
         bd_icons = ["USER.png", "TRN.png"]
         if c["address"]: bd.append(("Address", c["address"])); bd_icons.append("ADDRESS.png")
-        if c["phone"]: bd.append(("Phone", c["phone"])); bd_icons.append("")
+        if c["phone"]: bd.append(("Phone", c["phone"])); bd_icons.append("Phone.png")
         if c["email"]: bd.append(("Email", c["email"])); bd_icons.append("EMAIL.png")
         id_ = [("Invoice #", inv_no), ("Date", inv_dt)]
         id_icons = ["INVOICE.png", "DATE.png"]
         if inv.get("so_no"): id_.append(("SO No.", inv["so_no"])); id_icons.append("SO.png")
-        if pdf_so_date: id_.append(("SO Date", pdf_so_date)); id_icons.append("")
+        if pdf_so_date: id_.append(("SO Date", pdf_so_date)); id_icons.append("So  Date .png")
         if inv.get("lpo_no"): id_.append(("LPO No.", inv["lpo_no"])); id_icons.append("")
         if inv.get("lpo_date"): id_.append(("LPO Date", inv["lpo_date"])); id_icons.append("")
 
@@ -1155,8 +1155,27 @@ def customer_invoice_pdf(cid, iid):
             ]))
             els2.append(nb)
 
+        # ── DYNAMIC SPACER (push signatures down when space available) ──
+        from reportlab.pdfgen import canvas as rlcanvas
+        _tmp_buf = BytesIO()
+        _tmp_c = rlcanvas.Canvas(_tmp_buf)
+        _used = 0
+        _avail = A4[1] - TM2 - BM2
+        for _el in els2:
+            try:
+                _, _eh = _el.wrap(_tmp_c, W2, _avail)
+                _used += _eh
+            except:
+                _used += 5*mm
+        _tmp_buf.close()
+        _sig_h = 26*mm
+        _rem = _avail - _used
+        if _rem > _sig_h + 4*mm:
+            els2.append(Spacer(1, _rem - _sig_h))
+        else:
+            els2.append(Spacer(1, 2*mm))
+
         # ── SIGNATURES ──
-        els2.append(Spacer(1, 5*mm))
         sg = ParagraphStyle("SG", fontSize=6.5, alignment=TA_CENTER, leading=9, textColor=C5)
         stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
         sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
