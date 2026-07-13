@@ -939,49 +939,67 @@ def customer_invoice_pdf(cid, iid):
         els2.append(gold_line)
         els2.append(Spacer(1, 4*mm))
 
-        # ── INFO CARDS ──
+        # ── INFO CARDS with icons ──
         cwc = (W2 - 3*mm) / 2
-        def info_card(title, pairs, icon="☰"):
+        icon_base = os.path.join(current_app.root_path, '..', 'media', 'ICON')
+        def info_card(title, pairs, header_icon, row_icons):
             cw = cwc
-            icon_w = 5*mm
+            icon_w = 6*mm
+            try:
+                hi = Image(os.path.join(icon_base, header_icon), width=4*mm, height=4*mm)
+            except:
+                hi = Paragraph("<b>?</b>", S("_ic", fontSize=5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=6))
             hdr = Table([
-                [Paragraph(f"<b>{icon}</b>", S("_ic", fontSize=6, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=7)),
+                [hi,
                  Paragraph(f"<font color='white' size=6.5><b>{title}</b></font>", S("_ch", fontSize=6.5, leading=8))]
             ], colWidths=[icon_w, cw - icon_w])
             hdr.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (0, 0), GOLD), ("BACKGROUND", (1, 0), (1, 0), NAV),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 0), (-1, -1), 2.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("LEFTPADDING", (0, 0), (0, 0), 2), ("RIGHTPADDING", (0, 0), (0, 0), 2),
                 ("LEFTPADDING", (1, 0), (1, 0), 4), ("ALIGN", (0, 0), (0, 0), "CENTER"),
             ]))
             rows = [[hdr]]
-            for a, b in pairs:
+            for i, (a, b) in enumerate(pairs):
+                ri = row_icons[i] if i < len(row_icons) else ""
+                try:
+                    ri_img = Image(os.path.join(icon_base, ri), width=2.5*mm, height=2.5*mm) if ri else Paragraph("", S("_e", fontSize=1))
+                except:
+                    ri_img = Paragraph("", S("_e", fontSize=1))
                 rows.append([
-                    Paragraph(
-                        f"<font color='#777' size=6>{a}</font>&nbsp;&nbsp;<font color='#222' size=6><b>{b}</b></font>",
-                        S("_cr", fontSize=6, leading=8.5))
+                    Table([
+                        [ri_img,
+                         Paragraph(
+                             f"<font color='#777' size=6><b>{a}</b></font>",
+                             S("_rl", fontSize=6, textColor=C5, leading=8)),
+                         Paragraph(
+                             f"<font color='#222' size=6><b>{b}</b></font>",
+                             S("_rv", fontSize=6, fontName="Helvetica-Bold", textColor=C4, leading=8))]
+                    ], colWidths=[3*mm, 14*mm, cw - 3*mm - 14*mm])
                 ])
             t = Table(rows, colWidths=[cw])
             t.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("TOPPADDING", (0, 1), (-1, -1), 1), ("BOTTOMPADDING", (0, 1), (-1, -1), 1),
-                ("LEFTPADDING", (0, 1), (-1, -1), 5), ("RIGHTPADDING", (0, 1), (-1, -1), 5),
+                ("LEFTPADDING", (0, 1), (-1, -1), 0), ("RIGHTPADDING", (0, 1), (-1, -1), 0),
                 ("BOX", (0, 0), (-1, -1), 0.4, C3),
             ]))
             return t
 
         bd = [("Customer", safe(c["customer_name"])), ("TRN", safe(c["trn"]))]
-        if c["address"]: bd.append(("Address", c["address"]))
-        if c["phone"]: bd.append(("Phone", c["phone"]))
-        if c["email"]: bd.append(("Email", c["email"]))
+        bd_icons = ["USER.png", "TRN.png"]
+        if c["address"]: bd.append(("Address", c["address"])); bd_icons.append("ADDRESS.png")
+        if c["phone"]: bd.append(("Phone", c["phone"])); bd_icons.append("")
+        if c["email"]: bd.append(("Email", c["email"])); bd_icons.append("EMAIL.png")
         id_ = [("Invoice #", inv_no), ("Date", inv_dt)]
-        if inv.get("so_no"): id_.append(("SO No.", inv["so_no"]))
-        if pdf_so_date: id_.append(("SO Date", pdf_so_date))
-        if inv.get("lpo_no"): id_.append(("LPO No.", inv["lpo_no"]))
-        if inv.get("lpo_date"): id_.append(("LPO Date", inv["lpo_date"]))
+        id_icons = ["INVOICE.png", "DATE.png"]
+        if inv.get("so_no"): id_.append(("SO No.", inv["so_no"])); id_icons.append("SO.png")
+        if pdf_so_date: id_.append(("SO Date", pdf_so_date)); id_icons.append("")
+        if inv.get("lpo_no"): id_.append(("LPO No.", inv["lpo_no"])); id_icons.append("")
+        if inv.get("lpo_date"): id_.append(("LPO Date", inv["lpo_date"])); id_icons.append("")
 
-        iw = Table([[info_card("Bill To", bd, "☰"), Spacer(1, 3*mm), info_card("Invoice Details", id_, "✓")]], colWidths=[cwc, 3*mm, cwc])
+        iw = Table([[info_card("Bill To", bd, "USER.png", bd_icons), Spacer(1, 3*mm), info_card("Invoice Details", id_, "INVOICE.png", id_icons)]], colWidths=[cwc, 3*mm, cwc])
         iw.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         els2.append(iw)
         els2.append(Spacer(1, 4*mm))
