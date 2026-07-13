@@ -761,6 +761,7 @@ def customer_invoice_pdf(cid, iid):
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from reportlab.pdfbase.pdfmetrics import stringWidth
     from io import BytesIO
 
     _logo_tmp_files = []
@@ -1109,7 +1110,7 @@ def customer_invoice_pdf(cid, iid):
         if dp: w += f" and {dp:02d}/100"
         return "AED " + w + " Only"
 
-    lbw = 28*mm
+    lbw = stringWidth("Amount in Words", "Helvetica-Bold", 6.5) + 6*mm
     words_box = Table([
         [Paragraph("<b>Amount in Words</b>", S("AW", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=8)),
          Paragraph("", S("_e", fontSize=1))],
@@ -1121,7 +1122,7 @@ def customer_invoice_pdf(cid, iid):
         ("BACKGROUND",(1,0),(-1,-1),WH),
         ("BOX",(0,0),(-1,-1),0.5,C3),
         ("TOPPADDING",(0,0),(1,0),3), ("BOTTOMPADDING",(0,0),(1,0),3),
-        ("LEFTPADDING",(0,0),(0,0),6), ("RIGHTPADDING",(0,0),(0,0),6),
+        ("LEFTPADDING",(0,0),(0,0),2), ("RIGHTPADDING",(0,0),(0,0),2),
         ("TOPPADDING",(0,1),(-1,1),5), ("BOTTOMPADDING",(0,1),(-1,1),5),
         ("LEFTPADDING",(0,1),(-1,1),6), ("RIGHTPADDING",(0,1),(-1,1),6),
         ("SPAN",(0,1),(-1,1)),
