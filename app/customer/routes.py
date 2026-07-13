@@ -968,7 +968,7 @@ def customer_invoice_pdf(cid, iid):
         els2.append(Spacer(1, 4*mm))
 
         # ── INFO CARDS (big icons, spaced rows) ──
-        cwc = (W2 - 4*mm) / 2
+        cwc = (W2 - 6*mm) / 3
         icon_base = os.path.join(current_app.root_path, '..', 'media', 'ICON')
         def simple_card(pairs, row_icons):
             rows = []
@@ -1001,11 +1001,14 @@ def customer_invoice_pdf(cid, iid):
         id_ = [("Invoice #", inv_no)]
         id_icons = ["INVOICE.png"]
         id_.append(("Date", inv_dt)); id_icons.append("DATE.png")
-        if inv.get("so_no"): id_.append(("SO No.", inv["so_no"])); id_icons.append("SO.png")
-        if pdf_so_date: id_.append(("SO Date", pdf_so_date)); id_icons.append("So  Date .png")
         id_.append(("TRN", c_trn2)); id_icons.append("TRN.png")
 
-        iw = Table([[simple_card(bd, bd_icons), Spacer(1, 3*mm), simple_card(id_, id_icons)]], colWidths=[cwc, 3*mm, cwc])
+        so_ = []
+        so_icons = []
+        if inv.get("so_no"): so_.append(("SO No.", inv["so_no"])); so_icons.append("SO.png")
+        if pdf_so_date: so_.append(("SO Date", pdf_so_date)); so_icons.append("So  Date .png")
+
+        iw = Table([[simple_card(bd, bd_icons), Spacer(1, 3*mm), simple_card(id_, id_icons), Spacer(1, 3*mm), simple_card(so_, so_icons)]], colWidths=[cwc, 3*mm, cwc, 3*mm, cwc])
         iw.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         els2.append(iw)
         els2.append(Spacer(1, 3*mm))
