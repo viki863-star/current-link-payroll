@@ -422,6 +422,7 @@ def customer_invoice_add(cid):
                 eq_pf_list = request.form.getlist("eq_period_from[]")
                 eq_pt_list = request.form.getlist("eq_period_to[]")
                 eq_units = request.form.getlist("eq_unit[]")
+                eq_rates = request.form.getlist("eq_rate[]")
                 eq_periods = []
                 if main_desc:
                     items.append({"desc": main_desc, "qty": 1, "rate": nmdc_monthly_rate, "amt": 0, "unit": "month", "vehicle": "", "hours": 0})
@@ -432,10 +433,11 @@ def customer_invoice_add(cid):
                     eq_pf = eq_pf_list[i].strip() if i < len(eq_pf_list) else ""
                     eq_pt = eq_pt_list[i].strip() if i < len(eq_pt_list) else ""
                     unit = eq_units[i].strip() if i < len(eq_units) and eq_units[i].strip() else "month"
+                    row_rate = float(eq_rates[i]) if i < len(eq_rates) and eq_rates[i].strip() else nmdc_monthly_rate
                     if hours > 0:
                         qyt = round(hours / 260 if unit == "month" else hours, 3)
-                        amt = round(qyt * nmdc_monthly_rate, 2)
-                        items.append({"desc": reg, "qty": qyt, "rate": nmdc_monthly_rate, "amt": amt, "unit": unit, "vehicle": plant, "hours": hours})
+                        amt = round(qyt * row_rate, 2)
+                        items.append({"desc": reg, "qty": qyt, "rate": row_rate, "amt": amt, "unit": unit, "vehicle": plant, "hours": hours})
                         sub_total += amt
                         eq_periods.append({"from": eq_pf, "to": eq_pt})
                 if not items:
@@ -594,6 +596,7 @@ def customer_invoice_edit(cid, iid):
                 eq_pf_list = request.form.getlist("eq_period_from[]")
                 eq_pt_list = request.form.getlist("eq_period_to[]")
                 eq_units = request.form.getlist("eq_unit[]")
+                eq_rates = request.form.getlist("eq_rate[]")
                 eq_periods = []
                 if main_desc:
                     new_items.append({"desc": main_desc, "qty": 1, "rate": nmdc_monthly_rate, "amt": 0, "unit": "month", "vehicle": "", "hours": 0})
@@ -604,10 +607,11 @@ def customer_invoice_edit(cid, iid):
                     eq_pf = eq_pf_list[i].strip() if i < len(eq_pf_list) else ""
                     eq_pt = eq_pt_list[i].strip() if i < len(eq_pt_list) else ""
                     unit = eq_units[i].strip() if i < len(eq_units) and eq_units[i].strip() else "month"
+                    row_rate = float(eq_rates[i]) if i < len(eq_rates) and eq_rates[i].strip() else nmdc_monthly_rate
                     if hours > 0:
                         qyt = round(hours / 260 if unit == "month" else hours, 3)
-                        amt = round(qyt * nmdc_monthly_rate, 2)
-                        new_items.append({"desc": reg, "qty": qyt, "rate": nmdc_monthly_rate, "amt": amt, "unit": unit, "vehicle": plant, "hours": hours})
+                        amt = round(qyt * row_rate, 2)
+                        new_items.append({"desc": reg, "qty": qyt, "rate": row_rate, "amt": amt, "unit": unit, "vehicle": plant, "hours": hours})
                         sub_total += amt
                         eq_periods.append({"from": eq_pf, "to": eq_pt})
                 if not new_items:
