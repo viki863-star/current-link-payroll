@@ -2327,22 +2327,22 @@ def customer_quotation_pdf(cid, qid):
 
     # SIGNATURES
     els.append(Spacer(1, 3*mm))
-    sg = ParagraphStyle("SG", fontSize=9, alignment=TA_CENTER, leading=14)
+    sg = ParagraphStyle("SG", fontSize=10, alignment=TA_CENTER, leading=15)
     stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
     sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
     auth_img = []
     if os.path.exists(stamp_path):
-        auth_img.append(Image(stamp_path, width=35, height=35))
+        auth_img.append(Image(stamp_path, width=40, height=40))
     if os.path.exists(sign_path):
-        auth_img.append(Image(sign_path, width=35, height=35))
+        auth_img.append(Image(sign_path, width=40, height=40))
     if auth_img:
-        auth_imgs = Table([auth_img], colWidths=[35]*len(auth_img))
+        auth_imgs = Table([auth_img], colWidths=[40]*len(auth_img))
         auth_imgs.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),("ALIGN",(0,0),(-1,-1),"CENTER")]))
         els.append(auth_imgs)
     st = Table([
-        [Paragraph("<br/><br/>___________________________<br/><b>Authorized Signatory</b><br/><font size=7 color='#64748b'>" + cn + "</font>", sg),
+        [Paragraph(f"<b>Authorized Signatory</b><br/><font size=8 color='#64748b'>{cn}</font><br/>___________________________", sg),
          Paragraph("<br/>", sg)],
-    ], colWidths=[W*0.5, W*0.5])
+    ], colWidths=[W*0.6, W*0.4])
     st.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(st)
 
