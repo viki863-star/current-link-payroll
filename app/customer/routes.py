@@ -1388,7 +1388,9 @@ def customer_invoice_pdf(cid, iid):
     bd = [("Customer", safe(c["customer_name"])), ("TRN", safe(c["trn"]))]
     if c["phone"]: bd.append(("Phone", c["phone"]))
     if c["email"]: bd.append(("Email", c["email"]))
-    if c["address"]: bd.append(("Address", c["address"]))
+    if c["address"]:
+        addr_display = c["address"].replace(" , Po Box", "<br/>Po Box").replace(", Po Box", "<br/>Po Box")
+        bd.append(("Address", addr_display))
     id_ = [("Invoice #", inv_no), ("Date", inv_dt)]
     if inv.get("so_no"): id_.append(("SO No.", inv["so_no"]))
     if pdf_so_date: id_.append(("SO Date", pdf_so_date))
@@ -1451,7 +1453,7 @@ def customer_invoice_pdf(cid, iid):
         Paragraph("<b>Taxable Amount</b>", S("_h4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
         Paragraph("<b>VAT %</b>", S("_h5", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
         Paragraph("<b>VAT Amount</b>", S("_h6", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
-        Paragraph("<b>Total Amount<br/>(Including VAT)</b>", S("_h7", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>Total<br/>(incl. VAT)</b>", S("_h7", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
     ]
     rws = [hdr]
     if is_nmdc:
@@ -1650,12 +1652,11 @@ def customer_invoice_pdf(cid, iid):
     ]))
     sgt = Table([[
         auth_cell,
-        C("", fontSize=4),
         Paragraph("", sg),
-    ]], colWidths=[W*0.38, W*0.24, W*0.38])
+    ]], colWidths=[W*0.50, W*0.50])
     sgt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"TOP"),
-        ("LINEABOVE",(0,0),(0,0),0.5,C5), ("LINEABOVE",(2,0),(2,0),0.5,C5),
+        ("LINEABOVE",(0,0),(0,0),0.5,C5), ("LINEABOVE",(1,0),(1,0),0.5,C5),
         ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
     ]))
     els.append(sgt)
@@ -1664,21 +1665,14 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════════════════════════════════
     if c_addr:
         els.append(Spacer(1, 3*mm))
-        els.append(Paragraph(f"<font size=6.5 color='#64748b'>{c_addr}</font>", S("_ad", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8)))
+        addr_parts = [p.strip() for p in c_addr.split(",")]
+        addr_display = ", ".join(addr_parts[:2]) + "<br/>" + ", ".join(addr_parts[2:]) if len(addr_parts) > 2 else c_addr
+        els.append(Paragraph(f"<font size=6.5 color='#64748b'>{addr_display}</font>", S("_ad", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8)))
     els.append(Spacer(1, 3*mm))
 
-    pp = []
-    if company:
-        parts = []
-        if company["bank_name"]: parts.append(f"Bank: <b>{company['bank_name']}</b>")
-        if company["bank_account_number"]: parts.append(f"A/C: <b>{company['bank_account_number']}</b>")
-        if company["iban"]: parts.append(f"IBAN: <b>{company['iban']}</b>")
-        if parts:
-            pp.append(Paragraph("Payable at: " + " | ".join(parts), S("FP", fontSize=6.5, textColor=C4, alignment=TA_CENTER, leading=8)))
-
-    pp.append(Paragraph(
+    pp = [Paragraph(
         "This is a computer-generated Tax Invoice. Valid without signature.",
-        S("FN", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8)))
+        S("FN", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8))]
 
     els.append(Spacer(1, 8*mm))
     fh = Table([[""]], colWidths=[W], rowHeights=[1.2])
