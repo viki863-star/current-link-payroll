@@ -76,6 +76,10 @@
                 <input type="text" name="tanker_reg" id="tankerReg" placeholder="e.g. ABC-1234" style="text-transform:uppercase" value="{% if edit %}{{ row.tanker_reg or '' }}{% endif %}">
             </label>
 
+            <label>Bill No.
+                <input type="text" name="bill_no" id="billNo" placeholder="Bill/invoice number" value="{% if edit %}{{ row.bill_no or '' }}{% endif %}">
+            </label>
+
             <label class="full-span">Notes
                 <textarea name="notes" rows="1" placeholder="Optional...">{% if edit %}{{ row.notes or '' }}{% endif %}</textarea>
             </label>

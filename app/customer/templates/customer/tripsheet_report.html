@@ -42,7 +42,7 @@
             <thead><tr>
                 <th>#</th><th>Date</th><th>Time In</th><th>Time Out</th>
                 <th>Total Reading</th>
-                <th>Tanker GLN</th><th>Trips</th><th>Tanker Reg</th>
+                <th>Tanker GLN</th><th>Trips</th><th>Tanker Reg</th><th>Bill No.</th>
             </tr></thead>
             <tbody>
                 {% for r in rows %}
@@ -55,6 +55,7 @@
                     <td><span class="badge badge-dept">{{ r.tanker_gln or '—' }}</span></td>
                     <td class="mono">{{ "%.0f"|format(r.trips) }}</td>
                     <td class="mono">{{ r.tanker_reg or '—' }}</td>
+                    <td class="mono">{{ r.bill_no or '—' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -64,6 +65,7 @@
                     <td class="mono">{{ "%.2f"|format(total_reading) }}</td>
                     <td></td>
                     <td class="mono">{{ "%.0f"|format(total_trips) }}</td>
+                    <td></td>
                     <td></td>
                 </tr>
             </tfoot>

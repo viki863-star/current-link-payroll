@@ -167,6 +167,7 @@ def _ensure_tables():
         ("customer_invoice_items", "total_incl_vat", real_type),
         ("customer_invoice_items", "lpo_id", int_type),
         ("customer_invoice_items", "unit", "TEXT"),
+        ("tabreed_tripsheets", "bill_no", "TEXT"),
         ("customer_lpos", "file_data", "TEXT"),
         ("customer_lpos", "file_type", "TEXT"),
         ("customer_lpos", "service_order_no", "TEXT"),
@@ -3376,15 +3377,16 @@ def customer_tripsheet_add(cid):
         tanker_gln = request.form.get("tanker_gln", "").strip()
         trips = float(request.form.get("trips", 1) or 1)
         tanker_reg = request.form.get("tanker_reg", "").strip().upper()
+        bill_no = request.form.get("bill_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
         if not entry_date:
             flash("Date is required.", "error")
             return render_template("customer/tripsheet_form.html", c=c, today=date.today().isoformat())
         db = _get_db()
         db.execute("""INSERT INTO tabreed_tripsheets
-            (customer_id, entry_date, time_in, time_out, total_reading, tanker_gln, trips, tanker_reg, notes)
-            VALUES (?,?,?,?,?,?,?,?,?)""",
-            (cid, entry_date, time_in or None, time_out or None, total_reading, tanker_gln or None, trips, tanker_reg or None, notes or None))
+            (customer_id, entry_date, time_in, time_out, total_reading, tanker_gln, trips, tanker_reg, bill_no, notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (cid, entry_date, time_in or None, time_out or None, total_reading, tanker_gln or None, trips, tanker_reg or None, bill_no, notes or None))
         db.commit()
         db.close()
         flash("Tripsheet entry added.", "success")
@@ -3413,12 +3415,13 @@ def customer_tripsheet_edit(cid, tid):
         tanker_gln = request.form.get("tanker_gln", "").strip()
         trips = float(request.form.get("trips", 1) or 1)
         tanker_reg = request.form.get("tanker_reg", "").strip().upper()
+        bill_no = request.form.get("bill_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
         if not entry_date:
             flash("Date is required.", "error")
             return render_template("customer/tripsheet_form.html", c=c, row=row, today=entry_date, tanker_options=TANKER_GLN_OPTIONS, edit=True)
-        db.execute("""UPDATE tabreed_tripsheets SET entry_date=?, time_in=?, time_out=?, total_reading=?, tanker_gln=?, trips=?, tanker_reg=?, notes=? WHERE id=? AND customer_id=?""",
-            (entry_date, time_in or None, time_out or None, total_reading, tanker_gln or None, trips, tanker_reg or None, notes or None, tid, cid))
+        db.execute("""UPDATE tabreed_tripsheets SET entry_date=?, time_in=?, time_out=?, total_reading=?, tanker_gln=?, trips=?, tanker_reg=?, bill_no=?, notes=? WHERE id=? AND customer_id=?""",
+            (entry_date, time_in or None, time_out or None, total_reading, tanker_gln or None, trips, tanker_reg or None, bill_no, notes or None, tid, cid))
         db.commit()
         db.close()
         flash("Tripsheet entry updated.", "success")
@@ -3528,7 +3531,7 @@ def customer_tripsheet_report_pdf(cid):
     els.append(Spacer(1, 2*mm))
 
     PPS = lambda name, **kw: ParagraphStyle(name, **kw)
-    HDR = ["#", "Date", "Time In", "Time Out", "Total Reading", "Tanker GLN", "Trips", "Tanker Reg"]
+    HDR = ["#", "Date", "Time In", "Time Out", "Total Reading", "Tanker GLN", "Trips", "Tanker Reg", "Bill No."]
     hdr_p = [Paragraph(f"<b>{h}</b>", PPS("h", fontSize=6, fontName="Helvetica-Bold", textColor=WH, leading=7, alignment=TA_CENTER)) for h in HDR]
     data = [hdr_p]
     for idx, r in enumerate(rows, 1):
@@ -3541,6 +3544,7 @@ def customer_tripsheet_report_pdf(cid):
             Paragraph(r["tanker_gln"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
             Paragraph(f"{r['trips'] or 0:,.0f}", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
             Paragraph(r["tanker_reg"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["bill_no"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
         ])
     data.append([
         Paragraph("<b>Total</b>", PPS("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_CENTER)),
@@ -3551,9 +3555,10 @@ def customer_tripsheet_report_pdf(cid):
         Paragraph("", PPS("c", fontSize=FS, leading=FS + 0.5)),
         Paragraph(f"<b>{total_trips:,.0f}</b>", PPS("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_CENTER)),
         Paragraph("", PPS("c", fontSize=FS, leading=FS + 0.5)),
+        Paragraph("", PPS("c", fontSize=FS, leading=FS + 0.5)),
     ])
 
-    col_w = [7*mm, 24*mm, 20*mm, 20*mm, 28*mm, 32*mm, 12*mm, W - 7 - 24 - 20 - 20 - 28 - 32 - 12]
+    col_w = [7*mm, 24*mm, 20*mm, 20*mm, 28*mm, 32*mm, 12*mm, W - 7 - 24 - 20 - 20 - 28 - 32 - 12 - 28, 28*mm]
     tbl = Table(data, colWidths=col_w, repeatRows=1)
     tbl.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,0), TH), ("TEXTCOLOR", (0,0), (-1,0), WH),

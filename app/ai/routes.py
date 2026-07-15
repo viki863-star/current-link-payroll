@@ -176,10 +176,11 @@ def tripsheet_save():
                 notes TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
             )""")
+        bill_no = request.form.get("bill_no", "").strip() or None
         db.execute("""INSERT INTO tabreed_tripsheets
-            (customer_id, entry_date, time_in, time_out, total_reading, tanker_gln, trips, tanker_reg, notes)
-            VALUES (?,?,?,?,?,?,?,?,?)""",
-            (cid, entry_date, time_in or None, time_out or None, total_reading, tanker_gln, trips, tanker_reg or None, notes or None))
+            (customer_id, entry_date, time_in, time_out, total_reading, tanker_gln, trips, tanker_reg, bill_no, notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (cid, entry_date, time_in or None, time_out or None, total_reading, tanker_gln, trips, tanker_reg or None, bill_no, notes or None))
         db.commit()
         count = db.execute("SELECT COUNT(*) AS cnt FROM tabreed_tripsheets WHERE customer_id=? AND entry_date=?", (cid, entry_date)).fetchone()
         cnt = count["cnt"] if count else 0
