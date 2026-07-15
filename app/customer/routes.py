@@ -170,6 +170,7 @@ def _ensure_tables():
         ("customer_lpos", "file_data", "TEXT"),
         ("customer_lpos", "file_type", "TEXT"),
         ("customer_lpos", "service_order_no", "TEXT"),
+        ("customer_lpos", "rn_no", "TEXT"),
         ("lpo_items", "vehicle_no", "TEXT"),
         ("customer_so_items", "vehicle_no", "TEXT"),
         ("customer_quotations", "vat_percent", real_type + " DEFAULT 0"),
@@ -2431,6 +2432,7 @@ def customer_lpo_add(cid):
     if request.method == "POST":
         lpo_no = request.form.get("lpo_no", "").strip()
         lpo_date = request.form.get("lpo_date", date.today().isoformat())
+        rn_no = request.form.get("rn_no", "").strip() or None
         status = request.form.get("status", "pending")
         so_no = request.form.get("service_order_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
@@ -2457,8 +2459,8 @@ def customer_lpo_add(cid):
                 items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
         total = round(total, 2)
         try:
-            cur = db.execute("INSERT INTO customer_lpos (customer_id,lpo_no,lpo_date,amount,status,service_order_no,notes,file_data,file_type) VALUES (?,?,?,?,?,?,?,?,?)",
-                (cid, lpo_no, lpo_date, total, status, so_no, notes, file_data, file_type))
+            cur = db.execute("INSERT INTO customer_lpos (customer_id,lpo_no,lpo_date,rn_no,amount,status,service_order_no,notes,file_data,file_type) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (cid, lpo_no, lpo_date, rn_no, total, status, so_no, notes, file_data, file_type))
             lpo_id = cur.lastrowid
             for idx, it in enumerate(items):
                 db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
@@ -2492,6 +2494,7 @@ def customer_lpo_edit(cid, lid):
     if request.method == "POST":
         lpo_no = request.form.get("lpo_no", "").strip()
         lpo_date = request.form.get("lpo_date", date.today().isoformat())
+        rn_no = request.form.get("rn_no", "").strip() or None
         status = request.form.get("status", "pending")
         so_no = request.form.get("service_order_no", "").strip() or None
         notes = request.form.get("notes", "").strip()
@@ -2519,8 +2522,8 @@ def customer_lpo_edit(cid, lid):
                 total += amt
                 items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
         total = round(total, 2)
-        db.execute("UPDATE customer_lpos SET lpo_no=?,lpo_date=?,amount=?,status=?,service_order_no=?,notes=?,file_data=?,file_type=? WHERE id=?",
-            (lpo_no, lpo_date, total, status, so_no, notes, file_data, file_type, lid))
+        db.execute("UPDATE customer_lpos SET lpo_no=?,lpo_date=?,rn_no=?,amount=?,status=?,service_order_no=?,notes=?,file_data=?,file_type=? WHERE id=?",
+            (lpo_no, lpo_date, rn_no, total, status, so_no, notes, file_data, file_type, lid))
         db.execute("DELETE FROM lpo_items WHERE lpo_id=?", (lid,))
         for idx, it in enumerate(items):
             db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",

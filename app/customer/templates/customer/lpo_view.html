@@ -17,7 +17,7 @@
         <span class="status-badge {% if lpo.status == 'closed' %}active{% else %}pending{% endif %}">{{ lpo.status }}</span>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6;margin-bottom:16px">
         <div>
             <span style="font-size:0.72rem;color:var(--muted)">LPO No.</span>
             <div style="font-weight:600">{{ lpo.lpo_no or '—' }}</div>
@@ -25,6 +25,10 @@
         <div>
             <span style="font-size:0.72rem;color:var(--muted)">LPO Date</span>
             <div class="mono">{{ lpo.lpo_date }}</div>
+        </div>
+        <div>
+            <span style="font-size:0.72rem;color:var(--muted)">RN Ref No.</span>
+            <div style="font-weight:600">{{ lpo.rn_no or '—' }}</div>
         </div>
         {% if lpo.service_order_no %}
         <div>

@@ -24,7 +24,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         {# ─── LPO Details ─── #}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
             <div class="form-row">
                 <label class="form-label">LPO Date</label>
                 <input type="date" name="lpo_date" class="form-control" value="{{ lpo.lpo_date or today }}">
@@ -32,6 +32,10 @@
             <div class="form-row">
                 <label class="form-label">LPO No.</label>
                 <input type="text" name="lpo_no" class="form-control" value="{{ lpo.lpo_no or '' }}" placeholder="Customer PO number">
+            </div>
+            <div class="form-row">
+                <label class="form-label">RN Ref No.</label>
+                <input type="text" name="rn_no" class="form-control" value="{{ lpo.rn_no or '' }}" placeholder="Reference number">
             </div>
             <div class="form-row">
                 <label class="form-label">Status</label>
