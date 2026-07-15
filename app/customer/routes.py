@@ -1451,7 +1451,7 @@ def customer_invoice_pdf(cid, iid):
         nmdc_ml = nmdc_meta.get("month_label", "") or ""
         nmdc_eq_periods = nmdc_meta.get("eq_periods", []) or []
 
-    cw = [9*mm, 42*mm, 20*mm, 12*mm, 11*mm, 21*mm, 11*mm, 20*mm, 22*mm]
+    cw = [9*mm, 40*mm, 20*mm, 12*mm, 16*mm, 20*mm, 13*mm, 19*mm, 19*mm]
     hdr = [
         Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
         Paragraph("<b>Description</b>", S("_h1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
@@ -1515,7 +1515,7 @@ def customer_invoice_pdf(cid, iid):
         ("BOX",(0,0),(-1,-1),0.5,C3),
         ("INNERGRID",(0,0),(-1,-1),0.3,C3),
         ("TOPPADDING",(0,0),(-1,-1),pad_t), ("BOTTOMPADDING",(0,0),(-1,-1),pad_b),
-        ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
+        ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
         ("ROWBACKGROUNDS",(0,1),(-1,-1),[WH, colors.HexColor("#f8fafc")]),
     ]))
     els.append(itt)
