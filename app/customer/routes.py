@@ -1451,7 +1451,7 @@ def customer_invoice_pdf(cid, iid):
         nmdc_ml = nmdc_meta.get("month_label", "") or ""
         nmdc_eq_periods = nmdc_meta.get("eq_periods", []) or []
 
-    cw = [9*mm, 44*mm, 20*mm, 9*mm, 14*mm, 18*mm, 14*mm, 15*mm, 25*mm]
+    cw = [9*mm, 44*mm, 20*mm, 12*mm, 13*mm, 17*mm, 14*mm, 14*mm, 25*mm]
     hdr = [
         Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
         Paragraph("<b>Description</b>", S("_h1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
