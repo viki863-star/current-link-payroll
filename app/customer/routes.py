@@ -786,6 +786,10 @@ def customer_invoice_pdf(cid, iid):
         so_r = db.execute("SELECT so_date FROM customer_service_orders WHERE so_no=? AND customer_id=?", (inv["so_no"], cid)).fetchone()
         if so_r:
             pdf_so_date = so_r["so_date"]
+    pdf_lpo_rn = None
+    if inv.get("lpo_no"):
+        lpo_r = db.execute("SELECT rn_no FROM customer_lpos WHERE lpo_no=? AND customer_id=?", (inv["lpo_no"], cid)).fetchone()
+        if lpo_r: pdf_lpo_rn = lpo_r["rn_no"]
     db.close()
     if not c or not inv:
         flash("Invoice not found.", "error")
@@ -1028,6 +1032,9 @@ def customer_invoice_pdf(cid, iid):
         so_icons = []
         if inv.get("so_no"): so_.append(("SO No.", inv["so_no"])); so_icons.append("SO.png")
         if pdf_so_date: so_.append(("SO Date", pdf_so_date)); so_icons.append("So  Date .png")
+        if inv.get("lpo_no"): so_.append(("LPO No.", inv["lpo_no"])); so_icons.append("SO.png")
+        if inv.get("lpo_date"): so_.append(("LPO Date", inv["lpo_date"])); so_icons.append("So  Date .png")
+        if pdf_lpo_rn: so_.append(("RN Ref", pdf_lpo_rn)); so_icons.append("SO.png")
 
         iw = Table([[simple_card(bd, bd_icons), Spacer(1, 3*mm), simple_card(id_, id_icons), Spacer(1, 3*mm), simple_card(so_, so_icons)]], colWidths=[cwc, 3*mm, cwc, 3*mm, cwc])
         iw.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
@@ -1396,6 +1403,7 @@ def customer_invoice_pdf(cid, iid):
     if pdf_so_date: id_.append(("SO Date", pdf_so_date))
     if inv.get("lpo_no"): id_.append(("LPO No.", inv["lpo_no"]))
     if inv.get("lpo_date"): id_.append(("LPO Date", inv["lpo_date"]))
+    if pdf_lpo_rn: id_.append(("RN Ref", pdf_lpo_rn))
     try:
         if inv.get("project_no"): id_.append(("Project No.", inv["project_no"]))
     except (IndexError, KeyError):
@@ -1663,25 +1671,27 @@ def customer_invoice_pdf(cid, iid):
     # ═══════════════════════════════════════════════════════════════
     # 8. COMPANY ADDRESS / FOOTER
     # ═══════════════════════════════════════════════════════════════
+    # 8. FOOTER — always at page bottom
+    # ═══════════════════════════════════════════════════════════════
+    ftr_rows = []
     if c_addr:
-        els.append(Spacer(1, 3*mm))
         addr_parts = [p.strip() for p in c_addr.split(",")]
         addr_display = ", ".join(addr_parts[:2]) + "<br/>" + ", ".join(addr_parts[2:]) if len(addr_parts) > 2 else c_addr
-        els.append(Paragraph(f"<font size=6.5 color='#64748b'>{addr_display}</font>", S("_ad", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8)))
-    els.append(Spacer(1, 3*mm))
-
-    pp = [Paragraph(
+        ftr_rows.append(Paragraph(f"<font size=6.5 color='#64748b'>{addr_display}</font>", S("_ad", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8)))
+        ftr_rows.append(Spacer(1, 2*mm))
+    bar = Table([[""]], colWidths=[W], rowHeights=[1.2])
+    bar.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    ftr_rows.append(bar)
+    ftr_rows.append(Spacer(1, 2*mm))
+    ftr_rows.append(Paragraph(
         "This is a computer-generated Tax Invoice. Valid without signature.",
-        S("FN", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8))]
-
-    els.append(Spacer(1, 8*mm))
-    fh = Table([[""]], colWidths=[W], rowHeights=[1.2])
-    fh.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(fh)
-    els.append(Spacer(1, 2*mm))
-    for p in pp:
-        els.append(p)
-        els.append(Spacer(1, 0.75*mm))
+        S("FN", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8)))
+    ftr_table = Table([[r] for r in ftr_rows], colWidths=[W])
+    ftr_table.setStyle(TableStyle([
+        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),0),
+    ]))
+    els.append(TopPadder(ftr_table))
 
     doc.build(els)
     for f in _logo_tmp_files:
