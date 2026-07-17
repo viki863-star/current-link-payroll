@@ -146,6 +146,30 @@
 </div>
 
 <script>
+var catNames = {
+  'Mulkiya':'Mulkiya (Vehicle Registration)','Insurance':'Insurance Policy','Vehicle License':'Vehicle License',
+  'Driver License':'Driving License','Emirates ID':'Emirates ID','Passport':'Passport Copy',
+  'Trade License':'Trade License','Municipality':'Municipality License','Tenancy':'Tenancy Contract',
+  'Inspection':'Vehicle Inspection Certificate','Fuel Card':'Fuel Card (ADNOC)','Toll Tag':'Toll Tag (Salik/ADTAG)',
+  'Immigration':'Immigration Document','Customs':'Customs Clearance','Contract':'Service Contract',
+  'Certificate':'Certificate','Bank':'Bank Document','Registration':'Registration Document',
+  'ID Proof':'ID Proof','License':'License Document','Other':''
+};
+var catEntity = {
+  'Mulkiya':'vehicle','Insurance':'vehicle','Vehicle License':'vehicle','Driver License':'employee',
+  'Emirates ID':'employee','Passport':'employee','Trade License':'company','Municipality':'vehicle',
+  'Tenancy':'employee','Inspection':'vehicle','Fuel Card':'vehicle','Toll Tag':'vehicle',
+  'Immigration':'employee','Customs':'company','Contract':'','Certificate':'','Bank':'company',
+  'Registration':'vehicle','ID Proof':'employee','License':'vehicle','Other':''
+};
+var catEntityHint = {
+  'Mulkiya':'e.g. 1/80900','Insurance':'e.g. 1/80900','Vehicle License':'e.g. 1/80900','Driver License':'e.g. EMP-001',
+  'Emirates ID':'e.g. EMP-001','Passport':'e.g. EMP-001','Trade License':'Current Link','Municipality':'e.g. 1/80900',
+  'Tenancy':'e.g. EMP-001','Inspection':'e.g. 1/80900','Fuel Card':'e.g. 1/80900','Toll Tag':'e.g. 1/80900',
+  'Immigration':'e.g. EMP-001','Customs':'Current Link','Contract':'e.g. EMP-001','Certificate':'e.g. EMP-001',
+  'Bank':'Current Link','Registration':'e.g. 1/80900','ID Proof':'e.g. EMP-001','License':'e.g. 1/80900','Other':'e.g. 1/80900'
+};
+
 function selectCat(el, cat) {
   document.querySelectorAll('.cat-opt').forEach(function(c){
     c.className = 'cat-opt';
@@ -158,7 +182,42 @@ function selectCat(el, cat) {
   el.style.borderColor = 'var(--primary)';
   el.style.color = '#fff';
   document.getElementById('doc_category').value = cat;
+
+  // Auto-fill document name
+  var dn = document.querySelector('input[name="doc_name"]');
+  var autoName = catNames[cat] || '';
+  if (dn && !dn.dataset.userEdited) {
+    var year = new Date().getFullYear();
+    dn.value = autoName ? autoName + ' ' + year : '';
+  }
+
+  // Update entity type
+  var et = document.getElementById('et');
+  var suggestedEntity = catEntity[cat] || '';
+  if (suggestedEntity) {
+    for (var i = 0; i < et.options.length; i++) {
+      if (et.options[i].value === suggestedEntity) {
+        et.value = suggestedEntity;
+        break;
+      }
+    }
+  }
+
+  // Update placeholder
+  var ei = document.getElementById('ei');
+  var hint = catEntityHint[cat] || 'e.g. 1/80900';
+  ei.placeholder = hint;
+  if (suggestedEntity === 'company') { ei.value = 'Current Link'; ei.readOnly = true; }
+  else { ei.readOnly = false; if (ei.value === 'Current Link') ei.value = ''; }
 }
+
+// Track manual edits to doc name
+document.addEventListener('DOMContentLoaded', function(){
+  var dn = document.querySelector('input[name="doc_name"]');
+  if (dn) {
+    dn.addEventListener('input', function(){ this.dataset.userEdited = 'true'; });
+  }
+});
 
 function updateEntityUI() {
   var et = document.getElementById('et').value;
