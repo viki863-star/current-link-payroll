@@ -134,7 +134,10 @@ function filterByCat(cat) {
 {% if expired %}
 <div class="expiry-chip" style="background:#ffebee;color:#c62828;border:1.5px solid #fca5a5">
   <span>⏰ <strong>{{ expired|length }} expired</strong> — renew immediately</span>
-  <a href="?expiry=expired" style="color:#c62828">View All →</a>
+  <div style="display:flex;gap:8px;margin-left:auto">
+    <a href="{{ url_for('documents.document_download_expired') }}" style="font-size:0.72rem;font-weight:700;color:#c62828;text-decoration:underline">⬇ Download All</a>
+    <a href="?expiry=expired" style="font-size:0.72rem;font-weight:700;color:#c62828;text-decoration:underline">View All →</a>
+  </div>
 </div>
 {% endif %}
 {% if soon %}
@@ -163,6 +166,9 @@ function filterByCat(cat) {
     <a href="{{ url_for('documents.document_hub') }}" style="padding:9px 18px;border-radius:10px;font-weight:600;font-size:0.82rem;text-decoration:none;color:#64748b;border:1px solid #e2e8f0;background:#fff">Clear</a>
   </div>
   <div class="doc-toolbar-actions">
+    {% if expiry == 'expired' %}
+    <a href="{{ url_for('documents.document_download_expired') }}" class="btn" style="color:#c62828;border:1.5px solid #fca5a5;background:#ffebee">⬇ Download All Expired</a>
+    {% endif %}
     <a href="{{ url_for('documents.document_bulk') }}" class="btn" style="color:#475569;border:1px solid #e2e8f0;background:#fff">📦 Bulk</a>
     <a href="{{ url_for('documents.document_upload') }}" class="btn" style="background:var(--primary);color:#fff;border:none">+ Upload</a>
   </div>

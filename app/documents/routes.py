@@ -1,4 +1,4 @@
-import os, base64, logging
+import os, base64, logging, zipfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from flask import render_template, request, redirect, url_for, flash, current_app, send_file, jsonify
@@ -230,6 +230,39 @@ def document_download(doc_id):
         mimetype=doc["file_type"],
         as_attachment=True,
         download_name=safe_name,
+    )
+
+
+@documents_bp.route("/documents/download-expired")
+def document_download_expired():
+    db = open_db()
+    today_str = date.today().isoformat()
+    docs = db.execute(
+        "SELECT * FROM documents WHERE expiry_date IS NOT NULL AND expiry_date < ? ORDER BY entity_type, entity_id",
+        (today_str,)
+    ).fetchall()
+    db.close()
+
+    if not docs:
+        flash("No expired documents to download.", "error")
+        return redirect(url_for("documents.document_hub"))
+
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for d in docs:
+            if not d["file_data"]:
+                continue
+            data = base64.b64decode(d["file_data"])
+            ext = d["file_type"].split("/")[-1] if "/" in d["file_type"] else "bin"
+            safe_name = f"{d['entity_id']}_{d['doc_name']}.{ext}".replace("/", "-").replace(" ", "_")
+            zf.writestr(safe_name, data)
+
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=f"expired_documents_{date.today().isoformat()}.zip",
     )
 
 
