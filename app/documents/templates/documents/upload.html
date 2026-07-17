@@ -1,61 +1,196 @@
 {% extends "base.html" %}
-{% block title %}Upload Document{% endblock %}
-{% block page_title %}Upload Document{% endblock %}
+{% block title %}{{ 'Edit' if doc else 'Upload' }} Document{% endblock %}
+{% block page_title %}{{ 'Edit' if doc else 'Upload' }} Document{% endblock %}
 
 {% block content %}
-<div class="profile-shell" style="max-width:540px;margin:0 auto">
-<div class="profile-card">
-  <div style="margin-bottom:14px">
-    <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm">&larr; Back</a>
+{% set cat_order = ['Mulkiya','Insurance','Vehicle License','Driver License','Emirates ID','Passport','Trade License','Municipality','Tenancy','Inspection','Fuel Card','Toll Tag','Immigration','Customs','Contract','Certificate','Bank','Other'] %}
+{% set cat_icons = {
+  'Mulkiya':'🚛','Insurance':'🛡️','Vehicle License':'📋','Driver License':'🅿️',
+  'Emirates ID':'🪪','Passport':'🌐','Trade License':'🏪','Municipality':'🏛️',
+  'Tenancy':'🏠','Inspection':'🔍','Fuel Card':'⛽','Toll Tag':'💳',
+  'Immigration':'🛂','Customs':'📦','Contract':'📝','Certificate':'🎓',
+  'Bank':'🏦','Other':'📄'
+} %}
+{% set cat_colors = {
+  'Mulkiya':'#3b82f6','Insurance':'#22c55e','Vehicle License':'#f59e0b','Driver License':'#8b5cf6',
+  'Emirates ID':'#ec4899','Passport':'#14b8a6','Trade License':'#f97316','Municipality':'#6366f1',
+  'Tenancy':'#eab308','Inspection':'#06b6d4','Fuel Card':'#84cc16','Toll Tag':'#a855f7',
+  'Immigration':'#0ea5e9','Customs':'#d946ef','Contract':'#2563eb','Certificate':'#10b981',
+  'Bank':'#f59e0b','Other':'#64748b'
+} %}
+
+<style>
+.doc-upload-shell { max-width:780px; margin:0 auto; }
+.doc-upload-card { background:#fff; border-radius:16px; border:1px solid #eef2f6; padding:28px 32px; box-shadow:0 1px 6px rgba(0,0,0,.05); }
+.drop-zone { border:2px dashed #cbd5e1; border-radius:14px; padding:28px; text-align:center; cursor:pointer; transition:all .15s; background:#fafbfc; }
+.drop-zone:hover, .drop-zone.dragover { border-color:var(--primary); background:#f0f4ff; }
+.drop-zone-icon { font-size:2.2rem; margin-bottom:6px; }
+.drop-zone-text { font-size:0.9rem; font-weight:600; color:var(--ink); }
+.drop-zone-hint { font-size:0.72rem; color:#94a3b8; margin-top:2px; }
+.drop-zone.has-file { border-color:#22c55e; background:#f0fdf4; }
+.cat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:6px; margin-bottom:16px; }
+.cat-opt { text-align:center; padding:8px 6px; border-radius:10px; border:1.5px solid #eef2f6; cursor:pointer; transition:all .1s; font-size:0.68rem; font-weight:600; color:#64748b; background:#fafbfc; }
+.cat-opt:hover { border-color:var(--primary); color:var(--primary); background:var(--primary-light); }
+.cat-opt.selected { border-color:var(--primary); color:#fff; background:var(--primary); }
+.cat-opt .cat-icon { font-size:1.1rem; display:block; margin-bottom:2px; }
+.form-row { margin-bottom:14px; }
+.form-row label { display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:4px; }
+.form-row input, .form-row select, .form-row textarea { width:100%; padding:9px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.85rem; outline:none; box-sizing:border-box; transition:border-color .12s; }
+.form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
+.file-info { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#f8fafc; border-radius:8px; font-size:0.78rem; color:var(--muted); }
+</style>
+
+<div class="doc-upload-shell">
+<div class="doc-upload-card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div>
+      <h3 style="margin:0;font-size:1.05rem;font-weight:800">{{ '✏️ Edit' if doc else '📁 Upload' }} Document</h3>
+      <p style="margin:3px 0 0;font-size:0.75rem;color:var(--muted)">
+        {% if doc %}Update document details{% else %}Add a new document to the system{% endif %}
+      </p>
+    </div>
+    <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm" style="padding:7px 16px">&larr; Back</a>
   </div>
-  <h3 style="margin:0 0 16px">📁 Upload Document</h3>
 
-  <form method="POST" enctype="multipart/form-data">
+  <form method="POST" enctype="multipart/form-data" id="uploadForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="entity_type" value="vehicle">
 
-    <div style="display:grid;gap:12px">
-      <div>
-        <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">Vehicle Number *</label>
-        <input type="text" name="entity_id" class="form-control" required placeholder="e.g. 1/80900">
-      </div>
-
-      <div>
-        <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">Document Name *</label>
-        <input type="text" name="doc_name" class="form-control" required placeholder="e.g. Mulkiya Registration">
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div>
-          <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">Category</label>
-          <select name="doc_category" class="form-control">
-            <option value="Registration" selected>Registration</option>
-            <option value="Insurance">Insurance</option>
-            <option value="License">License</option>
-            <option value="Other">Other</option>
-          </select>
+    {# ─── DOCUMENT CATEGORY ─── #}
+    <div class="form-row">
+      <label>Document Type *</label>
+      <div class="cat-grid">
+        {% for cat in cat_order %}
+        {% set clr = cat_colors.get(cat, '#64748b') %}
+        <div class="cat-opt {% if (doc and doc.doc_category == cat) or (not doc and cat == 'Other') %}selected{% endif %}"
+             style="{% if (doc and doc.doc_category == cat) or (not doc and cat == 'Other') %}background:{{ clr }};border-color:{{ clr }};color:#fff{% endif %}"
+             onclick="selectCat(this, '{{ cat }}')">
+          <span class="cat-icon">{{ cat_icons.get(cat, '📄') }}</span>
+          {{ cat }}
         </div>
-        <div>
-          <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">Expiry Date</label>
-          <input type="date" name="expiry_date" class="form-control">
-        </div>
+        {% endfor %}
       </div>
+      <input type="hidden" name="doc_category" id="doc_category" value="{{ doc.doc_category if doc else 'Other' }}">
+    </div>
 
-      <div>
-        <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">File (PDF) *</label>
-        <input type="file" name="file" class="form-control" required accept=".pdf">
+    {# ─── NAME + REF ─── #}
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+      <div class="form-row">
+        <label>Document Name *</label>
+        <input type="text" name="doc_name" required placeholder="e.g. Mulkiya 2026" value="{{ doc.doc_name if doc else '' }}">
       </div>
-
-      <div>
-        <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px">Notes</label>
-        <textarea name="notes" class="form-control" rows="2" placeholder="Optional"></textarea>
+      <div class="form-row">
+        <label>Reference No.</label>
+        <input type="text" name="doc_ref_no" placeholder="e.g. POL-12345" value="{{ doc.doc_ref_no if doc else '' }}">
       </div>
     </div>
 
-    <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;margin-top:18px;font-size:0.95rem;font-weight:600">
-      ⬆ Upload Document
+    {# ─── ENTITY ─── #}
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px">
+      <div class="form-row">
+        <label>Linked To *</label>
+        <select name="entity_type" id="et" onchange="updateEntityUI()" required>
+          {% for k,v in ENTITY_LABELS.items() %}
+          <option value="{{ k }}" {% if (doc and doc.entity_type == k) or (pre_type == k) %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Entity ID / Number *</label>
+        <input type="text" name="entity_id" id="ei" required placeholder="e.g. 1/80900" value="{{ doc.entity_id if doc else pre_id }}" {% if (doc and doc.entity_type == 'company') or (pre_type == 'company') %}readonly{% endif %}>
+      </div>
+    </div>
+
+    {# ─── DATES ─── #}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-row">
+        <label>Issue Date</label>
+        <input type="date" name="issue_date" value="{{ doc.issue_date if doc else '' }}">
+      </div>
+      <div class="form-row">
+        <label>Expiry Date <span style="font-weight:400;color:#94a3b8">(alert will fire)</span></label>
+        <input type="date" name="expiry_date" id="expiryDate" value="{{ doc.expiry_date if doc else '' }}">
+      </div>
+    </div>
+
+    {# ─── FILE UPLOAD ─── #}
+    <div class="form-row">
+      <label>File {% if not doc %}*{% endif %}</label>
+      {% if doc and doc.file_data %}
+      <div class="file-info">
+        <span>📎</span>
+        <span>Current file attached ({{ (doc.file_size / 1024)|round(1) }} KB)</span>
+        <label style="margin-left:auto;font-size:0.72rem;color:var(--primary);cursor:pointer;font-weight:600">
+          <input type="checkbox" name="replace_file" value="1" onchange="document.getElementById('fileUpload').style.display=this.checked?'block':'none'"> Replace file
+        </label>
+      </div>
+      {% endif %}
+      <div id="fileUpload" class="drop-zone" {% if doc and doc.file_data %}style="display:none"{% endif %}>
+        <div class="drop-zone-icon" id="dzIcon">📄</div>
+        <div class="drop-zone-text" id="dzText">Drop file here or click to browse</div>
+        <div class="drop-zone-hint" id="dzHint">Supports PDF, JPG, PNG — Max 20MB</div>
+        <input type="file" name="file" id="fileInput" style="display:none" {% if not doc %}required{% endif %} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx">
+      </div>
+    </div>
+
+    {# ─── NOTES ─── #}
+    <div class="form-row">
+      <label>Notes <span style="font-weight:400;color:#94a3b8">(optional)</span></label>
+      <textarea name="notes" rows="2" placeholder="Any additional notes...">{{ doc.notes if doc else '' }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="width:100%;padding:14px;margin-top:8px;font-size:0.95rem;font-weight:700">
+      {% if doc %}💾 Save Changes{% else %}⬆ Upload Document{% endif %}
     </button>
   </form>
 </div>
 </div>
+
+<script>
+function selectCat(el, cat) {
+  document.querySelectorAll('.cat-opt').forEach(function(c){
+    c.className = 'cat-opt';
+    c.style.background = '#fafbfc';
+    c.style.borderColor = '#eef2f6';
+    c.style.color = '#64748b';
+  });
+  el.classList.add('selected');
+  el.style.background = 'var(--primary)';
+  el.style.borderColor = 'var(--primary)';
+  el.style.color = '#fff';
+  document.getElementById('doc_category').value = cat;
+}
+
+function updateEntityUI() {
+  var et = document.getElementById('et').value;
+  var ei = document.getElementById('ei');
+  if (et === 'company') { ei.value = 'Current Link'; ei.readOnly = true; }
+  else { ei.readOnly = false; if (ei.value === 'Current Link') ei.value = ''; }
+}
+
+{% if not doc or (doc and not doc.file_data) %}
+// Drag-drop
+var dz = document.getElementById('fileUpload');
+var fi = document.getElementById('fileInput');
+dz.addEventListener('click', function(){ fi.click(); });
+dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', function(){ dz.classList.remove('dragover'); });
+dz.addEventListener('drop', function(e){
+  e.preventDefault(); dz.classList.remove('dragover');
+  if(e.dataTransfer.files.length){ fi.files = e.dataTransfer.files; onFile(); }
+});
+fi.addEventListener('change', onFile);
+function onFile() {
+  var f = fi.files[0];
+  if(!f) return;
+  dz.classList.add('has-file');
+  document.getElementById('dzIcon').textContent = '✅';
+  document.getElementById('dzText').textContent = f.name;
+  document.getElementById('dzHint').textContent = (f.size/1024).toFixed(1) + ' KB';
+}
+{% endif %}
+
+// Set min expiry date to today
+var exp = document.getElementById('expiryDate');
+if(exp && !exp.value) exp.min = new Date().toISOString().split('T')[0];
+</script>
 {% endblock %}

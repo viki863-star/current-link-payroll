@@ -1,155 +1,228 @@
 {% extends "base.html" %}
-{% block title %}Documents — Current Link ERP{% endblock %}
+{% block title %}Document Management{% endblock %}
 {% block page_title %}Document Management{% endblock %}
 
 {% block content %}
-<div class="profile-shell" style="max-width:1100px;margin:0 auto">
+{% set cat_order = ['Mulkiya','Insurance','Vehicle License','Driver License','Emirates ID','Passport','Trade License','Municipality','Tenancy','Inspection','Fuel Card','Toll Tag','Immigration','Customs','Contract','Certificate','Bank','Other'] %}
+{% set cat_icons = {
+  'Mulkiya':'🚛','Insurance':'🛡️','Vehicle License':'📋','Driver License':'🅿️',
+  'Emirates ID':'🪪','Passport':'🌐','Trade License':'🏪','Municipality':'🏛️',
+  'Tenancy':'🏠','Inspection':'🔍','Fuel Card':'⛽','Toll Tag':'💳',
+  'Immigration':'🛂','Customs':'📦','Contract':'📝','Certificate':'🎓',
+  'Bank':'🏦','Other':'📄'
+} %}
+{% set cat_colors = {
+  'Mulkiya':'#3b82f6','Insurance':'#22c55e','Vehicle License':'#f59e0b','Driver License':'#8b5cf6',
+  'Emirates ID':'#ec4899','Passport':'#14b8a6','Trade License':'#f97316','Municipality':'#6366f1',
+  'Tenancy':'#eab308','Inspection':'#06b6d4','Fuel Card':'#84cc16','Toll Tag':'#a855f7',
+  'Immigration':'#0ea5e9','Customs':'#d946ef','Contract':'#2563eb','Certificate':'#10b981',
+  'Bank':'#f59e0b','Other':'#64748b'
+} %}
 
-<div class="profile-card">
+<style>
+.doc-hub { max-width:1200px; margin:0 auto; }
+.doc-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+.stat-card { background:#fff; border-radius:14px; padding:16px 18px; border:1px solid #eef2f6; box-shadow:0 1px 4px rgba(0,0,0,.04); }
+.stat-card .stat-icon { width:38px; height:38px; border-radius:10px; display:grid; place-items:center; font-size:1.1rem; margin-bottom:8px; }
+.stat-card .stat-num { font-size:1.5rem; font-weight:800; line-height:1.2; }
+.stat-card .stat-lbl { font-size:0.72rem; color:#64748b; font-weight:500; margin-top:2px; }
+.expiry-alert { border-radius:12px; padding:12px 18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:16px; font-size:0.85rem; }
+.doc-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+.doc-filters input,.doc-filters select { padding:8px 14px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.82rem; outline:none; background:#fff; }
+.doc-filters input:focus,.doc-filters select:focus { border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
+.cat-pills { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:18px; }
+.cat-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 14px; border-radius:20px; font-size:0.7rem; font-weight:600; cursor:pointer; transition:all .12s; border:1px solid transparent; }
+.cat-pill:hover { transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,.08); }
+.cat-pill.active { border-color:currentColor; box-shadow:0 0 0 2px rgba(0,0,0,.04); }
+.doc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:12px; }
+.doc-card { background:#fff; border-radius:12px; border:1px solid #eef2f6; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,.03); transition:all .12s; }
+.doc-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.07); transform:translateY(-1px); }
+.doc-card-top { display:flex; align-items:flex-start; gap:12px; }
+.doc-card-icon { width:42px; height:42px; border-radius:10px; display:grid; place-items:center; font-size:1.2rem; flex-shrink:0; }
+.doc-card-body { flex:1; min-width:0; }
+.doc-card-name { font-size:0.88rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.doc-card-ref { font-size:0.67rem; color:#94a3b8; margin-top:1px; }
+.doc-card-meta { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:5px; font-size:0.72rem; color:#64748b; }
+.doc-card-meta span { display:inline-flex; align-items:center; gap:3px; }
+.doc-card-footer { display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid #f1f5f9; }
+.doc-card-actions { display:flex; gap:4px; }
+.doc-card-actions a,.doc-card-actions button { padding:4px 10px; font-size:0.65rem; font-weight:600; border-radius:6px; text-decoration:none; border:none; cursor:pointer; transition:all .1s; }
+.empty-state { text-align:center; padding:60px 20px; color:#94a3b8; }
+.empty-state .empty-icon { font-size:3rem; margin-bottom:12px; }
+.empty-state h3 { font-size:1.1rem; font-weight:700; color:#0f172a; margin:0 0 4px; }
+.empty-state p { font-size:0.85rem; margin:0 0 16px; }
+@media (max-width:720px) { .doc-stats { grid-template-columns:1fr 1fr; } .doc-grid { grid-template-columns:1fr; } }
+</style>
 
-  {# ═══ HEADER ═══ #}
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
-    <div>
-      <h3 style="margin:0;font-size:1.05rem;font-weight:800">📁 All Documents</h3>
-      <p style="margin:3px 0 0;font-size:0.75rem;color:var(--muted)">{{ docs|length }} total document{{ 's' if docs|length != 1 else '' }}</p>
-    </div>
-    <a href="{{ url_for('documents.document_upload') }}" class="btn btn-primary btn-sm" style="padding:8px 20px;font-weight:600">+ Upload New</a>
+<script>
+function filterByCat(cat, el) {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('cat') === cat) { params.delete('cat'); }
+  else { params.set('cat', cat); }
+  window.location.search = params.toString();
+}
+function updateEntitySelect() {
+  var et = document.getElementById('et').value;
+  var ei = document.getElementById('ei');
+  if (et === 'company') { ei.value = 'Current Link'; ei.readOnly = true; }
+  else { ei.readOnly = false; if (ei.value === 'Current Link') ei.value = ''; }
+}
+</script>
+
+<div class="doc-hub">
+
+{# ─── STATS DASHBOARD ─── #}
+{% set total = docs|length %}
+{% set expired = docs|selectattr('_status','equalto','expired')|list %}
+{% set soon = docs|selectattr('_status','equalto','soon')|list %}
+{% set valid = docs|selectattr('_status','equalto','ok')|list %}
+<div class="doc-stats">
+  <div class="stat-card">
+    <div class="stat-icon" style="background:#eef2ff;color:#4f46e5">📑</div>
+    <div class="stat-num">{{ total }}</div>
+    <div class="stat-lbl">Total Documents</div>
   </div>
-
-  {# ═══ EXPIRY ALERTS ═══ #}
-  {% set expired_docs = docs|selectattr('_status', 'equalto', 'expired')|list %}
-  {% set soon_docs = docs|selectattr('_status', 'equalto', 'soon')|list %}
-  {% if expired_docs or soon_docs %}
-  <div style="margin-bottom:14px;display:flex;flex-direction:column;gap:6px">
-    {% if expired_docs %}
-    <div style="padding:10px 16px;background:#ffebee;border:1.5px solid #ef9a9a;border-radius:10px;color:#c62828;font-size:0.82rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-      <span>⏰ <strong>{{ expired_docs|length }} document{% if expired_docs|length > 1 %}s{% endif %} expired</strong> — renew immediately</span>
-      <a href="{{ url_for('documents.document_hub') }}?expiry=expired" style="font-size:0.72rem;color:#c62828;text-decoration:underline;font-weight:600">View all →</a>
-    </div>
-    {% endif %}
-    {% if soon_docs %}
-    <div style="padding:10px 16px;background:#fff3e0;border:1.5px solid #ffcc80;border-radius:10px;color:#e65100;font-size:0.82rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-      <span>⚠️ <strong>{{ soon_docs|length }} document{% if soon_docs|length > 1 %}s{% endif %} expiring within 30 days</strong></span>
-      <a href="{{ url_for('documents.document_hub') }}?expiry=soon" style="font-size:0.72rem;color:#e65100;text-decoration:underline;font-weight:600">View all →</a>
-    </div>
-    {% endif %}
+  <div class="stat-card">
+    <div class="stat-icon" style="background:#e8f5e9;color:#2e7d32">✅</div>
+    <div class="stat-num">{{ valid|length }}</div>
+    <div class="stat-lbl">Valid</div>
   </div>
-  {% endif %}
+  <div class="stat-card">
+    <div class="stat-icon" style="background:#fff3e0;color:#e65100">⚠️</div>
+    <div class="stat-num">{{ soon|length }}</div>
+    <div class="stat-lbl">Expiring Soon</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background:#ffebee;color:#c62828">⏰</div>
+    <div class="stat-num">{{ expired|length }}</div>
+    <div class="stat-lbl">Expired</div>
+  </div>
+</div>
 
-  {# ═══ FILTERS ═══ #}
-  <form method="GET" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:12px 16px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6">
-    <input type="text" name="q" value="{{ q }}" placeholder="Search name, ref, notes..." style="flex:2;min-width:160px;padding:7px 12px;border:1px solid var(--line);border-radius:6px;font-size:0.8rem;outline:none" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--line)'">
-    <select name="entity_type" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.8rem;outline:none">
-      <option value="">All Types</option>
+{# ─── EXPIRY ALERTS ─── #}
+{% if expired %}
+<div class="expiry-alert" style="background:#ffebee;border:1.5px solid #ef9a9a;color:#c62828">
+  <span>⏰ <strong>{{ expired|length }} document{{ 's' if expired|length != 1 else '' }} expired</strong> — renew immediately to stay compliant</span>
+  <a href="?expiry=expired" style="font-size:0.72rem;color:#c62828;font-weight:700;text-decoration:underline">View Expired →</a>
+</div>
+{% endif %}
+{% if soon %}
+<div class="expiry-alert" style="background:#fff3e0;border:1.5px solid #ffcc80;color:#e65100">
+  <span>⚠️ <strong>{{ soon|length }} document{{ 's' if soon|length != 1 else '' }} expiring within 30 days</strong></span>
+  <a href="?expiry=soon" style="font-size:0.72rem;color:#e65100;font-weight:700;text-decoration:underline">View Expiring →</a>
+</div>
+{% endif %}
+
+{# ─── UPLOAD BUTTON + SEARCH ─── #}
+<div class="doc-filters" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+  <div style="display:flex;flex-wrap:wrap;gap:8px;flex:1">
+    <input type="text" id="sq" placeholder="Search documents..." style="flex:2;min-width:160px" value="{{ q }}">
+    <select id="se" style="flex:1;min-width:110px">
+      <option value="">All Entities</option>
       {% for k,v in ENTITY_LABELS.items() %}
       <option value="{{ k }}" {% if entity_type == k %}selected{% endif %}>{{ v }}</option>
       {% endfor %}
     </select>
-    <select name="expiry" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.8rem;outline:none">
+    <select id="sx" style="flex:1;min-width:110px">
       <option value="">Any Expiry</option>
       <option value="expired" {% if expiry == 'expired' %}selected{% endif %}>⏰ Expired</option>
       <option value="soon" {% if expiry == 'soon' %}selected{% endif %}>⚠️ Expiring Soon</option>
     </select>
-    <input type="hidden" name="sort" value="uploaded_at">
-    <input type="hidden" name="order" value="desc">
-    <button class="btn btn-outline btn-sm">Filter</button>
-    <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm">Clear</a>
-  </form>
-
-  {# ═══ CATEGORY STATS ROW ═══ #}
-  {% set cat_order = ['Registration','Insurance','License','Contract','ID Proof','Certificate','Bank','Other'] %}
-  {% set cat_icons = {'Registration':'📋','Insurance':'🛡️','License':'🅿️','Contract':'📝','ID Proof':'🪪','Certificate':'🎓','Bank':'🏦','Other':'📄'} %}
-  {% set cat_colors = {'Registration':'#3b82f6','Insurance':'#22c55e','License':'#f59e0b','Contract':'#8b5cf6','ID Proof':'#ec4899','Certificate':'#14b8a6','Bank':'#f97316','Other':'#64748b'} %}
-  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px">
-    {% for cat in cat_order %}
-      {% set cat_docs = docs|selectattr('doc_category', 'equalto', cat)|list %}
-      {% if cat_docs %}
-      <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:0.7rem;font-weight:600;background:{{ cat_colors[cat] }}15;color:{{ cat_colors[cat] }};border:1px solid {{ cat_colors[cat] }}30">
-        {{ cat_icons.get(cat,'📄') }} {{ cat }} ({{ cat_docs|length }})
-      </span>
-      {% endif %}
-    {% endfor %}
+    <button onclick="applyFilters()" class="btn btn-outline btn-sm" style="padding:8px 18px">Search</button>
+    <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm" style="padding:8px 18px">Clear</a>
   </div>
+  <a href="{{ url_for('documents.document_upload') }}" class="btn btn-primary" style="padding:10px 24px;font-weight:700;font-size:0.85rem;white-space:nowrap">+ Upload Document</a>
+</div>
 
-  {# ═══ EMPTY STATE ═══ #}
-  {% if not docs %}
-  <div style="text-align:center;padding:48px 16px;color:var(--muted)">
-    <div style="font-size:2.5rem;margin-bottom:8px">📂</div>
-    <p style="font-size:0.9rem;font-weight:600;color:var(--ink)">No documents yet</p>
-    <p style="font-size:0.78rem;margin-bottom:14px">Upload your first document to get started</p>
-    <a href="{{ url_for('documents.document_upload') }}" class="btn btn-primary">+ Upload Document</a>
-  </div>
-  {% endif %}
-
-  {# ═══ CATEGORY SECTIONS ═══ #}
-  {% for cat in cat_order %}
-    {% set cat_docs = docs|selectattr('doc_category', 'equalto', cat)|list %}
-    {% if cat_docs %}
-    <div style="margin-bottom:20px">
-      {# Category Header #}
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 4px">
-        <span style="font-size:1.1rem">{{ cat_icons.get(cat,'📄') }}</span>
-        <h4 style="margin:0;font-size:0.82rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.3px">{{ cat }}</h4>
-        <span style="font-size:0.68rem;color:var(--muted);background:#f1f5f9;padding:1px 10px;border-radius:10px">{{ cat_docs|length }}</span>
-      </div>
-
-      {# Document Rows #}
-      <div style="border:1px solid #eef2f6;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.03)">
-        {% for d in cat_docs|sort(attribute='uploaded_at', reverse=True) %}
-        {% set icon = cat_icons.get(cat, '📄') %}
-        <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #f1f5f9;transition:background 0.12s" onmouseover="this.style.background='#fafbfc'" onmouseout="this.style.background=''">
-          {% if loop.last %}{% set brdr = '' %}{% endif %}
-          {# Document icon #}
-          <span style="font-size:1.2rem;flex-shrink:0;width:32px;height:32px;display:grid;place-items:center;background:{{ cat_colors[cat] }}10;border-radius:8px">{{ icon }}</span>
-
-          {# Document info #}
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px">
-              <strong style="font-size:0.85rem;color:var(--ink)">{{ d.doc_name }}</strong>
-              {% if d.doc_ref_no %}
-              <span style="font-size:0.7rem;color:var(--muted)">Ref: {{ d.doc_ref_no }}</span>
-              {% endif %}
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:3px;font-size:0.72rem;color:var(--muted)">
-              <span><strong>{{ ENTITY_LABELS.get(d.entity_type, d.entity_type) }}:</strong> {{ d.entity_id }}</span>
-              {% if d.issue_date %}
-              <span>📅 Issued: {{ d.issue_date }}</span>
-              {% endif %}
-              {% if d.expiry_date %}
-              {% set es = d._status %}
-              <span>⏳ Expires:
-                <span style="font-weight:600;padding:1px 8px;border-radius:8px;font-size:0.68rem;
-                  {% if es == 'expired' %}background:#ffebee;color:#c62828
-                  {% elif es == 'soon' %}background:#fff3e0;color:#e65100
-                  {% else %}background:#e8f5e9;color:#2e7d32{% endif %}">
-                  {{ d.expiry_date }}
-                  {% if es == 'expired' %} ⏰ Expired{% endif %}
-                </span>
-              </span>
-              {% endif %}
-              {% if d.notes %}
-              <span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📌 {{ d.notes }}</span>
-              {% endif %}
-            </div>
-            <div style="font-size:0.6rem;color:#bbb;margin-top:2px">Uploaded {{ d.uploaded_at }}</div>
-          </div>
-
-          {# Actions #}
-          <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">
-            <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="btn btn-xs btn-primary" style="padding:4px 12px;font-size:0.68rem;font-weight:600">Download</a>
-            <a href="{{ url_for('documents.document_edit', doc_id=d.id) }}" style="display:inline-flex;align-items:center;gap:3px;padding:4px 10px;font-size:0.68rem;font-weight:600;color:#2563eb;background:#e8f0fe;border:1px solid #b3d0ff;border-radius:6px;text-decoration:none">✏️ Edit</a>
-            <form method="POST" action="{{ url_for('documents.document_delete', doc_id=d.id) }}" style="display:inline" onsubmit="return confirm('Delete {{ d.doc_name|e }}?')">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-xs" style="padding:4px 10px;font-size:0.68rem;color:#c62828;background:#ffebee;border:1px solid #ef9a9a;border-radius:6px;cursor:pointer;font-weight:600">Delete</button>
-            </form>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
+{# ─── CATEGORY PILLS ─── #}
+<div class="cat-pills" id="catPills">
+  {% for c in cat_order %}
+    {% set cat_count = docs|selectattr('doc_category','equalto',c)|list|length %}
+    {% if cat_count > 0 or not cat %}
+    <span class="cat-pill {% if cat == c %}active{% endif %}"
+          style="{% if cat == c %}background:{{ cat_colors[c] }}15;color:{{ cat_colors[c] }};border-color:{{ cat_colors[c] }}40{% else %}background:#f8fafc;color:#64748b{% endif %}"
+          onclick="filterByCat('{{ c }}', this)">
+      {{ cat_icons.get(c,'📄') }} {{ c }} <span style="opacity:0.6;font-weight:400">({{ cat_count }})</span>
+    </span>
     {% endif %}
   {% endfor %}
+</div>
+
+{# ─── DOCUMENT GRID ─── #}
+{% if docs %}
+<div class="doc-grid">
+  {% for d in docs %}
+  {% set cat = d.doc_category if d.doc_category in cat_order else 'Other' %}
+  {% set icon = cat_icons.get(cat, '📄') %}
+  {% set clr = cat_colors.get(cat, '#64748b') %}
+  {% set es = d._status %}
+  <div class="doc-card">
+    <div class="doc-card-top">
+      <div class="doc-card-icon" style="background:{{ clr }}12;color:{{ clr }}">{{ icon }}</div>
+      <div class="doc-card-body">
+        <div class="doc-card-name">
+          {{ d.doc_name }}
+          {% if d.doc_category in cat_order %}
+          <span style="font-size:0.6rem;font-weight:600;color:{{ clr }};background:{{ clr }}12;padding:1px 8px;border-radius:4px">{{ d.doc_category }}</span>
+          {% endif %}
+        </div>
+        {% if d.doc_ref_no %}<div class="doc-card-ref">Ref: {{ d.doc_ref_no }}</div>{% endif %}
+        <div class="doc-card-meta">
+          <span>🏷️ {{ ENTITY_LABELS.get(d.entity_type, d.entity_type) }}: <strong>{{ d.entity_id }}</strong></span>
+          {% if d.issue_date %}<span>📅 Issued: {{ d.issue_date }}</span>{% endif %}
+          {% if d.expiry_date %}
+          <span>⏳ Exp:
+            <span style="font-weight:700;padding:1px 8px;border-radius:6px;font-size:0.65rem;
+              {% if es == 'expired' %}background:#ffebee;color:#c62828
+              {% elif es == 'soon' %}background:#fff3e0;color:#e65100
+              {% else %}background:#e8f5e9;color:#2e7d32{% endif %}">
+              {{ d.expiry_date }}
+              {% if es == 'expired' %} ⏰{% elif es == 'soon' %} ⚠️{% endif %}
+            </span>
+          </span>
+          {% endif %}
+          {% if d.notes %}<span style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📌 {{ d.notes }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="doc-card-footer">
+      <span style="font-size:0.62rem;color:#94a3b8">📤 {{ (d.uploaded_at or '')[:10] }}</span>
+      <div class="doc-card-actions">
+        <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="btn btn-xs btn-primary" style="padding:4px 12px;font-size:0.65rem;font-weight:700">Download</a>
+        <a href="{{ url_for('documents.document_edit', doc_id=d.id) }}" style="padding:4px 10px;font-size:0.65rem;font-weight:600;color:#2563eb;background:#e8f0fe;border:1px solid #b3d0ff;border-radius:6px;text-decoration:none">Edit</a>
+        <form method="POST" action="{{ url_for('documents.document_delete', doc_id=d.id) }}" style="display:inline" onsubmit="return confirm('Delete {{ d.doc_name|e }}?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button style="padding:4px 10px;font-size:0.65rem;font-weight:600;color:#c62828;background:#ffebee;border:1px solid #ef9a9a;border-radius:6px;cursor:pointer">Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">📂</div>
+  <h3>No documents found</h3>
+  <p>Upload your first document or adjust your search filters</p>
+  <a href="{{ url_for('documents.document_upload') }}" class="btn btn-primary" style="padding:12px 28px;font-weight:700">+ Upload Document</a>
+</div>
+{% endif %}
 
 </div>
-</div>
+
+<script>
+function applyFilters() {
+  var p = new URLSearchParams();
+  var q = document.getElementById('sq').value.trim();
+  if (q) p.set('q', q);
+  var e = document.getElementById('se').value;
+  if (e) p.set('entity_type', e);
+  var x = document.getElementById('sx').value;
+  if (x) p.set('expiry', x);
+  var c = new URLSearchParams(window.location.search).get('cat');
+  if (c) p.set('cat', c);
+  window.location.search = p.toString();
+}
+document.getElementById('sq').addEventListener('keydown', function(e){ if(e.key==='Enter') applyFilters(); });
+</script>
 {% endblock %}

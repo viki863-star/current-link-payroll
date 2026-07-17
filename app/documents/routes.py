@@ -39,6 +39,7 @@ def document_hub():
     q = request.args.get("q", "").strip()
     entity_type = request.args.get("entity_type", "").strip()
     expiry = request.args.get("expiry", "").strip()
+    cat = request.args.get("cat", "").strip()
     sort = request.args.get("sort", "uploaded_at")
     order = request.args.get("order", "desc")
 
@@ -51,6 +52,9 @@ def document_hub():
     if entity_type:
         where.append("entity_type = ?")
         params.append(entity_type)
+    if cat:
+        where.append("doc_category = ?")
+        params.append(cat)
     today_str = date.today().isoformat()
     if expiry == "expired":
         where.append("expiry_date IS NOT NULL AND expiry_date < ?")
@@ -72,7 +76,7 @@ def document_hub():
         d["_status"] = _expiry_status(d.get("expiry_date"))
 
     return render_template("documents/hub.html", docs=docs, ENTITY_LABELS=ENTITY_LABELS,
-        q=q, entity_type=entity_type, expiry=expiry, sort=sort, order=order, today=date.today())
+        q=q, entity_type=entity_type, expiry=expiry, cat=cat, sort=sort, order=order, today=date.today())
 
 
 @documents_bp.route("/documents/upload", methods=["GET", "POST"])
