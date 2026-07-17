@@ -104,20 +104,41 @@ def document_upload():
             flash("Entity, document name, and file are required.", "error")
             return render_template("documents/upload.html", ENTITY_LABELS=ENTITY_LABELS)
 
+        existing = db.execute(
+            "SELECT id, expiry_date FROM documents WHERE entity_type=? AND entity_id=? AND doc_category=? ORDER BY uploaded_at DESC LIMIT 1",
+            (entity_type, entity_id, doc_category)
+        ).fetchone()
+
+        if existing and _expiry_status(existing["expiry_date"]) != "expired":
+            db.close()
+            flash(f"A valid '{doc_category}' already exists for this {entity_type}. It must expire before you can upload a new one.", "error")
+            return redirect(url_for("documents.document_hub"))
+
         file_data = base64.b64encode(file.read()).decode("utf-8")
         file_type = file.content_type or "application/octet-stream"
         file_size = len(file_data)
 
-        db.execute(
-            """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-               issue_date, expiry_date, file_data, file_type, file_size, notes)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-            (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-             issue_date, expiry_date, file_data, file_type, file_size, notes),
-        )
+        if existing:
+            db.execute(
+                """UPDATE documents SET doc_name=?, doc_ref_no=?, issue_date=?, expiry_date=?,
+                   file_data=?, file_type=?, file_size=?, notes=?, uploaded_at=CURRENT_TIMESTAMP
+                   WHERE id=?""",
+                (doc_name, doc_ref_no, issue_date, expiry_date, file_data, file_type, file_size, notes, existing["id"]),
+            )
+            msg = f"'{doc_name}' renewed (existing expired document updated)."
+        else:
+            db.execute(
+                """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                   issue_date, expiry_date, file_data, file_type, file_size, notes)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                 issue_date, expiry_date, file_data, file_type, file_size, notes),
+            )
+            msg = f"Document '{doc_name}' uploaded."
+
         db.commit()
         db.close()
-        flash(f"Document '{doc_name}' uploaded.", "success")
+        flash(msg, "success")
         return redirect(url_for("documents.document_hub"))
 
     # GET: pre-fill entity from query params
@@ -147,6 +168,15 @@ def document_bulk():
             doc_name = request.form.get(f"doc_name_{idx}", "").strip()
             if not doc_name:
                 doc_name = f"{doc_category} {idx+1}"
+            existing = db.execute(
+                "SELECT id, expiry_date FROM documents WHERE entity_type=? AND entity_id=? AND doc_category=? ORDER BY uploaded_at DESC LIMIT 1",
+                (entity_type, entity_id, doc_category)
+            ).fetchone()
+
+            if existing and _expiry_status(existing["expiry_date"]) != "expired":
+                idx += 1
+                continue
+
             file = request.files.get(f"file_{idx}")
             file_data = None
             file_type = None
@@ -155,13 +185,22 @@ def document_bulk():
                 file_data = base64.b64encode(file.read()).decode("utf-8")
                 file_type = file.content_type or "application/octet-stream"
                 file_size = len(file_data)
-            db.execute(
-                """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                   expiry_date, file_data, file_type, file_size)
-                   VALUES (?,?,?,?,?,?,?,?,?)""",
-                (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                 expiry_date, file_data, file_type, file_size),
-            )
+
+            if existing:
+                db.execute(
+                    """UPDATE documents SET doc_name=?, doc_ref_no=?, expiry_date=?,
+                       file_data=?, file_type=?, file_size=?, uploaded_at=CURRENT_TIMESTAMP
+                       WHERE id=?""",
+                    (doc_name, doc_ref_no, expiry_date, file_data, file_type, file_size, existing["id"]),
+                )
+            else:
+                db.execute(
+                    """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                       expiry_date, file_data, file_type, file_size)
+                       VALUES (?,?,?,?,?,?,?,?,?)""",
+                    (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                     expiry_date, file_data, file_type, file_size),
+                )
             uploaded += 1
             idx += 1
         db.commit()
