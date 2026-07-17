@@ -169,7 +169,14 @@ function updateEntitySelect() {
         </div>
         {% if d.doc_ref_no %}<div class="doc-card-ref">Ref: {{ d.doc_ref_no }}</div>{% endif %}
         <div class="doc-card-meta">
-          <span>🏷️ {{ ENTITY_LABELS.get(d.entity_type, d.entity_type) }}: <strong>{{ d.entity_id }}</strong></span>
+          <span>🏷️ {{ ENTITY_LABELS.get(d.entity_type, d.entity_type) }}:
+            {% if d.entity_type == 'vehicle' %}
+            <a href="{{ url_for('fleet.vehicle_profile', plate_no=d.entity_id) }}" style="font-weight:700;color:var(--primary);text-decoration:none">{{ d.entity_id }}</a>
+            {% elif d.entity_type == 'employee' %}
+            <a href="{{ url_for('hr.employee_detail', employee_id=d.entity_id) }}" style="font-weight:700;color:var(--primary);text-decoration:none">{{ d.entity_id }}</a>
+            {% else %}
+            <strong>{{ d.entity_id }}</strong>
+            {% endif %}</span>
           {% if d.issue_date %}<span>📅 Issued: {{ d.issue_date }}</span>{% endif %}
           {% if d.expiry_date %}
           <span>⏳ Exp:

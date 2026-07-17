@@ -38,6 +38,19 @@
 .form-row input, .form-row select, .form-row textarea { width:100%; padding:9px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.85rem; outline:none; box-sizing:border-box; transition:border-color .12s; }
 .form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
 .file-info { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#f8fafc; border-radius:8px; font-size:0.78rem; color:var(--muted); }
+.entity-search-wrap { position:relative; }
+.entity-search-wrap input { padding-right:30px; }
+.entity-dropdown { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #e2e8f0; border-radius:0 0 10px 10px; max-height:220px; overflow-y:auto; z-index:100; box-shadow:0 8px 24px rgba(0,0,0,.12); display:none; }
+.entity-dropdown.show { display:block; }
+.entity-dropdown-item { padding:8px 12px; font-size:0.8rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background .08s; }
+.entity-dropdown-item:hover { background:#f0f4ff; color:var(--primary); }
+.entity-dropdown-item.selected { background:#e8f0fe; font-weight:600; }
+.entity-dropdown-empty { padding:14px; text-align:center; color:#94a3b8; font-size:0.78rem; }
+.search-spinner { position:absolute; right:8px; top:50%; transform:translateY(-50%); width:16px; height:16px; border:2px solid #e2e8f0; border-top-color:var(--primary); border-radius:50%; animation:spin .5s linear infinite; display:none; }
+@keyframes spin { to{transform:translateY(-50%) rotate(360deg)} }
+.selected-entity { display:inline-flex; align-items:center; gap:6px; padding:4px 12px 4px 8px; background:#e8f0fe; border-radius:8px; font-size:0.78rem; font-weight:600; color:var(--primary); margin-top:4px; }
+.selected-entity button { background:none; border:none; cursor:pointer; color:#94a3b8; font-size:1rem; padding:0 2px; line-height:1; }
+.selected-entity button:hover { color:#c62828; }
 </style>
 
 <div class="doc-upload-shell">
@@ -46,7 +59,7 @@
     <div>
       <h3 style="margin:0;font-size:1.05rem;font-weight:800">{{ '✏️ Edit' if doc else '📁 Upload' }} Document</h3>
       <p style="margin:3px 0 0;font-size:0.75rem;color:var(--muted)">
-        {% if doc %}Update document details{% else %}Add a new document to the system{% endif %}
+        {% if doc %}Update document details{% else %}Select document type, search & pick entity, upload file{% endif %}
       </p>
     </div>
     <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm" style="padding:7px 16px">&larr; Back</a>
@@ -54,6 +67,8 @@
 
   <form method="POST" enctype="multipart/form-data" id="uploadForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="entity_type" id="entityTypeHidden" value="{{ doc.entity_type if doc else pre_type }}">
+    <input type="hidden" name="entity_id" id="entityIdHidden" value="{{ doc.entity_id if doc else pre_id }}">
 
     {# ─── DOCUMENT CATEGORY ─── #}
     <div class="form-row">
@@ -61,22 +76,22 @@
       <div class="cat-grid">
         {% for cat in cat_order %}
         {% set clr = cat_colors.get(cat, '#64748b') %}
-        <div class="cat-opt {% if (doc and doc.doc_category == cat) or (not doc and cat == 'Other') %}selected{% endif %}"
-             style="{% if (doc and doc.doc_category == cat) or (not doc and cat == 'Other') %}background:{{ clr }};border-color:{{ clr }};color:#fff{% endif %}"
+        <div class="cat-opt {% if (doc and doc.doc_category == cat) or (not doc and cat == 'Mulkiya') %}selected{% endif %}"
+             style="{% if (doc and doc.doc_category == cat) or (not doc and cat == 'Mulkiya') %}background:{{ clr }};border-color:{{ clr }};color:#fff{% endif %}"
              onclick="selectCat(this, '{{ cat }}')">
           <span class="cat-icon">{{ cat_icons.get(cat, '📄') }}</span>
           {{ cat }}
         </div>
         {% endfor %}
       </div>
-      <input type="hidden" name="doc_category" id="doc_category" value="{{ doc.doc_category if doc else 'Other' }}">
+      <input type="hidden" name="doc_category" id="docCategory" value="{{ doc.doc_category if doc else 'Mulkiya' }}">
     </div>
 
     {# ─── NAME + REF ─── #}
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
       <div class="form-row">
         <label>Document Name *</label>
-        <input type="text" name="doc_name" required placeholder="e.g. Mulkiya 2026" value="{{ doc.doc_name if doc else '' }}">
+        <input type="text" name="doc_name" id="docName" required placeholder="Auto-fills from type" value="{{ doc.doc_name if doc else 'Mulkiya (Vehicle Registration) 2026' }}">
       </div>
       <div class="form-row">
         <label>Reference No.</label>
@@ -84,19 +99,19 @@
       </div>
     </div>
 
-    {# ─── ENTITY ─── #}
-    <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px">
-      <div class="form-row">
-        <label>Linked To *</label>
-        <select name="entity_type" id="et" onchange="updateEntityUI()" required>
-          {% for k,v in ENTITY_LABELS.items() %}
-          <option value="{{ k }}" {% if (doc and doc.entity_type == k) or (pre_type == k) %}selected{% endif %}>{{ v }}</option>
-          {% endfor %}
-        </select>
+    {# ─── ENTITY SEARCH ─── #}
+    <div class="form-row">
+      <label>Link to <span id="entityLabel">Vehicle</span> *</label>
+      <div class="entity-search-wrap">
+        <input type="text" id="entitySearch" autocomplete="off" placeholder="Type to search vehicle by plate no or model..."
+               value="{{ doc.entity_id if doc else pre_id }}">
+        <div class="search-spinner" id="searchSpinner"></div>
+        <div class="entity-dropdown" id="entityDropdown"></div>
       </div>
-      <div class="form-row">
-        <label>Entity ID / Number *</label>
-        <input type="text" name="entity_id" id="ei" required placeholder="e.g. 1/80900" value="{{ doc.entity_id if doc else pre_id }}" {% if (doc and doc.entity_type == 'company') or (pre_type == 'company') %}readonly{% endif %}>
+      <div id="selectedEntityTag" class="selected-entity" style="{% if not doc and not pre_id %}display:none{% endif %}">
+        <span>✅</span>
+        <span id="selectedEntityText">{{ doc.entity_id if doc else pre_id }}</span>
+        <button type="button" onclick="clearEntity()">&times;</button>
       </div>
     </div>
 
@@ -162,13 +177,24 @@ var catEntity = {
   'Immigration':'employee','Customs':'company','Contract':'','Certificate':'','Bank':'company',
   'Registration':'vehicle','ID Proof':'employee','License':'vehicle','Other':''
 };
-var catEntityHint = {
-  'Mulkiya':'e.g. 1/80900','Insurance':'e.g. 1/80900','Vehicle License':'e.g. 1/80900','Driver License':'e.g. EMP-001',
-  'Emirates ID':'e.g. EMP-001','Passport':'e.g. EMP-001','Trade License':'Current Link','Municipality':'e.g. 1/80900',
-  'Tenancy':'e.g. EMP-001','Inspection':'e.g. 1/80900','Fuel Card':'e.g. 1/80900','Toll Tag':'e.g. 1/80900',
-  'Immigration':'e.g. EMP-001','Customs':'Current Link','Contract':'e.g. EMP-001','Certificate':'e.g. EMP-001',
-  'Bank':'Current Link','Registration':'e.g. 1/80900','ID Proof':'e.g. EMP-001','License':'e.g. 1/80900','Other':'e.g. 1/80900'
+var catEntityLabel = {
+  'Mulkiya':'Vehicle','Insurance':'Vehicle','Vehicle License':'Vehicle','Driver License':'Employee',
+  'Emirates ID':'Employee','Passport':'Employee','Trade License':'Company','Municipality':'Vehicle',
+  'Tenancy':'Employee','Inspection':'Vehicle','Fuel Card':'Vehicle','Toll Tag':'Vehicle',
+  'Immigration':'Employee','Customs':'Company','Contract':'Entity','Certificate':'Entity','Bank':'Company',
+  'Registration':'Vehicle','ID Proof':'Employee','License':'Vehicle','Other':'Entity'
 };
+var catEntityPlaceholder = {
+  'Mulkiya':'Search vehicle by plate no or model...','Insurance':'Search vehicle by plate no...','Vehicle License':'Search vehicle by plate no...','Driver License':'Search employee by name or ID...',
+  'Emirates ID':'Search employee by name or ID...','Passport':'Search employee by name or ID...','Trade License':'Company: Current Link','Municipality':'Search vehicle by plate no...',
+  'Tenancy':'Search employee by name...','Inspection':'Search vehicle by plate no...','Fuel Card':'Search vehicle by plate no...','Toll Tag':'Search vehicle by plate no...',
+  'Immigration':'Search employee by name...','Customs':'Company: Current Link','Contract':'Search by name or ID...','Certificate':'Search by name or ID...',
+  'Bank':'Company: Current Link','Registration':'Search vehicle by plate no...','ID Proof':'Search employee by name...','License':'Search vehicle by plate no...','Other':'Search by name or ID...'
+};
+
+var searchTimeout = null;
+var selectedEntityType = '{{ doc.entity_type if doc else "vehicle" }}';
+var selectedEntityId = '{{ doc.entity_id if doc else (pre_id if pre_type == "vehicle" else "") }}';
 
 function selectCat(el, cat) {
   document.querySelectorAll('.cat-opt').forEach(function(c){
@@ -181,53 +207,151 @@ function selectCat(el, cat) {
   el.style.background = 'var(--primary)';
   el.style.borderColor = 'var(--primary)';
   el.style.color = '#fff';
-  document.getElementById('doc_category').value = cat;
+  document.getElementById('docCategory').value = cat;
 
-  // Auto-fill document name
-  var dn = document.querySelector('input[name="doc_name"]');
+  var dn = document.getElementById('docName');
   var autoName = catNames[cat] || '';
   if (dn && !dn.dataset.userEdited) {
-    var year = new Date().getFullYear();
-    dn.value = autoName ? autoName + ' ' + year : '';
+    dn.value = autoName ? autoName + ' ' + new Date().getFullYear() : '';
   }
 
-  // Update entity type
-  var et = document.getElementById('et');
-  var suggestedEntity = catEntity[cat] || '';
-  if (suggestedEntity) {
-    for (var i = 0; i < et.options.length; i++) {
-      if (et.options[i].value === suggestedEntity) {
-        et.value = suggestedEntity;
-        break;
-      }
-    }
+  // Update entity config
+  var entityType = catEntity[cat] || '';
+  if (entityType) { selectedEntityType = entityType; }
+  document.getElementById('entityTypeHidden').value = selectedEntityType;
+  document.getElementById('entityLabel').textContent = catEntityLabel[cat] || 'Entity';
+  document.getElementById('entitySearch').placeholder = catEntityPlaceholder[cat] || 'Search...';
+
+  // Clear entity if type changed
+  if (selectedEntityType !== entityType && entityType) {
+    clearEntity();
+    selectedEntityType = entityType;
+    document.getElementById('entityTypeHidden').value = entityType;
   }
 
-  // Update placeholder
-  var ei = document.getElementById('ei');
-  var hint = catEntityHint[cat] || 'e.g. 1/80900';
-  ei.placeholder = hint;
-  if (suggestedEntity === 'company') { ei.value = 'Current Link'; ei.readOnly = true; }
-  else { ei.readOnly = false; if (ei.value === 'Current Link') ei.value = ''; }
+  // Auto-set company
+  if (entityType === 'company') {
+    document.getElementById('entitySearch').value = 'Current Link';
+    document.getElementById('entitySearch').readOnly = true;
+    document.getElementById('entityIdHidden').value = 'Current Link';
+    document.getElementById('selectedEntityText').textContent = 'Current Link';
+    document.getElementById('selectedEntityTag').style.display = '';
+    document.querySelector('.search-spinner').style.display = 'none';
+    document.getElementById('entityDropdown').classList.remove('show');
+  } else {
+    document.getElementById('entitySearch').readOnly = false;
+  }
 }
 
-// Track manual edits to doc name
+function clearEntity() {
+  document.getElementById('entitySearch').value = '';
+  document.getElementById('entityIdHidden').value = '';
+  document.getElementById('selectedEntityTag').style.display = 'none';
+  selectedEntityId = '';
+}
+
 document.addEventListener('DOMContentLoaded', function(){
-  var dn = document.querySelector('input[name="doc_name"]');
-  if (dn) {
-    dn.addEventListener('input', function(){ this.dataset.userEdited = 'true'; });
-  }
+  var dn = document.getElementById('docName');
+  if (dn) { dn.addEventListener('input', function(){ this.dataset.userEdited = 'true'; }); }
+  initSearch();
+  {% if doc %}
+  selectedEntityId = '{{ doc.entity_id }}';
+  document.getElementById('entityIdHidden').value = '{{ doc.entity_id }}';
+  {% elif pre_id %}
+  selectedEntityId = '{{ pre_id }}';
+  document.getElementById('entityIdHidden').value = '{{ pre_id }}';
+  {% endif %}
 });
 
-function updateEntityUI() {
-  var et = document.getElementById('et').value;
-  var ei = document.getElementById('ei');
-  if (et === 'company') { ei.value = 'Current Link'; ei.readOnly = true; }
-  else { ei.readOnly = false; if (ei.value === 'Current Link') ei.value = ''; }
+function initSearch() {
+  var input = document.getElementById('entitySearch');
+  var dropdown = document.getElementById('entityDropdown');
+  var spinner = document.getElementById('searchSpinner');
+
+  input.addEventListener('input', function(){
+    if (input.readOnly) return;
+    var q = this.value.trim();
+    if (!q) { dropdown.classList.remove('show'); return; }
+    clearTimeout(searchTimeout);
+    spinner.style.display = '';
+    searchTimeout = setTimeout(function(){ searchEntities(q); }, 300);
+  });
+
+  input.addEventListener('focus', function(){
+    if (this.value.trim() && !input.readOnly) { searchEntities(this.value.trim()); }
+  });
+
+  document.addEventListener('click', function(e){
+    if (!e.target.closest('.entity-search-wrap')) { dropdown.classList.remove('show'); }
+  });
+
+  input.addEventListener('keydown', function(e){
+    var items = dropdown.querySelectorAll('.entity-dropdown-item');
+    var sel = dropdown.querySelector('.entity-dropdown-item.selected');
+    var idx = -1;
+    if (sel) { idx = Array.from(items).indexOf(sel); }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      var next = idx < items.length - 1 ? items[idx + 1] : items[0];
+      if (next) { items.forEach(function(i){ i.classList.remove('selected'); }); next.classList.add('selected'); next.scrollIntoView({block:'nearest'}); }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      var prev = idx > 0 ? items[idx - 1] : items[items.length - 1];
+      if (prev) { items.forEach(function(i){ i.classList.remove('selected'); }); prev.classList.add('selected'); prev.scrollIntoView({block:'nearest'}); }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (sel) { sel.click(); }
+    }
+  });
+}
+
+function searchEntities(q) {
+  var dropdown = document.getElementById('entityDropdown');
+  var spinner = document.getElementById('searchSpinner');
+  var et = selectedEntityType;
+
+  if (et === 'company') {
+    spinner.style.display = 'none';
+    dropdown.classList.remove('show');
+    return;
+  }
+
+  var url = '{{ url_for("documents.document_search_entity") }}?entity_type=' + encodeURIComponent(et) + '&q=' + encodeURIComponent(q);
+
+  fetch(url).then(function(r){ return r.json(); }).then(function(data){
+    spinner.style.display = 'none';
+    dropdown.innerHTML = '';
+    if (data.length === 0) {
+      dropdown.innerHTML = '<div class="entity-dropdown-empty">No matching {{ "vehicle" if selectedEntityType == "vehicle" else "employee" }} found. Type to search.</div>';
+      dropdown.classList.add('show');
+      return;
+    }
+    data.forEach(function(item){
+      var div = document.createElement('div');
+      div.className = 'entity-dropdown-item';
+      if (item.id === selectedEntityId) { div.classList.add('selected'); }
+      div.textContent = item.label;
+      div.addEventListener('click', function(){
+        selectEntity(item.id, item.label);
+      });
+      dropdown.appendChild(div);
+    });
+    dropdown.classList.add('show');
+  }).catch(function(){
+    spinner.style.display = 'none';
+  });
+}
+
+function selectEntity(id, label) {
+  document.getElementById('entitySearch').value = label;
+  document.getElementById('entityIdHidden').value = id;
+  document.getElementById('selectedEntityText').textContent = label;
+  document.getElementById('selectedEntityTag').style.display = '';
+  document.getElementById('entityDropdown').classList.remove('show');
+  selectedEntityId = id;
 }
 
 {% if not doc or (doc and not doc.file_data) %}
-// Drag-drop
 var dz = document.getElementById('fileUpload');
 var fi = document.getElementById('fileInput');
 dz.addEventListener('click', function(){ fi.click(); });
@@ -248,7 +372,6 @@ function onFile() {
 }
 {% endif %}
 
-// Set min expiry date to today
 var exp = document.getElementById('expiryDate');
 if(exp && !exp.value) exp.min = new Date().toISOString().split('T')[0];
 </script>
