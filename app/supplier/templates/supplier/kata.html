@@ -51,7 +51,7 @@
                 <thead>
                     <tr>
                         <th style="text-align:center">Date</th>
-                        <th style="text-align:center">Description</th>
+                        <th style="text-align:left">Description</th>
                         <th style="text-align:right">Debit</th>
                         <th style="text-align:right">Credit</th>
                         <th style="text-align:right">Balance</th>
@@ -61,7 +61,7 @@
                     {% for row in ledger %}
                     <tr style="{% if 'Separate' in row.description %}opacity:0.6{% endif %}">
                         <td class="mono" style="text-align:center;white-space:nowrap">{{ row.date }}</td>
-                        <td style="font-size:0.82rem;padding:4px 6px;text-align:center">{{ row.description }}</td>
+                        <td style="font-size:0.82rem;padding:4px 6px;text-align:left">{{ row.description }}</td>
                         <td class="mono" style="text-align:right;color:var(--green);white-space:nowrap">
                             {% if row.debit > 0 %}{{ "%.0f"|format(row.debit) }}{% endif %}
                         </td>

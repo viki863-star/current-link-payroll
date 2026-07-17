@@ -132,11 +132,6 @@ document.getElementById('tankerGln').addEventListener('input', function() {
     }
 })();
 
-// Date: click opens picker; Time: double-click opens picker, single-click lets you type
-document.getElementById('entryDate').addEventListener('click', function(){ try { this.showPicker(); } catch(e) {} });
-document.getElementById('timeIn').addEventListener('dblclick', function(){ try { this.showPicker(); } catch(e) {} });
-document.getElementById('timeOut').addEventListener('dblclick', function(){ try { this.showPicker(); } catch(e) {} });
-
 document.addEventListener('keydown', function(e) {
     var inputs = document.querySelectorAll('#tripsheetForm input, #tripsheetForm select, #tripsheetForm textarea');
     var idx = -1;

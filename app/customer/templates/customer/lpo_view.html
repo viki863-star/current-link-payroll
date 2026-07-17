@@ -17,7 +17,7 @@
         <span class="status-badge {% if lpo.status == 'closed' %}active{% else %}pending{% endif %}">{{ lpo.status }}</span>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr{% if lpo.service_order_no %} 1fr 1fr{% else %} 1fr{% endif %};gap:12px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #eef2f6;margin-bottom:16px">
         <div>
             <span style="font-size:0.72rem;color:var(--muted)">LPO No.</span>
             <div style="font-weight:600">{{ lpo.lpo_no or '—' }}</div>
@@ -60,7 +60,7 @@
                     <td>{{ it.description or '—' }}</td>
                     <td style="text-align:center">{{ it.vehicle_no or '—' }}</td>
                     <td style="text-align:center">{{ it.quantity }}</td>
-                    <td style="text-align:center">{{ 'Per Hour' if it.unit_type == 'hour' else 'Per Trip' }}</td>
+                    <td style="text-align:center">{{ {'hour': 'Per Hour', 'trip': 'Per Trip', 'gal': 'Gallon', 'day': 'Day', 'week': 'Week', 'month': 'Month', 'ton': 'Ton', 'kg': 'Kg', 'each': 'Each', 'set': 'Set'}.get(it.unit_type, it.unit_type or '—') }}</td>
                     <td style="text-align:right">{{ "%.2f"|format(it.rate) }}</td>
                     <td style="text-align:right;font-weight:600">{{ "%.2f"|format(it.amount) }}</td>
                 </tr>

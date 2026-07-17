@@ -5,6 +5,7 @@
 {% block content %}
 <style>
 .batch-row { display:grid; grid-template-columns:100px 80px 105px 1fr 80px 50px 34px; gap:5px; align-items:center; margin-bottom:4px; }
+@media (max-width:700px){.batch-row{grid-template-columns:1fr 1fr;gap:4px;}}
 .batch-row input, .batch-row select { padding:4px 5px; border:1px solid var(--line); border-radius:6px; font-size:0.75rem; }
 .batch-row .cb-wrap { text-align:center; }
 .batch-header { font-size:0.68rem; font-weight:600; color:var(--muted); text-transform:uppercase; padding:0 3px; }

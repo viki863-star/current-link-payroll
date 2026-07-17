@@ -17,6 +17,7 @@
 }
 .vp-tab:hover { color: var(--primary); background: rgba(28,86,139,0.06); }
 .vp-tab.is-active { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+@media (max-width:640px){.responsive-four-grid{grid-template-columns:1fr 1fr !important;}}
 </style>
 <div class="profile-shell">
 
@@ -175,7 +176,7 @@
     {% elif active_tab == 'jobs' %}
     <div class="profile-card">
         <h3 style="margin:0 0 12px;font-size:0.95rem">Add Maintenance Entry</h3>
-        <form method="POST" action="{{ url_for('fleet.vehicle_add_maintenance', plate_no=v.plate_no) }}" enctype="multipart/form-data" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px 12px;align-items:end">
+        <form method="POST" action="{{ url_for('fleet.vehicle_add_maintenance', plate_no=v.plate_no) }}" enctype="multipart/form-data" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px 12px;align-items:end" class="responsive-four-grid">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div>
                 <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Date</label>
@@ -325,7 +326,7 @@
     {% elif active_tab == 'fuel' %}
 <div class="profile-card">
     <h3 style="margin:0 0 12px;font-size:0.95rem">Add Fuel Entry</h3>
-    <form method="POST" action="{{ url_for('fleet.fuel_add') }}" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px 12px;align-items:end">
+    <form method="POST" action="{{ url_for('fleet.fuel_add') }}" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px 12px;align-items:end" class="responsive-four-grid">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="vehicle_plate" value="{{ v.plate_no }}">
         <div>
@@ -399,7 +400,7 @@
 {% elif active_tab == 'parts' %}
 <div class="profile-card">
     <h3 style="margin:0 0 12px;font-size:0.95rem">Add Supplier Bill</h3>
-    <form method="POST" action="{{ url_for('supplier.supplier_bill_add') }}" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px 12px;align-items:end">
+    <form method="POST" action="{{ url_for('supplier.supplier_bill_add') }}" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px 12px;align-items:end" class="responsive-four-grid">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="vehicle_plate" value="{{ v.plate_no }}">
         <div>
