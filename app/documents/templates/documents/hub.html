@@ -3,20 +3,22 @@
 {% block page_title %}Document Management{% endblock %}
 
 {% block content %}
-{% set cat_order = ['Mulkiya','Insurance','Vehicle License','Driver License','Emirates ID','Passport','Trade License','Municipality','Tenancy','Inspection','Fuel Card','Toll Tag','Immigration','Customs','Contract','Certificate','Bank','Other'] %}
+{% set cat_order = ['Mulkiya','Insurance','Vehicle License','Driver License','Emirates ID','Passport','Trade License','Municipality','Tenancy','Inspection','Fuel Card','Toll Tag','Immigration','Customs','Contract','Certificate','Bank','Registration','ID Proof','License','Other'] %}
 {% set cat_icons = {
   'Mulkiya':'🚛','Insurance':'🛡️','Vehicle License':'📋','Driver License':'🅿️',
   'Emirates ID':'🪪','Passport':'🌐','Trade License':'🏪','Municipality':'🏛️',
   'Tenancy':'🏠','Inspection':'🔍','Fuel Card':'⛽','Toll Tag':'💳',
   'Immigration':'🛂','Customs':'📦','Contract':'📝','Certificate':'🎓',
-  'Bank':'🏦','Other':'📄'
+  'Bank':'🏦','Registration':'📋','License':'📜','ID Proof':'🪪',
+  'Other':'📄'
 } %}
 {% set cat_colors = {
   'Mulkiya':'#3b82f6','Insurance':'#22c55e','Vehicle License':'#f59e0b','Driver License':'#8b5cf6',
   'Emirates ID':'#ec4899','Passport':'#14b8a6','Trade License':'#f97316','Municipality':'#6366f1',
   'Tenancy':'#eab308','Inspection':'#06b6d4','Fuel Card':'#84cc16','Toll Tag':'#a855f7',
   'Immigration':'#0ea5e9','Customs':'#d946ef','Contract':'#2563eb','Certificate':'#10b981',
-  'Bank':'#f59e0b','Other':'#64748b'
+  'Bank':'#f59e0b','Registration':'#3b82f6','License':'#f59e0b','ID Proof':'#ec4899',
+  'Other':'#64748b'
 } %}
 
 <style>
@@ -139,8 +141,9 @@ function updateEntitySelect() {
   {% for c in cat_order %}
     {% set cat_count = docs|selectattr('doc_category','equalto',c)|list|length %}
     {% if cat_count > 0 or not cat %}
+    {% set clr = cat_colors.get(c, '#64748b') %}
     <span class="cat-pill {% if cat == c %}active{% endif %}"
-          style="{% if cat == c %}background:{{ cat_colors[c] }}15;color:{{ cat_colors[c] }};border-color:{{ cat_colors[c] }}40{% else %}background:#f8fafc;color:#64748b{% endif %}"
+          style="{% if cat == c %}background:{{ clr }}15;color:{{ clr }};border-color:{{ clr }}40{% else %}background:#f8fafc;color:#64748b{% endif %}"
           onclick="filterByCat('{{ c }}', this)">
       {{ cat_icons.get(c,'📄') }} {{ c }} <span style="opacity:0.6;font-weight:400">({{ cat_count }})</span>
     </span>
@@ -152,9 +155,9 @@ function updateEntitySelect() {
 {% if docs %}
 <div class="doc-grid">
   {% for d in docs %}
-  {% set cat = d.doc_category if d.doc_category in cat_order else 'Other' %}
-  {% set icon = cat_icons.get(cat, '📄') %}
-  {% set clr = cat_colors.get(cat, '#64748b') %}
+  {% set cat = d.doc_category if (d.doc_category in cat_order or d.doc_category in ('Registration','ID Proof','License')) else 'Other' %}
+  {% set icon = cat_icons.get(d.doc_category, cat_icons.get(cat, '📄')) %}
+  {% set clr = cat_colors.get(d.doc_category, cat_colors.get(cat, '#64748b')) %}
   {% set es = d._status %}
   <div class="doc-card">
     <div class="doc-card-top">
@@ -162,9 +165,7 @@ function updateEntitySelect() {
       <div class="doc-card-body">
         <div class="doc-card-name">
           {{ d.doc_name }}
-          {% if d.doc_category in cat_order %}
           <span style="font-size:0.6rem;font-weight:600;color:{{ clr }};background:{{ clr }}12;padding:1px 8px;border-radius:4px">{{ d.doc_category }}</span>
-          {% endif %}
         </div>
         {% if d.doc_ref_no %}<div class="doc-card-ref">Ref: {{ d.doc_ref_no }}</div>{% endif %}
         <div class="doc-card-meta">
