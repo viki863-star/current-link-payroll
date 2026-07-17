@@ -36,7 +36,13 @@ from .services import (
 )
 
 
+_hr_tables_ensured = False
+
 def ensure_employees_table():
+    global _hr_tables_ensured
+    if _hr_tables_ensured:
+        return
+    _hr_tables_ensured = True
     db = open_db()
     backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
 

@@ -30,7 +30,13 @@ def _open_db():
         connection = _connect_sqlite(current_app.config["DATABASE_PATH"])
     return DatabaseAdapter(connection, backend)
 
+_customer_tables_ensured = False
+
 def _ensure_tables():
+    global _customer_tables_ensured
+    if _customer_tables_ensured:
+        return
+    _customer_tables_ensured = True
     backend = current_app.config.get("DATABASE_BACKEND", "postgres")
     db = _open_db()
     _safe_rollback(db)
@@ -1090,7 +1096,7 @@ def customer_invoice_pdf(cid, iid):
                 Paragraph(desc_html, S("_pd", fontSize=fs, leading=ldr*0.9, textColor=C4)),
                 Paragraph(f"{float(it.get('quantity') or 0):,.2f}", S("_pq", fontSize=fs, leading=ldr, alignment=TA_CENTER, textColor=C4)),
                 Paragraph((it.get('unit') or 'mo'), S("_pu", fontSize=fs, leading=ldr, alignment=TA_CENTER, textColor=C4)),
-                Paragraph(f"{float(it.get('rate') or 0):,.2f}", S("_pr", fontSize=fs, leading=ldr, alignment=TA_RIGHT, textColor=C4)),
+                Paragraph(f"{float(it.get('rate') or 0):,.3f}", S("_pr", fontSize=fs, leading=ldr, alignment=TA_RIGHT, textColor=C4)),
                 Paragraph(f"{amt:,.2f}", S("_pa", fontSize=fs, leading=ldr, alignment=TA_RIGHT, textColor=C4)),
                 Paragraph(f"{vp_item:.2f}%", S("_pv", fontSize=fs, leading=ldr, alignment=TA_CENTER, textColor=C4)),
                 Paragraph(f"{va_item:,.2f}", S("_pva", fontSize=fs, leading=ldr, alignment=TA_RIGHT, textColor=C6)),
@@ -1502,7 +1508,7 @@ def customer_invoice_pdf(cid, iid):
             _pc(desc_html, fontSize=fs, leading=ldr*0.9),
             _pc(f"{float(it.get('quantity') or 0):,.3f}", alignment=TA_CENTER),
             _pc((it.get('unit') or 'mo'), alignment=TA_CENTER),
-            _pc(f"{float(it.get('rate') or 0):,.2f}", alignment=TA_RIGHT),
+            _pc(f"{float(it.get('rate') or 0):,.3f}", alignment=TA_RIGHT),
             _pc(f"{amt:,.2f}", alignment=TA_RIGHT),
             _pc(f"{vp_item:.2f}%", alignment=TA_CENTER),
             _pc(f"{va_item:,.2f}", alignment=TA_RIGHT, textColor=C6),

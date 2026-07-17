@@ -207,7 +207,6 @@ def register_routes(app: Flask) -> None:
         try:
             cdb = open_db()
             cpx = cdb.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
-            cdb.close()
         except:
             cpx = None
         return {

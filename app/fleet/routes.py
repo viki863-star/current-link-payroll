@@ -19,7 +19,13 @@ OWNERSHIP_TYPES = ["Standard", "Partnership"]
 MAINTENANCE_CATEGORIES = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
 
 
+_fleet_tables_ensured = False
+
 def ensure_fleet_tables():
+    global _fleet_tables_ensured
+    if _fleet_tables_ensured:
+        return
+    _fleet_tables_ensured = True
     db = open_db()
     db.execute("SELECT 1 FROM vehicles LIMIT 1")
     _migrate_vehicle_master(db)

@@ -2718,33 +2718,7 @@ csrf.exempt(supplier_loan_delete)
 
 @supplier_bp.route("/<int:sup_id>/loans")
 def supplier_loans_list(sup_id):
-    _ensure_tables()
-    db = _get_db()
-    s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    if not s:
-        flash("Supplier not found.", "error")
-        return redirect(url_for("supplier.supplier_list"))
-    loans = db.execute(
-        "SELECT * FROM supplier_loans WHERE supplier_id = ? ORDER BY entry_date DESC",
-        (sup_id,),
-    ).fetchall()
-    total_given = db.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='given'",
-        (sup_id,),
-    ).fetchone()[0]
-    total_recovered = db.execute(
-        "SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE supplier_id = ? AND loan_type='recovered'",
-        (sup_id,),
-    ).fetchone()[0]
-
-    return render_template(
-        "supplier/loans_list.html",
-        s=s,
-        loans=loans,
-        total_given=total_given,
-        total_recovered=total_recovered,
-        net=total_given - total_recovered,
-    )
+    return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
 
 
 # ═══════════════════════════════════════════════════════════
