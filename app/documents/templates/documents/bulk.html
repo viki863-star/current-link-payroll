@@ -229,7 +229,8 @@ function initBulkSearch(idx) {
     spinner.style.display = '';
     if (rowSearchTimeouts[idx]) clearTimeout(rowSearchTimeouts[idx]);
     rowSearchTimeouts[idx] = setTimeout(function(){
-      var url = '{{ url_for("documents.document_search_entity") }}?entity_type=' + encodeURIComponent(et) + '&q=' + encodeURIComponent(q);
+      var cat = document.getElementById('bulkDocCategory').value;
+      var url = '{{ url_for("documents.document_search_entity") }}?entity_type=' + encodeURIComponent(et) + '&q=' + encodeURIComponent(q) + '&exclude_category=' + encodeURIComponent(cat);
       fetch(url, {credentials:'include'}).then(function(r){ if(!r.ok) throw Error(); return r.json(); }).then(function(data){
         spinner.style.display = 'none';
         dropdown.innerHTML = '';

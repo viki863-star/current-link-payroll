@@ -314,7 +314,8 @@ function searchEntities(q) {
     return;
   }
 
-  var url = '{{ url_for("documents.document_search_entity") }}?entity_type=' + encodeURIComponent(et) + '&q=' + encodeURIComponent(q);
+  var cat = document.getElementById('docCategory').value;
+  var url = '{{ url_for("documents.document_search_entity") }}?entity_type=' + encodeURIComponent(et) + '&q=' + encodeURIComponent(q) + '&exclude_category=' + encodeURIComponent(cat);
 
   fetch(url, {credentials:'include'}).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).then(function(data){
     spinner.style.display = 'none';

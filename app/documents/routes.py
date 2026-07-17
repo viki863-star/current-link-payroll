@@ -304,30 +304,39 @@ def document_delete(doc_id):
 def document_search_entity():
     entity_type = request.args.get("entity_type", "").strip()
     q = request.args.get("q", "").strip()
+    exclude_cat = request.args.get("exclude_category", "").strip()
     db = open_db()
+
+    exclude_subquery = ""
+    exclude_params = []
+    if exclude_cat:
+        exclude_subquery = " AND id NOT IN (SELECT entity_id FROM documents WHERE entity_type=? AND doc_category=? AND (expiry_date IS NULL OR expiry_date >= ?))"
+        today_str = date.today().isoformat()
+        exclude_params = [entity_type, exclude_cat, today_str]
+
     results = []
     if entity_type == "vehicle":
         rows = db.execute(
-            "SELECT plate_no AS id, plate_no || ' - ' || COALESCE(model,'') AS label FROM vehicles WHERE plate_no LIKE ? OR model LIKE ? LIMIT 20",
-            (f"%{q}%", f"%{q}%")
+            "SELECT plate_no AS id, plate_no || ' - ' || COALESCE(model,'') AS label FROM vehicles WHERE (plate_no LIKE ? OR model LIKE ?)" + exclude_subquery + " LIMIT 20",
+            [f"%{q}%", f"%{q}%"] + exclude_params
         ).fetchall()
         results = [{"id": r["id"], "label": r["label"]} for r in rows]
     elif entity_type == "employee":
         rows = db.execute(
-            "SELECT employee_id AS id, employee_id || ' - ' || COALESCE(full_name,'') AS label FROM employees WHERE employee_id LIKE ? OR full_name LIKE ? LIMIT 20",
-            (f"%{q}%", f"%{q}%")
+            "SELECT employee_id AS id, employee_id || ' - ' || COALESCE(full_name,'') AS label FROM employees WHERE (employee_id LIKE ? OR full_name LIKE ?)" + exclude_subquery + " LIMIT 20",
+            [f"%{q}%", f"%{q}%"] + exclude_params
         ).fetchall()
         results = [{"id": r["id"], "label": r["label"]} for r in rows]
     elif entity_type == "customer":
         rows = db.execute(
-            "SELECT id AS id, CAST(id AS TEXT) || ' - ' || COALESCE(customer_name,'') AS label FROM customers WHERE CAST(id AS TEXT) LIKE ? OR customer_name LIKE ? LIMIT 20",
-            (f"%{q}%", f"%{q}%")
+            "SELECT id AS id, CAST(id AS TEXT) || ' - ' || COALESCE(customer_name,'') AS label FROM customers WHERE (CAST(id AS TEXT) LIKE ? OR customer_name LIKE ?)" + exclude_subquery + " LIMIT 20",
+            [f"%{q}%", f"%{q}%"] + exclude_params
         ).fetchall()
         results = [{"id": r["id"], "label": r["label"]} for r in rows]
     elif entity_type == "supplier":
         rows = db.execute(
-            "SELECT supplier_code AS id, supplier_code || ' - ' || COALESCE(supplier_name,'') AS label FROM suppliers WHERE supplier_code LIKE ? OR supplier_name LIKE ? LIMIT 20",
-            (f"%{q}%", f"%{q}%")
+            "SELECT supplier_code AS id, supplier_code || ' - ' || COALESCE(supplier_name,'') AS label FROM suppliers WHERE (supplier_code LIKE ? OR supplier_name LIKE ?)" + exclude_subquery + " LIMIT 20",
+            [f"%{q}%", f"%{q}%"] + exclude_params
         ).fetchall()
         results = [{"id": r["id"], "label": r["label"]} for r in rows]
     db.close()
