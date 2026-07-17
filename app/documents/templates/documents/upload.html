@@ -370,7 +370,7 @@ function onFile() {
 }
 {% endif %}
 
-var exp = document.getElementById('expiryDate');
-if(exp && !exp.value) exp.min = new Date().toISOString().split('T')[0];
+// expiry date should allow past dates — documents can already be expired
+
 </script>
 {% endblock %}
