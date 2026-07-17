@@ -221,8 +221,8 @@ def document_search_entity():
     results = []
     if entity_type == "vehicle":
         rows = db.execute(
-            "SELECT plate_no AS id, plate_no || ' - ' || COALESCE(make_model,'') AS label FROM vehicles WHERE plate_no LIKE ? LIMIT 20",
-            (f"%{q}%",)
+            "SELECT plate_no AS id, plate_no || ' - ' || COALESCE(model,'') AS label FROM vehicles WHERE plate_no LIKE ? OR model LIKE ? LIMIT 20",
+            (f"%{q}%", f"%{q}%")
         ).fetchall()
         results = [{"id": r["id"], "label": r["label"]} for r in rows]
     elif entity_type == "employee":

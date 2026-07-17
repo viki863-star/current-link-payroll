@@ -278,7 +278,10 @@ function initSearch() {
   });
 
   input.addEventListener('focus', function(){
-    if (this.value.trim() && !input.readOnly) { searchEntities(this.value.trim()); }
+    if (!input.readOnly) {
+      if (this.value.trim()) { searchEntities(this.value.trim()); }
+      else { dropdown.innerHTML = '<div class="entity-dropdown-empty">Type to search...</div>'; dropdown.classList.add('show'); }
+    }
   });
 
   document.addEventListener('click', function(e){
@@ -318,7 +321,7 @@ function searchEntities(q) {
 
   var url = '{{ url_for("documents.document_search_entity") }}?entity_type=' + encodeURIComponent(et) + '&q=' + encodeURIComponent(q);
 
-  fetch(url).then(function(r){ return r.json(); }).then(function(data){
+  fetch(url, {credentials:'include'}).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).then(function(data){
     spinner.style.display = 'none';
     dropdown.innerHTML = '';
     if (data.length === 0) {
