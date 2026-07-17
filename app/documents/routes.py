@@ -127,6 +127,54 @@ def document_upload():
         pre_type=pre_type, pre_id=pre_id)
 
 
+@documents_bp.route("/documents/bulk", methods=["GET", "POST"])
+def document_bulk():
+    db = open_db()
+    if request.method == "POST":
+        doc_category = request.form.get("doc_category", "Mulkiya").strip()
+        uploaded = 0
+        idx = 0
+        while True:
+            entity_type = request.form.get(f"entity_type_{idx}")
+            if entity_type is None:
+                break
+            entity_id = request.form.get(f"entity_id_{idx}", "").strip()
+            expiry_date = request.form.get(f"expiry_date_{idx}", "").strip() or None
+            doc_ref_no = request.form.get(f"doc_ref_no_{idx}", "").strip() or None
+            if not entity_id:
+                idx += 1
+                continue
+            doc_name = request.form.get(f"doc_name_{idx}", "").strip()
+            if not doc_name:
+                doc_name = f"{doc_category} {idx+1}"
+            file = request.files.get(f"file_{idx}")
+            file_data = None
+            file_type = None
+            file_size = 0
+            if file and file.filename:
+                file_data = base64.b64encode(file.read()).decode("utf-8")
+                file_type = file.content_type or "application/octet-stream"
+                file_size = len(file_data)
+            db.execute(
+                """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                   expiry_date, file_data, file_type, file_size)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                 expiry_date, file_data, file_type, file_size),
+            )
+            uploaded += 1
+            idx += 1
+        db.commit()
+        db.close()
+        if uploaded:
+            flash(f"{uploaded} document(s) uploaded successfully.", "success")
+        else:
+            flash("No valid entries to upload.", "error")
+        return redirect(url_for("documents.document_hub"))
+
+    return render_template("documents/bulk.html", ENTITY_LABELS=ENTITY_LABELS)
+
+
 @documents_bp.route("/documents/<int:doc_id>/download")
 def document_download(doc_id):
     db = open_db()

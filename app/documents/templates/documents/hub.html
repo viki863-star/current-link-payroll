@@ -127,7 +127,10 @@ function updateEntitySelect() {
     <button onclick="applyFilters()" class="btn btn-outline btn-sm" style="padding:8px 18px">Search</button>
     <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm" style="padding:8px 18px">Clear</a>
   </div>
-  <a href="{{ url_for('documents.document_upload') }}" class="btn btn-primary" style="padding:10px 24px;font-weight:700;font-size:0.85rem;white-space:nowrap">+ Upload Document</a>
+  <div style="display:flex;gap:8px">
+    <a href="{{ url_for('documents.document_bulk') }}" class="btn btn-outline" style="padding:10px 24px;font-weight:700;font-size:0.85rem;white-space:nowrap">📦 Bulk Upload</a>
+    <a href="{{ url_for('documents.document_upload') }}" class="btn btn-primary" style="padding:10px 24px;font-weight:700;font-size:0.85rem;white-space:nowrap">+ Upload Document</a>
+  </div>
 </div>
 
 {# ─── CATEGORY PILLS ─── #}

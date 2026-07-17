@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% block title %}Bulk Upload Documents{% endblock %}
+{% block page_title %}Bulk Upload{% endblock %}
+
+{% block content %}
+{% set cat_order = ['Mulkiya','Vehicle Insurance','Driving License','Emirates ID','Passport','Trade License','Tenancy','Vehicle Inspection','Certificate'] %}
+{% set cat_icons = {
+  'Mulkiya':'🚛','Vehicle Insurance':'🛡️','Driving License':'🅿️',
+  'Emirates ID':'🪪','Passport':'🌐','Trade License':'🏪',
+  'Tenancy':'🏠','Vehicle Inspection':'🔍','Certificate':'🎓'
+} %}
+{% set cat_colors = {
+  'Mulkiya':'#3b82f6','Vehicle Insurance':'#22c55e','Driving License':'#8b5cf6',
+  'Emirates ID':'#ec4899','Passport':'#14b8a6','Trade License':'#f97316',
+  'Tenancy':'#eab308','Vehicle Inspection':'#06b6d4','Certificate':'#10b981'
+} %}
+{% set cat_entity_type = {
+  'Mulkiya':'vehicle','Vehicle Insurance':'vehicle','Driving License':'employee',
+  'Emirates ID':'employee','Passport':'employee','Trade License':'company',
+  'Tenancy':'company','Vehicle Inspection':'vehicle','Certificate':'vehicle'
+} %}
+{% set cat_entity_label = {
+  'Mulkiya':'Vehicle','Vehicle Insurance':'Vehicle','Driving License':'Employee',
+  'Emirates ID':'Employee','Passport':'Employee','Trade License':'Company',
+  'Tenancy':'Company','Vehicle Inspection':'Vehicle','Certificate':'Vehicle'
+} %}
+{% set cat_placeholder = {
+  'Mulkiya':'Search vehicle by plate no or model...','Vehicle Insurance':'Search vehicle by plate no...','Driving License':'Search employee by name or ID...',
+  'Emirates ID':'Search employee by name or ID...','Passport':'Search employee by name or ID...','Trade License':'Company: Current Link',
+  'Tenancy':'Company: Current Link','Vehicle Inspection':'Search vehicle by plate no...','Certificate':'Search vehicle by plate no...'
+} %}
+{% set cat_doc_name = {
+  'Mulkiya':'Mulkiya (Vehicle Registration)','Vehicle Insurance':'Vehicle Insurance Policy','Driving License':'Driving License',
+  'Emirates ID':'Emirates ID','Passport':'Passport Copy','Trade License':'Trade License',
+  'Tenancy':'Tenancy Contract','Vehicle Inspection':'Vehicle Inspection Certificate','Certificate':'Certificate'
+} %}
+
+<style>
+.bulk-shell { max-width:860px; margin:0 auto; }
+.bulk-card { background:#fff; border-radius:16px; border:1px solid #eef2f6; padding:24px 28px; box-shadow:0 1px 6px rgba(0,0,0,.05); }
+.bulk-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.bulk-header h3 { margin:0; font-size:1.05rem; font-weight:800; }
+.bulk-type-bar { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+.bulk-type-pill { padding:8px 16px; border-radius:20px; border:2px solid #eef2f6; font-size:0.78rem; font-weight:600; cursor:pointer; transition:all .12s; background:#fff; color:#64748b; display:inline-flex; align-items:center; gap:6px; }
+.bulk-type-pill:hover { transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,.06); }
+.bulk-type-pill.active { color:#fff; border-color:transparent; }
+.bulk-rows { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+.bulk-row { border:1.5px solid #eef2f6; border-radius:12px; padding:14px 16px; background:#fafbfc; transition:border-color .12s; }
+.bulk-row:focus-within { border-color:var(--primary); }
+.bulk-row-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.bulk-row-num { font-size:0.72rem; font-weight:700; color:#94a3b8; }
+.bulk-row-remove { background:none; border:none; color:#94a3b8; font-size:1rem; cursor:pointer; padding:2px 6px; border-radius:6px; transition:all .08s; }
+.bulk-row-remove:hover { background:#ffebee; color:#c62828; }
+.bulk-row-fields { display:grid; grid-template-columns:1fr auto auto; gap:8px; align-items:start; }
+.bulk-search-wrap { position:relative; }
+.bulk-search-wrap input { width:100%; padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.82rem; outline:none; box-sizing:border-box; }
+.bulk-search-wrap input:focus { border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
+.bulk-search-wrap .spinner { position:absolute; right:8px; top:50%; transform:translateY(-50%); width:14px; height:14px; border:2px solid #e2e8f0; border-top-color:var(--primary); border-radius:50%; animation:spin .4s linear infinite; display:none; }
+@keyframes spin { to{transform:translateY(-50%) rotate(360deg)} }
+.bulk-dropdown { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #e2e8f0; border-radius:0 0 10px 10px; max-height:200px; overflow-y:auto; z-index:100; box-shadow:0 8px 24px rgba(0,0,0,.12); display:none; }
+.bulk-dropdown.show { display:block; }
+.bulk-dropdown-item { padding:7px 12px; font-size:0.78rem; cursor:pointer; border-bottom:1px solid #f1f5f9; }
+.bulk-dropdown-item:hover { background:#f0f4ff; color:var(--primary); }
+.bulk-dropdown-item.selected { background:#e8f0fe; font-weight:600; }
+.bulk-dropdown-empty { padding:12px; text-align:center; color:#94a3b8; font-size:0.75rem; }
+.bulk-row .file-input-wrap { display:flex; align-items:center; gap:6px; }
+.bulk-row .file-input-wrap label { padding:7px 14px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.75rem; font-weight:600; color:#475569; cursor:pointer; transition:all .1s; background:#fff; white-space:nowrap; }
+.bulk-row .file-input-wrap label:hover { border-color:var(--primary); color:var(--primary); }
+.bulk-row .file-input-wrap input[type=file] { display:none; }
+.bulk-row .file-name { font-size:0.7rem; color:var(--muted); max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bulk-row .expiry-input { width:130px; padding:7px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.78rem; outline:none; }
+.bulk-row .expiry-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
+.bulk-row .ref-input { width:100px; padding:7px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.78rem; outline:none; }
+.bulk-row .ref-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
+.bulk-row .selected-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 10px 2px 6px; background:#e8f0fe; border-radius:6px; font-size:0.72rem; font-weight:600; color:var(--primary); margin-top:4px; }
+.bulk-row .selected-tag button { background:none; border:none; cursor:pointer; color:#94a3b8; font-size:0.85rem; padding:0 2px; line-height:1; }
+.bulk-row .selected-tag button:hover { color:#c62828; }
+.bulk-actions { display:flex; align-items:center; gap:10px; margin-top:6px; }
+.bulk-actions .btn { padding:10px 20px; font-weight:700; font-size:0.85rem; border-radius:10px; cursor:pointer; transition:all .1s; }
+.bulk-actions .btn-outline { background:#fff; border:2px solid #e2e8f0; color:#475569; }
+.bulk-actions .btn-outline:hover { border-color:var(--primary); color:var(--primary); }
+.bulk-actions .btn-primary { background:var(--primary); border:none; color:#fff; }
+.bulk-actions .btn-primary:hover { opacity:.9; }
+@media (max-width:640px) { .bulk-row-fields { grid-template-columns:1fr; } }
+</style>
+
+<div class="bulk-shell">
+<div class="bulk-card">
+  <div class="bulk-header">
+    <div>
+      <h3>📦 Bulk Upload</h3>
+      <p style="margin:2px 0 0;font-size:0.75rem;color:var(--muted)">Upload same document type for multiple vehicles/employees at once</p>
+    </div>
+    <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm" style="padding:7px 16px">&larr; Back</a>
+  </div>
+
+  <form method="POST" enctype="multipart/form-data" id="bulkForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# ─── DOC TYPE SELECTOR ─── #}
+    <div class="bulk-type-bar" id="typeBar">
+      {% for c in cat_order %}
+      {% set clr = cat_colors[c] %}
+      <span class="bulk-type-pill {% if loop.first %}active{% endif %}"
+            style="{% if loop.first %}background:{{ clr }};border-color:{{ clr }}{% endif %}"
+            onclick="selectBulkType(this, '{{ c }}')">
+        {{ cat_icons[c] }} {{ c }}
+      </span>
+      {% endfor %}
+    </div>
+    <input type="hidden" name="doc_category" id="bulkDocCategory" value="Mulkiya">
+
+    {# ─── ROWS ─── #}
+    <div class="bulk-rows" id="bulkRows"></div>
+
+    {# ─── ACTIONS ─── #}
+    <div class="bulk-actions">
+      <button type="button" onclick="addRow()" class="btn btn-outline">+ Add Row</button>
+      <button type="submit" class="btn btn-primary" id="bulkSubmit" style="margin-left:auto">⬆ Upload All <span id="rowCount">(0)</span></button>
+    </div>
+  </form>
+</div>
+</div>
+
+<script>
+// ── Config ──
+var CAT_ENTITY = {{ cat_entity_type|tojson }};
+var CAT_LABEL = {{ cat_entity_label|tojson }};
+var CAT_PLACEHOLDER = {{ cat_placeholder|tojson }};
+var CAT_DOC_NAME = {{ cat_doc_name|tojson }};
+var selectedDocType = 'Mulkiya';
+var rowIndex = 0;
+var rowSearchTimeouts = {};
+
+// ── Type selector ──
+function selectBulkType(el, cat) {
+  document.querySelectorAll('.bulk-type-pill').forEach(function(p){
+    p.className = 'bulk-type-pill';
+    p.style.background = '#fff';
+    p.style.borderColor = '#eef2f6';
+    p.style.color = '#64748b';
+  });
+  el.classList.add('active');
+  el.style.background = 'var(--primary)';
+  el.style.borderColor = 'var(--primary)';
+  el.style.color = '#fff';
+  document.getElementById('bulkDocCategory').value = cat;
+  selectedDocType = cat;
+
+  // Update doc_name inputs for all existing rows
+  var baseName = CAT_DOC_NAME[cat] || cat;
+  document.querySelectorAll('.row-doc-name').forEach(function(inp, i){
+    if (!inp.dataset.edited) { inp.value = baseName; }
+  });
+}
+
+// ── Add row ──
+function addRow() {
+  var idx = rowIndex++;
+  var et = CAT_ENTITY[selectedDocType] || 'vehicle';
+  var label = CAT_LABEL[selectedDocType] || 'Entity';
+  var placeholder = CAT_PLACEHOLDER[selectedDocType] || 'Search...';
+  var baseName = CAT_DOC_NAME[selectedDocType] || selectedDocType;
+
+  var row = document.createElement('div');
+  row.className = 'bulk-row';
+  row.dataset.idx = idx;
+  row.innerHTML =
+    '<div class="bulk-row-header">' +
+      '<span class="bulk-row-num">#<span class="row-num">' + (idx+1) + '</span> — <span class="row-type-label">' + label + '</span></span>' +
+      '<button type="button" class="bulk-row-remove" onclick="removeRow(this)" title="Remove">&times;</button>' +
+    '</div>' +
+    '<div class="bulk-row-fields">' +
+      '<div>' +
+        '<div class="bulk-search-wrap">' +
+          '<input type="text" class="bulk-search-input" autocomplete="off" placeholder="' + placeholder + '" data-idx="' + idx + '">' +
+          '<div class="spinner" id="spinner-' + idx + '"></div>' +
+          '<div class="bulk-dropdown" id="dropdown-' + idx + '"></div>' +
+        '</div>' +
+        '<input type="hidden" name="entity_type_' + idx + '" class="bulk-entity-type" value="' + et + '">' +
+        '<input type="hidden" name="entity_id_' + idx + '" class="bulk-entity-id" value="">' +
+        '<div class="selected-tag" id="tag-' + idx + '" style="display:none">' +
+          '<span>✅</span><span class="tag-text"></span>' +
+          '<button type="button" onclick="clearBulkEntity(' + idx + ')">&times;</button>' +
+        '</div>' +
+      '</div>' +
+      '<div>' +
+        '<input type="text" name="doc_name_' + idx + '" class="row-doc-name" placeholder="Doc name" value="' + baseName + '" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.78rem;outline:none;box-sizing:border-box">' +
+        '<div style="display:flex;gap:6px;margin-top:6px">' +
+          '<input type="text" name="doc_ref_no_' + idx + '" class="ref-input" placeholder="Ref no">' +
+          '<input type="date" name="expiry_date_' + idx + '" class="expiry-input">' +
+        '</div>' +
+      '</div>' +
+      '<div class="file-input-wrap">' +
+        '<label>📎 Browse<input type="file" name="file_' + idx + '" class="bulk-file" onchange="onBulkFile(this)"></label>' +
+        '<span class="file-name"></span>' +
+      '</div>' +
+    '</div>';
+
+  document.getElementById('bulkRows').appendChild(row);
+  updateRowCount();
+  initBulkSearch(idx);
+}
+
+function removeRow(btn) {
+  btn.closest('.bulk-row').remove();
+  updateRowCount();
+  // Renumber
+  document.querySelectorAll('.bulk-row-num .row-num').forEach(function(el, i){ el.textContent = i+1; });
+}
+
+function updateRowCount() {
+  var count = document.querySelectorAll('.bulk-row').length;
+  document.getElementById('rowCount').textContent = '(' + count + ')';
+}
+
+// ── Entity search per row ──
+function initBulkSearch(idx) {
+  var input = document.querySelector('#bulkRows .bulk-row[data-idx="' + idx + '"] .bulk-search-input');
+  var dropdown = document.getElementById('dropdown-' + idx);
+  var spinner = document.getElementById('spinner-' + idx);
+
+  if (!input) return;
+
+  function search(q) {
+    if (!q) { dropdown.classList.remove('show'); return; }
+    var et = document.querySelector('input[name="entity_type_' + idx + '"]').value;
+    if (et === 'company') { spinner.style.display = 'none'; dropdown.classList.remove('show'); return; }
+    spinner.style.display = '';
+    if (rowSearchTimeouts[idx]) clearTimeout(rowSearchTimeouts[idx]);
+    rowSearchTimeouts[idx] = setTimeout(function(){
+      var url = '{{ url_for("documents.document_search_entity") }}?entity_type=' + encodeURIComponent(et) + '&q=' + encodeURIComponent(q);
+      fetch(url, {credentials:'include'}).then(function(r){ if(!r.ok) throw Error(); return r.json(); }).then(function(data){
+        spinner.style.display = 'none';
+        dropdown.innerHTML = '';
+        if (!data.length) {
+          dropdown.innerHTML = '<div class="bulk-dropdown-empty">No matching ' + et + ' found.</div>';
+          dropdown.classList.add('show'); return;
+        }
+        data.forEach(function(item){
+          var div = document.createElement('div');
+          div.className = 'bulk-dropdown-item';
+          div.textContent = item.label;
+          div.addEventListener('click', function(){
+            document.querySelector('input[name="entity_id_' + idx + '"]').value = item.id;
+            input.value = item.label;
+            var tag = document.getElementById('tag-' + idx);
+            tag.querySelector('.tag-text').textContent = item.label;
+            tag.style.display = '';
+            dropdown.classList.remove('show');
+          });
+          dropdown.appendChild(div);
+        });
+        dropdown.classList.add('show');
+      }).catch(function(){ spinner.style.display = 'none'; });
+    }, 300);
+  }
+
+  input.addEventListener('input', function(){
+    if (input.readOnly) return;
+    search(this.value.trim());
+  });
+  input.addEventListener('focus', function(){
+    if (input.readOnly) return;
+    var q = this.value.trim();
+    if (!q) { dropdown.innerHTML = '<div class="bulk-dropdown-empty">Type to search...</div>'; dropdown.classList.add('show'); }
+    else { search(q); }
+  });
+  document.addEventListener('click', function(e){
+    if (!e.target.closest('.bulk-search-wrap')) dropdown.classList.remove('show');
+  });
+  input.addEventListener('keydown', function(e){
+    var items = dropdown.querySelectorAll('.bulk-dropdown-item');
+    var sel = dropdown.querySelector('.bulk-dropdown-item.selected');
+    var idx2 = -1;
+    if (sel) idx2 = Array.from(items).indexOf(sel);
+    if (e.key === 'ArrowDown') { e.preventDefault(); var n = idx2 < items.length-1 ? items[idx2+1] : items[0]; if (n) { items.forEach(function(i){ i.classList.remove('selected'); }); n.classList.add('selected'); n.scrollIntoView({block:'nearest'}); } }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); var p = idx2 > 0 ? items[idx2-1] : items[items.length-1]; if (p) { items.forEach(function(i){ i.classList.remove('selected'); }); p.classList.add('selected'); p.scrollIntoView({block:'nearest'}); } }
+    else if (e.key === 'Enter') { e.preventDefault(); if (sel) sel.click(); }
+  });
+
+  // Auto-set company
+  if (CAT_ENTITY[selectedDocType] === 'company') {
+    input.value = 'Current Link';
+    input.readOnly = true;
+    document.querySelector('input[name="entity_id_' + idx + '"]').value = 'Current Link';
+    var tag = document.getElementById('tag-' + idx);
+    tag.querySelector('.tag-text').textContent = 'Current Link';
+    tag.style.display = '';
+    dropdown.classList.remove('show');
+  }
+}
+
+function clearBulkEntity(idx) {
+  document.querySelector('input[name="entity_id_' + idx + '"]').value = '';
+  var input = document.querySelector('#bulkRows .bulk-row[data-idx="' + idx + '"] .bulk-search-input');
+  if (input) { input.value = ''; }
+  document.getElementById('tag-' + idx).style.display = 'none';
+}
+
+function onBulkFile(el) {
+  var nameSpan = el.closest('.file-input-wrap').querySelector('.file-name');
+  if (el.files && el.files[0]) { nameSpan.textContent = el.files[0].name; }
+  else { nameSpan.textContent = ''; }
+}
+
+// ── Init first row on load ──
+document.addEventListener('DOMContentLoaded', function(){
+  addRow();
+});
+</script>
+{% endblock %}
