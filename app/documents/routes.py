@@ -74,6 +74,13 @@ def document_hub():
 
     for d in docs:
         d["_status"] = _expiry_status(d.get("expiry_date"))
+        ua = d.get("uploaded_at")
+        if isinstance(ua, datetime):
+            d["uploaded_at_formatted"] = ua.strftime("%Y-%m-%d")
+        elif ua:
+            d["uploaded_at_formatted"] = str(ua)[:10]
+        else:
+            d["uploaded_at_formatted"] = ""
 
     return render_template("documents/hub.html", docs=docs, ENTITY_LABELS=ENTITY_LABELS,
         q=q, entity_type=entity_type, expiry=expiry, cat=cat, sort=sort, order=order, today=date.today())

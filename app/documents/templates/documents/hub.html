@@ -187,7 +187,7 @@ function updateEntitySelect() {
       </div>
     </div>
     <div class="doc-card-footer">
-      <span style="font-size:0.62rem;color:#94a3b8">📤 {{ (d.uploaded_at or '')[:10] }}</span>
+      <span style="font-size:0.62rem;color:#94a3b8">📤 {{ d.uploaded_at_formatted }}</span>
       <div class="doc-card-actions">
         <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="btn btn-xs btn-primary" style="padding:4px 12px;font-size:0.65rem;font-weight:700">Download</a>
         <a href="{{ url_for('documents.document_edit', doc_id=d.id) }}" style="padding:4px 10px;font-size:0.65rem;font-weight:600;color:#2563eb;background:#e8f0fe;border:1px solid #b3d0ff;border-radius:6px;text-decoration:none">Edit</a>
