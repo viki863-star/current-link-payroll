@@ -230,19 +230,32 @@ function initBulkSearch(idx) {
     if (rowSearchTimeouts[idx]) clearTimeout(rowSearchTimeouts[idx]);
     rowSearchTimeouts[idx] = setTimeout(function(){
       var cat = document.getElementById('bulkDocCategory').value;
-      var url = '{{ url_for("documents.document_search_entity") }}?entity_type=' + encodeURIComponent(et) + '&q=' + encodeURIComponent(q) + '&exclude_category=' + encodeURIComponent(cat);
+      var url = '{{ url_for("documents.document_search_entity") }}?entity_type=' + encodeURIComponent(et) + '&q=' + encodeURIComponent(q) + '&check_category=' + encodeURIComponent(cat);
       fetch(url, {credentials:'include'}).then(function(r){ if(!r.ok) throw Error(); return r.json(); }).then(function(data){
         spinner.style.display = 'none';
         dropdown.innerHTML = '';
         if (!data.length) {
-          dropdown.innerHTML = '<div class="bulk-dropdown-empty">No matching ' + et + ' found.</div>';
+          dropdown.innerHTML = '<div class="bulk-dropdown-empty">❌ No matching ' + et + ' found. Register it first in the system.</div>';
           dropdown.classList.add('show'); return;
         }
         data.forEach(function(item){
           var div = document.createElement('div');
           div.className = 'bulk-dropdown-item';
-          div.textContent = item.label;
+          if (item.has_valid) { div.style.opacity = '0.5'; }
+          var labelSpan = document.createElement('span');
+          labelSpan.textContent = item.label;
+          div.appendChild(labelSpan);
+          if (item.has_valid) {
+            var badge = document.createElement('span');
+            badge.textContent = '✓ Already uploaded';
+            badge.style.cssText = 'font-size:0.6rem;font-weight:600;color:#22c55e;background:#e8f5e9;padding:1px 8px;border-radius:4px;margin-left:8px';
+            div.appendChild(badge);
+          }
           div.addEventListener('click', function(){
+            if (item.has_valid) {
+              var en = et === 'vehicle' ? 'vehicle' : (et === 'employee' ? 'employee' : 'entity');
+              if (!confirm('This ' + en + ' already has a valid ' + cat + '.\nUploading a new one will be skipped. Continue?')) return;
+            }
             document.querySelector('input[name="entity_id_' + idx + '"]').value = item.id;
             input.value = item.label;
             var tag = document.getElementById('tag-' + idx);
