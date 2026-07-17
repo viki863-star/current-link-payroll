@@ -3,20 +3,21 @@
 {% block page_title %}{{ 'Edit' if doc else 'Upload' }} Document{% endblock %}
 
 {% block content %}
-{% set cat_order = ['Mulkiya','Insurance','Vehicle License','Driver License','Emirates ID','Passport','Trade License','Municipality','Tenancy','Inspection','Fuel Card','Toll Tag','Immigration','Customs','Contract','Certificate','Bank','Registration','ID Proof','License','Other'] %}
+{% set cat_order = ['Mulkiya','Vehicle Insurance','Driving License','Emirates ID','Passport','Trade License','Tenancy','Vehicle Inspection','Certificate'] %}
 {% set cat_icons = {
-  'Mulkiya':'🚛','Insurance':'🛡️','Vehicle License':'📋','Driver License':'🅿️',
-  'Emirates ID':'🪪','Passport':'🌐','Trade License':'🏪','Municipality':'🏛️',
-  'Tenancy':'🏠','Inspection':'🔍','Fuel Card':'⛽','Toll Tag':'💳',
-  'Immigration':'🛂','Customs':'📦','Contract':'📝','Certificate':'🎓',
-  'Bank':'🏦','Other':'📄'
+  'Mulkiya':'🚛','Vehicle Insurance':'🛡️','Driving License':'🅿️',
+  'Emirates ID':'🪪','Passport':'🌐','Trade License':'🏪',
+  'Tenancy':'🏠','Vehicle Inspection':'🔍','Certificate':'🎓'
+} %}
+{% set cat_subtitles = {
+  'Mulkiya':'Vehicle Registration','Vehicle Insurance':'Vehicle','Driving License':'Employee',
+  'Emirates ID':'Employee','Passport':'Employee','Trade License':'Company',
+  'Tenancy':'Company','Vehicle Inspection':'Vehicle','Certificate':'Vehicle'
 } %}
 {% set cat_colors = {
-  'Mulkiya':'#3b82f6','Insurance':'#22c55e','Vehicle License':'#f59e0b','Driver License':'#8b5cf6',
-  'Emirates ID':'#ec4899','Passport':'#14b8a6','Trade License':'#f97316','Municipality':'#6366f1',
-  'Tenancy':'#eab308','Inspection':'#06b6d4','Fuel Card':'#84cc16','Toll Tag':'#a855f7',
-  'Immigration':'#0ea5e9','Customs':'#d946ef','Contract':'#2563eb','Certificate':'#10b981',
-  'Bank':'#f59e0b','Other':'#64748b'
+  'Mulkiya':'#3b82f6','Vehicle Insurance':'#22c55e','Driving License':'#8b5cf6',
+  'Emirates ID':'#ec4899','Passport':'#14b8a6','Trade License':'#f97316',
+  'Tenancy':'#eab308','Vehicle Inspection':'#06b6d4','Certificate':'#10b981'
 } %}
 
 <style>
@@ -28,11 +29,13 @@
 .drop-zone-text { font-size:0.9rem; font-weight:600; color:var(--ink); }
 .drop-zone-hint { font-size:0.72rem; color:#94a3b8; margin-top:2px; }
 .drop-zone.has-file { border-color:#22c55e; background:#f0fdf4; }
-.cat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:6px; margin-bottom:16px; }
-.cat-opt { text-align:center; padding:8px 6px; border-radius:10px; border:1.5px solid #eef2f6; cursor:pointer; transition:all .1s; font-size:0.68rem; font-weight:600; color:#64748b; background:#fafbfc; }
-.cat-opt:hover { border-color:var(--primary); color:var(--primary); background:var(--primary-light); }
-.cat-opt.selected { border-color:var(--primary); color:#fff; background:var(--primary); }
-.cat-opt .cat-icon { font-size:1.1rem; display:block; margin-bottom:2px; }
+.cat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:20px; }
+.cat-opt { text-align:center; padding:14px 8px; border-radius:12px; border:2px solid #eef2f6; cursor:pointer; transition:all .15s; font-size:0.72rem; font-weight:600; color:#64748b; background:#fff; position:relative; }
+.cat-opt:hover { border-color:var(--primary); color:var(--primary); background:var(--primary-light); transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.06); }
+.cat-opt.selected { border-color:var(--primary); color:#fff; background:var(--primary); border-width:2px; transform:translateY(-2px); box-shadow:0 4px 16px rgba(99,102,241,.25); }
+.cat-opt.selected::after { content:'✓'; position:absolute; top:-6px; right:-6px; width:20px; height:20px; background:var(--primary); border:2px solid #fff; border-radius:50%; font-size:0.6rem; display:grid; place-items:center; color:#fff; }
+.cat-opt .cat-icon { font-size:1.6rem; display:block; margin-bottom:4px; }
+.cat-opt .cat-sub { font-size:0.6rem; font-weight:500; opacity:0.6; margin-top:2px; }
 .form-row { margin-bottom:14px; }
 .form-row label { display:block; font-size:0.75rem; font-weight:600; color:#475569; margin-bottom:4px; }
 .form-row input, .form-row select, .form-row textarea { width:100%; padding:9px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.85rem; outline:none; box-sizing:border-box; transition:border-color .12s; }
@@ -76,11 +79,13 @@
       <div class="cat-grid">
         {% for cat in cat_order %}
         {% set clr = cat_colors.get(cat, '#64748b') %}
+        {% set sub = cat_subtitles.get(cat, '') %}
         <div class="cat-opt {% if (doc and doc.doc_category == cat) or (not doc and cat == 'Mulkiya') %}selected{% endif %}"
-             style="{% if (doc and doc.doc_category == cat) or (not doc and cat == 'Mulkiya') %}background:{{ clr }};border-color:{{ clr }};color:#fff{% endif %}"
+             style="{% if (doc and doc.doc_category == cat) or (not doc and cat == 'Mulkiya') %}background:{{ clr }};border-color:{{ clr }};color:#fff;box-shadow:0 4px 16px {{ clr }}40{% else %}border-color:{{ clr }}20{% endif %}"
              onclick="selectCat(this, '{{ cat }}')">
           <span class="cat-icon">{{ cat_icons.get(cat, '📄') }}</span>
           {{ cat }}
+          {% if sub %}<span class="cat-sub">{{ sub }}</span>{% endif %}
         </div>
         {% endfor %}
       </div>
@@ -91,7 +96,7 @@
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
       <div class="form-row">
         <label>Document Name *</label>
-        <input type="text" name="doc_name" id="docName" required placeholder="Auto-fills from type" value="{{ doc.doc_name if doc else 'Mulkiya (Vehicle Registration) 2026' }}">
+        <input type="text" name="doc_name" id="docName" required placeholder="Auto-fills from document type" value="{{ doc.doc_name if doc else 'Mulkiya (Vehicle Registration) 2026' }}">
       </div>
       <div class="form-row">
         <label>Reference No.</label>
@@ -162,34 +167,24 @@
 
 <script>
 var catNames = {
-  'Mulkiya':'Mulkiya (Vehicle Registration)','Insurance':'Insurance Policy','Vehicle License':'Vehicle License',
-  'Driver License':'Driving License','Emirates ID':'Emirates ID','Passport':'Passport Copy',
-  'Trade License':'Trade License','Municipality':'Municipality License','Tenancy':'Tenancy Contract',
-  'Inspection':'Vehicle Inspection Certificate','Fuel Card':'Fuel Card (ADNOC)','Toll Tag':'Toll Tag (Salik/ADTAG)',
-  'Immigration':'Immigration Document','Customs':'Customs Clearance','Contract':'Service Contract',
-  'Certificate':'Certificate','Bank':'Bank Document','Registration':'Registration Document',
-  'ID Proof':'ID Proof','License':'License Document','Other':''
+  'Mulkiya':'Mulkiya (Vehicle Registration)','Vehicle Insurance':'Vehicle Insurance Policy','Driving License':'Driving License',
+  'Emirates ID':'Emirates ID','Passport':'Passport Copy','Trade License':'Trade License',
+  'Tenancy':'Tenancy Contract','Vehicle Inspection':'Vehicle Inspection Certificate','Certificate':'Certificate'
 };
 var catEntity = {
-  'Mulkiya':'vehicle','Insurance':'vehicle','Vehicle License':'vehicle','Driver License':'employee',
-  'Emirates ID':'employee','Passport':'employee','Trade License':'company','Municipality':'vehicle',
-  'Tenancy':'employee','Inspection':'vehicle','Fuel Card':'vehicle','Toll Tag':'vehicle',
-  'Immigration':'employee','Customs':'company','Contract':'','Certificate':'','Bank':'company',
-  'Registration':'vehicle','ID Proof':'employee','License':'vehicle','Other':''
+  'Mulkiya':'vehicle','Vehicle Insurance':'vehicle','Driving License':'employee',
+  'Emirates ID':'employee','Passport':'employee','Trade License':'company',
+  'Tenancy':'company','Vehicle Inspection':'vehicle','Certificate':'vehicle'
 };
 var catEntityLabel = {
-  'Mulkiya':'Vehicle','Insurance':'Vehicle','Vehicle License':'Vehicle','Driver License':'Employee',
-  'Emirates ID':'Employee','Passport':'Employee','Trade License':'Company','Municipality':'Vehicle',
-  'Tenancy':'Employee','Inspection':'Vehicle','Fuel Card':'Vehicle','Toll Tag':'Vehicle',
-  'Immigration':'Employee','Customs':'Company','Contract':'Entity','Certificate':'Entity','Bank':'Company',
-  'Registration':'Vehicle','ID Proof':'Employee','License':'Vehicle','Other':'Entity'
+  'Mulkiya':'Vehicle','Vehicle Insurance':'Vehicle','Driving License':'Employee',
+  'Emirates ID':'Employee','Passport':'Employee','Trade License':'Company',
+  'Tenancy':'Company','Vehicle Inspection':'Vehicle','Certificate':'Vehicle'
 };
 var catEntityPlaceholder = {
-  'Mulkiya':'Search vehicle by plate no or model...','Insurance':'Search vehicle by plate no...','Vehicle License':'Search vehicle by plate no...','Driver License':'Search employee by name or ID...',
-  'Emirates ID':'Search employee by name or ID...','Passport':'Search employee by name or ID...','Trade License':'Company: Current Link','Municipality':'Search vehicle by plate no...',
-  'Tenancy':'Search employee by name...','Inspection':'Search vehicle by plate no...','Fuel Card':'Search vehicle by plate no...','Toll Tag':'Search vehicle by plate no...',
-  'Immigration':'Search employee by name...','Customs':'Company: Current Link','Contract':'Search by name or ID...','Certificate':'Search by name or ID...',
-  'Bank':'Company: Current Link','Registration':'Search vehicle by plate no...','ID Proof':'Search employee by name...','License':'Search vehicle by plate no...','Other':'Search by name or ID...'
+  'Mulkiya':'Search vehicle by plate no or model...','Vehicle Insurance':'Search vehicle by plate no...','Driving License':'Search employee by name or ID...',
+  'Emirates ID':'Search employee by name or ID...','Passport':'Search employee by name or ID...','Trade License':'Company: Current Link',
+  'Tenancy':'Company: Current Link','Vehicle Inspection':'Search vehicle by plate no...','Certificate':'Search vehicle by plate no...'
 };
 
 var searchTimeout = null;

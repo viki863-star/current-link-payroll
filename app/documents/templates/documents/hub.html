@@ -3,22 +3,16 @@
 {% block page_title %}Document Management{% endblock %}
 
 {% block content %}
-{% set cat_order = ['Mulkiya','Insurance','Vehicle License','Driver License','Emirates ID','Passport','Trade License','Municipality','Tenancy','Inspection','Fuel Card','Toll Tag','Immigration','Customs','Contract','Certificate','Bank','Registration','ID Proof','License','Other'] %}
+{% set cat_order = ['Mulkiya','Vehicle Insurance','Driving License','Emirates ID','Passport','Trade License','Tenancy','Vehicle Inspection','Certificate'] %}
 {% set cat_icons = {
-  'Mulkiya':'🚛','Insurance':'🛡️','Vehicle License':'📋','Driver License':'🅿️',
-  'Emirates ID':'🪪','Passport':'🌐','Trade License':'🏪','Municipality':'🏛️',
-  'Tenancy':'🏠','Inspection':'🔍','Fuel Card':'⛽','Toll Tag':'💳',
-  'Immigration':'🛂','Customs':'📦','Contract':'📝','Certificate':'🎓',
-  'Bank':'🏦','Registration':'📋','License':'📜','ID Proof':'🪪',
-  'Other':'📄'
+  'Mulkiya':'🚛','Vehicle Insurance':'🛡️','Driving License':'🅿️',
+  'Emirates ID':'🪪','Passport':'🌐','Trade License':'🏪',
+  'Tenancy':'🏠','Vehicle Inspection':'🔍','Certificate':'🎓'
 } %}
 {% set cat_colors = {
-  'Mulkiya':'#3b82f6','Insurance':'#22c55e','Vehicle License':'#f59e0b','Driver License':'#8b5cf6',
-  'Emirates ID':'#ec4899','Passport':'#14b8a6','Trade License':'#f97316','Municipality':'#6366f1',
-  'Tenancy':'#eab308','Inspection':'#06b6d4','Fuel Card':'#84cc16','Toll Tag':'#a855f7',
-  'Immigration':'#0ea5e9','Customs':'#d946ef','Contract':'#2563eb','Certificate':'#10b981',
-  'Bank':'#f59e0b','Registration':'#3b82f6','License':'#f59e0b','ID Proof':'#ec4899',
-  'Other':'#64748b'
+  'Mulkiya':'#3b82f6','Vehicle Insurance':'#22c55e','Driving License':'#8b5cf6',
+  'Emirates ID':'#ec4899','Passport':'#14b8a6','Trade License':'#f97316',
+  'Tenancy':'#eab308','Vehicle Inspection':'#06b6d4','Certificate':'#10b981'
 } %}
 
 <style>
@@ -155,9 +149,8 @@ function updateEntitySelect() {
 {% if docs %}
 <div class="doc-grid">
   {% for d in docs %}
-  {% set cat = d.doc_category if (d.doc_category in cat_order or d.doc_category in ('Registration','ID Proof','License')) else 'Other' %}
-  {% set icon = cat_icons.get(d.doc_category, cat_icons.get(cat, '📄')) %}
-  {% set clr = cat_colors.get(d.doc_category, cat_colors.get(cat, '#64748b')) %}
+  {% set icon = cat_icons.get(d.doc_category, '📄') %}
+  {% set clr = cat_colors.get(d.doc_category, '#64748b') %}
   {% set es = d._status %}
   <div class="doc-card">
     <div class="doc-card-top">
