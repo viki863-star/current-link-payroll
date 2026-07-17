@@ -47,8 +47,8 @@ def document_hub():
     where = []
     params = []
     if q:
-        where.append("(doc_name LIKE ? OR doc_ref_no LIKE ? OR notes LIKE ?)")
-        params.extend([f"%{q}%", f"%{q}%", f"%{q}%"])
+        where.append("(doc_name LIKE ? OR doc_ref_no LIKE ? OR entity_id LIKE ? OR notes LIKE ?)")
+        params.extend([f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"])
     if entity_type:
         where.append("entity_type = ?")
         params.append(entity_type)
