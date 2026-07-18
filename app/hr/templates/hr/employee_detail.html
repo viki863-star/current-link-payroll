@@ -285,11 +285,11 @@
                                         <div style="width:100%;font-size:.82rem;font-weight:600;color:#2c3e8f">Prorata Period — select duty start & end date</div>
                                         <div class="dv2-form-group" style="flex:1;min-width:160px">
                                             <label class="dv2-form-label">From</label>
-                                            <input type="date" name="prorata_start_date" value="{{ salary_form.prorata_start_date or '' }}" class="dv2-input">
+                                            <input type="date" name="prorata_start_date" value="{{ salary_form.prorata_start_date or '' }}" class="dv2-input prorata-date">
                                         </div>
                                         <div class="dv2-form-group" style="flex:1;min-width:160px">
                                             <label class="dv2-form-label">To</label>
-                                            <input type="date" name="prorata_end_date" value="{{ salary_form.prorata_end_date or '' }}" class="dv2-input">
+                                            <input type="date" name="prorata_end_date" value="{{ salary_form.prorata_end_date or '' }}" class="dv2-input prorata-date">
                                         </div>
                                         <div class="dv2-form-group" style="flex:1;min-width:100px">
                                             <label class="dv2-form-label">Days</label>
@@ -702,10 +702,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function toggleProrata() {
         var prorataFields = document.getElementById('prorataFields');
         if (prorataFields) {
-            prorataFields.style.display = modeSelect.value === 'prorata' ? '' : 'none';
+            var show = modeSelect.value === 'prorata';
+            prorataFields.style.display = show ? '' : 'none';
+            var prorataDates = prorataFields.querySelectorAll('input.prorata-date');
+            prorataDates.forEach(function(inp) {
+                inp.required = show;
+                // Re-clone to force browser date picker initialization
+                if (show) {
+                    var clone = inp.cloneNode(true);
+                    clone.value = inp.value;
+                    inp.parentNode.replaceChild(clone, inp);
+                }
+            });
         }
-        var prorataDates = prorataFields ? prorataFields.querySelectorAll('input[type="date"]') : [];
-        prorataDates.forEach(function(inp) { inp.required = modeSelect.value === 'prorata'; });
     }
     if (modeSelect) {
         toggleProrata();
