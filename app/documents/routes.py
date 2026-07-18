@@ -43,7 +43,7 @@ def document_hub():
     sort = request.args.get("sort", "uploaded_at")
     order = request.args.get("order", "desc")
 
-    sql = "SELECT * FROM documents"
+    sql = "SELECT id, entity_type, entity_id, doc_name, doc_category, doc_ref_no, issue_date, expiry_date, file_type, file_size, notes, uploaded_at FROM documents"
     where = []
     params = []
     if q:
