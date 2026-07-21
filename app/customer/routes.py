@@ -1,6 +1,6 @@
-import os, base64, re, math
-from datetime import date, datetime
-from flask import render_template, request, redirect, url_for, flash, current_app, send_file, session, jsonify
+import os, base64, re
+from datetime import date
+from flask import render_template, request, redirect, url_for, flash, current_app, send_file, jsonify
 from markupsafe import Markup
 from . import customer_bp
 

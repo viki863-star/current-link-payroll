@@ -1,4 +1,3 @@
-import os
 import sqlite3
 from pathlib import Path
 
@@ -2022,7 +2021,10 @@ REQUIRED_COLUMNS = {
 class Record(dict):
     def __getitem__(self, key):
         if isinstance(key, int):
-            return list(self.values())[key]
+            vals = list(self.values())
+            if key < 0 or key >= len(vals):
+                raise KeyError(key)
+            return vals[key]
         return super().__getitem__(key)
 
 
@@ -2160,6 +2162,7 @@ def close_db(exception=None) -> None:
 def _connect_sqlite(database_path: Path):
     connection = sqlite3.connect(database_path)
     connection.row_factory = _sqlite_row_factory
+    connection.execute("PRAGMA foreign_keys = ON")
     return connection
 
 
@@ -2172,7 +2175,6 @@ def _connect_postgres(database_url: str):
         ) from exc
 
     conn = psycopg.connect(database_url)
-    conn.autocommit = True
     return conn
 
 

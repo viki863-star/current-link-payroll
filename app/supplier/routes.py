@@ -7,7 +7,6 @@ from flask import (
     redirect,
     render_template,
     request,
-    session,
     url_for,
     send_file,
     flash,
@@ -20,17 +19,6 @@ from app import csrf
 from ..database import open_db
 from ..routes import _next_reference_code
 
-
-MAINTENANCE_CATEGORIES = [
-    "Engine", "Transmission", "Brakes", "Tires", "Electrical",
-    "AC", "Body", "Fuel System", "Suspension", "Inspection",
-    "Oil Change", "Battery", "Lights", "Other",
-]
-
-SUPPLIER_TYPES = [
-    ("with_invoice", "With Invoice (VAT)"),
-    ("without_invoice", "Without Invoice (Cash)"),
-]
 
 SUPPLIER_CATEGORIES = [
     "Spare Parts", "Tires", "Lubricants", "Fuel",
@@ -1853,7 +1841,6 @@ def supplier_quotation_items_api(sup_id, q_id):
     return jsonify([dict(i) for i in items])
 
 
-@supplier_bp.route("/<int:sup_id>/quotations/<int:q_id>/download")
 @supplier_bp.route("/<int:sup_id>/quotations/<int:q_id>/pdf")
 def supplier_quotation_pdf(sup_id, q_id):
     from reportlab.lib.pagesizes import A4
@@ -2616,11 +2603,6 @@ csrf.exempt(supplier_payment_delete)
 # LOANS / QARZ
 # ═══════════════════════════════════════════════════════════
 
-def _next_loan_ref(db):
-    row = db.execute("SELECT COUNT(*) FROM supplier_loans").fetchone()[0]
-    return f"LOAN{row + 1:04d}"
-
-
 @supplier_bp.route("/<int:sup_id>/loans/add", methods=["GET", "POST"])
 def supplier_loan_add(sup_id):
     _ensure_tables()
@@ -3143,11 +3125,6 @@ def supplier_restore(sup_id):
 # OWNER FUND
 # ═══════════════════════════════════════════════════════════
 
-FUND_SOURCES = [
-    ("cash_bank", "Cash / Bank"),
-    ("owner_fund", "Owner Fund"),
-]
-
 @supplier_bp.route("/owner-fund")
 def owner_fund_dashboard():
     return redirect(url_for("owner_fund"))
@@ -3181,9 +3158,6 @@ def owner_fund_add():
 # ═══════════════════════════════════════════════════════════
 # DOCUMENTS
 # ═══════════════════════════════════════════════════════════
-
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @supplier_bp.route("/<int:sup_id>/documents")
 def supplier_doc_list(sup_id):

@@ -1,4 +1,3 @@
-import os
 from datetime import date, datetime
 from pathlib import Path
 from io import BytesIO
@@ -6,19 +5,18 @@ import base64
 
 from flask import (
     current_app, flash, redirect, render_template, request,
-    send_file, session, url_for, jsonify
+    send_file, url_for
 )
 from werkzeug.security import generate_password_hash
-from werkzeug.utils import secure_filename
 
 from ..database import open_db
 from ..routes import (
     _login_required, _audit_log, _touch_admin_workspace, _current_month_value,
-    ValidationError, _parse_decimal, _normalize_month, _next_month_value,
-    _advance_summary, _outstanding_advance, _timesheet_total_for_month,
+    ValidationError, _parse_decimal, _normalize_month,
+    _advance_summary, _timesheet_total_for_month,
     _calculate_salary_preview, _default_salary_form, _salary_form_from_row,
-    _salary_preview_from_row, format_month_label, _driver_month_calendar,
-    _timesheet_month_summary, _driver_kata_month_data, _regenerate_kata_for_driver,
+    _salary_preview_from_row, format_month_label,
+    _driver_kata_month_data, _regenerate_kata_for_driver,
     SALARY_MODE_OPTIONS, PAYMENT_SOURCES
 )
 from . import hr_bp
@@ -2051,11 +2049,6 @@ def _salary_dashboard_data(status_filter=""):
 def _format_month_options(months):
     names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     return [(m, f"{names[int(m.split('-')[1])-1]} {m.split('-')[0]}") for m in months]
-
-
-def _month_name(ym):
-    names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-    return f"{names[int(ym.split('-')[1])-1]} {ym.split('-')[0]}"
 
 
 @hr_bp.route("/hr/salary-dashboard")

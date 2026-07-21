@@ -6,9 +6,9 @@ from flask import (
     current_app, flash, redirect, render_template, request,
     send_file, url_for, session
 )
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash
 
-from ..database import open_db, _connect_sqlite
+from ..database import open_db
 from ..routes import _login_required, _touch_admin_workspace
 from ..pdf_service import generate_fuel_report_pdf
 from . import fleet_bp
@@ -194,11 +194,6 @@ def _all_employees_drivers():
     return db.execute(
         "SELECT employee_id, full_name FROM employees WHERE employee_type = 'Driver' AND status = 'Active' ORDER BY full_name"
     ).fetchall()
-
-
-def _all_staff():
-    db = open_db()
-    return db.execute("SELECT * FROM field_staff ORDER BY full_name").fetchall()
 
 
 # ── Fleet Dashboard ─────────────────────────────────────────────
@@ -923,48 +918,6 @@ def _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw
         (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
         VALUES (?, NULL, ?, ?, ?, ?, ?)
     """, (staff_id, username, pw_hash, phone, full_name, status))
-
-
-def _migrate_old_staff_entries(db):
-    synced = db.execute("""
-        SELECT fs.staff_id, fs.full_name FROM field_staff fs
-        JOIN technicians t ON t.technician_code = fs.staff_id
-    """).fetchall()
-    for s in synced:
-        old_jobs = db.execute("""
-            SELECT mj.* FROM maintenance_jobs mj
-            LEFT JOIN maintenance_papers mp
-                ON mp.technician_code = mj.staff_id
-                AND mp.total_amount = mj.amount
-                AND mp.work_summary = mj.description
-            WHERE mj.staff_id = ? AND mp.id IS NULL
-        """, (s["staff_id"],)).fetchall()
-        for j in old_jobs:
-            vid = j["vehicle_id"]
-            if vid is None or not str(vid).lstrip("-").isdigit():
-                continue
-            try:
-                veh = db.execute("SELECT id FROM vehicle_master WHERE id = ?", (int(vid),)).fetchone()
-            except Exception:
-                veh = None
-            if not veh:
-                continue
-            last = db.execute("SELECT paper_no FROM maintenance_papers ORDER BY id DESC LIMIT 1").fetchone()
-            num = 1
-            if last:
-                num = int(last["paper_no"].split("-")[1]) + 1
-            pno = f"PAPER-{num:04d}"
-            status_map = {"pending": "Pending", "approved": "Approved", "rejected": "Rejected"}
-            rev_status = status_map.get(j["status"], "Pending")
-            paper_date = (str(j["created_at"] or ""))[:10] or "2025-01-01"
-            db.execute("""
-                INSERT INTO maintenance_papers
-                (paper_no, paper_date, vehicle_id, vehicle_no, technician_code, work_summary,
-                 total_amount, review_status, payment_status, notes, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)
-            """, (pno, paper_date, j["vehicle_id"], "", s["staff_id"],
-                  j["description"] or "", j["amount"], rev_status,
-                  j["admin_notes"] or "", j["created_at"]))
 
 
 def _import_field_staff_from_sqlite(db):

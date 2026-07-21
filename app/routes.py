@@ -1335,7 +1335,6 @@ def register_routes(app: Flask) -> None:
             if "attachment" in request.files:
                 file = request.files["attachment"]
                 if file.filename:
-                    import base64
                     attachment_name = file.filename
                     attachment_data = base64.b64encode(file.read()).decode("utf-8")
                     attachment_type = file.content_type
@@ -1865,7 +1864,6 @@ def register_routes(app: Flask) -> None:
     @_login_required()
     def notification_list():
         from .notification_service import get_unread_notifications, unread_count, add_notification
-        from .database import open_db
         role = _current_role() or "admin"
         try:
             db = open_db()
@@ -5689,7 +5687,6 @@ def register_routes(app: Flask) -> None:
         ).fetchall()
         
         # Current month for export
-        from datetime import datetime
         current_month = datetime.now().strftime("%Y-%m")
 
         vehicle_expense_report = db.execute(
@@ -6027,8 +6024,6 @@ def register_routes(app: Flask) -> None:
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
         from reportlab.lib.styles import ParagraphStyle
         from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-        from io import BytesIO
-
         db = open_db()
         month = request.args.get("month", "")
         year = request.args.get("year", "")
@@ -6212,8 +6207,7 @@ def register_routes(app: Flask) -> None:
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
         from reportlab.lib.styles import ParagraphStyle
         from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-        from io import BytesIO
-        import os, tempfile, base64
+        import tempfile
         from reportlab.platypus import Image
 
         db = open_db()
@@ -6479,8 +6473,7 @@ def register_routes(app: Flask) -> None:
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
         from reportlab.lib.styles import ParagraphStyle
         from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-        from io import BytesIO
-        import os, tempfile, base64
+        import tempfile
         from reportlab.platypus import Image
 
         month = request.args.get("month", "")
