@@ -98,7 +98,7 @@ def ensure_employees_table():
 
 def _fetch_employee(db, employee_id):
     return db.execute(
-        "SELECT * FROM employees WHERE UPPER(employee_id) = ?",
+        "SELECT id, employee_id, full_name, phone_number, email, employee_type, department, designation, gender, shift, contract_type, join_date, basic_salary, ot_rate, nationality, iqama_no, passport_no, bank_name, bank_account, iban, emergency_contact, emergency_name, address, photo_name, photo_data, photo_content_type, status, termination_date, remarks, updated_at FROM employees WHERE UPPER(employee_id) = ?",
         (employee_id.strip().upper(),),
     ).fetchone()
 
@@ -615,7 +615,7 @@ def employee_transactions(employee_id):
     edit_txn = None
     edit_id = request.args.get("edit", "").strip()
     if edit_id and edit_id.isdigit():
-        edit_txn = db.execute("SELECT * FROM driver_transactions WHERE id = ? AND driver_id = ?", (int(edit_id), eid)).fetchone()
+        edit_txn = db.execute("SELECT id, driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details FROM driver_transactions WHERE id = ? AND driver_id = ?", (int(edit_id), eid)).fetchone()
 
     photo_url = _employee_photo_url(current_app._get_current_object(), employee)
 
@@ -664,14 +664,14 @@ def employee_transaction_delete(employee_id, txn_id):
     ensure_employees_table()
     db = open_db()
 
-    txn = db.execute("SELECT * FROM driver_transactions WHERE id=? AND driver_id=?", (txn_id, employee_id)).fetchone()
+    txn = db.execute("SELECT id, driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details FROM driver_transactions WHERE id=? AND driver_id=?", (txn_id, employee_id)).fetchone()
     if txn is None:
         flash("Transaction not found.", "error")
         return redirect(url_for("hr.employee_transactions", employee_id=employee_id))
 
     # Check for linked owner fund entry
     owner_fund_entry = db.execute(
-        "SELECT * FROM owner_fund_entries WHERE source_table='driver_transactions' AND source_id=?",
+        "SELECT id, owner_name, entry_date, amount, received_by, payment_method, details FROM owner_fund_entries WHERE source_table='driver_transactions' AND source_id=?",
         (txn_id,),
     ).fetchone()
 
@@ -729,7 +729,7 @@ def employee_salary_store(employee_id):
 
     selected_month = request.args.get("month", "").strip() or _current_month_value()
     existing_row = db.execute(
-        "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
+        "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks FROM salary_store WHERE driver_id = ? AND salary_month = ?",
         (eid, selected_month),
     ).fetchone()
 
@@ -865,7 +865,7 @@ def employee_salary_store_delete(employee_id, store_id):
 
         eid = employee["employee_id"]
         row = db.execute(
-            "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+            "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks FROM salary_store WHERE id = ? AND driver_id = ?",
             (store_id, eid),
         ).fetchone()
         if row is None:
@@ -914,7 +914,7 @@ def employee_salary_slip(employee_id):
     eid = employee["employee_id"]
 
     salary_rows = db.execute(
-        "SELECT * FROM salary_store WHERE driver_id = ? ORDER BY salary_month DESC",
+        "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks FROM salary_store WHERE driver_id = ? ORDER BY salary_month DESC",
         (eid,),
     ).fetchall()
 
@@ -948,13 +948,13 @@ def employee_salary_slip(employee_id):
 
     if selected_salary_id:
         selected_salary = db.execute(
-            "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+            "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks FROM salary_store WHERE id = ? AND driver_id = ?",
             (selected_salary_id, eid),
         ).fetchone()
         if selected_salary is not None:
             existing_slip = db.execute(
                 """
-                SELECT * FROM salary_slips
+                SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips
                 WHERE salary_store_id = ? AND driver_id = ?
                 ORDER BY id DESC LIMIT 1
                 """,
@@ -968,7 +968,7 @@ def employee_salary_slip(employee_id):
 
     # Load driver transactions for selection
     driver_txns = db.execute(
-        "SELECT * FROM driver_transactions WHERE driver_id = ? ORDER BY entry_date ASC",
+        "SELECT id, driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details FROM driver_transactions WHERE driver_id = ? ORDER BY entry_date ASC",
         (eid,),
     ).fetchall()
 
@@ -1014,12 +1014,12 @@ def employee_salary_slip(employee_id):
             flash("Select a stored salary month first.", "error")
         else:
             selected_salary = db.execute(
-                "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+                "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks FROM salary_store WHERE id = ? AND driver_id = ?",
                 (selected_salary_id, eid),
             ).fetchone()
             existing_slip = db.execute(
                 """
-                SELECT * FROM salary_slips
+                SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips
                 WHERE salary_store_id = ? AND driver_id = ?
                 ORDER BY id DESC LIMIT 1
                 """,
@@ -1084,7 +1084,7 @@ def employee_salary_slip(employee_id):
                         db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip_id,))
                         if selected_ids_int:
                             for txn_id in selected_ids_int:
-                                txn = db.execute("SELECT * FROM driver_transactions WHERE id = ? AND driver_id = ?", (txn_id, eid)).fetchone()
+                                txn = db.execute("SELECT id, driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details FROM driver_transactions WHERE id = ? AND driver_id = ?", (txn_id, eid)).fetchone()
                                 if txn:
                                     already = float(db.execute(
                                         "SELECT COALESCE(SUM(amount_deducted), 0) FROM salary_slip_deductions WHERE driver_transaction_id = ?",
@@ -1099,7 +1099,7 @@ def employee_salary_slip(employee_id):
 
                         # Auto-create owner_fund_entry when payment source is Owner Fund
                         if values["payment_source"] == "Owner Fund":
-                            slip_row_check = db.execute("SELECT * FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
+                            slip_row_check = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
                             existing_of = db.execute(
                                 "SELECT id FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?",
                                 (slip_id,),
@@ -1115,7 +1115,7 @@ def employee_salary_slip(employee_id):
                                      "salary_slips", slip_id),
                                 )
 
-                        slip_row = db.execute("SELECT * FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
+                        slip_row = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
                         driver_display = {"driver_id": eid, "full_name": employee["full_name"],
                                           "basic_salary": employee["basic_salary"] or 0,
                                           "vehicle_no": "", "shift": employee.get("shift", ""),
@@ -1192,7 +1192,7 @@ def employee_salary_slip_delete(employee_id, store_id):
         return redirect(url_for("hr.employee_list"))
     eid = employee["employee_id"]
     slip = db.execute(
-        "SELECT * FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?",
+        "SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?",
         (store_id, eid),
     ).fetchone()
     if slip is None:
@@ -1200,7 +1200,7 @@ def employee_salary_slip_delete(employee_id, store_id):
         return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
 
     owner_fund_entry = db.execute(
-        "SELECT * FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?",
+        "SELECT id, owner_name, entry_date, amount, received_by, payment_method, details FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?",
         (slip["id"],),
     ).fetchone()
 
@@ -1240,11 +1240,11 @@ def employee_deduction_statement(employee_id, store_id):
         flash("Employee not found.", "error")
         return redirect(url_for("hr.employee_list"))
     eid = employee["employee_id"]
-    salary_store_row = db.execute("SELECT * FROM salary_store WHERE id = ? AND driver_id = ?", (store_id, eid)).fetchone()
+    salary_store_row = db.execute("SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks FROM salary_store WHERE id = ? AND driver_id = ?", (store_id, eid)).fetchone()
     if not salary_store_row:
         flash("Salary store not found.", "error")
         return redirect(url_for("hr.employee_salary_slip", employee_id=eid))
-    slip = db.execute("SELECT * FROM salary_slips WHERE salary_store_id = ? AND driver_id = ? ORDER BY id DESC LIMIT 1", (store_id, eid)).fetchone()
+    slip = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE salary_store_id = ? AND driver_id = ? ORDER BY id DESC LIMIT 1", (store_id, eid)).fetchone()
     if not slip:
         flash("Salary slip not found. Generate slip first.", "error")
         return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
@@ -1323,17 +1323,17 @@ def employee_kata(employee_id):
         summary = summary_ret
 
         salary_row = db.execute(
-            "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
+            "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks FROM salary_store WHERE driver_id = ? AND salary_month = ?",
             (eid, selected_month),
         ).fetchone()
 
         slip_row = db.execute(
-            "SELECT * FROM salary_slips WHERE driver_id = ? AND salary_month = ? ORDER BY id DESC LIMIT 1",
+            "SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE driver_id = ? AND salary_month = ? ORDER BY id DESC LIMIT 1",
             (eid, selected_month),
         ).fetchone()
 
         all_advances = db.execute(
-            "SELECT * FROM driver_transactions WHERE driver_id = ? ORDER BY entry_date ASC, id ASC",
+            "SELECT id, driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details FROM driver_transactions WHERE driver_id = ? ORDER BY entry_date ASC, id ASC",
             (eid,),
         ).fetchall()
 
@@ -1729,7 +1729,7 @@ def employee_restore(employee_id):
             flash(f"Employee {employee_id} already exists.", "success")
             return redirect(url_for("hr.employee_edit", employee_id=employee_id))
 
-        tech = db.execute("SELECT * FROM technicians WHERE technician_code = ?", (employee_id,)).fetchone()
+        tech = db.execute("SELECT id, technician_code, party_code, user_id, password_hash, phone_number, specialization, status FROM technicians WHERE technician_code = ?", (employee_id,)).fetchone()
         if not tech:
             flash(f"No data found for {employee_id} in technicians table.", "error")
             return redirect(url_for("hr.employee_list"))

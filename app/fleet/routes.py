@@ -93,7 +93,7 @@ def ensure_fleet_tables():
 def _migrate_vehicle_master(db):
     """Copy vehicles from old vehicle_master table into vehicles table."""
     try:
-        old = db.execute("SELECT * FROM vehicle_master").fetchall()
+        old = db.execute("SELECT id, vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode, source_type, source_party_code, source_asset_code, partner_party_code, partner_name, company_share_percent, partner_share_percent, notes FROM vehicle_master").fetchall()
     except Exception:
         return
     for v in old:
@@ -120,9 +120,9 @@ def _migrate_vehicle_master(db):
 
 def _vehicle_full(plate_no):
     db = open_db()
-    v = db.execute("SELECT * FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
+    v = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
     if not v:
-        vm = db.execute("SELECT * FROM vehicle_master WHERE vehicle_no = ?", (plate_no,)).fetchone()
+        vm = db.execute("SELECT id, vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode, source_type, source_party_code, source_asset_code, partner_party_code, partner_name, company_share_percent, partner_share_percent, notes FROM vehicle_master WHERE vehicle_no = ?", (plate_no,)).fetchone()
         if vm:
             v = {
                 "plate_no": vm["vehicle_no"],
@@ -205,7 +205,7 @@ def fleet_dashboard():
     ensure_fleet_tables()
     db = open_db()
 
-    vehicles = db.execute("SELECT * FROM vehicles ORDER BY plate_no").fetchall()
+    vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles ORDER BY plate_no").fetchall()
     total = len(vehicles)
     active_v = sum(1 for v in vehicles if (v["status"] or "").lower() == "active")
     standard = sum(1 for v in vehicles if v["ownership_type"] == "Standard")
@@ -401,7 +401,7 @@ def vehicle_edit(plate_no):
     ensure_fleet_tables()
     db = open_db()
     try:
-        v = db.execute("SELECT * FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
+        v = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
     except Exception as e:
         flash(f"Database error: {e}", "error")
         return redirect(url_for("fleet.vehicle_list"))
@@ -534,12 +534,12 @@ def vehicle_profile(plate_no):
     )
 
     documents = db.execute(
-        "SELECT * FROM vehicle_documents WHERE plate_no = ? ORDER BY uploaded_at DESC",
+        "SELECT id, vehicle_id, doc_name, doc_type, doc_data, created_at FROM vehicle_documents WHERE plate_no = ? ORDER BY uploaded_at DESC",
         (plate_no,),
     ).fetchall()
 
     fuel_entries = db.execute(
-        "SELECT * FROM fuel_entries WHERE vehicle_plate = ? ORDER BY entry_date DESC, id DESC",
+        "SELECT id, vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes, source_expense_id, created_at FROM fuel_entries WHERE vehicle_plate = ? ORDER BY entry_date DESC, id DESC",
         (plate_no,),
     ).fetchall()
     fuel_total_gallons = sum(f["gallons"] for f in fuel_entries) if fuel_entries else 0
@@ -643,7 +643,7 @@ def _staff_login_required(f):
         if not staff_id:
             return redirect(url_for("fleet.staff_login"))
         db = open_db()
-        staff = db.execute("SELECT * FROM field_staff WHERE staff_id = ? AND is_active = 1", (staff_id,)).fetchone()
+        staff = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ? AND is_active = 1", (staff_id,)).fetchone()
         if not staff:
             session.pop("staff_id", None)
             return redirect(url_for("fleet.staff_login"))
@@ -700,7 +700,7 @@ def vehicle_document_delete(plate_no, doc_id):
 @_login_required("admin")
 def vehicle_document_view(plate_no, doc_id):
     db = open_db()
-    doc = db.execute("SELECT * FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no)).fetchone()
+    doc = db.execute("SELECT id, vehicle_id, doc_name, doc_type, doc_data, created_at FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no)).fetchone()
     if not doc or not doc["doc_data"]:
         flash("Document not found.", "error")
         return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
@@ -743,7 +743,7 @@ def staff_dashboard():
 def staff_job_new():
     db = open_db()
     staff_id = session["staff_id"]
-    vehicles = db.execute("SELECT * FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
+    vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
 
     if request.method == "POST":
         vehicle_id = request.form.get("vehicle_id", "").strip()
@@ -818,12 +818,12 @@ def staff_jobs():
 def staff_job_edit(job_id):
     db = open_db()
     staff_id = session["staff_id"]
-    job = db.execute("SELECT * FROM maintenance_jobs WHERE id = ? AND staff_id = ? AND status = 'pending'", (job_id, staff_id)).fetchone()
+    job = db.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at FROM maintenance_jobs WHERE id = ? AND staff_id = ? AND status = 'pending'", (job_id, staff_id)).fetchone()
     if not job:
         flash("Job not found or cannot be edited.", "error")
         return redirect(url_for("fleet.staff_jobs"))
 
-    vehicles = db.execute("SELECT * FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
+    vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
 
     if request.method == "POST":
         vehicle_id = request.form.get("vehicle_id", "").strip()
@@ -939,7 +939,7 @@ def _import_field_staff_from_sqlite(db):
         return
 
     try:
-        old_staff = sdb.execute("SELECT * FROM field_staff").fetchall()
+        old_staff = sdb.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff").fetchall()
     except Exception:
         old_staff = []
 
@@ -958,7 +958,7 @@ def _import_field_staff_from_sqlite(db):
         db.commit()
 
     try:
-        old_jobs = sdb.execute("SELECT * FROM maintenance_jobs").fetchall()
+        old_jobs = sdb.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at FROM maintenance_jobs").fetchall()
     except Exception:
         old_jobs = []
 
@@ -1012,7 +1012,7 @@ def _import_maintenance_staff_from_sqlite(db):
     except Exception:
         return
     try:
-        old_staff = sdb.execute("SELECT * FROM maintenance_staff").fetchall()
+        old_staff = sdb.execute("SELECT id, staff_id, full_name, phone, role, status, created_at FROM maintenance_staff").fetchall()
     except Exception:
         old_staff = []
     for s in old_staff:
@@ -1275,7 +1275,7 @@ def fleet_staff_add():
 def fleet_staff_delete(staff_id):
     _touch_admin_workspace("fleet")
     db = open_db()
-    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
     if not s:
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
@@ -1305,7 +1305,7 @@ def fleet_staff_edit(staff_id):
     _touch_admin_workspace("fleet")
     ensure_fleet_tables()
     db = open_db()
-    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
     if not s:
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
@@ -1345,7 +1345,7 @@ def fleet_staff_edit(staff_id):
 def fleet_staff_advance_delete(staff_id, advance_id):
     _touch_admin_workspace("fleet")
     db = open_db()
-    a = db.execute("SELECT * FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (advance_id, staff_id)).fetchone()
+    a = db.execute("SELECT id, staff_id, full_name, phone, role, status, created_at FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (advance_id, staff_id)).fetchone()
     if a:
         db.execute("DELETE FROM maintenance_staff_advances WHERE id = ?", (advance_id,))
         db.commit()
@@ -1358,11 +1358,11 @@ def fleet_staff_advance_delete(staff_id, advance_id):
 def fleet_staff_advance_edit(staff_id, advance_id):
     _touch_admin_workspace("fleet")
     db = open_db()
-    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
     if not s:
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
-    a = db.execute("SELECT * FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (advance_id, staff_id)).fetchone()
+    a = db.execute("SELECT id, staff_id, full_name, phone, role, status, created_at FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (advance_id, staff_id)).fetchone()
     if not a:
         flash("Advance not found.", "error")
         return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
@@ -1401,7 +1401,7 @@ def fleet_staff_profile(staff_id):
         _touch_admin_workspace("fleet")
         ensure_fleet_tables()
         db = open_db()
-        s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+        s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
         if not s:
             flash("Staff not found.", "error")
             return redirect(url_for("fleet.fleet_staff_list"))
@@ -1527,7 +1527,7 @@ def fleet_staff_profile(staff_id):
                 adv_where += " AND substr(entry_date,1,10) <= ?"
                 adv_params.append(date_to)
         advances = db.execute(f"""
-            SELECT * FROM maintenance_staff_advances WHERE staff_code = ?{adv_where} ORDER BY entry_date DESC
+            SELECT id, staff_id, full_name, phone, role, status, created_at FROM maintenance_staff_advances WHERE staff_code = ?{adv_where} ORDER BY entry_date DESC
         """, (staff_id, *adv_params)).fetchall()
 
         cash_items = []
@@ -1583,7 +1583,7 @@ def fleet_staff_advances_pdf(staff_id):
         _touch_admin_workspace("fleet")
         ensure_fleet_tables()
         db = open_db()
-        s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+        s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
         if not s:
             flash("Staff not found.", "error")
             return redirect(url_for("fleet.fleet_staff_list"))
@@ -1605,7 +1605,7 @@ def fleet_staff_advances_pdf(staff_id):
         if not date_params:
             where_adv = " AND substr(entry_date,1,7) = ?"
             date_params.append(date.today().isoformat()[:7])
-        advances = db.execute(f"SELECT * FROM maintenance_staff_advances WHERE staff_code = ?{where_adv} ORDER BY entry_date DESC", (staff_id, *date_params)).fetchall()
+        advances = db.execute(f"SELECT id, staff_id, full_name, phone, role, status, created_at FROM maintenance_staff_advances WHERE staff_code = ?{where_adv} ORDER BY entry_date DESC", (staff_id, *date_params)).fetchall()
         total = sum(a["amount"] for a in advances) if advances else 0
 
         # Jobs/papers filter same period
@@ -1664,7 +1664,7 @@ def fleet_staff_jobs_pdf(staff_id):
         _touch_admin_workspace("fleet")
         ensure_fleet_tables()
         db = open_db()
-        s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+        s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
         if not s:
             flash("Staff not found.", "error")
             return redirect(url_for("fleet.fleet_staff_list"))
@@ -1711,7 +1711,7 @@ def fleet_staff_delete_data(staff_id):
     _touch_admin_workspace("fleet")
     ensure_fleet_tables()
     db = open_db()
-    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
     if not s:
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
@@ -1743,7 +1743,7 @@ def fleet_staff_delete_items(staff_id):
     _touch_admin_workspace("fleet")
     ensure_fleet_tables()
     db = open_db()
-    s = db.execute("SELECT * FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
     if not s:
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
@@ -1844,7 +1844,7 @@ def fleet_job_approve_all():
 def fleet_job_approve(job_id):
     _touch_admin_workspace("fleet")
     db = open_db()
-    job = db.execute("SELECT * FROM maintenance_jobs WHERE id = ?", (job_id,)).fetchone()
+    job = db.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at FROM maintenance_jobs WHERE id = ?", (job_id,)).fetchone()
     if not job:
         flash("Job not found.", "error")
         return redirect(url_for("fleet.fleet_approvals"))
@@ -1903,7 +1903,7 @@ def fleet_job_reject(job_id):
             link="/fleet/approvals",
         )
         try:
-            job = db.execute("SELECT * FROM maintenance_jobs WHERE id = ?", (job_id,)).fetchone()
+            job = db.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at FROM maintenance_jobs WHERE id = ?", (job_id,)).fetchone()
             staff_id = job.get("staff_id") if job else None
         except:
             staff_id = None
@@ -2083,7 +2083,7 @@ def fuel_edit(entry_id):
     _touch_admin_workspace("fleet")
     ensure_fleet_tables()
     db = open_db()
-    entry = db.execute("SELECT * FROM fuel_entries WHERE id = ?", (entry_id,)).fetchone()
+    entry = db.execute("SELECT id, vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes, source_expense_id, created_at FROM fuel_entries WHERE id = ?", (entry_id,)).fetchone()
     if not entry:
         flash("Fuel entry not found.", "error")
         return redirect(url_for("fleet.fuel_list"))
@@ -2135,7 +2135,7 @@ def fuel_delete(entry_id):
     _touch_admin_workspace("fleet")
     ensure_fleet_tables()
     db = open_db()
-    entry = db.execute("SELECT * FROM fuel_entries WHERE id = ?", (entry_id,)).fetchone()
+    entry = db.execute("SELECT id, vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes, source_expense_id, created_at FROM fuel_entries WHERE id = ?", (entry_id,)).fetchone()
     if not entry:
         flash("Fuel entry not found.", "error")
         return redirect(url_for("fleet.fuel_list"))
@@ -2211,7 +2211,7 @@ def fleet_job_edit(job_id):
         flash("Job not found.", "error")
         return redirect(url_for("fleet.fleet_approvals"))
 
-    vehicles = db.execute("SELECT * FROM vehicles ORDER BY vehicle_type, plate_no").fetchall()
+    vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles ORDER BY vehicle_type, plate_no").fetchall()
 
     if request.method == "POST":
         vehicle_id = request.form.get("vehicle_id", "").strip()
