@@ -22,7 +22,7 @@ def inject_globals():
         db = sqlite3.connect(db_path)
         db.row_factory = sqlite3.Row
         db.executescript("CREATE TABLE IF NOT EXISTS company_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, company_name TEXT)")
-        co = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        co = db.execute("SELECT company_name FROM company_profile LIMIT 1").fetchone()
         db.close()
     except:
         co = None

@@ -1045,7 +1045,7 @@ def employee_salary_slip(employee_id):
                     else:
                         remaining_advance = max(available_advance - deduction_amount, 0.0)
                         from ..pdf_service import generate_salary_slip_pdf
-                        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+                        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
                         company_profile = dict(company) if company else None
 
                         if existing_slip is not None:
@@ -1249,7 +1249,7 @@ def employee_deduction_statement(employee_id, store_id):
         flash("Salary slip not found. Generate slip first.", "error")
         return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
     driver_display = {"driver_id": eid, "full_name": employee["full_name"], "basic_salary": employee["basic_salary"] or 0}
-    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     company_profile = dict(company) if company else None
     # Get deducted transactions
     deducted = db.execute(
@@ -1445,7 +1445,7 @@ def employee_kata(employee_id):
             "full_name": employee["full_name"],
             "basic_salary": employee["basic_salary"] or 0,
         }
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
         company_profile = dict(company) if company else None
 
         # All salary store rows that don't have a generated slip yet
@@ -1882,7 +1882,7 @@ def employee_list_pdf():
     ).fetchall()
 
     try:
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
         company_profile = dict(company) if company else None
     except Exception:
         company_profile = None

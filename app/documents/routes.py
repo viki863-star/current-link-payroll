@@ -217,7 +217,7 @@ def document_bulk():
 @documents_bp.route("/documents/<int:doc_id>/download")
 def document_download(doc_id):
     db = open_db()
-    doc = db.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+    doc = db.execute("SELECT id, entity_type, entity_id, doc_name, doc_category, issue_date, expiry_date, file_name, file_type, file_data, created_at FROM documents WHERE id=?", (doc_id,)).fetchone()
     db.close()
     if not doc or not doc["file_data"]:
         flash("Document not found.", "error")
@@ -238,7 +238,7 @@ def document_download_expired():
     db = open_db()
     today_str = date.today().isoformat()
     docs = db.execute(
-        "SELECT * FROM documents WHERE expiry_date IS NOT NULL AND expiry_date < ? ORDER BY entity_type, entity_id",
+        "SELECT id, entity_type, entity_id, doc_name, doc_category, issue_date, expiry_date, file_name, file_type, file_data FROM documents WHERE expiry_date IS NOT NULL AND expiry_date < ? ORDER BY entity_type, entity_id",
         (today_str,)
     ).fetchall()
     db.close()
@@ -269,7 +269,7 @@ def document_download_expired():
 @documents_bp.route("/documents/<int:doc_id>/edit", methods=["GET", "POST"])
 def document_edit(doc_id):
     db = open_db()
-    doc = db.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+    doc = db.execute("SELECT id, entity_type, entity_id, doc_name, doc_category, issue_date, expiry_date, file_name, file_type, created_at FROM documents WHERE id=?", (doc_id,)).fetchone()
     if not doc:
         db.close()
         flash("Document not found.", "error")
@@ -321,7 +321,7 @@ def document_edit(doc_id):
 @documents_bp.route("/documents/<int:doc_id>/delete", methods=["POST"])
 def document_delete(doc_id):
     db = open_db()
-    doc = db.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+    doc = db.execute("SELECT id, entity_type, entity_id, doc_name, doc_category, issue_date, expiry_date, file_name, file_type, created_at FROM documents WHERE id=?", (doc_id,)).fetchone()
     if not doc:
         db.close()
         flash("Document not found.", "error")

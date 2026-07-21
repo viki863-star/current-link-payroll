@@ -212,7 +212,7 @@ def register_routes(app: Flask) -> None:
         workspace_home_endpoint = _workspace_home_endpoint(current_workspace) if current_role == "admin" else ""
         try:
             cdb = open_db()
-            cpx = cdb.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+            cpx = cdb.execute("SELECT company_name, address, phone_number, email, logo_type, logo_data, theme_color, trn_no, vat_status, legal_name FROM company_profile LIMIT 1").fetchone()
         except:
             cpx = None
         return {
@@ -244,7 +244,7 @@ def register_routes(app: Flask) -> None:
     def company_profile():
         try:
             db = open_db()
-            cp = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+            cp = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
             db.close()
         except Exception:
             cp = None
@@ -556,7 +556,7 @@ def register_routes(app: Flask) -> None:
             "SELECT lpo_no, status, pdf_path FROM lpos WHERE quotation_no = ? LIMIT 1",
             (quotation_no,),
         ).fetchone()
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
         suggested_lpo_no = _next_reference_code(db, "lpos", "lpo_no", "LPO")
 
         if request.method == "POST":
@@ -6118,7 +6118,7 @@ def register_routes(app: Flask) -> None:
         except Exception:
             pass
 
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
         db.close()
 
         # 5. Customer payments (payroll DB)
@@ -6289,7 +6289,7 @@ def register_routes(app: Flask) -> None:
         except Exception:
             pass
 
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
         db.close()
 
         entries.sort(key=lambda e: e["date"], reverse=True)
@@ -6506,7 +6506,7 @@ def register_routes(app: Flask) -> None:
             pass
 
         db = open_db()
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
         db.close()
 
         entries.sort(key=lambda e: e["date"], reverse=True)
@@ -6888,7 +6888,7 @@ def register_routes(app: Flask) -> None:
         for r in rows:
             if _matches_month_year(r["entry_date"], month, year):
                 entries.append(dict(r))
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
         db.close()
 
         output_dir = current_app.config.get("GENERATED_BACKUP_DIR", "/tmp")
@@ -7689,7 +7689,7 @@ def register_routes(app: Flask) -> None:
         statement = _owner_fund_statement(db, reverse=False, filters=filters)
         view_incoming, view_outgoing, view_net, view_closing = _owner_fund_view_totals(statement)
         output_dir = Path(app.config["GENERATED_DIR"]) / "owner_fund"
-        company_profile = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company_profile = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
         pdf_path = generate_owner_fund_pdf(
             statement,
             {

@@ -974,7 +974,7 @@ def supplier_profile(sup_id):
     ).fetchall()
 
 
-    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
 
     # Monthly chart data
     monthly_map = {}
@@ -1245,7 +1245,7 @@ def supplier_lpo_add(sup_id):
         notes = request.form.get("notes", "").strip()
         if not lpo_no or not lpo_date:
             flash("LPO number and date are required.", "error")
-            company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+            company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
             return render_template("supplier/lpo_form.html", s=s, company=company, lpo={}, lpo_types=LPO_TYPES, quotations=[], qitems=[])
         qid = int(quotation_id) if quotation_id and quotation_id != "none" else None
 
@@ -1282,7 +1282,7 @@ def supplier_lpo_add(sup_id):
         return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
 
     quotations = db.execute("SELECT * FROM supplier_quotations WHERE supplier_id=? ORDER BY quotation_date DESC", (sup_id,)).fetchall()
-    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     suggested_lpo = _next_reference_code(db, "supplier_lpos", "lpo_no", "LPO")
 
     return render_template("supplier/lpo_form.html", s=s, company=company, lpo={}, lpo_types=LPO_TYPES, quotations=quotations, qitems=[], suggested_lpo=suggested_lpo)
@@ -1307,7 +1307,7 @@ def supplier_lpo_edit(sup_id, lpo_id):
         notes = request.form.get("notes", "").strip()
         if not lpo_no or not lpo_date:
             flash("LPO number and date are required.", "error")
-            company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+            company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
             return render_template("supplier/lpo_form.html", s=s, company=company, lpo=lpo, lpo_types=LPO_TYPES, quotations=[], qitems=[])
         qid = int(quotation_id) if quotation_id and quotation_id != "none" else None
 
@@ -1342,7 +1342,7 @@ def supplier_lpo_edit(sup_id, lpo_id):
 
     items = db.execute("SELECT * FROM supplier_lpo_items WHERE lpo_id=? ORDER BY sort_order", (lpo_id,)).fetchall()
     quotations = db.execute("SELECT * FROM supplier_quotations WHERE supplier_id=? ORDER BY quotation_date DESC", (sup_id,)).fetchall()
-    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
 
     return render_template("supplier/lpo_form.html", s=s, company=company, lpo=lpo, items=items, lpo_types=LPO_TYPES, quotations=quotations, qitems=[])
 
@@ -1395,7 +1395,7 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     if lpo and lpo["quotation_id"]:
         quotation = db.execute("SELECT * FROM supplier_quotations WHERE id=?", (lpo["quotation_id"],)).fetchone()
     try:
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     except Exception:
         company = None
 
@@ -1783,7 +1783,7 @@ def supplier_quotation_add(sup_id):
         notes = request.form.get("notes", "").strip()
         if not q_no or not q_date:
             flash("Quotation number and date are required.", "error")
-            company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+            company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
             return render_template("supplier/quotation_form.html", s=s, company=company, quotation={})
 
         file_data = None
@@ -1827,7 +1827,7 @@ def supplier_quotation_add(sup_id):
         return redirect(url_for("supplier.supplier_quotation_list", sup_id=sup_id))
 
 
-    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     return render_template("supplier/quotation_form.html", s=s, company=company, quotation={})
 
 
@@ -1860,7 +1860,7 @@ def supplier_quotation_pdf(sup_id, q_id):
     s = db.execute("SELECT * FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     items = db.execute("SELECT * FROM supplier_quotation_items WHERE quotation_id=? ORDER BY sort_order", (q_id,)).fetchall()
     try:
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     except Exception:
         company = None
 
@@ -2455,7 +2455,7 @@ def supplier_payment_voucher(sup_id, pay_id):
                 ids,
             ).fetchall()
     try:
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     except Exception:
         company = None
     pay_dict = dict(pay) if hasattr(pay, 'keys') else pay
@@ -2472,7 +2472,7 @@ def supplier_cheque_print(sup_id, pay_id):
         flash("Payment not found.", "error")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id))
     try:
-        company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     except Exception:
         company = None
 
@@ -2830,7 +2830,7 @@ def supplier_soa_pdf(sup_id):
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
-    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
 
     ledger = []
     for inv in db.execute(
