@@ -196,7 +196,13 @@ def register_routes(app: Flask) -> None:
 
     @app.errorhandler(500)
     def handle_500(error):
-        return "<h2>Internal Server Error</h2><p>Something went wrong. Please try again or contact support.</p>", 500
+        current_app.logger.error("500 error: %s", error)
+        return render_template("error.html", message="Internal Server Error. Please try again or contact support."), 500
+
+    @app.errorhandler(Exception)
+    def handle_unhandled(error):
+        current_app.logger.error("Unhandled error: %s", error)
+        return render_template("error.html", message="Something went wrong. Please try again."), 500
 
     @app.context_processor
     def inject_auth_context():

@@ -2175,6 +2175,7 @@ def _connect_postgres(database_url: str):
         ) from exc
 
     conn = psycopg.connect(database_url)
+    conn.autocommit = True
     return conn
 
 
