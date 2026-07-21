@@ -481,7 +481,7 @@ def register_routes(app: Flask) -> None:
                 flash(str(exc), "error")
 
         quotations = db.execute("""
-            SELECT * FROM supplier_quotation_submissions
+            SELECT id, quotation_no, party_code, quotation_date, job_title, rate_basis, amount, notes, attachment_path, review_status, review_note, reviewed_by, reviewed_at, created_by_role, created_by_name, created_at FROM supplier_quotation_submissions
             WHERE party_code = ?
             ORDER BY created_at DESC
         """, (party_code,)).fetchall()
@@ -1229,12 +1229,12 @@ def register_routes(app: Flask) -> None:
             session.clear()
             flash("Field staff session expired. Please login again.", "error")
             return redirect(url_for("technician_login"))
-        technician = db.execute("SELECT * FROM technicians WHERE technician_code = ?", (technician_code,)).fetchone()
+        technician = db.execute("SELECT id, technician_code, party_code, user_id, phone_number, specialization, status, created_at FROM technicians WHERE technician_code = ?", (technician_code,)).fetchone()
         if technician is None or (technician["status"] or "") != "Active":
             session.clear()
             flash("Account not active.", "error")
             return redirect(url_for("technician_login"))
-        vehicles = db.execute("SELECT * FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
+        vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, created_at FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
         _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
         total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?", (technician_code,)).fetchone()["t"] or 0
         spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["t"] or 0
@@ -1321,11 +1321,11 @@ def register_routes(app: Flask) -> None:
             session.clear()
             flash("Field staff session expired. Please login again.", "error")
             return redirect(url_for("technician_login"))
-        job = db.execute("SELECT * FROM maintenance_jobs WHERE id = ? AND staff_id = ? AND status != 'approved'", (job_id, technician_code)).fetchone()
+        job = db.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, created_at, approved_at FROM maintenance_jobs WHERE id = ? AND staff_id = ? AND status != 'approved'", (job_id, technician_code)).fetchone()
         if not job:
             flash("Job not found or cannot be edited.", "error")
             return redirect(url_for("technician_my_jobs"))
-        vehicles = db.execute("SELECT * FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
+        vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, created_at FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
         _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
         if request.method == "POST":
             vehicle_id = request.form.get("vehicle_id", "").strip()
@@ -1361,7 +1361,7 @@ def register_routes(app: Flask) -> None:
             session.clear()
             flash("Field staff session expired. Please login again.", "error")
             return redirect(url_for("technician_login"))
-        job = db.execute("SELECT * FROM maintenance_jobs WHERE id = ? AND staff_id = ?", (job_id, technician_code)).fetchone()
+        job = db.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, created_at, approved_at FROM maintenance_jobs WHERE id = ? AND staff_id = ?", (job_id, technician_code)).fetchone()
         if not job:
             flash("Job not found.", "error")
             return redirect(url_for("technician_my_jobs"))
@@ -1926,15 +1926,15 @@ def register_routes(app: Flask) -> None:
         edit_year_code = request.args.get("edit_year", "").strip().upper()
 
         if edit_branch_code:
-            row = db.execute("SELECT * FROM branches WHERE branch_code = ?", (edit_branch_code,)).fetchone()
+            row = db.execute("SELECT id, branch_code, branch_name, address, contact_person, phone_number, email, status, created_at FROM branches WHERE branch_code = ?", (edit_branch_code,)).fetchone()
             if row is not None:
                 branch_values = _branch_form_from_row(row)
         if edit_currency_code:
-            row = db.execute("SELECT * FROM company_currencies WHERE currency_code = ?", (edit_currency_code,)).fetchone()
+            row = db.execute("SELECT id, currency_code, currency_name, symbol, exchange_rate, is_base, status, created_at FROM company_currencies WHERE currency_code = ?", (edit_currency_code,)).fetchone()
             if row is not None:
                 currency_values = _currency_form_from_row(row)
         if edit_year_code:
-            row = db.execute("SELECT * FROM financial_years WHERE year_code = ?", (edit_year_code,)).fetchone()
+            row = db.execute("SELECT id, year_code, year_label, start_date, end_date, status, is_current, created_at FROM financial_years WHERE year_code = ?", (edit_year_code,)).fetchone()
             if row is not None:
                 year_values = _financial_year_form_from_row(row)
 
@@ -2865,23 +2865,23 @@ def register_routes(app: Flask) -> None:
         kata_search = request.args.get("kata_search", "").strip()
 
         if edit_asset_code:
-            row = db.execute("SELECT * FROM supplier_assets WHERE asset_code = ? AND party_code = ?", (edit_asset_code, party_code)).fetchone()
+            row = db.execute("SELECT id, asset_code, party_code, asset_name, asset_type, vehicle_no, rate_basis, default_rate, double_shift_mode, partnership_mode, partner_name, company_share_percent, partner_share_percent, day_shift_paid_by, night_shift_paid_by, capacity, status, notes, created_at FROM supplier_assets WHERE asset_code = ? AND party_code = ?", (edit_asset_code, party_code)).fetchone()
             if row is not None:
                 asset_values = _supplier_asset_form_from_row(row)
         if edit_timesheet_no:
-            row = db.execute("SELECT * FROM supplier_timesheets WHERE timesheet_no = ? AND party_code = ?", (edit_timesheet_no, party_code)).fetchone()
+            row = db.execute("SELECT id, timesheet_no, party_code, asset_code, period_month, entry_date, billing_basis, billable_qty, timesheet_hours, rate, subtotal, voucher_no, status, notes, created_at FROM supplier_timesheets WHERE timesheet_no = ? AND party_code = ?", (edit_timesheet_no, party_code)).fetchone()
             if row is not None:
                 timesheet_values = _supplier_timesheet_form_from_row(row)
         if edit_voucher_no:
-            row = db.execute("SELECT * FROM supplier_vouchers WHERE voucher_no = ? AND party_code = ?", (edit_voucher_no, party_code)).fetchone()
+            row = db.execute("SELECT id, voucher_no, party_code, period_month, issue_date, subtotal, tax_percent, tax_amount, total_amount, paid_amount, balance_amount, status, source_type, source_reference, notes, created_at FROM supplier_vouchers WHERE voucher_no = ? AND party_code = ?", (edit_voucher_no, party_code)).fetchone()
             if row is not None:
                 voucher_values = _supplier_voucher_form_from_row(row)
         if edit_payment_no:
-            row = db.execute("SELECT * FROM supplier_payments WHERE payment_no = ? AND party_code = ?", (edit_payment_no, party_code)).fetchone()
+            row = db.execute("SELECT id, payment_no, voucher_no, party_code, entry_date, amount, payment_method, reference, notes, created_at FROM supplier_payments WHERE payment_no = ? AND party_code = ?", (edit_payment_no, party_code)).fetchone()
             if row is not None:
                 payment_values = _supplier_payment_form_from_row(row)
         if edit_entry_no:
-            row = db.execute("SELECT * FROM supplier_partnership_entries WHERE entry_no = ? AND party_code = ?", (edit_entry_no, party_code)).fetchone()
+            row = db.execute("SELECT id, entry_no, party_code, asset_code, period_month, entry_date, entry_kind, expense_head, shift_label, driver_name, paid_by, amount, notes, created_at FROM supplier_partnership_entries WHERE entry_no = ? AND party_code = ?", (edit_entry_no, party_code)).fetchone()
             if row is not None:
                 partnership_values = _supplier_partnership_form_from_row(row)
 
@@ -4067,15 +4067,15 @@ def register_routes(app: Flask) -> None:
         edit_hire_no = request.args.get("edit_hire", "").strip().upper()
 
         if edit_agreement_no:
-            agreement_row = db.execute("SELECT * FROM agreements WHERE agreement_no = ?", (edit_agreement_no,)).fetchone()
+            agreement_row = db.execute("SELECT id, agreement_no, party_code, agreement_kind, start_date, end_date, rate_type, amount, tax_percent, scope, notes, status, created_at FROM agreements WHERE agreement_no = ?", (edit_agreement_no,)).fetchone()
             if agreement_row is not None:
                 agreement_values = _agreement_form_from_row(agreement_row)
         if edit_lpo_no:
-            lpo_row = db.execute("SELECT * FROM lpos WHERE lpo_no = ?", (edit_lpo_no,)).fetchone()
+            lpo_row = db.execute("SELECT id, lpo_no, party_code, quotation_no, agreement_no, issue_date, valid_until, amount, tax_percent, description, status, created_at FROM lpos WHERE lpo_no = ?", (edit_lpo_no,)).fetchone()
             if lpo_row is not None:
                 lpo_values = _lpo_form_from_row(lpo_row)
         if edit_hire_no:
-            hire_row = db.execute("SELECT * FROM hire_records WHERE hire_no = ?", (edit_hire_no,)).fetchone()
+            hire_row = db.execute("SELECT id, hire_no, party_code, agreement_no, lpo_no, entry_date, direction, asset_name, asset_type, unit_type, quantity, rate, subtotal, tax_percent, tax_amount, total_amount, status, notes, created_at FROM hire_records WHERE hire_no = ?", (edit_hire_no,)).fetchone()
             if hire_row is not None:
                 hire_values = _hire_form_from_row(hire_row)
 
@@ -4311,12 +4311,12 @@ def register_routes(app: Flask) -> None:
         edit_invoice_no = request.args.get("edit_invoice", "").strip().upper()
         edit_voucher_no = request.args.get("edit_payment", "").strip().upper()
         if edit_invoice_no:
-            invoice_row = db.execute("SELECT * FROM account_invoices WHERE invoice_no = ?", (edit_invoice_no,)).fetchone()
+            invoice_row = db.execute("SELECT id, invoice_no, party_code, agreement_no, lpo_no, hire_no, invoice_kind, document_type, issue_date, due_date, subtotal, tax_percent, tax_amount, total_amount, paid_amount, balance_amount, status, pdf_path, notes, created_at FROM account_invoices WHERE invoice_no = ?", (edit_invoice_no,)).fetchone()
             if invoice_row is not None:
                 invoice_values = _invoice_form_from_row(invoice_row)
                 invoice_line_rows = _invoice_line_rows_for_form(db, invoice_row["invoice_no"], invoice_values)
         if edit_voucher_no:
-            payment_row = db.execute("SELECT * FROM account_payments WHERE voucher_no = ?", (edit_voucher_no,)).fetchone()
+            payment_row = db.execute("SELECT id, voucher_no, invoice_no, party_code, payment_kind, entry_date, amount, payment_method, reference, notes, created_at FROM account_payments WHERE voucher_no = ?", (edit_voucher_no,)).fetchone()
             if payment_row is not None:
                 payment_values = _payment_form_from_row(payment_row)
 
@@ -4560,7 +4560,7 @@ def register_routes(app: Flask) -> None:
         values = _default_loan_form()
         edit_loan_no = request.args.get("edit_loan", "").strip().upper()
         if edit_loan_no:
-            row = db.execute("SELECT * FROM loan_entries WHERE loan_no = ?", (edit_loan_no,)).fetchone()
+            row = db.execute("SELECT id, loan_no, party_code, entry_date, loan_type, amount, payment_method, reference, notes, created_at FROM loan_entries WHERE loan_no = ?", (edit_loan_no,)).fetchone()
             if row is not None:
                 values = _loan_form_from_row(row)
         if request.method == "POST":
@@ -4636,7 +4636,7 @@ def register_routes(app: Flask) -> None:
         values = _default_fee_form()
         edit_fee_no = request.args.get("edit_fee", "").strip().upper()
         if edit_fee_no:
-            row = db.execute("SELECT * FROM annual_fee_entries WHERE fee_no = ?", (edit_fee_no,)).fetchone()
+            row = db.execute("SELECT id, fee_no, party_code, fee_type, description, vehicle_no, due_date, annual_amount, received_amount, balance_amount, status, notes, created_at FROM annual_fee_entries WHERE fee_no = ?", (edit_fee_no,)).fetchone()
             if row is not None:
                 values = _fee_form_from_row(row)
         if request.method == "POST":
@@ -6766,7 +6766,7 @@ def register_routes(app: Flask) -> None:
         year = request.args.get("year", "")
         edit_id = request.args.get("edit", "").strip()
 
-        rows = db.execute("SELECT * FROM bank_transactions ORDER BY entry_date DESC").fetchall()
+        rows = db.execute("SELECT id, entry_date, transaction_type, amount, payee, reference_no, cheque_number, cheque_date, description FROM bank_transactions ORDER BY entry_date DESC").fetchall()
         entries = []
         for r in rows:
             if month and year:
@@ -6792,7 +6792,7 @@ def register_routes(app: Flask) -> None:
         edit_entry = None
         if edit_id:
             try:
-                row = db.execute("SELECT * FROM bank_transactions WHERE id = ?", (int(edit_id),)).fetchone()
+                row = db.execute("SELECT id, entry_date, transaction_type, amount, payee, reference_no, cheque_number, cheque_date, description FROM bank_transactions WHERE id = ?", (int(edit_id),)).fetchone()
                 if row:
                     edit_entry = dict(row)
             except Exception:
@@ -6844,7 +6844,7 @@ def register_routes(app: Flask) -> None:
             year = str(datetime.now().year)
 
         rows = db.execute("""
-            SELECT * FROM bank_transactions
+            SELECT id, entry_date, transaction_type, amount, payee, reference_no, cheque_number, cheque_date, description FROM bank_transactions
             WHERE transaction_type = 'ATM Withdrawal'
             ORDER BY entry_date DESC
         """).fetchall()
@@ -6880,7 +6880,7 @@ def register_routes(app: Flask) -> None:
             year = str(datetime.now().year)
 
         rows = db.execute("""
-            SELECT * FROM bank_transactions
+            SELECT id, entry_date, transaction_type, amount, payee, reference_no, cheque_number, cheque_date, description FROM bank_transactions
             WHERE transaction_type = 'ATM Withdrawal'
             ORDER BY entry_date DESC
         """).fetchall()
@@ -7597,7 +7597,7 @@ def register_routes(app: Flask) -> None:
                 sup_loans = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE fund_source='owner_fund' AND loan_type='given'").fetchone()[0])
                 sup_used = round(sup_payments + sup_expenses + sup_loans, 2)
                 sup_balance = round(sup_net - sup_used, 2)
-                sup_funds = db.execute("SELECT * FROM owner_funds ORDER BY fund_date DESC LIMIT 20").fetchall()
+                sup_funds = db.execute("SELECT id, owner_name, entry_date, amount, received_by, payment_method, details, created_at FROM owner_funds ORDER BY fund_date DESC LIMIT 20").fetchall()
             except Exception:
                 sup_deposits = sup_withdrawals = sup_net = sup_payments = sup_expenses = sup_loans = sup_used = sup_balance = 0
                 sup_funds = []
@@ -8315,11 +8315,11 @@ def register_routes(app: Flask) -> None:
         current_month = _current_month_value()
         selected_kata_month = _normalize_month(request.args.get("kata_month", "").strip() or current_month)
         current_salary = db.execute(
-            "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
+            "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks, created_at FROM salary_store WHERE driver_id = ? AND salary_month = ?",
             (driver_id, current_month),
         ).fetchone()
         latest_slip = db.execute(
-            "SELECT * FROM salary_slips WHERE driver_id = ? ORDER BY generated_at DESC LIMIT 1",
+            "SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE driver_id = ? ORDER BY generated_at DESC LIMIT 1",
             (driver_id,),
         ).fetchone()
         recent_transaction = db.execute(
@@ -8562,11 +8562,11 @@ def register_routes(app: Flask) -> None:
                 (slip_id, driver_id),
             )
             statement_row = db.execute(
-                "SELECT * FROM salary_slips WHERE salary_store_id = ? AND driver_id = ? ORDER BY id DESC LIMIT 1",
+                "SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE salary_store_id = ? AND driver_id = ? ORDER BY id DESC LIMIT 1",
                 (existing_payment["salary_store_id"], driver_id),
             ).fetchone()
             salary_row = db.execute(
-                "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+                "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks, created_at FROM salary_store WHERE id = ? AND driver_id = ?",
                 (existing_payment["salary_store_id"], driver_id),
             ).fetchone()
             if statement_row is not None and salary_row is not None:
@@ -8672,14 +8672,14 @@ def register_routes(app: Flask) -> None:
         existing_row = None
         if edit_salary_id:
             existing_row = db.execute(
-                "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+                "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks, created_at FROM salary_store WHERE id = ? AND driver_id = ?",
                 (edit_salary_id, driver_id),
             ).fetchone()
             if existing_row is not None:
                 selected_month = existing_row["salary_month"]
         else:
             existing_row = db.execute(
-                "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
+                "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks, created_at FROM salary_store WHERE driver_id = ? AND salary_month = ?",
                 (driver_id, selected_month),
             ).fetchone()
 
@@ -8707,7 +8707,7 @@ def register_routes(app: Flask) -> None:
             if form["basic_salary"]:
                 driver["basic_salary"] = float(form["basic_salary"])
             existing_row = db.execute(
-                "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ?",
+                "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks, created_at FROM salary_store WHERE driver_id = ? AND salary_month = ?",
                 (driver_id, form["salary_month"]),
             ).fetchone()
             try:
@@ -8868,7 +8868,7 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("driver_list"))
 
         salary_rows = db.execute(
-            "SELECT * FROM salary_store WHERE driver_id = ? ORDER BY salary_month DESC",
+            "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks, created_at FROM salary_store WHERE driver_id = ? ORDER BY salary_month DESC",
             (driver_id,),
         ).fetchall()
         selected_salary_id = request.args.get("salary_store_id", "").strip()
@@ -8893,13 +8893,13 @@ def register_routes(app: Flask) -> None:
 
         if selected_salary_id:
             selected_salary = db.execute(
-                "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+                "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks, created_at FROM salary_store WHERE id = ? AND driver_id = ?",
                 (selected_salary_id, driver_id),
             ).fetchone()
             if selected_salary is not None:
                 existing_slip = db.execute(
                     """
-                    SELECT * FROM salary_slips
+                    SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips
                     WHERE salary_store_id = ? AND driver_id = ?
                     ORDER BY id DESC
                     LIMIT 1
@@ -8957,12 +8957,12 @@ def register_routes(app: Flask) -> None:
                 flash("Select a stored salary month first.", "error")
             else:
                 selected_salary = db.execute(
-                    "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+                    "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks, created_at FROM salary_store WHERE id = ? AND driver_id = ?",
                     (selected_salary_id, driver_id),
                 ).fetchone()
                 existing_slip = db.execute(
                     """
-                    SELECT * FROM salary_slips
+                    SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips
                     WHERE salary_store_id = ? AND driver_id = ?
                     ORDER BY id DESC
                     LIMIT 1
@@ -9077,7 +9077,7 @@ def register_routes(app: Flask) -> None:
                                 )
                                 existing_slip = db.execute(
                                     """
-                                    SELECT * FROM salary_slips
+                                    SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips
                                     WHERE salary_store_id = ? AND driver_id = ?
                                     ORDER BY id DESC
                                     LIMIT 1
@@ -9087,7 +9087,7 @@ def register_routes(app: Flask) -> None:
 
                             existing_slip = db.execute(
                                 """
-                                SELECT * FROM salary_slips
+                                SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips
                                 WHERE salary_store_id = ? AND driver_id = ?
                                 ORDER BY id DESC
                                 LIMIT 1
@@ -13125,14 +13125,14 @@ def _prepare_supplier_registration_payload(db, values):
 
 def _supplier_registration_request_by_user_id(db, user_id: str):
     return db.execute(
-        "SELECT * FROM supplier_registration_requests WHERE LOWER(user_id) = LOWER(?) LIMIT 1",
+        "SELECT id, request_no, company_name, contact_person, phone_number, email, trn_no, trade_license_no, address, notes, user_id, approval_status, reviewed_by, reviewed_at, rejection_note, approved_party_code, created_at FROM supplier_registration_requests WHERE LOWER(user_id) = LOWER(?) LIMIT 1",
         ((user_id or "").strip(),),
     ).fetchone()
 
 
 def _supplier_registration_request(db, request_no: str):
     return db.execute(
-        "SELECT * FROM supplier_registration_requests WHERE request_no = ? LIMIT 1",
+        "SELECT id, request_no, company_name, contact_person, phone_number, email, trn_no, trade_license_no, address, notes, user_id, approval_status, reviewed_by, reviewed_at, rejection_note, approved_party_code, created_at FROM supplier_registration_requests WHERE request_no = ? LIMIT 1",
         ((request_no or "").strip().upper(),),
     ).fetchone()
 
@@ -18380,11 +18380,11 @@ def _archive_driver_salary_store_record(app: Flask, db, driver, salary_month: st
 
 def _archive_driver_statement_record(app: Flask, db, driver, salary_month: str, event_type: str, pdf_path=None) -> None:
     salary_row = db.execute(
-        "SELECT * FROM salary_store WHERE driver_id = ? AND salary_month = ? ORDER BY id DESC LIMIT 1",
+        "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks, created_at FROM salary_store WHERE driver_id = ? AND salary_month = ? ORDER BY id DESC LIMIT 1",
         (driver["driver_id"], salary_month),
     ).fetchone()
     slip_row = db.execute(
-        "SELECT * FROM salary_slips WHERE driver_id = ? AND salary_month = ? ORDER BY id DESC LIMIT 1",
+        "SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE driver_id = ? AND salary_month = ? ORDER BY id DESC LIMIT 1",
         (driver["driver_id"], salary_month),
     ).fetchone()
     active_entries, _, summary = _driver_kata_month_data(db, driver["driver_id"], salary_month)
@@ -18906,7 +18906,7 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
     if driver is None:
         return None
     salary_row = db.execute(
-        "SELECT * FROM salary_store WHERE id = ? AND driver_id = ?",
+        "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks, created_at FROM salary_store WHERE id = ? AND driver_id = ?",
         (slip["salary_store_id"], slip["driver_id"]),
     ).fetchone()
     if salary_row is None:
