@@ -113,6 +113,7 @@
                             <option value="gal" {% if (it.unit or 'hour') == 'gal' %}selected{% endif %}>Gallon</option>
                             <option value="each" {% if (it.unit or 'hour') == 'each' %}selected{% endif %}>Each</option>
                             <option value="set" {% if (it.unit or 'hour') == 'set' %}selected{% endif %}>Set</option>
+                            <option value="au" {% if (it.unit or 'hour') == 'au' %}selected{% endif %}>AU</option>
                         </select>
                         <input type="number" name="item_rate[]" value="{{ it.rate or 0 }}" min="0" step="any" style="width:100%;text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
                         <span class="item-amt" id="itemAmt_{{ loop.index0 }}">{{ "%.2f"|format(it.amount) }}</span>
@@ -165,7 +166,7 @@ function addItem(desc, qty, rate, unit, vehicle) {
     const r = rate || 0;
     const u = unit || 'hour';
     const v = vehicle || '';
-    const unitOptions = ['hour','trip','month','day','week','ton','kg','gal','each','set'];
+    const unitOptions = ['hour','trip','month','day','week','ton','kg','gal','each','set','au'];
     const unitHtml = unitOptions.map(uo => `<option value="${uo}"${uo === u?' selected':''}>${uo.charAt(0).toUpperCase()+uo.slice(1)}</option>`).join('');
     row.innerHTML = `
         <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)" autocomplete="off">${d}</textarea>
