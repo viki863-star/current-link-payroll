@@ -54,7 +54,7 @@
 
 .lpo-items-header {
     display:grid;
-    grid-template-columns:24px 1fr 80px 55px 75px 80px 50px 90px 34px;
+    grid-template-columns:1fr 70px 105px 90px 100px 34px;
     gap:6px;
     padding:0 2px;
     margin-bottom:6px;
@@ -69,7 +69,7 @@
 
 .lpo-item-row {
     display:grid;
-    grid-template-columns:24px 1fr 80px 55px 75px 80px 50px 90px 34px;
+    grid-template-columns:1fr 70px 105px 90px 100px 34px;
     gap:6px;
     align-items:center;
     margin-bottom:5px;
@@ -89,12 +89,6 @@
     outline:none;
     border-color:var(--primary,#1c568b);
     box-shadow:0 0 0 3px rgba(28,86,139,0.1);
-}
-.lpo-item-row .item-no {
-    font-size:0.78rem;
-    font-weight:600;
-    color:var(--muted);
-    text-align:center;
 }
 .lpo-item-row .item-amt {
     font-weight:700;
@@ -203,23 +197,18 @@
                 <button type="button" class="btn btn-outline btn-sm" onclick="addItem()">+ Add Line</button>
             </div>
             <div class="lpo-items-header">
-                <span>#</span>
                 <span>Description</span>
-                <span>PR NO</span>
                 <span style="text-align:center">QTY</span>
-                <span style="text-align:center">UOM</span>
-                <span style="text-align:right">Unit Price</span>
-                <span style="text-align:center">VAT%</span>
-                <span style="text-align:right">Total Price</span>
+                <span style="text-align:center">Unit</span>
+                <span style="text-align:right">Rate (AED)</span>
+                <span style="text-align:right">Amount</span>
                 <span></span>
             </div>
             <div id="itemsContainer">
             {% if edit and items %}
                 {% for it in items %}
                 <div class="lpo-item-row">
-                    <span class="item-no">{{ loop.index }}</span>
                     <input type="text" name="item_desc[]" value="{{ it.description or '' }}" placeholder="Service description" autocomplete="off">
-                    <input type="text" name="item_pr_no[]" value="{{ it.pr_no or '' }}" placeholder="PR-xxx" autocomplete="off">
                     <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()">
                     <select name="item_unit[]" onchange="calcTotals()">
                         <option value="hour" {% if it.unit_type == 'hour' %}selected{% endif %}>Hour</option>
@@ -232,9 +221,9 @@
                         <option value="kg" {% if it.unit_type == 'kg' %}selected{% endif %}>Kg</option>
                         <option value="each" {% if it.unit_type == 'each' %}selected{% endif %}>Each</option>
                         <option value="set" {% if it.unit_type == 'set' %}selected{% endif %}>Set</option>
+                        <option value="au" {% if it.unit_type == 'au' %}selected{% endif %}>AU</option>
                     </select>
                     <input type="number" name="item_rate[]" value="{{ it.rate or 0 }}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
-                    <input type="number" name="item_vat[]" value="{{ it.vat_percent or 0 }}" min="0" max="100" step="0.01" style="text-align:center;width:50px" oninput="calcItem(this);calcTotals()">
                     <span class="item-amt" id="itemAmt_{{ loop.index0 }}">{{ "%.2f"|format(it.amount or 0) }}</span>
                     <button type="button" class="btn-remove" onclick="removeItem(this)">&times;</button>
                 </div>
@@ -272,9 +261,7 @@ function addItem() {
     const row = document.createElement('div');
     row.className = 'lpo-item-row';
     row.innerHTML = `
-        <span class="item-no">${itemCount + 1}</span>
         <input type="text" name="item_desc[]" placeholder="Service description" autocomplete="off">
-        <input type="text" name="item_pr_no[]" placeholder="PR-xxx" autocomplete="off">
         <input type="number" name="item_qty[]" value="1" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()" autocomplete="off">
         <select name="item_unit[]" onchange="calcTotals()">
             <option value="hour">Hour</option>
@@ -287,9 +274,9 @@ function addItem() {
             <option value="kg">Kg</option>
             <option value="each">Each</option>
             <option value="set">Set</option>
+            <option value="au">AU</option>
         </select>
         <input type="number" name="item_rate[]" value="0" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
-        <input type="number" name="item_vat[]" value="0" min="0" max="100" step="0.01" style="text-align:center;width:50px" oninput="calcItem(this);calcTotals()">
         <span class="item-amt" id="itemAmt_${itemCount}">0.00</span>
         <button type="button" class="btn-remove" onclick="removeItem(this)">&times;</button>
     `;
@@ -304,8 +291,7 @@ function calcItem(el) {
     const row = el.closest('.lpo-item-row');
     const qty = parseFloat(row.querySelector('input[name*="item_qty"]').value) || 0;
     const rate = parseFloat(row.querySelector('input[name*="item_rate"]').value) || 0;
-    const vat = parseFloat(row.querySelector('input[name*="item_vat"]').value) || 0;
-    const amt = qty * rate * (1 + vat / 100);
+    const amt = qty * rate;
     row.querySelector('.item-amt').textContent = amt.toFixed(2);
 }
 function calcTotals() {
@@ -314,8 +300,7 @@ function calcTotals() {
     rows.forEach(row => {
         const qty = parseFloat(row.querySelector('input[name*="item_qty"]').value) || 0;
         const rate = parseFloat(row.querySelector('input[name*="item_rate"]').value) || 0;
-        const vat = parseFloat(row.querySelector('input[name*="item_vat"]').value) || 0;
-        total += qty * rate * (1 + vat / 100);
+        total += qty * rate;
     });
     document.getElementById('totalDisplay').textContent = total.toFixed(2);
     document.getElementById('amountHidden').value = total.toFixed(2);

@@ -46,12 +46,11 @@
                 <tr>
                     <th>#</th>
                     <th>Description</th>
-                    <th>PR NO</th>
+                    <th style="text-align:center">Vehicle</th>
                     <th style="text-align:center">QTY</th>
-                    <th style="text-align:center">UOM</th>
-                    <th style="text-align:right">Unit Price</th>
-                    <th style="text-align:center">VAT%</th>
-                    <th style="text-align:right">Total (AED)</th>
+                    <th style="text-align:center">Unit</th>
+                    <th style="text-align:right">Rate (AED)</th>
+                    <th style="text-align:right">Amount (AED)</th>
                 </tr>
             </thead>
             <tbody>
@@ -59,18 +58,17 @@
                 <tr>
                     <td>{{ loop.index }}</td>
                     <td>{{ it.description or '—' }}</td>
-                    <td>{{ it.pr_no or '—' }}</td>
+                    <td style="text-align:center">{{ it.vehicle_no or '—' }}</td>
                     <td style="text-align:center">{{ it.quantity }}</td>
-                    <td style="text-align:center">{{ {'hour': 'Hr', 'trip': 'Trip', 'gal': 'Gal', 'day': 'Day', 'week': 'Wk', 'month': 'Mo', 'ton': 'Ton', 'kg': 'Kg', 'each': 'Each', 'set': 'Set'}.get(it.unit_type, it.unit_type or '—') }}</td>
+                    <td style="text-align:center">{{ {'hour': 'Per Hour', 'trip': 'Per Trip', 'gal': 'Gallon', 'day': 'Day', 'week': 'Week', 'month': 'Month', 'ton': 'Ton', 'kg': 'Kg', 'each': 'Each', 'set': 'Set'}.get(it.unit_type, it.unit_type or '—') }}</td>
                     <td style="text-align:right">{{ "%.2f"|format(it.rate) }}</td>
-                    <td style="text-align:center">{{ "%.1f"|format(it.vat_percent or 0) }}</td>
-                    <td style="text-align:right;font-weight:600">{{ "%.2f"|format((it.quantity or 0) * (it.rate or 0) * (1 + (it.vat_percent or 0) / 100)) }}</td>
+                    <td style="text-align:right;font-weight:600">{{ "%.2f"|format(it.amount) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="7" style="text-align:right;font-weight:700;font-size:1rem">Total</td>
+                    <td colspan="6" style="text-align:right;font-weight:700;font-size:1rem">Total</td>
                     <td style="text-align:right;font-weight:800;font-size:1rem;color:var(--primary)">AED {{ "%.2f"|format(lpo.amount or 0) }}</td>
                 </tr>
             </tfoot>
