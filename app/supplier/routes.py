@@ -942,7 +942,7 @@ def supplier_profile(sup_id):
     ).fetchone()[0]
 
     loans = db.execute(
-        "SELECT id, supplier_id, loan_amount, entry_date, notes, created_at FROM supplier_loans WHERE supplier_id = ? ORDER BY entry_date DESC",
+        "SELECT id, supplier_id, amount, loan_type, entry_date, payment_method, reference_no, fund_source, notes, created_at FROM supplier_loans WHERE supplier_id = ? ORDER BY entry_date DESC",
         (sup_id,),
     ).fetchall()
     loan_given = db.execute(
@@ -2643,7 +2643,7 @@ def supplier_loan_edit(sup_id, loan_id):
     _ensure_tables()
     db = _get_db()
     s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    loan = db.execute("SELECT id, supplier_id, loan_amount, entry_date, notes, created_at FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()
+    loan = db.execute("SELECT id, supplier_id, amount, loan_type, entry_date, payment_method, reference_no, fund_source, notes, created_at FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()
     if not s or not loan:
         flash("Loan entry not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -2676,7 +2676,7 @@ def supplier_loan_edit(sup_id, loan_id):
 def supplier_loan_delete(sup_id, loan_id):
     db = _get_db()
     try:
-        loan = db.execute("SELECT id, supplier_id, loan_amount, entry_date, notes, created_at FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()
+        loan = db.execute("SELECT id, supplier_id, amount, loan_type, entry_date, payment_method, reference_no, fund_source, notes, created_at FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()
         if not loan:
             flash(f"Loan #{loan_id} not found.", "error")
             return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
