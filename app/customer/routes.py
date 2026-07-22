@@ -155,6 +155,17 @@ def _ensure_tables():
         {ignore}
     """)
     # ALTER TABLE additions (best-effort on both backends)
+    # First add customer_documents columns that exist in code but not in DB
+    for tbl_col_dtype in [
+        ("customer_documents", "doc_type", "TEXT"),
+        ("customer_documents", "doc_name", "TEXT"),
+        ("customer_documents", "file_data", "TEXT"),
+        ("customer_documents", "file_type", "TEXT"),
+        ("customer_documents", "expiry_date", "TEXT"),
+    ]:
+        t, c, d = tbl_col_dtype
+        sql = f"ALTER TABLE {t} ADD COLUMN IF NOT EXISTS {c} {d}" if backend == "postgres" else f"ALTER TABLE {t} ADD COLUMN {c} {d}"
+        _safe_execute(db, sql)
     alter_ops = [
         ("customer_invoices", "lpo_no", "TEXT"),
         ("customer_invoices", "lpo_date", "TEXT"),
@@ -355,17 +366,17 @@ def customer_profile(cid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
     tab = request.args.get("tab", "overview")
-    invoices = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at FROM customer_invoices WHERE customer_id=? ORDER BY invoice_date DESC", (cid,)).fetchall()
+    invoices = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no FROM customer_invoices WHERE customer_id=? ORDER BY invoice_date DESC", (cid,)).fetchall()
     payments = db.execute("SELECT p.*, i.invoice_no FROM customer_payments p LEFT JOIN customer_invoices i ON p.invoice_id=i.id WHERE p.customer_id=? ORDER BY p.payment_date DESC", (cid,)).fetchall()
     contracts = db.execute("SELECT id, customer_id, contract_no, start_date, end_date, amount, status, created_at FROM customer_contracts WHERE customer_id=? ORDER BY contract_date DESC", (cid,)).fetchall()
     quotations = db.execute("""
         SELECT q.*, (SELECT COUNT(*) FROM customer_quotation_items WHERE quotation_id=q.id) AS items_count
         FROM customer_quotations q WHERE q.customer_id=? ORDER BY q.quotation_date DESC
     """, (cid,)).fetchall()
-    lpos = db.execute("SELECT id, customer_id, lpo_no, lpo_date, amount, status, notes, created_at FROM customer_lpos WHERE customer_id=? ORDER BY lpo_date DESC", (cid,)).fetchall()
+    lpos = db.execute("SELECT id, customer_id, lpo_no, lpo_date, amount, status, notes, created_at, file_data, file_type, service_order_no, rn_no FROM customer_lpos WHERE customer_id=? ORDER BY lpo_date DESC", (cid,)).fetchall()
     service_orders = db.execute("SELECT id, customer_id, so_no, so_date, amount, status, notes, created_at FROM customer_service_orders WHERE customer_id=? ORDER BY so_date DESC", (cid,)).fetchall()
     docs = db.execute("SELECT id, customer_id, doc_type, doc_name, file_data, file_type, expiry_date, created_at FROM customer_documents WHERE customer_id=? ORDER BY created_at DESC", (cid,)).fetchall()
-    credit_notes = db.execute("SELECT id, customer_id, credit_note_no, invoice_id, amount, reason, status, created_at FROM customer_credit_notes WHERE customer_id=? ORDER BY credit_note_date DESC", (cid,)).fetchall()
+    credit_notes = db.execute("SELECT id, customer_id, credit_note_no, credit_note_date, invoice_id, amount, vat_amount, total_amount, reason, notes, created_at FROM customer_credit_notes WHERE customer_id=? ORDER BY credit_note_date DESC", (cid,)).fetchall()
     tripsheets = db.execute("""
         SELECT id, customer_id, entry_date, time_in, time_out, total_reading, tanker_gln, trips, tanker_reg, bill_no, notes, created_at FROM tabreed_tripsheets
         WHERE customer_id=?
@@ -551,7 +562,7 @@ def customer_invoice_edit(cid, iid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
     sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
@@ -725,7 +736,7 @@ def customer_invoice_view(cid, iid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     if not inv:
         db.close()
         flash("Invoice not found.", "error")
@@ -785,7 +796,7 @@ def customer_invoice_pdf(cid, iid):
     _ensure_tables()
     db = _get_db()
     c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers WHERE id=?", (cid,)).fetchone()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     pdf_so_date = None
@@ -2497,7 +2508,7 @@ def customer_lpo_edit(cid, lid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
     _ensure_tables()
-    lpo = db.execute("SELECT id, customer_id, lpo_no, lpo_date, amount, status, notes, created_at FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
+    lpo = db.execute("SELECT id, customer_id, lpo_no, lpo_date, amount, status, notes, created_at, file_data, file_type, service_order_no, rn_no FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
     if not lpo:
         db.close()
         flash("LPO not found.", "error")
@@ -2608,7 +2619,7 @@ def customer_so_items(cid, sid):
 def customer_lpo_file(cid, lid):
     _ensure_tables()
     db = _get_db()
-    lpo = db.execute("SELECT id, customer_id, lpo_no, lpo_date, amount, status, notes, created_at FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
+    lpo = db.execute("SELECT id, customer_id, lpo_no, lpo_date, amount, status, notes, created_at, file_data, file_type, service_order_no, rn_no FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
     db.close()
     if not lpo or not lpo.get("file_data"):
         flash("LPO file not found.", "error")
@@ -2624,7 +2635,7 @@ def customer_lpo_view(cid, lid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    lpo = db.execute("SELECT id, customer_id, lpo_no, lpo_date, amount, status, notes, created_at FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
+    lpo = db.execute("SELECT id, customer_id, lpo_no, lpo_date, amount, status, notes, created_at, file_data, file_type, service_order_no, rn_no FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
     if not lpo:
         db.close()
         flash("LPO not found.", "error")

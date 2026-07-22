@@ -709,7 +709,7 @@ def supplier_dashboard():
         _touch_admin_workspace("suppliers")
         db = _get_db()
 
-        suppliers = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers ORDER BY supplier_name").fetchall()
+        suppliers = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers ORDER BY supplier_name").fetchall()
         total = len(suppliers)
         active = sum(1 for s in suppliers if s["status"] == "Active")
         with_inv = sum(1 for s in suppliers if s["supplier_type"] == "with_invoice")
@@ -789,7 +789,7 @@ def supplier_list():
     q = request.args.get("q", "").strip()
     typ = request.args.get("type", "")
     status_filter = request.args.get("status", "").strip().lower()
-    sql = "SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers"
+    sql = "SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers"
     params = []
     conditions = []
     if status_filter == "blocked":
@@ -863,7 +863,7 @@ def supplier_add():
 def supplier_edit(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -904,7 +904,7 @@ def supplier_edit(sup_id):
 def supplier_profile(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -917,12 +917,12 @@ def supplier_profile(sup_id):
     ).fetchall()
 
     expenses = db.execute(
-        "SELECT id, supplier_id, expense_date, description, amount, notes, created_at FROM supplier_expenses WHERE supplier_id = ? ORDER BY expense_date DESC",
+        "SELECT id, supplier_id, expense_date, amount, category, description, receipt_name, receipt_data, receipt_type, earning_type, quantity, rate, vehicle_no, fund_source, status, payment_date, payment_method, payment_ref, approved_by, approved_at, created_at FROM supplier_expenses WHERE supplier_id = ? ORDER BY expense_date DESC",
         (sup_id,),
     ).fetchall()
 
     payments = db.execute(
-        "SELECT id, supplier_id, payment_date, amount, payment_method, reference, notes, created_at FROM supplier_payment_records WHERE supplier_id = ? ORDER BY payment_date DESC",
+        "SELECT id, supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, created_at FROM supplier_payment_records WHERE supplier_id = ? ORDER BY payment_date DESC",
         (sup_id,),
     ).fetchall()
 
@@ -969,7 +969,7 @@ def supplier_profile(sup_id):
     ).fetchall()
 
     quotations = db.execute(
-        "SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at FROM supplier_quotations WHERE supplier_id = ? ORDER BY quotation_date DESC",
+        "SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at, location, contact_details FROM supplier_quotations WHERE supplier_id = ? ORDER BY quotation_date DESC",
         (sup_id,),
     ).fetchall()
 
@@ -1022,7 +1022,7 @@ def supplier_profile(sup_id):
 def supplier_invoice_add(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -1074,7 +1074,7 @@ def supplier_invoice_add(sup_id):
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="invoices"))
 
 
-    lpos = _get_db().execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, created_at FROM supplier_lpos WHERE supplier_id=? AND status='open' ORDER BY lpo_date DESC", (sup_id,)).fetchall()
+    lpos = _get_db().execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at FROM supplier_lpos WHERE supplier_id=? AND status='open' ORDER BY lpo_date DESC", (sup_id,)).fetchall()
     preselected = int(preselected_lpo) if preselected_lpo.isdigit() else None
     return render_template("supplier/invoice_form.html", s=s, inv={}, lpos=lpos, categories=SUPPLIER_CATEGORIES, preselected_lpo=preselected)
 
@@ -1083,8 +1083,8 @@ def supplier_invoice_add(sup_id):
 def supplier_invoice_edit(sup_id, inv_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    inv = db.execute("SELECT id, supplier_id, invoice_no, invoice_date, due_date, amount, vat_percentage, vat_amount, total_amount, description, attachment_name, attachment_data, attachment_type, status, payment_date, payment_method, payment_ref, notes, created_at FROM supplier_invoices WHERE id = ? AND supplier_id = ?", (inv_id, sup_id)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    inv = db.execute("SELECT id, supplier_id, invoice_no, invoice_date, due_date, amount, vat_percentage, vat_amount, total_amount, description, attachment_name, attachment_data, attachment_type, status, payment_date, payment_method, payment_ref, notes, lpo_id, created_at FROM supplier_invoices WHERE id = ? AND supplier_id = ?", (inv_id, sup_id)).fetchone()
     if not s or not inv:
         flash("Invoice not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -1136,14 +1136,14 @@ def supplier_invoice_edit(sup_id, inv_id):
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="invoices"))
 
 
-    lpos = _get_db().execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, created_at FROM supplier_lpos WHERE supplier_id=? ORDER BY lpo_date DESC", (sup_id,)).fetchall()
+    lpos = _get_db().execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at FROM supplier_lpos WHERE supplier_id=? ORDER BY lpo_date DESC", (sup_id,)).fetchall()
     return render_template("supplier/invoice_form.html", s=s, inv=inv, lpos=lpos, categories=SUPPLIER_CATEGORIES)
 
 
 @supplier_bp.route("/invoices/<int:inv_id>/attachment")
 def supplier_invoice_attachment(inv_id):
     db = _get_db()
-    inv = db.execute("SELECT id, supplier_id, invoice_no, invoice_date, due_date, amount, vat_percentage, vat_amount, total_amount, description, attachment_name, attachment_data, attachment_type, status, payment_date, payment_method, payment_ref, notes, created_at FROM supplier_invoices WHERE id = ?", (inv_id,)).fetchone()
+    inv = db.execute("SELECT id, supplier_id, invoice_no, invoice_date, due_date, amount, vat_percentage, vat_amount, total_amount, description, attachment_name, attachment_data, attachment_type, status, payment_date, payment_method, payment_ref, notes, lpo_id, created_at FROM supplier_invoices WHERE id = ?", (inv_id,)).fetchone()
 
     if not inv or not inv["attachment_data"]:
         flash("Attachment not found.", "error")
@@ -1161,7 +1161,7 @@ def supplier_invoice_attachment(inv_id):
 @supplier_bp.route("/expenses/<int:exp_id>/attachment")
 def supplier_expense_attachment(exp_id):
     db = _get_db()
-    exp = db.execute("SELECT id, supplier_id, expense_date, description, amount, notes, created_at FROM supplier_expenses WHERE id = ?", (exp_id,)).fetchone()
+    exp = db.execute("SELECT id, supplier_id, expense_date, amount, category, description, receipt_name, receipt_data, receipt_type, earning_type, quantity, rate, vehicle_no, fund_source, status, payment_date, payment_method, payment_ref, approved_by, approved_at, created_at FROM supplier_expenses WHERE id = ?", (exp_id,)).fetchone()
 
     if not exp or not exp["receipt_data"]:
         flash("Attachment not found.", "error")
@@ -1213,7 +1213,7 @@ LPO_TYPES = [
 def supplier_lpo_list(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
 
         flash("Supplier not found.", "error")
@@ -1230,7 +1230,7 @@ def supplier_lpo_list(sup_id):
 def supplier_lpo_add(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
 
         flash("Supplier not found.", "error")
@@ -1281,7 +1281,7 @@ def supplier_lpo_add(sup_id):
         flash("LPO added.", "success")
         return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
 
-    quotations = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at FROM supplier_quotations WHERE supplier_id=? ORDER BY quotation_date DESC", (sup_id,)).fetchall()
+    quotations = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at, location, contact_details FROM supplier_quotations WHERE supplier_id=? ORDER BY quotation_date DESC", (sup_id,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     suggested_lpo = _next_reference_code(db, "supplier_lpos", "lpo_no", "LPO")
 
@@ -1292,8 +1292,8 @@ def supplier_lpo_add(sup_id):
 def supplier_lpo_edit(sup_id, lpo_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, created_at FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
     if not s or not lpo:
         flash("LPO not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -1341,7 +1341,7 @@ def supplier_lpo_edit(sup_id, lpo_id):
         return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
 
     items = db.execute("SELECT id, lpo_id, item_description, quantity, rate, amount, created_at FROM supplier_lpo_items WHERE lpo_id=? ORDER BY sort_order", (lpo_id,)).fetchall()
-    quotations = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at FROM supplier_quotations WHERE supplier_id=? ORDER BY quotation_date DESC", (sup_id,)).fetchall()
+    quotations = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at, location, contact_details FROM supplier_quotations WHERE supplier_id=? ORDER BY quotation_date DESC", (sup_id,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
 
     return render_template("supplier/lpo_form.html", s=s, company=company, lpo=lpo, items=items, lpo_types=LPO_TYPES, quotations=quotations, qitems=[])
@@ -1388,12 +1388,12 @@ def supplier_lpo_pdf(sup_id, lpo_id):
 
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, created_at FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
     items = db.execute("SELECT id, lpo_id, item_description, quantity, rate, amount, created_at FROM supplier_lpo_items WHERE lpo_id=? ORDER BY sort_order", (lpo_id,)).fetchall()
     quotation = None
     if lpo and lpo["quotation_id"]:
-        quotation = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at FROM supplier_quotations WHERE id=?", (lpo["quotation_id"],)).fetchone()
+        quotation = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at, location, contact_details FROM supplier_quotations WHERE id=?", (lpo["quotation_id"],)).fetchone()
     try:
         company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     except Exception:
@@ -1751,13 +1751,13 @@ def supplier_lpo_pdf(sup_id, lpo_id):
 def supplier_quotation_list(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
 
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
     quotations = db.execute(
-        "SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at FROM supplier_quotations WHERE supplier_id = ? ORDER BY quotation_date DESC",
+        "SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at, location, contact_details FROM supplier_quotations WHERE supplier_id = ? ORDER BY quotation_date DESC",
         (sup_id,),
     ).fetchall()
 
@@ -1768,7 +1768,7 @@ def supplier_quotation_list(sup_id):
 def supplier_quotation_add(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
 
         flash("Supplier not found.", "error")
@@ -1856,8 +1856,8 @@ def supplier_quotation_pdf(sup_id, q_id):
 
     _ensure_tables()
     db = _get_db()
-    q = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at FROM supplier_quotations WHERE id=? AND supplier_id=?", (q_id, sup_id)).fetchone()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    q = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at, location, contact_details FROM supplier_quotations WHERE id=? AND supplier_id=?", (q_id, sup_id)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     items = db.execute("SELECT id, quotation_id, item_description, quantity, rate, amount, created_at FROM supplier_quotation_items WHERE quotation_id=? ORDER BY sort_order", (q_id,)).fetchall()
     try:
         company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
@@ -2126,7 +2126,7 @@ def supplier_quotation_pdf(sup_id, q_id):
 def supplier_quotation_download(sup_id, q_id):
     _ensure_tables()
     db = _get_db()
-    q = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at FROM supplier_quotations WHERE id=? AND supplier_id=?", (q_id, sup_id)).fetchone()
+    q = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at, location, contact_details FROM supplier_quotations WHERE id=? AND supplier_id=?", (q_id, sup_id)).fetchone()
 
     if not q or not q["file_data"]:
         flash("Quotation file not found.", "error")
@@ -2159,7 +2159,7 @@ def supplier_quotation_delete(sup_id, q_id):
 def supplier_expense_add(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -2245,8 +2245,8 @@ def supplier_expense_approve(sup_id, exp_id):
 def supplier_expense_edit(sup_id, exp_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    exp = db.execute("SELECT id, supplier_id, expense_date, description, amount, notes, created_at FROM supplier_expenses WHERE id=? AND supplier_id=?", (exp_id, sup_id)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    exp = db.execute("SELECT id, supplier_id, expense_date, amount, category, description, receipt_name, receipt_data, receipt_type, earning_type, quantity, rate, vehicle_no, fund_source, status, payment_date, payment_method, payment_ref, approved_by, approved_at, created_at FROM supplier_expenses WHERE id=? AND supplier_id=?", (exp_id, sup_id)).fetchone()
     if not s or not exp:
         flash("Expense not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -2319,7 +2319,7 @@ def supplier_expense_delete(sup_id, exp_id):
 def supplier_payment_add(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -2430,8 +2430,8 @@ def supplier_payment_add(sup_id):
 def supplier_payment_voucher(sup_id, pay_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    pay = db.execute("SELECT id, supplier_id, payment_date, amount, payment_method, reference, notes, created_at FROM supplier_payment_records WHERE id = ? AND supplier_id = ?", (pay_id, sup_id)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    pay = db.execute("SELECT id, supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, created_at FROM supplier_payment_records WHERE id = ? AND supplier_id = ?", (pay_id, sup_id)).fetchone()
     if not s or not pay:
         flash("Payment not found.", "error")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id))
@@ -2444,7 +2444,7 @@ def supplier_payment_voucher(sup_id, pay_id):
                 f"SELECT id, invoice_no, invoice_date, total_amount FROM supplier_invoices WHERE id IN ({placeholders})",
                 ids,
             ).fetchall()
-    inv = db.execute("SELECT id, supplier_id, invoice_no, invoice_date, due_date, amount, vat_percentage, vat_amount, total_amount, description, attachment_name, attachment_data, attachment_type, status, payment_date, payment_method, payment_ref, notes, created_at FROM supplier_invoices WHERE id = ?", (pay["invoice_id"],)).fetchone() if pay["invoice_id"] else None
+    inv = db.execute("SELECT id, supplier_id, invoice_no, invoice_date, due_date, amount, vat_percentage, vat_amount, total_amount, description, attachment_name, attachment_data, attachment_type, status, payment_date, payment_method, payment_ref, notes, lpo_id, created_at FROM supplier_invoices WHERE id = ?", (pay["invoice_id"],)).fetchone() if pay["invoice_id"] else None
     expense_rows = []
     if pay.get("expense_ids"):
         ids = [x.strip() for x in pay["expense_ids"].split(",") if x.strip().isdigit()]
@@ -2466,8 +2466,8 @@ def supplier_payment_voucher(sup_id, pay_id):
 def supplier_cheque_print(sup_id, pay_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    pay = db.execute("SELECT id, supplier_id, payment_date, amount, payment_method, reference, notes, created_at FROM supplier_payment_records WHERE id = ? AND supplier_id = ?", (pay_id, sup_id)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    pay = db.execute("SELECT id, supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, created_at FROM supplier_payment_records WHERE id = ? AND supplier_id = ?", (pay_id, sup_id)).fetchone()
     if not s or not pay:
         flash("Payment not found.", "error")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id))
@@ -2501,8 +2501,8 @@ def supplier_cheque_print(sup_id, pay_id):
 def supplier_payment_edit(sup_id, pay_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    pay = db.execute("SELECT id, supplier_id, payment_date, amount, payment_method, reference, notes, created_at FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    pay = db.execute("SELECT id, supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, created_at FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id)).fetchone()
     if not s or not pay:
         flash("Payment not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -2575,7 +2575,7 @@ def supplier_payment_delete(sup_id, pay_id):
     _ensure_tables()
     db = _get_db()
     try:
-        pay = db.execute("SELECT id, supplier_id, payment_date, amount, payment_method, reference, notes, created_at FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id)).fetchone()
+        pay = db.execute("SELECT id, supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, created_at FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id)).fetchone()
         db.execute("DELETE FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id))
         if pay:
             # Revert invoices
@@ -2607,7 +2607,7 @@ csrf.exempt(supplier_payment_delete)
 def supplier_loan_add(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -2642,7 +2642,7 @@ def supplier_loan_add(sup_id):
 def supplier_loan_edit(sup_id, loan_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     loan = db.execute("SELECT id, supplier_id, loan_amount, entry_date, notes, created_at FROM supplier_loans WHERE id=? AND supplier_id=?", (loan_id, sup_id)).fetchone()
     if not s or not loan:
         flash("Loan entry not found.", "error")
@@ -2711,7 +2711,7 @@ def supplier_loans_list(sup_id):
 def supplier_soa(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -2826,7 +2826,7 @@ def supplier_soa_pdf(sup_id):
     import tempfile, os, base64
 
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -3098,7 +3098,7 @@ def supplier_bulk_delete():
 def supplier_delete(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -3111,7 +3111,7 @@ def supplier_delete(sup_id):
 def supplier_restore(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
     else:
@@ -3163,7 +3163,7 @@ def owner_fund_add():
 def supplier_doc_list(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
 
         flash("Supplier not found.", "error")
@@ -3185,7 +3185,7 @@ DOC_TYPES = [
 def supplier_doc_add(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
 
         flash("Supplier not found.", "error")
@@ -3413,7 +3413,7 @@ def supplier_bill_add():
 def supplier_bill_edit(bill_id):
     _ensure_tables()
     db = _get_db()
-    bill = db.execute("SELECT id, supplier_id, bill_no, bill_date, description, amount, status, created_at FROM supplier_bills WHERE id = ?", (bill_id,)).fetchone()
+    bill = db.execute("SELECT id, supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount, source_expense_id, created_at, vat_percentage, vat_amount FROM supplier_bills WHERE id = ?", (bill_id,)).fetchone()
     if not bill:
         flash("Bill not found.", "error")
         return redirect(url_for("supplier.supplier_bill_list"))
@@ -3546,7 +3546,7 @@ def supplier_bills_batch():
 def supplier_bill_delete(bill_id):
     _ensure_tables()
     db = _get_db()
-    bill = db.execute("SELECT id, supplier_id, bill_no, bill_date, description, amount, status, created_at FROM supplier_bills WHERE id = ?", (bill_id,)).fetchone()
+    bill = db.execute("SELECT id, supplier_id, vehicle_plate, bill_no, bill_date, description, total_amount, discount, net_amount, source_expense_id, created_at, vat_percentage, vat_amount FROM supplier_bills WHERE id = ?", (bill_id,)).fetchone()
     if not bill:
         flash("Bill not found.", "error")
         return redirect(url_for("supplier.supplier_bill_list"))
