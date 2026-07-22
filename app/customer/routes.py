@@ -563,7 +563,7 @@ def customer_invoice_edit(cid, iid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
     inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
-    items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
+    items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
     sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
     svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
@@ -741,7 +741,7 @@ def customer_invoice_view(cid, iid):
         db.close()
         flash("Invoice not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
-    items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
+    items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     so_date_val = None
     if inv.get("so_no"):
@@ -797,7 +797,7 @@ def customer_invoice_pdf(cid, iid):
     db = _get_db()
     c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers WHERE id=?", (cid,)).fetchone()
     inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
-    items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
+    items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     pdf_so_date = None
     if inv.get("so_no"):
@@ -1220,8 +1220,8 @@ def customer_invoice_pdf(cid, iid):
         sg = ParagraphStyle("SG", fontSize=8, alignment=TA_CENTER, leading=11, textColor=C5)
         stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
         sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
-        stamp_img = Image(stamp_path, width=50, height=50) if os.path.exists(stamp_path) else None
-        sign_img = Image(sign_path, width=50, height=50) if os.path.exists(sign_path) else None
+        stamp_img = Image(stamp_path, width=65, height=65) if os.path.exists(stamp_path) else None
+        sign_img = Image(sign_path, width=65, height=65) if os.path.exists(sign_path) else None
 
         # Receiver Signature box (navy header + signing area, like Amount in Words)
         scw = W2 * 0.33
@@ -1517,7 +1517,7 @@ def customer_invoice_pdf(cid, iid):
         rws.append([
             _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(desc_html, fontSize=fs, leading=ldr*0.9),
-            _pc(f"{float(it.get('quantity') or 0):,.3f}", alignment=TA_CENTER),
+            _pc(f"{float(it.get('quantity') or 0):,.2f}", alignment=TA_CENTER),
             _pc((it.get('unit') or 'mo'), alignment=TA_CENTER),
             _pc(f"{float(it.get('rate') or 0):,.3f}", alignment=TA_RIGHT),
             _pc(f"{amt:,.2f}", alignment=TA_RIGHT),
@@ -1650,11 +1650,11 @@ def customer_invoice_pdf(cid, iid):
     sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
     auth_img = []
     if os.path.exists(stamp_path):
-        auth_img.append(Image(stamp_path, width=30, height=30))
+        auth_img.append(Image(stamp_path, width=60, height=60))
     if os.path.exists(sign_path):
-        auth_img.append(Image(sign_path, width=30, height=30))
+        auth_img.append(Image(sign_path, width=60, height=60))
     if auth_img:
-        auth_imgs = Table([auth_img], colWidths=[30]*len(auth_img))
+        auth_imgs = Table([auth_img], colWidths=[60]*len(auth_img))
         auth_imgs.setStyle(TableStyle([
             ("ALIGN",(0,0),(-1,-1),"CENTER"),
             ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
