@@ -534,7 +534,7 @@ def vehicle_profile(plate_no):
     )
 
     documents = db.execute(
-        "SELECT id, vehicle_id, doc_name, doc_type, doc_data, created_at FROM vehicle_documents WHERE plate_no = ? ORDER BY uploaded_at DESC",
+        "SELECT id, plate_no, doc_name, doc_type, doc_data, uploaded_at, notes FROM vehicle_documents WHERE plate_no = ? ORDER BY uploaded_at DESC",
         (plate_no,),
     ).fetchall()
 
@@ -700,7 +700,7 @@ def vehicle_document_delete(plate_no, doc_id):
 @_login_required("admin")
 def vehicle_document_view(plate_no, doc_id):
     db = open_db()
-    doc = db.execute("SELECT id, vehicle_id, doc_name, doc_type, doc_data, created_at FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no)).fetchone()
+    doc = db.execute("SELECT id, plate_no, doc_name, doc_type, doc_data, uploaded_at, notes FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no)).fetchone()
     if not doc or not doc["doc_data"]:
         flash("Document not found.", "error")
         return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
