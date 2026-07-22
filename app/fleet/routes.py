@@ -1345,7 +1345,7 @@ def fleet_staff_edit(staff_id):
 def fleet_staff_advance_delete(staff_id, advance_id):
     _touch_admin_workspace("fleet")
     db = open_db()
-    a = db.execute("SELECT id, staff_id, full_name, phone, role, status, created_at FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (advance_id, staff_id)).fetchone()
+    a = db.execute("SELECT id, amount, funding_source, reference, notes, entry_date, created_at, staff_code FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (advance_id, staff_id)).fetchone()
     if a:
         db.execute("DELETE FROM maintenance_staff_advances WHERE id = ?", (advance_id,))
         db.commit()
@@ -1362,7 +1362,7 @@ def fleet_staff_advance_edit(staff_id, advance_id):
     if not s:
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
-    a = db.execute("SELECT id, staff_id, full_name, phone, role, status, created_at FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (advance_id, staff_id)).fetchone()
+    a = db.execute("SELECT id, amount, funding_source, reference, notes, entry_date, created_at, staff_code FROM maintenance_staff_advances WHERE id = ? AND staff_code = ?", (advance_id, staff_id)).fetchone()
     if not a:
         flash("Advance not found.", "error")
         return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
@@ -1527,7 +1527,7 @@ def fleet_staff_profile(staff_id):
                 adv_where += " AND substr(entry_date,1,10) <= ?"
                 adv_params.append(date_to)
         advances = db.execute(f"""
-            SELECT id, staff_id, full_name, phone, role, status, created_at FROM maintenance_staff_advances WHERE staff_code = ?{adv_where} ORDER BY entry_date DESC
+            SELECT id, amount, funding_source, reference, notes, entry_date, created_at, staff_code FROM maintenance_staff_advances WHERE staff_code = ?{adv_where} ORDER BY entry_date DESC
         """, (staff_id, *adv_params)).fetchall()
 
         cash_items = []
@@ -1605,7 +1605,7 @@ def fleet_staff_advances_pdf(staff_id):
         if not date_params:
             where_adv = " AND substr(entry_date,1,7) = ?"
             date_params.append(date.today().isoformat()[:7])
-        advances = db.execute(f"SELECT id, staff_id, full_name, phone, role, status, created_at FROM maintenance_staff_advances WHERE staff_code = ?{where_adv} ORDER BY entry_date DESC", (staff_id, *date_params)).fetchall()
+        advances = db.execute(f"SELECT id, amount, funding_source, reference, notes, entry_date, created_at, staff_code FROM maintenance_staff_advances WHERE staff_code = ?{where_adv} ORDER BY entry_date DESC", (staff_id, *date_params)).fetchall()
         total = sum(a["amount"] for a in advances) if advances else 0
 
         # Jobs/papers filter same period
