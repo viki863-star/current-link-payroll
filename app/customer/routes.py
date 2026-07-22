@@ -207,6 +207,8 @@ def _ensure_tables():
         ("company_profile", "bank_account_name", "TEXT"),
         ("company_profile", "bank_account_number", "TEXT"),
         ("company_profile", "iban", "TEXT"),
+        ("lpo_items", "pr_no", "TEXT"),
+        ("lpo_items", "vat_percent", "REAL DEFAULT 0"),
     ]
     for table, col, dtype in alter_ops:
         sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {dtype}" if backend == "postgres" else f"ALTER TABLE {table} ADD COLUMN {col} {dtype}"
@@ -2467,26 +2469,28 @@ def customer_lpo_add(cid):
         qtys = request.form.getlist("item_qty[]")
         units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
-        vehicles = request.form.getlist("item_vehicle[]")
+        pr_nos = request.form.getlist("item_pr_no[]")
+        vats = request.form.getlist("item_vat[]")
         total = 0; items = []
         for i in range(len(descs)):
             desc = descs[i].strip()
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
-            vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
+            pr_no = pr_nos[i].strip() if i < len(pr_nos) else ""
+            vat_pct = float(vats[i]) if i < len(vats) and vats[i].strip() else 0
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
-                total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
+                total += round(qty * rate * (1 + vat_pct / 100), 2)
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "pr_no": pr_no, "vat": vat_pct})
         total = round(total, 2)
         try:
             cur = db.execute("INSERT INTO customer_lpos (customer_id,lpo_no,lpo_date,rn_no,amount,status,service_order_no,notes,file_data,file_type) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (cid, lpo_no, lpo_date, rn_no, total, status, so_no, notes, file_data, file_type))
             lpo_id = cur.lastrowid
             for idx, it in enumerate(items):
-                db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
-                    (lpo_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
+                db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,pr_no,vat_percent,sort_order) VALUES (?,?,?,?,?,?,?,?,?)",
+                    (lpo_id, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["pr_no"], it["vat"], idx))
             db.commit()
             db.close()
             flash("LPO added.", "success")
@@ -2530,7 +2534,8 @@ def customer_lpo_edit(cid, lid):
         qtys = request.form.getlist("item_qty[]")
         units = request.form.getlist("item_unit[]")
         rates = request.form.getlist("item_rate[]")
-        vehicles = request.form.getlist("item_vehicle[]")
+        pr_nos = request.form.getlist("item_pr_no[]")
+        vats = request.form.getlist("item_vat[]")
         total = 0
         items = []
         for i in range(len(descs)):
@@ -2538,23 +2543,24 @@ def customer_lpo_edit(cid, lid):
             qty = float(qtys[i]) if i < len(qtys) and qtys[i].strip() else 1
             unit = units[i] if i < len(units) else "hour"
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
-            vehicle = vehicles[i].strip().upper() if i < len(vehicles) else ""
+            pr_no = pr_nos[i].strip() if i < len(pr_nos) else ""
+            vat_pct = float(vats[i]) if i < len(vats) and vats[i].strip() else 0
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
-                total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "vehicle": vehicle})
+                total += round(qty * rate * (1 + vat_pct / 100), 2)
+                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit, "pr_no": pr_no, "vat": vat_pct})
         total = round(total, 2)
         db.execute("UPDATE customer_lpos SET lpo_no=?,lpo_date=?,rn_no=?,amount=?,status=?,service_order_no=?,notes=?,file_data=?,file_type=? WHERE id=?",
             (lpo_no, lpo_date, rn_no, total, status, so_no, notes, file_data, file_type, lid))
         db.execute("DELETE FROM lpo_items WHERE lpo_id=?", (lid,))
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
-                (lid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["vehicle"], idx))
+            db.execute("INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,pr_no,vat_percent,sort_order) VALUES (?,?,?,?,?,?,?,?,?)",
+                (lid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["pr_no"], it["vat"], idx))
         db.commit()
         db.close()
         flash("LPO updated.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
-    items = db.execute("SELECT id, lpo_id, item_description, quantity, rate, amount, created_at FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
+    items = db.execute("SELECT id, lpo_id, description, quantity, rate, amount, unit_type, pr_no, vat_percent, sort_order FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
     db.close()
     return render_template("customer/lpo_form.html", c=c, lpo=lpo, items=items, edit=True, today=date.today().isoformat())
 
@@ -2589,7 +2595,7 @@ def customer_lpo_close(cid, lid):
 def customer_lpo_items(cid, lid):
     _ensure_tables()
     db = _get_db()
-    items = db.execute("SELECT id,description,quantity,rate,amount,unit_type,vehicle_no FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
+    items = db.execute("SELECT id,description,quantity,rate,amount,unit_type,pr_no,vat_percent,vehicle_no FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
     lpo = db.execute("SELECT lpo_no,lpo_date FROM customer_lpos WHERE id=? AND customer_id=?", (lid, cid)).fetchone()
     db.close()
     if not lpo:
@@ -2597,7 +2603,7 @@ def customer_lpo_items(cid, lid):
     return jsonify({
         "lpo_no": lpo["lpo_no"],
         "lpo_date": lpo["lpo_date"],
-        "items": [{"id": r["id"], "description": r["description"], "quantity": r["quantity"], "rate": r["rate"], "amount": r["amount"], "unit_type": r["unit_type"], "vehicle_no": r["vehicle_no"]} for r in items]
+        "items": [{"id": r["id"], "description": r["description"], "quantity": r["quantity"], "rate": r["rate"], "amount": r["amount"], "unit_type": r["unit_type"], "pr_no": r["pr_no"], "vat_percent": r["vat_percent"], "vehicle_no": r["vehicle_no"]} for r in items]
     })
 
 @customer_bp.route("/<int:cid>/so/<int:sid>/items")
@@ -2640,7 +2646,7 @@ def customer_lpo_view(cid, lid):
         db.close()
         flash("LPO not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
-    items = db.execute("SELECT id, lpo_id, item_description, quantity, rate, amount, created_at FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
+    items = db.execute("SELECT id, lpo_id, description, quantity, rate, amount, unit_type, pr_no, vat_percent, sort_order FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
     db.close()
     return render_template("customer/lpo_view.html", c=c, lpo=lpo, items=items)
 
@@ -2726,7 +2732,7 @@ def customer_so_edit(cid, sid):
         db.close()
         flash("Service Order updated.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="service_orders"))
-    items = db.execute("SELECT id, so_id, item_description, quantity, rate, amount, created_at FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
+    items = db.execute("SELECT id, so_id, description, quantity, rate, amount, created_at FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
     db.close()
     return render_template("customer/so_form.html", c=c, so=so, items=items, edit=True, today=date.today().isoformat())
 
@@ -2752,7 +2758,7 @@ def customer_so_view(cid, sid):
         db.close()
         flash("Service Order not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="service_orders"))
-    items = db.execute("SELECT id, so_id, item_description, quantity, rate, amount, created_at FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
+    items = db.execute("SELECT id, so_id, description, quantity, rate, amount, created_at FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
     db.close()
     return render_template("customer/so_view.html", c=c, so=so, items=items)
 
