@@ -1555,40 +1555,31 @@ def register_routes(app: Flask) -> None:
             expiring_soon = 0
             expired_count = 0
 
-        # ── Customer Modules Data (SQLite payroll.db) ──
+        # ── Customer Modules Data ──
         monthly_trend = []
         recent_invoices = []
         recent_payments = []
         invoice_status_chart = []
         try:
-            import sqlite3
-            cdb_path = app.config.get("DATABASE") or "payroll.db"
-            cdb = sqlite3.connect(cdb_path)
-            cdb.row_factory = sqlite3.Row
-            monthly_trend = cdb.execute("""
+            monthly_trend = db.execute("""
                 SELECT substr(invoice_date,1,7) AS mon,
                        COUNT(*) AS inv_count,
                        COALESCE(SUM(total_amount),0) AS total
                 FROM customer_invoices
                 GROUP BY mon ORDER BY mon DESC LIMIT 12
             """).fetchall()
-            recent_invoices = cdb.execute("""
-                SELECT i.invoice_date, i.invoice_no, i.total_amount, i.status, c.customer_name
+            recent_invoices = db.execute("""
+                SELECT i.invoice_date, i.invoice_no, i.total_amount, c.customer_name
                 FROM customer_invoices i JOIN customers c ON c.id=i.customer_id
                 ORDER BY i.created_at DESC LIMIT 8
             """).fetchall()
-            recent_payments = cdb.execute("""
+            recent_payments = db.execute("""
                 SELECT p.payment_date, p.amount, p.reference_no, c.customer_name
                 FROM customer_payments p JOIN customers c ON c.id=p.customer_id
                 ORDER BY p.created_at DESC LIMIT 8
             """).fetchall()
-            invoice_status_chart = cdb.execute("""
-                SELECT status, COUNT(*) AS value, COALESCE(SUM(total_amount),0) AS total
-                FROM customer_invoices
-                GROUP BY status ORDER BY COUNT(*) DESC
-            """).fetchall()
-            cdb.close()
-        except:
+            invoice_status_chart = []
+        except Exception:
             pass
 
         return render_template(

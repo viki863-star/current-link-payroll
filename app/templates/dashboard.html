@@ -118,7 +118,7 @@
         {% if recent_invoices %}
           {% for inv in recent_invoices %}
           <div class="activity-row">
-            <span class="activity-dot" style="background:{% if inv.status == 'paid' %}#059669{% elif inv.status == 'overdue' %}#dc2626{% else %}#d97706{% endif %}"></span>
+            <span class="activity-dot" style="background:#d97706"></span>
             <div class="activity-text">
               <strong>{{ inv.customer_name }}</strong>
               <p>{{ inv.invoice_no }} · AED {{ "{:,.2f}".format(inv.total_amount) }}</p>
