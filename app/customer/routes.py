@@ -1519,7 +1519,7 @@ def customer_invoice_pdf(cid, iid):
             _pc(desc_html, fontSize=fs, leading=ldr*0.9),
             _pc(f"{float(it.get('quantity') or 0):,.2f}", alignment=TA_CENTER),
             _pc((it.get('unit') or 'mo'), alignment=TA_CENTER),
-            _pc(f"{float(it.get('rate') or 0):,.2f}", alignment=TA_RIGHT),
+            _pc(f"{float(it.get('rate') or 0):,.4f}", alignment=TA_RIGHT),
             _pc(f"{amt:,.2f}", alignment=TA_RIGHT),
             _pc(f"{vp_item:.2f}%", alignment=TA_CENTER),
             _pc(f"{va_item:,.2f}", alignment=TA_RIGHT, textColor=C6),
