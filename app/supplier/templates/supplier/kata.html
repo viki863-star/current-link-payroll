@@ -42,7 +42,7 @@
         <div class="table-wrap">
             <table class="smart-table" style="table-layout:fixed">
                 <colgroup>
-                    <col style="width:80px">
+                    <col style="width:110px">
                     <col>
                     <col style="width:65px">
                     <col style="width:65px">
@@ -60,7 +60,7 @@
                 <tbody>
                     {% for row in ledger %}
                     <tr style="{% if 'Separate' in row.description %}opacity:0.6{% endif %}">
-                        <td class="mono" style="text-align:center">{{ row.date }}</td>
+                        <td class="mono" style="text-align:center;white-space:nowrap">{{ row.date }}</td>
                         <td style="font-size:0.82rem;padding:4px 6px;text-align:left;word-break:break-word;overflow-wrap:break-word">{{ row.description }}</td>
                         <td class="mono" style="text-align:right;color:var(--green);white-space:nowrap">
                             {% if row.debit > 0 %}{{ "%.0f"|format(row.debit) }}{% endif %}
