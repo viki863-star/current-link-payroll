@@ -1293,7 +1293,7 @@ def supplier_lpo_edit(sup_id, lpo_id):
     _ensure_tables()
     db = _get_db()
     s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
+    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at, lpo_type, quotation_id FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
     if not s or not lpo:
         flash("LPO not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -1340,7 +1340,7 @@ def supplier_lpo_edit(sup_id, lpo_id):
         flash("LPO updated.", "success")
         return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
 
-    items = db.execute("SELECT id, lpo_id, description, qty, day_rate AS rate, amount, sort_order FROM supplier_lpo_items WHERE lpo_id=? ORDER BY sort_order", (lpo_id,)).fetchall()
+    items = db.execute("SELECT id, lpo_id, description, qty, basis_type, day_rate, amount, sort_order FROM supplier_lpo_items WHERE lpo_id=? ORDER BY sort_order", (lpo_id,)).fetchall()
     quotations = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at, location, contact_details FROM supplier_quotations WHERE supplier_id=? ORDER BY quotation_date DESC", (sup_id,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
 
@@ -1389,8 +1389,8 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     _ensure_tables()
     db = _get_db()
     s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
-    items = db.execute("SELECT id, lpo_id, description, qty, day_rate AS rate, amount, sort_order FROM supplier_lpo_items WHERE lpo_id=? ORDER BY sort_order", (lpo_id,)).fetchall()
+    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at, lpo_type, quotation_id FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
+    items = db.execute("SELECT id, lpo_id, description, qty, basis_type, day_rate, amount, sort_order FROM supplier_lpo_items WHERE lpo_id=? ORDER BY sort_order", (lpo_id,)).fetchall()
     quotation = None
     if lpo and lpo["quotation_id"]:
         quotation = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at, location, contact_details FROM supplier_quotations WHERE id=?", (lpo["quotation_id"],)).fetchone()
@@ -1835,7 +1835,7 @@ def supplier_quotation_add(sup_id):
 def supplier_quotation_items_api(sup_id, q_id):
     _ensure_tables()
     db = _get_db()
-    items = db.execute("SELECT id, quotation_id, description, qty, day_rate AS rate, amount, sort_order FROM supplier_quotation_items WHERE quotation_id=? ORDER BY sort_order", (q_id,)).fetchall()
+    items = db.execute("SELECT id, quotation_id, description, qty, basis_type, day_rate, amount, sort_order FROM supplier_quotation_items WHERE quotation_id=? ORDER BY sort_order", (q_id,)).fetchall()
 
     from flask import jsonify
     return jsonify([dict(i) for i in items])
@@ -1858,7 +1858,7 @@ def supplier_quotation_pdf(sup_id, q_id):
     db = _get_db()
     q = db.execute("SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at, location, contact_details FROM supplier_quotations WHERE id=? AND supplier_id=?", (q_id, sup_id)).fetchone()
     s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    items = db.execute("SELECT id, quotation_id, description, qty, day_rate AS rate, amount, sort_order FROM supplier_quotation_items WHERE quotation_id=? ORDER BY sort_order", (q_id,)).fetchall()
+    items = db.execute("SELECT id, quotation_id, description, qty, basis_type, day_rate, amount, sort_order FROM supplier_quotation_items WHERE quotation_id=? ORDER BY sort_order", (q_id,)).fetchall()
     try:
         company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     except Exception:
