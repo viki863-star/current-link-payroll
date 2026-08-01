@@ -2431,7 +2431,7 @@ def supplier_payment_voucher(sup_id, pay_id):
     _ensure_tables()
     db = _get_db()
     s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    pay = db.execute("SELECT id, supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, created_at FROM supplier_payment_records WHERE id = ? AND supplier_id = ?", (pay_id, sup_id)).fetchone()
+    pay = db.execute("SELECT id, supplier_id, invoice_id, invoice_ids, expense_ids, fund_source, payment_date, amount, payment_method, reference_no, notes, created_at, cheque_number, cheque_date, bank_name, cheque_drawer, discount FROM supplier_payment_records WHERE id = ? AND supplier_id = ?", (pay_id, sup_id)).fetchone()
     if not s or not pay:
         flash("Payment not found.", "error")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id))
@@ -2467,7 +2467,7 @@ def supplier_cheque_print(sup_id, pay_id):
     _ensure_tables()
     db = _get_db()
     s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    pay = db.execute("SELECT id, supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, created_at FROM supplier_payment_records WHERE id = ? AND supplier_id = ?", (pay_id, sup_id)).fetchone()
+    pay = db.execute("SELECT id, supplier_id, invoice_id, invoice_ids, expense_ids, fund_source, payment_date, amount, payment_method, reference_no, notes, created_at, cheque_number, cheque_date, bank_name, cheque_drawer, discount FROM supplier_payment_records WHERE id = ? AND supplier_id = ?", (pay_id, sup_id)).fetchone()
     if not s or not pay:
         flash("Payment not found.", "error")
         return redirect(url_for("supplier.supplier_profile", sup_id=sup_id))
@@ -2502,7 +2502,7 @@ def supplier_payment_edit(sup_id, pay_id):
     _ensure_tables()
     db = _get_db()
     s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    pay = db.execute("SELECT id, supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, created_at FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id)).fetchone()
+    pay = db.execute("SELECT id, supplier_id, invoice_id, invoice_ids, expense_ids, fund_source, payment_date, amount, payment_method, reference_no, notes, created_at, cheque_number, cheque_date, bank_name, cheque_drawer, discount FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id)).fetchone()
     if not s or not pay:
         flash("Payment not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -2575,7 +2575,7 @@ def supplier_payment_delete(sup_id, pay_id):
     _ensure_tables()
     db = _get_db()
     try:
-        pay = db.execute("SELECT id, supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, created_at FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id)).fetchone()
+        pay = db.execute("SELECT id, supplier_id, invoice_id, invoice_ids, expense_ids, fund_source, payment_date, amount, payment_method, reference_no, notes, created_at, cheque_number, cheque_date, bank_name, cheque_drawer, discount FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id)).fetchone()
         db.execute("DELETE FROM supplier_payment_records WHERE id=? AND supplier_id=?", (pay_id, sup_id))
         if pay:
             # Revert invoices
