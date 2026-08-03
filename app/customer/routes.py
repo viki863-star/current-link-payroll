@@ -21,6 +21,17 @@ def _safe_execute(db, sql, params=()):
     except Exception:
         _safe_rollback(db)
 
+def _seed_service_item(db, desc, rate):
+    backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+    if backend == "postgres":
+        sql = "INSERT INTO service_items (description, default_rate) VALUES (?,?) ON CONFLICT (description) DO NOTHING"
+    else:
+        sql = "INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)"
+    try:
+        db.execute(sql, (desc, rate))
+    except Exception:
+        pass
+
 def _open_db():
     from ..database import DatabaseAdapter, _connect_postgres, _connect_sqlite
     backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
@@ -522,10 +533,7 @@ def customer_invoice_add(cid):
                 db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order,unit,vehicle_no) VALUES (?,?,?,?,?,?,?,?)",
                     (inv_id, it["desc"], it["qty"], it["rate"], it["amt"], idx, it.get("unit", "hour"), it.get("vehicle", "")))
                 if it["desc"]:
-                    try:
-                        db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
-                    except Exception:
-                        pass
+                    _seed_service_item(db, it["desc"], it["rate"])
             db.commit()
             db.close()
             flash(f"Invoice {inv_no} created.", "success")
@@ -699,10 +707,7 @@ def customer_invoice_edit(cid, iid):
                 db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order,unit,vehicle_no) VALUES (?,?,?,?,?,?,?,?)",
                     (iid, it["desc"], it["qty"], it["rate"], it["amt"], idx, it.get("unit", "hour"), it.get("vehicle", "")))
                 if it["desc"]:
-                    try:
-                        db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
-                    except Exception:
-                        pass
+                    _seed_service_item(db, it["desc"], it["rate"])
             db.commit()
             db.close()
             flash(f"Invoice {inv_no} updated.", "success")
@@ -1948,10 +1953,7 @@ def customer_quotation_add(cid):
             db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
                 (qid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
             if it["desc"]:
-                try:
-                    db.execute("INSERT OR IGNORE INTO service_items (description, default_rate) VALUES (?,?)", (it["desc"], it["rate"]))
-                except Exception:
-                    pass
+                _seed_service_item(db, it["desc"], it["rate"])
         db.commit()
         db.close()
         flash(f"Quotation {q_no} created.", "success")

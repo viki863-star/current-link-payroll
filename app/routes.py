@@ -25,6 +25,7 @@ from flask import (
 import re
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.exceptions import HTTPException
 from flask_wtf.csrf import CSRFError
 
 from .backup_service import (
@@ -201,7 +202,9 @@ def register_routes(app: Flask) -> None:
 
     @app.errorhandler(Exception)
     def handle_unhandled(error):
-        current_app.logger.error("Unhandled error: %s", error)
+        if isinstance(error, HTTPException) and error.code is not None:
+            return render_template("error.html", message=error.name), error.code
+        current_app.logger.error("Unhandled error: %s", error, exc_info=True)
         return render_template("error.html", message="Something went wrong. Please try again."), 500
 
     @app.context_processor
