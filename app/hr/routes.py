@@ -1635,7 +1635,7 @@ def employee_edit(employee_id):
                         "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
                         (date.today().isoformat(), employee_id),
                     )
-                    db.execute("UPDATE drivers SET vehicle_no = NULL WHERE driver_id = ?", (employee_id,))
+                    db.execute("UPDATE drivers SET vehicle_no = '' WHERE driver_id = ?", (employee_id,))
 
             if values.get("employee_type") == "Field Staff":
                 _sync_employee_to_field_staff(db, employee_id, values["full_name"], values["phone_number"], values["status"])
