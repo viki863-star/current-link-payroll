@@ -7591,7 +7591,7 @@ def register_routes(app: Flask) -> None:
                 sup_loans = float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_loans WHERE fund_source='owner_fund' AND loan_type='given'").fetchone()[0])
                 sup_used = round(sup_payments + sup_expenses + sup_loans, 2)
                 sup_balance = round(sup_net - sup_used, 2)
-                sup_funds = db.execute("SELECT id, owner_name, entry_date, amount, received_by, payment_method, details, created_at FROM owner_funds ORDER BY fund_date DESC LIMIT 20").fetchall()
+                sup_funds = db.execute("SELECT id, owner_name, fund_date, amount, transaction_type, description, created_at FROM owner_funds ORDER BY fund_date DESC LIMIT 20").fetchall()
             except Exception:
                 sup_deposits = sup_withdrawals = sup_net = sup_payments = sup_expenses = sup_loans = sup_used = sup_balance = 0
                 sup_funds = []
