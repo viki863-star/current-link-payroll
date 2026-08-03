@@ -213,6 +213,11 @@ def _ensure_tables():
         _safe_execute(db, sql)
     _safe_execute(db, "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS status" if backend == "postgres" else "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS status")
     _safe_execute(db, "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS paid" if backend == "postgres" else "ALTER TABLE customer_invoices DROP COLUMN IF EXISTS paid")
+    # Remove legacy customer_documents columns (old schema: party_code, file_name, file_path NOT NULL) that
+    # the current doc upload code no longer writes; they blocked INSERT with a NOT NULL violation.
+    for legacy_col in ["party_code", "file_name", "file_path", "label", "uploaded_at"]:
+        sql = f"ALTER TABLE customer_documents DROP COLUMN IF EXISTS {legacy_col}" if backend == "postgres" else f"ALTER TABLE customer_documents DROP COLUMN {legacy_col}"
+        _safe_execute(db, sql)
     _safe_execute(db, "INSERT INTO quotation_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM quotation_sequence)")
     _safe_execute(db, "INSERT INTO invoice_sequence (last_number) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM invoice_sequence)")
     _safe_execute(db, "ALTER TABLE customer_quotation_items ADD COLUMN IF NOT EXISTS unit TEXT DEFAULT 'hr'" if backend == "postgres" else "ALTER TABLE customer_quotation_items ADD COLUMN unit TEXT DEFAULT 'hr'")
@@ -2760,6 +2765,7 @@ def customer_so_view(cid, sid):
 
 @customer_bp.route("/<int:cid>/doc/add", methods=["GET", "POST"])
 def customer_doc_add(cid):
+    _ensure_tables()
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     if request.method == "POST":
