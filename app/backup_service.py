@@ -132,14 +132,13 @@ def cleanup_old_backups(app=None):
 
 def ensure_daily_backup_for_today(app=None):
     app = _resolve_app(app)
-    if (app.config.get("DATABASE_BACKEND") or "sqlite") != "sqlite":
-        return _create_daily_pg_backup(app)
-
     backup_dir = _backup_dir(app, "daily")
     today_prefix = f"current_link_daily_db_{datetime.now().strftime('%Y-%m-%d')}_"
-    if any(backup_dir.glob(f"{today_prefix}*.db")):
+    if any(backup_dir.glob(f"{today_prefix}*.sql")) or any(backup_dir.glob(f"{today_prefix}*.db")):
         latest = latest_backup_file("daily", app)
         return _success_result(latest, "Today's daily backup already exists.")
+    if (app.config.get("DATABASE_BACKEND") or "sqlite") != "sqlite":
+        return _create_daily_pg_backup(app)
     return create_daily_backup(app)
 
 

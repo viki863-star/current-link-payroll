@@ -230,8 +230,14 @@ def create_app(test_config: dict | None = None) -> Flask:
     if not app.config.get("TESTING"):
         try:
             from .backup_service import ensure_daily_backup_for_today
+            import threading
 
-            ensure_daily_backup_for_today(app)
+            threading.Thread(
+                target=ensure_daily_backup_for_today,
+                args=(app,),
+                name="daily-backup",
+                daemon=True,
+            ).start()
         except Exception:
             app.logger.warning("Automatic daily backup skipped.", exc_info=True)
     register_routes(app)
