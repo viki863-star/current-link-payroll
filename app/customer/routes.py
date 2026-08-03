@@ -1967,7 +1967,7 @@ def customer_quotation_edit(cid, qid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    q = db.execute("SELECT id, customer_id, quotation_no, quotation_date, amount, status, notes, created_at FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
+    q = db.execute("SELECT id, customer_id, quotation_no, quotation_date, amount, sub_total, vat_percent, vat_amount, total_amount, status, notes, terms, location, contact_details, created_at FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
     if not q:
         db.close()
         flash("Quotation not found.", "error")
@@ -2031,7 +2031,7 @@ def customer_quotation_delete(cid, qid):
 def customer_quotation_approve(cid, qid):
     _ensure_tables()
     db = _get_db()
-    q = db.execute("SELECT id, customer_id, quotation_no, quotation_date, amount, status, notes, created_at FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
+    q = db.execute("SELECT id, customer_id, quotation_no, quotation_date, amount, sub_total, vat_percent, vat_amount, total_amount, status, notes, terms, location, contact_details, created_at FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
     if not q:
         db.close()
         flash("Quotation not found.", "error")
@@ -2052,7 +2052,7 @@ def customer_quotation_view(cid, qid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    q = db.execute("SELECT id, customer_id, quotation_no, quotation_date, amount, status, notes, created_at FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
+    q = db.execute("SELECT id, customer_id, quotation_no, quotation_date, amount, sub_total, vat_percent, vat_amount, total_amount, status, notes, terms, location, contact_details, created_at FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
     if not q:
         db.close()
         flash("Quotation not found.", "error")
@@ -2077,7 +2077,7 @@ def customer_quotation_pdf(cid, qid):
     _ensure_tables()
     db = _get_db()
     c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers WHERE id=?", (cid,)).fetchone()
-    q = db.execute("SELECT id, customer_id, quotation_no, quotation_date, amount, status, notes, created_at FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
+    q = db.execute("SELECT id, customer_id, quotation_no, quotation_date, amount, sub_total, vat_percent, vat_amount, total_amount, status, notes, terms, location, contact_details, created_at FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
     items = db.execute("SELECT id, quotation_id, description, quantity, rate, amount, unit, sort_order FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     db.close()
