@@ -1,4 +1,5 @@
 import sqlite3
+import json
 from datetime import date, datetime
 from pathlib import Path
 
@@ -2044,60 +2045,123 @@ def fuel_add():
     ensure_fleet_tables()
     db = open_db()
     if request.method == "POST":
-        vehicle_plate = request.form.get("vehicle_plate", "").strip()
-        entry_date = request.form.get("entry_date", "").strip()
-        gallons = float(request.form.get("gallons", 0) or 0)
-        rate = float(request.form.get("rate_per_gallon", 0) or 0)
-        # Auto-calculate rate from total_amount if provided
-        total_amount = request.form.get("total_amount", "").strip()
-        if total_amount:
-            amt = float(total_amount or 0)
-            if rate <= 0 and gallons > 0:
-                rate = round(amt / gallons, 3)
         supplier_id = request.form.get("supplier_id", "").strip()
-        notes = request.form.get("notes", "").strip()
-        if not vehicle_plate or not entry_date or gallons <= 0 or rate <= 0 or not supplier_id:
-            flash("Please fill all required fields.", "error")
+        if not supplier_id:
+            flash("Please select a supplier.", "error")
             return redirect(url_for("fleet.fuel_add"))
         supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
         if not supplier:
             flash("Supplier not found.", "error")
             return redirect(url_for("fleet.fuel_add"))
-        total = round(gallons * rate, 2)
-        fuel_desc = f"{gallons} GLN × {rate} = AED {total} — {vehicle_plate}"
-        if db.backend == "postgres":
-            fuel_result = db.execute(
-                """INSERT INTO fuel_entries (vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
-                (vehicle_plate, entry_date, gallons, rate, total, supplier["id"], supplier["supplier_name"], notes),
-            )
-            fuel_id = fuel_result.fetchone()[0]
-            exp_result = db.execute(
-                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
-                   VALUES (?, ?, ?, 'Fuel', ?, 'Fuel', ?, ?, ?, 'approved') RETURNING id""",
-                (supplier["id"], entry_date, total, notes or fuel_desc, gallons, rate, vehicle_plate),
-            )
-            expense_id = exp_result.fetchone()[0]
-        else:
-            db.execute(
-                """INSERT INTO fuel_entries (vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (vehicle_plate, entry_date, gallons, rate, total, supplier["id"], supplier["supplier_name"], notes),
-            )
-            fuel_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
-            db.execute(
-                """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
-                   VALUES (?, ?, ?, 'Fuel', ?, 'Fuel', ?, ?, ?, 'approved')""",
-                (supplier["id"], entry_date, total, notes or fuel_desc, gallons, rate, vehicle_plate),
-            )
-            expense_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
-        db.execute("UPDATE fuel_entries SET source_expense_id = ? WHERE id = ?", (expense_id, fuel_id))
+
+        # ── Bulk mode: multiple vehicle rows (vehicle_plate[]) ──
+        bulk_plates = request.form.getlist("vehicle_plate[]")
+        if bulk_plates and bulk_plates[0].strip():
+            entry_dates = request.form.getlist("entry_date[]")
+            gallons_list = request.form.getlist("gallons[]")
+            amounts_list = request.form.getlist("total_amount[]")
+            notes_list = request.form.getlist("notes[]")
+            global_notes = request.form.get("notes", "").strip()
+            added = 0
+            for i, raw_plate in enumerate(bulk_plates):
+                plate = raw_plate.strip()
+                edate = entry_dates[i].strip() if i < len(entry_dates) else ""
+                try:
+                    gln = float(gallons_list[i] or 0) if i < len(gallons_list) else 0
+                except (TypeError, ValueError):
+                    gln = 0
+                amt_raw = amounts_list[i].strip() if i < len(amounts_list) else ""
+                try:
+                    amt = float(amt_raw or 0)
+                except (TypeError, ValueError):
+                    amt = 0
+                note = (notes_list[i].strip() if i < len(notes_list) else "") or global_notes
+                if not plate or not edate or gln <= 0 or amt <= 0:
+                    continue
+                rate = round(amt / gln, 3)
+                _insert_fuel_entry(db, plate, edate, gln, rate, supplier, note)
+                added += 1
+            db.commit()
+            if added:
+                flash(f"{added} fuel entr{'y' if added == 1 else 'ies'} added.", "success")
+            else:
+                flash("No valid rows to add. Each row needs a vehicle, date, gallons and amount.", "error")
+            return redirect(url_for("fleet.fuel_list"))
+
+        # ── Single mode (used by the vehicle-profile quick form) ──
+        vehicle_plate = request.form.get("vehicle_plate", "").strip()
+        entry_date = request.form.get("entry_date", "").strip()
+        try:
+            gallons = float(request.form.get("gallons", 0) or 0)
+        except (TypeError, ValueError):
+            gallons = 0
+        try:
+            rate = float(request.form.get("rate_per_gallon", 0) or 0)
+        except (TypeError, ValueError):
+            rate = 0
+        # Auto-calculate rate from total_amount if provided
+        total_amount = request.form.get("total_amount", "").strip()
+        if total_amount:
+            try:
+                amt = float(total_amount or 0)
+            except (TypeError, ValueError):
+                amt = 0
+            if rate <= 0 and gallons > 0:
+                rate = round(amt / gallons, 3)
+        notes = request.form.get("notes", "").strip()
+        if not vehicle_plate or not entry_date or gallons <= 0 or rate <= 0:
+            flash("Please fill all required fields.", "error")
+            return redirect(url_for("fleet.fuel_add"))
+        fuel_id, total = _insert_fuel_entry(db, vehicle_plate, entry_date, gallons, rate, supplier, notes)
         db.commit()
         flash(f"Fuel entry added: {gallons} GLN × {rate} = AED {total}", "success")
         return redirect(url_for("fleet.fuel_list"))
     vehicles = db.execute("SELECT plate_no FROM vehicles ORDER BY plate_no").fetchall()
     suppliers = db.execute("SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name").fetchall()
-    return render_template("fleet/fuel_form.html", vehicles=vehicles, suppliers=suppliers, entry=None)
+    today = date.today()
+    return render_template(
+        "fleet/fuel_form.html",
+        vehicles=vehicles,
+        suppliers=suppliers,
+        entry=None,
+        vehicles_json=json.dumps([v["plate_no"] for v in vehicles]),
+        today=today.isoformat(),
+        today_month=today.strftime("%Y-%m"),
+    )
+
+
+def _insert_fuel_entry(db, vehicle_plate, entry_date, gallons, rate, supplier, notes):
+    """Insert one fuel entry plus its linked supplier_expense; returns (fuel_id, total)."""
+    total = round(gallons * rate, 2)
+    fuel_desc = f"{gallons} GLN × {rate} = AED {total} — {vehicle_plate}"
+    if db.backend == "postgres":
+        fuel_result = db.execute(
+            """INSERT INTO fuel_entries (vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+            (vehicle_plate, entry_date, gallons, rate, total, supplier["id"], supplier["supplier_name"], notes),
+        )
+        fuel_id = fuel_result.fetchone()[0]
+        exp_result = db.execute(
+            """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
+               VALUES (?, ?, ?, 'Fuel', ?, 'Fuel', ?, ?, ?, 'approved') RETURNING id""",
+            (supplier["id"], entry_date, total, notes or fuel_desc, gallons, rate, vehicle_plate),
+        )
+        expense_id = exp_result.fetchone()[0]
+    else:
+        db.execute(
+            """INSERT INTO fuel_entries (vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (vehicle_plate, entry_date, gallons, rate, total, supplier["id"], supplier["supplier_name"], notes),
+        )
+        fuel_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        db.execute(
+            """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
+               VALUES (?, ?, ?, 'Fuel', ?, 'Fuel', ?, ?, ?, 'approved')""",
+            (supplier["id"], entry_date, total, notes or fuel_desc, gallons, rate, vehicle_plate),
+        )
+        expense_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+    db.execute("UPDATE fuel_entries SET source_expense_id = ? WHERE id = ?", (expense_id, fuel_id))
+    return fuel_id, total
 
 
 @fleet_bp.route("/fleet/fuel/<int:entry_id>/edit", methods=["GET", "POST"])

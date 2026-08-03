@@ -1,12 +1,13 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Edit' if entry else 'Add' }} Fuel Entry{% endblock %}
-{% block page_title %}{{ 'Edit' if entry else 'Add' }} Fuel Entry{% endblock %}
+{% block title %}{{ 'Edit' if entry else 'Bulk Add' }} Fuel Entry{% endblock %}
+{% block page_title %}{{ 'Edit' if entry else 'Bulk Add' }} Fuel Entries{% endblock %}
 {% block body_class %}detail-body{% endblock %}
 {% block content %}
-<div class="profile-shell" style="max-width:640px;margin:0 auto">
+<div class="profile-shell" style="max-width:980px;margin:0 auto">
   <div class="profile-card">
-    <h3 style="margin:0 0 16px;font-size:0.95rem">{{ 'Edit' if entry else 'New' }} Fuel Entry</h3>
-    <form method="POST">
+    {% if entry %}
+    <h3 style="margin:0 0 16px;font-size:0.95rem">Edit Fuel Entry</h3>
+    <form method="POST" style="max-width:640px">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-row">
         <label class="form-label">Vehicle *</label>
@@ -50,12 +51,59 @@
         <input type="text" name="notes" class="form-control" value="{{ entry.notes if entry else '' }}" placeholder="Optional">
       </div>
       <div style="margin-top:16px;display:flex;gap:8px">
-        <button type="submit" class="btn btn-primary">{{ 'Update' if entry else 'Add' }} Entry</button>
+        <button type="submit" class="btn btn-primary">Update Entry</button>
         <a href="{{ url_for('fleet.fuel_list') }}" class="btn btn-outline">Cancel</a>
       </div>
     </form>
+    {% else %}
+    <h3 style="margin:0 0 16px;font-size:0.95rem">Bulk Add Fuel Entries</h3>
+    <form method="POST" id="bulkFuelForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row">
+          <label class="form-label">Supplier *</label>
+          <select name="supplier_id" id="bulkSupplier" class="form-control" required>
+            <option value="">— Select Supplier —</option>
+            {% for s in suppliers %}
+            <option value="{{ s.id }}">{{ s.supplier_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Month *</label>
+          <input type="month" name="month" id="bulkMonth" class="form-control" value="{{ today_month }}" required onchange="applyMonthToEmptyDates()">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Notes <span style="font-weight:400;color:var(--muted)">(applies to all rows)</span></label>
+        <input type="text" name="notes" class="form-control" placeholder="Optional">
+      </div>
+      <div style="margin-top:14px;overflow-x:auto">
+        <table class="smart-table" style="min-width:760px">
+          <thead>
+            <tr>
+              <th style="width:34px">#</th>
+              <th>Vehicle *</th>
+              <th style="width:140px">Date *</th>
+              <th style="width:110px">GLN *</th>
+              <th style="width:120px">Amount (AED) *</th>
+              <th style="width:110px">Rate/GLN</th>
+              <th style="width:40px"></th>
+            </tr>
+          </thead>
+          <tbody id="bulkRows"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn btn-outline" onclick="addRow()">+ Add Row</button>
+        <button type="submit" class="btn btn-primary">Save All Entries</button>
+        <a href="{{ url_for('fleet.fuel_list') }}" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+    {% endif %}
   </div>
 </div>
+{% if entry %}
 <script>
 function calcFuelRate() {
   var gln = parseFloat(document.getElementById('fuelGallons').value) || 0;
@@ -64,8 +112,73 @@ function calcFuelRate() {
   document.getElementById('fuelRate').value = rate ? rate.toFixed(3) : '';
   document.getElementById('fuelRateHidden').value = rate ? rate.toFixed(3) : '';
 }
-{% if entry %}
 calcFuelRate();
-{% endif %}
 </script>
+{% else %}
+<script>
+var VEHICLES = {{ vehicles_json | safe }};
+var today = '{{ today }}';
+var todayMonth = '{{ today_month }}';
+
+function vehicleOptions() {
+  var html = '<option value="">— Select —</option>';
+  for (var i = 0; i < VEHICLES.length; i++) {
+    html += '<option value="' + VEHICLES[i] + '">' + VEHICLES[i] + '</option>';
+  }
+  return html;
+}
+
+function rowDate() {
+  var month = document.getElementById('bulkMonth').value || todayMonth;
+  return month ? (month + '-01') : today;
+}
+
+function addRow() {
+  var tbody = document.getElementById('bulkRows');
+  var row = document.createElement('tr');
+  row.innerHTML =
+    '<td class="fuel-row-num" style="text-align:center;color:var(--muted)"></td>' +
+    '<td><select name="vehicle_plate[]" class="form-control" required>' + vehicleOptions() + '</select></td>' +
+    '<td><input type="date" name="entry_date[]" class="form-control" value="' + rowDate() + '" required></td>' +
+    '<td><input type="number" name="gallons[]" step="0.01" min="0" placeholder="0" class="form-control fuel-gln" required oninput="calcRowRate(this)"></td>' +
+    '<td><input type="number" name="total_amount[]" step="0.01" min="0" placeholder="0" class="form-control fuel-amt" required oninput="calcRowRate(this)"></td>' +
+    '<td><input type="text" class="form-control fuel-rate" readonly style="background:var(--bg-muted,#f1f5f9);cursor:default" placeholder="Auto"></td>' +
+    '<td style="text-align:center"><button type="button" class="btn btn-outline" style="padding:4px 10px" onclick="removeRow(this)" title="Remove row">&times;</button></td>';
+  tbody.appendChild(row);
+  renumber();
+}
+
+function removeRow(btn) {
+  btn.closest('tr').remove();
+  renumber();
+}
+
+function calcRowRate(input) {
+  var tr = input.closest('tr');
+  var gln = parseFloat(tr.querySelector('.fuel-gln').value) || 0;
+  var amt = parseFloat(tr.querySelector('.fuel-amt').value) || 0;
+  tr.querySelector('.fuel-rate').value = gln > 0 ? (amt / gln).toFixed(3) : '';
+}
+
+function renumber() {
+  var rows = document.querySelectorAll('#bulkRows tr');
+  for (var i = 0; i < rows.length; i++) {
+    rows[i].querySelector('.fuel-row-num').textContent = (i + 1);
+  }
+}
+
+function applyMonthToEmptyDates() {
+  var month = document.getElementById('bulkMonth').value || todayMonth;
+  var rows = document.querySelectorAll('#bulkRows tr');
+  for (var i = 0; i < rows.length; i++) {
+    var d = rows[i].querySelector('input[name="entry_date[]"]');
+    if (d && !d.value) d.value = month ? (month + '-01') : today;
+  }
+}
+
+addRow();
+addRow();
+addRow();
+</script>
+{% endif %}
 {% endblock %}
