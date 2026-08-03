@@ -41,7 +41,7 @@
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
                         <td style="max-width:150px;white-space:normal;font-size:0.75rem">{{ j.description or '-' }}</td>
                         <td>
-                            {% if j.attachment_data %}
+                            {% if j.has_attachment %}
                             <a href="#" onclick="viewAttachment('{{ j.id }}')" class="btn btn-xs btn-outline">View</a>
                             {% else %}
                             —

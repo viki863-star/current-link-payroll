@@ -18,6 +18,13 @@ VEHICLE_TYPES = ["Tanker", "Trailer", "Box Truck", "Flatbed", "Crane", "Other"]
 OWNERSHIP_TYPES = ["Standard", "Partnership"]
 MAINTENANCE_CATEGORIES = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
 
+_MJ_LIST_COLS = """
+    mj.id, mj.vehicle_id, mj.staff_id, mj.amount, mj.category, mj.description,
+    mj.attachment_name, mj.attachment_type, mj.status, mj.admin_notes,
+    mj.created_at, mj.approved_at,
+    CASE WHEN mj.attachment_data IS NOT NULL AND mj.attachment_data != '' THEN 1 ELSE 0 END AS has_attachment
+"""
+
 
 _fleet_tables_ensured = False
 
@@ -85,6 +92,22 @@ def ensure_fleet_tables():
         db.execute(
             "UPDATE supplier_expenses SET earning_type = 'Fuel' WHERE category = 'Fuel' AND earning_type = 'trip'"
         )
+        db.commit()
+    except Exception:
+        pass
+    # Indexes to speed up list/profile queries
+    for idx_sql in [
+        "CREATE INDEX IF NOT EXISTS idx_mj_status_created ON maintenance_jobs (status, created_at)",
+        "CREATE INDEX IF NOT EXISTS idx_mj_staff_created ON maintenance_jobs (staff_id, created_at)",
+        "CREATE INDEX IF NOT EXISTS idx_mj_vehicle_status ON maintenance_jobs (vehicle_id, status)",
+        "CREATE INDEX IF NOT EXISTS idx_msa_staff ON maintenance_staff_advances (staff_code)",
+        "CREATE INDEX IF NOT EXISTS idx_mp_tech ON maintenance_papers (technician_code)",
+    ]:
+        try:
+            db.execute(idx_sql)
+        except Exception:
+            pass
+    try:
         db.commit()
     except Exception:
         pass
@@ -212,7 +235,7 @@ def fleet_dashboard():
     partnership = sum(1 for v in vehicles if v["ownership_type"] == "Partnership")
 
     pending_jobs = db.execute(
-        "SELECT mj.*, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, v.vehicle_type, s.full_name AS staff_name FROM maintenance_jobs mj LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id JOIN field_staff s ON s.staff_id = mj.staff_id WHERE mj.status = 'pending' ORDER BY mj.created_at DESC"
+        f"SELECT {_MJ_LIST_COLS}, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, v.vehicle_type, s.full_name AS staff_name FROM maintenance_jobs mj LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id JOIN field_staff s ON s.staff_id = mj.staff_id WHERE mj.status = 'pending' ORDER BY mj.created_at DESC"
     ).fetchall()
 
     pending_count = len(pending_jobs)
@@ -226,7 +249,7 @@ def fleet_dashboard():
     total_maintenance_cost = float(total_maintenance_cost) + float(paper_cost)
 
     recent_jobs = db.execute(
-        "SELECT mj.*, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, v.vehicle_type, s.full_name AS staff_name FROM maintenance_jobs mj LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id JOIN field_staff s ON s.staff_id = mj.staff_id WHERE mj.status = 'approved' ORDER BY mj.created_at DESC LIMIT 10"
+        f"SELECT {_MJ_LIST_COLS}, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, v.vehicle_type, s.full_name AS staff_name FROM maintenance_jobs mj LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id JOIN field_staff s ON s.staff_id = mj.staff_id WHERE mj.status = 'approved' ORDER BY mj.created_at DESC LIMIT 10"
     ).fetchall()
 
     top_vehicles = db.execute(
@@ -489,7 +512,7 @@ def vehicle_profile(plate_no):
 
     # Approved jobs (maintenance_jobs + maintenance_papers)
     approved_jobs = db.execute(
-        """SELECT mj.*, COALESCE(s.full_name, 'Admin') AS staff_name FROM maintenance_jobs mj
+        f"""SELECT {_MJ_LIST_COLS}, COALESCE(s.full_name, 'Admin') AS staff_name FROM maintenance_jobs mj
            LEFT JOIN field_staff s ON s.staff_id = mj.staff_id
            WHERE mj.vehicle_id = ? AND mj.status = 'approved'
            ORDER BY mj.created_at DESC""",
@@ -803,7 +826,7 @@ def staff_jobs():
     db = open_db()
     staff_id = session["staff_id"]
     jobs = db.execute(
-        """SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
+        f"""SELECT {_MJ_LIST_COLS}, v.vehicle_type FROM maintenance_jobs mj
            LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
            WHERE mj.staff_id = ? ORDER BY mj.created_at DESC""",
         (staff_id,),
@@ -1073,7 +1096,7 @@ def _import_orphaned_maintenance_jobs(db):
     for row in orphan_staff:
         staff_id = row["staff_id"]
         sample = db.execute(
-            "SELECT mj.* FROM maintenance_jobs mj WHERE mj.staff_id = ? LIMIT 1",
+            "SELECT mj.id FROM maintenance_jobs mj WHERE mj.staff_id = ? LIMIT 1",
             (staff_id,),
         ).fetchone()
         if not sample:
@@ -1471,7 +1494,7 @@ def fleet_staff_profile(staff_id):
                 date_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
                 date_params.append(date_to)
         jobs = db.execute(f"""
-            SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
+            SELECT {_MJ_LIST_COLS}, v.vehicle_type FROM maintenance_jobs mj
             LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
             WHERE mj.staff_id = ?{date_where} ORDER BY mj.created_at DESC
         """, (staff_id, *date_params)).fetchall()
@@ -1684,7 +1707,7 @@ def fleet_staff_jobs_pdf(staff_id):
                 jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
                 jp_params.append(date_to)
         jobs = db.execute(f"""
-            SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj
+            SELECT {_MJ_LIST_COLS}, v.vehicle_type FROM maintenance_jobs mj
             LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
             WHERE mj.staff_id = ?{jp_where}
             ORDER BY mj.created_at DESC
@@ -1788,7 +1811,7 @@ def fleet_approvals():
     db = open_db()
 
     pending_jobs = db.execute(
-        """SELECT mj.*, v.vehicle_type, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name
+        f"""SELECT {_MJ_LIST_COLS}, v.vehicle_type, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name
            FROM maintenance_jobs mj
            LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
            JOIN field_staff s ON s.staff_id = mj.staff_id
@@ -1801,7 +1824,7 @@ def fleet_approvals():
     )
 
     recent_approved = db.execute(
-        """SELECT mj.*, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name
+        f"""SELECT {_MJ_LIST_COLS}, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name
            FROM maintenance_jobs mj
            LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
            JOIN field_staff s ON s.staff_id = mj.staff_id

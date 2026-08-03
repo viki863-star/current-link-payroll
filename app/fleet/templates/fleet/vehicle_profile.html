@@ -225,7 +225,7 @@
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount|float) }}</td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
                         <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
-                        <td>{% if j.attachment_data %}<a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">View</a>{% elif j.attachment_name %}<a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.7rem;color:var(--muted)">—</span>{% endif %}</td>
+                        <td>{% if j.has_attachment %}<a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">View</a>{% elif j.attachment_name %}<a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.7rem;color:var(--muted)">—</span>{% endif %}</td>
                     </tr>
                     <tr id="paper-detail-{{ loop.index }}" style="{% if is_hl %}display:table-row{% else %}display:none{% endif %}">
                         <td colspan="6" style="padding:14px 18px;background:#f8fafd">
@@ -243,7 +243,7 @@
                                 {% else %}
                                 <div style="grid-column:1/-1;margin-top:2px"><span style="font-size:0.78rem;color:var(--muted)">No attachment</span></div>
                                 {% endif %}
-                                {% elif j.attachment_data %}
+                                {% elif j.has_attachment %}
                                 <div style="grid-column:1/-1;margin-top:2px"><a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">&#128206; View Attachment</a></div>
                                 {% else %}
                                 <div style="grid-column:1/-1;margin-top:2px"><span style="font-size:0.78rem;color:var(--muted)">No attachment</span></div>
