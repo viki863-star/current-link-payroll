@@ -8,9 +8,9 @@ import os, subprocess
 
 
 BACKUP_LIMITS = {
-    "daily": 7,
-    "weekly": 4,
-    "monthly": 12,
+    "daily": 1,
+    "weekly": 1,
+    "monthly": 1,
 }
 
 
