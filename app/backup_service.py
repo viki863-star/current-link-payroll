@@ -110,7 +110,7 @@ def cleanup_old_backups(app=None):
     for kind, keep_count in BACKUP_LIMITS.items():
         backup_dir = _backup_dir(app, kind)
         patterns = {
-            "daily": ["current_link_daily_db_*.db", "current_link_daily_db_*.sql"],
+            "daily": ["current_link_daily_db_*.db", "current_link_daily_db_*.sql", "pg_dump_*.sql"],
             "weekly": ["current_link_weekly_full_*.zip"],
             "monthly": ["current_link_monthly_full_*.zip"],
         }[kind]
