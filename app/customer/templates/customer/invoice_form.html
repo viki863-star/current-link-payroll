@@ -101,7 +101,7 @@
                     {% for it in items %}
                     <div class="line-item-row">
                         <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)" autocomplete="off">{{ it.description or '' }}</textarea>
-                        <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="0.01" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()" autocomplete="off">
+                        <input type="number" name="item_qty[]" value="{{ it.quantity or 1 }}" min="0" step="any" style="width:100%;text-align:center" oninput="calcItem(this);calcTotals()" autocomplete="off">
                         <select name="item_unit[]" style="width:100%;text-align:center;padding:6px 4px;border:1px solid var(--line);border-radius:6px;font-size:0.75rem;background:#fff" onchange="calcTotals()">
                             <option value="hour" {% if (it.unit or 'hour') == 'hour' %}selected{% endif %}>Hour</option>
                             <option value="trip" {% if (it.unit or 'hour') == 'trip' %}selected{% endif %}>Trip</option>
@@ -170,7 +170,7 @@ function addItem(desc, qty, rate, unit, vehicle) {
     const unitHtml = unitOptions.map(uo => `<option value="${uo}"${uo === u?' selected':''}>${uo.charAt(0).toUpperCase()+uo.slice(1)}</option>`).join('');
     row.innerHTML = `
         <textarea name="item_desc[]" placeholder="Service description" rows="1" oninput="autoResize(this)" autocomplete="off">${d}</textarea>
-        <input type="number" name="item_qty[]" value="${q}" min="0" step="0.01" style="text-align:center" oninput="calcItem(this);calcTotals()" autocomplete="off">
+        <input type="number" name="item_qty[]" value="${q}" min="0" step="any" style="text-align:center" oninput="calcItem(this);calcTotals()" autocomplete="off">
         <select name="item_unit[]" style="text-align:center;padding:6px 4px;border:1px solid var(--line);border-radius:6px;font-size:0.75rem;background:#fff" onchange="calcTotals()">${unitHtml}</select>
         <input type="number" name="item_rate[]" value="${r}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
         <span class="item-amt" id="itemAmt_${itemCount}">${(q * r).toFixed(2)}</span>

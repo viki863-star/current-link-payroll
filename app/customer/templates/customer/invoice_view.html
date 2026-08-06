@@ -107,8 +107,8 @@
                 <td style="text-align:center;font-weight:700;color:#64748b;font-size:0.9rem">{{ loop.index }}</td>
                 <td style="font-weight:500;color:#0f172a">{{ it.description or '—' }}</td>
                 <td style="text-align:center;color:#475569;font-weight:600">{{ it.get('unit') or 'hr' }}</td>
-                <td style="text-align:right;font-family:mono;font-weight:600">{{ "%.3f" % it.quantity }}</td>
-                <td style="text-align:right;font-family:mono">{{ "%.3f" % it.rate }}</td>
+                <td style="text-align:right;font-family:mono;font-weight:600">{{ "%.4f" % it.quantity }}</td>
+                <td style="text-align:right;font-family:mono">{{ "%.4f" % it.rate }}</td>
                 <td style="text-align:right;font-family:mono;font-weight:600">{{ "%.2f" % it.amount }}</td>
                 <td style="text-align:center;font-family:mono;color:#64748b">{{ "%.2f" % vat_pct_item }}%</td>
                 <td style="text-align:right;font-family:mono;color:#dc2626;font-weight:600">{{ "%.2f" % vat_amt_item }}</td>
