@@ -921,6 +921,15 @@ def supplier_profile(sup_id):
         (sup_id,),
     ).fetchall()
 
+    earn_month = request.args.get("month", "").strip()
+    earn_months = sorted({inv["invoice_date"][:7] for inv in invoices} | {e["expense_date"][:7] for e in expenses}, reverse=True)
+    if earn_month:
+        earn_invoices = [inv for inv in invoices if inv["invoice_date"][:7] == earn_month]
+        earn_expenses = [e for e in expenses if e["expense_date"][:7] == earn_month]
+    else:
+        earn_invoices = invoices
+        earn_expenses = expenses
+
     payments = db.execute(
         "SELECT id, supplier_id, invoice_id, payment_date, amount, payment_method, reference_no, notes, created_at FROM supplier_payment_records WHERE supplier_id = ? ORDER BY payment_date DESC",
         (sup_id,),
@@ -1010,6 +1019,10 @@ def supplier_profile(sup_id):
         net_balance=net_balance,
         chart_months=chart_months,
         chart_values=chart_values,
+        earn_month=earn_month,
+        earn_months=earn_months,
+        earn_invoices=earn_invoices,
+        earn_expenses=earn_expenses,
         today=date.today().isoformat(),
     )
 

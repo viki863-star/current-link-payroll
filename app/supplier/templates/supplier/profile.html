@@ -169,10 +169,16 @@
 <div class="action-bar">
   <a href="{{ url_for('supplier.supplier_invoice_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add Invoice</a>
   <a href="{{ url_for('supplier.supplier_expense_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Add Earning</a>
+  <select id="earnMonth" class="form-control" style="max-width:180px" onchange="location='{{ url_for('supplier.supplier_profile', sup_id=s.id) }}?tab=earnings&month='+encodeURIComponent(this.value)">
+    <option value="">All Months</option>
+    {% for m in earn_months %}
+    <option value="{{ m }}" {% if m == earn_month %}selected{% endif %}>{{ m }}</option>
+    {% endfor %}
+  </select>
 </div>
 
 {% set all_earnings = [] %}
-{% for inv in invoices %}
+{% for inv in earn_invoices %}
   {% set _ = all_earnings.append({
     'date': inv.invoice_date, 'ref': inv.invoice_no, 'type': 'Invoice',
     'detail': 'Invoice · ' ~ inv.invoice_no, 'vehicle': '-',
@@ -185,7 +191,7 @@
     'attachment_name': inv.attachment_name or ''
   }) %}
 {% endfor %}
-{% for e in expenses %}
+{% for e in earn_expenses %}
   {% set is_inv = e.earning_type == 'invoice' %}
   {% set lbl = 'Invoice' if is_inv else (e.earning_type|title if e.earning_type else 'Fixed') %}
   {% set detail = e.description or e.category %}
@@ -206,7 +212,10 @@
 
 <div class="profile-card">
   <div class="section-header">
-    <h3>All Earnings</h3>
+    <h3>{% if earn_month %}Earnings — {{ earn_month }}{% else %}All Earnings{% endif %}</h3>
+    {% if all_earnings %}
+    <span class="section-total">Total: AED {{ "%.0f"|format(all_earnings|sum(attribute='amount')) }}</span>
+    {% endif %}
   </div>
   {% if all_earnings %}
   <div class="table-wrap">
