@@ -879,25 +879,30 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     unpaid_sal_total = sum(float(r.get("net_salary") or 0) for r in (unpaid_salary_rows or []))
     txn_total_all = sum(float(a.get("amount", 0)) for a in advances)
     salary_after_deduct = max(unpaid_sal_total - txn_total_all, 0.0)
-    def _summary_card(label, amount_html, style_name, fs=7):
+    def _summary_card(en_label, ur_label, amount_html, style_name, fs=10, highlight=False):
+        hl_bg = colors.HexColor("#e8f5e9") if highlight else WH
+        hl_line = colors.HexColor("#2e7d32") if highlight else TH
         inner = [
-            [_UP(f"<b>{label}</b>")],
-            [PlParagraph(amount_html, F(style_name, fontSize=10, textColor=C5, alignment=TA_CENTER, leading=12))],
+            [PlParagraph(f"<b>{en_label}</b>", F(style_name, fontSize=6, fontName="Helvetica-Bold", textColor=C5, alignment=TA_CENTER, leading=8)),
+             _UP(f"<b>{ur_label}</b>")],
+            [PlParagraph(amount_html, F(style_name, fontSize=fs, textColor=C5, alignment=TA_CENTER, leading=fs + 4))],
         ]
         t = PlTable(inner, colWidths=[W/4])
         t.setStyle(PlTableStyle([
             ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
             ("ALIGN",(0,0),(-1,-1),"CENTER"),
-            ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
+            ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
             ("LEFTPADDING",(0,0),(-1,-1),1), ("RIGHTPADDING",(0,0),(-1,-1),1),
+            ("BACKGROUND",(0,0),(-1,-1),hl_bg),
+            ("LINEABOVE",(0,0),(-1,-1),0.8,hl_line),
         ]))
         return t
 
     sdata = [[
-        _summary_card("کل ایڈوانسز", f"<font color='#c62828'><b>{format_currency(txn_total_all)}</b></font>", "_s1", fs=10),
-        _summary_card("اسٹور تنخواہ", f"<font color='#1a7d1a'><b>{format_currency(unpaid_sal_total)}</b></font>", "_s2", fs=10),
-        _summary_card("کٹوتی", f"<font color='#1a3a5c'><b>{format_currency(this_deduction)}</b></font>", "_s3", fs=10),
-        _summary_card("کٹوتی کے بعد تنخواہ", f"<font color='#2e7d32'><b>{format_currency(salary_after_deduct)}</b></font>", "_s4", fs=10),
+        _summary_card("TOTAL ADVANCES", "کل ایڈوانسز", f"<font color='#c62828'><b>{format_currency(txn_total_all)}</b></font>", "_s1", fs=10),
+        _summary_card("STORE SALARY", "اسٹور تنخواہ", f"<font color='#1a7d1a'><b>{format_currency(unpaid_sal_total)}</b></font>", "_s2", fs=10),
+        _summary_card("DEDUCTED", "کٹوتی", f"<font color='#1a3a5c'><b>{format_currency(this_deduction)}</b></font>", "_s3", fs=10),
+        _summary_card("NET PAYABLE", "کٹوتی کے بعد تنخواہ", f"<font color='#2e7d32'><b>{format_currency(salary_after_deduct)}</b></font>", "_s4", fs=11, highlight=True),
     ]]
     st = PlTable(sdata, colWidths=[W/4, W/4, W/4, W/4])
     st.setStyle(PlTableStyle([
