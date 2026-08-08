@@ -849,12 +849,12 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     els.append(Spacer(1, 3*mm))
     unpaid_sal_total = sum(float(r.get("net_salary") or 0) for r in (unpaid_salary_rows or []))
     txn_total_all = sum(float(a.get("amount", 0)) for a in advances)
-    advance_remaining = max(float(remaining if remaining is not None else prev_remaining) - 0, 0.0)
+    salary_after_deduct = max(unpaid_sal_total - txn_total_all, 0.0)
     sdata = [[
         PlParagraph(f"<b>Total Advances</b><br/><font size=10 color='#c62828'>AED {format_currency(txn_total_all)}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         PlParagraph(f"<b>Store Salary</b><br/><font size=10 color='#1a7d1a'>AED {format_currency(unpaid_sal_total)}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         PlParagraph(f"<b>Deducted</b><br/><font size=10 color='#1a3a5c'>AED {format_currency(this_deduction)}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        PlParagraph(f"<b>Remaining</b><br/><font size=10 color='#e65100'>AED {format_currency(advance_remaining)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        PlParagraph(f"<b>Salary After Deduct</b><br/><font size=10 color='#2e7d32'>AED {format_currency(salary_after_deduct)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
     ]]
     st = PlTable(sdata, colWidths=[W/4, W/4, W/4, W/4])
     st.setStyle(PlTableStyle([
