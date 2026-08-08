@@ -17195,7 +17195,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     rows = []
     for entry in db.execute(
         """
-        SELECT owner_name, entry_date, amount, received_by, transaction_type, details
+        SELECT id, owner_name, entry_date, amount, received_by, transaction_type, details
         FROM owner_fund_entries
         ORDER BY entry_date ASC, id ASC
         """
@@ -17204,6 +17204,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         if transaction_type == "IN":
             rows.append(
                 {
+                    "id": entry["id"],
                     "entry_date": entry["entry_date"],
                     "reference": f"Owner Fund / {entry['owner_name']}",
                     "party": entry["received_by"] or "-",
@@ -17216,6 +17217,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         else:  # OUT
             rows.append(
                 {
+                    "id": entry["id"],
                     "entry_date": entry["entry_date"],
                     "reference": f"Owner Fund / {entry['owner_name']}",
                     "party": entry["received_by"] or "-",

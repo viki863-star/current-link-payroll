@@ -262,7 +262,7 @@
     <h3>Statement of Account (Kata)</h3>
     <div class="table-wrap">
       <table class="smart-table">
-        <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Details</th><th>Incoming</th><th>Outgoing</th><th>Balance</th></tr></thead>
+        <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Details</th><th>Incoming</th><th>Outgoing</th><th>Balance</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
         <tbody>
           {% for item in statement %}
           <tr>
@@ -273,6 +273,13 @@
             <td class="mono" style="color:var(--green);font-weight:600">{% if item.incoming %}AED {{ "%.2f"|format(item.incoming) }}{% endif %}</td>
             <td class="mono" style="color:#e65100;font-weight:600">{% if item.outgoing %}AED {{ "%.2f"|format(item.outgoing) }}{% endif %}</td>
             <td class="mono" style="font-weight:700">AED {{ "%.2f"|format(item.balance) }}</td>
+            {% if can_edit %}
+            <td style="white-space:nowrap">
+              {% if item.id %}
+              <a href="{{ url_for('owner_fund', edit=item.id) }}" class="btn btn-xs btn-outline" title="Edit this entry">&#9998;</a>
+              {% endif %}
+            </td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>
