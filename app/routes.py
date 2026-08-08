@@ -7571,6 +7571,8 @@ def register_routes(app: Flask) -> None:
                 """
             ).fetchall()
             statement = list(reversed(view_rows))
+            for _soa_row in statement:
+                _soa_row["source_url"] = _owner_fund_source_url(db, _soa_row)
             pdf_files = _recent_generated_files(Path(app.config["GENERATED_DIR"]) / "owner_fund", "owner-fund-kata")
             pdf_url = url_for(
                 "owner_fund_pdf",
@@ -17195,7 +17197,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     rows = []
     for entry in db.execute(
         """
-        SELECT id, owner_name, entry_date, amount, received_by, transaction_type, details
+        SELECT id, source_table, source_id, owner_name, entry_date, amount, received_by, transaction_type, details
         FROM owner_fund_entries
         ORDER BY entry_date ASC, id ASC
         """
@@ -17205,6 +17207,8 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
             rows.append(
                 {
                     "id": entry["id"],
+                    "source_table": entry["source_table"],
+                    "source_id": entry["source_id"],
                     "entry_date": entry["entry_date"],
                     "reference": f"Owner Fund / {entry['owner_name']}",
                     "party": entry["received_by"] or "-",
@@ -17218,6 +17222,8 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
             rows.append(
                 {
                     "id": entry["id"],
+                    "source_table": entry["source_table"],
+                    "source_id": entry["source_id"],
                     "entry_date": entry["entry_date"],
                     "reference": f"Owner Fund / {entry['owner_name']}",
                     "party": entry["received_by"] or "-",
@@ -17229,7 +17235,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
             )
     for entry in db.execute(
         """
-        SELECT driver_transactions.entry_date, driver_transactions.driver_id, driver_transactions.given_by,
+        SELECT driver_transactions.id, driver_transactions.entry_date, driver_transactions.driver_id, driver_transactions.given_by,
                driver_transactions.amount, driver_transactions.details, drivers.full_name
         FROM driver_transactions
         LEFT JOIN drivers ON drivers.driver_id = driver_transactions.driver_id
@@ -17244,6 +17250,8 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         driver_name = entry["full_name"] or entry["driver_id"]
         rows.append(
             {
+                "source_table": "driver_transactions",
+                "source_id": entry["id"],
                 "entry_date": entry["entry_date"],
                 "reference": f"Driver Txn / {driver_name}",
                 "party": entry["given_by"] or "-",
@@ -17255,7 +17263,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         )
     for entry in db.execute(
         """
-        SELECT salary_payments.payment_date, salary_payments.driver_id, salary_payments.paid_by,
+        SELECT salary_payments.id, salary_payments.salary_store_id, salary_payments.payment_date, salary_payments.driver_id, salary_payments.paid_by,
                salary_payments.amount, salary_payments.salary_month, drivers.full_name,
                drivers.vehicle_no
         FROM salary_payments
@@ -17272,6 +17280,8 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         veh = f" | Vehicle {entry['vehicle_no']}" if entry.get("vehicle_no") else ""
         rows.append(
             {
+                "source_table": "salary_payments",
+                "source_id": entry["id"],
                 "entry_date": entry["payment_date"],
                 "reference": "Salary Slip",
                 "party": entry["paid_by"] or "-",
@@ -17283,7 +17293,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         )
     for entry in db.execute(
         """
-        SELECT DATE(salary_slips.generated_at) AS payment_date, salary_slips.driver_id, salary_slips.paid_by,
+        SELECT salary_slips.id, salary_slips.salary_store_id, DATE(salary_slips.generated_at) AS payment_date, salary_slips.driver_id, salary_slips.paid_by,
                salary_slips.net_payable AS amount, salary_slips.salary_month, drivers.full_name,
                drivers.vehicle_no
         FROM salary_slips
@@ -17306,6 +17316,8 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         veh = f" | Vehicle {entry['vehicle_no']}" if entry.get("vehicle_no") else ""
         rows.append(
             {
+                "source_table": "salary_slips",
+                "source_id": entry["id"],
                 "entry_date": entry["payment_date"],
                 "reference": "Salary Slip",
                 "party": entry["paid_by"] or "-",
@@ -17318,6 +17330,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     for entry in db.execute(
         """
         SELECT
+            adv.id,
             adv.entry_date,
             adv.staff_code,
             adv.reference,
@@ -17339,6 +17352,8 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         staff_name = entry["staff_name"] or entry["specialization"] or entry["staff_code"]
         rows.append(
             {
+                "source_table": "staff_advances",
+                "source_id": entry["id"],
                 "entry_date": entry["entry_date"],
                 "reference": f"Field Staff Payment / {staff_name}",
                 "party": "Owner Fund",
@@ -17350,7 +17365,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         )
     for entry in db.execute(
         """
-        SELECT spr.payment_date, spr.amount, spr.notes, s.supplier_name
+        SELECT spr.id, spr.supplier_id, spr.payment_date, spr.amount, spr.notes, s.supplier_name
         FROM supplier_payment_records spr
         LEFT JOIN suppliers s ON s.id = spr.supplier_id
         WHERE spr.fund_source = 'owner_fund'
@@ -17359,6 +17374,8 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     ).fetchall():
         rows.append(
             {
+                "source_table": "supplier_payments",
+                "source_id": entry["id"],
                 "entry_date": entry["payment_date"],
                 "reference": f"Supplier Payment / {entry['supplier_name'] or 'Unknown'}",
                 "party": "Owner Fund",
@@ -17408,6 +17425,42 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     if reverse:
         filtered_rows.reverse()
     return filtered_rows[:60] if reverse else filtered_rows
+
+
+def _owner_fund_source_url(db, row) -> str | None:
+    st = row.get("source_table") or ""
+    sid = row.get("source_id")
+    if not st or sid is None:
+        return None
+    try:
+        if st == "driver_transactions":
+            src = db.execute("SELECT driver_id FROM driver_transactions WHERE id = ?", (sid,)).fetchone()
+            if src:
+                return url_for("driver_transactions", driver_id=src["driver_id"], edit=sid)
+        elif st == "salary_payments":
+            src = db.execute("SELECT driver_id, salary_store_id FROM salary_payments WHERE id = ?", (sid,)).fetchone()
+            if src and src["salary_store_id"]:
+                return url_for(
+                    "driver_salary_slip",
+                    driver_id=src["driver_id"],
+                    salary_store_id=src["salary_store_id"],
+                    payment_id=sid,
+                )
+        elif st == "salary_slips":
+            src = db.execute("SELECT driver_id, salary_store_id FROM salary_slips WHERE id = ?", (sid,)).fetchone()
+            if src and src["salary_store_id"]:
+                return url_for("driver_salary_slip", driver_id=src["driver_id"], salary_store_id=src["salary_store_id"])
+        elif st == "staff_advances":
+            src = db.execute("SELECT staff_code FROM maintenance_staff_advances WHERE id = ?", (sid,)).fetchone()
+            if src and src["staff_code"]:
+                return url_for("fleet.fleet_staff_advance_edit", staff_id=src["staff_code"], advance_id=sid)
+        elif st == "supplier_payments":
+            src = db.execute("SELECT supplier_id FROM supplier_payment_records WHERE id = ?", (sid,)).fetchone()
+            if src and src["supplier_id"]:
+                return url_for("supplier.supplier_payment_edit", sup_id=src["supplier_id"], pay_id=sid)
+    except Exception:
+        return None
+    return None
 
 
 def _current_month_value() -> str:
