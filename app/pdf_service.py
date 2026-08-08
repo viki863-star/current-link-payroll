@@ -10,7 +10,16 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
+
+try:
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+except Exception:
+    arabic_reshaper = None
+    get_display = lambda s: s
 
 
 PAGE_WIDTH, PAGE_HEIGHT = A4
@@ -768,6 +777,26 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
     import os, tempfile
 
+    _URDU_FONT = "NotoNaskhArabic"
+    if _URDU_FONT not in pdfmetrics.getRegisteredFontNames():
+        try:
+            _urdu_font_path = os.path.join(assets_dir or "", "fonts", "NotoNaskhArabic-Regular.ttf")
+            if os.path.exists(_urdu_font_path):
+                pdfmetrics.registerFont(TTFont(_URDU_FONT, _urdu_font_path))
+        except Exception:
+            pass
+
+    def _urdu(text):
+        try:
+            return get_display(arabic_reshaper.reshape(str(text)))
+        except Exception:
+            return str(text)
+
+    def _UP(text, **kw):
+        kw.setdefault("fontSize", 8)
+        kw.setdefault("alignment", TA_CENTER)
+        return PlParagraph(_urdu(text), ParagraphStyle("UP", fontName=_URDU_FONT, **kw))
+
     normalized_month = format_month_label(month_value) if month_value else ""
     file_suffix = f"kata-{month_value}" if month_value else "kata-statement"
     output_path = Path(output_dir) / f"{driver['driver_id']}_{file_suffix}.pdf"
@@ -850,11 +879,25 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     unpaid_sal_total = sum(float(r.get("net_salary") or 0) for r in (unpaid_salary_rows or []))
     txn_total_all = sum(float(a.get("amount", 0)) for a in advances)
     salary_after_deduct = max(unpaid_sal_total - txn_total_all, 0.0)
+    def _summary_card(label, amount_html, style_name, fs=7):
+        inner = [
+            [_UP(f"<b>{label}</b>")],
+            [PlParagraph(amount_html, F(style_name, fontSize=10, textColor=C5, alignment=TA_CENTER, leading=12))],
+        ]
+        t = PlTable(inner, colWidths=[W/4])
+        t.setStyle(PlTableStyle([
+            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+            ("ALIGN",(0,0),(-1,-1),"CENTER"),
+            ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
+            ("LEFTPADDING",(0,0),(-1,-1),1), ("RIGHTPADDING",(0,0),(-1,-1),1),
+        ]))
+        return t
+
     sdata = [[
-        PlParagraph(f"<b>Total Advances</b><br/><font size=10 color='#c62828'>AED {format_currency(txn_total_all)}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        PlParagraph(f"<b>Store Salary</b><br/><font size=10 color='#1a7d1a'>AED {format_currency(unpaid_sal_total)}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        PlParagraph(f"<b>Deducted</b><br/><font size=10 color='#1a3a5c'>AED {format_currency(this_deduction)}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        PlParagraph(f"<b>Salary After Deduct</b><br/><font size=10 color='#2e7d32'>AED {format_currency(salary_after_deduct)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+        _summary_card("کل ایڈوانسز", f"<font color='#c62828'><b>{format_currency(txn_total_all)}</b></font>", "_s1", fs=10),
+        _summary_card("اسٹور تنخواہ", f"<font color='#1a7d1a'><b>{format_currency(unpaid_sal_total)}</b></font>", "_s2", fs=10),
+        _summary_card("کٹوتی", f"<font color='#1a3a5c'><b>{format_currency(this_deduction)}</b></font>", "_s3", fs=10),
+        _summary_card("کٹوتی کے بعد تنخواہ", f"<font color='#2e7d32'><b>{format_currency(salary_after_deduct)}</b></font>", "_s4", fs=10),
     ]]
     st = PlTable(sdata, colWidths=[W/4, W/4, W/4, W/4])
     st.setStyle(PlTableStyle([
@@ -874,7 +917,10 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     col_w = [left_w, gap, right_w]
 
     # ── LEFT: ADVANCES / TRANSACTIONS TABLE ──
-    left_title = PlParagraph("<b>Transactions (Advances Received)</b>", F("_ltitle", fontSize=7.5, fontName="Helvetica-Bold", textColor=TH, leading=10))
+    left_title = [
+        PlParagraph("<b>Transactions (Advances Received)</b>", F("_ltitle", fontSize=7.5, fontName="Helvetica-Bold", textColor=TH, leading=10)),
+        _UP("<b>لین دین (موصول شدہ پیشگی)</b>"),
+    ]
     
     txn_colw = [42, left_w - 42 - 42, 42]
     txn_hdr = [
@@ -910,7 +956,10 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     ]))
 
     # ── RIGHT: ALL UNPAID SALARY STORE ROWS ──
-    right_title = PlParagraph("<b>Store Salary (Not Yet Run)</b>", F("_rtitle", fontSize=7.5, fontName="Helvetica-Bold", textColor=TH, leading=10))
+    right_title = [
+        PlParagraph("<b>Store Salary (Not Yet Run)</b>", F("_rtitle", fontSize=7.5, fontName="Helvetica-Bold", textColor=TH, leading=10)),
+        _UP("<b>اسٹور تنخواہ (ابھی اجرا نہیں ہوئی)</b>"),
+    ]
     
     sal_colw = [right_w * 0.55, right_w * 0.45]
     sal_hdr = [
@@ -952,8 +1001,8 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     ]))
 
     # Combine both sides into two-column layout
-    left_content = [left_title, Spacer(1, 1.5*mm), txn_tbl]
-    right_content = [right_title, Spacer(1, 1.5*mm), sal_tbl]
+    left_content = left_title + [Spacer(1, 1.5*mm), txn_tbl]
+    right_content = right_title + [Spacer(1, 1.5*mm), sal_tbl]
     
     # Build left side table
     left_table = PlTable([[c] for c in left_content], colWidths=[left_w])
