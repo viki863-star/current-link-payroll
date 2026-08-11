@@ -152,14 +152,21 @@
       <input type="date" id="filter_from" name="date_from" value="{{ date_from }}" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
       <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">To:</label>
       <input type="date" id="filter_to" name="date_to" value="{{ date_to }}" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Vehicle:</label>
+      <select name="vehicle" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;min-width:110px">
+        <option value="">All</option>
+        {% for v in vehicle_opts %}
+        <option value="{{ v }}" {{ 'selected' if vehicle_filter == v }}>{{ v }}</option>
+        {% endfor %}
+      </select>
       <button type="submit" class="btn btn-sm btn-primary" style="padding:6px 12px">Filter</button>
-      {% if filter_month or date_from or date_to %}
+      {% if filter_month or date_from or date_to or vehicle_filter %}
       <a href="?" class="btn btn-sm btn-outline">Clear</a>
       {% endif %}
       <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
         <span style="font-size:0.72rem;color:var(--muted)">Showing: <strong>{{ cash_items|length }}</strong> entries</span>
         <a href="{{ url_for('fleet.fleet_staff_advances_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to) }}" class="btn btn-sm btn-primary" target="_blank">&#128196; Cash PDF</a>
-        <a href="{{ url_for('fleet.fleet_staff_jobs_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to) }}" class="btn btn-sm btn-primary" target="_blank" style="background:#e65100">&#128196; Jobs PDF</a>
+        <a href="{{ url_for('fleet.fleet_staff_jobs_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to, vehicle=vehicle_filter) }}" class="btn btn-sm btn-primary" target="_blank" style="background:#e65100">&#128196; Jobs PDF</a>
       </div>
     </form>
     <script>
@@ -217,7 +224,7 @@
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Jobs &amp; Papers <span class="badge badge-dept">{{ items|length }}</span>
       </h3>
-      <a href="{{ url_for('fleet.fleet_staff_jobs_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to) }}" class="btn btn-sm btn-primary" target="_blank" style="font-size:0.72rem">&#128196; PDF Report</a>
+      <a href="{{ url_for('fleet.fleet_staff_jobs_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to, vehicle=vehicle_filter) }}" class="btn btn-sm btn-primary" target="_blank" style="font-size:0.72rem">&#128196; PDF Report</a>
     </div>
     <div class="table-wrap">
       <table class="smart-table">

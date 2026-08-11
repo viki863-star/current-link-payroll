@@ -1459,9 +1459,19 @@ def fleet_staff_profile(staff_id):
         month_filter = request.args.get("month", "")
         date_from = request.args.get("date_from", "")
         date_to = request.args.get("date_to", "")
+        vehicle_filter = request.args.get("vehicle", "")
         today_str = date.today().isoformat()
         current_month = today_str[:7]
         filter_month = month_filter[:7] if month_filter else ""
+
+        vehicle_opts = db.execute("""
+            SELECT DISTINCT mj.vehicle_id AS plate FROM maintenance_jobs mj WHERE mj.staff_id = ?
+            UNION
+            SELECT DISTINCT vm.vehicle_no AS plate FROM maintenance_papers mp
+            LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
+            WHERE mp.technician_code = ?
+            ORDER BY plate
+        """, (staff_id, staff_id)).fetchall()
 
         card_received = db.execute(
             "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?",
@@ -1494,6 +1504,9 @@ def fleet_staff_profile(staff_id):
             if date_to:
                 date_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
                 date_params.append(date_to)
+        if vehicle_filter:
+            date_where += " AND mj.vehicle_id = ?"
+            date_params.append(vehicle_filter)
         jobs = db.execute(f"""
             SELECT {_MJ_LIST_COLS}, v.vehicle_type FROM maintenance_jobs mj
             LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
@@ -1512,6 +1525,9 @@ def fleet_staff_profile(staff_id):
             if date_to:
                 paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,10) <= ?"
                 paper_params.append(date_to)
+        if vehicle_filter:
+            paper_where += " AND vm.vehicle_no = ?"
+            paper_params.append(vehicle_filter)
         raw_papers = db.execute(f"""
             SELECT mp.id, mp.paper_no, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
                    mp.total_amount AS amount, mp.work_summary AS description,
@@ -1588,6 +1604,8 @@ def fleet_staff_profile(staff_id):
             filter_month=filter_month,
             date_from=date_from,
             date_to=date_to,
+            vehicle_filter=vehicle_filter,
+            vehicle_opts=[r["plate"] for r in vehicle_opts if r["plate"]],
             current_month=current_month,
             today=date.today().isoformat(),
             now=datetime.now(),
@@ -1695,6 +1713,7 @@ def fleet_staff_jobs_pdf(staff_id):
         filter_month = request.args.get("month", "")
         date_from = request.args.get("date_from", "")
         date_to = request.args.get("date_to", "")
+        vehicle_filter = request.args.get("vehicle", "")
         jp_where = ""
         jp_params = []
         if filter_month:
@@ -1707,6 +1726,9 @@ def fleet_staff_jobs_pdf(staff_id):
             if date_to:
                 jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
                 jp_params.append(date_to)
+        if vehicle_filter:
+            jp_where += " AND mj.vehicle_id = ?"
+            jp_params.append(vehicle_filter)
         jobs = db.execute(f"""
             SELECT {_MJ_LIST_COLS}, mj.attachment_data, v.vehicle_type FROM maintenance_jobs mj
             LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
