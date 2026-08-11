@@ -3792,8 +3792,7 @@ def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, date_
     ]
     rws = [hdr]
     _tmp_imgs = []
-    try:
-        for j in jobs:
+    for j in jobs:
             d = str(j.get("created_at", ""))[:10]
             veh = j.get("vehicle_id", "")
             cat = j.get("category", "")
@@ -3822,9 +3821,6 @@ def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, date_
                 Paragraph(desc, F("_det", fontSize=6.2, textColor=C5, leading=9)),
                 (att_link if isinstance(att_link, Flowable) else Paragraph(att_link, F("_at", fontSize=6.5, textColor=rl_colors.HexColor("#1C568B"), alignment=TA_CENTER, leading=9))),
             ])
-    finally:
-        if not _tmp_imgs:
-            pass
     # Total row
     rws.append([
         Paragraph("<b>Total</b>", F("_tb", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, leading=10)),
