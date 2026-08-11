@@ -3675,10 +3675,38 @@ def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, date_
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.lib import colors as rl_colors
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, Flowable
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
     import os, tempfile
+
+    ext_map = {"image/png": ".png", "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/gif": ".gif", "image/webp": ".webp"}
+    def _embed_attachment_image(b64data, att_type, tmp_root):
+        try:
+            raw = base64.b64decode(b64data or "")
+            if not raw:
+                return None
+            ext = ext_map.get((att_type or "").lower(), ".png")
+            tmp_img = tempfile.NamedTemporaryFile(delete=False, suffix=ext, dir=tmp_root)
+            tmp_img.write(raw)
+            tmp_img.close()
+            return tmp_img.name
+        except Exception:
+            return None
+
+    class _LinkImage(Flowable):
+        def __init__(self, path, url, width=22, height=22):
+            super().__init__()
+            self.path, self.url = path, url
+            self.width, self.height = width, height
+        def draw(self):
+            from reportlab.lib.utils import ImageReader
+            try:
+                self.canv.drawImage(self.path, 0, 0, width=self.width, height=self.height,
+                                    preserveAspectRatio=True, anchor='c', mask='auto')
+            except Exception:
+                pass
+            self.canv.linkURL(self.url, (0, 0, self.width, self.height), relative=1, thickness=0)
 
     os.makedirs(output_dir, exist_ok=True)
     period_tag = filter_month or (f"{date_from}_to_{date_to}" if date_from and date_to else date_from or date_to or "all")
@@ -3763,25 +3791,40 @@ def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, date_
         Paragraph("<b>Attachment</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
     ]
     rws = [hdr]
-    for j in jobs:
-        d = str(j.get("created_at", ""))[:10]
-        veh = j.get("vehicle_id", "")
-        cat = j.get("category", "")
-        desc = j.get("description", "") or "-"
-        amt = float(j.get("amount", 0))
-        has_att = bool(j.get("attachment_data"))
-        if has_att:
-            att_link = f'<a href="{base_url}/fleet/attachment/{j["id"]}">See Page</a>'
-        else:
-            att_link = '<font color="#cccccc">—</font>'
-        rws.append([
-            Paragraph(d, F("_d", fontSize=6.5, leading=9)),
-            Paragraph(veh, F("_v", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, leading=9)),
-            Paragraph(f"<b>{amt:,.2f}</b>", F("_a", fontSize=6.5, textColor=rl_colors.HexColor("#e65100"), alignment=TA_RIGHT, leading=9)),
-            Paragraph(cat, F("_c", fontSize=6.5, alignment=TA_CENTER, leading=9)),
-            Paragraph(desc, F("_det", fontSize=6.2, textColor=C5, leading=9)),
-            Paragraph(att_link, F("_at", fontSize=6.5, textColor=rl_colors.HexColor("#1C568B"), alignment=TA_CENTER, leading=9)),
-        ])
+    _tmp_imgs = []
+    try:
+        for j in jobs:
+            d = str(j.get("created_at", ""))[:10]
+            veh = j.get("vehicle_id", "")
+            cat = j.get("category", "")
+            desc = j.get("description", "") or "-"
+            amt = float(j.get("amount", 0))
+            has_att = bool(j.get("attachment_data"))
+            if has_att:
+                att_url = f"{base_url}/fleet/attachment/{j['id']}"
+                att_type = (j.get("attachment_type") or "").lower()
+                if att_type.startswith("image/"):
+                    thumb_f = _embed_attachment_image(j.get("attachment_data"), att_type, tempfile.gettempdir())
+                    if thumb_f:
+                        _tmp_imgs.append(thumb_f)
+                        att_link = _LinkImage(thumb_f, att_url, width=20, height=20)
+                    else:
+                        att_link = f'<a href="{att_url}" color="#1C568B">See</a>'
+                else:
+                    att_link = f'<a href="{att_url}" color="#1C568B">Open</a>'
+            else:
+                att_link = '<font color="#cccccc">—</font>'
+            rws.append([
+                Paragraph(d, F("_d", fontSize=6.5, leading=9)),
+                Paragraph(veh, F("_v", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, leading=9)),
+                Paragraph(f"<b>{amt:,.2f}</b>", F("_a", fontSize=6.5, textColor=rl_colors.HexColor("#e65100"), alignment=TA_RIGHT, leading=9)),
+                Paragraph(cat, F("_c", fontSize=6.5, alignment=TA_CENTER, leading=9)),
+                Paragraph(desc, F("_det", fontSize=6.2, textColor=C5, leading=9)),
+                (att_link if isinstance(att_link, Flowable) else Paragraph(att_link, F("_at", fontSize=6.5, textColor=rl_colors.HexColor("#1C568B"), alignment=TA_CENTER, leading=9))),
+            ])
+    finally:
+        if not _tmp_imgs:
+            pass
     # Total row
     rws.append([
         Paragraph("<b>Total</b>", F("_tb", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, leading=10)),
@@ -3836,6 +3879,11 @@ def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, date_
         els.append(s_auth_cell)
 
     doc.build(els)
+    for f in _tmp_imgs:
+        try:
+            os.remove(f)
+        except OSError:
+            pass
     return path
 
 

@@ -1708,7 +1708,7 @@ def fleet_staff_jobs_pdf(staff_id):
                 jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
                 jp_params.append(date_to)
         jobs = db.execute(f"""
-            SELECT {_MJ_LIST_COLS}, v.vehicle_type FROM maintenance_jobs mj
+            SELECT {_MJ_LIST_COLS}, mj.attachment_data, v.vehicle_type FROM maintenance_jobs mj
             LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
             WHERE mj.staff_id = ?{jp_where}
             ORDER BY mj.created_at DESC
