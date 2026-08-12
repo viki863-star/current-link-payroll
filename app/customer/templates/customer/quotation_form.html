@@ -119,7 +119,7 @@ TRN: 105046792500003
                             <option value="km" {% if it.unit == 'km' %}selected{% endif %}>Km</option>
                             <option value="load" {% if it.unit == 'load' %}selected{% endif %}>Load</option>
                         </select>
-                        <input type="number" name="item_rate[]" value="{{ it.rate or 0 }}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
+                        <input type="number" name="item_rate[]" value="{{ it.rate_text if it.rate_text else it.rate or 0 }}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
                         <span class="item-amt" id="itemAmt_{{ loop.index0 }}">{{ "%.2f"|format(it.amount) }}</span>
                         <button type="button" class="btn-remove" onclick="removeItem(this)" {% if loop.first %}style="display:none"{% endif %}>&times;</button>
                     </div>

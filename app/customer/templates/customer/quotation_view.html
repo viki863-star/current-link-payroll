@@ -99,7 +99,7 @@
                 <td style="font-weight:500;color:#0f172a">{{ it.description or '—' }}</td>
                 <td style="text-align:right;font-family:mono">{{ "{:,.2f}".format(it.quantity) }}</td>
                 <td style="text-align:center;font-family:mono;color:#64748b;font-size:0.75rem;text-transform:uppercase">{{ it.unit or 'hr' }}</td>
-                <td style="text-align:right;font-family:mono">{{ "%.3f" % it.rate }}</td>
+                <td style="text-align:right;font-family:mono">{{ it.rate_text if it.rate_text else ("%.4f" % it.rate).rstrip("0").rstrip(".") }}</td>
                 <td style="text-align:right;font-weight:700;font-family:mono;color:#0f172a">{{ "%.2f" % it.amount }}</td>
             </tr>
             {% endfor %}

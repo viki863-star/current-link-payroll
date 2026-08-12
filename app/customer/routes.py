@@ -143,7 +143,7 @@ def _ensure_tables():
             id {autoinc}, quotation_id {int_type} NOT NULL, description TEXT,
             quantity {real_type} DEFAULT 1, rate {real_type} DEFAULT 0,
             amount {real_type} DEFAULT 0, unit TEXT DEFAULT 'hr',
-            sort_order {int_type} DEFAULT 0
+            rate_text TEXT DEFAULT '', sort_order {int_type} DEFAULT 0
         )""",
         f"""CREATE TABLE IF NOT EXISTS quotation_sequence (last_number {int_type} DEFAULT 0)""",
         f"""CREATE TABLE IF NOT EXISTS invoice_sequence (last_number {int_type} DEFAULT 0)""",
@@ -209,6 +209,7 @@ def _ensure_tables():
         ("customer_quotations", "sub_total", real_type + " DEFAULT 0"),
         ("customer_quotations", "location", "TEXT"),
         ("customer_quotations", "contact_details", "TEXT"),
+        ("customer_quotation_items", "rate_text", "TEXT DEFAULT ''"),
         ("customers", "logo_data", "TEXT"),
         ("customers", "logo_type", "TEXT"),
         ("company_profile", "logo_data", "TEXT"),
@@ -244,7 +245,7 @@ def _ensure_tables():
         _safe_execute(db, f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS created_at TEXT" if backend == "postgres" else f"ALTER TABLE {tbl} ADD COLUMN created_at TEXT")
     db.close()
 
-# ─── HELPERS ───
+# â”€â”€â”€ HELPERS â”€â”€â”€
 
 def _next_code(db):
     last = db.execute("SELECT customer_code FROM customers ORDER BY id DESC LIMIT 1").fetchone()
@@ -280,7 +281,7 @@ def _get_customer_or_404(cid):
         return None
     return c
 
-# ─── DASHBOARD ───
+# â”€â”€â”€ DASHBOARD â”€â”€â”€
 
 @customer_bp.route("/")
 def customer_dashboard():
@@ -318,7 +319,7 @@ def customer_dashboard():
         recent_invoices=recent, recent_payments=recent_pmts,
         monthly_trend=monthly, top_customers=top_customers)
 
-# ─── CUSTOMER CRUD ───
+# â”€â”€â”€ CUSTOMER CRUD â”€â”€â”€
 
 @customer_bp.route("/add", methods=["GET", "POST"])
 def customer_add():
@@ -409,7 +410,7 @@ def customer_profile(cid):
         credit_notes=credit_notes, tripsheets=tripsheets,
         total_inv=total_inv, total_paid=total_paid, total_cn=total_cn, balance=balance)
 
-# ─── INVOICES ───
+# â”€â”€â”€ INVOICES â”€â”€â”€
 
 @customer_bp.route("/<int:cid>/invoice/add", methods=["GET", "POST"])
 def customer_invoice_add(cid):
@@ -567,7 +568,7 @@ def service_items_search():
     db.close()
     return jsonify([{"id": r["id"], "description": r["description"], "rate": r["default_rate"]} for r in items])
 
-# ─── NOUROL INVOICE ───
+# â”€â”€â”€ NOUROL INVOICE â”€â”€â”€
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/edit", methods=["GET", "POST"])
 def customer_invoice_edit(cid, iid):
@@ -825,9 +826,9 @@ def customer_invoice_pdf(cid, iid):
 
     is_nmdc = "nmdc" in (c["customer_name"] or "").lower()
 
-    # ──────────────────────────────────────────────────────────────────────
-    #  NEW NMDC LAYOUT — Premium ERP-style, footer on every page
-    # ──────────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    #  NEW NMDC LAYOUT â€” Premium ERP-style, footer on every page
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if is_nmdc:
         NMDC_CONV_HOURS = 260
         NAV = colors.HexColor("#001F54")
@@ -844,22 +845,22 @@ def customer_invoice_pdf(cid, iid):
             kw.setdefault("leading", 12)
             return ParagraphStyle(name, **kw)
 
-        safe = lambda v, d="—": str(v) if v else d
-        inv_no = inv["invoice_no"] or "—"
-        inv_dt = inv["invoice_date"] or "—"
+        safe = lambda v, d="â€”": str(v) if v else d
+        inv_no = inv["invoice_no"] or "â€”"
+        inv_dt = inv["invoice_date"] or "â€”"
 
-        # ── Margins (BM leaves room for footer drawn by onPage) ──
+        # â”€â”€ Margins (BM leaves room for footer drawn by onPage) â”€â”€
         LM2, RM2, TM2, BM2 = 14*mm, 14*mm, 10*mm, 22*mm
         buf2 = BytesIO()
         doc2 = SimpleDocTemplate(buf2, pagesize=A4, leftMargin=LM2, rightMargin=RM2, topMargin=TM2, bottomMargin=BM2)
         W2 = A4[0] - LM2 - RM2
 
-        # ── Footer callback: drawn on every page at the bottom margin ──
+        # â”€â”€ Footer callback: drawn on every page at the bottom margin â”€â”€
         cn2 = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
         c_addr2 = (company["address"] or "") if company else ""
         c_ph2 = (company["phone_number"] or "") if company else ""
         c_em2 = (company["email"] or "") if company else ""
-        c_trn2 = company["trn_no"] or "—" if company else "—"
+        c_trn2 = company["trn_no"] or "â€”" if company else "â€”"
         lic_text2 = f"License: {company['trade_license_no']}" if company and company.get("trade_license_no") else ""
         cert_files2 = [
             ("app/static/IOS 14001.png", "IOS 14001"),
@@ -869,9 +870,9 @@ def customer_invoice_pdf(cid, iid):
 
         def draw_page(canvas, doc):
             canvas.saveState()
-            # ════════════════════════════════════════════
+            # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
             #  TOP-RIGHT CORNER DESIGN (layered premium)
-            # ════════════════════════════════════════════
+            # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
             CS = 30*mm
             TR = (A4[0], A4[1])
             # Navy triangle (base)
@@ -904,9 +905,9 @@ def customer_invoice_pdf(cid, iid):
             np2.close()
             canvas.setFillColor(NAV)
             canvas.drawPath(np2, fill=1, stroke=0)
-            # ════════════════════════════════════════════
+            # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
             #  FOOTER
-            # ════════════════════════════════════════════
+            # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
             fy = BM2
             canvas.setStrokeColor(GOLD)
             canvas.setLineWidth(1.5)
@@ -938,12 +939,12 @@ def customer_invoice_pdf(cid, iid):
             canvas.drawRightString(A4[0] - RM2 - 5*mm, fy - 15.5*mm, f"Page {doc.page}")
             canvas.restoreState()
 
-        # ═══════════════════════════════════════════
+        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         #  CONTENT ELEMENTS
-        # ═══════════════════════════════════════════
+        # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         els2 = []
 
-        # ── HEADER: Logo left + Company name ──
+        # â”€â”€ HEADER: Logo left + Company name â”€â”€
         logo = None; LW = 0
         if company and company["logo_data"]:
             try:
@@ -1021,7 +1022,7 @@ def customer_invoice_pdf(cid, iid):
         els2.append(ti_block)
         els2.append(Spacer(1, 4*mm))
 
-        # ── INFO CARDS (big icons, spaced rows) ──
+        # â”€â”€ INFO CARDS (big icons, spaced rows) â”€â”€
         cwc = (W2 - 6*mm) / 3
         icon_base = os.path.join(current_app.root_path, '..', 'media', 'ICON')
         def simple_card(pairs, row_icons):
@@ -1069,7 +1070,7 @@ def customer_invoice_pdf(cid, iid):
         els2.append(iw)
         els2.append(Spacer(1, 3*mm))
 
-        # ── ITEMS TABLE (premium, bigger) ──
+        # â”€â”€ ITEMS TABLE (premium, bigger) â”€â”€
         sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
         fs = 8
         ldr = fs * 1.4
@@ -1106,9 +1107,9 @@ def customer_invoice_pdf(cid, iid):
                 eq_period_text += f"<br/><font color='#666'>Period: {eq_p.get('from','')} to {eq_p.get('to','')}</font>"
             cap = it.get("capacity_gallon")
             eq_hours = f"<br/><font color='#666'>Hours: {float(cap):,.2f}</font>" if cap and float(cap) > 0 else ""
-            desc_html = (it.get("description") or "—")
+            desc_html = (it.get("description") or "â€”")
             parts = []
-            if desc_html != "—": parts.append(desc_html)
+            if desc_html != "â€”": parts.append(desc_html)
             if it.get("vehicle_no"): parts.append(f"<b>Plant No:</b> {it['vehicle_no']}")
             plant_reg = " | ".join(parts)
             desc_html = plant_reg + eq_period_text + eq_hours
@@ -1137,7 +1138,7 @@ def customer_invoice_pdf(cid, iid):
         els2.append(itt)
         els2.append(Spacer(1, 5*mm))
 
-        # ── AMOUNT IN WORDS + TOTALS ──
+        # â”€â”€ AMOUNT IN WORDS + TOTALS â”€â”€
         def n2w(n):
             if n == 0: return "Zero"
             o = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve",
@@ -1205,7 +1206,7 @@ def customer_invoice_pdf(cid, iid):
         bottom.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
         els2.append(bottom)
 
-        # ── NOTES ──
+        # â”€â”€ NOTES â”€â”€
         display_notes = inv.get("notes", "") or ""
         if display_notes:
             import json
@@ -1226,7 +1227,7 @@ def customer_invoice_pdf(cid, iid):
             ]))
             els2.append(nb)
 
-        # ── SIGNATURES (Receiver box + Stamp/Sign horizontal, auto-pushed via TopPadder) ──
+        # â”€â”€ SIGNATURES (Receiver box + Stamp/Sign horizontal, auto-pushed via TopPadder) â”€â”€
         sg = ParagraphStyle("SG", fontSize=8, alignment=TA_CENTER, leading=11, textColor=C5)
         stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
         sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
@@ -1274,7 +1275,7 @@ def customer_invoice_pdf(cid, iid):
         ]))
         els2.append(TopPadder(sig_w))
 
-        # ── BUILD ──
+        # â”€â”€ BUILD â”€â”€
         doc2.build(els2, onFirstPage=draw_page, onLaterPages=draw_page)
         for f in _logo_tmp_files:
             try: os.remove(f)
@@ -1299,7 +1300,7 @@ def customer_invoice_pdf(cid, iid):
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""
-    c_trn = company["trn_no"] or "—" if company else "—"
+    c_trn = company["trn_no"] or "â€”" if company else "â€”"
 
     def S(name, **kw):
         kw.setdefault("fontSize", 8)
@@ -1329,14 +1330,14 @@ def customer_invoice_pdf(cid, iid):
         kw.setdefault("alignment", TA_RIGHT)
         return Paragraph(f"<b>{t}</b>", S("_RB", **kw))
 
-    safe = lambda v, d="—": str(v) if v else d
+    safe = lambda v, d="â€”": str(v) if v else d
     els = []
-    inv_no = inv["invoice_no"] or "—"
-    inv_dt = inv["invoice_date"] or "—"
+    inv_no = inv["invoice_no"] or "â€”"
+    inv_dt = inv["invoice_date"] or "â€”"
 
-    # ═══════════════════════════════════════════════════════════════
-    # 1. HEADER — bigger logo, bigger company info
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # 1. HEADER â€” bigger logo, bigger company info
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     logo = None; LW = 0
     if company and company["logo_data"]:
         try:
@@ -1397,9 +1398,9 @@ def customer_invoice_pdf(cid, iid):
     els.append(bl)
     els.append(Spacer(1, 5*mm))
 
-    # ═══════════════════════════════════════════════════════════════
-    # 2. BILL TO / INVOICE INFO — bigger cards
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # 2. BILL TO / INVOICE INFO â€” bigger cards
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     def card(title, pairs):
         cw = W*0.50
         r = [[
@@ -1446,9 +1447,9 @@ def customer_invoice_pdf(cid, iid):
     els.append(iw)
     els.append(Spacer(1, 5*mm))
 
-    # ═══════════════════════════════════════════════════════════════
-    # 3. ITEMS TABLE — auto-fill A4 height
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # 3. ITEMS TABLE â€” auto-fill A4 height
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
     num_rows = len(items) + (1 if is_nmdc else 0) + 1
     fs = 7.0
@@ -1496,14 +1497,14 @@ def customer_invoice_pdf(cid, iid):
         # Row 1: Main description
         rws.append([
             _pc("1", alignment=TA_CENTER, fontName="Helvetica-Bold"),
-            _pc(nmdc_main_desc or "—", fontSize=fs, leading=ldr*0.95),
-            _pc("—", alignment=TA_CENTER),
-            _pc("—", alignment=TA_CENTER),
-            _pc("—", alignment=TA_RIGHT),
-            _pc("—", alignment=TA_RIGHT),
-            _pc("—", alignment=TA_CENTER),
-            _pc("—", alignment=TA_RIGHT),
-            _pc("—", alignment=TA_RIGHT),
+            _pc(nmdc_main_desc or "â€”", fontSize=fs, leading=ldr*0.95),
+            _pc("â€”", alignment=TA_CENTER),
+            _pc("â€”", alignment=TA_CENTER),
+            _pc("â€”", alignment=TA_RIGHT),
+            _pc("â€”", alignment=TA_RIGHT),
+            _pc("â€”", alignment=TA_CENTER),
+            _pc("â€”", alignment=TA_RIGHT),
+            _pc("â€”", alignment=TA_RIGHT),
         ])
     table_items = items[1:] if is_nmdc else items
     for idx, it in enumerate(table_items):
@@ -1517,10 +1518,10 @@ def customer_invoice_pdf(cid, iid):
             eq_period_text += f" | Period: {eq_p.get('from','')} to {eq_p.get('to','')}"
         cap = it.get("capacity_gallon")
         eq_hours = f"<br/><font size=1 color='#94a3b8'>Hours: {float(cap):,.2f}</font>" if is_nmdc and cap and float(cap) > 0 else ""
-        desc_html = (it.get("description") or "—")
+        desc_html = (it.get("description") or "â€”")
         if is_nmdc:
             parts = []
-            if desc_html != "—": parts.append(desc_html)
+            if desc_html != "â€”": parts.append(desc_html)
             if it.get("vehicle_no"): parts.append(f"<b>Plant No:</b> {it['vehicle_no']}")
             plant_reg = " | ".join(parts)
             desc_html = plant_reg + eq_period_text + eq_hours
@@ -1548,9 +1549,9 @@ def customer_invoice_pdf(cid, iid):
     ]))
     els.append(itt)
 
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # 4. TOTALS (matching web)
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     tw = 90*mm
     trows = [
         [Paragraph("Sub Total", S("_st", fontSize=9, textColor=C5, leading=12)),
@@ -1573,9 +1574,9 @@ def customer_invoice_pdf(cid, iid):
     ft.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(Spacer(1, 2*mm))
     els.append(ft)
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # 5. AMOUNT IN WORDS
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     def n2w(n):
         if n == 0: return "Zero"
         o = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve",
@@ -1626,9 +1627,9 @@ def customer_invoice_pdf(cid, iid):
         nb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f8fafc")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
         els.append(nb)
 
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # 6. BANK DETAILS (single column label-value pairs)
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     if company and (company["bank_name"] or company["bank_account_name"] or company["bank_account_number"] or company["iban"]):
         bk_items = []
         if company["bank_name"]: bk_items.append(("Bank", company["bank_name"]))
@@ -1651,9 +1652,9 @@ def customer_invoice_pdf(cid, iid):
             ]))
             els.append(bkt)
 
-    # ═══════════════════════════════════════════════════════════════
-    # 7. SIGNATURES — stamp & sign side by side
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # 7. SIGNATURES â€” stamp & sign side by side
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     els.append(Spacer(1, 4*mm))
     sg = ParagraphStyle("SG", fontSize=8, alignment=TA_CENTER, leading=11)
     stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
@@ -1696,11 +1697,11 @@ def customer_invoice_pdf(cid, iid):
         ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
     ]))
     els.append(sgt)
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # 8. COMPANY ADDRESS / FOOTER
-    # ═══════════════════════════════════════════════════════════════
-    # 8. FOOTER — always at page bottom
-    # ═══════════════════════════════════════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # 8. FOOTER â€” always at page bottom
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     ftr_rows = []
     if c_addr:
         addr_parts = [p.strip() for p in c_addr.split(",")]
@@ -1738,7 +1739,7 @@ def customer_invoice_delete(cid, iid):
     flash("Invoice deleted.", "success")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
 
-# ─── CREDIT NOTES ───
+# â”€â”€â”€ CREDIT NOTES â”€â”€â”€
 
 @customer_bp.route("/<int:cid>/credit-note/add", methods=["GET", "POST"])
 def customer_credit_note_add(cid):
@@ -1795,7 +1796,7 @@ def customer_credit_note_delete(cid, cnid):
     db.close()
     return redirect(url_for("customer.customer_profile", cid=cid, tab="credit_notes"))
 
-# ─── PAYMENTS ───
+# â”€â”€â”€ PAYMENTS â”€â”€â”€
 
 @customer_bp.route("/<int:cid>/payment/add", methods=["GET", "POST"])
 def customer_payment_add(cid):
@@ -1855,7 +1856,7 @@ def customer_payment_undo(cid):
             db.execute("DELETE FROM customer_payments WHERE id=? AND customer_id=?", (pid, cid))
         db.commit()
         db.close()
-        flash(f"Payment undone — {len(ids)} record(s) deleted.", "warning")
+        flash(f"Payment undone â€” {len(ids)} record(s) deleted.", "warning")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="payments"))
 
 @customer_bp.route("/<int:cid>/payment/<int:pid>/delete", methods=["POST"])
@@ -1867,7 +1868,7 @@ def customer_payment_delete(cid, pid):
     flash("Payment deleted.", "success")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="payments"))
 
-# ─── CONTRACTS ───
+# â”€â”€â”€ CONTRACTS â”€â”€â”€
 
 @customer_bp.route("/<int:cid>/contract/add", methods=["GET", "POST"])
 def customer_contract_add(cid):
@@ -1895,7 +1896,7 @@ def customer_contract_close(cid, ctid):
     flash("Contract closed.", "success")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="contracts"))
 
-# ─── QUOTATIONS ───
+# â”€â”€â”€ QUOTATIONS â”€â”€â”€
 
 def _next_quotation_no(db):
     db.execute("UPDATE quotation_sequence SET last_number = last_number + 1")
@@ -1937,7 +1938,8 @@ def customer_quotation_add(cid):
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 sub_total += amt
-                items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+                rate_text = rates[i].strip() if i < len(rates) and rates[i].strip() else ""
+                items.append({"desc": desc, "qty": qty, "rate": rate, "rate_text": rate_text, "amt": amt, "unit": unit})
         if not items:
             flash("At least one line item is required.", "error")
             db.close()
@@ -1950,8 +1952,8 @@ def customer_quotation_add(cid):
             (cid, q_no, q_date, sub_total, vat_pct, vat_amt, total, "pending", terms, notes, location, contact_details))
         qid = cur.lastrowid
         for idx, it in enumerate(items):
-            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
-                (qid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,unit,rate_text,sort_order) VALUES (?,?,?,?,?,?,?,?)",
+                (qid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["rate_text"], idx))
             if it["desc"]:
                 _seed_service_item(db, it["desc"], it["rate"])
         db.commit()
@@ -1972,7 +1974,7 @@ def customer_quotation_edit(cid, qid):
         db.close()
         flash("Quotation not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
-    items = db.execute("SELECT id, quotation_id, description, quantity, rate, amount, unit, sort_order FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
+    items = db.execute("SELECT id, quotation_id, description, quantity, rate, amount, unit, rate_text, sort_order FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     if request.method == "POST":
         q_date = request.form.get("quotation_date", q["quotation_date"])
@@ -1996,7 +1998,8 @@ def customer_quotation_edit(cid, qid):
             if desc or rate > 0:
                 amt = round(qty * rate, 2)
                 sub_total += amt
-                new_items.append({"desc": desc, "qty": qty, "rate": rate, "amt": amt, "unit": unit})
+                rate_text = rates[i].strip() if i < len(rates) and rates[i].strip() else ""
+                new_items.append({"desc": desc, "qty": qty, "rate": rate, "rate_text": rate_text, "amt": amt, "unit": unit})
         if not new_items:
             flash("At least one line item is required.", "error")
             db.close()
@@ -2008,8 +2011,8 @@ def customer_quotation_edit(cid, qid):
             (q_no, q_date, sub_total, vat_pct, vat_amt, total, terms, notes, location, contact_details, qid))
         db.execute("DELETE FROM customer_quotation_items WHERE quotation_id=?", (qid,))
         for idx, it in enumerate(new_items):
-            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,unit,sort_order) VALUES (?,?,?,?,?,?,?)",
-                (qid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], idx))
+            db.execute("INSERT INTO customer_quotation_items (quotation_id,description,quantity,rate,amount,unit,rate_text,sort_order) VALUES (?,?,?,?,?,?,?,?)",
+                (qid, it["desc"], it["qty"], it["rate"], it["amt"], it["unit"], it["rate_text"], idx))
         db.commit()
         db.close()
         flash(f"Quotation {q_no} updated.", "success")
@@ -2057,7 +2060,7 @@ def customer_quotation_view(cid, qid):
         db.close()
         flash("Quotation not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
-    items = db.execute("SELECT id, quotation_id, description, quantity, rate, amount, unit, sort_order FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
+    items = db.execute("SELECT id, quotation_id, description, quantity, rate, amount, unit, rate_text, sort_order FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     db.close()
     return render_template("customer/quotation_view.html", c=c, q=q, items=items, company=company)
@@ -2078,7 +2081,7 @@ def customer_quotation_pdf(cid, qid):
     db = _get_db()
     c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers WHERE id=?", (cid,)).fetchone()
     q = db.execute("SELECT id, customer_id, quotation_no, quotation_date, amount, sub_total, vat_percent, vat_amount, total_amount, status, notes, terms, location, contact_details, created_at FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
-    items = db.execute("SELECT id, quotation_id, description, quantity, rate, amount, unit, sort_order FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
+    items = db.execute("SELECT id, quotation_id, description, quantity, rate, amount, unit, rate_text, sort_order FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     db.close()
     if not c or not q:
@@ -2101,7 +2104,7 @@ def customer_quotation_pdf(cid, qid):
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""
-    c_trn = company["trn_no"] or "—" if company else "—"
+    c_trn = company["trn_no"] or "â€”" if company else "â€”"
 
     def S(name, **kw):
         kw.setdefault("fontSize", 8)
@@ -2131,10 +2134,10 @@ def customer_quotation_pdf(cid, qid):
         kw.setdefault("alignment", TA_RIGHT)
         return Paragraph(f"<b>{t}</b>", S("_RB", **kw))
 
-    safe = lambda v, d="—": str(v) if v else d
+    safe = lambda v, d="â€”": str(v) if v else d
     els = []
-    q_no = q["quotation_no"] or "—"
-    q_dt = q["quotation_date"] or "—"
+    q_no = q["quotation_no"] or "â€”"
+    q_dt = q["quotation_date"] or "â€”"
 
     # HEADER
     logo = None; LW = 0
@@ -2232,12 +2235,14 @@ def customer_quotation_pdf(cid, qid):
     ]
     rws = [hdr]
     for idx, it in enumerate(items):
+        rt = (it["rate_text"] or "").strip()
+        rate_disp = rt if rt else f"{it['rate'] or 0:,.4f}".rstrip("0").rstrip(".")
         rws.append([
             _pc(str(idx+1), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(it["description"] or "—"),
             _pc(f"{it['quantity'] or 0:,.2f}", alignment=TA_CENTER),
             _pc((it['unit'] or 'hr').upper(), alignment=TA_CENTER),
-            _pc(f"{it['rate'] or 0:,.2f}", alignment=TA_RIGHT),
+            _pc(rate_disp, alignment=TA_RIGHT),
             _pc(f"{it['amount'] or 0:,.2f}", alignment=TA_RIGHT),
             _pc("", alignment=TA_RIGHT),
         ])
@@ -2456,7 +2461,7 @@ def quotation_walkin():
     db.close()
     return render_template("customer/quotation_form.html", c=None, q={}, walkin=True, company=company, today=date.today().isoformat(), next_no=next_no)
 
-# ─── LPOs ───
+# â”€â”€â”€ LPOs â”€â”€â”€
 
 @customer_bp.route("/<int:cid>/lpo/add", methods=["GET", "POST"])
 def customer_lpo_add(cid):
@@ -2657,7 +2662,7 @@ def customer_lpo_view(cid, lid):
     db.close()
     return render_template("customer/lpo_view.html", c=c, lpo=lpo, items=items)
 
-# ─── SERVICE ORDERS ───
+# â”€â”€â”€ SERVICE ORDERS â”€â”€â”€
 
 @customer_bp.route("/<int:cid>/so/add", methods=["GET", "POST"])
 def customer_so_add(cid):
@@ -2769,7 +2774,7 @@ def customer_so_view(cid, sid):
     db.close()
     return render_template("customer/so_view.html", c=c, so=so, items=items)
 
-# ─── DOCUMENTS ───
+# â”€â”€â”€ DOCUMENTS â”€â”€â”€
 
 @customer_bp.route("/<int:cid>/doc/add", methods=["GET", "POST"])
 def customer_doc_add(cid):
@@ -2817,7 +2822,7 @@ def customer_doc_delete(cid, did):
     flash("Document deleted.", "success")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="documents"))
 
-# ─── SOA / STATEMENT ───
+# â”€â”€â”€ SOA / STATEMENT â”€â”€â”€
 
 @customer_bp.route("/<int:cid>/soa")
 def customer_soa(cid):
@@ -2936,11 +2941,11 @@ def customer_soa_pdf(cid):
 
     els = []
     cn = company["company_name"] if company else "COMPANY"
-    trn = company["trn_no"] or "—" if company else "—"
+    trn = company["trn_no"] or "â€”" if company else "â€”"
 
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # HEADER (matches invoice style)
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     logo = None; LW = 0
     if company and company["logo_data"]:
         try:
@@ -2962,7 +2967,7 @@ def customer_soa_pdf(cid):
     cl = [f"<font size=11><b>{cn}</b></font>"]
     addr = company["address"] or ""; ph = company["phone_number"] or ""; em = company["email"] or ""
     parts = [x for x in [addr] if x]
-    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != f"TRN: —"]
+    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != f"TRN: â€”"]
     if parts or cparts:
         info = " &middot; ".join(parts + cparts)
         cl.append(f"<font size=6.5 color='#6b7280'>{info}</font>")
@@ -2984,9 +2989,9 @@ def customer_soa_pdf(cid):
     els.append(hr)
     els.append(Spacer(1, 4*mm))
 
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # CUSTOMER INFO
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     cinfo = [
         [Paragraph("<b>Customer</b>", F("_cl", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11)),
          Paragraph(f"<b>{c['customer_name']}</b>", F("_cv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12))],
@@ -2998,9 +3003,9 @@ def customer_soa_pdf(cid):
     ct.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),1),("BOTTOMPADDING",(0,0),(-1,-1),1),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(ct)
 
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # SUMMARY CARDS
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     els.append(Spacer(1, 3*mm))
     sdata = [[
         Paragraph(f"<b>Total Invoiced</b><br/><font size=10 color='#1a3a5c'>AED {total_dr:,.2f}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
@@ -3020,15 +3025,15 @@ def customer_soa_pdf(cid):
     els.append(Spacer(1, 3*mm))
 
     if from_date or to_date:
-        rng = f"Period: {from_date or '…'} to {to_date or '…'}"
+        rng = f"Period: {from_date or 'â€¦'} to {to_date or 'â€¦'}"
         els.append(Paragraph(
             f"<font size=7 color='#6b7280'>{rng}</font>",
             F("_pr", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
         els.append(Spacer(1, 2*mm))
 
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # STATEMENT TABLE
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     colw = [45, 38, 65, 38, W - 45 - 38 - 65 - 38 - 65 - 75, 65, 75]
     hdr = [
         Paragraph("<b>Date</b>", F("_h", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
@@ -3055,14 +3060,14 @@ def customer_soa_pdf(cid):
         rws.append([
             Paragraph(d, F("_d", fontSize=7, leading=10)),
             Paragraph(f"<font color='{C5}'>{month}</font>" if month else "", F("_m", fontSize=6.5, textColor=C5, leading=10)),
-            Paragraph(str(e.get("ref","—")), F("_r", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=10)),
+            Paragraph(str(e.get("ref","â€”")), F("_r", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=10)),
             Paragraph(f"<font color=\"{'#1a56db' if e['type']=='Invoice' else '#e65100' if e['type']=='Credit Note' else '#c62828' if e['type']=='Unallocated Payment' else '#1a7d1a'}\">{e['type']}</font>", F("_t", fontSize=7, alignment=TA_CENTER, leading=10)),
-            Paragraph(f"<b>{e.get('dr',0) or 0:,.2f}</b>" if e.get("dr") else '<font color="#cccccc">—</font>', F("_dr", fontSize=7, textColor="#c62828" if e.get("dr") else C5, alignment=TA_RIGHT, leading=10)),
-            Paragraph(f"<b>{e.get('cr',0) or 0:,.2f}</b>" if e.get("cr") else '<font color="#cccccc">—</font>', F("_cr", fontSize=7, textColor="#1a7d1a" if e.get("cr") else C5, alignment=TA_RIGHT, leading=10)),
+            Paragraph(f"<b>{e.get('dr',0) or 0:,.2f}</b>" if e.get("dr") else '<font color="#cccccc">â€”</font>', F("_dr", fontSize=7, textColor="#c62828" if e.get("dr") else C5, alignment=TA_RIGHT, leading=10)),
+            Paragraph(f"<b>{e.get('cr',0) or 0:,.2f}</b>" if e.get("cr") else '<font color="#cccccc">â€”</font>', F("_cr", fontSize=7, textColor="#1a7d1a" if e.get("cr") else C5, alignment=TA_RIGHT, leading=10)),
             Paragraph(f"<b>{bal_display}</b>", F("_bl", fontSize=7, fontName="Helvetica-Bold", textColor=bal_color, alignment=TA_RIGHT, leading=10)),
         ])
 
-    # ── CLOSING ROW (inside main table for perfect alignment) ──
+    # â”€â”€ CLOSING ROW (inside main table for perfect alignment) â”€â”€
     rws.append([
         Paragraph("<b>Closing Balance</b>", F("_cb", fontSize=8, fontName="Helvetica-Bold", textColor=WH, leading=11)),
         Paragraph("", F("_x", fontSize=7, leading=10)),
@@ -3086,9 +3091,9 @@ def customer_soa_pdf(cid):
     ]))
     els.append(it)
 
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # SIGNATURES (SOA)
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     els.append(Spacer(1, 8*mm))
     s_sg = ParagraphStyle("SSG", fontSize=9, alignment=TA_CENTER, leading=14)
     s_stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
@@ -3119,9 +3124,9 @@ def customer_soa_pdf(cid):
     ]))
     els.append(soa_sig)
 
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # FOOTER
-    # ══════════════════════════════
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     els.append(Spacer(1, 8*mm))
     fh = Table([[""]], colWidths=[W], rowHeights=[0.5])
     fh.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
@@ -3129,7 +3134,7 @@ def customer_soa_pdf(cid):
     els.append(Spacer(1, 2*mm))
     ft_txt = "This is a computer-generated Statement of Account."
     if from_date or to_date:
-        rng = f"Period: {from_date or '…'} to {to_date or '…'}"
+        rng = f"Period: {from_date or 'â€¦'} to {to_date or 'â€¦'}"
         ft_txt += f" | {rng}"
     els.append(Paragraph(ft_txt, F("_ft", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
 
@@ -3140,7 +3145,7 @@ def customer_soa_pdf(cid):
     pdf_data = buf.getvalue(); buf.close()
     return send_file(BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True, download_name=f"SOA_{c['customer_name']}.pdf")
 
-# ─── LIST ───
+# â”€â”€â”€ LIST â”€â”€â”€
 
 @customer_bp.route("/list")
 def customer_list():
@@ -3156,9 +3161,9 @@ def customer_list():
     return render_template("customer/list.html", customers=customers, search=search)
 
 
-# ═══════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # SETTINGS
-# ═══════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @customer_bp.route("/tax-report")
 def customer_tax_report():
@@ -3356,8 +3361,8 @@ def customer_tax_report_pdf():
     data = [hdr]
     for inv in invoices:
         data.append([
-            inv["invoice_date"] or "—",
-            inv["invoice_no"] or "—",
+            inv["invoice_date"] or "â€”",
+            inv["invoice_no"] or "â€”",
             inv["customer_name"],
             f"{inv['net_sale'] or 0:,.2f}",
             f"{inv['vat_amount'] or 0:,.2f}",
@@ -3389,9 +3394,9 @@ def customer_tax_report_pdf():
     fn = f"Tax_Report_{from_filter or 'start'}_to_{to_filter or 'end'}.pdf"
     return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=fn)
 
-# ═══════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TABREED TRIPSHEET
-# ═══════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 TANKER_GLN_OPTIONS = ["10000 GLN", "5000 GLN", "3000 GLN", "2000 GLN", "1500 GLN", "1000 GLN", "500 GLN"]
 
@@ -3529,9 +3534,9 @@ def customer_tripsheet_report_pdf(cid):
     _logo_tmp_files = []
     els = []
     cn = company["company_name"] if company else "Current Link"
-    trn = company["trn_no"] or "—" if company else "—"
+    trn = company["trn_no"] or "â€”" if company else "â€”"
 
-    # ── COMPACT HEADER ──
+    # â”€â”€ COMPACT HEADER â”€â”€
     logo = None; LW = 0
     if company and company["logo_data"]:
         try:
@@ -3568,14 +3573,14 @@ def customer_tripsheet_report_pdf(cid):
     for idx, r in enumerate(rows, 1):
         data.append([
             Paragraph(str(idx), PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["entry_date"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["time_in"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["time_out"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["entry_date"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["time_in"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["time_out"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
             Paragraph(f"{r['total_reading'] or 0:,.2f}", PPS("c", fontSize=FS, fontName="Helvetica-Bold", leading=FS + 0.5, alignment=TA_RIGHT)),
-            Paragraph(r["tanker_gln"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["tanker_gln"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
             Paragraph(f"{r['trips'] or 0:,.0f}", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["tanker_reg"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["bill_no"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["tanker_reg"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["bill_no"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
         ])
     data.append([
         Paragraph("<b>Total</b>", PPS("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_CENTER)),
