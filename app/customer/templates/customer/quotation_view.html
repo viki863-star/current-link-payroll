@@ -131,7 +131,9 @@
         <strong style="color:#92400e">Terms &amp; Conditions:</strong>
         <ol style="margin:6px 0 0;padding-left:20px;line-height:1.7">
             {% if q.terms %}
-            <li>{{ q.terms }}</li>
+            {% for tline in q.terms.split('\n') if tline.strip() %}
+            <li>{{ tline }}</li>
+            {% endfor %}
             {% endif %}
             <li>This quotation is valid for 15 days from the date of issue.</li>
             <li>Payment is due within 30 days from the date of invoice.</li>

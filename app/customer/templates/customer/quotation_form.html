@@ -143,12 +143,15 @@ TRN: 105046792500003
             </div>
         </div>
 
-        {# ─── Terms & Conditions ─── #}
+        {# ─── Terms & Conditions (line by line) ─── #}
         <div style="margin-bottom:16px;padding:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px">
             <div class="form-row">
                 <label class="form-label" style="font-weight:600;color:#92400e">Terms &amp; Conditions</label>
-                <textarea name="terms" class="form-control" rows="3" placeholder="Enter terms and conditions">{{ q.terms or '' }}</textarea>
+                <span style="font-size:0.7rem;color:#b45309">Each line appears as a numbered point.</span>
             </div>
+            <input type="hidden" name="terms" id="termsHidden" value="{{ q.terms or '' }}">
+            <div id="termsContainer"></div>
+            <button type="button" class="btn btn-sm btn-outline" onclick="addTermLine()" style="margin-top:6px;color:#92400e;border-color:#fcd34d">+ Add Line</button>
         </div>
 
         {# ─── Notes ─── #}
@@ -164,6 +167,46 @@ TRN: 105046792500003
 
 <script>
 let itemCount = {{ (items|length) if edit and items else 0 }};
+
+function addTermLine(value) {
+    const container = document.getElementById('termsContainer');
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:4px';
+    row.innerHTML = `
+        <input type="text" class="term-line" value="${(value||'').replace(/"/g,'&quot;')}" placeholder="Type a term..." style="flex:1;padding:6px 8px;border:1px solid #fcd34d;border-radius:6px;font-size:0.82rem">
+        <span style="color:#f59e0b;font-size:0.9rem">&#8226;</span>
+        <button type="button" class="btn-remove" onclick="this.parentElement.remove();syncTerms()" title="Remove line" style="width:30px;height:30px;border-radius:6px;border:1px solid #fcd34d;background:#fff;cursor:pointer;color:#c62828;font-size:1rem;line-height:1">&times;</button>
+    `;
+    row.querySelector('.term-line').addEventListener('input', syncTerms);
+    container.appendChild(row);
+    row.querySelector('.term-line').focus();
+}
+function syncTerms() {
+    const lines = [...document.querySelectorAll('.term-line')].map(i => i.value.trim());
+    document.getElementById('termsHidden').value = lines.join('\n');
+}
+(function () {
+    const existing = (document.getElementById('termsHidden').value || '').split('\n').filter(s => s.trim());
+    if (existing.length) {
+        existing.forEach(v => {
+            const container = document.getElementById('termsContainer');
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:4px';
+            row.innerHTML = `
+                <input type="text" class="term-line" value="${(v||'').replace(/"/g,'&quot;')}" style="flex:1;padding:6px 8px;border:1px solid #fcd34d;border-radius:6px;font-size:0.82rem">
+                <span style="color:#f59e0b;font-size:0.9rem">&#8226;</span>
+                <button type="button" class="btn-remove" onclick="this.parentElement.remove();syncTerms()" title="Remove line" style="width:30px;height:30px;border-radius:6px;border:1px solid #fcd34d;background:#fff;cursor:pointer;color:#c62828;font-size:1rem;line-height:1">&times;</button>
+            `;
+            row.querySelector('.term-line').addEventListener('input', syncTerms);
+            container.appendChild(row);
+        });
+    } else {
+        addTermLine('');
+    }
+    document.getElementById('quotationForm').addEventListener('submit', syncTerms);
+})();
+
+
 
 function addItem(desc, qty, rate, unit) {
     const container = document.getElementById('itemsContainer');

@@ -2328,7 +2328,9 @@ def customer_quotation_pdf(cid, qid):
     els.append(Spacer(1, 3*mm))
     tc_lines = []
     if q["terms"]:
-        tc_lines.append(f"<li>{q['terms']}</li>")
+        for _tl in str(q["terms"]).split("\n"):
+            if _tl.strip():
+                tc_lines.append(f"<li>{_tl.strip()}</li>")
     tc_lines += [
         "<li>This quotation is valid for 15 days from the date of issue.</li>",
         "<li>Payment is due within 30 days from the date of invoice.</li>",
