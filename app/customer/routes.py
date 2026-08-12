@@ -2339,9 +2339,13 @@ def customer_quotation_pdf(cid, qid):
         "<li>Delivery / service execution as per agreed schedule.</li>",
         "<li>Rates are exclusive of any applicable taxes unless stated otherwise.</li>",
     ]
-    tc_html = "<b>Terms &amp; Conditions:</b><br/><ol>" + "".join(tc_lines) + "</ol>"
-    tb = Table([[Paragraph(tc_html, S("TW", fontSize=9, textColor=C4, leading=14))]], colWidths=[W])
-    tb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#fffbeb")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#fde68a")),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
+    t_head = Paragraph("<b>Terms &amp; Conditions:</b>", S("TW", fontSize=9, textColor=C4, leading=14))
+    t_rows = [[t_head]]
+    for i, tline in enumerate(tc_lines, 1):
+        txt = str(tline).replace("<li>", "").replace("</li>", "")
+        t_rows.append([Paragraph(f"<font color='#b45309'>{i}.</font>  {txt}", S("TW", fontSize=9, textColor=C4, leading=14, leftIndent=14, firstLineIndent=-14, spaceAfter=2))])
+    tb = Table(t_rows, colWidths=[W])
+    tb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#fffbeb")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#fde68a")),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(-1,0),6),("BOTTOMPADDING",(-1,-1),(-1,-1),6),("VALIGN",(0,0),(-1,-1),"TOP")]))
     els.append(tb)
 
     # CONTACT DETAILS
