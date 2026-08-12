@@ -1936,7 +1936,7 @@ def customer_quotation_add(cid):
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
             unit = units[i].strip() if i < len(units) and units[i].strip() else "hr"
             if desc or rate > 0:
-                amt = round(qty * rate, 2)
+                amt = round(qty * rate, 4)
                 sub_total += amt
                 rate_text = rates[i].strip() if i < len(rates) and rates[i].strip() else ""
                 items.append({"desc": desc, "qty": qty, "rate": rate, "rate_text": rate_text, "amt": amt, "unit": unit})
@@ -1996,7 +1996,7 @@ def customer_quotation_edit(cid, qid):
             rate = float(rates[i]) if i < len(rates) and rates[i].strip() else 0
             unit = units[i].strip() if i < len(units) and units[i].strip() else "hr"
             if desc or rate > 0:
-                amt = round(qty * rate, 2)
+                amt = round(qty * rate, 4)
                 sub_total += amt
                 rate_text = rates[i].strip() if i < len(rates) and rates[i].strip() else ""
                 new_items.append({"desc": desc, "qty": qty, "rate": rate, "rate_text": rate_text, "amt": amt, "unit": unit})
@@ -2224,6 +2224,15 @@ def customer_quotation_pdf(cid, qid):
         kw.setdefault("fontSize", fs)
         kw.setdefault("leading", ldr)
         return Paragraph(str(t), S("_pc", **kw))
+    def _fmt_amount(v):
+        s = f"{float(v or 0):,.4f}".rstrip("0").rstrip(".")
+        if "." not in s:
+            s += ".00"
+        else:
+            ipart, dpart = s.split(".")
+            if len(dpart) < 2:
+                s += "0" * (2 - len(dpart))
+        return s
     hdr = [
         Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
         Paragraph("<b>Description</b>", S("_h1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
@@ -2243,7 +2252,7 @@ def customer_quotation_pdf(cid, qid):
             _pc(f"{it['quantity'] or 0:,.2f}", alignment=TA_CENTER),
             _pc((it['unit'] or 'hr').upper(), alignment=TA_CENTER),
             _pc(rate_disp, alignment=TA_RIGHT),
-            _pc(f"{it['amount'] or 0:,.2f}", alignment=TA_RIGHT),
+            _pc(_fmt_amount(it["amount"]), alignment=TA_RIGHT),
             _pc("", alignment=TA_RIGHT),
         ])
 
