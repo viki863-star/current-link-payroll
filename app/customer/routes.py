@@ -2243,20 +2243,24 @@ def customer_quotation_pdf(cid, qid):
         Paragraph("", S("_h5", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
     ]
     rws = [hdr]
+    amt_vals = []
     for idx, it in enumerate(items):
         rt = (it["rate_text"] or "").strip()
+        rate_val = float(rt) if rt else float(it["rate"] or 0)
         rate_disp = rt if rt else f"{it['rate'] or 0:,.4f}".rstrip("0").rstrip(".")
+        amt_val = float(it["quantity"] or 0) * rate_val
+        amt_vals.append(amt_val)
         rws.append([
             _pc(str(idx+1), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(it["description"] or "—"),
             _pc(f"{it['quantity'] or 0:,.2f}", alignment=TA_CENTER),
             _pc((it['unit'] or 'hr').upper(), alignment=TA_CENTER),
             _pc(rate_disp, alignment=TA_RIGHT),
-            _pc(_fmt_amount(it["amount"]), alignment=TA_RIGHT),
+            _pc(_fmt_amount(amt_val), alignment=TA_RIGHT),
             _pc("", alignment=TA_RIGHT),
         ])
 
-    sub = q["sub_total"] or q["amount"] or 0
+    sub = round(sum(amt_vals), 2) if amt_vals else (q["sub_total"] or q["amount"] or 0)
     vat = q["vat_amount"] or 0
     tot = q["total_amount"] or sub
     vp = q["vat_percent"] or 0
