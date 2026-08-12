@@ -224,7 +224,10 @@ def document_download(doc_id):
         return redirect(url_for("documents.document_hub"))
     data = base64.b64decode(doc["file_data"])
     ext = doc["file_type"].split("/")[-1] if "/" in doc["file_type"] else "bin"
-    safe_name = f"{doc['doc_name']}.{ext}".replace("/", "-")
+    base_name = doc["doc_name"]
+    if doc["entity_type"] == "vehicle" and doc["entity_id"]:
+        base_name = f"{doc['entity_id']}_{base_name}"
+    safe_name = f"{base_name}.{ext}".replace("/", "-")
     return send_file(
         BytesIO(data),
         mimetype=doc["file_type"],
