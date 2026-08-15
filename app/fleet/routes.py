@@ -22,6 +22,7 @@ MAINTENANCE_CATEGORIES = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", 
 _MJ_LIST_COLS = """
     mj.id, mj.vehicle_id, mj.staff_id, mj.amount, mj.category, mj.description,
     mj.attachment_name, mj.attachment_type, mj.status, mj.admin_notes,
+    mj.supplier_name, mj.supplier_trn, mj.tax_mode, mj.tax_amount,
     mj.created_at, mj.approved_at,
     CASE WHEN mj.attachment_data IS NOT NULL AND mj.attachment_data != '' THEN 1 ELSE 0 END AS has_attachment
 """
@@ -528,6 +529,9 @@ def vehicle_profile(plate_no):
                   mp.attachment_path AS attachment_name, mp.created_at,
                   'Maintenance' AS category, '' AS attachment_type,
                   NULL AS attachment_data,
+                  mp.tax_mode AS tax_mode, mp.supplier_name AS supplier_name,
+                  mp.supplier_trn AS supplier_trn, mp.subtotal AS subtotal,
+                  mp.tax_amount AS vat_amount, mp.total_amount AS total_amount,
                   COALESCE(s.full_name, '') AS staff_name
            FROM maintenance_papers mp
            JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id
@@ -774,6 +778,9 @@ def staff_job_new():
         amount = request.form.get("amount", "").strip()
         category = request.form.get("category", "").strip()
         description = request.form.get("description", "").strip()
+        supplier_name = request.form.get("supplier_name", "").strip()
+        supplier_trn = request.form.get("supplier_trn", "").strip()
+        tax_mode = request.form.get("tax_mode", "Without Tax").strip() or "Without Tax"
 
         if not amount or not category:
             flash("Amount and category are required.", "error")
@@ -790,9 +797,14 @@ def staff_job_new():
                 attachment_data = base64.b64encode(file.read()).decode("utf-8")
                 attachment_type = file.content_type
 
+        try:
+            tax_amount = float(request.form.get("tax_amount", "0").strip() or "0") if tax_mode == "Tax Invoice" else 0.0
+        except ValueError:
+            tax_amount = 0.0
+
         db.execute(
-            "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status) VALUES (?,?,?,?,?,?,?,?,'pending')",
-            (vehicle_id or "N/A", staff_id, float(amount), category, description, attachment_name, attachment_data, attachment_type),
+            "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, supplier_name, supplier_trn, tax_mode, tax_amount) VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?)",
+            (vehicle_id or "N/A", staff_id, float(amount), category, description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, tax_mode, tax_amount),
         )
         db.commit()
         try:
@@ -982,9 +994,12 @@ def _import_field_staff_from_sqlite(db):
         db.commit()
 
     try:
-        old_jobs = sdb.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at FROM maintenance_jobs").fetchall()
+        old_jobs = sdb.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at, supplier_name, supplier_trn, tax_mode, tax_amount FROM maintenance_jobs").fetchall()
     except Exception:
-        old_jobs = []
+        try:
+            old_jobs = sdb.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at FROM maintenance_jobs").fetchall()
+        except Exception:
+            old_jobs = []
 
     existing_papers = set()
     try:
@@ -1001,14 +1016,20 @@ def _import_field_staff_from_sqlite(db):
         rev_status = status_map.get(j["status"], "Pending")
         paper_date = (j["created_at"] or "")[:10] or "2025-01-01"
         try:
+            tax_mode = j.get("tax_mode") or "Without Tax"
+            amount = float(j["amount"] or 0)
+            tax_amount = float(j.get("tax_amount") or 0) if tax_mode == "Tax Invoice" else 0.0
+            subtotal = amount - tax_amount
             db.execute("""
                 INSERT INTO maintenance_papers
                 (paper_no, paper_date, vehicle_id, technician_code, work_summary,
-                 total_amount, review_status, payment_status, notes, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)
+                 total_amount, tax_mode, subtotal, tax_amount, supplier_name, supplier_trn,
+                 review_status, payment_status, notes, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)
             """, (pno, paper_date, j["vehicle_id"], j["staff_id"],
-                  j["description"] or "", j["amount"], rev_status,
-                  j["admin_notes"] or "", j["created_at"]))
+                  j["description"] or "", amount, tax_mode, subtotal, tax_amount,
+                  j.get("supplier_name") or "", j.get("supplier_trn") or "",
+                  rev_status, j["admin_notes"] or "", j["created_at"]))
             existing_papers.add(pno)
         except Exception:
             pass

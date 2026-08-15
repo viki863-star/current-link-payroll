@@ -234,6 +234,8 @@
                                 <div><strong>Staff:</strong> {{ j.staff_name or '-' }}</div>
                                 <div><strong>Amount:</strong> AED {{ "%.0f"|format(j.amount|float) }}</div>
                                 <div><strong>Category:</strong> {{ j.category }}</div>
+                                {% if j.tax_mode %}<div><strong>Tax:</strong> {{ j.tax_mode }}{% if j.tax_mode == 'Tax Invoice' %} (VAT AED {{ "%.2f"|format(j.vat_amount|float) }}){% endif %}</div>{% endif %}
+                                {% if j.supplier_name %}<div><strong>Supplier:</strong> {{ j.supplier_name }}{% if j.supplier_trn %} (TRN: {{ j.supplier_trn }}){% endif %}</div>{% endif %}
                                 {% if j.description %}<div style="grid-column:1/-1"><strong>Description:</strong> {{ j.description }}</div>{% endif %}
                                 {% if j.admin_notes %}<div style="grid-column:1/-1"><strong>Notes:</strong> {{ j.admin_notes }}</div>{% endif %}
                                 <div><strong>Status:</strong> <span class="status-badge {{ j.status|lower }}">{{ j.status }}</span></div>

@@ -133,6 +133,23 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
                 </select>
             </div>
             <div class="staff-field-group">
+                <label class="staff-label">Shop / Workshop Name (optional)</label>
+                <input type="text" name="supplier_name" class="staff-input" placeholder="e.g. Al Futtaim Auto" value="{{ v.supplier_name or '' }}">
+            </div>
+            <div class="staff-field-group">
+                <label class="staff-label">Tax Invoice? (VAT on paper)</label>
+                <select name="tax_mode" class="staff-input" id="taxModeSelect" onchange="toggleTaxFields(this.value)">
+                    <option value="Without Tax">Without Tax</option>
+                    <option value="Tax Invoice" {% if (v.tax_mode or '') == 'Tax Invoice' %}selected{% endif %}>Tax Invoice</option>
+                </select>
+            </div>
+            <div class="staff-field-group" id="taxFields" style="{% if (v.tax_mode or '') != 'Tax Invoice' %}display:none{% endif %}">
+                <label class="staff-label">Supplier TRN (Tax No)</label>
+                <input type="text" name="supplier_trn" class="staff-input" placeholder="e.g. 100000000000003" value="{{ v.supplier_trn or '' }}">
+                <label class="staff-label" style="margin-top:10px">VAT Amount (AED)</label>
+                <input type="number" name="tax_amount" class="staff-input" step="0.01" min="0" placeholder="0.00" value="{{ v.tax_amount or '' }}">
+            </div>
+            <div class="staff-field-group">
                 <label class="staff-label">Description</label>
                 <textarea name="description" class="staff-input staff-textarea" rows="3" placeholder="What work was done?">{{ v.description or '' }}</textarea>
             </div>
@@ -160,6 +177,11 @@ function filterVehicles(query) {
         var search = el.getAttribute('data-search').toLowerCase();
         el.style.display = (!q || search.includes(q)) ? '' : 'none';
     });
+}
+
+function toggleTaxFields(value) {
+    var el = document.getElementById('taxFields');
+    if (el) { el.style.display = (value === 'Tax Invoice') ? '' : 'none'; }
 }
 
 function selectVehicle(plate, el) {

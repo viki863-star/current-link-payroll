@@ -128,6 +128,10 @@
       <span>Maintenance Entry</span>
       <small>Add or edit a paper with bill details</small>
     </a>
+    <a class="fm-tab {% if current_screen == 'tax' %}active{% endif %}" href="{{ url_for('fleet_maintenance', screen='tax', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">
+      <span>Tax Report (VAT)</span>
+      <small>UAE VAT input register by supplier &amp; TRN</small>
+    </a>
   </div>
 
   {# ═══════ FOCUS VEHICLE ═══════ #}
@@ -219,6 +223,8 @@
         <label>Supplier Vehicle <select name="target_asset_code"><option value="">Select</option>{% for item in partnership_supplier_assets %}<option value="{{ item.asset_code }}" {% if paper_values.target_asset_code == item.asset_code %}selected{% endif %}>{{ item.party_name }} | {{ item.asset_name }}{% if item.vehicle_no %} | {{ item.vehicle_no }}{% endif %}</option>{% endfor %}</select></label>
         <label>Workshop <select name="workshop_party_code"><option value="">Optional</option>{% for item in workshop_parties %}<option value="{{ item.party_code }}" {% if paper_values.workshop_party_code == item.party_code %}selected{% endif %}>{{ item.party_name }}</option>{% endfor %}</select></label>
         <label>Tax Mode <select name="tax_mode">{% for item in tax_mode_options %}<option value="{{ item }}" {% if paper_values.tax_mode == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+        <label>Supplier / Shop Name <input type="text" name="supplier_name" value="{{ paper_values.supplier_name }}" placeholder="e.g. Al Futtaim Auto, XYZ Garage"></label>
+        <label>Supplier TRN (Tax No) <input type="text" name="supplier_trn" value="{{ paper_values.supplier_trn }}" placeholder="e.g. 100000000000003"></label>
         <label>Funding Source <select name="funding_source">{% for item in funding_source_options %}<option value="{{ item }}" {% if paper_values.funding_source == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
         <label>Supplier Bill No <input type="text" name="supplier_bill_no" value="{{ paper_values.supplier_bill_no }}"></label>
         <label>Paid By <select name="paid_by">{% for item in paid_by_options %}<option value="{{ item }}" {% if paper_values.paid_by == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
@@ -244,6 +250,89 @@
           <a class="fm-btn fm-btn-secondary" href="{{ url_for('fleet_maintenance', screen='overview', month=filters.month, vehicle_id=filters.vehicle_id, funding_source=filters.funding_source, search=filters.search) }}">Back</a>
         </div>
       </form>
+    </div>
+  </div>
+
+  {# ═══════ TAX REPORT SCREEN (UAE VAT input register) ═══════ #}
+  {% elif current_screen == 'tax' %}
+  <div class="fm-summary">
+    <div class="fm-summary-card"><strong>{{ tax_report.tax_count }}</strong><span>Tax Invoice Papers</span></div>
+    <div class="fm-summary-card"><strong>AED {{ "%.2f"|format(tax_report.tax_net) }}</strong><span>Net Purchases (Input)</span></div>
+    <div class="fm-summary-card"><strong>AED {{ "%.2f"|format(tax_report.tax_vat) }}</strong><span>Recoverable Input VAT</span></div>
+    <div class="fm-summary-card"><strong>AED {{ "%.2f"|format(tax_report.tax_total) }}</strong><span>Gross With Tax</span></div>
+    <div class="fm-summary-card"><strong>AED {{ "%.2f"|format(tax_report.no_tax_total) }}</strong><span>Without Tax (No Claim)</span></div>
+  </div>
+
+  <div class="fm-card">
+    <div class="fm-card-head"><span class="fm-label">UAE VAT Input Register</span><h2>Tax Invoice Papers (Recoverable Input VAT)</h2></div>
+    <div style="overflow-x:auto">
+      <table class="fm-table">
+        <thead><tr><th>Paper</th><th>Date</th><th>Vehicle</th><th>Supplier Name</th><th>TRN</th><th>Bill No</th><th>Work</th><th style="text-align:right">Net AED</th><th style="text-align:right">VAT AED</th><th style="text-align:right">Total AED</th></tr></thead>
+        <tbody>
+          {% for r in tax_report.tax_rows %}
+          <tr>
+            <td><strong>{{ r.paper_no }}</strong></td>
+            <td style="white-space:nowrap">{{ r.paper_date }}</td>
+            <td>{{ r.vehicle_no }}</td>
+            <td>{{ r.supplier_name }}</td>
+            <td class="mono">{{ r.supplier_trn }}</td>
+            <td>{{ r.bill_no }}</td>
+            <td style="max-width:200px;white-space:normal">{{ r.work_summary or '-' }}</td>
+            <td style="text-align:right">{{ "%.2f"|format(r.net_amount|float) }}</td>
+            <td style="text-align:right;color:#f7931e;font-weight:600">{{ "%.2f"|format(r.vat_amount|float) }}</td>
+            <td style="text-align:right;font-weight:600">{{ "%.2f"|format(r.total_amount|float) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--muted)">No tax invoice papers for this period. Use <strong>Tax Mode = Tax Invoice</strong> when entering a workshop bill that carries VAT.</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if tax_report.tax_rows %}
+        <tfoot>
+          <tr style="font-weight:700;background:rgba(0,0,0,0.02)">
+            <td colspan="7" style="text-align:right">TOTALS</td>
+            <td style="text-align:right">{{ "%.2f"|format(tax_report.tax_net) }}</td>
+            <td style="text-align:right;color:#f7931e">{{ "%.2f"|format(tax_report.tax_vat) }}</td>
+            <td style="text-align:right">{{ "%.2f"|format(tax_report.tax_total) }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  <div class="fm-card">
+    <div class="fm-card-head"><span class="fm-label">Non-Recoverable</span><h2>Without Tax Papers (No Input VAT Claim)</h2></div>
+    <div style="overflow-x:auto">
+      <table class="fm-table">
+        <thead><tr><th>Paper</th><th>Date</th><th>Vehicle</th><th>Supplier Name</th><th>TRN</th><th>Bill No</th><th>Work</th><th style="text-align:right">Total AED</th></tr></thead>
+        <tbody>
+          {% for r in tax_report.no_tax_rows %}
+          <tr>
+            <td><strong>{{ r.paper_no }}</strong></td>
+            <td style="white-space:nowrap">{{ r.paper_date }}</td>
+            <td>{{ r.vehicle_no }}</td>
+            <td>{{ r.supplier_name }}</td>
+            <td class="mono">{{ r.supplier_trn }}</td>
+            <td>{{ r.bill_no }}</td>
+            <td style="max-width:200px;white-space:normal">{{ r.work_summary or '-' }}</td>
+            <td style="text-align:right;font-weight:600">{{ "%.2f"|format(r.total_amount|float) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted)">No without-tax papers for this period.</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if tax_report.no_tax_rows %}
+        <tfoot>
+          <tr style="font-weight:700;background:rgba(0,0,0,0.02)">
+            <td colspan="7" style="text-align:right">TOTAL</td>
+            <td style="text-align:right">{{ "%.2f"|format(tax_report.no_tax_total) }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+    <div style="padding:14px 20px;font-size:0.75rem;color:var(--muted);border-top:1px solid var(--line)">
+      <strong>UAE VAT note:</strong> Input VAT is recoverable only against a valid tax invoice from a VAT-registered supplier that shows the supplier TRN, bill number, net amount and VAT separately (Federal Decree-Law No. 8 of 2017). Papers entered as <em>Without Tax</em> carry no recoverable VAT and the full amount is treated as a business expense. Keep all papers for at least 5 years.
     </div>
   </div>
 

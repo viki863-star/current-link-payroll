@@ -1252,6 +1252,9 @@ def register_routes(app: Flask) -> None:
                 amount = request.form.get("amount", "").strip()
                 category = request.form.get("category", "").strip()
                 description = request.form.get("description", "").strip()
+                supplier_name = request.form.get("supplier_name", "").strip()
+                supplier_trn = request.form.get("supplier_trn", "").strip()
+                tax_mode = request.form.get("tax_mode", "Without Tax").strip() or "Without Tax"
                 if not amount:
                     flash("Amount is required.", "error")
                     return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v=request.form)
@@ -1268,8 +1271,8 @@ def register_routes(app: Flask) -> None:
                     "INSERT INTO vehicles (plate_no, vehicle_type, status) VALUES ('N/A', 'Other', 'Inactive') ON CONFLICT (plate_no) DO NOTHING"
                 )
                 db.execute(
-                    "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status) VALUES (?,?,?,?,?,?,?,?,'pending')",
-                    (vehicle_id or "N/A", technician_code, float(amount), category or "Other", description, attachment_name, attachment_data, attachment_type),
+                    "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, supplier_name, supplier_trn, tax_mode, tax_amount) VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?)",
+                    (vehicle_id or "N/A", technician_code, float(amount), category or "Other", description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, tax_mode, float(request.form.get("tax_amount", "0").strip() or "0") if tax_mode == "Tax Invoice" else 0.0),
                 )
                 db.commit()
                 flash("Job submitted for approval.", "success")
@@ -4913,7 +4916,7 @@ def register_routes(app: Flask) -> None:
                             """
                             UPDATE maintenance_papers
                             SET paper_no = ?, paper_date = ?, vehicle_id = ?, vehicle_no = ?, target_class = ?, target_party_code = ?, target_asset_code = ?,
-                                workshop_party_code = ?, staff_code = ?, advance_no = ?, tax_mode = ?, supplier_bill_no = ?, work_summary = ?,
+                                workshop_party_code = ?, staff_code = ?, advance_no = ?, tax_mode = ?, supplier_name = ?, supplier_trn = ?, supplier_bill_no = ?, work_summary = ?,
                                 funding_source = ?, paid_by = ?, subtotal = ?, tax_amount = ?, total_amount = ?,
                                 company_share_amount = ?, partner_share_amount = ?, company_paid_amount = ?, partner_paid_amount = ?,
                                 linked_partnership_entry_no = ?, attachment_path = ?, notes = ?
@@ -4931,6 +4934,8 @@ def register_routes(app: Flask) -> None:
                                 prepared["staff_code"],
                                 prepared["advance_no"],
                                 prepared["tax_mode"],
+                                prepared["supplier_name"],
+                                prepared["supplier_trn"],
                                 prepared["supplier_bill_no"],
                                 prepared["work_summary"],
                                 prepared["funding_source"],
@@ -4954,10 +4959,10 @@ def register_routes(app: Flask) -> None:
                             """
                             INSERT INTO maintenance_papers (
                                 paper_no, paper_date, vehicle_id, vehicle_no, target_class, target_party_code, target_asset_code,
-                                workshop_party_code, staff_code, advance_no, tax_mode, supplier_bill_no, work_summary, funding_source, paid_by,
+                                workshop_party_code, staff_code, advance_no, tax_mode, supplier_name, supplier_trn, supplier_bill_no, work_summary, funding_source, paid_by,
                                 subtotal, tax_amount, total_amount, company_share_amount, partner_share_amount, company_paid_amount,
                                 partner_paid_amount, linked_partnership_entry_no, attachment_path, notes
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                             (
                                 prepared["paper_no"],
@@ -4971,6 +4976,8 @@ def register_routes(app: Flask) -> None:
                                 prepared["staff_code"],
                                 prepared["advance_no"],
                                 prepared["tax_mode"],
+                                prepared["supplier_name"],
+                                prepared["supplier_trn"],
                                 prepared["supplier_bill_no"],
                                 prepared["work_summary"],
                                 prepared["funding_source"],
@@ -5030,6 +5037,7 @@ def register_routes(app: Flask) -> None:
                 flash(str(exc), "error")
 
         summary = _fleet_maintenance_summary(db, filters["month"])
+        tax_report = _fleet_maintenance_tax_report(db, filters)
         vehicle_rows = _fleet_vehicle_rows(db)
         fleet_vehicle_rows = _fleet_vehicle_directory_rows(db, filters)
         filter_vehicle_rows = _maintenance_target_vehicle_rows(db)
@@ -5052,6 +5060,7 @@ def register_routes(app: Flask) -> None:
             current_screen=current_screen,
             filters=filters,
             summary=summary,
+            tax_report=tax_report,
             vehicle_values=vehicle_values,
             staff_values=staff_values,
             advance_values=advance_values,
@@ -10573,6 +10582,8 @@ def _default_maintenance_paper_form(db=None):
         "staff_code": "",
         "advance_no": "",
         "tax_mode": MAINTENANCE_TAX_MODE_OPTIONS[0],
+        "supplier_name": "",
+        "supplier_trn": "",
         "supplier_bill_no": "",
         "work_summary": "",
         "funding_source": MAINTENANCE_FUNDING_SOURCE_OPTIONS[0],
@@ -10607,6 +10618,8 @@ def _maintenance_paper_form_from_row(row):
         "staff_code": row["staff_code"] or "",
         "advance_no": row["advance_no"] or "",
         "tax_mode": row["tax_mode"] or MAINTENANCE_TAX_MODE_OPTIONS[0],
+        "supplier_name": row["supplier_name"] or "",
+        "supplier_trn": row["supplier_trn"] or "",
         "supplier_bill_no": row["supplier_bill_no"] or "",
         "work_summary": row["work_summary"] or "",
         "funding_source": row["funding_source"] or MAINTENANCE_FUNDING_SOURCE_OPTIONS[0],
@@ -10725,6 +10738,8 @@ def _maintenance_paper_form_data(request):
         "staff_code": request.form.get("staff_code", "").strip().upper(),
         "advance_no": request.form.get("advance_no", "").strip().upper(),
         "tax_mode": tax_mode,
+        "supplier_name": request.form.get("supplier_name", "").strip(),
+        "supplier_trn": request.form.get("supplier_trn", "").strip(),
         "supplier_bill_no": request.form.get("supplier_bill_no", "").strip(),
         "work_summary": request.form.get("work_summary", "").strip(),
         "funding_source": funding_source,
@@ -10982,6 +10997,8 @@ def _prepare_maintenance_paper_payload(db, values, line_rows):
         "staff_code": staff_code or None,
         "advance_no": advance_row["advance_no"] if advance_row else None,
         "tax_mode": values["tax_mode"],
+        "supplier_name": values["supplier_name"] or None,
+        "supplier_trn": values["supplier_trn"] or None,
         "supplier_bill_no": values["supplier_bill_no"] or None,
         "work_summary": work_summary,
         "funding_source": values["funding_source"],
@@ -15694,7 +15711,7 @@ def _fleet_maintenance_filter_values(request):
 
 def _fleet_maintenance_screen_value(value: str) -> str:
     selected = (value or "").strip().lower()
-    if selected in {"overview", "vehicles", "import", "papers"}:
+    if selected in {"overview", "vehicles", "import", "papers", "tax"}:
         return selected
     return "overview"
 
@@ -15756,6 +15773,99 @@ def _fleet_maintenance_summary(db, month_value: str):
         "month_total": month_total,
         "month_tax": month_tax,
         "month_papers": month_papers,
+    }
+
+
+def _fleet_maintenance_tax_report(db, filters):
+    """UAE VAT input register from maintenance papers.
+
+    UAE VAT law (Federal Decree-Law No. 8 of 2017):
+    - Input VAT is recoverable ONLY when you hold a valid tax invoice from a
+      VAT-registered supplier whose TRN is shown on the invoice.
+    - Papers flagged 'Without Tax' carry no VAT claim - the full amount is an
+      expense and CANNOT be recovered as input VAT.
+    - For recoverable papers the report captures: supplier name, supplier TRN,
+      bill number, net amount (subtotal), VAT amount and total - the exact
+      fields the FTA needs at VAT return / audit time.
+    """
+    month = (filters.get("month") or "").strip()
+    where_sql, params = _maintenance_paper_filter_clause(filters)
+    if where_sql:
+        where_sql = where_sql.replace("WHERE ", "WHERE ", 1)
+    prefix = " AND " if where_sql else " WHERE "
+
+    base = f"""
+        FROM maintenance_papers p
+        LEFT JOIN vehicle_master vehicle ON vehicle.vehicle_id = p.vehicle_id
+        LEFT JOIN parties workshop ON workshop.party_code = p.workshop_party_code
+        LEFT JOIN maintenance_staff staff ON staff.staff_code = p.staff_code
+    """
+
+    tax_rows = db.execute(
+        f"""
+        SELECT
+            p.paper_no,
+            p.paper_date,
+            COALESCE(p.vehicle_no, vehicle.vehicle_no, p.vehicle_id, '-') AS vehicle_no,
+            COALESCE(NULLIF(p.supplier_name, ''), COALESCE(workshop.party_name, ''), p.workshop_party_code, '-') AS supplier_name,
+            COALESCE(NULLIF(p.supplier_trn, ''), '-') AS supplier_trn,
+            COALESCE(NULLIF(p.supplier_bill_no, ''), '-') AS bill_no,
+            p.work_summary,
+            p.subtotal AS net_amount,
+            p.tax_amount AS vat_amount,
+            p.total_amount,
+            p.tax_mode,
+            COALESCE(staff.staff_name, '-') AS staff_name
+        {base}
+        {where_sql}{prefix}p.tax_mode = 'Tax Invoice'
+        ORDER BY p.paper_date DESC, p.id DESC
+        """,
+        params,
+    ).fetchall()
+
+    no_tax_rows = db.execute(
+        f"""
+        SELECT
+            p.paper_no,
+            p.paper_date,
+            COALESCE(p.vehicle_no, vehicle.vehicle_no, p.vehicle_id, '-') AS vehicle_no,
+            COALESCE(NULLIF(p.supplier_name, ''), COALESCE(workshop.party_name, ''), p.workshop_party_code, '-') AS supplier_name,
+            COALESCE(NULLIF(p.supplier_trn, ''), '-') AS supplier_trn,
+            COALESCE(NULLIF(p.supplier_bill_no, ''), '-') AS bill_no,
+            p.work_summary,
+            p.subtotal AS net_amount,
+            p.tax_amount AS vat_amount,
+            p.total_amount,
+            p.tax_mode,
+            COALESCE(staff.staff_name, '-') AS staff_name
+        {base}
+        {where_sql}{prefix}p.tax_mode = 'Without Tax'
+        ORDER BY p.paper_date DESC, p.id DESC
+        """,
+        params,
+    ).fetchall()
+
+    def _float(value):
+        try:
+            return float(value or 0.0)
+        except (ValueError, TypeError):
+            return 0.0
+
+    tax_net = sum(_float(r["net_amount"]) for r in tax_rows)
+    tax_vat = sum(_float(r["vat_amount"]) for r in tax_rows)
+    tax_total = sum(_float(r["total_amount"]) for r in tax_rows)
+    no_tax_total = sum(_float(r["total_amount"]) for r in no_tax_rows)
+
+    return {
+        "tax_rows": tax_rows,
+        "no_tax_rows": no_tax_rows,
+        "tax_count": len(tax_rows),
+        "no_tax_count": len(no_tax_rows),
+        "tax_net": tax_net,
+        "tax_vat": tax_vat,
+        "tax_total": tax_total,
+        "no_tax_total": no_tax_total,
+        "month": month,
     }
 
 
@@ -15999,6 +16109,8 @@ def _maintenance_paper_rows(db, filters, limit: int = 18):
             COALESCE(workshop.party_name, '-') AS workshop_name,
             COALESCE(staff.staff_name, '-') AS staff_name,
             p.tax_mode,
+            p.supplier_name,
+            p.supplier_trn,
             p.supplier_bill_no,
             p.work_summary,
             p.funding_source,
