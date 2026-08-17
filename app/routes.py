@@ -1239,6 +1239,17 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("technician_login"))
         vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, created_at FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
         _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
+        supplier_rows = db.execute(
+            "SELECT DISTINCT supplier_name FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT supplier_name FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' ORDER BY supplier_name ASC"
+        ).fetchall()
+        supplier_suggestions = [r[0] for r in supplier_rows]
+        supplier_trn_rows = db.execute(
+            "SELECT supplier_name, supplier_trn FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT supplier_name, supplier_trn FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != ''"
+        ).fetchall()
+        supplier_trn_map = {}
+        for row in supplier_trn_rows:
+            if row[0] and not supplier_trn_map.get(row[0]):
+                supplier_trn_map[row[0]] = row[1]
         total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?", (technician_code,)).fetchone()["t"] or 0
         spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["t"] or 0
         spent_jobs = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'", (technician_code,)).fetchone()["t"] or 0
@@ -1254,10 +1265,18 @@ def register_routes(app: Flask) -> None:
                 description = request.form.get("description", "").strip()
                 supplier_name = request.form.get("supplier_name", "").strip()
                 supplier_trn = request.form.get("supplier_trn", "").strip()
+                supplier_bill_no = request.form.get("supplier_bill_no", "").strip()
                 tax_mode = request.form.get("tax_mode", "Without Tax").strip() or "Without Tax"
                 if not amount:
                     flash("Amount is required.", "error")
-                    return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v=request.form)
+                    return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
+                if tax_mode == "Tax Invoice":
+                    if not supplier_name:
+                        flash("Workshop name is required when the bill includes VAT 5%.", "error")
+                        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
+                    if not supplier_bill_no:
+                        flash("Bill number is required when the bill includes VAT 5%.", "error")
+                        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
                 attachment_name = None
                 attachment_data = None
                 attachment_type = None
@@ -1271,8 +1290,8 @@ def register_routes(app: Flask) -> None:
                     "INSERT INTO vehicles (plate_no, vehicle_type, status) VALUES ('N/A', 'Other', 'Inactive') ON CONFLICT (plate_no) DO NOTHING"
                 )
                 db.execute(
-                    "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, supplier_name, supplier_trn, tax_mode, tax_amount) VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?)",
-                    (vehicle_id or "N/A", technician_code, float(amount), category or "Other", description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, tax_mode, float(request.form.get("tax_amount", "0").strip() or "0") if tax_mode == "Tax Invoice" else 0.0),
+                    "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, supplier_name, supplier_trn, supplier_bill_no, tax_mode, tax_amount) VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?,?)",
+                    (vehicle_id or "N/A", technician_code, float(amount), category or "Other", description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, supplier_bill_no or None, tax_mode, float(request.form.get("tax_amount", "0").strip() or "0") if tax_mode == "Tax Invoice" else 0.0),
                 )
                 db.commit()
                 flash("Job submitted for approval.", "success")
@@ -1281,8 +1300,8 @@ def register_routes(app: Flask) -> None:
                 db.rollback()
                 current_app.logger.error("technician_simple POST error: %s", e, exc_info=True)
                 flash(f"Error submitting job: {e}", "error")
-                return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v=request.form)
-        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, v={},
+                return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
+        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v={},
                                total_received=total_received, total_spent=total_spent, balance=balance,
                                pending_count=pending_count, approved_count=approved_count)
 
@@ -15777,21 +15796,21 @@ def _fleet_maintenance_summary(db, month_value: str):
 
 
 def _fleet_maintenance_tax_report(db, filters):
-    """UAE VAT input register from maintenance papers.
+    """UAE VAT input register from maintenance papers and approved staff jobs.
 
     UAE VAT law (Federal Decree-Law No. 8 of 2017):
     - Input VAT is recoverable ONLY when you hold a valid tax invoice from a
       VAT-registered supplier whose TRN is shown on the invoice.
-    - Papers flagged 'Without Tax' carry no VAT claim - the full amount is an
-      expense and CANNOT be recovered as input VAT.
-    - For recoverable papers the report captures: supplier name, supplier TRN,
+    - Papers/jobs flagged 'Without Tax' carry no VAT claim - the full amount is
+      an expense and CANNOT be recovered as input VAT.
+    - For recoverable rows the report captures: supplier name, supplier TRN,
       bill number, net amount (subtotal), VAT amount and total - the exact
       fields the FTA needs at VAT return / audit time.
+    - Approved field staff jobs with tax_mode = 'Tax Invoice' are included so
+      VAT bills submitted by staff appear in the same VAT register.
     """
     month = (filters.get("month") or "").strip()
     where_sql, params = _maintenance_paper_filter_clause(filters)
-    if where_sql:
-        where_sql = where_sql.replace("WHERE ", "WHERE ", 1)
     prefix = " AND " if where_sql else " WHERE "
 
     base = f"""
@@ -15844,6 +15863,69 @@ def _fleet_maintenance_tax_report(db, filters):
         """,
         params,
     ).fetchall()
+
+    job_where = []
+    job_params = []
+    if month:
+        job_where.append("SUBSTR(mj.created_at, 1, 7) = ?")
+        job_params.append(month)
+    if filters.get("vehicle_id"):
+        job_where.append("mj.vehicle_id = ?")
+        job_params.append(filters["vehicle_id"])
+    job_clause = (" WHERE " + " AND ".join(job_where)) if job_where else ""
+
+    job_base = f"""
+        FROM maintenance_jobs mj
+        LEFT JOIN vehicles jv ON jv.plate_no = mj.vehicle_id
+        LEFT JOIN field_staff jstaff ON jstaff.staff_id = mj.staff_id
+    """
+
+    job_tax_rows = db.execute(
+        f"""
+        SELECT
+            ('JOB-' || mj.id) AS paper_no,
+            COALESCE(SUBSTR(mj.created_at, 1, 10), '') AS paper_date,
+            COALESCE(jv.plate_no, mj.vehicle_id, '-') AS vehicle_no,
+            COALESCE(NULLIF(mj.supplier_name, ''), '-') AS supplier_name,
+            COALESCE(NULLIF(mj.supplier_trn, ''), '-') AS supplier_trn,
+            COALESCE(NULLIF(mj.supplier_bill_no, ''), '-') AS bill_no,
+            mj.description,
+            (mj.amount - mj.tax_amount) AS net_amount,
+            mj.tax_amount AS vat_amount,
+            mj.amount AS total_amount,
+            mj.tax_mode,
+            COALESCE(jstaff.full_name, mj.staff_id, '-') AS staff_name
+        {job_base}
+        {job_clause}{" AND " if job_clause else " WHERE "}mj.status = 'approved' AND mj.tax_mode = 'Tax Invoice'
+        ORDER BY mj.created_at DESC, mj.id DESC
+        """,
+        job_params,
+    ).fetchall()
+
+    job_no_tax_rows = db.execute(
+        f"""
+        SELECT
+            ('JOB-' || mj.id) AS paper_no,
+            COALESCE(SUBSTR(mj.created_at, 1, 10), '') AS paper_date,
+            COALESCE(jv.plate_no, mj.vehicle_id, '-') AS vehicle_no,
+            COALESCE(NULLIF(mj.supplier_name, ''), '-') AS supplier_name,
+            COALESCE(NULLIF(mj.supplier_trn, ''), '-') AS supplier_trn,
+            COALESCE(NULLIF(mj.supplier_bill_no, ''), '-') AS bill_no,
+            mj.description,
+            (mj.amount - mj.tax_amount) AS net_amount,
+            mj.tax_amount AS vat_amount,
+            mj.amount AS total_amount,
+            mj.tax_mode,
+            COALESCE(jstaff.full_name, mj.staff_id, '-') AS staff_name
+        {job_base}
+        {job_clause}{" AND " if job_clause else " WHERE "}mj.status = 'approved' AND mj.tax_mode = 'Without Tax'
+        ORDER BY mj.created_at DESC, mj.id DESC
+        """,
+        job_params,
+    ).fetchall()
+
+    tax_rows = list(tax_rows) + list(job_tax_rows)
+    no_tax_rows = list(no_tax_rows) + list(job_no_tax_rows)
 
     def _float(value):
         try:

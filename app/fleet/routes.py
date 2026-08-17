@@ -22,7 +22,7 @@ MAINTENANCE_CATEGORIES = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", 
 _MJ_LIST_COLS = """
     mj.id, mj.vehicle_id, mj.staff_id, mj.amount, mj.category, mj.description,
     mj.attachment_name, mj.attachment_type, mj.status, mj.admin_notes,
-    mj.supplier_name, mj.supplier_trn, mj.tax_mode, mj.tax_amount,
+    mj.supplier_name, mj.supplier_trn, mj.supplier_bill_no, mj.tax_mode, mj.tax_amount,
     mj.created_at, mj.approved_at,
     CASE WHEN mj.attachment_data IS NOT NULL AND mj.attachment_data != '' THEN 1 ELSE 0 END AS has_attachment
 """
@@ -772,6 +772,17 @@ def staff_job_new():
     db = open_db()
     staff_id = session["staff_id"]
     vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
+    supplier_rows = db.execute(
+        "SELECT DISTINCT supplier_name FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT supplier_name FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' ORDER BY supplier_name ASC"
+    ).fetchall()
+    supplier_suggestions = [r[0] for r in supplier_rows]
+    supplier_trn_rows = db.execute(
+        "SELECT supplier_name, supplier_trn FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT supplier_name, supplier_trn FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != ''"
+    ).fetchall()
+    supplier_trn_map = {}
+    for row in supplier_trn_rows:
+        if row[0] and not supplier_trn_map.get(row[0]):
+            supplier_trn_map[row[0]] = row[1]
 
     if request.method == "POST":
         vehicle_id = request.form.get("vehicle_id", "").strip()
@@ -780,11 +791,19 @@ def staff_job_new():
         description = request.form.get("description", "").strip()
         supplier_name = request.form.get("supplier_name", "").strip()
         supplier_trn = request.form.get("supplier_trn", "").strip()
+        supplier_bill_no = request.form.get("supplier_bill_no", "").strip()
         tax_mode = request.form.get("tax_mode", "Without Tax").strip() or "Without Tax"
 
         if not amount or not category:
             flash("Amount and category are required.", "error")
-            return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, v=request.form)
+            return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
+        if tax_mode == "Tax Invoice":
+            if not supplier_name:
+                flash("Workshop name is required when the bill includes VAT 5%.", "error")
+                return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
+            if not supplier_bill_no:
+                flash("Bill number is required when the bill includes VAT 5%.", "error")
+                return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
 
         attachment_name = None
         attachment_data = None
@@ -803,8 +822,8 @@ def staff_job_new():
             tax_amount = 0.0
 
         db.execute(
-            "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, supplier_name, supplier_trn, tax_mode, tax_amount) VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?)",
-            (vehicle_id or "N/A", staff_id, float(amount), category, description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, tax_mode, tax_amount),
+            "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, supplier_name, supplier_trn, supplier_bill_no, tax_mode, tax_amount) VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?,?)",
+            (vehicle_id or "N/A", staff_id, float(amount), category, description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, supplier_bill_no or None, tax_mode, tax_amount),
         )
         db.commit()
         try:
@@ -827,7 +846,7 @@ def staff_job_new():
         flash("Job submitted for approval.", "success")
         return redirect(url_for("fleet.staff_dashboard"))
 
-    return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, v={})
+    return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v={})
 
 
 staff_job_new.csrf_exempt = True
@@ -854,7 +873,7 @@ def staff_jobs():
 def staff_job_edit(job_id):
     db = open_db()
     staff_id = session["staff_id"]
-    job = db.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at FROM maintenance_jobs WHERE id = ? AND staff_id = ? AND status = 'pending'", (job_id, staff_id)).fetchone()
+    job = db.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at, supplier_name, supplier_trn, supplier_bill_no, tax_mode, tax_amount FROM maintenance_jobs WHERE id = ? AND staff_id = ? AND status = 'pending'", (job_id, staff_id)).fetchone()
     if not job:
         flash("Job not found or cannot be edited.", "error")
         return redirect(url_for("fleet.staff_jobs"))
@@ -866,10 +885,25 @@ def staff_job_edit(job_id):
         amount = request.form.get("amount", "").strip()
         category = request.form.get("category", "").strip()
         description = request.form.get("description", "").strip()
+        supplier_name = request.form.get("supplier_name", "").strip()
+        supplier_trn = request.form.get("supplier_trn", "").strip()
+        supplier_bill_no = request.form.get("supplier_bill_no", "").strip()
+        tax_mode = request.form.get("tax_mode", job["tax_mode"] or "Without Tax").strip() or "Without Tax"
 
         if not amount or not category:
             flash("Amount and category are required.", "error")
             return render_template("fleet/staff_job_edit.html", job=job, vehicles=vehicles, categories=MAINTENANCE_CATEGORIES)
+        if tax_mode == "Tax Invoice":
+            if not supplier_name:
+                flash("Workshop name is required when the bill includes VAT 5%.", "error")
+                return render_template("fleet/staff_job_edit.html", job=job, vehicles=vehicles, categories=MAINTENANCE_CATEGORIES)
+            if not supplier_bill_no:
+                flash("Bill number is required when the bill includes VAT 5%.", "error")
+                return render_template("fleet/staff_job_edit.html", job=job, vehicles=vehicles, categories=MAINTENANCE_CATEGORIES)
+        try:
+            tax_amount = float(request.form.get("tax_amount", "0").strip() or "0") if tax_mode == "Tax Invoice" else 0.0
+        except ValueError:
+            tax_amount = 0.0
 
         attachment_name = job["attachment_name"]
         attachment_data = job["attachment_data"]
@@ -883,8 +917,8 @@ def staff_job_edit(job_id):
                 attachment_type = file.content_type
 
         db.execute(
-            "UPDATE maintenance_jobs SET vehicle_id=?, amount=?, category=?, description=?, attachment_name=?, attachment_data=?, attachment_type=? WHERE id=?",
-            (vehicle_id or "N/A", float(amount), category, description, attachment_name, attachment_data, attachment_type, job_id),
+            "UPDATE maintenance_jobs SET vehicle_id=?, amount=?, category=?, description=?, attachment_name=?, attachment_data=?, attachment_type=?, supplier_name=?, supplier_trn=?, supplier_bill_no=?, tax_mode=?, tax_amount=? WHERE id=?",
+            (vehicle_id or "N/A", float(amount), category, description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, supplier_bill_no or None, tax_mode, tax_amount, job_id),
         )
         db.commit()
         flash("Job updated.", "success")
@@ -994,12 +1028,15 @@ def _import_field_staff_from_sqlite(db):
         db.commit()
 
     try:
-        old_jobs = sdb.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at, supplier_name, supplier_trn, tax_mode, tax_amount FROM maintenance_jobs").fetchall()
+        old_jobs = sdb.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at, supplier_name, supplier_trn, supplier_bill_no, tax_mode, tax_amount FROM maintenance_jobs").fetchall()
     except Exception:
         try:
-            old_jobs = sdb.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at FROM maintenance_jobs").fetchall()
+            old_jobs = sdb.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at, supplier_name, supplier_trn, tax_mode, tax_amount FROM maintenance_jobs").fetchall()
         except Exception:
-            old_jobs = []
+            try:
+                old_jobs = sdb.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at FROM maintenance_jobs").fetchall()
+            except Exception:
+                old_jobs = []
 
     existing_papers = set()
     try:
@@ -1023,12 +1060,12 @@ def _import_field_staff_from_sqlite(db):
             db.execute("""
                 INSERT INTO maintenance_papers
                 (paper_no, paper_date, vehicle_id, technician_code, work_summary,
-                 total_amount, tax_mode, subtotal, tax_amount, supplier_name, supplier_trn,
+                 total_amount, tax_mode, subtotal, tax_amount, supplier_name, supplier_trn, supplier_bill_no,
                  review_status, payment_status, notes, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)
             """, (pno, paper_date, j["vehicle_id"], j["staff_id"],
                   j["description"] or "", amount, tax_mode, subtotal, tax_amount,
-                  j.get("supplier_name") or "", j.get("supplier_trn") or "",
+                  j.get("supplier_name") or "", j.get("supplier_trn") or "", j.get("supplier_bill_no") or "",
                   rev_status, j["admin_notes"] or "", j["created_at"]))
             existing_papers.add(pno)
         except Exception:

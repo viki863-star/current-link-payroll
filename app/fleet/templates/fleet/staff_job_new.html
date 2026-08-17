@@ -133,20 +133,27 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
                 </select>
             </div>
             <div class="staff-field-group">
-                <label class="staff-label">Shop / Workshop Name (optional)</label>
-                <input type="text" name="supplier_name" class="staff-input" placeholder="e.g. Al Futtaim Auto" value="{{ v.supplier_name or '' }}">
+                <label class="staff-label">Does the bill include VAT 5%?</label>
+                <div class="vat-toggle">
+                    <button type="button" class="vat-btn {% if (v.tax_mode or '') != 'Tax Invoice' %}active{% endif %}" data-vat="no" onclick="setVat('no')">Without VAT</button>
+                    <button type="button" class="vat-btn {% if (v.tax_mode or '') == 'Tax Invoice' %}active{% endif %}" data-vat="yes" onclick="setVat('yes')">VAT 5%</button>
+                </div>
+                <input type="hidden" name="tax_mode" id="tax_mode" value="{{ v.tax_mode or 'Without Tax' }}">
             </div>
-            <div class="staff-field-group">
-                <label class="staff-label">Tax Invoice? (VAT on paper)</label>
-                <select name="tax_mode" class="staff-input" id="taxModeSelect" onchange="toggleTaxFields(this.value)">
-                    <option value="Without Tax">Without Tax</option>
-                    <option value="Tax Invoice" {% if (v.tax_mode or '') == 'Tax Invoice' %}selected{% endif %}>Tax Invoice</option>
-                </select>
-            </div>
-            <div class="staff-field-group" id="taxFields" style="{% if (v.tax_mode or '') != 'Tax Invoice' %}display:none{% endif %}">
-                <label class="staff-label">Supplier TRN (Tax No)</label>
+            <div class="staff-field-group" id="vatFields" style="{% if (v.tax_mode or '') != 'Tax Invoice' %}display:none{% endif %}">
+                <div class="vat-note">VAT 5% bill — Workshop name and bill number are required for the VAT report.</div>
+                <label class="staff-label">Workshop Name <span class="req-star">*</span></label>
+                <input type="text" name="supplier_name" class="staff-input" id="supplierNameInput" list="supplierNameList" placeholder="Type or choose previous workshop..." autocomplete="off" value="{{ v.supplier_name or '' }}">
+                <datalist id="supplierNameList">
+                    {% for s in supplier_suggestions or [] %}
+                    <option value="{{ s }}"></option>
+                    {% endfor %}
+                </datalist>
+                <label class="staff-label" style="margin-top:12px">Bill Number <span class="req-star">*</span></label>
+                <input type="text" name="supplier_bill_no" class="staff-input" placeholder="e.g. INV-0042" value="{{ v.supplier_bill_no or '' }}">
+                <label class="staff-label" style="margin-top:12px">Supplier TRN (Tax No)</label>
                 <input type="text" name="supplier_trn" class="staff-input" placeholder="e.g. 100000000000003" value="{{ v.supplier_trn or '' }}">
-                <label class="staff-label" style="margin-top:10px">VAT Amount (AED)</label>
+                <label class="staff-label" style="margin-top:12px">VAT Amount (AED)</label>
                 <input type="number" name="tax_amount" class="staff-input" step="0.01" min="0" placeholder="0.00" value="{{ v.tax_amount or '' }}">
             </div>
             <div class="staff-field-group">
@@ -179,9 +186,62 @@ function filterVehicles(query) {
     });
 }
 
-function toggleTaxFields(value) {
-    var el = document.getElementById('taxFields');
-    if (el) { el.style.display = (value === 'Tax Invoice') ? '' : 'none'; }
+function setVat(value) {
+    var isVat = (value === 'yes');
+    document.getElementById('tax_mode').value = isVat ? 'Tax Invoice' : 'Without Tax';
+    document.querySelectorAll('.vat-btn').forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-vat') === value);
+    });
+    var fields = document.getElementById('vatFields');
+    if (fields) { fields.style.display = isVat ? '' : 'none'; }
+    if (!isVat) {
+        var errs = document.querySelectorAll('.vat-field-error');
+        errs.forEach(function(e){ e.remove(); });
+    }
+}
+
+var supplierAutofill = {{ supplier_suggestions|length }} > 0 ? true : false;
+
+var supplierTrnMap = JSON.parse('{{ supplier_trn_map|tojson }}' || '{}');
+
+document.querySelector('form.staff-form').addEventListener('submit', function(e) {
+    var isVat = document.getElementById('tax_mode').value === 'Tax Invoice';
+    if (isVat) {
+        var name = document.querySelector('input[name="supplier_name"]');
+        var bill = document.querySelector('input[name="supplier_bill_no"]');
+        var ok = true;
+        document.querySelectorAll('.vat-field-error').forEach(function(el){ el.remove(); });
+        if (!name.value.trim()) {
+            var nErr = document.createElement('div');
+            nErr.className = 'vat-field-error';
+            nErr.style.cssText = 'color:#dc2626;font-size:0.75rem;margin-top:4px';
+            nErr.textContent = 'Workshop name is required for a VAT bill';
+            name.parentNode.appendChild(nErr);
+            ok = false;
+        }
+        if (!bill.value.trim()) {
+            var bErr = document.createElement('div');
+            bErr.className = 'vat-field-error';
+            bErr.style.cssText = 'color:#dc2626;font-size:0.75rem;margin-top:4px';
+            bErr.textContent = 'Bill number is required for a VAT bill';
+            bill.parentNode.appendChild(bErr);
+            ok = false;
+        }
+        if (!ok) {
+            e.preventDefault();
+            document.getElementById('vatFields').scrollIntoView({behavior:'smooth', block:'center'});
+        }
+    }
+});
+
+var supplierInput = document.getElementById('supplierNameInput');
+if (supplierInput) {
+    supplierInput.addEventListener('input', function() {
+        var trn = document.querySelector('input[name="supplier_trn"]');
+        if (trn && supplierTrnMap[this.value.trim()] && !trn.value.trim()) {
+            trn.value = supplierTrnMap[this.value.trim()];
+        }
+    });
 }
 
 function selectVehicle(plate, el) {
@@ -233,6 +293,13 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
 .staff-input { width: 100%; padding: 14px; border: 1.5px solid var(--line); border-radius: 12px; font-size: 1rem; font-family: inherit; background: #fff; box-sizing: border-box; }
 .staff-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28,86,139,0.1); }
 .staff-textarea { resize: vertical; min-height: 100px; }
+.vat-toggle { display: flex; gap: 10px; }
+.vat-btn { flex: 1; padding: 14px; border: 1.5px solid var(--line); border-radius: 12px; font-size: 0.95rem; font-weight: 700; background: #fff; color: var(--text); cursor: pointer; transition: all 0.12s; font-family: inherit; }
+.vat-btn.active { border-color: var(--primary); background: #e8f0fe; color: var(--primary); box-shadow: 0 0 0 3px rgba(28,86,139,0.1); }
+.vat-btn[data-vat="yes"].active { border-color: #b45309; background: #fef3c7; color: #92400e; box-shadow: 0 0 0 3px rgba(217,119,6,0.12); }
+.vat-note { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; padding: 10px 12px; border-radius: 10px; font-size: 0.78rem; font-weight: 600; margin-bottom: 12px; }
+.req-star { color: #dc2626; }
+#vatFields { border: 1.5px solid #fde68a; background: #fffbeb; padding: 14px; border-radius: 12px; }
 .staff-file-area { position: relative; }
 .staff-file-area input[type=file] { position: absolute; opacity: 0; width: 0.1px; height: 0.1px; }
 .staff-file-label { display: flex; align-items: center; gap: 10px; padding: 18px; border: 2px dashed var(--line); border-radius: 12px; cursor: pointer; font-size: 0.9rem; color: var(--muted); justify-content: center; transition: all 0.15s; }

@@ -880,6 +880,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     admin_notes TEXT,
     supplier_name TEXT,
     supplier_trn TEXT,
+    supplier_bill_no TEXT,
     tax_mode TEXT NOT NULL DEFAULT 'Without Tax',
     tax_amount REAL NOT NULL DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -1755,6 +1756,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     admin_notes TEXT,
     supplier_name TEXT,
     supplier_trn TEXT,
+    supplier_bill_no TEXT,
     tax_mode TEXT NOT NULL DEFAULT 'Without Tax',
     tax_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1994,6 +1996,7 @@ REQUIRED_COLUMNS = {
     "maintenance_jobs": {
         "supplier_name": "TEXT",
         "supplier_trn": "TEXT",
+        "supplier_bill_no": "TEXT",
         "tax_mode": "TEXT NOT NULL DEFAULT 'Without Tax'",
         "tax_amount": "DOUBLE PRECISION NOT NULL DEFAULT 0",
     },

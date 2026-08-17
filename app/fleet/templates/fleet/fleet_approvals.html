@@ -25,6 +25,7 @@
                         <th>Staff</th>
                         <th>Vehicle</th>
                         <th>Amount</th>
+                        <th>VAT</th>
                         <th>Category</th>
                         <th>Description</th>
                         <th>Attachment</th>
@@ -38,6 +39,14 @@
                         <td><strong>{{ j.staff_name }}</strong></td>
                         <td>{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted)">General Expense</span>{% else %}<a href="{{ vehicle_url(j.plate_no) }}" class="mono" style="font-weight:600">{{ j.plate_no }}</a> <span class="badge badge-dept">{{ j.vehicle_type }}</span>{% endif %}</td>
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount) }}</td>
+                        <td>
+                            {% if j.tax_mode == 'Tax Invoice' %}
+                            <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a">VAT 5%</span>
+                            {% if j.supplier_name %}<div style="font-size:0.72rem;margin-top:2px;color:#555">{{ j.supplier_name }}{% if j.supplier_bill_no %} · {{ j.supplier_bill_no }}{% endif %}</div>{% endif %}
+                            {% else %}
+                            <span class="badge" style="background:#f1f5f9;color:#475569">No VAT</span>
+                            {% endif %}
+                        </td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
                         <td style="max-width:150px;white-space:normal;font-size:0.75rem">{{ j.description or '-' }}</td>
                         <td>
