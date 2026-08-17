@@ -827,7 +827,7 @@ def customer_invoice_pdf(cid, iid):
     is_nmdc = "nmdc" in (c["customer_name"] or "").lower()
 
     # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    #  NEW NMDC LAYOUT â€” Premium ERP-style, footer on every page
+    #  NEW NMDC LAYOUT — Premium ERP-style, footer on every page
     # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if is_nmdc:
         NMDC_CONV_HOURS = 260
@@ -845,9 +845,9 @@ def customer_invoice_pdf(cid, iid):
             kw.setdefault("leading", 12)
             return ParagraphStyle(name, **kw)
 
-        safe = lambda v, d="â€”": str(v) if v else d
-        inv_no = inv["invoice_no"] or "â€”"
-        inv_dt = inv["invoice_date"] or "â€”"
+        safe = lambda v, d="—": str(v) if v else d
+        inv_no = inv["invoice_no"] or "—"
+        inv_dt = inv["invoice_date"] or "—"
 
         # â”€â”€ Margins (BM leaves room for footer drawn by onPage) â”€â”€
         LM2, RM2, TM2, BM2 = 14*mm, 14*mm, 10*mm, 22*mm
@@ -860,7 +860,7 @@ def customer_invoice_pdf(cid, iid):
         c_addr2 = (company["address"] or "") if company else ""
         c_ph2 = (company["phone_number"] or "") if company else ""
         c_em2 = (company["email"] or "") if company else ""
-        c_trn2 = company["trn_no"] or "â€”" if company else "â€”"
+        c_trn2 = company["trn_no"] or "—" if company else "—"
         lic_text2 = f"License: {company['trade_license_no']}" if company and company.get("trade_license_no") else ""
         cert_files2 = [
             ("app/static/IOS 14001.png", "IOS 14001"),
@@ -1107,9 +1107,9 @@ def customer_invoice_pdf(cid, iid):
                 eq_period_text += f"<br/><font color='#666'>Period: {eq_p.get('from','')} to {eq_p.get('to','')}</font>"
             cap = it.get("capacity_gallon")
             eq_hours = f"<br/><font color='#666'>Hours: {float(cap):,.2f}</font>" if cap and float(cap) > 0 else ""
-            desc_html = (it.get("description") or "â€”")
+            desc_html = (it.get("description") or "—")
             parts = []
-            if desc_html != "â€”": parts.append(desc_html)
+            if desc_html != "—": parts.append(desc_html)
             if it.get("vehicle_no"): parts.append(f"<b>Plant No:</b> {it['vehicle_no']}")
             plant_reg = " | ".join(parts)
             desc_html = plant_reg + eq_period_text + eq_hours
@@ -1300,7 +1300,7 @@ def customer_invoice_pdf(cid, iid):
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""
-    c_trn = company["trn_no"] or "â€”" if company else "â€”"
+    c_trn = company["trn_no"] or "—" if company else "—"
 
     def S(name, **kw):
         kw.setdefault("fontSize", 8)
@@ -1330,13 +1330,13 @@ def customer_invoice_pdf(cid, iid):
         kw.setdefault("alignment", TA_RIGHT)
         return Paragraph(f"<b>{t}</b>", S("_RB", **kw))
 
-    safe = lambda v, d="â€”": str(v) if v else d
+    safe = lambda v, d="—": str(v) if v else d
     els = []
-    inv_no = inv["invoice_no"] or "â€”"
-    inv_dt = inv["invoice_date"] or "â€”"
+    inv_no = inv["invoice_no"] or "—"
+    inv_dt = inv["invoice_date"] or "—"
 
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    # 1. HEADER â€” bigger logo, bigger company info
+    # 1. HEADER — bigger logo, bigger company info
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     logo = None; LW = 0
     if company and company["logo_data"]:
@@ -1399,7 +1399,7 @@ def customer_invoice_pdf(cid, iid):
     els.append(Spacer(1, 5*mm))
 
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    # 2. BILL TO / INVOICE INFO â€” bigger cards
+    # 2. BILL TO / INVOICE INFO — bigger cards
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     def card(title, pairs):
         cw = W*0.50
@@ -1448,7 +1448,7 @@ def customer_invoice_pdf(cid, iid):
     els.append(Spacer(1, 5*mm))
 
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    # 3. ITEMS TABLE â€” auto-fill A4 height
+    # 3. ITEMS TABLE — auto-fill A4 height
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     sub = inv["amount"] or 0; vat = inv["vat_amount"] or 0; tot = inv["total_amount"] or 0; vp = inv["vat_percent"] or 0
     num_rows = len(items) + (1 if is_nmdc else 0) + 1
@@ -1497,14 +1497,14 @@ def customer_invoice_pdf(cid, iid):
         # Row 1: Main description
         rws.append([
             _pc("1", alignment=TA_CENTER, fontName="Helvetica-Bold"),
-            _pc(nmdc_main_desc or "â€”", fontSize=fs, leading=ldr*0.95),
-            _pc("â€”", alignment=TA_CENTER),
-            _pc("â€”", alignment=TA_CENTER),
-            _pc("â€”", alignment=TA_RIGHT),
-            _pc("â€”", alignment=TA_RIGHT),
-            _pc("â€”", alignment=TA_CENTER),
-            _pc("â€”", alignment=TA_RIGHT),
-            _pc("â€”", alignment=TA_RIGHT),
+            _pc(nmdc_main_desc or "—", fontSize=fs, leading=ldr*0.95),
+            _pc("—", alignment=TA_CENTER),
+            _pc("—", alignment=TA_CENTER),
+            _pc("—", alignment=TA_RIGHT),
+            _pc("—", alignment=TA_RIGHT),
+            _pc("—", alignment=TA_CENTER),
+            _pc("—", alignment=TA_RIGHT),
+            _pc("—", alignment=TA_RIGHT),
         ])
     table_items = items[1:] if is_nmdc else items
     for idx, it in enumerate(table_items):
@@ -1518,10 +1518,10 @@ def customer_invoice_pdf(cid, iid):
             eq_period_text += f" | Period: {eq_p.get('from','')} to {eq_p.get('to','')}"
         cap = it.get("capacity_gallon")
         eq_hours = f"<br/><font size=1 color='#94a3b8'>Hours: {float(cap):,.2f}</font>" if is_nmdc and cap and float(cap) > 0 else ""
-        desc_html = (it.get("description") or "â€”")
+        desc_html = (it.get("description") or "—")
         if is_nmdc:
             parts = []
-            if desc_html != "â€”": parts.append(desc_html)
+            if desc_html != "—": parts.append(desc_html)
             if it.get("vehicle_no"): parts.append(f"<b>Plant No:</b> {it['vehicle_no']}")
             plant_reg = " | ".join(parts)
             desc_html = plant_reg + eq_period_text + eq_hours
@@ -1653,7 +1653,7 @@ def customer_invoice_pdf(cid, iid):
             els.append(bkt)
 
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    # 7. SIGNATURES â€” stamp & sign side by side
+    # 7. SIGNATURES — stamp & sign side by side
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     els.append(Spacer(1, 4*mm))
     sg = ParagraphStyle("SG", fontSize=8, alignment=TA_CENTER, leading=11)
@@ -1700,7 +1700,7 @@ def customer_invoice_pdf(cid, iid):
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # 8. COMPANY ADDRESS / FOOTER
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    # 8. FOOTER â€” always at page bottom
+    # 8. FOOTER — always at page bottom
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     ftr_rows = []
     if c_addr:
@@ -1856,7 +1856,7 @@ def customer_payment_undo(cid):
             db.execute("DELETE FROM customer_payments WHERE id=? AND customer_id=?", (pid, cid))
         db.commit()
         db.close()
-        flash(f"Payment undone â€” {len(ids)} record(s) deleted.", "warning")
+        flash(f"Payment undone — {len(ids)} record(s) deleted.", "warning")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="payments"))
 
 @customer_bp.route("/<int:cid>/payment/<int:pid>/delete", methods=["POST"])
@@ -2104,7 +2104,7 @@ def customer_quotation_pdf(cid, qid):
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""
-    c_trn = company["trn_no"] or "â€”" if company else "â€”"
+    c_trn = company["trn_no"] or "—" if company else "—"
 
     def S(name, **kw):
         kw.setdefault("fontSize", 8)
@@ -2134,10 +2134,10 @@ def customer_quotation_pdf(cid, qid):
         kw.setdefault("alignment", TA_RIGHT)
         return Paragraph(f"<b>{t}</b>", S("_RB", **kw))
 
-    safe = lambda v, d="â€”": str(v) if v else d
+    safe = lambda v, d="—": str(v) if v else d
     els = []
-    q_no = q["quotation_no"] or "â€”"
-    q_dt = q["quotation_date"] or "â€”"
+    q_no = q["quotation_no"] or "—"
+    q_dt = q["quotation_date"] or "—"
 
     # HEADER
     logo = None; LW = 0
@@ -2954,7 +2954,7 @@ def customer_soa_pdf(cid):
 
     els = []
     cn = company["company_name"] if company else "COMPANY"
-    trn = company["trn_no"] or "â€”" if company else "â€”"
+    trn = company["trn_no"] or "—" if company else "—"
 
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # HEADER (matches invoice style)
@@ -2980,7 +2980,7 @@ def customer_soa_pdf(cid):
     cl = [f"<font size=11><b>{cn}</b></font>"]
     addr = company["address"] or ""; ph = company["phone_number"] or ""; em = company["email"] or ""
     parts = [x for x in [addr] if x]
-    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != f"TRN: â€”"]
+    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != f"TRN: —"]
     if parts or cparts:
         info = " &middot; ".join(parts + cparts)
         cl.append(f"<font size=6.5 color='#6b7280'>{info}</font>")
@@ -3038,7 +3038,7 @@ def customer_soa_pdf(cid):
     els.append(Spacer(1, 3*mm))
 
     if from_date or to_date:
-        rng = f"Period: {from_date or 'â€¦'} to {to_date or 'â€¦'}"
+        rng = f"Period: {from_date or '…'} to {to_date or '…'}"
         els.append(Paragraph(
             f"<font size=7 color='#6b7280'>{rng}</font>",
             F("_pr", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
@@ -3073,10 +3073,10 @@ def customer_soa_pdf(cid):
         rws.append([
             Paragraph(d, F("_d", fontSize=7, leading=10)),
             Paragraph(f"<font color='{C5}'>{month}</font>" if month else "", F("_m", fontSize=6.5, textColor=C5, leading=10)),
-            Paragraph(str(e.get("ref","â€”")), F("_r", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=10)),
+            Paragraph(str(e.get("ref","—")), F("_r", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=10)),
             Paragraph(f"<font color=\"{'#1a56db' if e['type']=='Invoice' else '#e65100' if e['type']=='Credit Note' else '#c62828' if e['type']=='Unallocated Payment' else '#1a7d1a'}\">{e['type']}</font>", F("_t", fontSize=7, alignment=TA_CENTER, leading=10)),
-            Paragraph(f"<b>{e.get('dr',0) or 0:,.2f}</b>" if e.get("dr") else '<font color="#cccccc">â€”</font>', F("_dr", fontSize=7, textColor="#c62828" if e.get("dr") else C5, alignment=TA_RIGHT, leading=10)),
-            Paragraph(f"<b>{e.get('cr',0) or 0:,.2f}</b>" if e.get("cr") else '<font color="#cccccc">â€”</font>', F("_cr", fontSize=7, textColor="#1a7d1a" if e.get("cr") else C5, alignment=TA_RIGHT, leading=10)),
+            Paragraph(f"<b>{e.get('dr',0) or 0:,.2f}</b>" if e.get("dr") else '<font color="#cccccc">—</font>', F("_dr", fontSize=7, textColor="#c62828" if e.get("dr") else C5, alignment=TA_RIGHT, leading=10)),
+            Paragraph(f"<b>{e.get('cr',0) or 0:,.2f}</b>" if e.get("cr") else '<font color="#cccccc">—</font>', F("_cr", fontSize=7, textColor="#1a7d1a" if e.get("cr") else C5, alignment=TA_RIGHT, leading=10)),
             Paragraph(f"<b>{bal_display}</b>", F("_bl", fontSize=7, fontName="Helvetica-Bold", textColor=bal_color, alignment=TA_RIGHT, leading=10)),
         ])
 
@@ -3147,7 +3147,7 @@ def customer_soa_pdf(cid):
     els.append(Spacer(1, 2*mm))
     ft_txt = "This is a computer-generated Statement of Account."
     if from_date or to_date:
-        rng = f"Period: {from_date or 'â€¦'} to {to_date or 'â€¦'}"
+        rng = f"Period: {from_date or '…'} to {to_date or '…'}"
         ft_txt += f" | {rng}"
     els.append(Paragraph(ft_txt, F("_ft", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
 
@@ -3374,8 +3374,8 @@ def customer_tax_report_pdf():
     data = [hdr]
     for inv in invoices:
         data.append([
-            inv["invoice_date"] or "â€”",
-            inv["invoice_no"] or "â€”",
+            inv["invoice_date"] or "—",
+            inv["invoice_no"] or "—",
             inv["customer_name"],
             f"{inv['net_sale'] or 0:,.2f}",
             f"{inv['vat_amount'] or 0:,.2f}",
@@ -3547,7 +3547,7 @@ def customer_tripsheet_report_pdf(cid):
     _logo_tmp_files = []
     els = []
     cn = company["company_name"] if company else "Current Link"
-    trn = company["trn_no"] or "â€”" if company else "â€”"
+    trn = company["trn_no"] or "—" if company else "—"
 
     # â”€â”€ COMPACT HEADER â”€â”€
     logo = None; LW = 0
@@ -3586,14 +3586,14 @@ def customer_tripsheet_report_pdf(cid):
     for idx, r in enumerate(rows, 1):
         data.append([
             Paragraph(str(idx), PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["entry_date"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["time_in"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["time_out"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["entry_date"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["time_in"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["time_out"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
             Paragraph(f"{r['total_reading'] or 0:,.2f}", PPS("c", fontSize=FS, fontName="Helvetica-Bold", leading=FS + 0.5, alignment=TA_RIGHT)),
-            Paragraph(r["tanker_gln"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["tanker_gln"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
             Paragraph(f"{r['trips'] or 0:,.0f}", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["tanker_reg"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
-            Paragraph(r["bill_no"] or "â€”", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["tanker_reg"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
+            Paragraph(r["bill_no"] or "—", PPS("c", fontSize=FS, leading=FS + 0.5, alignment=TA_CENTER)),
         ])
     data.append([
         Paragraph("<b>Total</b>", PPS("t", fontSize=6, fontName="Helvetica-Bold", leading=7, alignment=TA_CENTER)),
