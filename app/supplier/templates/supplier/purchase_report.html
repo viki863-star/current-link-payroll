@@ -38,17 +38,18 @@
             <div style="margin-top:8px;font-size:22px;font-weight:800;color:#2CB15C;">AED {{ "{:,.2f}".format(total_gross) }}</div>
         </div>
         <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Invoices</div>
+            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Records</div>
             <div style="margin-top:8px;font-size:22px;font-weight:800;color:#17345e;">{{ invoices|length }}</div>
         </div>
     </div>
 
     <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:700px;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:760px;">
             <thead>
                 <tr style="background:#f5f8fe;text-align:left">
                     <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">DATE</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">INVOICE NO</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">TYPE</th>
+                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">REF / INVOICE NO</th>
                     <th style="padding:12px 14px;color:#17345e;font-weight:700;">DETAIL</th>
                     <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">NET Purchase</th>
                     <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">VAT</th>
@@ -59,6 +60,15 @@
                 {% for inv in invoices %}
                 <tr style="border-top:1px solid #eef3fa">
                     <td style="padding:10px 14px;white-space:nowrap;">{{ inv.invoice_date }}</td>
+                    <td style="padding:10px 14px;white-space:nowrap;">
+                        {% if inv.source_type == 'Invoice' %}
+                        <span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#e8f0fe;color:#1c568b;font-size:.7rem;font-weight:700;">INVOICE</span>
+                        {% elif inv.source_type == 'Paper' %}
+                        <span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#fef3c7;color:#92400e;font-size:.7rem;font-weight:700;">PAPER</span>
+                        {% else %}
+                        <span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#ecfdf5;color:#047857;font-size:.7rem;font-weight:700;">JOB</span>
+                        {% endif %}
+                    </td>
                     <td style="padding:10px 14px;white-space:nowrap;font-weight:600;">{{ inv.invoice_no or '—' }}</td>
                     <td style="padding:10px 14px;color:#17345e;">{{ inv.supplier_name }}</td>
                     <td style="padding:10px 14px;text-align:right;">AED {{ "{:,.2f}".format(inv.net_sale) }}</td>
@@ -67,13 +77,13 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6" style="padding:32px;text-align:center;color:#a0b5cf;">No supplier invoices found.</td>
+                    <td colspan="7" style="padding:32px;text-align:center;color:#a0b5cf;">No purchase records found.</td>
                 </tr>
                 {% endfor %}
             </tbody>
             <tfoot>
                 <tr style="background:#f5f8fe;font-weight:700">
-                    <td colspan="3" style="padding:12px 14px;color:#17345e;">TOTALS</td>
+                    <td colspan="4" style="padding:12px 14px;color:#17345e;">TOTALS</td>
                     <td style="padding:12px 14px;text-align:right;">AED {{ "{:,.2f}".format(total_net) }}</td>
                     <td style="padding:12px 14px;text-align:right;color:#f7931e;">AED {{ "{:,.2f}".format(total_vat) }}</td>
                     <td style="padding:12px 14px;text-align:right;">AED {{ "{:,.2f}".format(total_gross) }}</td>

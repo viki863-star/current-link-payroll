@@ -3273,29 +3273,88 @@ def supplier_purchase_report():
     db = _get_db()
     from_filter = request.args.get("from", "")
     to_filter = request.args.get("to", "")
-    where = ""
-    params = []
+
+    inv_where = ""
+    inv_params = []
     if from_filter:
-        where += " AND i.invoice_date >= ?"
-        params.append(from_filter)
+        inv_where += " AND i.invoice_date >= ?"
+        inv_params.append(from_filter)
     if to_filter:
-        where += " AND i.invoice_date <= ?"
-        params.append(to_filter)
+        inv_where += " AND i.invoice_date <= ?"
+        inv_params.append(to_filter)
     invoices = db.execute(f"""
         SELECT i.invoice_date, i.invoice_no, s.supplier_name,
-               i.amount AS net_sale, i.vat_amount, i.total_amount
+               i.amount AS net_sale, i.vat_amount, i.total_amount,
+               'Invoice' AS source_type
         FROM supplier_invoices i
         JOIN suppliers s ON s.id = i.supplier_id
-        WHERE 1=1 {where}
+        WHERE 1=1 {inv_where}
         ORDER BY i.invoice_date DESC, i.invoice_no DESC
-    """, params).fetchall()
-    total_net = sum(r["net_sale"] for r in invoices)
-    total_vat = sum(r["vat_amount"] for r in invoices)
-    total_gross = sum(r["total_amount"] for r in invoices)
+    """, inv_params).fetchall()
+
+    paper_where = " AND p.review_status = 'Approved' AND p.tax_mode = 'Tax Invoice'"
+    paper_params = []
+    if from_filter:
+        paper_where += " AND p.paper_date >= ?"
+        paper_params.append(from_filter)
+    if to_filter:
+        paper_where += " AND p.paper_date <= ?"
+        paper_params.append(to_filter)
+    papers = db.execute(f"""
+        SELECT p.paper_date AS invoice_date,
+               p.paper_no,
+               COALESCE(NULLIF(p.supplier_name, ''), '-') AS supplier_name,
+               p.subtotal AS net_sale,
+               p.tax_amount AS vat_amount,
+               p.total_amount,
+               'Paper' AS source_type
+        FROM maintenance_papers p
+        WHERE 1=1 {paper_where}
+        ORDER BY p.paper_date DESC, p.id DESC
+    """, paper_params).fetchall()
+
+    job_where = " AND mj.status = 'approved' AND mj.tax_mode = 'Tax Invoice'"
+    job_params = []
+    if from_filter:
+        job_where += " AND SUBSTR(COALESCE(NULLIF(mj.paper_date, ''), CAST(mj.created_at AS TEXT)), 1, 10) >= ?"
+        job_params.append(from_filter)
+    if to_filter:
+        job_where += " AND SUBSTR(COALESCE(NULLIF(mj.paper_date, ''), CAST(mj.created_at AS TEXT)), 1, 10) <= ?"
+        job_params.append(to_filter)
+    jobs = db.execute(f"""
+        SELECT SUBSTR(COALESCE(NULLIF(mj.paper_date, ''), CAST(mj.created_at AS TEXT)), 1, 10) AS invoice_date,
+               ('JOB-' || mj.id) AS paper_no,
+               COALESCE(NULLIF(mj.supplier_name, ''), '-') AS supplier_name,
+               (mj.amount - mj.tax_amount) AS net_sale,
+               mj.tax_amount AS vat_amount,
+               mj.amount AS total_amount,
+               'Job' AS source_type
+        FROM maintenance_jobs mj
+        WHERE 1=1 {job_where}
+        ORDER BY paper_date DESC, mj.id DESC
+    """, job_params).fetchall()
+
+    def to_dict(row):
+        return {
+            "invoice_date": row["invoice_date"],
+            "invoice_no": row["paper_no"],
+            "supplier_name": row["supplier_name"],
+            "net_sale": float(row["net_sale"] or 0),
+            "vat_amount": float(row["vat_amount"] or 0),
+            "total_amount": float(row["total_amount"] or 0),
+            "source_type": row["source_type"],
+        }
+
+    rows = [to_dict(r) for r in list(invoices) + list(papers) + list(jobs)]
+    rows.sort(key=lambda r: (r["invoice_date"] or "", r["invoice_no"] or ""), reverse=True)
+
+    total_net = sum(r["net_sale"] for r in rows)
+    total_vat = sum(r["vat_amount"] for r in rows)
+    total_gross = sum(r["total_amount"] for r in rows)
     db.close()
     return render_template(
         "supplier/purchase_report.html",
-        invoices=invoices,
+        invoices=rows,
         total_net=total_net,
         total_vat=total_vat,
         total_gross=total_gross,
