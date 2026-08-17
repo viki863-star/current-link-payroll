@@ -514,7 +514,7 @@ def vehicle_profile(plate_no):
 
     # Approved jobs (maintenance_jobs + maintenance_papers)
     approved_jobs = db.execute(
-        f"""SELECT {_MJ_LIST_COLS}, COALESCE(s.full_name, 'Admin') AS staff_name FROM maintenance_jobs mj
+        f"""SELECT {_MJ_LIST_COLS}, mj.tax_amount AS vat_amount, (mj.amount - mj.tax_amount) AS net_amount, COALESCE(s.full_name, 'Admin') AS staff_name FROM maintenance_jobs mj
            LEFT JOIN field_staff s ON s.staff_id = mj.staff_id
            WHERE mj.vehicle_id = ? AND mj.status = 'approved'
            ORDER BY mj.created_at DESC""",
@@ -817,13 +817,19 @@ def staff_job_new():
                 attachment_type = file.content_type
 
         try:
-            tax_amount = float(request.form.get("tax_amount", "0").strip() or "0") if tax_mode == "Tax Invoice" else 0.0
+            net_amount = round(float(amount), 2)
         except ValueError:
+            net_amount = 0.0
+        if tax_mode == "Tax Invoice":
+            tax_amount = round(net_amount * 0.05, 2)
+            amount_total = round(net_amount + tax_amount, 2)
+        else:
             tax_amount = 0.0
+            amount_total = net_amount
 
         db.execute(
             "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, supplier_name, supplier_trn, supplier_bill_no, tax_mode, tax_amount) VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?,?)",
-            (vehicle_id or "N/A", staff_id, float(amount), category, description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, supplier_bill_no or None, tax_mode, tax_amount),
+            (vehicle_id or "N/A", staff_id, amount_total, category, description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, supplier_bill_no or None, tax_mode, tax_amount),
         )
         db.commit()
         try:
@@ -901,9 +907,15 @@ def staff_job_edit(job_id):
                 flash("Bill number is required when the bill includes VAT 5%.", "error")
                 return render_template("fleet/staff_job_edit.html", job=job, vehicles=vehicles, categories=MAINTENANCE_CATEGORIES)
         try:
-            tax_amount = float(request.form.get("tax_amount", "0").strip() or "0") if tax_mode == "Tax Invoice" else 0.0
+            net_amount = round(float(amount), 2)
         except ValueError:
+            net_amount = 0.0
+        if tax_mode == "Tax Invoice":
+            tax_amount = round(net_amount * 0.05, 2)
+            amount_total = round(net_amount + tax_amount, 2)
+        else:
             tax_amount = 0.0
+            amount_total = net_amount
 
         attachment_name = job["attachment_name"]
         attachment_data = job["attachment_data"]
@@ -918,7 +930,7 @@ def staff_job_edit(job_id):
 
         db.execute(
             "UPDATE maintenance_jobs SET vehicle_id=?, amount=?, category=?, description=?, attachment_name=?, attachment_data=?, attachment_type=?, supplier_name=?, supplier_trn=?, supplier_bill_no=?, tax_mode=?, tax_amount=? WHERE id=?",
-            (vehicle_id or "N/A", float(amount), category, description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, supplier_bill_no or None, tax_mode, tax_amount, job_id),
+            (vehicle_id or "N/A", amount_total, category, description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, supplier_bill_no or None, tax_mode, tax_amount, job_id),
         )
         db.commit()
         flash("Job updated.", "success")
@@ -1892,17 +1904,28 @@ def fleet_approvals():
     db = open_db()
 
     pending_jobs = db.execute(
-        f"""SELECT {_MJ_LIST_COLS}, v.vehicle_type, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name
+        f"""SELECT {_MJ_LIST_COLS}, v.vehicle_type, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name, s.staff_id AS staff_key
            FROM maintenance_jobs mj
            LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
            JOIN field_staff s ON s.staff_id = mj.staff_id
            WHERE mj.status = 'pending'
-           ORDER BY mj.created_at DESC""",
+           ORDER BY s.full_name ASC, mj.created_at DESC""",
     ).fetchall()
 
     pending_total = float(
         db.execute("SELECT COALESCE(SUM(amount),0) FROM maintenance_jobs WHERE status = 'pending'").fetchone()[0] or 0
     )
+
+    groups = []
+    for j in pending_jobs:
+        key = j["staff_key"] or j["staff_id"] or "?"
+        name = j["staff_name"] or key
+        grp = next((g for g in groups if g["staff_id"] == key), None)
+        if grp is None:
+            grp = {"staff_id": key, "staff_name": name, "jobs": [], "total": 0.0}
+            groups.append(grp)
+        grp["jobs"].append(j)
+        grp["total"] += float(j["amount"] or 0)
 
     recent_approved = db.execute(
         f"""SELECT {_MJ_LIST_COLS}, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name
@@ -1913,7 +1936,7 @@ def fleet_approvals():
            ORDER BY mj.created_at DESC LIMIT 20""",
     ).fetchall()
 
-    return render_template("fleet/fleet_approvals.html", pending_jobs=pending_jobs, pending_total=pending_total, recent_approved=recent_approved)
+    return render_template("fleet/fleet_approvals.html", pending_jobs=pending_jobs, pending_total=pending_total, recent_approved=recent_approved, pending_groups=groups)
 
 
 @fleet_bp.route("/fleet/jobs/approve-all", methods=["POST"])
@@ -1940,6 +1963,38 @@ def fleet_job_approve_all():
     except:
         pass
     flash(f"All {len(pending)} pending jobs approved.", "success")
+    return redirect(url_for("fleet.fleet_approvals"))
+
+
+@fleet_bp.route("/fleet/jobs/approve-all/<staff_id>", methods=["POST"])
+@_login_required("admin")
+def fleet_job_approve_all_staff(staff_id):
+    _touch_admin_workspace("fleet")
+    db = open_db()
+    pending = db.execute(
+        "SELECT id, category, amount, staff_id FROM maintenance_jobs WHERE status='pending' AND staff_id = ?",
+        (staff_id,),
+    ).fetchall()
+    if not pending:
+        flash("No pending jobs for this staff member.", "info")
+        return redirect(url_for("fleet.fleet_approvals"))
+    now = datetime.now().isoformat()
+    db.execute("UPDATE maintenance_jobs SET status='approved', approved_at=? WHERE status='pending' AND staff_id = ?", (now, staff_id))
+    db.commit()
+    staff_name = "Field Staff"
+    try:
+        s = db.execute("SELECT full_name FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+        if s:
+            staff_name = s[0]
+    except:
+        pass
+    try:
+        from app.notification_service import add_notification
+        add_notification(title=f"{len(pending)} job(s) for {staff_name} approved", type="success", role="admin", link="/fleet/approvals")
+        add_notification(title=f"Your job{'s' if len(pending)>1 else ''} approved", type="success", role="technician")
+    except:
+        pass
+    flash(f"Approved {len(pending)} pending job(s) for {staff_name}.", "success")
     return redirect(url_for("fleet.fleet_approvals"))
 
 

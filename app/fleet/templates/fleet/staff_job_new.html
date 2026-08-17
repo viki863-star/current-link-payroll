@@ -122,6 +122,7 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
             <div class="staff-field-group">
                 <label class="staff-label">Amount Spent (AED)</label>
                 <input type="number" name="amount" value="{{ v.amount or '' }}" class="staff-input" step="0.01" min="0" required placeholder="e.g. 500">
+                <small class="vat-hint" id="amountHint" style="display:none;color:#92400e;font-size:0.75rem;margin-top:6px;display:none">Enter the amount <strong>without VAT</strong>. 5% VAT will be added automatically.</small>
             </div>
             <div class="staff-field-group">
                 <label class="staff-label">Category</label>
@@ -141,7 +142,7 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
                 <input type="hidden" name="tax_mode" id="tax_mode" value="{{ v.tax_mode or 'Without Tax' }}">
             </div>
             <div class="staff-field-group" id="vatFields" style="{% if (v.tax_mode or '') != 'Tax Invoice' %}display:none{% endif %}">
-                <div class="vat-note">VAT 5% bill — Workshop name and bill number are required for the VAT report.</div>
+                <div class="vat-note">VAT 5% bill — Workshop name and bill number are required for the VAT report. TRN is optional.</div>
                 <label class="staff-label">Workshop Name <span class="req-star">*</span></label>
                 <input type="text" name="supplier_name" class="staff-input" id="supplierNameInput" list="supplierNameList" placeholder="Type or choose previous workshop..." autocomplete="off" value="{{ v.supplier_name or '' }}">
                 <datalist id="supplierNameList">
@@ -151,10 +152,14 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
                 </datalist>
                 <label class="staff-label" style="margin-top:12px">Bill Number <span class="req-star">*</span></label>
                 <input type="text" name="supplier_bill_no" class="staff-input" placeholder="e.g. INV-0042" value="{{ v.supplier_bill_no or '' }}">
-                <label class="staff-label" style="margin-top:12px">Supplier TRN (Tax No)</label>
+                <label class="staff-label" style="margin-top:12px">Supplier TRN (optional)</label>
                 <input type="text" name="supplier_trn" class="staff-input" placeholder="e.g. 100000000000003" value="{{ v.supplier_trn or '' }}">
-                <label class="staff-label" style="margin-top:12px">VAT Amount (AED)</label>
-                <input type="number" name="tax_amount" class="staff-input" step="0.01" min="0" placeholder="0.00" value="{{ v.tax_amount or '' }}">
+                <div class="vat-calc" id="vatCalc" style="display:none">
+                    <div><span>Net Amount</span><strong id="vatNet">AED 0.00</strong></div>
+                    <div><span>VAT 5%</span><strong id="vatTax" style="color:#b45309">AED 0.00</strong></div>
+                    <div><span>Total</span><strong id="vatTotal" style="color:#e65100">AED 0.00</strong></div>
+                </div>
+                <input type="hidden" name="tax_amount" id="tax_amount" value="{{ v.tax_amount or '0' }}">
             </div>
             <div class="staff-field-group">
                 <label class="staff-label">Description</label>
@@ -194,11 +199,31 @@ function setVat(value) {
     });
     var fields = document.getElementById('vatFields');
     if (fields) { fields.style.display = isVat ? '' : 'none'; }
+    var hint = document.getElementById('amountHint');
+    if (hint) { hint.style.display = isVat ? 'block' : 'none'; }
     if (!isVat) {
         var errs = document.querySelectorAll('.vat-field-error');
         errs.forEach(function(e){ e.remove(); });
     }
+    recalcVat();
 }
+
+function recalcVat() {
+    var isVat = (document.getElementById('tax_mode').value === 'Tax Invoice');
+    var calc = document.getElementById('vatCalc');
+    var amountInput = document.querySelector('input[name="amount"]');
+    if (!isVat) { if (calc) calc.style.display = 'none'; return; }
+    var net = parseFloat(amountInput.value) || 0;
+    var tax = Math.round(net * 0.05 * 100) / 100;
+    var total = Math.round((net + tax) * 100) / 100;
+    document.getElementById('vatNet').textContent = 'AED ' + net.toFixed(2);
+    document.getElementById('vatTax').textContent = 'AED ' + tax.toFixed(2);
+    document.getElementById('vatTotal').textContent = 'AED ' + total.toFixed(2);
+    document.getElementById('tax_amount').value = tax.toFixed(2);
+    if (calc) calc.style.display = 'block';
+}
+
+document.querySelector('input[name="amount"]').addEventListener('input', recalcVat);
 
 var supplierAutofill = {{ supplier_suggestions|length }} > 0 ? true : false;
 
@@ -298,6 +323,12 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
 .vat-btn.active { border-color: var(--primary); background: #e8f0fe; color: var(--primary); box-shadow: 0 0 0 3px rgba(28,86,139,0.1); }
 .vat-btn[data-vat="yes"].active { border-color: #b45309; background: #fef3c7; color: #92400e; box-shadow: 0 0 0 3px rgba(217,119,6,0.12); }
 .vat-note { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; padding: 10px 12px; border-radius: 10px; font-size: 0.78rem; font-weight: 600; margin-bottom: 12px; }
+.vat-hint { color:#92400e; font-size:0.75rem; margin-top:6px; }
+.vat-calc { background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:12px 14px; margin-top:12px; }
+.vat-calc > div { display:flex; justify-content:space-between; align-items:center; font-size:0.88rem; padding:4px 0; }
+.vat-calc > div + div { border-top:1px dashed #fde68a; }
+.vat-calc span { color:#6b7280; }
+.vat-calc strong { font-weight:700; }
 .req-star { color: #dc2626; }
 #vatFields { border: 1.5px solid #fde68a; background: #fffbeb; padding: 14px; border-radius: 12px; }
 .staff-file-area { position: relative; }

@@ -1277,6 +1277,13 @@ def register_routes(app: Flask) -> None:
                     if not supplier_bill_no:
                         flash("Bill number is required when the bill includes VAT 5%.", "error")
                         return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
+                net_amount = round(float(amount), 2)
+                if tax_mode == "Tax Invoice":
+                    tax_amount = round(net_amount * 0.05, 2)
+                    amount_total = round(net_amount + tax_amount, 2)
+                else:
+                    tax_amount = 0.0
+                    amount_total = net_amount
                 attachment_name = None
                 attachment_data = None
                 attachment_type = None
@@ -1291,7 +1298,7 @@ def register_routes(app: Flask) -> None:
                 )
                 db.execute(
                     "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, supplier_name, supplier_trn, supplier_bill_no, tax_mode, tax_amount) VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?,?)",
-                    (vehicle_id or "N/A", technician_code, float(amount), category or "Other", description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, supplier_bill_no or None, tax_mode, float(request.form.get("tax_amount", "0").strip() or "0") if tax_mode == "Tax Invoice" else 0.0),
+                    (vehicle_id or "N/A", technician_code, amount_total, category or "Other", description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, supplier_bill_no or None, tax_mode, tax_amount),
                 )
                 db.commit()
                 flash("Job submitted for approval.", "success")
