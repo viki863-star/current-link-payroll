@@ -287,7 +287,7 @@ def fleet_dashboard():
             COALESCE(mj.total_jobs, 0) + COALESCE(mp.total_papers, 0) AS total_spent
         FROM field_staff fs
         LEFT JOIN (SELECT staff_code, SUM(amount) AS total_adv FROM maintenance_staff_advances GROUP BY staff_code) adv ON adv.staff_code = fs.staff_id
-        LEFT JOIN (SELECT staff_id, SUM(amount) AS total_jobs FROM maintenance_jobs WHERE status = 'approved' GROUP BY staff_id) mj ON mj.staff_id = fs.staff_id
+        LEFT JOIN (SELECT staff_id, SUM(amount - tax_amount) AS total_jobs FROM maintenance_jobs WHERE status = 'approved' GROUP BY staff_id) mj ON mj.staff_id = fs.staff_id
         LEFT JOIN (SELECT technician_code, SUM(total_amount) AS total_papers FROM maintenance_papers WHERE review_status='Approved' GROUP BY technician_code) mp ON mp.technician_code = fs.staff_id
         WHERE fs.staff_id IS NOT NULL AND fs.staff_id != '' AND fs.staff_id != 'admin'
         ORDER BY fs.full_name
@@ -1575,7 +1575,7 @@ def fleet_staff_profile(staff_id):
         ).fetchone()["t"] or 0
 
         card_jobs = db.execute(
-            "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'",
+            "SELECT COALESCE(SUM(amount - tax_amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'",
             (staff_id,),
         ).fetchone()["t"] or 0
 
@@ -2566,6 +2566,18 @@ def fleet_job_edit(job_id):
         return redirect(url_for("fleet.fleet_approvals"))
 
     vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles ORDER BY vehicle_type, plate_no").fetchall()
+    _ensure_maintenance_suppliers_table(db)
+    supplier_rows = db.execute(
+        "SELECT DISTINCT supplier_name FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT supplier_name FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT name FROM maintenance_suppliers WHERE name IS NOT NULL AND name != '' ORDER BY supplier_name ASC"
+    ).fetchall()
+    supplier_suggestions = [r[0] for r in supplier_rows]
+    supplier_trn_rows = db.execute(
+        "SELECT supplier_name, supplier_trn FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT supplier_name, supplier_trn FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT name, trn FROM maintenance_suppliers WHERE trn IS NOT NULL AND trn != ''"
+    ).fetchall()
+    supplier_trn_map = {}
+    for row in supplier_trn_rows:
+        if row[0] and not supplier_trn_map.get(row[0]):
+            supplier_trn_map[row[0]] = row[1]
 
     if request.method == "POST":
         vehicle_id = request.form.get("vehicle_id", "").strip()
@@ -2573,6 +2585,31 @@ def fleet_job_edit(job_id):
         category = request.form.get("category", "").strip()
         description = request.form.get("description", "").strip()
         status = request.form.get("status", "").strip()
+        supplier_name = request.form.get("supplier_name", "").strip()
+        supplier_trn = request.form.get("supplier_trn", "").strip()
+        supplier_bill_no = request.form.get("supplier_bill_no", "").strip()
+        tax_mode = request.form.get("tax_mode", job["tax_mode"] or "Without Tax").strip() or "Without Tax"
+
+        if not amount or not category:
+            flash("Amount and category are required.", "error")
+            return render_template("fleet/fleet_job_edit.html", job=job, vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map)
+        if tax_mode == "Tax Invoice":
+            if not supplier_name:
+                flash("Workshop name is required when the bill includes VAT 5%.", "error")
+                return render_template("fleet/fleet_job_edit.html", job=job, vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map)
+            if not supplier_bill_no:
+                flash("Bill number is required when the bill includes VAT 5%.", "error")
+                return render_template("fleet/fleet_job_edit.html", job=job, vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map)
+        try:
+            net_amount = round(float(amount), 2)
+        except ValueError:
+            net_amount = 0.0
+        if tax_mode == "Tax Invoice":
+            tax_amount = round(net_amount * 0.05, 2)
+            amount_total = round(net_amount + tax_amount, 2)
+        else:
+            tax_amount = 0.0
+            amount_total = net_amount
 
         attachment_name = job["attachment_name"]
         attachment_data = job["attachment_data"]
@@ -2590,16 +2627,29 @@ def fleet_job_edit(job_id):
             """UPDATE maintenance_jobs
                SET vehicle_id=?, amount=?, category=?, description=?,
                    attachment_name=?, attachment_data=?, attachment_type=?,
+                   supplier_name=?, supplier_trn=?, supplier_bill_no=?,
+                   tax_mode=?, tax_amount=?,
                    status=?
                WHERE id=?""",
-            (vehicle_id or "N/A", float(amount), category, description,
-             attachment_name, attachment_data, attachment_type, new_status, job_id),
+            (vehicle_id or "N/A", amount_total, category, description,
+             attachment_name, attachment_data, attachment_type,
+             supplier_name or None, supplier_trn or None, supplier_bill_no or None,
+             tax_mode, tax_amount, new_status, job_id),
         )
         db.commit()
+        if supplier_name:
+            _upsert_maintenance_supplier(db, supplier_name, supplier_trn)
         flash("Job updated.", "success")
         return redirect(url_for("fleet.fleet_approvals"))
 
-    return render_template("fleet/fleet_job_edit.html", job=job, vehicles=vehicles)
+    return render_template(
+        "fleet/fleet_job_edit.html",
+        job=job,
+        vehicles=vehicles,
+        categories=MAINTENANCE_CATEGORIES,
+        supplier_suggestions=supplier_suggestions,
+        supplier_trn_map=supplier_trn_map,
+    )
 
 
 @fleet_bp.route("/fleet/jobs/<int:job_id>/delete", methods=["POST"])

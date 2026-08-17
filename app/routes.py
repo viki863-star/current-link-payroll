@@ -1264,7 +1264,7 @@ def register_routes(app: Flask) -> None:
                 supplier_trn_map[row[0]] = row[1]
         total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?", (technician_code,)).fetchone()["t"] or 0
         spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["t"] or 0
-        spent_jobs = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'", (technician_code,)).fetchone()["t"] or 0
+        spent_jobs = db.execute("SELECT COALESCE(SUM(amount - tax_amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'", (technician_code,)).fetchone()["t"] or 0
         total_spent = float(spent_papers) + float(spent_jobs)
         balance = float(total_received) - float(total_spent)
         pending_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Pending'", (technician_code,)).fetchone()["c"] or 0
@@ -1311,7 +1311,7 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("technician_login"))
         total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?", (technician_code,)).fetchone()["t"] or 0
         spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["t"] or 0
-        spent_jobs = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'", (technician_code,)).fetchone()["t"] or 0
+        spent_jobs = db.execute("SELECT COALESCE(SUM(amount - tax_amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'", (technician_code,)).fetchone()["t"] or 0
         total_spent = float(spent_papers) + float(spent_jobs)
         balance = float(total_received) - float(total_spent)
         jobs = db.execute("SELECT mj.*, v.vehicle_type FROM maintenance_jobs mj LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id WHERE mj.staff_id = ? ORDER BY mj.created_at DESC", (technician_code,)).fetchall()

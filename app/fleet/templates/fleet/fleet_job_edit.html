@@ -10,10 +10,18 @@
             <a href="{{ url_for('fleet.fleet_approvals') }}" class="btn btn-xs btn-outline">&larr; Back to Approvals</a>
         </div>
         <h3>Edit Maintenance Job</h3>
-        <p style="color:var(--muted);font-size:0.85rem">Staff: <strong>{{ job.staff_name }}</strong> &middot; Submitted: {{ job.created_at.strftime("%Y-%m-%d") }} &middot; Status: <span class="badge badge-dept">{{ job.status }}</span></p>
+        <p style="color:var(--muted);font-size:0.85rem">Staff: <strong>{{ job.staff_name }}</strong> &middot; Submitted: {{ fmt_dt(job.created_at, '%Y-%m-%d') }} &middot; Status: <span class="badge badge-dept">{{ job.status }}</span></p>
+
+        {% set net_amount = (job.amount - job.tax_amount) if job.tax_mode == 'Tax Invoice' else job.amount %}
 
         <form method="POST" enctype="multipart/form-data" style="margin-top:16px">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <datalist id="supplierNameList">
+                {% for s in supplier_suggestions or [] %}
+                <option value="{{ s }}">{{ supplier_trn_map.get(s, '') }}</option>
+                {% endfor %}
+            </datalist>
 
             <div class="form-row">
                 <label class="form-label">Vehicle</label>
@@ -26,13 +34,50 @@
             </div>
 
             <div class="form-row">
-                <label class="form-label">Amount (AED)</label>
-                <input type="number" name="amount" class="form-control" step="0.01" min="0" value="{{ '%.0f'|format(job.amount) }}" required>
+                <label class="form-label">Amount Spent (AED)</label>
+                <input type="number" name="amount" class="form-control" step="0.01" min="0" value="{{ '%.2f'|format(net_amount) }}" required>
+                <small class="vat-hint" id="amountHint" style="display:{{ 'block' if job.tax_mode == 'Tax Invoice' else 'none' }};color:#92400e;font-size:0.75rem;margin-top:6px">This stays the field staff's submitted/credit amount. If VAT is on, enter the net amount — 5% tax is added on top for the bill only.</small>
             </div>
 
             <div class="form-row">
                 <label class="form-label">Category</label>
-                <input type="text" name="category" class="form-control" value="{{ job.category }}" required>
+                <select name="category" class="form-control" required>
+                    <option value="">Select category</option>
+                    {% for c in categories %}
+                    <option value="{{ c }}" {% if job.category == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label class="form-label">Does the bill include VAT 5%?</label>
+                <div class="vat-toggle">
+                    <button type="button" class="vat-btn {% if job.tax_mode != 'Tax Invoice' %}active{% endif %}" data-vat="no" onclick="setVat('no')">Without VAT</button>
+                    <button type="button" class="vat-btn {% if job.tax_mode == 'Tax Invoice' %}active{% endif %}" data-vat="yes" onclick="setVat('yes')">VAT 5%</button>
+                </div>
+                <input type="hidden" name="tax_mode" id="tax_mode" value="{{ job.tax_mode or 'Without Tax' }}">
+            </div>
+
+            <div id="vatFields" style="{% if job.tax_mode != 'Tax Invoice' %}display:none{% endif %}">
+                <div class="vat-note" style="margin-bottom:12px">VAT 5% bill — Workshop name and bill number are required for the VAT report. TRN is optional.</div>
+                <div class="form-row">
+                    <label class="form-label">Workshop Name <span style="color:#dc2626">*</span></label>
+                    <input type="text" name="supplier_name" class="form-control" list="supplierNameList" placeholder="Type or choose previous workshop..." autocomplete="off" value="{{ job.supplier_name or '' }}">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Bill Number <span style="color:#dc2626">*</span></label>
+                    <input type="text" name="supplier_bill_no" class="form-control" placeholder="e.g. INV-0042" value="{{ job.supplier_bill_no or '' }}">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Supplier TRN (optional)</label>
+                    <input type="text" name="supplier_trn" class="form-control" placeholder="e.g. 100000000000003" value="{{ job.supplier_trn or '' }}">
+                </div>
+                <div class="vat-calc" id="vatCalc" style="display:{{ 'block' if job.tax_mode == 'Tax Invoice' else 'none' }}">
+                    <div><span>Net Amount (staff credit)</span><strong id="vatNet">AED 0.00</strong></div>
+                    <div><span>VAT 5%</span><strong id="vatTax" style="color:#b45309">AED 0.00</strong></div>
+                    <div><span>Total (bill)</span><strong id="vatTotal" style="color:#e65100">AED 0.00</strong></div>
+                </div>
+                <input type="hidden" name="tax_amount" id="tax_amount" value="{{ job.tax_amount or '0' }}">
             </div>
 
             <div class="form-row">
@@ -61,4 +106,89 @@
         </form>
     </div>
 </div>
+<style>
+.vat-toggle { display:flex; gap:8px; }
+.vat-btn { flex:1; padding:10px; border:1.5px solid var(--line); background:#fff; border-radius:10px; font-size:0.88rem; font-weight:600; cursor:pointer; color:var(--muted); transition:all 0.15s; font-family:inherit; }
+.vat-btn[data-vat="no"].active { border-color:#10b981; background:#ecfdf5; color:#065f46; }
+.vat-btn[data-vat="yes"].active { border-color:#d97706; background:#fffbeb; color:#92400e; }
+.vat-calc { background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:12px 14px; margin-top:12px; }
+.vat-calc > div { display:flex; justify-content:space-between; align-items:center; font-size:0.88rem; padding:4px 0; }
+.vat-calc > div + div { border-top:1px dashed #fde68a; }
+.vat-calc span { color:#6b7280; }
+.vat-calc strong { font-weight:700; }
+</style>
+<script>
+function setVat(value) {
+    var isVat = (value === 'yes');
+    document.getElementById('tax_mode').value = isVat ? 'Tax Invoice' : 'Without Tax';
+    document.querySelectorAll('.vat-btn').forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-vat') === value);
+    });
+    var fields = document.getElementById('vatFields');
+    if (fields) { fields.style.display = isVat ? '' : 'none'; }
+    var hint = document.getElementById('amountHint');
+    if (hint) { hint.style.display = isVat ? 'block' : 'none'; }
+    recalcVat();
+}
+
+function recalcVat() {
+    var isVat = (document.getElementById('tax_mode').value === 'Tax Invoice');
+    var calc = document.getElementById('vatCalc');
+    if (!isVat) { if (calc) calc.style.display = 'none'; return; }
+    var amountInput = document.querySelector('input[name="amount"]');
+    var net = parseFloat(amountInput.value) || 0;
+    var tax = Math.round(net * 0.05 * 100) / 100;
+    var total = Math.round((net + tax) * 100) / 100;
+    document.getElementById('vatNet').textContent = 'AED ' + net.toFixed(2);
+    document.getElementById('vatTax').textContent = 'AED ' + tax.toFixed(2);
+    document.getElementById('vatTotal').textContent = 'AED ' + total.toFixed(2);
+    document.getElementById('tax_amount').value = tax.toFixed(2);
+    if (calc) calc.style.display = 'block';
+}
+
+var supplierInput = document.querySelector('input[name="supplier_name"]');
+if (supplierInput) {
+    supplierInput.addEventListener('input', function() {
+        var trn = {{ supplier_trn_map | tojson }};
+        var key = this.value.trim();
+        if (trn[key]) {
+            var trnInput = document.querySelector('input[name="supplier_trn"]');
+            if (trnInput) trnInput.value = trn[key];
+        }
+    });
+}
+
+var amountInput = document.querySelector('input[name="amount"]');
+if (amountInput) amountInput.addEventListener('input', recalcVat);
+recalcVat();
+
+document.querySelector('form').addEventListener('submit', function(e) {
+    var isVat = document.getElementById('tax_mode').value === 'Tax Invoice';
+    if (!isVat) return;
+    var name = document.querySelector('input[name="supplier_name"]');
+    var bill = document.querySelector('input[name="supplier_bill_no"]');
+    var ok = true;
+    document.querySelectorAll('.vat-field-error').forEach(function(el){ el.remove(); });
+    if (!name.value.trim()) {
+        var nErr = document.createElement('div');
+        nErr.className = 'vat-field-error';
+        nErr.style.cssText = 'color:#dc2626;font-size:0.75rem;margin-top:4px';
+        nErr.textContent = 'Workshop name is required for a VAT bill';
+        name.parentNode.appendChild(nErr);
+        ok = false;
+    }
+    if (!bill.value.trim()) {
+        var bErr = document.createElement('div');
+        bErr.className = 'vat-field-error';
+        bErr.style.cssText = 'color:#dc2626;font-size:0.75rem;margin-top:4px';
+        bErr.textContent = 'Bill number is required for a VAT bill';
+        bill.parentNode.appendChild(bErr);
+        ok = false;
+    }
+    if (!ok) {
+        e.preventDefault();
+        document.getElementById('vatFields').scrollIntoView({behavior:'smooth', block:'center'});
+    }
+});
+</script>
 {% endblock %}
