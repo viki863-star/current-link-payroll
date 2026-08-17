@@ -809,12 +809,16 @@ def staff_job_new():
         try:
             created = 0
             total_amt = 0.0
+            missing = 0
             for i, row in enumerate(rows):
                 attachment = request.files.get(f"attachment_{i}")
-                _insert_staff_job_row(db, staff_id, row, attachment)
+                if _insert_staff_job_row(db, staff_id, row, attachment):
+                    missing += 1
                 created += 1
                 total_amt += float(row["amount"] or 0)
             db.commit()
+            if missing:
+                flash(f"{missing} paper(s) had an unregistered vehicle — recorded as General Expense. Add the vehicle to the fleet list if it was wrong.", "warning")
             try:
                 from app.notification_service import add_notification
                 add_notification(

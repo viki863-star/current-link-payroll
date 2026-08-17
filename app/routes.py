@@ -1282,10 +1282,14 @@ def register_routes(app: Flask) -> None:
                     for e in errors:
                         flash(e, "error")
                     return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form, rows=rows)
+                missing = 0
                 for i, row in enumerate(rows):
                     attachment = request.files.get(f"attachment_{i}")
-                    _insert_staff_job_row(db, technician_code, row, attachment)
+                    if _insert_staff_job_row(db, technician_code, row, attachment):
+                        missing += 1
                 db.commit()
+                if missing:
+                    flash(f"{missing} paper(s) had an unregistered vehicle — recorded as General Expense. Add the vehicle to the fleet list if it was wrong.", "warning")
                 flash(f"{len(rows)} paper(s) submitted for approval.", "success")
                 return redirect(url_for("technician_simple"))
             except Exception as e:
@@ -9126,8 +9130,18 @@ def _bulk_validation_errors(rows):
 
 
 def _insert_staff_job_row(db, staff_id, row, attachment):
-    """Insert one field-staff maintenance job (paper) with VAT auto-calc."""
-    vehicle_id = row["vehicle_id"] or "N/A"
+    """Insert one field-staff maintenance job (paper) with VAT auto-calc.
+
+    Returns True if the submitted vehicle was not found and the paper was
+    recorded under General Expense (N/A) instead of crashing.
+    """
+    vehicle_id = (row["vehicle_id"] or "").strip() or "N/A"
+    unknown_vehicle = False
+    if vehicle_id != "N/A":
+        exists = db.execute("SELECT 1 FROM vehicles WHERE plate_no = ?", (vehicle_id,)).fetchone()
+        if not exists:
+            unknown_vehicle = True
+            vehicle_id = "N/A"
     net_amount = round(float(row["amount"]), 2)
     tax_mode = row["tax_mode"]
     if tax_mode == "Tax Invoice":
@@ -9167,6 +9181,7 @@ def _insert_staff_job_row(db, staff_id, row, attachment):
     )
     if row["supplier_name"]:
         _upsert_maintenance_supplier(db, row["supplier_name"], row["supplier_trn"])
+    return unknown_vehicle
 
 
 def _ensure_maintenance_suppliers_table(db):
