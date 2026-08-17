@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Field Staff Papers Register — Fleet{% endblock %}
+{% block body_class %}list-body{% endblock %}
+{% block page_title %}Field Staff Papers Register{% endblock %}
+
+{% block content %}
+<style>
+.filter-bar-top { display:flex !important; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.filter-bar-top .filter-bar-title { display:flex; align-items:center; gap:8px; font-weight:700; color:var(--ink); font-size:0.95rem; }
+.fsp-summary { display:grid; grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); gap:10px; margin-bottom:16px; }
+.fsp-card { background:#fff; border:1px solid #e8ecf2; border-radius:14px; padding:14px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+.fsp-card-label { font-size:0.62rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:5px; }
+.fsp-card-val { font-size:1.15rem; font-weight:800; color:#0F2B52; }
+.fsp-card-val.orange { color:#e67600; }
+.fsp-card-val.green { color:#1a7a4e; }
+.fsp-card-val.red { color:#c0392b; }
+.fsp-group { background:#fff; border:1px solid #e8ecf2; border-radius:16px; margin-bottom:18px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+.fsp-group-head { display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #eef2f6; background:#fbfcfe; flex-wrap:wrap; }
+.fsp-avatar { width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid var(--line); flex-shrink:0; }
+.fsp-avatar-letter { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:1rem; flex-shrink:0; }
+.fsp-group-name { font-weight:700; color:#0F2B52; font-size:0.98rem; }
+.fsp-group-meta { font-size:0.75rem; color:#7a8aa3; margin-left:auto; display:flex; gap:14px; flex-wrap:wrap; }
+.fsp-group-meta strong { color:#0F2B52; }
+.fsp-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+.fsp-table th { text-align:left; padding:10px 12px; font-size:0.68rem; font-weight:700; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.3px; border-bottom:1px solid #eef2f6; white-space:nowrap; background:#fbfcfe; }
+.fsp-table td { padding:10px 12px; border-bottom:1px solid #f1f5f9; vertical-align:top; }
+.fsp-table tr:last-child td { border-bottom:none; }
+.fsp-table .num { text-align:right; white-space:nowrap; font-weight:600; }
+.fsp-tax { display:inline-block; padding:3px 8px; border-radius:6px; font-size:0.7rem; font-weight:700; white-space:nowrap; }
+.fsp-tax.tax { background:#fef3c7; color:#92400e; }
+.fsp-tax.no-tax { background:#eef2f6; color:#475569; }
+.fsp-status { display:inline-block; padding:3px 8px; border-radius:6px; font-size:0.7rem; font-weight:700; white-space:nowrap; }
+.fsp-status.pending { background:#fff7ed; color:#c2410c; }
+.fsp-status.approved { background:#ecfdf5; color:#047857; }
+.fsp-status.rejected { background:#fef2f2; color:#b91c1c; }
+.fsp-foot { display:flex; justify-content:flex-end; gap:24px; padding:12px 16px; background:#fbfcfe; font-size:0.85rem; font-weight:700; color:#0F2B52; border-top:1px solid #eef2f6; flex-wrap:wrap; }
+.fsp-empty { padding:40px 20px; text-align:center; color:#94a3b8; font-size:0.9rem; }
+.fsp-filter select { min-width:150px; }
+</style>
+
+<div class="list-shell">
+    <div class="filter-bar">
+        <div class="filter-bar-top">
+            <div class="filter-bar-title">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Field Staff Papers Register
+            </div>
+            <form method="get" class="fsp-filter" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <select name="month" class="form-control form-control-sm">
+                    <option value="">All Months</option>
+                    {% for m in months %}
+                    <option value="{{ m }}" {% if month == m %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+                <select name="staff_id" class="form-control form-control-sm">
+                    <option value="">All Staff</option>
+                    {% for s in staff_list %}
+                    <option value="{{ s.staff_id }}" {% if staff_filter == s.staff_id %}selected{% endif %}>{{ s.full_name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+                <a href="{{ url_for('fleet.fleet_staff_papers_report') }}" class="btn btn-outline btn-sm">Reset</a>
+            </form>
+        </div>
+    </div>
+
+    <div class="fsp-summary">
+        <div class="fsp-card"><div class="fsp-card-label">Total Papers</div><div class="fsp-card-val">{{ summary.count }}</div></div>
+        <div class="fsp-card"><div class="fsp-card-label">With Tax</div><div class="fsp-card-val orange">{{ summary.tax_count }}</div></div>
+        <div class="fsp-card"><div class="fsp-card-label">Without Tax</div><div class="fsp-card-val">{{ summary.no_tax_count }}</div></div>
+        <div class="fsp-card"><div class="fsp-card-label">Net</div><div class="fsp-card-val green">AED {{ "%.2f"|format(summary.net_total) }}</div></div>
+        <div class="fsp-card"><div class="fsp-card-label">VAT</div><div class="fsp-card-val orange">AED {{ "%.2f"|format(summary.vat_total) }}</div></div>
+        <div class="fsp-card"><div class="fsp-card-label">Total</div><div class="fsp-card-val red">AED {{ "%.2f"|format(summary.total) }}</div></div>
+    </div>
+
+    {% if groups %}
+    {% for g in groups %}
+    <div class="fsp-group">
+        <div class="fsp-group-head">
+            {% if g.photo_url %}<img src="{{ g.photo_url }}" class="fsp-avatar" alt="{{ g.staff_name }}">{% else %}<div class="fsp-avatar-letter" style="background:{{ ['#F7931E','#1565C0','#2e7d32','#7b1fa2','#c62828'][loop.index0 % 5] }}">{{ g.staff_name[:1]|upper }}</div>{% endif %}
+            <span class="fsp-group-name">{{ g.staff_name }}</span>
+            <span class="fsp-group-meta">
+                <span>Papers: <strong>{{ g.count }}</strong></span>
+                <span>Tax: <strong>{{ g.tax_count }}</strong></span>
+                <span>Net: <strong>AED {{ "%.2f"|format(g.net_total) }}</strong></span>
+                <span>VAT: <strong>AED {{ "%.2f"|format(g.vat_total) }}</strong></span>
+                <span>Total: <strong>AED {{ "%.2f"|format(g.total) }}</strong></span>
+            </span>
+        </div>
+        <div class="table-wrap" style="margin:0">
+            <table class="fsp-table">
+                <thead>
+                    <tr>
+                        <th>Paper</th>
+                        <th>Date</th>
+                        <th>Vehicle</th>
+                        <th>Work</th>
+                        <th>Tax</th>
+                        <th>Supplier</th>
+                        <th>Bill No</th>
+                        <th class="num">Net AED</th>
+                        <th class="num">VAT AED</th>
+                        <th class="num">Total AED</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in g.papers %}
+                    <tr>
+                        <td class="mono">{{ p.id }}</td>
+                        <td>{{ p.paper_date or p.created_at[:10] if p.created_at else '' }}</td>
+                        <td class="mono">{{ p.plate_no }}</td>
+                        <td>{{ p.description or p.category or '-' }}</td>
+                        <td><span class="fsp-tax {{ 'tax' if p.tax_mode == 'Tax Invoice' else 'no-tax' }}">{{ p.tax_mode }}</span></td>
+                        <td>{{ p.supplier_name or '-' }}</td>
+                        <td class="mono">{{ p.supplier_bill_no or '-' }}</td>
+                        <td class="num">{{ "%.2f"|format(p.net_amount) }}</td>
+                        <td class="num">{{ "%.2f"|format(p.tax_amount) }}</td>
+                        <td class="num">{{ "%.2f"|format(p.amount) }}</td>
+                        <td><span class="fsp-status {{ p.status }}">{{ p.status|title }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="fsp-foot">
+            <span>Papers: {{ g.count }}</span>
+            <span>Net: AED {{ "%.2f"|format(g.net_total) }}</span>
+            <span>VAT: AED {{ "%.2f"|format(g.vat_total) }}</span>
+            <span>Total: AED {{ "%.2f"|format(g.total) }}</span>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="list-shell">
+        <div class="fsp-empty">No papers found for the selected filters. <a href="{{ url_for('fleet.fleet_staff_papers_report') }}">Clear filters</a>.</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

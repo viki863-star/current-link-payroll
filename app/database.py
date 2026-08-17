@@ -887,6 +887,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     tax_amount REAL NOT NULL DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     approved_at TEXT,
+    paper_date TEXT,
     FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no),
     FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
 );
@@ -1765,6 +1766,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     tax_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     approved_at TIMESTAMP,
+    paper_date TEXT,
     FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no),
     FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
 );
@@ -2003,6 +2005,7 @@ REQUIRED_COLUMNS = {
         "supplier_bill_no": "TEXT",
         "tax_mode": "TEXT NOT NULL DEFAULT 'Without Tax'",
         "tax_amount": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "paper_date": "TEXT",
     },
     "owner_fund_entries": {
         "transaction_type": "TEXT NOT NULL DEFAULT 'IN'",

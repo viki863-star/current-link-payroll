@@ -1269,57 +1269,30 @@ def register_routes(app: Flask) -> None:
         pending_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Pending'", (technician_code,)).fetchone()["c"] or 0
         approved_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["c"] or 0
         if request.method == "POST":
+            rows = []
             try:
-                vehicle_id = request.form.get("vehicle_id", "").strip()
-                amount = request.form.get("amount", "").strip()
-                category = request.form.get("category", "").strip()
-                description = request.form.get("description", "").strip()
-                supplier_name = request.form.get("supplier_name", "").strip()
-                supplier_trn = request.form.get("supplier_trn", "").strip()
-                supplier_bill_no = request.form.get("supplier_bill_no", "").strip()
-                tax_mode = request.form.get("tax_mode", "Without Tax").strip() or "Without Tax"
-                if not amount:
-                    flash("Amount is required.", "error")
-                    return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
-                if tax_mode == "Tax Invoice":
-                    if not supplier_name:
-                        flash("Workshop name is required when the bill includes VAT 5%.", "error")
-                        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
-                    if not supplier_bill_no:
-                        flash("Bill number is required when the bill includes VAT 5%.", "error")
-                        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
-                net_amount = round(float(amount), 2)
-                if tax_mode == "Tax Invoice":
-                    tax_amount = round(net_amount * 0.05, 2)
-                    amount_total = round(net_amount + tax_amount, 2)
-                else:
-                    tax_amount = 0.0
-                    amount_total = net_amount
-                attachment_name = None
-                attachment_data = None
-                attachment_type = None
-                if "attachment" in request.files:
-                    f = request.files["attachment"]
-                    if f.filename:
-                        attachment_name = f.filename
-                        attachment_data = base64.b64encode(f.read()).decode("utf-8")
-                        attachment_type = f.content_type
-                db.execute(
-                    "INSERT INTO vehicles (plate_no, vehicle_type, status) VALUES ('N/A', 'Other', 'Inactive') ON CONFLICT (plate_no) DO NOTHING"
-                )
-                db.execute(
-                    "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, supplier_name, supplier_trn, supplier_bill_no, tax_mode, tax_amount) VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?,?)",
-                    (vehicle_id or "N/A", technician_code, amount_total, category or "Other", description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, supplier_bill_no or None, tax_mode, tax_amount),
-                )
+                row_count = _bulk_row_count()
+                rows = [_bulk_row_values(i) for i in range(row_count)]
+                if not rows or not any(r["amount"] for r in rows):
+                    flash("Add at least one paper with an amount.", "error")
+                    return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form, rows=rows)
+                errors = _bulk_validation_errors(rows)
+                if errors:
+                    for e in errors:
+                        flash(e, "error")
+                    return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form, rows=rows)
+                for i, row in enumerate(rows):
+                    attachment = request.files.get(f"attachment_{i}")
+                    _insert_staff_job_row(db, technician_code, row, attachment)
                 db.commit()
-                flash("Job submitted for approval.", "success")
+                flash(f"{len(rows)} paper(s) submitted for approval.", "success")
                 return redirect(url_for("technician_simple"))
             except Exception as e:
                 db.rollback()
                 current_app.logger.error("technician_simple POST error: %s", e, exc_info=True)
                 flash(f"Error submitting job: {e}", "error")
-                return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form)
-        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v={},
+                return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form, rows=rows)
+        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v={}, rows=[],
                                total_received=total_received, total_spent=total_spent, balance=balance,
                                pending_count=pending_count, approved_count=approved_count)
 
@@ -9105,6 +9078,94 @@ def register_routes(app: Flask) -> None:
         abort(404)
 
 
+def _bulk_row_count():
+    """Number of paperwork rows submitted from the staff bulk entry form."""
+    raw = request.form.get("row_count", "").strip()
+    try:
+        return max(int(raw), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _bulk_row_values(i):
+    """Collect one staff paper row from the bulk entry form."""
+    def g(name, default=""):
+        return (request.form.get(f"{name}_{i}", default) or default)
+    return {
+        "paper_date": g("paper_date").strip(),
+        "vehicle_id": g("vehicle_id").strip(),
+        "amount": g("amount").strip(),
+        "category": g("category").strip(),
+        "tax_mode": (g("tax_mode", "Without Tax").strip() or "Without Tax"),
+        "supplier_name": g("supplier_name").strip(),
+        "supplier_trn": g("supplier_trn").strip(),
+        "supplier_bill_no": g("supplier_bill_no").strip(),
+        "description": g("description").strip(),
+    }
+
+
+def _bulk_validation_errors(rows):
+    """Validate bulk staff paper rows; returns list of error strings."""
+    errors = []
+    for i, row in enumerate(rows, start=1):
+        if not row["amount"]:
+            errors.append(f"Paper {i}: Amount is required.")
+            continue
+        try:
+            float(row["amount"])
+        except ValueError:
+            errors.append(f"Paper {i}: Amount must be a number.")
+            continue
+        if row["tax_mode"] == "Tax Invoice":
+            if not row["supplier_name"]:
+                errors.append(f"Paper {i}: Workshop name is required for a VAT 5% bill.")
+            if not row["supplier_bill_no"]:
+                errors.append(f"Paper {i}: Bill number is required for a VAT 5% bill.")
+    return errors
+
+
+def _insert_staff_job_row(db, staff_id, row, attachment):
+    """Insert one field-staff maintenance job (paper) with VAT auto-calc."""
+    vehicle_id = row["vehicle_id"] or "N/A"
+    net_amount = round(float(row["amount"]), 2)
+    tax_mode = row["tax_mode"]
+    if tax_mode == "Tax Invoice":
+        tax_amount = round(net_amount * 0.05, 2)
+        amount_total = round(net_amount + tax_amount, 2)
+    else:
+        tax_amount = 0.0
+        amount_total = net_amount
+    attachment_name = None
+    attachment_data = None
+    attachment_type = None
+    if attachment and attachment.filename:
+        attachment_name = attachment.filename
+        attachment_data = base64.b64encode(attachment.read()).decode("utf-8")
+        attachment_type = attachment.content_type
+    db.execute(
+        "INSERT INTO vehicles (plate_no, vehicle_type, status) VALUES ('N/A', 'Other', 'Inactive') ON CONFLICT (plate_no) DO NOTHING"
+    )
+    db.execute(
+        "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, supplier_name, supplier_trn, supplier_bill_no, tax_mode, tax_amount, paper_date) VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?,?,?)",
+        (
+            vehicle_id,
+            staff_id,
+            amount_total,
+            row["category"] or "Other",
+            row["description"],
+            attachment_name,
+            attachment_data,
+            attachment_type,
+            row["supplier_name"] or None,
+            row["supplier_trn"] or None,
+            row["supplier_bill_no"] or None,
+            tax_mode,
+            tax_amount,
+            row["paper_date"] or None,
+        ),
+    )
+
+
 def _login_required(*roles):
     def decorator(view):
         @wraps(view)
@@ -15885,7 +15946,7 @@ def _fleet_maintenance_tax_report(db, filters):
     job_where = []
     job_params = []
     if month:
-        job_where.append("SUBSTR(mj.created_at, 1, 7) = ?")
+        job_where.append("SUBSTR(COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(mj.created_at, 1, 10)), 1, 7) = ?")
         job_params.append(month)
     if filters.get("vehicle_id"):
         job_where.append("mj.vehicle_id = ?")
@@ -15902,7 +15963,7 @@ def _fleet_maintenance_tax_report(db, filters):
         f"""
         SELECT
             ('JOB-' || mj.id) AS paper_no,
-            COALESCE(SUBSTR(mj.created_at, 1, 10), '') AS paper_date,
+            COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(mj.created_at, 1, 10), '') AS paper_date,
             COALESCE(jv.plate_no, mj.vehicle_id, '-') AS vehicle_no,
             COALESCE(NULLIF(mj.supplier_name, ''), '-') AS supplier_name,
             COALESCE(NULLIF(mj.supplier_trn, ''), '-') AS supplier_trn,
@@ -15924,7 +15985,7 @@ def _fleet_maintenance_tax_report(db, filters):
         f"""
         SELECT
             ('JOB-' || mj.id) AS paper_no,
-            COALESCE(SUBSTR(mj.created_at, 1, 10), '') AS paper_date,
+            COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(mj.created_at, 1, 10), '') AS paper_date,
             COALESCE(jv.plate_no, mj.vehicle_id, '-') AS vehicle_no,
             COALESCE(NULLIF(mj.supplier_name, ''), '-') AS supplier_name,
             COALESCE(NULLIF(mj.supplier_trn, ''), '-') AS supplier_trn,
