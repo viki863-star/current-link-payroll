@@ -1978,7 +1978,7 @@ def fleet_staff_papers_report():
     where = ["1=1"]
     params = []
     if month:
-        where.append("SUBSTR(COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(mj.created_at, 1, 10)), 1, 7) = ?")
+        where.append("SUBSTR(COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(CAST(mj.created_at AS TEXT), 1, 10)), 1, 7) = ?")
         params.append(month)
     if staff_filter:
         where.append("mj.staff_id = ?")
@@ -1999,7 +1999,7 @@ def fleet_staff_papers_report():
         LEFT JOIN field_staff s ON s.staff_id = mj.staff_id
         WHERE {clause}
         ORDER BY COALESCE(s.full_name, mj.staff_id) ASC,
-                 COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(mj.created_at, 1, 10)) DESC,
+                 COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(CAST(mj.created_at AS TEXT), 1, 10)) DESC,
                  mj.id DESC
         """,
         params,
@@ -2010,7 +2010,7 @@ def fleet_staff_papers_report():
     ).fetchall()
     months = db.execute(
         """
-        SELECT DISTINCT SUBSTR(COALESCE(NULLIF(paper_date, ''), SUBSTR(created_at, 1, 10)), 1, 7) AS m
+        SELECT DISTINCT SUBSTR(COALESCE(NULLIF(paper_date, ''), SUBSTR(CAST(created_at AS TEXT), 1, 10)), 1, 7) AS m
         FROM maintenance_jobs ORDER BY m DESC
         """
     ).fetchall()

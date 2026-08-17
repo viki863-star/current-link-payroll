@@ -15946,7 +15946,7 @@ def _fleet_maintenance_tax_report(db, filters):
     job_where = []
     job_params = []
     if month:
-        job_where.append("SUBSTR(COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(mj.created_at, 1, 10)), 1, 7) = ?")
+        job_where.append("SUBSTR(COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(CAST(mj.created_at AS TEXT), 1, 10)), 1, 7) = ?")
         job_params.append(month)
     if filters.get("vehicle_id"):
         job_where.append("mj.vehicle_id = ?")
@@ -15963,7 +15963,7 @@ def _fleet_maintenance_tax_report(db, filters):
         f"""
         SELECT
             ('JOB-' || mj.id) AS paper_no,
-            COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(mj.created_at, 1, 10), '') AS paper_date,
+            COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(CAST(mj.created_at AS TEXT), 1, 10), '') AS paper_date,
             COALESCE(jv.plate_no, mj.vehicle_id, '-') AS vehicle_no,
             COALESCE(NULLIF(mj.supplier_name, ''), '-') AS supplier_name,
             COALESCE(NULLIF(mj.supplier_trn, ''), '-') AS supplier_trn,
@@ -15985,7 +15985,7 @@ def _fleet_maintenance_tax_report(db, filters):
         f"""
         SELECT
             ('JOB-' || mj.id) AS paper_no,
-            COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(mj.created_at, 1, 10), '') AS paper_date,
+            COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(CAST(mj.created_at AS TEXT), 1, 10), '') AS paper_date,
             COALESCE(jv.plate_no, mj.vehicle_id, '-') AS vehicle_no,
             COALESCE(NULLIF(mj.supplier_name, ''), '-') AS supplier_name,
             COALESCE(NULLIF(mj.supplier_trn, ''), '-') AS supplier_trn,
