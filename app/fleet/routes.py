@@ -1327,17 +1327,17 @@ def fleet_staff_add():
 
         if not staff_id or not full_name or not username or not password:
             flash("Staff ID, name, username, and password are required.", "error")
-            return render_template("fleet/fleet_staff_form.html", page_title="Add Field Staff", submit_label="Add Staff", s=request.form)
+            return render_template("fleet/fleet_staff_form.html", page_title="Register New Field Staff", submit_label="Register Staff", s=request.form)
 
         existing = db.execute("SELECT staff_id FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
         if existing:
             flash("Staff ID already exists.", "error")
-            return render_template("fleet/fleet_staff_form.html", page_title="Add Field Staff", submit_label="Add Staff", s=request.form)
+            return render_template("fleet/fleet_staff_form.html", page_title="Register New Field Staff", submit_label="Register Staff", s=request.form)
 
         existing_user = db.execute("SELECT staff_id FROM field_staff WHERE username = ?", (username,)).fetchone()
         if existing_user:
             flash("Username already taken.", "error")
-            return render_template("fleet/fleet_staff_form.html", page_title="Add Field Staff", submit_label="Add Staff", s=request.form)
+            return render_template("fleet/fleet_staff_form.html", page_title="Register New Field Staff", submit_label="Register Staff", s=request.form)
 
         pw_hash = generate_password_hash(password)
         db.execute(
@@ -1349,7 +1349,7 @@ def fleet_staff_add():
         flash(f"Staff {full_name} added.", "success")
         return redirect(url_for("fleet.fleet_staff_list"))
 
-    return render_template("fleet/fleet_staff_form.html", page_title="Add Field Staff", submit_label="Add Staff", s={})
+    return render_template("fleet/fleet_staff_form.html", page_title="Register New Field Staff", submit_label="Register Staff", s={})
 
 
 @fleet_bp.route("/fleet/staff/<staff_id>/delete", methods=["POST"])

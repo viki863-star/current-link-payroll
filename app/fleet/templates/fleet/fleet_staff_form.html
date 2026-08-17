@@ -45,6 +45,7 @@
                 <div class="form-group" style="flex:1">
                     <label>Password {% if s.staff_id %}(leave blank to keep){% endif %}*</label>
                     <input type="password" name="password" class="form-control" {% if not s.staff_id %}required{% endif %}>
+                    <small style="color:var(--muted);font-size:0.72rem;display:block;margin-top:4px">Staff in-se same username aur password se Field Staff Portal par login karega.</small>
                 </div>
             </div>
             {% if s.staff_id %}
