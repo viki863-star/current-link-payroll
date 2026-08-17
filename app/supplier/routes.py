@@ -3283,7 +3283,9 @@ def supplier_purchase_report():
         inv_where += " AND i.invoice_date <= ?"
         inv_params.append(to_filter)
     invoices = db.execute(f"""
-        SELECT i.invoice_date, i.invoice_no, s.supplier_name,
+        SELECT i.invoice_date,
+               i.invoice_no AS paper_no,
+               s.supplier_name,
                i.amount AS net_sale, i.vat_amount, i.total_amount,
                'Invoice' AS source_type
         FROM supplier_invoices i
