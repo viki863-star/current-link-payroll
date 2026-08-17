@@ -90,6 +90,12 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
             {% endfor %}
         </datalist>
 
+        <datalist id="vehicleList">
+            {% for v in vehicles %}
+            <option value="{{ v.plate_no }}">{{ v.vehicle_type }}</option>
+            {% endfor %}
+        </datalist>
+
         <div class="staff-card staff-section">
             <div class="staff-section-label">Papers</div>
             <h2 class="staff-section-title" style="margin-bottom:4px">Bulk Paper Entry</h2>
@@ -108,7 +114,6 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
 <script id="serverRowsJson" type="application/json">{{ rows|tojson }}</script>
 
 <script>
-var vehicleOpts = [{%- for v in vehicles -%}{"plate_no": {{ v.plate_no|tojson }}, "vehicle_type": {{ v.vehicle_type|tojson }}}{% if not loop.last %},{% endif %}{%- endfor -%}];
 var categoryOpts = {{ categories|tojson }};
 var supplierTrnMap = JSON.parse('{{ supplier_trn_map|tojson }}' || '{}');
 
@@ -121,10 +126,6 @@ function todayISO() {
 
 function rowHTML(v) {
     v = v || {};
-    var opts = '<option value="">General Expense</option>';
-    vehicleOpts.forEach(function(ve) {
-        opts += '<option value="' + ve.plate_no + '"' + (v.vehicle_id === ve.plate_no ? ' selected' : '') + '>' + ve.plate_no + ' \u2014 ' + ve.vehicle_type + '</option>';
-    });
     var cats = '<option value="">Select category (optional)</option>';
     categoryOpts.forEach(function(c) {
         cats += '<option value="' + c + '"' + (v.category === c ? ' selected' : '') + '>' + c + '</option>';
@@ -141,7 +142,11 @@ function rowHTML(v) {
         '</div>' +
         '<div class="bulk-field bulk-field-wide">' +
             '<label class="staff-label">Vehicle</label>' +
-            '<select class="staff-input" data-name="vehicle_id">' + opts + '</select>' +
+            '<div class="vehicle-combo">' +
+                '<input type="text" class="staff-input" data-name="vehicle_id" list="vehicleList" placeholder="Search vehicle number..." autocomplete="off" value="' + (v.vehicle_id || '') + '">' +
+                '<button type="button" class="vehicle-clear" onclick="clearVehicle(this)" aria-label="General Expense" title="General Expense (no vehicle)">\u2715</button>' +
+            '</div>' +
+            '<small class="vehicle-hint">Type the vehicle number and pick from the list, or tap \u2715 for General Expense.</small>' +
         '</div>' +
     '</div>' +
     '<div class="bulk-cols">' +
@@ -282,6 +287,16 @@ function recalcForRow(row) {
     if (calc) calc.style.display = 'block';
 }
 
+function clearVehicle(btn) {
+    var combo = btn.closest('.vehicle-combo');
+    if (!combo) return;
+    var input = combo.querySelector('[data-name="vehicle_id"]');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+}
+
 function showRowError(row, msg, dataName) {
     var input = row.querySelector('[data-name="' + dataName + '"]');
     if (!input) return;
@@ -375,6 +390,11 @@ document.querySelector('form.staff-form').addEventListener('submit', function(e)
 .bulk-cols .bulk-field { flex: 1; min-width: 0; }
 .bulk-field { margin-bottom: 12px; }
 .bulk-field-wide { flex: 1.4 !important; }
+.vehicle-combo { position: relative; }
+.vehicle-combo .staff-input { padding-right: 46px; }
+.vehicle-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border: none; border-radius: 8px; background: #eef2f6; color: #64748b; font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s; }
+.vehicle-clear:hover { background: #fecaca; color: #dc2626; }
+.vehicle-hint { display: block; margin-top: 5px; font-size: 0.72rem; color: #7a8aa3; line-height: 1.35; }
 .bulk-add-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 15px; border: 2px dashed #b6c6dc; border-radius: 14px; background: #f8fafc; color: var(--primary); font-size: 0.95rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.15s; }
 .bulk-add-btn:hover { border-color: var(--primary); background: #f0f4ff; }
 .staff-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text); }
