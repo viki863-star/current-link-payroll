@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Maintenance Suppliers — Fleet{% endblock %}
+{% block body_class %}list-body{% endblock %}
+{% block page_title %}Maintenance Suppliers{% endblock %}
+
+{% block content %}
+<style>
+.filter-bar-top { display:flex !important; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.filter-bar-top .filter-bar-title { display:flex; align-items:center; gap:8px; font-weight:700; color:var(--ink); font-size:0.95rem; }
+.ms-summary { display:grid; grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); gap:10px; margin-bottom:16px; }
+.ms-card { background:#fff; border:1px solid #e8ecf2; border-radius:14px; padding:14px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+.ms-card-label { font-size:0.62rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:5px; }
+.ms-card-val { font-size:1.15rem; font-weight:800; color:#0F2B52; }
+.ms-card-val.orange { color:#e67600; }
+.ms-card-val.green { color:#1a7a4e; }
+.ms-card-val.red { color:#c0392b; }
+.ms-table { width:100%; border-collapse:collapse; font-size:0.87rem; }
+.ms-table th { text-align:left; padding:11px 12px; font-size:0.68rem; font-weight:700; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.3px; border-bottom:1px solid #eef2f6; white-space:nowrap; background:#fbfcfe; }
+.ms-table td { padding:11px 12px; border-bottom:1px solid #f1f5f9; vertical-align:top; }
+.ms-table tr:last-child td { border-bottom:none; }
+.ms-table .num { text-align:right; white-space:nowrap; font-weight:600; }
+.ms-rank { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:26px; border-radius:8px; font-weight:800; font-size:0.8rem; background:#eef2f6; color:#475569; }
+.ms-rank.top { background:#fef3c7; color:#92400e; }
+.ms-tr { display:inline-block; padding:3px 8px; border-radius:6px; font-size:0.7rem; font-weight:700; background:#eef2f6; color:#475569; }
+.ms-tr.reg { background:#ecfdf5; color:#047857; }
+.ms-name { font-weight:700; color:#0F2B52; }
+.ms-meta { font-size:0.78rem; color:#94a3b8; margin-top:2px; }
+.ms-tax { display:inline-block; padding:3px 8px; border-radius:6px; font-size:0.7rem; font-weight:700; }
+.ms-tax.tax { background:#fef3c7; color:#92400e; }
+.ms-empty { padding:50px 20px; text-align:center; color:#94a3b8; font-size:0.9rem; }
+</style>
+
+<div class="list-shell">
+    <div class="filter-bar">
+        <div class="filter-bar-top">
+            <div class="filter-bar-title">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Maintenance Suppliers
+            </div>
+            <a href="{{ url_for('fleet.fleet_staff_papers_report') }}" class="btn btn-outline btn-sm">Field Staff Papers Register</a>
+        </div>
+    </div>
+
+    <div class="ms-summary">
+        <div class="ms-card"><div class="ms-card-label">Suppliers</div><div class="ms-card-val">{{ suppliers|length }}</div></div>
+        <div class="ms-card"><div class="ms-card-label">Approved Papers / Jobs</div><div class="ms-card-val">{{ totals.count }}</div></div>
+        <div class="ms-card"><div class="ms-card-label">With Tax</div><div class="ms-card-val orange">{{ totals.tax_count }}</div></div>
+        <div class="ms-card"><div class="ms-card-label">Net</div><div class="ms-card-val green">AED {{ "%.2f"|format(totals.net) }}</div></div>
+        <div class="ms-card"><div class="ms-card-label">VAT</div><div class="ms-card-val orange">AED {{ "%.2f"|format(totals.vat) }}</div></div>
+        <div class="ms-card"><div class="ms-card-label">Total</div><div class="ms-card-val red">AED {{ "%.2f"|format(totals.gross) }}</div></div>
+    </div>
+
+    {% if suppliers %}
+    <div class="table-wrap">
+        <table class="ms-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Supplier</th>
+                    <th>TRN</th>
+                    <th class="num">Papers / Jobs</th>
+                    <th class="num">With Tax</th>
+                    <th class="num">Net AED</th>
+                    <th class="num">VAT AED</th>
+                    <th class="num">Total AED</th>
+                    <th>Last Work</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in suppliers %}
+                <tr style="cursor:pointer" onclick="location.href='{{ url_for('fleet.fleet_maintenance_supplier_profile', supplier_name=s.name) }}'">
+                    <td><span class="ms-rank {{ 'top' if loop.index0 < 3 }}">{{ loop.index }}</span></td>
+                    <td>
+                        <div class="ms-name">{{ s.name }}</div>
+                        {% if s.last_date %}<div class="ms-meta">Last: {{ s.last_date }}</div>{% endif %}
+                    </td>
+                    <td><span class="ms-tr {{ 'reg' if s.trn }}">{{ s.trn or 'None' }}</span></td>
+                    <td class="num">{{ s.cnt }}</td>
+                    <td class="num">{% if s.tax_cnt %}<span class="ms-tax tax">{{ s.tax_cnt }}</span>{% else %}<span style="color:#cbd5e1">0</span>{% endif %}</td>
+                    <td class="num">{{ "%.2f"|format(s.net) }}</td>
+                    <td class="num">{{ "%.2f"|format(s.vat) }}</td>
+                    <td class="num">{{ "%.2f"|format(s.gross) }}</td>
+                    <td class="mono">{{ s.last_date or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="ms-empty">No maintenance suppliers yet. Suppliers appear here once field staff enter approved papers against them.</div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -14,9 +14,11 @@ from ..routes import (
     _bulk_row_count,
     _bulk_row_values,
     _bulk_validation_errors,
+    _ensure_maintenance_suppliers_table,
     _insert_staff_job_row,
     _login_required,
     _touch_admin_workspace,
+    _upsert_maintenance_supplier,
 )
 from ..pdf_service import generate_fuel_report_pdf
 from . import fleet_bp
@@ -779,12 +781,13 @@ def staff_job_new():
     db = open_db()
     staff_id = session["staff_id"]
     vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
+    _ensure_maintenance_suppliers_table(db)
     supplier_rows = db.execute(
-        "SELECT DISTINCT supplier_name FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT supplier_name FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' ORDER BY supplier_name ASC"
+        "SELECT DISTINCT supplier_name FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT supplier_name FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT name FROM maintenance_suppliers WHERE name IS NOT NULL AND name != '' ORDER BY supplier_name ASC"
     ).fetchall()
     supplier_suggestions = [r[0] for r in supplier_rows]
     supplier_trn_rows = db.execute(
-        "SELECT supplier_name, supplier_trn FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT supplier_name, supplier_trn FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != ''"
+        "SELECT supplier_name, supplier_trn FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT supplier_name, supplier_trn FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT name, trn FROM maintenance_suppliers WHERE trn IS NOT NULL AND trn != ''"
     ).fetchall()
     supplier_trn_map = {}
     for row in supplier_trn_rows:
@@ -2645,4 +2648,185 @@ def staff_attachment(job_id):
         mimetype=job["attachment_type"] or "application/octet-stream",
         as_attachment=False,
         download_name=job["attachment_name"] or f"attachment_{job_id}",
+    )
+
+
+# ═════════════════════════════════════════════════════════════════
+# ENDPOINT: Maintenance Suppliers registry + profile
+# ═════════════════════════════════════════════════════════════════
+
+@fleet_bp.route("/fleet/maintenance-suppliers")
+@_login_required("admin")
+def fleet_maintenance_suppliers():
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    _ensure_maintenance_suppliers_table(db)
+
+    reg_rows = db.execute("SELECT name, trn FROM maintenance_suppliers").fetchall()
+    reg = {r["name"]: r["trn"] for r in reg_rows}
+
+    paper_agg = db.execute(
+        """
+        SELECT COALESCE(NULLIF(p.supplier_name, ''), '') AS name,
+               COUNT(*) AS cnt,
+               SUM(CASE WHEN p.tax_mode = 'Tax Invoice' THEN 1 ELSE 0 END) AS tax_cnt,
+               SUM(p.subtotal) AS net,
+               SUM(p.tax_amount) AS vat,
+               SUM(p.total_amount) AS gross,
+               MAX(COALESCE(NULLIF(p.paper_date, ''), SUBSTR(CAST(p.created_at AS TEXT), 1, 10), '')) AS last_date,
+               MAX(p.supplier_trn) AS trn
+        FROM maintenance_papers p
+        WHERE p.review_status = 'Approved' AND COALESCE(NULLIF(p.supplier_name, ''), '') != ''
+        GROUP BY 1
+        """
+    ).fetchall()
+    job_agg = db.execute(
+        """
+        SELECT COALESCE(NULLIF(mj.supplier_name, ''), '') AS name,
+               COUNT(*) AS cnt,
+               SUM(CASE WHEN mj.tax_mode = 'Tax Invoice' THEN 1 ELSE 0 END) AS tax_cnt,
+               SUM(mj.amount - mj.tax_amount) AS net,
+               SUM(mj.tax_amount) AS vat,
+               SUM(mj.amount) AS gross,
+               MAX(COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(CAST(mj.created_at AS TEXT), 1, 10), '')) AS last_date,
+               MAX(mj.supplier_trn) AS trn
+        FROM maintenance_jobs mj
+        WHERE mj.status = 'approved' AND COALESCE(NULLIF(mj.supplier_name, ''), '') != ''
+        GROUP BY 1
+        """
+    ).fetchall()
+
+    def _blank_s():
+        return {"cnt": 0, "tax_cnt": 0, "net": 0.0, "vat": 0.0, "gross": 0.0, "last_date": "", "trn": ""}
+
+    stats = {}
+    all_names = set(reg)
+
+    def _merge(name, rec):
+        s = stats.setdefault(name, _blank_s())
+        s["cnt"] += int(rec[0] or 0)
+        s["tax_cnt"] += int(rec[1] or 0)
+        s["net"] += float(rec[2] or 0)
+        s["vat"] += float(rec[3] or 0)
+        s["gross"] += float(rec[4] or 0)
+        if rec[5] and rec[5] > s["last_date"]:
+            s["last_date"] = rec[5]
+        s["trn"] = (s["trn"] or reg.get(name)) or (rec[6] or "")
+
+    for r in paper_agg:
+        all_names.add(r["name"])
+        _merge(r["name"], (r["cnt"], r["tax_cnt"], r["net"], r["vat"], r["gross"], r["last_date"], r["trn"]))
+    for r in job_agg:
+        all_names.add(r["name"])
+        _merge(r["name"], (r["cnt"], r["tax_cnt"], r["net"], r["vat"], r["gross"], r["last_date"], r["trn"]))
+
+    suppliers = []
+    for name in sorted(all_names, key=lambda n: n.lower()):
+        s = stats.get(name, _blank_s())
+        s["name"] = name
+        s["trn"] = s["trn"] or reg.get(name) or ""
+        suppliers.append(s)
+    suppliers.sort(key=lambda s: (s["gross"], s["cnt"]), reverse=True)
+
+    totals = {
+        "count": sum(s["cnt"] for s in suppliers),
+        "tax_count": sum(s["tax_cnt"] for s in suppliers),
+        "net": sum(s["net"] for s in suppliers),
+        "vat": sum(s["vat"] for s in suppliers),
+        "gross": sum(s["gross"] for s in suppliers),
+    }
+    return render_template(
+        "fleet/fleet_maintenance_suppliers.html",
+        suppliers=suppliers,
+        totals=totals,
+    )
+
+
+@fleet_bp.route("/fleet/maintenance-supplier/<path:supplier_name>")
+@_login_required("admin")
+def fleet_maintenance_supplier_profile(supplier_name):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    _ensure_maintenance_suppliers_table(db)
+
+    reg = db.execute("SELECT name, trn FROM maintenance_suppliers WHERE name = ?", (supplier_name,)).fetchone()
+
+    papers = db.execute(
+        """
+        SELECT p.id, p.paper_no, p.paper_date, p.vehicle_no, p.vehicle_id, p.work_summary,
+               p.supplier_name, p.supplier_trn, p.supplier_bill_no,
+               p.tax_mode, p.subtotal, p.tax_amount, p.total_amount, p.review_status,
+               COALESCE(NULLIF(p.paper_date, ''), SUBSTR(CAST(p.created_at AS TEXT), 1, 10), '') AS eff_date
+        FROM maintenance_papers p
+        WHERE p.supplier_name = ?
+        ORDER BY COALESCE(NULLIF(p.paper_date, ''), SUBSTR(CAST(p.created_at AS TEXT), 1, 10), '') DESC, p.id DESC
+        """,
+        (supplier_name,),
+    ).fetchall()
+    jobs = db.execute(
+        """
+        SELECT mj.id, mj.vehicle_id, mj.description, mj.supplier_name, mj.supplier_trn, mj.supplier_bill_no,
+               mj.tax_mode, mj.tax_amount, mj.amount, mj.status,
+               COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(CAST(mj.created_at AS TEXT), 1, 10), '') AS eff_date
+        FROM maintenance_jobs mj
+        WHERE mj.supplier_name = ?
+        ORDER BY COALESCE(NULLIF(mj.paper_date, ''), SUBSTR(CAST(mj.created_at AS TEXT), 1, 10), '') DESC, mj.id DESC
+        """,
+        (supplier_name,),
+    ).fetchall()
+
+    records = []
+    for p in papers:
+        records.append({
+            "type": "Paper",
+            "ref": p["paper_no"] or str(p["id"]),
+            "date": p["eff_date"] or "",
+            "vehicle": p["vehicle_no"] or p["vehicle_id"] or "",
+            "work": p["work_summary"] or "",
+            "bill_no": p["supplier_bill_no"] or "",
+            "net": float(p["subtotal"] or 0),
+            "vat": float(p["tax_amount"] or 0),
+            "gross": float(p["total_amount"] or 0),
+            "status": p["review_status"] or "Pending",
+            "is_tax": (p["tax_mode"] or "") == "Tax Invoice",
+        })
+    for j in jobs:
+        records.append({
+            "type": "Job",
+            "ref": "JOB-" + str(j["id"]),
+            "date": j["eff_date"] or "",
+            "vehicle": j["vehicle_id"] or "",
+            "work": j["description"] or "",
+            "bill_no": j["supplier_bill_no"] or "",
+            "net": float((j["amount"] or 0) - (j["tax_amount"] or 0)),
+            "vat": float(j["tax_amount"] or 0),
+            "gross": float(j["amount"] or 0),
+            "status": (j["status"] or "pending").title(),
+            "is_tax": (j["tax_mode"] or "") == "Tax Invoice",
+        })
+    records.sort(key=lambda r: r["date"] or "", reverse=True)
+
+    trn = (reg and reg["trn"]) or ""
+    if not trn:
+        trn = next((p_s["supplier_trn"] for p_s in papers if p_s["supplier_trn"]), "") or \
+              next((j_s["supplier_trn"] for j_s in jobs if j_s["supplier_trn"]), "")
+    approved = [r for r in records if r["status"].lower() == "approved"]
+    summary = {
+        "trn": trn or None,
+        "registered": bool(reg),
+        "total_records": len(records),
+        "approved_count": len(approved),
+        "tax_count": sum(1 for r in approved if r["is_tax"]),
+        "no_tax_count": sum(1 for r in approved if not r["is_tax"]),
+        "net": sum(r["net"] for r in approved),
+        "vat": sum(r["vat"] for r in approved),
+        "gross": sum(r["gross"] for r in approved),
+    }
+    return render_template(
+        "fleet/fleet_maintenance_supplier_profile.html",
+        supplier_name=supplier_name,
+        records=records,
+        summary=summary,
     )

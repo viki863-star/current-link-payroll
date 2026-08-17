@@ -1250,12 +1250,13 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("technician_login"))
         vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, created_at FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
         _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
+        _ensure_maintenance_suppliers_table(db)
         supplier_rows = db.execute(
-            "SELECT DISTINCT supplier_name FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT supplier_name FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' ORDER BY supplier_name ASC"
+            "SELECT DISTINCT supplier_name FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT supplier_name FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT name FROM maintenance_suppliers WHERE name IS NOT NULL AND name != '' ORDER BY supplier_name ASC"
         ).fetchall()
         supplier_suggestions = [r[0] for r in supplier_rows]
         supplier_trn_rows = db.execute(
-            "SELECT supplier_name, supplier_trn FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT supplier_name, supplier_trn FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != ''"
+            "SELECT supplier_name, supplier_trn FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT supplier_name, supplier_trn FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT name, trn FROM maintenance_suppliers WHERE trn IS NOT NULL AND trn != ''"
         ).fetchall()
         supplier_trn_map = {}
         for row in supplier_trn_rows:
@@ -9164,6 +9165,46 @@ def _insert_staff_job_row(db, staff_id, row, attachment):
             row["paper_date"] or None,
         ),
     )
+    if row["supplier_name"]:
+        _upsert_maintenance_supplier(db, row["supplier_name"], row["supplier_trn"])
+
+
+def _ensure_maintenance_suppliers_table(db):
+    """Create the maintenance supplier registry if missing (SQLite + Postgres)."""
+    if db.backend == "postgres":
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS maintenance_suppliers ("
+            " id BIGSERIAL PRIMARY KEY,"
+            " name TEXT NOT NULL UNIQUE,"
+            " trn TEXT,"
+            " created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+        )
+    else:
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS maintenance_suppliers ("
+            " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            " name TEXT NOT NULL UNIQUE,"
+            " trn TEXT,"
+            " created_at TEXT DEFAULT CURRENT_TIMESTAMP)"
+        )
+
+
+def _upsert_maintenance_supplier(db, name, trn):
+    """Remember a maintenance supplier and keep the last known TRN."""
+    name = (name or "").strip()
+    if not name:
+        return
+    try:
+        _ensure_maintenance_suppliers_table(db)
+        db.execute(
+            "INSERT INTO maintenance_suppliers (name, trn) VALUES (?, ?)"
+            " ON CONFLICT (name) DO UPDATE SET trn = "
+            " CASE WHEN COALESCE(NULLIF(EXCLUDED.trn, ''), '') = '' THEN maintenance_suppliers.trn ELSE EXCLUDED.trn END",
+            (name, (trn or "").strip() or None),
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
 
 
 def _login_required(*roles):

@@ -86,7 +86,7 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
 
         <datalist id="supplierNameList">
             {% for s in supplier_suggestions or [] %}
-            <option value="{{ s }}"></option>
+            <option value="{{ s }}">{{ supplier_trn_map.get(s, '') }}</option>
             {% endfor %}
         </datalist>
 
@@ -316,7 +316,7 @@ document.addEventListener('input', function(e) {
         recalcForRow(row);
     } else if (t.dataset.name === 'supplier_name') {
         var trn = row.querySelector('[data-name="supplier_trn"]');
-        if (trn && supplierTrnMap[t.value.trim()] && !trn.value.trim()) {
+        if (trn && supplierTrnMap[t.value.trim()]) {
             trn.value = supplierTrnMap[t.value.trim()];
         }
     }
