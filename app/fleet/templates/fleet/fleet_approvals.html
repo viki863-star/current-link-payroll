@@ -44,7 +44,7 @@
     {% set avatar_color = avatar_colors[(loop.index0) % (avatar_colors|length)] %}
     <div class="fa-staff-card">
         <div class="fa-staff-head">
-            <div class="fa-avatar" style="background:{{ avatar_color }}">{{ g.staff_name[:1]|upper }}</div>
+            <div class="fa-avatar" style="background:{{ avatar_color }}">{% if g.photo_url %}<img src="{{ g.photo_url }}" alt="{{ g.staff_name }}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;display:block">{% else %}{{ g.staff_name[:1]|upper }}{% endif %}</div>
             <div class="fa-staff-meta">
                 <div class="fa-staff-name">{{ g.staff_name }}</div>
                 <div class="fa-staff-sub">{{ g.jobs|length }} pending job{{ 's' if g.jobs|length != 1 else '' }}</div>

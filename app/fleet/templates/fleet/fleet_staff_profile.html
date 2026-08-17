@@ -47,9 +47,16 @@
 <div class="sp-container">
   {# ═══ HEADER ═══ #}
   <div class="sp-header">
-    <div>
-      <h1 class="sp-name">{{ s.full_name }}</h1>
-      <span class="sp-id">{{ s.staff_id }} &middot; {{ s.phone or '—' }} &middot; {{ s.username }}</span>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      {% if s.photo_data and s.photo_content_type %}
+      <img src="data:{{ s.photo_content_type }};base64,{{ s.photo_data }}" style="width:76px;height:76px;border-radius:50%;object-fit:cover;border:2px solid var(--orange);box-shadow:0 4px 14px rgba(247,147,30,0.25)" alt="{{ s.full_name }}">
+      {% else %}
+      <div style="width:76px;height:76px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.8rem;box-shadow:0 4px 14px rgba(247,147,30,0.25)">{{ s.full_name[:1]|upper }}</div>
+      {% endif %}
+      <div>
+        <h1 class="sp-name">{{ s.full_name }}</h1>
+        <span class="sp-id">{{ s.staff_id }} &middot; {{ s.phone or '—' }} &middot; {{ s.username }}</span>
+      </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <a href="{{ url_for('fleet.fleet_staff_edit', staff_id=s.staff_id) }}" class="btn btn-sm btn-outline">Edit Staff</a>

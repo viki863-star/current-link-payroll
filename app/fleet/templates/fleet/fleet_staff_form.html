@@ -4,6 +4,11 @@
 {% block page_title %}{{ page_title }}{% endblock %}
 
 {% block content %}
+<style>
+.staff-photo-preview-wrap { flex-shrink:0; }
+.staff-photo-preview { width:76px; height:76px; border-radius:50%; object-fit:cover; border:2px solid var(--line); display:block; }
+.staff-photo-empty { background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.8rem; border:2px solid var(--line); }
+</style>
 <div class="profile-shell" style="max-width:600px">
     <div class="profile-header" style="margin-bottom:24px">
         <div class="profile-info">
@@ -15,8 +20,33 @@
     </div>
 
     <div class="profile-card">
-        <form method="POST" class="smart-form">
+        <form method="POST" enctype="multipart/form-data" class="smart-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label>Profile Photo</label>
+                    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                        <div class="staff-photo-preview-wrap">
+                            {% if s.staff_id and s.photo_data and s.photo_content_type %}
+                            <img src="data:{{ s.photo_content_type }};base64,{{ s.photo_data }}" class="staff-photo-preview" alt="Profile photo">
+                            {% elif s.photo_url %}
+                            <img src="{{ s.photo_url }}" class="staff-photo-preview" alt="Profile photo">
+                            {% else %}
+                            <div class="staff-photo-preview staff-photo-empty">{{ (s.full_name or s.staff_id or 'S')[:1]|upper }}</div>
+                            {% endif %}
+                        </div>
+                        <div style="flex:1;min-width:180px">
+                            <input type="file" name="profile_photo" accept="image/*" class="form-control" style="padding:8px;font-size:0.82rem">
+                            <small style="color:var(--muted);font-size:0.72rem;display:block;margin-top:4px">JPG, PNG, GIF ya WebP — staff profile par dikhega.</small>
+                            {% if s.staff_id and s.photo_data %}
+                            <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:0.8rem">
+                                <input type="checkbox" name="remove_photo" value="1"> Remove current photo
+                            </label>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="form-row">
                 <div class="form-group" style="flex:1">
                     <label>Staff ID</label>
@@ -65,4 +95,39 @@
         </form>
     </div>
 </div>
+<script>
+(function(){
+    var input = document.querySelector('input[name="profile_photo"]');
+    if (!input) return;
+    input.addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            var preview = document.querySelector('.staff-photo-preview-wrap img');
+            if (preview) {
+                preview.src = ev.target.result;
+            } else {
+                var empty = document.querySelector('.staff-photo-empty');
+                var wrap = document.querySelector('.staff-photo-preview-wrap');
+                if (wrap && empty) {
+                    var img = document.createElement('img');
+                    img.className = 'staff-photo-preview';
+                    img.src = ev.target.result;
+                    img.alt = 'Profile photo';
+                    wrap.replaceChild(img, empty);
+                }
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+    var removeChk = document.querySelector('input[name="remove_photo"]');
+    if (removeChk) {
+        removeChk.addEventListener('change', function() {
+            var photoInput = document.querySelector('input[name="profile_photo"]');
+            if (photoInput) photoInput.value = '';
+        });
+    }
+})();
+</script>
 {% endblock %}

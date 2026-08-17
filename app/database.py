@@ -835,6 +835,8 @@ CREATE TABLE IF NOT EXISTS field_staff (
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 1,
+    photo_data TEXT,
+    photo_content_type TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -1711,6 +1713,8 @@ CREATE TABLE IF NOT EXISTS field_staff (
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 1,
+    photo_data TEXT,
+    photo_content_type TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -2030,6 +2034,10 @@ REQUIRED_COLUMNS = {
     },
     "cash_receipts": {
         "payment_time": "TEXT",
+    },
+    "field_staff": {
+        "photo_data": "TEXT",
+        "photo_content_type": "TEXT",
     },
     "documents": {
         "doc_category": "TEXT NOT NULL DEFAULT 'Other'",

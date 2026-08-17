@@ -966,6 +966,16 @@ staff_job_delete.csrf_exempt = True
 # ADMIN: Field Staff Management
 # ═════════════════════════════════════════════════════════════════
 
+def _staff_photo_url(row):
+    if row and row.get("photo_data") and row.get("photo_content_type"):
+        return f"data:{row['photo_content_type']};base64,{row['photo_data']}"
+    return None
+
+
+def _staff_photo_url_value(row, attr="photo"):
+    return _staff_photo_url(row)
+
+
 def _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw_hash, is_active):
     status = "Active" if is_active else "Inactive"
 
@@ -1336,6 +1346,16 @@ def fleet_staff_add():
         phone = request.form.get("phone", "").strip()
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
+        photo_file = request.files.get("profile_photo")
+
+        photo_data = None
+        photo_content_type = None
+        if photo_file and photo_file.filename:
+            photo_bytes = photo_file.read()
+            if photo_bytes:
+                import base64
+                photo_data = base64.b64encode(photo_bytes).decode("utf-8")
+                photo_content_type = photo_file.content_type or "image/jpeg"
 
         if not staff_id or not full_name or not username or not password:
             flash("Staff ID, name, username, and password are required.", "error")
@@ -1353,8 +1373,8 @@ def fleet_staff_add():
 
         pw_hash = generate_password_hash(password)
         db.execute(
-            "INSERT INTO field_staff (staff_id, full_name, phone, username, password_hash) VALUES (?,?,?,?,?)",
-            (staff_id, full_name, phone, username, pw_hash),
+            "INSERT INTO field_staff (staff_id, full_name, phone, username, password_hash, photo_data, photo_content_type) VALUES (?,?,?,?,?,?,?)",
+            (staff_id, full_name, phone, username, pw_hash, photo_data, photo_content_type),
         )
         _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw_hash, 1)
         db.commit()
@@ -1399,7 +1419,7 @@ def fleet_staff_edit(staff_id):
     _touch_admin_workspace("fleet")
     ensure_fleet_tables()
     db = open_db()
-    s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active, photo_data, photo_content_type FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
     if not s:
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
@@ -1411,18 +1431,32 @@ def fleet_staff_edit(staff_id):
         password = request.form.get("password", "").strip()
         is_active = 1 if request.form.get("is_active") else 0
 
+        photo_data = s["photo_data"]
+        photo_content_type = s["photo_content_type"]
+        photo_file = request.files.get("profile_photo")
+        remove_photo = request.form.get("remove_photo") == "1"
+        if remove_photo:
+            photo_data = None
+            photo_content_type = None
+        elif photo_file and photo_file.filename:
+            photo_bytes = photo_file.read()
+            if photo_bytes:
+                import base64
+                photo_data = base64.b64encode(photo_bytes).decode("utf-8")
+                photo_content_type = photo_file.content_type or "image/jpeg"
+
         if not full_name or not username:
             flash("Name and username are required.", "error")
             return render_template("fleet/fleet_staff_form.html", page_title="Edit Staff", submit_label="Save Changes", s=request.form)
 
         if password:
             pw_hash = generate_password_hash(password)
-            db.execute("UPDATE field_staff SET full_name=?, phone=?, username=?, password_hash=?, is_active=? WHERE staff_id=?",
-                       (full_name, phone, username, pw_hash, is_active, staff_id))
+            db.execute("UPDATE field_staff SET full_name=?, phone=?, username=?, password_hash=?, is_active=?, photo_data=?, photo_content_type=? WHERE staff_id=?",
+                       (full_name, phone, username, pw_hash, is_active, photo_data, photo_content_type, staff_id))
         else:
             pw_hash = s["password_hash"]
-            db.execute("UPDATE field_staff SET full_name=?, phone=?, username=?, is_active=? WHERE staff_id=?",
-                       (full_name, phone, username, is_active, staff_id))
+            db.execute("UPDATE field_staff SET full_name=?, phone=?, username=?, is_active=?, photo_data=?, photo_content_type=? WHERE staff_id=?",
+                       (full_name, phone, username, is_active, photo_data, photo_content_type, staff_id))
         _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw_hash, is_active)
         db.commit()
         flash("Staff updated.", "success")
@@ -1495,7 +1529,7 @@ def fleet_staff_profile(staff_id):
         _touch_admin_workspace("fleet")
         ensure_fleet_tables()
         db = open_db()
-        s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+        s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active, photo_data, photo_content_type FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
         if not s:
             flash("Staff not found.", "error")
             return redirect(url_for("fleet.fleet_staff_list"))
@@ -1922,10 +1956,18 @@ def fleet_approvals():
         name = j["staff_name"] or key
         grp = next((g for g in groups if g["staff_id"] == key), None)
         if grp is None:
-            grp = {"staff_id": key, "staff_name": name, "jobs": [], "total": 0.0}
+            grp = {"staff_id": key, "staff_name": name, "jobs": [], "total": 0.0, "photo_url": None}
             groups.append(grp)
         grp["jobs"].append(j)
         grp["total"] += float(j["amount"] or 0)
+
+    for g in groups:
+        try:
+            prow = db.execute("SELECT photo_data, photo_content_type FROM field_staff WHERE staff_id = ?", (g["staff_id"],)).fetchone()
+            if prow and prow["photo_data"] and prow["photo_content_type"]:
+                g["photo_url"] = f"data:{prow['photo_content_type']};base64,{prow['photo_data']}"
+        except Exception:
+            pass
 
     recent_approved = db.execute(
         f"""SELECT {_MJ_LIST_COLS}, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name

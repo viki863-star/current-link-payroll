@@ -218,6 +218,16 @@ def register_routes(app: Flask) -> None:
             cpx = cdb.execute("SELECT company_name, address, phone_number, email, logo_type, logo_data, theme_color, trn_no, vat_status, legal_name FROM company_profile LIMIT 1").fetchone()
         except:
             cpx = None
+        current_staff_photo = ""
+        if request_active:
+            session_staff_id = session.get("staff_id") or session.get("technician_code") or ""
+            if session_staff_id:
+                try:
+                    srow = open_db().execute("SELECT photo_data, photo_content_type FROM field_staff WHERE staff_id = ?", (session_staff_id,)).fetchone()
+                    if srow and srow["photo_data"] and srow["photo_content_type"]:
+                        current_staff_photo = f"data:{srow['photo_content_type']};base64,{srow['photo_data']}"
+                except Exception:
+                    pass
         return {
             "current_role": current_role,
             "current_driver_id": session.get("driver_id") if request_active else "",
@@ -235,6 +245,7 @@ def register_routes(app: Flask) -> None:
             "admin_workspace_home_url": url_for(workspace_home_endpoint) if request_active and workspace_home_endpoint else "",
             "admin_workspace_home_label": f"{ADMIN_WORKSPACE_META[current_workspace]['title']}" if current_role == "admin" and current_workspace in ADMIN_WORKSPACE_META and current_workspace != "universal" else "",
             "company": cpx,
+            "current_staff_photo": current_staff_photo,
         }
 
     @app.route("/")

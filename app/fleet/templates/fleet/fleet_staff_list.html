@@ -11,6 +11,8 @@
 .btn-delete:hover { background:#fef2f2; }
 .filter-bar-top { display:flex !important; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
 .filter-bar-top .filter-bar-title { display:flex; align-items:center; gap:8px; font-weight:700; color:var(--ink); font-size:0.95rem; }
+.staff-avatar { width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--line); flex-shrink:0; }
+.staff-avatar-letter { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:0.85rem; flex-shrink:0; }
 </style>
 
 <div class="list-shell">
@@ -44,7 +46,7 @@
                 {% for s in staff_list %}
                 <tr>
                     <td class="mono">{{ s.staff_id }}</td>
-                    <td><a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="font-weight:600;color:var(--primary);text-decoration:none">{{ s.full_name }}</a></td>
+                    <td><div style="display:flex;align-items:center;gap:10px"><a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="text-decoration:none"><div style="display:flex;align-items:center;gap:10px">{% if s.photo_data and s.photo_content_type %}<img src="data:{{ s.photo_content_type }};base64,{{ s.photo_data }}" class="staff-avatar" alt="{{ s.full_name }}">{% else %}<div class="staff-avatar-letter" style="background:{{ ['#F7931E','#1565C0','#2e7d32','#7b1fa2','#c62828'][loop.index0 % 5] }}">{{ s.full_name[:1]|upper }}</div>{% endif %}<span style="font-weight:600;color:var(--primary)">{{ s.full_name }}</span></div></a></div></td>
                     <td>{{ s.phone or '-' }}</td>
                     <td class="mono">{{ s.username }}</td>
                     <td><span class="status-badge {{ 'active' if s.is_active else 'inactive' }}">{{ 'Active' if s.is_active else 'Inactive' }}</span></td>

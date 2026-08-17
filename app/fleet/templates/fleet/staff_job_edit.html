@@ -42,7 +42,7 @@ body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFo
             </svg>
             <span class="staff-nav-badge" id="staffNotifBadge" style="display:none"></span>
         </button>
-        <div class="staff-nav-avatar" style="background:#F7931E">{{ (session.get('current_user_name') or session.get('technician_code','S'))[0]|upper }}</div>
+        {% if current_staff_photo %}<img src="{{ current_staff_photo }}" class="staff-nav-avatar" alt="My photo" style="border:2px solid #F7931E;object-fit:cover;background:#fff">{% else %}<div class="staff-nav-avatar" style="background:#F7931E">{{ (session.get('current_user_name') or session.get('technician_code','S'))[0]|upper }}</div>{% endif %}
         <span style="font-size:0.85rem;font-weight:600;color:#0F2B52">{{ session.get('current_user_name') or session.get('technician_code','') }}</span>
         <a class="staff-nav-btn" href="{{ url_for('logout') }}">Logout</a>
     </div>
