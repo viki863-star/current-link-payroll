@@ -12,7 +12,9 @@
 .qtx-page { max-width:760px; margin:0 auto; }
 .qtx-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 @media (max-width:600px) { .qtx-grid-2 { grid-template-columns:1fr; } }
-.qtx-stacked { display:grid; gap:14px; }
+.qtx-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+@media (max-width:700px) { .qtx-grid-3 { grid-template-columns:1fr; } }
+.qtx-stacked { display:flex; flex-direction:column; gap:16px; }
 .qtx-textarea {
   width:100%; min-height:76px; padding:10px 12px 10px 36px;
   border:1.5px solid #d7e2f2; border-radius:10px; background:#fff;
@@ -30,7 +32,7 @@
   transition:transform .15s ease,box-shadow .15s ease,filter .15s ease;
 }
 .qtx-btn-lg:hover { transform:translateY(-1px); filter:brightness(1.05); box-shadow:0 6px 18px -4px rgba(249,115,22,.65); }
-.qt-search-list { max-height:280px; }
+.qt-search-list { max-height:340px; }
 </style>
 
 <div class="db-shell">
@@ -48,7 +50,7 @@
                 </div>
             </div>
 
-            <form method="POST" class="qtx-form qtx-stacked" id="qtxForm">
+            <form method="POST" class="qtx-stacked" id="qtxForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div>

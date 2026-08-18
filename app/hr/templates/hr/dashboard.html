@@ -111,7 +111,7 @@
             <form method="POST" action="{{ url_for('hr.quick_transaction') }}" class="qtx-form" id="qtxForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <div class="qtx-field">
+                <div class="qtx-field qtx-field-employee">
                     <label class="qtx-label">Employee <i>*</i></label>
                     {{ employee_picker(employees) }}
                 </div>
@@ -155,7 +155,7 @@
                     </div>
                 </div>
 
-                <div class="qtx-field">
+                <div class="qtx-field" style="grid-column:span 2">
                     <label class="qtx-label">Details / Reason <i>*</i></label>
                     <div class="qtx-input-wrap">
                         <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
@@ -163,7 +163,7 @@
                     </div>
                 </div>
 
-                <div class="qtx-field qtx-field-wide">
+                <div class="qtx-field" style="grid-column:span 2">
                     <label class="qtx-label">Transaction Type</label>
                     <div class="qtx-type-grid" id="qtxTypeGrid">
                         <label class="qtx-type-opt is-active" data-t="Advance">
