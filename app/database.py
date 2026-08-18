@@ -885,6 +885,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     supplier_bill_no TEXT,
     tax_mode TEXT NOT NULL DEFAULT 'Without Tax',
     tax_amount REAL NOT NULL DEFAULT 0,
+    staff_amount REAL,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     approved_at TEXT,
     paper_date TEXT,
@@ -1764,6 +1765,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     supplier_bill_no TEXT,
     tax_mode TEXT NOT NULL DEFAULT 'Without Tax',
     tax_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+    staff_amount DOUBLE PRECISION,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     approved_at TIMESTAMP,
     paper_date TEXT,
@@ -2005,6 +2007,7 @@ REQUIRED_COLUMNS = {
         "supplier_bill_no": "TEXT",
         "tax_mode": "TEXT NOT NULL DEFAULT 'Without Tax'",
         "tax_amount": "DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "staff_amount": "DOUBLE PRECISION",
         "paper_date": "TEXT",
     },
     "owner_fund_entries": {

@@ -287,7 +287,7 @@ def fleet_dashboard():
             COALESCE(mj.total_jobs, 0) + COALESCE(mp.total_papers, 0) AS total_spent
         FROM field_staff fs
         LEFT JOIN (SELECT staff_code, SUM(amount) AS total_adv FROM maintenance_staff_advances GROUP BY staff_code) adv ON adv.staff_code = fs.staff_id
-        LEFT JOIN (SELECT staff_id, SUM(amount - tax_amount) AS total_jobs FROM maintenance_jobs WHERE status = 'approved' GROUP BY staff_id) mj ON mj.staff_id = fs.staff_id
+        LEFT JOIN (SELECT staff_id, SUM(COALESCE(staff_amount, amount - tax_amount)) AS total_jobs FROM maintenance_jobs WHERE status = 'approved' GROUP BY staff_id) mj ON mj.staff_id = fs.staff_id
         LEFT JOIN (SELECT technician_code, SUM(total_amount) AS total_papers FROM maintenance_papers WHERE review_status='Approved' GROUP BY technician_code) mp ON mp.technician_code = fs.staff_id
         WHERE fs.staff_id IS NOT NULL AND fs.staff_id != '' AND fs.staff_id != 'admin'
         ORDER BY fs.full_name
@@ -1575,7 +1575,7 @@ def fleet_staff_profile(staff_id):
         ).fetchone()["t"] or 0
 
         card_jobs = db.execute(
-            "SELECT COALESCE(SUM(amount - tax_amount),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'",
+            "SELECT COALESCE(SUM(COALESCE(staff_amount, amount - tax_amount)),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'",
             (staff_id,),
         ).fetchone()["t"] or 0
 
@@ -2081,7 +2081,7 @@ def fleet_job_approve_all():
         flash("No pending jobs to approve.", "info")
         return redirect(url_for("fleet.fleet_approvals"))
     now = datetime.now().isoformat()
-    db.execute("UPDATE maintenance_jobs SET status='approved', approved_at=? WHERE status='pending'", (now,))
+    db.execute("UPDATE maintenance_jobs SET status='approved', approved_at=?, staff_amount=amount-tax_amount WHERE status='pending'", (now,))
     db.commit()
     try:
         from app.notification_service import add_notification
@@ -2111,7 +2111,7 @@ def fleet_job_approve_all_staff(staff_id):
         flash("No pending jobs for this staff member.", "info")
         return redirect(url_for("fleet.fleet_approvals"))
     now = datetime.now().isoformat()
-    db.execute("UPDATE maintenance_jobs SET status='approved', approved_at=? WHERE status='pending' AND staff_id = ?", (now, staff_id))
+    db.execute("UPDATE maintenance_jobs SET status='approved', approved_at=?, staff_amount=amount-tax_amount WHERE status='pending' AND staff_id = ?", (now, staff_id))
     db.commit()
     staff_name = "Field Staff"
     try:
@@ -2140,7 +2140,7 @@ def fleet_job_approve(job_id):
         flash("Job not found.", "error")
         return redirect(url_for("fleet.fleet_approvals"))
     db.execute(
-        "UPDATE maintenance_jobs SET status = 'approved', approved_at = ? WHERE id = ?",
+        "UPDATE maintenance_jobs SET status = 'approved', approved_at = ?, staff_amount = amount - tax_amount WHERE id = ?",
         (datetime.now().isoformat(), job_id),
     )
     db.commit()
