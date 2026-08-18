@@ -2253,6 +2253,16 @@ def _ensure_columns(db: DatabaseAdapter) -> None:
             if _column_requires_unique(column_type):
                 _ensure_unique_index(db, table_name, column_name)
 
+    _backfill_staff_amount(db)
+
+
+def _backfill_staff_amount(db: DatabaseAdapter) -> None:
+    """Freeze staff balance for approved jobs that predate the staff_amount column."""
+    db.execute(
+        "UPDATE maintenance_jobs SET staff_amount = (amount - COALESCE(tax_amount, 0)) "
+        "WHERE status = 'approved' AND staff_amount IS NULL"
+    )
+
 
 def _normalize_add_column_type(column_type: str) -> str:
     return " ".join(part for part in column_type.split() if part.upper() != "UNIQUE")

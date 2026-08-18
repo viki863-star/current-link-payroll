@@ -2623,18 +2623,21 @@ def fleet_job_edit(job_id):
                 attachment_type = file.content_type
 
         new_status = status if status in ("pending", "approved", "rejected") else job["status"]
+        staff_amount = job["staff_amount"]
+        if new_status == "approved" and staff_amount is None:
+            staff_amount = round((job["amount"] or 0) - (job["tax_amount"] or 0), 2)
         db.execute(
             """UPDATE maintenance_jobs
                SET vehicle_id=?, amount=?, category=?, description=?,
                    attachment_name=?, attachment_data=?, attachment_type=?,
                    supplier_name=?, supplier_trn=?, supplier_bill_no=?,
-                   tax_mode=?, tax_amount=?,
+                   tax_mode=?, tax_amount=?, staff_amount=?,
                    status=?
                WHERE id=?""",
             (vehicle_id or "N/A", amount_total, category, description,
              attachment_name, attachment_data, attachment_type,
              supplier_name or None, supplier_trn or None, supplier_bill_no or None,
-             tax_mode, tax_amount, new_status, job_id),
+             tax_mode, tax_amount, staff_amount, new_status, job_id),
         )
         db.commit()
         if supplier_name:
