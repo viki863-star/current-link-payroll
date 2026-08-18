@@ -4,106 +4,33 @@
 {% block page_title %}Quick Transaction{% endblock %}
 
 {% block content %}
+{% from "hr/_employee_picker.html" import employee_picker %}
+<link rel="stylesheet" href="{{ url_for('static', filename='hr-2027.css', v='20260818') }}">
+<script src="{{ url_for('static', filename='hr-2027.js', v='20260818') }}"></script>
+
 <style>
 .qtx-page { max-width:760px; margin:0 auto; }
-.qtx-panel {
-  background:linear-gradient(160deg,#ffffff 0%,#f7faff 55%,#eef4ff 100%);
-  border:1px solid #dbe6f7;
-  border-radius:16px;
-  overflow:hidden;
-  box-shadow:0 1px 2px rgba(15,42,84,.05),0 8px 28px -12px rgba(28,86,139,.25);
-}
-.qtx-head {
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
-  padding:16px 20px;
-  background:linear-gradient(120deg,#0f2a54 0%,#1c568b 55%,#2a7fbf 100%);
-}
-.qtx-head-title { display:flex; align-items:center; gap:12px; }
-.qtx-head-icon {
-  width:40px; height:40px; border-radius:12px; flex-shrink:0;
-  display:grid; place-items:center; color:#fff;
-  background:rgba(255,255,255,.14);
-  border:1px solid rgba(255,255,255,.22);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.2);
-}
-.qtx-head-name { color:#fff; font-size:1rem; font-weight:800; letter-spacing:-.2px; }
-.qtx-head-sub { color:rgba(255,255,255,.72); font-size:.72rem; margin-top:2px; }
-.qtx-form { padding:20px; display:grid; gap:14px; }
 .qtx-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 @media (max-width:600px) { .qtx-grid-2 { grid-template-columns:1fr; } }
-.qtx-label {
-  display:flex; align-items:center; gap:3px;
-  font-size:.7rem; font-weight:700; color:#3b5a7d;
-  text-transform:uppercase; letter-spacing:.4px; margin-bottom:6px;
+.qtx-stacked { display:grid; gap:14px; }
+.qtx-textarea {
+  width:100%; min-height:76px; padding:10px 12px 10px 36px;
+  border:1.5px solid #d7e2f2; border-radius:10px; background:#fff;
+  font-size:.82rem; font-weight:500; color:var(--hr-navy); font-family:inherit;
+  resize:vertical; transition:border-color .15s ease,box-shadow .15s ease;
 }
-.qtx-label i { color:#e11d48; font-style:normal; }
-.qtx-input-wrap { position:relative; }
-.qtx-input-icon {
-  position:absolute; left:11px; top:50%; transform:translateY(-50%);
-  color:#94a9c4; display:flex; pointer-events:none;
-}
-.qtx-input-icon.qtx-currency {
-  font-size:.66rem; font-weight:800; color:#1c568b; letter-spacing:.4px;
-}
-.qtx-input, .qtx-select, .qtx-textarea {
-  width:100%;
-  padding:0 12px 0 36px;
-  border:1.5px solid #d7e2f2;
-  border-radius:10px;
-  background:#fff;
-  font-size:.82rem; font-weight:500; color:#0f2a54;
-  font-family:inherit;
-  transition:border-color .15s ease,box-shadow .15s ease;
-  appearance:none;
-}
-.qtx-input, .qtx-select { height:40px; }
-.qtx-textarea { padding-top:10px; padding-bottom:10px; resize:vertical; }
-.qtx-select {
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' fill='%23576a8a' viewBox='0 0 20 20'%3E%3Cpath d='M5.3 7.3a1 1 0 011.4 0L10 10.6l3.3-3.3a1 1 0 111.4 1.4l-4 4a1 1 0 01-1.4 0l-4-4a1 1 0 010-1.4z'/%3E%3C/svg%3E");
-  background-repeat:no-repeat; background-position:right 11px center;
-  padding-right:30px;
-}
-.qtx-input:focus, .qtx-select:focus, .qtx-textarea:focus {
-  outline:none; border-color:#2a7fbf;
-  box-shadow:0 0 0 3px rgba(42,127,191,.15);
-}
-.qtx-input::placeholder, .qtx-textarea::placeholder { color:#a8bcd4; font-weight:400; }
-.qtx-input.qtx-amount { font-family:'SF Mono','Consolas',monospace; font-weight:700; font-size:.9rem; }
-.qtx-employee { max-height:200px; overflow-y:auto; }
-.qtx-type-grid { display:flex; gap:8px; flex-wrap:wrap; }
-.qtx-type-opt {
-  position:relative;
-  display:flex; align-items:center; gap:7px;
-  padding:9px 16px;
-  border:1.5px solid #d7e2f2;
-  border-radius:10px;
-  background:#fff;
-  cursor:pointer;
-  transition:all .15s ease;
-  user-select:none;
-  flex:1 1 130px;
-}
-.qtx-type-opt input { position:absolute; opacity:0; pointer-events:none; }
-.qtx-type-opt.is-active {
-  border-color:var(--t-c,#1c568b);
-  background:color-mix(in srgb, var(--t-c,#1c568b) 8%, #fff);
-  box-shadow:0 0 0 3px color-mix(in srgb, var(--t-c,#1c568b) 14%, transparent);
-}
-.qtx-type-dot { width:9px; height:9px; border-radius:50%; background:var(--t-c,#64748b); flex-shrink:0; }
-.qtx-type-txt { font-size:.78rem; font-weight:700; color:#334f71; }
-.qtx-type-opt.is-active .qtx-type-txt { color:#0f2a54; }
-.qtx-btn {
+.qtx-textarea:focus { outline:none; border-color:var(--hr-blue2); box-shadow:0 0 0 3px rgba(42,127,191,.15); }
+.qtx-btn-lg {
   display:inline-flex; align-items:center; justify-content:center; gap:8px;
-  height:44px; padding:0 26px; white-space:nowrap;
-  border:none; border-radius:10px; cursor:pointer;
-  color:#fff; font-size:.84rem; font-weight:800; letter-spacing:.2px;
+  height:46px; padding:0 28px; white-space:nowrap; width:100%;
+  border:none; border-radius:12px; cursor:pointer;
+  color:#fff; font-size:.85rem; font-weight:800; letter-spacing:.2px;
   background:linear-gradient(120deg,#e6871f 0%,#f97316 60%,#fb923c 100%);
   box-shadow:0 4px 14px -4px rgba(249,115,22,.55);
   transition:transform .15s ease,box-shadow .15s ease,filter .15s ease;
-  width:100%;
 }
-.qtx-btn:hover { transform:translateY(-1px); filter:brightness(1.05); box-shadow:0 6px 18px -4px rgba(249,115,22,.65); }
-.qtx-btn:active { transform:translateY(0); }
+.qtx-btn-lg:hover { transform:translateY(-1px); filter:brightness(1.05); box-shadow:0 6px 18px -4px rgba(249,115,22,.65); }
+.qt-search-list { max-height:280px; }
 </style>
 
 <div class="db-shell">
@@ -121,20 +48,12 @@
                 </div>
             </div>
 
-            <form method="POST" class="qtx-form" id="qtxForm">
+            <form method="POST" class="qtx-form qtx-stacked" id="qtxForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div>
                     <label class="qtx-label">Employee <i>*</i></label>
-                    <div class="qtx-input-wrap">
-                        <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
-                        <select name="employee_id" class="qtx-select qtx-employee" size="6" required>
-                            <option value="">Select employee...</option>
-                            {% for e in employees %}
-                            <option value="{{ e.employee_id }}">{{ e.full_name }} — {{ e.employee_id }} ({{ e.employee_type }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                    {{ employee_picker(employees, placeholder='Type name or ID to search...') }}
                 </div>
 
                 <div class="qtx-grid-2">
@@ -220,7 +139,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="qtx-btn">
+                <button type="submit" class="qtx-btn-lg">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
                     Record Transaction
                 </button>

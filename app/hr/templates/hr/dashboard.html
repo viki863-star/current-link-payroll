@@ -4,368 +4,268 @@
 {% block page_title %}HR &amp; Employees{% endblock %}
 
 {% block content %}
-<style>
-.chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem; }
-.chart-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; padding:16px; }
-.chart-card h3 { margin:0 0 12px; font-size:0.8rem; font-weight:700; text-transform:uppercase; color:#64748b; letter-spacing:0.5px; }
-.chart-wrap { position:relative; height:200px; }
-.recent-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
-.recent-table td { padding:8px 6px; border-bottom:1px solid #f1f5f9; }
-.recent-table tr:last-child td { border-bottom:none; }
-.recent-table .emp-name { font-weight:600; color:#0f172a; }
-.recent-table .emp-sub { color:#94a3b8; font-size:0.7rem; }
-
-.qtx-panel {
-  margin-top:1rem;
-  background:linear-gradient(160deg,#ffffff 0%,#f7faff 55%,#eef4ff 100%);
-  border:1px solid #dbe6f7;
-  border-radius:16px;
-  overflow:hidden;
-  box-shadow:0 1px 2px rgba(15,42,84,.05),0 8px 28px -12px rgba(28,86,139,.25);
-}
-.qtx-head {
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
-  padding:16px 20px;
-  background:linear-gradient(120deg,#0f2a54 0%,#1c568b 55%,#2a7fbf 100%);
-}
-.qtx-head-title { display:flex; align-items:center; gap:12px; }
-.qtx-head-icon {
-  width:40px; height:40px; border-radius:12px; flex-shrink:0;
-  display:grid; place-items:center; color:#fff;
-  background:rgba(255,255,255,.14);
-  border:1px solid rgba(255,255,255,.22);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.2);
-}
-.qtx-head-name { color:#fff; font-size:1rem; font-weight:800; letter-spacing:-.2px; }
-.qtx-head-sub { color:rgba(255,255,255,.72); font-size:.72rem; margin-top:2px; }
-.qtx-full {
-  display:inline-flex; align-items:center; gap:6px;
-  color:#fff; font-size:.74rem; font-weight:700; text-decoration:none;
-  padding:8px 14px; border-radius:10px;
-  background:rgba(255,255,255,.12);
-  border:1px solid rgba(255,255,255,.25);
-  transition:background .15s ease,transform .15s ease;
-  white-space:nowrap;
-}
-.qtx-full:hover { background:rgba(255,255,255,.22); transform:translateY(-1px); }
-.qtx-form {
-  display:grid;
-  grid-template-columns:2fr 1fr 1fr 1fr 1fr 2fr auto;
-  gap:12px;
-  padding:18px 20px 20px;
-  align-items:end;
-}
-@media (max-width:1200px) { .qtx-form { grid-template-columns:1fr 1fr 1fr; } }
-@media (max-width:700px) { .qtx-form { grid-template-columns:1fr; } }
-.qtx-field { min-width:0; }
-.qtx-field-wide { grid-column:auto; }
-.qtx-label {
-  display:flex; align-items:center; gap:3px;
-  font-size:.7rem; font-weight:700; color:#3b5a7d;
-  text-transform:uppercase; letter-spacing:.4px; margin-bottom:6px;
-}
-.qtx-label i { color:#e11d48; font-style:normal; }
-.qtx-input-wrap { position:relative; }
-.qtx-input-icon {
-  position:absolute; left:11px; top:50%; transform:translateY(-50%);
-  color:#94a9c4; display:flex; pointer-events:none;
-}
-.qtx-input-icon.qtx-currency {
-  font-size:.66rem; font-weight:800; color:#1c568b; letter-spacing:.4px;
-}
-.qtx-input, .qtx-select {
-  width:100%;
-  height:40px;
-  padding:0 12px 0 36px;
-  border:1.5px solid #d7e2f2;
-  border-radius:10px;
-  background:#fff;
-  font-size:.82rem; font-weight:500; color:#0f2a54;
-  font-family:inherit;
-  transition:border-color .15s ease,box-shadow .15s ease;
-  appearance:none;
-}
-.qtx-select {
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' fill='%23576a8a' viewBox='0 0 20 20'%3E%3Cpath d='M5.3 7.3a1 1 0 011.4 0L10 10.6l3.3-3.3a1 1 0 111.4 1.4l-4 4a1 1 0 01-1.4 0l-4-4a1 1 0 010-1.4z'/%3E%3C/svg%3E");
-  background-repeat:no-repeat; background-position:right 11px center;
-  padding-right:30px;
-}
-.qtx-input:focus, .qtx-select:focus {
-  outline:none; border-color:#2a7fbf;
-  box-shadow:0 0 0 3px rgba(42,127,191,.15);
-}
-.qtx-input::placeholder { color:#a8bcd4; font-weight:400; }
-.qtx-input.qtx-amount { font-family:'SF Mono','Consolas',monospace; font-weight:700; font-size:.9rem; }
-.qtx-type { grid-column:span 2; }
-@media (max-width:1200px) { .qtx-type { grid-column:auto; } }
-.qtx-type-grid { display:flex; gap:6px; flex-wrap:wrap; }
-.qtx-type-opt {
-  position:relative;
-  display:flex; align-items:center; gap:7px;
-  padding:8px 14px;
-  border:1.5px solid #d7e2f2;
-  border-radius:10px;
-  background:#fff;
-  cursor:pointer;
-  transition:all .15s ease;
-  user-select:none;
-}
-.qtx-type-opt input { position:absolute; opacity:0; pointer-events:none; }
-.qtx-type-opt.is-active {
-  border-color:var(--t-c,#1c568b);
-  background:color-mix(in srgb, var(--t-c,#1c568b) 8%, #fff);
-  box-shadow:0 0 0 3px color-mix(in srgb, var(--t-c,#1c568b) 14%, transparent);
-}
-.qtx-type-dot { width:9px; height:9px; border-radius:50%; background:var(--t-c,#64748b); flex-shrink:0; }
-.qtx-type-txt { font-size:.76rem; font-weight:700; color:#334f71; }
-.qtx-type-opt.is-active .qtx-type-txt { color:#0f2a54; }
-.qtx-actions { display:flex; flex-direction:column; justify-content:flex-end; }
-.qtx-btn {
-  display:inline-flex; align-items:center; justify-content:center; gap:8px;
-  height:40px; padding:0 22px; white-space:nowrap;
-  border:none; border-radius:10px; cursor:pointer;
-  color:#fff; font-size:.8rem; font-weight:800; letter-spacing:.2px;
-  background:linear-gradient(120deg,#e6871f 0%,#f97316 60%,#fb923c 100%);
-  box-shadow:0 4px 14px -4px rgba(249,115,22,.55);
-  transition:transform .15s ease,box-shadow .15s ease,filter .15s ease;
-}
-.qtx-btn:hover { transform:translateY(-1px); filter:brightness(1.05); box-shadow:0 6px 18px -4px rgba(249,115,22,.65); }
-.qtx-btn:active { transform:translateY(0); }
-</style>
+{% from "hr/_employee_picker.html" import employee_picker %}
+<link rel="stylesheet" href="{{ url_for('static', filename='hr-2027.css', v='20260818') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='hr-2027.js', v='20260818') }}"></script>
 
 <div class="db-shell">
-    <div class="db-header">
-        <h1>HR &amp; Employees</h1>
-        <p>Manage employees, salary store, payroll, and monthly statements.</p>
-    </div>
+    <div class="hr-wrap">
 
-    {# ─── KPI Cards ─── #}
-    <div class="kpi-grid">
-        <div class="kpi-card">
-            <div class="kpi-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg></div>
-            <div class="kpi-title">Total Employees</div>
-            <div class="kpi-number">{{ total }}</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon" style="color:var(--green)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-            <div class="kpi-title">Active</div>
-            <div class="kpi-number" style="color:var(--green)">{{ active_count }}</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon" style="color:var(--orange)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M8 17v-4"/><path d="M12 17v-6"/><path d="M16 17V9"/><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M2 12h20"/></svg></div>
-            <div class="kpi-title">On Leave</div>
-            <div class="kpi-number" style="color:var(--orange)">{{ on_leave }}</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon" style="color:var(--danger)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="1" y1="1" x2="19" y2="19"/></svg></div>
-            <div class="kpi-title">Inactive</div>
-            <div class="kpi-number" style="color:var(--danger)">{{ inactive_count }}</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon" style="color:var(--green)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-            <div class="kpi-title">Payroll (Active)</div>
-            <div class="kpi-number" style="color:var(--green);font-size:1.05rem">AED {{ "{:,.0f}".format(payroll_amount) }}</div>
-            <div class="kpi-sub">{{ stored_this_month }} entries this month</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon" style="color:#d32f2f"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div>
-            <div class="kpi-title">Advances Pending</div>
-            <div class="kpi-number" style="color:#d32f2f">{{ advances_pending }}</div>
-            <div class="kpi-sub">unsettled</div>
-        </div>
-
-    </div>
-
-    {# ─── Quick Transaction ─── #}
-    <div class="qtx-panel">
-        <div class="qtx-head">
-            <div class="qtx-head-title">
-                <div class="qtx-head-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
-                </div>
+        {# ─── Hero Header ─── #}
+        <div class="hr-hero">
+            <div class="hr-hero-inner">
                 <div>
-                    <div class="qtx-head-name">Quick Transaction</div>
-                    <div class="qtx-head-sub">Record advance / loan / payment for any employee — no profile visit needed</div>
+                    <div class="hr-hero-badge">
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                        HR Workspace
+                    </div>
+                    <h1>Human Resources</h1>
+                    <p>Manage employees, payroll, advances &amp; monthly statements — all in one place.</p>
+                </div>
+                <div class="hr-hero-right">
+                    <a class="hr-hero-btn" href="{{ url_for('hr.employee_new') }}">
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+                        Add Employee
+                    </a>
+                    <a class="hr-hero-btn is-ghost" href="{{ url_for('hr.employee_list') }}">
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg>
+                        Employee Directory
+                    </a>
+                    <a class="hr-hero-btn is-ghost" href="{{ url_for('hr.salary_dashboard') }}">
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M6 1v3"/><path d="M14 1v3"/><path d="M2 9h16"/></svg>
+                        Salary Dashboard
+                    </a>
                 </div>
             </div>
-            <a href="{{ url_for('hr.quick_transaction') }}" class="qtx-full">Open full form <span>&rarr;</span></a>
         </div>
-        <form method="POST" action="{{ url_for('hr.quick_transaction') }}" class="qtx-form" id="qtxForm">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-            <div class="qtx-field qtx-field-wide">
-                <label class="qtx-label">Employee <i>*</i></label>
-                <div class="qtx-input-wrap">
-                    <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
-                    <select name="employee_id" class="qtx-select" required>
-                        <option value="">Select employee...</option>
-                        {% for e in employees %}
-                        <option value="{{ e.employee_id }}">{{ e.full_name }} — {{ e.employee_id }} ({{ e.employee_type }})</option>
-                        {% endfor %}
-                    </select>
+        {# ─── KPI Cards ─── #}
+        <div class="hr-kpi-grid">
+            <div class="hr-kpi" style="--k-c:var(--hr-blue)">
+                <div class="hr-kpi-top">
+                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg></div>
+                    <span class="hr-kpi-sub">Total</span>
                 </div>
+                <div class="hr-kpi-title">Total Employees</div>
+                <div class="hr-kpi-num">{{ total }}</div>
             </div>
-
-            <div class="qtx-field">
-                <label class="qtx-label">Amount (AED) <i>*</i></label>
-                <div class="qtx-input-wrap">
-                    <span class="qtx-input-icon qtx-currency">AED</span>
-                    <input type="number" name="amount" class="qtx-input qtx-amount" required step="0.01" min="0.01" placeholder="0.00" inputmode="decimal">
+            <div class="hr-kpi" style="--k-c:var(--hr-green)">
+                <div class="hr-kpi-top">
+                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                    <span class="hr-kpi-sub">Working</span>
                 </div>
+                <div class="hr-kpi-title">Active</div>
+                <div class="hr-kpi-num">{{ active_count }}</div>
             </div>
-
-            <div class="qtx-field">
-                <label class="qtx-label">Date</label>
-                <div class="qtx-input-wrap">
-                    <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
-                    <input type="date" name="entry_date" value="{{ today }}" class="qtx-input">
+            <div class="hr-kpi" style="--k-c:var(--hr-orange)">
+                <div class="hr-kpi-top">
+                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M8 17v-4"/><path d="M12 17v-6"/><path d="M16 17V9"/><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M2 12h20"/></svg></div>
+                    <span class="hr-kpi-sub">Leave</span>
                 </div>
+                <div class="hr-kpi-title">On Leave</div>
+                <div class="hr-kpi-num">{{ on_leave }}</div>
             </div>
-
-            <div class="qtx-field">
-                <label class="qtx-label">Source</label>
-                <div class="qtx-input-wrap">
-                    <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg></span>
-                    <select name="source" class="qtx-select">
-                        <option value="Cash">Cash</option>
-                        <option value="Bank">Bank</option>
-                        <option value="Owner Fund">Owner Fund</option>
-                        <option value="Current Link">Current Link</option>
-                        <option value="Office">Office</option>
-                        <option value="Other">Other</option>
-                    </select>
+            <div class="hr-kpi" style="--k-c:var(--hr-red)">
+                <div class="hr-kpi-top">
+                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="1" y1="1" x2="19" y2="19"/></svg></div>
+                    <span class="hr-kpi-sub">Left</span>
                 </div>
+                <div class="hr-kpi-title">Inactive</div>
+                <div class="hr-kpi-num">{{ inactive_count }}</div>
             </div>
-
-            <div class="qtx-field">
-                <label class="qtx-label">Given By <i>*</i></label>
-                <div class="qtx-input-wrap">
-                    <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
-                    <input type="text" name="given_by" class="qtx-input" required placeholder="Person who issued">
+            <div class="hr-kpi" style="--k-c:var(--hr-blue2)">
+                <div class="hr-kpi-top">
+                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                    <span class="hr-kpi-sub">Payroll</span>
                 </div>
+                <div class="hr-kpi-title">Payroll (Active)</div>
+                <div class="hr-kpi-num is-sm">AED {{ "{:,.0f}".format(payroll_amount) }}</div>
+                <div class="hr-kpi-foot">{{ stored_this_month }} entries this month</div>
             </div>
-
-            <div class="qtx-field qtx-field-wide">
-                <label class="qtx-label">Details / Reason <i>*</i></label>
-                <div class="qtx-input-wrap">
-                    <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-                    <input type="text" name="details" class="qtx-input" required placeholder="Why this amount was given">
+            <div class="hr-kpi" style="--k-c:var(--hr-red)">
+                <div class="hr-kpi-top">
+                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div>
+                    <span class="hr-kpi-sub">Unsettled</span>
                 </div>
+                <div class="hr-kpi-title">Advances Pending</div>
+                <div class="hr-kpi-num">{{ advances_pending }}</div>
             </div>
-
-            <div class="qtx-type">
-                <label class="qtx-label">Transaction Type</label>
-                <div class="qtx-type-grid" id="qtxTypeGrid">
-                    <label class="qtx-type-opt is-active" data-t="Advance">
-                        <input type="radio" name="txn_type" value="Advance" checked>
-                        <span class="qtx-type-dot" style="--t-c:#f97316"></span>
-                        <span class="qtx-type-txt">Advance</span>
-                    </label>
-                    <label class="qtx-type-opt" data-t="Loan">
-                        <input type="radio" name="txn_type" value="Loan">
-                        <span class="qtx-type-dot" style="--t-c:#8b5cf6"></span>
-                        <span class="qtx-type-txt">Loan</span>
-                    </label>
-                    <label class="qtx-type-opt" data-t="Payment">
-                        <input type="radio" name="txn_type" value="Payment">
-                        <span class="qtx-type-dot" style="--t-c:#22c55e"></span>
-                        <span class="qtx-type-txt">Payment</span>
-                    </label>
-                    <label class="qtx-type-opt" data-t="Other">
-                        <input type="radio" name="txn_type" value="Other">
-                        <span class="qtx-type-dot" style="--t-c:#64748b"></span>
-                        <span class="qtx-type-txt">Other</span>
-                    </label>
-                </div>
-            </div>
-
-            <div class="qtx-actions">
-                <input type="hidden" name="salary_month" value="{{ today[:7] }}">
-                <button type="submit" class="qtx-btn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
-                    Record Transaction
-                </button>
-            </div>
-        </form>
-    </div>
-
-    {# ─── Charts Row ─── #}
-    <div class="chart-grid">
-        <div class="chart-card">
-            <h3>Employees by Department</h3>
-            <div class="chart-wrap"><canvas id="deptChart"></canvas></div>
         </div>
-        <div class="chart-card">
-            <h3>Employees by Type</h3>
-            <div class="chart-wrap"><canvas id="typeChart"></canvas></div>
-        </div>
-        <div class="chart-card">
-            <h3>Salary Store Trend (6 months)</h3>
-            <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
-        </div>
-        <div class="chart-card">
-            <h3>Status Overview</h3>
-            <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
-        </div>
-    </div>
 
-    {# ─── Recent Employees & Quick Access ─── #}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
-        <div class="chart-card">
-            <h3>Recent Employees</h3>
-            <table class="recent-table">
+        {# ─── Quick Transaction ─── #}
+        <div class="qtx-panel">
+            <div class="qtx-head">
+                <div class="qtx-head-title">
+                    <div class="qtx-head-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
+                    </div>
+                    <div>
+                        <div class="qtx-head-name">Quick Transaction</div>
+                        <div class="qtx-head-sub">Record advance / loan / payment for any employee — no profile visit needed</div>
+                    </div>
+                </div>
+                <a href="{{ url_for('hr.quick_transaction') }}" class="qtx-full">Open full form <span>&rarr;</span></a>
+            </div>
+            <form method="POST" action="{{ url_for('hr.quick_transaction') }}" class="qtx-form" id="qtxForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="qtx-field">
+                    <label class="qtx-label">Employee <i>*</i></label>
+                    {{ employee_picker(employees) }}
+                </div>
+
+                <div class="qtx-field">
+                    <label class="qtx-label">Amount (AED) <i>*</i></label>
+                    <div class="qtx-input-wrap">
+                        <span class="qtx-input-icon qtx-currency">AED</span>
+                        <input type="number" name="amount" class="qtx-input qtx-amount" required step="0.01" min="0.01" placeholder="0.00" inputmode="decimal">
+                    </div>
+                </div>
+
+                <div class="qtx-field">
+                    <label class="qtx-label">Date</label>
+                    <div class="qtx-input-wrap">
+                        <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+                        <input type="date" name="entry_date" value="{{ today }}" class="qtx-input">
+                    </div>
+                </div>
+
+                <div class="qtx-field">
+                    <label class="qtx-label">Source</label>
+                    <div class="qtx-input-wrap">
+                        <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg></span>
+                        <select name="source" class="qtx-select">
+                            <option value="Cash">Cash</option>
+                            <option value="Bank">Bank</option>
+                            <option value="Owner Fund">Owner Fund</option>
+                            <option value="Current Link">Current Link</option>
+                            <option value="Office">Office</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="qtx-field">
+                    <label class="qtx-label">Given By <i>*</i></label>
+                    <div class="qtx-input-wrap">
+                        <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+                        <input type="text" name="given_by" class="qtx-input" required placeholder="Person who issued">
+                    </div>
+                </div>
+
+                <div class="qtx-field">
+                    <label class="qtx-label">Details / Reason <i>*</i></label>
+                    <div class="qtx-input-wrap">
+                        <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                        <input type="text" name="details" class="qtx-input" required placeholder="Why this amount was given">
+                    </div>
+                </div>
+
+                <div class="qtx-field qtx-field-wide">
+                    <label class="qtx-label">Transaction Type</label>
+                    <div class="qtx-type-grid" id="qtxTypeGrid">
+                        <label class="qtx-type-opt is-active" data-t="Advance">
+                            <input type="radio" name="txn_type" value="Advance" checked>
+                            <span class="qtx-type-dot" style="--t-c:#f97316"></span>
+                            <span class="qtx-type-txt">Advance</span>
+                        </label>
+                        <label class="qtx-type-opt" data-t="Loan">
+                            <input type="radio" name="txn_type" value="Loan">
+                            <span class="qtx-type-dot" style="--t-c:#8b5cf6"></span>
+                            <span class="qtx-type-txt">Loan</span>
+                        </label>
+                        <label class="qtx-type-opt" data-t="Payment">
+                            <input type="radio" name="txn_type" value="Payment">
+                            <span class="qtx-type-dot" style="--t-c:#22c55e"></span>
+                            <span class="qtx-type-txt">Payment</span>
+                        </label>
+                        <label class="qtx-type-opt" data-t="Other">
+                            <input type="radio" name="txn_type" value="Other">
+                            <span class="qtx-type-dot" style="--t-c:#64748b"></span>
+                            <span class="qtx-type-txt">Other</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="qtx-actions">
+                    <input type="hidden" name="salary_month" value="{{ today[:7] }}">
+                    <button type="submit" class="qtx-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                        Record
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {# ─── Charts ─── #}
+        <div class="hr-chart-grid">
+            <div class="hr-card">
+                <div class="hr-card-title"><span class="hr-tdot"></span> Employees by Department</div>
+                <div class="hr-chart-wrap"><canvas id="deptChart"></canvas></div>
+            </div>
+            <div class="hr-card">
+                <div class="hr-card-title"><span class="hr-tdot" style="background:var(--hr-green)"></span> Employees by Type</div>
+                <div class="hr-chart-wrap"><canvas id="typeChart"></canvas></div>
+            </div>
+            <div class="hr-card">
+                <div class="hr-card-title"><span class="hr-tdot" style="background:var(--hr-orange)"></span> Salary Store Trend (6 months)</div>
+                <div class="hr-chart-wrap"><canvas id="trendChart"></canvas></div>
+            </div>
+            <div class="hr-card">
+                <div class="hr-card-title"><span class="hr-tdot" style="background:var(--hr-violet)"></span> Status Overview</div>
+                <div class="hr-chart-wrap"><canvas id="statusChart"></canvas></div>
+            </div>
+        </div>
+
+        {# ─── Recent Employees & Quick Access ─── #}
+        <div class="hr-bottom">
+            <div class="hr-card">
+                <div class="hr-card-title"><span class="hr-tdot"></span> Recent Employees</div>
                 {% for e in recent_employees %}
-                <tr>
-                    <td>
-                        <div class="emp-name">{{ e.full_name }}</div>
-                        <div class="emp-sub">{{ e.employee_id }} &middot; {{ e.department }}</div>
-                    </td>
-                    <td style="text-align:right">
-                        <span class="badge badge-type">{{ e.employee_type }}</span>
-                        <span class="status-badge {% if e.status|lower == 'active' %}active{% elif e.status|lower == 'on leave' %}warning{% elif e.status|lower == 'terminated' %}danger{% else %}inactive{% endif %}" style="display:inline-block;margin-left:4px;font-size:0.65rem">{{ e.status }}</span>
-                    </td>
-                </tr>
+                <a href="{{ url_for('hr.employee_detail', employee_id=e.employee_id) }}" class="hr-recent-item" style="text-decoration:none">
+                    <span class="hr-recent-av">
+                        {% set p_url = employee_photo_url(e) %}
+                        {% if p_url %}<img src="{{ p_url }}" alt="">{% else %}{{ e.full_name[:1]|upper }}{% endif %}
+                    </span>
+                    <span class="hr-recent-meta">
+                        <span class="hr-recent-name">{{ e.full_name }}</span>
+                        <span class="hr-recent-sub">{{ e.employee_id }} &middot; {{ e.department }} &middot; {{ e.employee_type }}</span>
+                    </span>
+                    <span class="status-badge {% if e.status|lower == 'active' %}active{% elif e.status|lower == 'on leave' %}warning{% elif e.status|lower == 'terminated' %}danger{% else %}inactive{% endif %}" style="font-size:0.62rem">{{ e.status }}</span>
+                </a>
                 {% endfor %}
-            </table>
-        </div>
+            </div>
 
-        <div class="chart-card">
-            <h3>Quick Access</h3>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                <a class="quick-card" href="{{ url_for('hr.quick_transaction') }}" style="padding:10px 12px;font-size:0.78rem">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
-                    Quick Transaction
-                </a>
-                <a class="quick-card" href="{{ url_for('hr.employee_list') }}" style="padding:10px 12px;font-size:0.78rem">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg>
-                    Employee List
-                </a>
-                <a class="quick-card" href="{{ url_for('hr.employee_new') }}" style="padding:10px 12px;font-size:0.78rem">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-                    Add Employee
-                </a>
-                <a class="quick-card" href="{{ url_for('hr.salary_dashboard') }}" style="padding:10px 12px;font-size:0.78rem">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M6 1v3"/><path d="M14 1v3"/><path d="M2 9h16"/></svg>
-                    Salary Dashboard
-                </a>
-                <a class="quick-card" href="{{ url_for('hr.salary_dashboard') }}" style="padding:10px 12px;font-size:0.78rem">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-                    Run Salary
-                </a>
-                <a class="quick-card" href="{{ url_for('reports_center') }}" style="padding:10px 12px;font-size:0.78rem">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg>
-                    HR Reports
-                </a>
-                <a class="quick-card" href="{{ url_for('hr.employee_list') }}" style="padding:10px 12px;font-size:0.78rem">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    Monthly Statement
-                </a>
-                <a class="quick-card" href="{{ url_for('hr.salary_dashboard') }}" style="padding:10px 12px;font-size:0.78rem">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M6 1v3"/><path d="M14 1v3"/><path d="M2 9h16"/><circle cx="10" cy="13" r="2"/></svg>
-                    Salary Dashboard
-                </a>
+            <div class="hr-card">
+                <div class="hr-card-title"><span class="hr-tdot" style="background:var(--hr-orange)"></span> Quick Access</div>
+                <div class="hr-qacc">
+                    <a href="{{ url_for('hr.quick_transaction') }}">
+                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></span>
+                        Quick Transaction
+                    </a>
+                    <a href="{{ url_for('hr.employee_list') }}">
+                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg></span>
+                        Employee List
+                    </a>
+                    <a href="{{ url_for('hr.employee_new') }}">
+                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg></span>
+                        Add Employee
+                    </a>
+                    <a href="{{ url_for('hr.salary_dashboard') }}">
+                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M6 1v3"/><path d="M14 1v3"/><path d="M2 9h16"/></svg></span>
+                        Salary Dashboard
+                    </a>
+                    <a href="{{ url_for('reports_center') }}">
+                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg></span>
+                        HR Reports
+                    </a>
+                    <a href="{{ url_for('hr.employee_list') }}">
+                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+                        Monthly Statement
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -373,11 +273,11 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var colors = ['#1a3a5c','#2d6da8','#4a90d9','#7bb3e8','#a8ccee','#d4e4f5'];
-    var colorOrange = '#f97316';
+    var colors = ['#1c568b','#2d6da8','#4a90d9','#7bb3e8','#a8ccee','#d4e4f5'];
     var colorGreen = '#22c55e';
+    var colorOrange = '#f97316';
     var colorRed = '#ef4444';
-    var colorAmber = '#f59e0b';
+    var colorViolet = '#8b5cf6';
 
     var deptCtx = document.getElementById('deptChart');
     if (deptCtx) {
@@ -385,9 +285,9 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'doughnut',
             data: {
                 labels: [{% for d in departments %}'{{ d|e }}',{% endfor %}],
-                datasets: [{ data: [{% for d in departments %}{{ departments[d] }},{% endfor %}], backgroundColor: colors.slice(0, {{ departments|length }}), borderWidth: 0 }]
+                datasets: [{ data: [{% for d in departments %}{{ departments[d] }},{% endfor %}], backgroundColor: colors.slice(0, {{ departments|length }}), borderWidth: 0, hoverOffset: 6 }]
             },
-            options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
+            options: { responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
         });
     }
 
@@ -397,9 +297,9 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'doughnut',
             data: {
                 labels: [{% for t in employee_types %}'{{ t|e }}',{% endfor %}],
-                datasets: [{ data: [{% for t in employee_types %}{{ employee_types[t] }},{% endfor %}], backgroundColor: [colorGreen, colorOrange, '#7b1fa2', '#0ea5e9'], borderWidth: 0 }]
+                datasets: [{ data: [{% for t in employee_types %}{{ employee_types[t] }},{% endfor %}], backgroundColor: [colorGreen, colorOrange, colorViolet, '#0ea5e9'], borderWidth: 0, hoverOffset: 6 }]
             },
-            options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
+            options: { responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
         });
     }
 
@@ -409,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'bar',
             data: {
                 labels: [{% for m in trend_months %}'{{ m }}',{% endfor %}],
-                datasets: [{ label: 'Entries', data: [{% for c in trend_counts %}{{ c }},{% endfor %}], backgroundColor: '#1a3a5c', borderRadius: 4 }]
+                datasets: [{ label: 'Entries', data: [{% for c in trend_counts %}{{ c }},{% endfor %}], backgroundColor: '#1c568b', borderRadius: 6, maxBarThickness: 28 }]
             },
             options: { responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } }, plugins:{ legend:{ display:false } } }
         });
@@ -421,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
             type: 'pie',
             data: {
                 labels: ['Active', 'On Leave', 'Inactive'],
-                datasets: [{ data: [{{ active_count }}, {{ on_leave }}, {{ inactive_count }}], backgroundColor: [colorGreen, colorOrange, colorRed], borderWidth: 0 }]
+                datasets: [{ data: [{{ active_count }}, {{ on_leave }}, {{ inactive_count }}], backgroundColor: [colorGreen, colorOrange, colorRed], borderWidth: 0, hoverOffset: 6 }]
             },
             options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
         });
