@@ -233,6 +233,8 @@ def hr_dashboard():
             trend_months=trend_months,
             trend_counts=trend_counts,
             recent_employees=recent,
+            employees=employees,
+            today=date.today().isoformat(),
         )
     except Exception as e:
         import traceback
@@ -240,6 +242,73 @@ def hr_dashboard():
         current_app.logger.error("HR dashboard error: %s | type=%s\n%s", e, type(e).__name__, tb)
         flash(f"HR Dashboard error: {type(e).__name__}: {e}\n\nTraceback:\n{tb[:2000]}", "error")
         return redirect(url_for("dashboard"))
+
+
+# ── Quick Transaction (record advance/loan/payment for any employee) ──────
+
+@hr_bp.route("/hr/transactions/quick", methods=["GET", "POST"])
+@_login_required("admin")
+def quick_transaction():
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    today = date.today().isoformat()
+
+    employees = db.execute(
+        "SELECT employee_id, full_name, employee_type, department, status FROM employees ORDER BY full_name"
+    ).fetchall()
+
+    if request.method == "POST":
+        employee_id = request.form.get("employee_id", "").strip()
+        form_values = {
+            "entry_date": request.form.get("entry_date", today).strip() or today,
+            "amount": request.form.get("amount", "0").strip(),
+            "source": request.form.get("source", "Cash").strip(),
+            "given_by": request.form.get("given_by", "").strip(),
+            "details": request.form.get("details", "").strip(),
+        }
+        try:
+            amount = _parse_decimal(form_values["amount"], "Amount", minimum=0.01)
+            if not form_values["given_by"]:
+                raise ValidationError("Given by (person name) is required.")
+            if not form_values["details"]:
+                raise ValidationError("Details / reason is required.")
+            txn_type = request.form.get("txn_type", "Advance").strip()
+            salary_month = request.form.get("salary_month", "").strip() or _current_month_value()
+
+            employee = _fetch_employee(db, employee_id)
+            if employee is None:
+                raise ValidationError("Please select a valid employee.")
+
+            result = db.execute(
+                """INSERT INTO driver_transactions (driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (employee_id, form_values["entry_date"], salary_month, txn_type, form_values["source"],
+                 form_values["given_by"], amount, form_values["details"]),
+            )
+            new_txn_id = result.lastrowid
+            if form_values["source"] == "Owner Fund" and new_txn_id:
+                try:
+                    db.execute(
+                        """INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details, source_table, source_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (form_values["given_by"], form_values["entry_date"], amount,
+                         form_values["given_by"], "Cash", "OUT",
+                         form_values["details"], "driver_transactions", new_txn_id),
+                    )
+                except Exception:
+                    pass
+            _audit_log(db, "employee_transaction_created", entity_type="employee_transaction", entity_id=employee_id, details=f"AED {amount:.2f} / {form_values['source']} / {form_values['details']}")
+            db.commit()
+            flash(f"AED {amount:.2f} recorded for {employee['full_name']} ({employee_id}).", "success")
+            return redirect(url_for("hr.hr_dashboard"))
+        except ValidationError as exc:
+            flash(str(exc), "error")
+
+    db.close()
+    return render_template(
+        "hr/quick_transaction.html",
+        employees=employees,
+        today=today,
+    )
 
 
 # ── Employee List ────────────────────────────────────────────────

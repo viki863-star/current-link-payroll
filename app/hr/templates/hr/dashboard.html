@@ -61,6 +61,65 @@
 
     </div>
 
+    {# ─── Quick Transaction ─── #}
+    <div class="chart-card" style="margin-top:1rem">
+        <h3 style="display:flex;align-items:center;gap:6px">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+            Quick Transaction
+            <a href="{{ url_for('hr.quick_transaction') }}" style="margin-left:auto;font-size:0.7rem;color:var(--orange);font-weight:600">Full page &rarr;</a>
+        </h3>
+        <form method="POST" action="{{ url_for('hr.quick_transaction') }}" class="dv2-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="dv2-form-group">
+                <label class="dv2-form-label">Employee *</label>
+                <select name="employee_id" class="dv2-select" required>
+                    <option value="">— Select Employee —</option>
+                    {% for e in employees %}
+                    <option value="{{ e.employee_id }}">{{ e.full_name }} ({{ e.employee_id }}) — {{ e.employee_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="dv2-form-group">
+                <label class="dv2-form-label">Type</label>
+                <select name="txn_type" class="dv2-select">
+                    <option value="Advance">Advance</option>
+                    <option value="Loan">Loan</option>
+                    <option value="Payment">Payment</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="dv2-form-group">
+                <label class="dv2-form-label">Amount (AED) *</label>
+                <input type="number" name="amount" class="dv2-input" required step="0.01" min="0.01" placeholder="0.00">
+            </div>
+            <div class="dv2-form-group">
+                <label class="dv2-form-label">Date</label>
+                <input type="date" name="entry_date" value="{{ today }}" class="dv2-input">
+            </div>
+            <div class="dv2-form-group">
+                <label class="dv2-form-label">Source</label>
+                <select name="source" class="dv2-select">
+                    <option value="Cash">Cash</option>
+                    <option value="Bank">Bank</option>
+                    <option value="Owner Fund">Owner Fund</option>
+                    <option value="Current Link">Current Link</option>
+                    <option value="Office">Office</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="dv2-form-group">
+                <label class="dv2-form-label">Given By *</label>
+                <input type="text" name="given_by" class="dv2-input" required placeholder="Person who issued">
+            </div>
+            <div class="dv2-form-group">
+                <label class="dv2-form-label">Details / Reason *</label>
+                <input type="text" name="details" class="dv2-input" required placeholder="Why this amount">
+            </div>
+            <input type="hidden" name="salary_month" value="{{ today[:7] }}">
+            <button type="submit" class="dv2-btn dv2-btn-primary" style="height:38px">Record</button>
+        </form>
+    </div>
+
     {# ─── Charts Row ─── #}
     <div class="chart-grid">
         <div class="chart-card">
@@ -104,6 +163,10 @@
         <div class="chart-card">
             <h3>Quick Access</h3>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <a class="quick-card" href="{{ url_for('hr.quick_transaction') }}" style="padding:10px 12px;font-size:0.78rem">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                    Quick Transaction
+                </a>
                 <a class="quick-card" href="{{ url_for('hr.employee_list') }}" style="padding:10px 12px;font-size:0.78rem">
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg>
                     Employee List
