@@ -2583,6 +2583,38 @@ def vat_quick():
 
     if request.method == "POST":
         action = request.form.get("action")
+        if action == "add_new_job":
+            try:
+                net = round(float(request.form.get("new_amount") or 0), 2)
+            except ValueError:
+                net = 0.0
+            category = (request.form.get("new_category") or "Other").strip()
+            description = (request.form.get("new_description") or "").strip()
+            entry_date = (request.form.get("new_date") or "").strip() or date.today().isoformat()
+            tax_mode = (request.form.get("new_tax_mode") or "Without Tax").strip()
+            supplier_name = (request.form.get("new_supplier_name") or "").strip()
+            supplier_bill_no = (request.form.get("new_supplier_bill_no") or "").strip()
+            supplier_trn = (request.form.get("new_supplier_trn") or "").strip()
+            if net <= 0:
+                flash("Amount must be greater than zero.", "error")
+                return redirect(url_for("fleet.vat_quick", vehicle=selected or None))
+            if tax_mode == "Tax Invoice":
+                tax_amount = round(net * 0.05, 2)
+                amount_total = round(net + tax_amount, 2)
+            else:
+                tax_amount = 0.0
+                amount_total = net
+            db.execute(
+                "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, status, tax_mode, tax_amount, staff_amount, created_at, supplier_name, supplier_trn, supplier_bill_no) "
+                "VALUES (?, 'admin', ?, ?, ?, 'approved', ?, ?, ?, ?, ?, ?, ?)",
+                (selected, amount_total, category, description, tax_mode, tax_amount, net, entry_date, supplier_name or None, supplier_trn or None, supplier_bill_no or None),
+            )
+            if supplier_name:
+                _upsert_maintenance_supplier(db, supplier_name, supplier_trn or None)
+            db.commit()
+            flash(f"New job added for {selected} (net {net:.2f}{' + VAT ' + format(tax_amount, '.2f') if tax_mode == 'Tax Invoice' else ''}).", "success")
+            return redirect(url_for("fleet.vat_quick", vehicle=selected or None))
+
         job_id = request.form.get("job_id")
         try:
             job_id = int(job_id) if job_id else None

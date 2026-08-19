@@ -60,6 +60,57 @@
         <span class="vq-stat" style="color:#475569"><b>{{ summary.without_tax }}</b><span>Without Tax</span></span>
     </div>
 
+    {% if selected %}
+    <div class="profile-card" style="margin-top:14px">
+        <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('vqAddForm').style.display = document.getElementById('vqAddForm').style.display === 'none' ? 'block' : 'none'; this.textContent = document.getElementById('vqAddForm').style.display === 'none' ? '+ Add Missing Job for {{ selected }}' : 'Hide Add Job Form';" style="font-weight:600">+ Add Missing Job for {{ selected }}</button>
+        <div id="vqAddForm" style="display:none;margin-top:14px">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="add_new_job">
+                <input type="hidden" name="vehicle_plate" value="{{ selected }}">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 12px;align-items:end">
+                    <div>
+                        <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Date</label>
+                        <input type="date" name="new_date" value="{{ date.today().isoformat() }}" class="form-control">
+                    </div>
+                    <div>
+                        <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Net Amount (AED) <span style="color:#dc2626">*</span></label>
+                        <input type="number" name="new_amount" min="0" step="0.01" placeholder="0" class="form-control" required>
+                    </div>
+                    <div>
+                        <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Category</label>
+                        <input type="text" name="new_category" list="vqCatList" placeholder="e.g. Engine" class="form-control">
+                        <datalist id="vqCatList"><option value="Oil Change"><option value="Tyre"><option value="Engine"><option value="Body"><option value="Electrical"><option value="Brakes"><option value="AC"><option value="Other"></datalist>
+                    </div>
+                    <div>
+                        <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">VAT</label>
+                        <select name="new_tax_mode" class="form-control">
+                            <option value="Without Tax">Without VAT</option>
+                            <option value="Tax Invoice">VAT 5%</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Workshop (optional)</label>
+                        <input type="text" name="new_supplier_name" list="vqSupplierList" placeholder="Workshop name" autocomplete="off" class="form-control">
+                    </div>
+                    <div>
+                        <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Bill No (optional)</label>
+                        <input type="text" name="new_supplier_bill_no" placeholder="e.g. INV-0042" class="form-control">
+                    </div>
+                    <div>
+                        <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Description</label>
+                        <input type="text" name="new_description" placeholder="Work done (optional)" class="form-control">
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:end">
+                        <button type="submit" class="btn btn-sm btn-primary" style="white-space:nowrap">+ Add Job</button>
+                    </div>
+                </div>
+                <p style="font-size:0.76rem;color:var(--muted);margin:10px 0 0">Entry directly 'approved' ban jayegi. Agar VAT 5% select kiya to net + 5% add ho kar total banega, aur VAT report mein aa jayegi. Field staff balance par koi asar nahi.</p>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     {% if results %}
     <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 8px">
         <span style="font-size:0.78rem;color:var(--muted)">Sort by Date:</span>
