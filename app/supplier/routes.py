@@ -3267,13 +3267,7 @@ def supplier_doc_delete(sup_id, doc_id):
     return redirect(url_for("supplier.supplier_doc_list", sup_id=sup_id))
 
 
-@supplier_bp.route("/purchase-report")
-def supplier_purchase_report():
-    _ensure_tables()
-    db = _get_db()
-    from_filter = request.args.get("from", "")
-    to_filter = request.args.get("to", "")
-
+def _supplier_purchase_rows(db, from_filter, to_filter):
     inv_where = ""
     inv_params = []
     if from_filter:
@@ -3353,6 +3347,17 @@ def supplier_purchase_report():
     total_net = sum(r["net_sale"] for r in rows)
     total_vat = sum(r["vat_amount"] for r in rows)
     total_gross = sum(r["total_amount"] for r in rows)
+    return rows, total_net, total_vat, total_gross
+
+
+@supplier_bp.route("/purchase-report")
+def supplier_purchase_report():
+    _ensure_tables()
+    db = _get_db()
+    from_filter = request.args.get("from", "")
+    to_filter = request.args.get("to", "")
+
+    rows, total_net, total_vat, total_gross = _supplier_purchase_rows(db, from_filter, to_filter)
     db.close()
     return render_template(
         "supplier/purchase_report.html",
@@ -3363,6 +3368,146 @@ def supplier_purchase_report():
         from_filter=from_filter,
         to_filter=to_filter,
     )
+
+
+@supplier_bp.route("/purchase-report/export/excel")
+def supplier_purchase_report_excel():
+    _ensure_tables()
+    db = _get_db()
+    from_filter = request.args.get("from", "")
+    to_filter = request.args.get("to", "")
+
+    rows, total_net, total_vat, total_gross = _supplier_purchase_rows(db, from_filter, to_filter)
+    db.close()
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Purchase Report"
+
+    hf = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+    hfill = PatternFill("solid", fgColor="1a3a5c")
+    center = Alignment(horizontal="center", vertical="center")
+    right = Alignment(horizontal="right", vertical="center")
+    thin = Side(style="thin", color="d8e4f5")
+    border = Border(top=thin, left=thin, right=thin, bottom=thin)
+
+    heads = ["Date", "Type", "Ref / Invoice No", "Supplier", "Net Purchase (AED)", "VAT (AED)", "GROSS Purchase (AED)"]
+    for ci, h in enumerate(heads, 1):
+        c = ws.cell(row=1, column=ci, value=h)
+        c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
+
+    period = f"{from_filter or 'All'} to {to_filter or 'All'}"
+    ws.cell(row=2, column=1, value=f"Period: {period}").font = Font(italic=True, color="6b7280", size=10)
+
+    for ri, row in enumerate(rows, 3):
+        vals = [row["invoice_date"], row["source_type"], row["invoice_no"],
+                row["supplier_name"], row["net_sale"], row["vat_amount"], row["total_amount"]]
+        for ci, v in enumerate(vals, 1):
+            c = ws.cell(row=ri, column=ci, value=v)
+            c.border = border
+            if ci >= 5: c.alignment = right; c.number_format = '#,##0.00'
+            if ci == 6: c.font = Font(color="f7931e")
+
+    tr = 3 + len(rows)
+    totals = ["", "", "", "TOTALS", total_net, total_vat, total_gross]
+    tf = Font(bold=True, size=11)
+    tfill = PatternFill("solid", fgColor="f5f8fe")
+    for ci, v in enumerate(totals, 1):
+        c = ws.cell(row=tr, column=ci, value=v)
+        c.font = tf; c.fill = tfill; c.border = border
+        if ci >= 5: c.alignment = right; c.number_format = '#,##0.00'
+
+    ws.column_dimensions["A"].width = 14
+    ws.column_dimensions["B"].width = 10
+    ws.column_dimensions["C"].width = 16
+    ws.column_dimensions["D"].width = 30
+    for col in ["E","F","G"]: ws.column_dimensions[col].width = 18
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fn = f"Supplier_Purchase_Report_{from_filter or 'start'}_to_{to_filter or 'end'}.xlsx"
+    return send_file(buf, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                     as_attachment=True, download_name=fn)
+
+
+@supplier_bp.route("/purchase-report/export/pdf")
+def supplier_purchase_report_pdf():
+    _ensure_tables()
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import ParagraphStyle
+
+    db = _get_db()
+    from_filter = request.args.get("from", "")
+    to_filter = request.args.get("to", "")
+
+    rows, total_net, total_vat, total_gross = _supplier_purchase_rows(db, from_filter, to_filter)
+    company = db.execute("SELECT company_name, theme_color FROM company_profile LIMIT 1").fetchone()
+    db.close()
+
+    buf = BytesIO()
+    LM, RM, TM, BM = 15*mm, 15*mm, 15*mm, 15*mm
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = landscape(A4)[0] - LM - RM
+
+    tc = (company["theme_color"] or "#1a3a5c") if company else "#1a3a5c"
+    try: TH = colors.HexColor(tc)
+    except: TH = colors.HexColor("#1a3a5c")
+    WH = colors.white; C5 = colors.HexColor("#6b7280")
+
+    def F(name, **kw):
+        kw.setdefault("fontSize", 7); kw.setdefault("leading", 10)
+        return ParagraphStyle(name, **kw)
+
+    els = []
+    cn = company["company_name"] if company else "Purchase Report"
+    els.append(Paragraph(f"<b>{cn}</b>", F("T", fontSize=12, textColor=TH, spaceAfter=2)))
+    els.append(Paragraph(f"Supplier Purchase Report — Period: {from_filter or 'Start'} to {to_filter or 'End'}",
+                         F("P", fontSize=7, textColor=C5, spaceAfter=10)))
+    els.append(Spacer(1, 3*mm))
+
+    hdr = ["Date", "Type", "Ref / Invoice No", "Supplier", "Net Purchase", "VAT", "GROSS Purchase"]
+    data = [hdr]
+    for row in rows:
+        data.append([
+            str(row["invoice_date"] or "—"),
+            row["source_type"],
+            str(row["invoice_no"] or "—"),
+            row["supplier_name"],
+            f"{row['net_sale']:,.2f}",
+            f"{row['vat_amount']:,.2f}",
+            f"{row['total_amount']:,.2f}",
+        ])
+
+    data.append(["", "", "", "TOTALS", f"{total_net:,.2f}", f"{total_vat:,.2f}", f"{total_gross:,.2f}"])
+
+    col_w = [W*0.10, W*0.08, W*0.13, W*0.29, W*0.13, W*0.13, W*0.14]
+    tbl = Table(data, colWidths=col_w, repeatRows=1)
+    tbl.setStyle(TableStyle([
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 7),
+        ("BACKGROUND", (0,0), (-1,0), TH),
+        ("TEXTCOLOR", (0,0), (-1,0), WH),
+        ("ALIGN", (0,0), (-1,-1), "LEFT"),
+        ("ALIGN", (4,0), (-1,-1), "RIGHT"),
+        ("TEXTCOLOR", (5,1), (5,-2), colors.HexColor("#f7931e")),
+        ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
+        ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f5f8fe")),
+        ("TOPPADDING", (0,0), (-1,-1), 4),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#d8e4f5")),
+    ]))
+    els.append(tbl)
+
+    doc.build(els)
+    buf.seek(0)
+    fn = f"Supplier_Purchase_Report_{from_filter or 'start'}_to_{to_filter or 'end'}.pdf"
+    return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=fn)
 
 
 # ═══════════════════════════════════════════════════════════
