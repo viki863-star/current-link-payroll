@@ -2559,6 +2559,10 @@ def vat_quick():
     vehicles = db.execute("SELECT plate_no, vehicle_type FROM vehicles ORDER BY vehicle_type, plate_no").fetchall()
 
     selected = (request.args.get("vehicle") or "").strip()
+    sort_dir = (request.args.get("sort") or "desc").lower()
+    if sort_dir not in ("asc", "desc"):
+        sort_dir = "desc"
+    sort_clause = "ORDER BY mj.created_at ASC, mj.id ASC" if sort_dir == "asc" else "ORDER BY mj.created_at DESC, mj.id DESC"
     results = []
     summary = {"total": 0.0, "vat": 0.0, "without_tax": 0, "with_vat": 0}
     if selected:
@@ -2568,7 +2572,7 @@ def vat_quick():
                 FROM maintenance_jobs mj
                 LEFT JOIN field_staff s ON s.staff_id = mj.staff_id
                 WHERE mj.vehicle_id = ? AND mj.status IN ('approved','pending','rejected')
-                ORDER BY mj.created_at DESC, mj.id DESC""",
+                {sort_clause}""",
             (selected,),
         ).fetchall()
         results = [dict(r) for r in results]
@@ -2645,6 +2649,7 @@ def vat_quick():
         "fleet/vat_quick.html",
         vehicles=vehicles,
         selected=selected,
+        sort_dir=sort_dir,
         results=results,
         summary=summary,
         supplier_suggestions=supplier_suggestions,
