@@ -2752,6 +2752,7 @@ def vat_pending():
             LEFT JOIN field_staff s ON s.staff_id = mj.staff_id
             WHERE mj.status = 'approved'
               AND (mj.tax_mode IS NULL OR mj.tax_mode != 'Tax Invoice')
+              AND mj.attachment_data IS NOT NULL AND mj.attachment_data != ''
               {hide_clause}
             ORDER BY mj.created_at DESC, mj.id DESC""",
     ).fetchall()
@@ -2765,7 +2766,7 @@ def vat_pending():
     }
     if not show_hidden:
         hidden_rows = db.execute(
-            "SELECT COUNT(*) AS c FROM maintenance_jobs WHERE status='approved' AND (tax_mode IS NULL OR tax_mode != 'Tax Invoice') AND vat_check='no_vat'"
+            "SELECT COUNT(*) AS c FROM maintenance_jobs WHERE status='approved' AND (tax_mode IS NULL OR tax_mode != 'Tax Invoice') AND vat_check='no_vat' AND attachment_data IS NOT NULL AND attachment_data != ''"
         ).fetchone()["c"]
         summary["hidden"] = hidden_rows or 0
 
