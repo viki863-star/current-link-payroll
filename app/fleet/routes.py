@@ -2222,12 +2222,49 @@ def fleet_attachment(job_id):
     import base64
     from io import BytesIO
     data = base64.b64decode(job["attachment_data"])
-    return send_file(
+    resp = send_file(
         BytesIO(data),
         mimetype=job["attachment_type"] or "application/octet-stream",
         as_attachment=False,
         download_name=job["attachment_name"] or f"attachment_{job_id}",
     )
+    resp.headers["Cache-Control"] = "public, max-age=604800"
+    return resp
+
+
+@fleet_bp.route("/fleet/attachment/<int:job_id>/thumb")
+def fleet_attachment_thumb(job_id):
+    db = open_db()
+    job = db.execute("SELECT attachment_data, attachment_name, attachment_type FROM maintenance_jobs WHERE id = ?", (job_id,)).fetchone()
+    if not job or not job["attachment_data"]:
+        return ("", 404)
+    import base64
+    from io import BytesIO
+    data = base64.b64decode(job["attachment_data"])
+    mime = job["attachment_type"] or "application/octet-stream"
+    try:
+        if mime.startswith("image"):
+            from PIL import Image, ImageOps
+            img = Image.open(BytesIO(data))
+            img = ImageOps.exif_transpose(img)
+            img.thumbnail((256, 256))
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+            out = BytesIO()
+            img.save(out, format="JPEG", quality=70)
+            data = out.getvalue()
+            mime = "image/jpeg"
+    except Exception:
+        pass
+    resp = send_file(
+        BytesIO(data),
+        mimetype=mime,
+        as_attachment=False,
+        download_name=f"thumb_{job_id}",
+    )
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    resp.headers["ETag"] = f'"j{job_id}-{len(data)}"'
+    return resp
 
 
 # ═════════════════════════════════════════════════════════════════
