@@ -123,6 +123,7 @@
                 <thead>
                     <tr>
                         <th style="min-width:110px">Date</th>
+                        <th style="min-width:64px">Photo</th>
                         <th>Staff</th>
                         <th>Net</th>
                         <th>VAT</th>
@@ -135,6 +136,20 @@
                     {% for j in results %}
                     <tr>
                         <td class="mono" style="white-space:nowrap">{{ fmt_dt(j.created_at, '%d %b %Y') }}</td>
+                        <td style="white-space:nowrap">
+                            {% if j.has_attachment and j.attachment_type and j.attachment_type.startswith('image') %}
+                            <a href="/fleet/attachment/{{ j.id }}" target="_blank" title="{{ j.attachment_name }}"
+                               style="display:block;width:56px;height:56px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#f8fafc">
+                                <img src="/fleet/attachment/{{ j.id }}" alt="Job {{ j.id }} photo" loading="lazy"
+                                     style="width:100%;height:100%;object-fit:cover;display:block">
+                            </a>
+                            {% elif j.has_attachment %}
+                            <a href="/fleet/attachment/{{ j.id }}" target="_blank" title="View attached file: {{ j.attachment_name }}"
+                               class="btn btn-xs btn-outline">&#128196; File</a>
+                            {% else %}
+                            <span style="color:var(--muted);font-size:0.7rem">—</span>
+                            {% endif %}
+                        </td>
                         <td>{{ j.staff_name or '-' }}</td>
                         <td class="mono vq-mono" style="font-weight:600">AED {{ "%.2f"|format(j.net_amount) }}</td>
                         <td class="mono vq-mono" style="color:#b45309">AED {{ "%.2f"|format(j.tax_amount or 0) }}</td>
