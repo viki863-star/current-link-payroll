@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Quick VAT Editor — Fleet{% endblock %}
+{% block body_class %}list-body{% endblock %}
+{% block page_title %}Quick VAT Editor{% endblock %}
+
+{% block content %}
+<style>
+.vq-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+.vq-toolbar h3 { margin:0; font-size:1.15rem; display:flex; align-items:center; gap:8px; color:var(--orange); }
+.vq-searchbar { display:flex; gap:8px; align-items:end; flex-wrap:wrap; }
+.vq-searchbar input[type="text"] { min-width:260px; }
+.vq-stat { background:#fff; border:1px solid var(--line); border-radius:12px; padding:8px 16px; text-align:center; }
+.vq-stat b { display:block; font-size:1.05rem; }
+.vq-stat span { font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; }
+.vq-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.vq-row input[type="number"] { width:110px; }
+.vq-row input[type="text"] { width:150px; }
+.vq-row .ext { font-size:0.7rem; color:var(--muted); }
+.vq-hint { font-size:0.78rem; color:var(--muted); margin-top:6px; }
+.vq-mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+</style>
+
+<div class="list-shell">
+    <div class="vq-toolbar">
+        <h3>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M6.5 20a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/><path d="M11 4 14 8 6 11l-3-4z"/><circle cx="13" cy="15.5" r="2.5"/></svg>
+            Quick VAT Editor
+        </h3>
+        {% if selected %}
+        <a href="{{ url_for('fleet.fleet_vehicle_price_report') if false else '#' }}" style="display:none"></a>
+        <a href="{{ url_for('fleet.vehicle_profile', plate_no=selected) }}" class="btn btn-outline btn-sm">Open Vehicle Profile</a>
+        {% endif %}
+    </div>
+
+    <div class="profile-card">
+        <form method="GET" class="vq-searchbar">
+            <div>
+                <label style="font-size:0.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Search Vehicle</label>
+                <input type="text" name="vehicle" value="{{ selected }}" list="vqVehicleList" placeholder="Type plate no or general expense..." autocomplete="off" class="form-control">
+                <datalist id="vqVehicleList">
+                    {% for v in vehicles %}
+                    <option value="{{ v.plate_no }}">{% if v.vehicle_type %}{{ v.vehicle_type }}{% endif %}</option>
+                    {% endfor %}
+                    <option value="N/A">General Expense</option>
+                </datalist>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Load Jobs</button>
+            {% if selected %}
+            <a href="{{ url_for('fleet.vat_quick') }}" class="btn btn-outline btn-sm">Clear</a>
+            {% endif %}
+        </form>
+        <p class="vq-hint">Vehicle submit karo — us ke saare jobs dikhenge. Har job par <strong>Add VAT 5%</strong> se ek click mein VAT lag jata hai (net + 5%). Workshop/bill number optional hain — baad mein full edit se bhi bhar sakte hain. Field staff ki available balance kabhi change nahi hoti.</p>
+    </div>
+
+    {% if selected %}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0">
+        <span class="vq-stat"><b>AED {{ "{:,.2f}".format(summary.total) }}</b><span>Total All Jobs</span></span>
+        <span class="vq-stat" style="color:#b45309"><b>AED {{ "{:,.2f}".format(summary.vat) }}</b><span>Total VAT</span></span>
+        <span class="vq-stat" style="color:#92400e"><b>{{ summary.with_vat }}</b><span>With VAT</span></span>
+        <span class="vq-stat" style="color:#475569"><b>{{ summary.without_tax }}</b><span>Without Tax</span></span>
+    </div>
+
+    {% if results %}
+    <div class="profile-card" style="margin-top:4px">
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Staff</th>
+                        <th>Net</th>
+                        <th>VAT</th>
+                        <th>Tax Mode</th>
+                        <th>Category / Notes</th>
+                        <th style="min-width:300px">Quick VAT</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for j in results %}
+                    <tr>
+                        <td class="mono">{{ fmt_dt(j.created_at, '%Y-%m-%d') }}</td>
+                        <td>{{ j.staff_name or '-' }}</td>
+                        <td class="mono vq-mono" style="font-weight:600">AED {{ "%.2f"|format(j.net_amount) }}</td>
+                        <td class="mono vq-mono" style="color:#b45309">AED {{ "%.2f"|format(j.tax_amount or 0) }}</td>
+                        <td>
+                            {% if j.tax_mode == 'Tax Invoice' %}
+                            <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a">VAT 5%
+                                {%- if j.supplier_name %} &middot; {{ j.supplier_name }}{% endif -%}
+                                {%- if j.supplier_bill_no %} &middot; {{ j.supplier_bill_no }}{% endif -%}
+                            </span>
+                            {% else %}
+                            <span class="badge" style="background:#f1f5f9;color:#475569">No VAT</span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width:170px;white-space:normal;font-size:0.75rem">
+                            <span class="badge badge-type">{{ j.category }}</span>
+                            {% if j.description %}<div style="margin-top:2px;color:var(--muted)">{{ j.description }}</div>{% endif %}
+                        </td>
+                        <td>
+                            {% if j.tax_mode == 'Tax Invoice' %}
+                            <div class="vq-row">
+                                <span class="ext">VAT already added ({{ "%.2f"|format(j.tax_amount or 0) }})</span>
+                                <form method="POST" style="display:inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="remove_vat">
+                                    <input type="hidden" name="job_id" value="{{ j.id }}">
+                                    <button type="submit" class="btn btn-xs btn-outline" style="color:var(--orange);border-color:var(--orange)">Remove VAT</button>
+                                </form>
+                                <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline">Edit</a>
+                            </div>
+                            {% else %}
+                            <form method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="add_vat">
+                                <input type="hidden" name="job_id" value="{{ j.id }}">
+                                <div class="vq-row">
+                                    <input type="number" step="0.01" min="0" name="net_amount" value="{{ "%.2f"|format(j.net_amount) }}" class="form-control" title="Net amount (staff credit)">
+                                    <input type="text" name="supplier_name" list="vqSupplierList" placeholder="Workshop (optional)" autocomplete="off" class="form-control">
+                                    <input type="text" name="supplier_bill_no" placeholder="Bill No (optional)" class="form-control">
+                                    <button type="submit" class="btn btn-xs btn-primary" style="background:#d97706;border-color:#d97706;white-space:nowrap">Add VAT 5%</button>
+                                </div>
+                                <div class="ext" style="margin-top:4px">net + 5% = total; balance frozen</div>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="profile-card">
+        <p class="empty-state">No jobs found for this vehicle.</p>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="profile-card">
+        <p class="empty-state">Upar vehicle plate number search karo (ya General Expense) — us ke saare jobs yahan ek saath dikhenge aur VAT jaldi lagega.</p>
+    </div>
+    {% endif %}
+</div>
+
+<datalist id="vqSupplierList">
+    {% for s in supplier_suggestions or [] %}
+    <option value="{{ s }}">
+    {% endfor %}
+</datalist>
+{% endblock %}

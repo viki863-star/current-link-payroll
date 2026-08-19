@@ -2551,6 +2551,106 @@ def fuel_supplier_statement_pdf(supplier_id):
     flash("PDF coming soon.", "info")
     return redirect(url_for("fleet.fuel_supplier_statement", supplier_id=supplier_id))
 
+@fleet_bp.route("/fleet/vat-quick", methods=["GET", "POST"])
+@_login_required("admin")
+def vat_quick():
+    _touch_admin_workspace("fleet")
+    db = open_db()
+    vehicles = db.execute("SELECT plate_no, vehicle_type FROM vehicles ORDER BY vehicle_type, plate_no").fetchall()
+
+    selected = (request.args.get("vehicle") or "").strip()
+    results = []
+    summary = {"total": 0.0, "vat": 0.0, "without_tax": 0, "with_vat": 0}
+    if selected:
+        results = db.execute(
+            f"""SELECT {_MJ_LIST_COLS}, (mj.amount - mj.tax_amount) AS net_amount,
+                       COALESCE(s.full_name, 'Admin') AS staff_name
+                FROM maintenance_jobs mj
+                LEFT JOIN field_staff s ON s.staff_id = mj.staff_id
+                WHERE mj.vehicle_id = ? AND mj.status IN ('approved','pending','rejected')
+                ORDER BY mj.created_at DESC, mj.id DESC""",
+            (selected,),
+        ).fetchall()
+        results = [dict(r) for r in results]
+        summary["total"] = round(sum(float(r["amount"] or 0) for r in results), 2)
+        summary["vat"] = round(sum(float(r["tax_amount"] or 0) for r in results), 2)
+        summary["with_vat"] = sum(1 for r in results if r["tax_mode"] == "Tax Invoice")
+        summary["without_tax"] = sum(1 for r in results if r["tax_mode"] != "Tax Invoice")
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        job_id = request.form.get("job_id")
+        try:
+            job_id = int(job_id) if job_id else None
+        except (TypeError, ValueError):
+            job_id = None
+        job = db.execute("SELECT * FROM maintenance_jobs WHERE id = ?", (job_id,)).fetchone() if job_id else None
+        if job is None:
+            flash("Job not found.", "error")
+            return redirect(url_for("fleet.vat_quick", vehicle=selected or None))
+        if action == "add_vat":
+            try:
+                net = round(float(request.form.get("net_amount") or 0), 2)
+            except ValueError:
+                net = round(float(job["amount"]) - float(job["tax_amount"] or 0), 2)
+            if net < 0:
+                net = 0.0
+            tax = round(net * 0.05, 2)
+            total = round(net + tax, 2)
+            supplier_name = (request.form.get("supplier_name") or "").strip() or job["supplier_name"]
+            supplier_bill_no = (request.form.get("supplier_bill_no") or "").strip() or job["supplier_bill_no"]
+            supplier_trn = (request.form.get("supplier_trn") or "").strip() or job["supplier_trn"]
+            db.execute(
+                """UPDATE maintenance_jobs
+                   SET amount=?, tax_mode='Tax Invoice', tax_amount=?,
+                       supplier_name=?, supplier_bill_no=?, supplier_trn=?
+                   WHERE id=?""",
+                (total, tax, supplier_name or None, supplier_bill_no or None, supplier_trn or None, job_id),
+            )
+            if supplier_name:
+                _upsert_maintenance_supplier(db, supplier_name, supplier_trn or None)
+            flash(f"Job #{job_id}: VAT 5% added (net {net:.2f} + VAT {tax:.2f} = {total:.2f}). Staff balance untouched.", "success")
+        elif action == "remove_vat":
+            net = round(float(job["amount"]) - float(job["tax_amount"] or 0), 2)
+            db.execute(
+                "UPDATE maintenance_jobs SET amount=?, tax_mode='Without Tax', tax_amount=0 WHERE id=?",
+                (net, job_id),
+            )
+            flash(f"Job #{job_id}: VAT removed (back to {net:.2f}). Staff balance untouched.", "success")
+        db.commit()
+        return redirect(url_for("fleet.vat_quick", vehicle=selected or None))
+
+    _ensure_maintenance_suppliers_table(db)
+    supplier_suggestions = []
+    try:
+        supplier_rows = db.execute(
+            "SELECT DISTINCT supplier_name FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' "
+            "UNION SELECT DISTINCT supplier_name FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' "
+            "UNION SELECT DISTINCT name FROM maintenance_suppliers WHERE name IS NOT NULL AND name != '' "
+            "ORDER BY supplier_name ASC"
+        ).fetchall()
+        supplier_suggestions = [r[0] for r in supplier_rows]
+    except Exception:
+        try:
+            supplier_rows = db.execute(
+                "SELECT DISTINCT supplier_name FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' "
+                "UNION SELECT DISTINCT name FROM maintenance_suppliers WHERE name IS NOT NULL AND name != '' "
+                "ORDER BY supplier_name ASC"
+            ).fetchall()
+            supplier_suggestions = [r[0] for r in supplier_rows]
+        except Exception:
+            supplier_suggestions = []
+
+    return render_template(
+        "fleet/vat_quick.html",
+        vehicles=vehicles,
+        selected=selected,
+        results=results,
+        summary=summary,
+        supplier_suggestions=supplier_suggestions,
+    )
+
+
 @fleet_bp.route("/fleet/jobs/<int:job_id>/edit", methods=["GET", "POST"])
 @_login_required("admin")
 def fleet_job_edit(job_id):
