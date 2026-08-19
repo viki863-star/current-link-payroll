@@ -225,7 +225,7 @@
                         <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount|float) }}</td>
                         <td><span class="badge badge-type">{{ j.category }}</span></td>
                         <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
-                        <td>{% if j.has_attachment %}<a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">View</a>{% elif j.attachment_name %}<a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.7rem;color:var(--muted)">—</span>{% endif %}</td>
+                        <td>{% if j.edit_vehicle_id %}{% if j.attachment_name %}<a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.7rem;color:var(--muted)">—</span>{% endif %}{% else %}{% if j.has_attachment %}<a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">View</a>{% elif j.attachment_name %}<a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.7rem;color:var(--muted)">—</span>{% endif %}<a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline" title="Edit job (VAT/amount) — staff balance is not affected">Edit Job</a>{% endif %}</td>
                     </tr>
                     <tr id="paper-detail-{{ loop.index }}" style="{% if is_hl %}display:table-row{% else %}display:none{% endif %}">
                         <td colspan="6" style="padding:14px 18px;background:#f8fafd">
@@ -240,7 +240,7 @@
                                 {% if j.description %}<div style="grid-column:1/-1"><strong>Description:</strong> {{ j.description }}</div>{% endif %}
                                 {% if j.admin_notes %}<div style="grid-column:1/-1"><strong>Notes:</strong> {{ j.admin_notes }}</div>{% endif %}
                                 <div><strong>Status:</strong> <span class="status-badge {{ j.status|lower }}">{{ j.status }}</span></div>
-                                {% if j.category == 'Maintenance' %}
+                                {% if j.edit_vehicle_id %}
                                 {% if j.attachment_name %}
                                 <div style="grid-column:1/-1;margin-top:2px"><a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">&#128206; View Attachment</a></div>
                                 {% else %}
@@ -251,15 +251,17 @@
                                 {% else %}
                                 <div style="grid-column:1/-1;margin-top:2px"><span style="font-size:0.78rem;color:var(--muted)">No attachment</span></div>
                                 {% endif %}
-                                {% if j.category == 'Maintenance' %}
-                                <div style="grid-column:1/-1;margin-top:4px;display:flex;gap:8px">
-                                    <a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">&#9998; Edit</a>
-                                    <form method="post" action="/fleet-maintenance/{{ j.id }}/delete" onsubmit="return confirm('Delete paper {{ j.id }}?');" style="display:inline">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-xs btn-outline" style="color:#dc3545;border-color:#dc3545">&#10005; Delete</button>
-                                    </form>
-                                </div>
-                                {% endif %}
+                                {% if j.edit_vehicle_id %}
+                        <div style="grid-column:1/-1;margin-top:4px;display:flex;gap:8px">
+                            <a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">&#9998; Edit</a>
+                            <form method="post" action="/fleet-maintenance/{{ j.id }}/delete" onsubmit="return confirm('Delete paper {{ j.id }}?');" style="display:inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-xs btn-outline" style="color:#dc3545;border-color:#dc3545">&#10005; Delete</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline" style="grid-column:1/-1;margin-top:4px">&#9998; Edit Job</a>
+                        {% endif %}
                             </div>
                         </td>
                     </tr>
