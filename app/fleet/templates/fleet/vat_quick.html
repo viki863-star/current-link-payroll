@@ -112,13 +112,10 @@
     {% endif %}
 
     {% if results %}
-    <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 8px">
-        <span style="font-size:0.78rem;color:var(--muted)">Sort by Date:</span>
-        {% if sort_dir == 'asc' %}
-        <a href="{{ url_for('fleet.vat_quick', vehicle=selected, sort='desc') }}" class="btn btn-xs btn-outline">Newest First &darr;</a>
-        {% else %}
-        <a href="{{ url_for('fleet.vat_quick', vehicle=selected, sort='asc') }}" class="btn btn-xs btn-outline">Oldest First &uarr;</a>
-        {% endif %}
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap">
+        <span style="font-size:0.78rem;color:var(--muted)">Sort by:</span>
+        <a href="{{ url_for('fleet.vat_quick', vehicle=selected, field='date', sort='asc' if sort_field=='date' and sort_dir=='desc' else 'desc') }}" class="btn btn-xs {{ 'btn-primary' if sort_field=='date' else 'btn-outline' }}">Date{% if sort_field=='date' %}{% if sort_dir=='asc' %} &uarr;{% else %} &darr;{% endif %}{% endif %}</a>
+        <a href="{{ url_for('fleet.vat_quick', vehicle=selected, field='amount', sort='asc' if sort_field=='amount' and sort_dir=='desc' else 'desc') }}" class="btn btn-xs {{ 'btn-primary' if sort_field=='amount' else 'btn-outline' }}">Amount{% if sort_field=='amount' %}{% if sort_dir=='asc' %} &uarr;{% else %} &darr;{% endif %}{% endif %}</a>
     </div>
     <div class="profile-card" style="margin-top:4px">
         <div class="table-wrap">

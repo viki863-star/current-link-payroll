@@ -2559,10 +2559,14 @@ def vat_quick():
     vehicles = db.execute("SELECT plate_no, vehicle_type FROM vehicles ORDER BY vehicle_type, plate_no").fetchall()
 
     selected = (request.args.get("vehicle") or "").strip()
+    sort_field = (request.args.get("field") or "date").lower()
+    if sort_field not in ("date", "amount"):
+        sort_field = "date"
     sort_dir = (request.args.get("sort") or "desc").lower()
     if sort_dir not in ("asc", "desc"):
         sort_dir = "desc"
-    sort_clause = "ORDER BY mj.created_at ASC, mj.id ASC" if sort_dir == "asc" else "ORDER BY mj.created_at DESC, mj.id DESC"
+    order_col = "mj.created_at" if sort_field == "date" else "mj.amount"
+    sort_clause = f"ORDER BY {order_col} ASC, mj.id ASC" if sort_dir == "asc" else f"ORDER BY {order_col} DESC, mj.id DESC"
     results = []
     summary = {"total": 0.0, "vat": 0.0, "without_tax": 0, "with_vat": 0}
     if selected:
@@ -2682,6 +2686,7 @@ def vat_quick():
         vehicles=vehicles,
         selected=selected,
         sort_dir=sort_dir,
+        sort_field=sort_field,
         results=results,
         summary=summary,
         supplier_suggestions=supplier_suggestions,
