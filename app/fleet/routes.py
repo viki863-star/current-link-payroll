@@ -2722,13 +2722,30 @@ def vat_pending():
             supplier_name = (request.form.get("supplier_name") or "").strip() or job["supplier_name"]
             supplier_bill_no = (request.form.get("supplier_bill_no") or "").strip() or job["supplier_bill_no"]
             supplier_trn = (request.form.get("supplier_trn") or "").strip() or job["supplier_trn"]
-            db.execute(
-                """UPDATE maintenance_jobs
-                   SET amount=?, tax_mode='Tax Invoice', tax_amount=?,
-                       supplier_name=?, supplier_bill_no=?, supplier_trn=?, vat_check=NULL
-                   WHERE id=?""",
-                (total, tax, supplier_name or None, supplier_bill_no or None, supplier_trn or None, job_id),
-            )
+            job_date = (request.form.get("job_date") or "").strip()
+            if job_date:
+                ts = str(job["created_at"] or "")[:19]
+                if len(ts) >= 11 and (ts[10] == " " or "T" in ts):
+                    new_created_at = job_date + ts[10:19]
+                else:
+                    new_created_at = job_date
+                db.execute(
+                    """UPDATE maintenance_jobs
+                       SET amount=?, tax_mode='Tax Invoice', tax_amount=?,
+                           supplier_name=?, supplier_bill_no=?, supplier_trn=?,
+                           created_at=?, paper_date=?, vat_check=NULL
+                       WHERE id=?""",
+                    (total, tax, supplier_name or None, supplier_bill_no or None, supplier_trn or None,
+                     new_created_at, job_date, job_id),
+                )
+            else:
+                db.execute(
+                    """UPDATE maintenance_jobs
+                       SET amount=?, tax_mode='Tax Invoice', tax_amount=?,
+                           supplier_name=?, supplier_bill_no=?, supplier_trn=?, vat_check=NULL
+                       WHERE id=?""",
+                    (total, tax, supplier_name or None, supplier_bill_no or None, supplier_trn or None, job_id),
+                )
             if supplier_name:
                 _upsert_maintenance_supplier(db, supplier_name, supplier_trn or None)
             flash(f"Job #{job_id}: VAT 5% added (net {net:.2f} + VAT {tax:.2f} = {total:.2f}). Staff balance untouched — removed from pending list.", "success")
@@ -2757,6 +2774,8 @@ def vat_pending():
             ORDER BY mj.created_at DESC, mj.id DESC""",
     ).fetchall()
     rows = [dict(r) for r in rows]
+    for r in rows:
+        r["job_date"] = str(r.get("created_at") or "")[:10]
 
     summary = {
         "total": round(sum(float(r["amount"] or 0) for r in rows), 2),

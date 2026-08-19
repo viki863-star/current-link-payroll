@@ -109,6 +109,7 @@
                                 <input type="hidden" name="job_id" value="{{ j.id }}">
                                 <div class="vp-row">
                                     <input type="number" step="0.01" min="0" name="net_amount" value="{{ "%.2f"|format(j.net_amount) }}" class="form-control" title="Net amount (staff credit)">
+                                    <input type="date" name="job_date" value="{{ j.job_date or '' }}" class="form-control" title="Job date update (optional)">
                                     <input type="text" name="supplier_name" list="vpSupplierList" placeholder="Workshop (optional)" autocomplete="off" class="form-control">
                                     <input type="text" name="supplier_bill_no" placeholder="Bill No (optional)" class="form-control">
                                     <button type="submit" class="btn btn-xs btn-primary" style="background:#d97706;border-color:#d97706;white-space:nowrap">Add VAT 5%</button>
