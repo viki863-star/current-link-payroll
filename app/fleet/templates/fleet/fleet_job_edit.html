@@ -34,6 +34,12 @@
             </div>
 
             <div class="form-row">
+                <label class="form-label">Job Date</label>
+                <input type="date" name="job_date" class="form-control" value="{{ job_date or '' }}">
+                <small style="color:var(--muted);font-size:0.75rem;margin-top:4px">Job ki date badalne ke liye. Khaali chhor do to purani date he rehti hai.</small>
+            </div>
+
+            <div class="form-row">
                 <label class="form-label">Amount Spent (AED)</label>
                 <input type="number" name="amount" class="form-control" step="0.01" min="0" value="{{ '%.2f'|format(net_amount) }}" required>
                 <small class="vat-hint" id="amountHint" style="display:{{ 'block' if job.tax_mode == 'Tax Invoice' else 'none' }};color:#92400e;font-size:0.75rem;margin-top:6px">This stays the field staff's submitted/credit amount. If VAT is on, enter the net amount — 5% tax is added on top for the bill only.</small>

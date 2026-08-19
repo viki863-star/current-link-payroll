@@ -2830,6 +2830,7 @@ def fleet_job_edit(job_id):
         supplier_trn = request.form.get("supplier_trn", "").strip()
         supplier_bill_no = request.form.get("supplier_bill_no", "").strip()
         tax_mode = request.form.get("tax_mode", job["tax_mode"] or "Without Tax").strip() or "Without Tax"
+        job_date = request.form.get("job_date", "").strip()
 
         if not amount or not category:
             flash("Amount and category are required.", "error")
@@ -2867,18 +2868,29 @@ def fleet_job_edit(job_id):
         staff_amount = job["staff_amount"]
         if new_status == "approved" and staff_amount is None:
             staff_amount = round((job["amount"] or 0) - (job["tax_amount"] or 0), 2)
+
+        new_created_at = job["created_at"]
+        new_paper_date = job["paper_date"]
+        if job_date:
+            ts = str(job["created_at"] or "")[:19]
+            if len(ts) >= 11 and (ts[10] == " " or "T" in ts):
+                new_created_at = job_date + ts[10:19]
+            else:
+                new_created_at = job_date
+            new_paper_date = job_date
+
         db.execute(
             """UPDATE maintenance_jobs
                SET vehicle_id=?, amount=?, category=?, description=?,
                    attachment_name=?, attachment_data=?, attachment_type=?,
                    supplier_name=?, supplier_trn=?, supplier_bill_no=?,
                    tax_mode=?, tax_amount=?, staff_amount=?,
-                   status=?
+                   status=?, created_at=?, paper_date=?
                WHERE id=?""",
             (vehicle_id or "N/A", amount_total, category, description,
              attachment_name, attachment_data, attachment_type,
              supplier_name or None, supplier_trn or None, supplier_bill_no or None,
-             tax_mode, tax_amount, staff_amount, new_status, job_id),
+             tax_mode, tax_amount, staff_amount, new_status, new_created_at, new_paper_date, job_id),
         )
         db.commit()
         if supplier_name:
@@ -2893,6 +2905,7 @@ def fleet_job_edit(job_id):
         categories=MAINTENANCE_CATEGORIES,
         supplier_suggestions=supplier_suggestions,
         supplier_trn_map=supplier_trn_map,
+        job_date=str(job["created_at"] or "")[:10],
     )
 
 
