@@ -889,6 +889,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     approved_at TEXT,
     paper_date TEXT,
+    vat_check TEXT,
     FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no),
     FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
 );
@@ -1769,6 +1770,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     approved_at TIMESTAMP,
     paper_date TEXT,
+    vat_check TEXT,
     FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no),
     FOREIGN KEY(staff_id) REFERENCES field_staff(staff_id)
 );
@@ -2009,6 +2011,7 @@ REQUIRED_COLUMNS = {
         "tax_amount": "DOUBLE PRECISION NOT NULL DEFAULT 0",
         "staff_amount": "DOUBLE PRECISION",
         "paper_date": "TEXT",
+        "vat_check": "TEXT",
     },
     "owner_fund_entries": {
         "transaction_type": "TEXT NOT NULL DEFAULT 'IN'",

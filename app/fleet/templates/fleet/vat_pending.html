@@ -28,13 +28,16 @@
     </div>
 
     <div class="profile-card">
-        <p class="vp-hint">Yahan <strong>saari vehicles ke sirf without-VAT jobs</strong> dikh rahe hain (read/search ki zaroorat nahi). Pic par click kar ke paper confirm karo, phir <strong>Add VAT 5%</strong> se VAT laga do — job list se apne aap gayab ho jayegi. VAT report aur vehicle profile update ho jayenge; field staff ki balance kabhi change nahi hoti.</p>
+        <p class="vp-hint">Yahan <strong>saari vehicles ke sirf without-VAT jobs</strong> dikh rahe hain. <strong>Paper/Photo par click</strong> kar ke paper kholo: agar paper mein <strong>TAX hai</strong> → <strong>Add VAT 5%</strong> se VAT laga do (job list se hat jayegi, VAT report + vehicle profile update, balance frozen). Agar paper mein <strong>TAX nahi hai</strong> → <strong>No VAT (hide)</strong> dabao — job list se hide ho jayegi, koi change nahi hota. Aik aik kar ke saari check karo; hide hui jobs "<strong>Show hidden</strong>" se dobara dekh sakte ho.</p>
     </div>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0">
-        <span class="vp-stat"><b>{{ summary.count }}</b><span>Jobs Without VAT</span></span>
+        <span class="vp-stat"><b>{{ summary.count }}</b><span>Jobs To Check</span></span>
         <span class="vp-stat"><b>AED {{ "{:,.2f}".format(summary.total) }}</b><span>Total Amount</span></span>
         <span class="vp-stat" style="color:#475569"><b>{{ summary.with_photo }}</b><span>With Photo</span></span>
+        {% if summary.hidden %}
+        <a href="{{ url_for('fleet.vat_pending', show_hidden='1') }}" class="btn btn-outline btn-sm" style="align-self:center;white-space:nowrap">Show hidden ({{ summary.hidden }}) — No VAT confirmed</a>
+        {% endif %}
     </div>
 
     {% if rows %}
@@ -78,9 +81,28 @@
                             {% if j.description %}<div style="margin-top:2px;color:var(--muted)">{{ j.description }}</div>{% endif %}
                         </td>
                         <td>
+                            {% if show_hidden %}
+                            <div class="vp-row" style="margin-bottom:6px">
+                                <form method="POST" style="display:inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="unhide">
+                                    <input type="hidden" name="job_id" value="{{ j.id }}">
+                                    <input type="hidden" name="show_hidden" value="1">
+                                    <button type="submit" class="btn btn-xs btn-outline" title="Wapas pending list mein lao">Restore to list</button>
+                                </form>
+                            </div>
+                            {% else %}
                             <div class="vp-row" style="margin-bottom:6px">
                                 <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline" title="Open full edit form (paper dekh kar supplier/bill bharo)">Open &amp; Edit</a>
+                                <form method="POST" style="display:inline"
+                                      onsubmit="return confirm('Is paper mein TAX nahi hai, confirm? Job sirf list se hide hogi — koi change nahi hoga.')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="no_vat">
+                                    <input type="hidden" name="job_id" value="{{ j.id }}">
+                                    <button type="submit" class="btn btn-xs btn-outline" style="color:#475569;border-color:#cbd5e1" title="Paper mein tax nahi hai — is job ko list se hide karo (koi change nahi)">No VAT (hide)</button>
+                                </form>
                             </div>
+                            {% endif %}
                             <form method="POST">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="action" value="add_vat">

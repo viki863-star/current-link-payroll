@@ -2689,7 +2689,7 @@ def vat_quick():
         sort_field=sort_field,
         results=results,
         summary=summary,
-        state=state,
+        supplier_suggestions=supplier_suggestions,
     )
 
 
@@ -2725,16 +2725,26 @@ def vat_pending():
             db.execute(
                 """UPDATE maintenance_jobs
                    SET amount=?, tax_mode='Tax Invoice', tax_amount=?,
-                       supplier_name=?, supplier_bill_no=?, supplier_trn=?
+                       supplier_name=?, supplier_bill_no=?, supplier_trn=?, vat_check=NULL
                    WHERE id=?""",
                 (total, tax, supplier_name or None, supplier_bill_no or None, supplier_trn or None, job_id),
             )
             if supplier_name:
                 _upsert_maintenance_supplier(db, supplier_name, supplier_trn or None)
             flash(f"Job #{job_id}: VAT 5% added (net {net:.2f} + VAT {tax:.2f} = {total:.2f}). Staff balance untouched — removed from pending list.", "success")
+        elif action == "no_vat":
+            db.execute("UPDATE maintenance_jobs SET vat_check='no_vat' WHERE id=?", (job_id,))
+            flash(f"Job #{job_id} marked as No VAT — hidden from pending list (nothing changed).", "success")
+        elif action == "unhide":
+            db.execute("UPDATE maintenance_jobs SET vat_check=NULL WHERE id=?", (job_id,))
+            flash(f"Job #{job_id} restored to pending list.", "success")
         db.commit()
-        return redirect(url_for("fleet.vat_pending"))
+        return redirect(url_for("fleet.vat_pending", show_hidden=request.form.get("show_hidden") or ""))
 
+    show_hidden = (request.args.get("show_hidden") or "").strip()
+    hide_clause = "AND (mj.vat_check IS NULL OR mj.vat_check != 'no_vat')"
+    if show_hidden:
+        hide_clause = ""
     rows = db.execute(
         f"""SELECT {_MJ_LIST_COLS}, (mj.amount - mj.tax_amount) AS net_amount,
                    COALESCE(s.full_name, 'Admin') AS staff_name
@@ -2742,6 +2752,7 @@ def vat_pending():
             LEFT JOIN field_staff s ON s.staff_id = mj.staff_id
             WHERE mj.status = 'approved'
               AND (mj.tax_mode IS NULL OR mj.tax_mode != 'Tax Invoice')
+              {hide_clause}
             ORDER BY mj.created_at DESC, mj.id DESC""",
     ).fetchall()
     rows = [dict(r) for r in rows]
@@ -2750,7 +2761,13 @@ def vat_pending():
         "total": round(sum(float(r["amount"] or 0) for r in rows), 2),
         "count": len(rows),
         "with_photo": sum(1 for r in rows if r["has_attachment"]),
+        "hidden": 0,
     }
+    if not show_hidden:
+        hidden_rows = db.execute(
+            "SELECT COUNT(*) AS c FROM maintenance_jobs WHERE status='approved' AND (tax_mode IS NULL OR tax_mode != 'Tax Invoice') AND vat_check='no_vat'"
+        ).fetchone()["c"]
+        summary["hidden"] = hidden_rows or 0
 
     _ensure_maintenance_suppliers_table(db)
     supplier_suggestions = []
@@ -2770,6 +2787,7 @@ def vat_pending():
         rows=rows,
         summary=summary,
         supplier_suggestions=supplier_suggestions,
+        show_hidden=show_hidden,
     )
 
 
