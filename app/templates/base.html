@@ -19,7 +19,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260709a') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='design-v2.css', v='20260820a') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='design-v2.css', v='20260820b') }}">
+
     {% set tc = company.theme_color if company and company.theme_color else '#37474f' %}
     <style>:root{--primary:{{ tc }};--primary-light:{{ tc }}22;--primary-dark:{{ tc }};}</style>
     <style>
@@ -83,6 +84,31 @@
 <div class="app-layout">
     {% if is_admin %}
         {% include "sidebar_main.html" %}
+        <!-- Mobile Bottom Tab Bar -->
+        <nav class="erp-mobile-nav" id="erpMobileNav" aria-label="Mobile navigation">
+          <div class="erp-mobile-nav-inner">
+            <a class="erp-mobile-tab {% if request.endpoint == 'dashboard' %}is-active{% endif %}" href="{{ url_for('dashboard') }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              Home
+            </a>
+            <a class="erp-mobile-tab {% if request.endpoint and request.endpoint.startswith('fleet.') %}is-active{% endif %}" href="{{ url_for('fleet.fleet_dashboard') }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+              Fleet
+            </a>
+            <a class="erp-mobile-tab {% if request.endpoint and request.endpoint.startswith('hr.') %}is-active{% endif %}" href="{{ url_for('hr.hr_dashboard') }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              HR
+            </a>
+            <a class="erp-mobile-tab {% if request.endpoint and (request.endpoint.startswith('customer.') or request.endpoint.startswith('supplier.') or request.endpoint in ['reports_center','owner_fund','loans_center']) %}is-active{% endif %}" href="{{ url_for('reports_center') }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M3 10h18"/><path d="M4 10V7l8-4 8 4v3"/><path d="M6 10v8"/><path d="M10 10v8"/><path d="M14 10v8"/><path d="M18 10v8"/><path d="M2 21h20"/></svg>
+              Finance
+            </a>
+            <button class="erp-mobile-tab erp-mobile-tab-more" id="mobileTabMore" onclick="document.getElementById('erpSidebar').classList.toggle('mobile-open')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+              More
+            </button>
+          </div>
+        </nav>
     {% endif %}
 
     <div class="main-content">

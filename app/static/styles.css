@@ -10808,3 +10808,72 @@ input[type="month"]::-webkit-calendar-picker-indicator {
     .cl-stat-dot { display: none; }
 }
 
+/* ══════════════════════════════════════
+   Mobile Sidebar Overlay (≤640px)
+   Triggered by "More" tab button
+   ══════════════════════════════════════ */
+@media (max-width: 640px) {
+    /* Sidebar hidden off-screen on mobile */
+    .erp-sidebar {
+        position: fixed !important;
+        top: 0; left: 0; bottom: 0;
+        transform: translateX(-100%);
+        transition: transform 0.26s cubic-bezier(0.4,0,0.2,1),
+                    box-shadow 0.26s ease;
+        z-index: 3000;
+        width: 240px !important;
+        min-width: 240px !important;
+        box-shadow: none;
+        overflow-y: auto;
+    }
+    /* Slide in when .mobile-open is toggled */
+    .erp-sidebar.mobile-open {
+        transform: translateX(0);
+        box-shadow: 8px 0 40px rgba(0,0,0,0.35);
+    }
+    /* Dark backdrop behind open mobile sidebar */
+    .erp-sidebar.mobile-open::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        left: 240px;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(2px);
+        z-index: -1;
+        animation: mobileBackdropIn 0.22s ease forwards;
+    }
+    @keyframes mobileBackdropIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+    /* Main content fills full width on mobile */
+    .erp-sidebar ~ .main-content {
+        margin-left: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    /* Restore nav labels on mobile slide-out sidebar */
+    .erp-sidebar .erp-brand-copy,
+    .erp-sidebar .erp-nav-copy,
+    .erp-sidebar .erp-sidebar-user-text,
+    .erp-sidebar .erp-nav-label,
+    .erp-sidebar .erp-nav-chevron {
+        display: flex !important;
+    }
+    .erp-sidebar .erp-nav-link,
+    .erp-sidebar .erp-nav-expandable {
+        justify-content: flex-start !important;
+        padding: 8px 12px !important;
+    }
+    .erp-sidebar .erp-sidebar-head {
+        padding: 14px 16px !important;
+        justify-content: flex-start !important;
+    }
+    /* Close sidebar when clicking backdrop */
+    body.sidebar-mobile-open::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: 2999;
+    }
+}
