@@ -1,4 +1,4 @@
-﻿<aside class="erp-sidebar" id="erpSidebar" aria-label="Primary">
+<aside class="erp-sidebar" id="erpSidebar" aria-label="Primary">
     <div class="erp-sidebar-head">
         <a class="erp-brand" href="{{ url_for('dashboard') }}">
             <span class="erp-brand-mark">
@@ -50,47 +50,40 @@
     <div class="erp-sidebar-body">
         <nav class="erp-sidebar-nav">
 
-            {# Dashboard #}
+            {# ── CORE ── #}
+            <span class="erp-nav-label">Core</span>
+
             {% set is_dash = request.endpoint == 'dashboard' %}
-            <a class="erp-nav-link {{ 'is-active' if is_dash }}" href="{{ url_for('dashboard') }}">
+            <a class="erp-nav-link {{ 'is-active' if is_dash }}" href="{{ url_for('dashboard') }}" data-tip="Dashboard">
                 <span class="erp-nav-icon">{{ nav_icon('dashboard') }}</span>
                 <span class="erp-nav-copy"><strong>Dashboard</strong></span>
             </a>
 
-            {# Fleet (direct link to dashboard) #}
+            {# Documents #}
+            <a class="erp-nav-link {{ 'is-active' if request.endpoint and request.endpoint.startswith('documents.') }}" href="{{ url_for('documents.document_hub') }}" data-tip="Documents">
+                <span class="erp-nav-icon">{{ nav_icon('file-text') }}</span>
+                <span class="erp-nav-copy"><strong>Documents</strong></span>
+            </a>
+
+            {# ── OPERATIONS ── #}
+            <span class="erp-nav-label">Operations</span>
+
+            {# Fleet #}
             {% set is_on_fleet = request.endpoint and request.endpoint.startswith('fleet.') %}
-            <a class="erp-nav-link {{ 'is-active' if is_on_fleet }}" href="{{ url_for('fleet.fleet_dashboard') }}">
+            <a class="erp-nav-link {{ 'is-active' if is_on_fleet }}" href="{{ url_for('fleet.fleet_dashboard') }}" data-tip="Fleet">
                 <span class="erp-nav-icon">{{ nav_icon('truck') }}</span>
                 <span class="erp-nav-copy"><strong>Fleet</strong></span>
             </a>
 
             {# HR & Employees #}
             {% set is_hr = request.endpoint and request.endpoint.startswith('hr.') %}
-            <a class="erp-nav-link {{ 'is-active' if is_hr }}" href="{{ url_for('hr.hr_dashboard') }}">
+            <a class="erp-nav-link {{ 'is-active' if is_hr }}" href="{{ url_for('hr.hr_dashboard') }}" data-tip="HR &amp; Employees">
                 <span class="erp-nav-icon">{{ nav_icon('users') }}</span>
-                <span class="erp-nav-copy"><strong>HR & Employees</strong></span>
+                <span class="erp-nav-copy"><strong>HR &amp; Employees</strong></span>
             </a>
 
-            {# Customers #}
-            {% set is_cust = request.endpoint and request.endpoint.startswith('customer.') and not request.endpoint.startswith('customer.settings') %}
-            <a class="erp-nav-link {{ 'is-active' if is_cust }}" href="{{ url_for('customer.customer_dashboard') }}">
-                <span class="erp-nav-icon">{{ nav_icon('handshake') }}</span>
-                <span class="erp-nav-copy"><strong>Customers</strong></span>
-            </a>
-
-            {# Suppliers #}
-            {% set is_sup = request.endpoint and request.endpoint.startswith('supplier.') and not request.endpoint.startswith('supplier.supplier_bill') %}
-            <a class="erp-nav-link {{ 'is-active' if is_sup }}" href="{{ url_for('supplier.supplier_dashboard') }}">
-                <span class="erp-nav-icon">{{ nav_icon('building') }}</span>
-                <span class="erp-nav-copy"><strong>Suppliers</strong></span>
-            </a>
-
-            {# Supplier Bills #}
-            {% set is_sup_bill = request.endpoint and request.endpoint.startswith('supplier.supplier_bill') %}
-            <a class="erp-nav-link {{ 'is-active' if is_sup_bill }}" href="{{ url_for('supplier.supplier_bill_list') }}">
-                <span class="erp-nav-icon">{{ nav_icon('cart') }}</span>
-                <span class="erp-nav-copy"><strong>Supplier Bills</strong></span>
-            </a>
+            {# ── FINANCE ── #}
+            <span class="erp-nav-label">Finance</span>
 
             {# Accounts (expandable) #}
             {% set accounts_children = [
@@ -107,7 +100,7 @@
             {% set accounts_endpoints = [] %}
             {% for ch in accounts_children %}{% set _ = accounts_endpoints.append(ch.endpoint) %}{% endfor %}
             {% set is_on_accounts = request.endpoint and (request.endpoint in accounts_endpoints or request.endpoint.startswith('accounts.')) %}
-            <button class="erp-nav-expandable {{ 'is-expanded' if is_on_accounts }}" type="button" id="accountsExpandBtn" aria-expanded="{{ 'true' if is_on_accounts else 'false' }}">
+            <button class="erp-nav-expandable {{ 'is-expanded' if is_on_accounts }}" type="button" id="accountsExpandBtn" aria-expanded="{{ 'true' if is_on_accounts else 'false' }}" data-tip="Accounts">
                 <span class="erp-nav-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M3 10h18"/><path d="M4 10V7l8-4 8 4v3"/><path d="M6 10v8"/><path d="M10 10v8"/><path d="M14 10v8"/><path d="M18 10v8"/><path d="M2 21h20"/></svg>
                 </span>
@@ -123,14 +116,35 @@
                 {% endfor %}
             </div>
 
-            {# Documents #}
-            <a class="erp-nav-link {{ 'is-active' if request.endpoint and request.endpoint.startswith('documents.') }}" href="{{ url_for('documents.document_hub') }}">
-                <span class="erp-nav-icon">{{ nav_icon('file-text') }}</span>
-                <span class="erp-nav-copy"><strong>Documents</strong></span>
+            {# ── RELATIONSHIPS ── #}
+            <span class="erp-nav-label">Relationships</span>
+
+            {# Customers #}
+            {% set is_cust = request.endpoint and request.endpoint.startswith('customer.') and not request.endpoint.startswith('customer.settings') %}
+            <a class="erp-nav-link {{ 'is-active' if is_cust }}" href="{{ url_for('customer.customer_dashboard') }}" data-tip="Customers">
+                <span class="erp-nav-icon">{{ nav_icon('handshake') }}</span>
+                <span class="erp-nav-copy"><strong>Customers</strong></span>
             </a>
 
+            {# Suppliers #}
+            {% set is_sup = request.endpoint and request.endpoint.startswith('supplier.') and not request.endpoint.startswith('supplier.supplier_bill') %}
+            <a class="erp-nav-link {{ 'is-active' if is_sup }}" href="{{ url_for('supplier.supplier_dashboard') }}" data-tip="Suppliers">
+                <span class="erp-nav-icon">{{ nav_icon('building') }}</span>
+                <span class="erp-nav-copy"><strong>Suppliers</strong></span>
+            </a>
+
+            {# Supplier Bills #}
+            {% set is_sup_bill = request.endpoint and request.endpoint.startswith('supplier.supplier_bill') %}
+            <a class="erp-nav-link {{ 'is-active' if is_sup_bill }}" href="{{ url_for('supplier.supplier_bill_list') }}" data-tip="Supplier Bills">
+                <span class="erp-nav-icon">{{ nav_icon('cart') }}</span>
+                <span class="erp-nav-copy"><strong>Supplier Bills</strong></span>
+            </a>
+
+            {# ── SYSTEM ── #}
+            <span class="erp-nav-label">System</span>
+
             {# Settings #}
-            <a class="erp-nav-link {{ 'is-active' if request.endpoint and request.endpoint.startswith('core.settings') }}" href="{{ url_for('core.settings') }}">
+            <a class="erp-nav-link {{ 'is-active' if request.endpoint and request.endpoint.startswith('core.settings') }}" href="{{ url_for('core.settings') }}" data-tip="Settings">
                 <span class="erp-nav-icon">{{ nav_icon('settings') }}</span>
                 <span class="erp-nav-copy"><strong>Settings</strong></span>
             </a>
@@ -140,18 +154,25 @@
 
     <div class="erp-sidebar-foot">
         <div class="erp-sidebar-user">
-            <div class="erp-sidebar-user-avatar">{{ (current_user_name or 'A')[0]|upper }}</div>
+            <div class="erp-sidebar-user-avatar-wrap">
+                <div class="erp-sidebar-user-avatar">{{ (current_user_name or 'A')[0]|upper }}</div>
+                <span class="erp-user-online-dot"></span>
+            </div>
             <div class="erp-sidebar-user-text">
                 <strong>{{ current_user_name or "Administrator" }}</strong>
-                <small>{{ current_workspace_meta.title if current_workspace_meta else "Admin" }}</small>
+                <small>{{ current_workspace_meta.title if current_workspace_meta else "Admin" }} &middot; Online</small>
             </div>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 10px 0">
-            <button id="darkModeToggle" type="button" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.3);display:flex;align-items:center;gap:6px;font-size:0.7rem;padding:4px 6px;border-radius:6px;transition:all .15s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.3)'">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                <span id="dmLabel">Dark</span>
+        <div class="erp-sidebar-foot-actions">
+            <button id="darkModeToggle" type="button" class="erp-foot-btn" title="Toggle dark mode">
+                <svg id="dmIconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <svg id="dmIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                <span class="erp-foot-btn-label" id="dmLabel">Dark</span>
             </button>
-            <span style="color:rgba(255,255,255,0.15);font-size:0.58rem">ERP v2.0</span>
+            <a href="{{ url_for('logout') }}" class="erp-foot-btn erp-foot-btn-logout" title="Logout">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span class="erp-foot-btn-label">Logout</span>
+            </a>
         </div>
     </div>
 </aside>
@@ -199,12 +220,23 @@
         setTimeout(function() { if (!shown) img.classList.remove('is-hidden'); }, 3000);
     }
 
-    // Dark mode toggle
+    // Dark mode toggle with sun/moon icons
     var dmBtn = document.getElementById('darkModeToggle');
     var dmLabel = document.getElementById('dmLabel');
+    var dmMoon = document.getElementById('dmIconMoon');
+    var dmSun = document.getElementById('dmIconSun');
     function applyDark(dark) {
-        if (dark) { document.documentElement.classList.add('dark-mode'); dmLabel.textContent = 'Light'; }
-        else { document.documentElement.classList.remove('dark-mode'); dmLabel.textContent = 'Dark'; }
+        if (dark) {
+            document.documentElement.classList.add('dark-mode');
+            if (dmLabel) dmLabel.textContent = 'Light';
+            if (dmMoon) dmMoon.style.display = 'none';
+            if (dmSun) dmSun.style.display = '';
+        } else {
+            document.documentElement.classList.remove('dark-mode');
+            if (dmLabel) dmLabel.textContent = 'Dark';
+            if (dmMoon) dmMoon.style.display = '';
+            if (dmSun) dmSun.style.display = 'none';
+        }
         try { localStorage.setItem('erp_dark_mode', dark ? '1' : '0'); } catch(ex) {}
     }
     if (dmBtn) {
