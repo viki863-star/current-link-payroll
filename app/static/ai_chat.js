@@ -14,52 +14,30 @@
 
   var TEXTS = {
     en: {
-      welcome: 'Hi! I\'m your ERP assistant. Ask me about your data, or tap <strong>Tripsheet Entry</strong> below.',
+      welcome: '👋 Hi! I\'m <strong>VIKI</strong> — your ERP AI assistant. Ask me <strong>anything</strong>!',
       placeholder: 'Ask me anything...',
-      placeholder2: 'Speak or type here...',
-      tripsheetBtn: '📋 Tripsheet Entry',
-      tripsheetStart: '📋 Tripsheet Entry started! I will ask each question aloud.',
-      noCustomer: 'Please open a customer profile page first, then start Tripsheet Entry.',
-      fieldDate: 'What is the trip date?',
-      fieldTimeIn: 'What is the Time In?',
-      fieldTimeOut: 'What is the Time Out?',
-      fieldMeter: 'How many meter reading?',
-      fieldTrips: 'How many trips?',
-      fieldGln: 'What is the Tanker GLN?',
-      fieldReg: 'What is the tanker registration number?',
-      saving: 'Saving data...',
-      saved: 'Saved successfully! Tap',
-      saved2: 'again for another entry.',
       error: 'Error',
-      fail: 'Customer ID not found.',
-      skipped: '(skipped)',
-      listenHint: ' (press mic or type)',
       listening: 'Listening... speak now',
     },
     ur: {
-      welcome: 'ہیلو! میں ERP اسسٹنٹ ہوں۔ ڈیٹا کے بارے میں پوچھیں، یا نیچے <strong>ٹرپ شیٹ انٹری</strong> دبائیں۔',
-      placeholder: 'کچھ پوچھیں...',
-      placeholder2: 'بولیں یا لکھیں...',
-      tripsheetBtn: '📋 ٹرپ شیٹ انٹری',
-      tripsheetStart: '📋 ٹرپ شیٹ انٹری شروع! ہر سوال میں اونچی آواز میں پوچھوں گا۔',
-      noCustomer: 'پہلے کسی کسٹمر کا پروفائل کھولیں، پھر ٹرپ شیٹ انٹری شروع کریں۔',
-      fieldDate: 'تاریخ کیا ہے؟',
-      fieldTimeIn: 'ٹائم ان کیا ہے؟',
-      fieldTimeOut: 'ٹائم آؤٹ کیا ہے؟',
-      fieldMeter: 'میٹر ریڈنگ کتنی ہے؟',
-      fieldTrips: 'کتنے ٹرپس ہیں؟',
-      fieldGln: 'ٹینکر GLN کیا ہے؟',
-      fieldReg: 'ٹینکر رجسٹریشن نمبر کیا ہے؟',
-      saving: 'ڈیٹا محفوظ ہو رہا ہے...',
-      saved: 'محفوظ ہو گیا! دوبارہ کے لیے',
-      saved2: 'دوبارہ دبائیں۔',
+      welcome: '👋 السلام علیکم! میں <strong>VIKI</strong> ہوں — آپ کا ERP اسسٹنٹ۔ کچھ بھی پوچھیں!',
+      placeholder: 'کچھ بھی پوچھیں...',
       error: 'خرابی',
-      fail: 'کسٹمر ID نہیں ملی۔',
-      skipped: '(چھوڑ دیا)',
-      listenHint: ' (مائک دبائیں یا لکھیں)',
       listening: 'سن رہا ہوں... بولیں',
     }
   };
+
+  // Smart ERP suggestion chips
+  var SUGGESTIONS = [
+    { icon: '👥', text: 'How many active drivers?' },
+    { icon: '💰', text: 'Show this month payroll total' },
+    { icon: '🚛', text: 'How many vehicles are active?' },
+    { icon: '📄', text: 'Show recent customer invoices' },
+    { icon: '⛽', text: 'Total fuel cost this month' },
+    { icon: '⚠️', text: 'Any expired documents?' },
+    { icon: '🏢', text: 'Show top suppliers by amount' },
+    { icon: '📊', text: 'Give me a business summary' },
+  ];
 
   function t(key) { return TEXTS[lang][key] || TEXTS.en[key]; }
 
@@ -127,23 +105,29 @@
   function updateWelcome() {
     var welcome = MSGS.querySelector('.ai-chat-msg.assistant');
     if (welcome) welcome.innerHTML = '<div>' + t('welcome') + '</div>';
-    var actionBtn = document.querySelector('#aiQuickActions button');
-    if (actionBtn) actionBtn.textContent = t('tripsheetBtn');
   }
 
   function showQuickActions() {
-    var welcomeMsg = MSGS.querySelector('.ai-chat-msg.assistant');
-    if (!welcomeMsg) return;
-    if (document.getElementById('aiQuickActions')) return;
+    if (MSGS.querySelector('.ai-chat-quick-actions')) return;
     var div = document.createElement('div');
-    div.id = 'aiQuickActions';
-    div.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 10px;';
-    var btn = document.createElement('button');
-    btn.textContent = t('tripsheetBtn');
-    btn.style.cssText = 'background:linear-gradient(135deg,#1a56db,#2563eb);color:#fff;border:none;border-radius:14px;padding:6px 16px;font-size:0.78rem;cursor:pointer;font-weight:500;';
-    btn.addEventListener('click', function(e) { e.stopPropagation(); startTripsheetEntry(); });
-    div.appendChild(btn);
-    welcomeMsg.parentNode.insertBefore(div, welcomeMsg.nextSibling);
+    div.className = 'ai-chat-quick-actions';
+    div.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;padding:6px 14px 10px;';
+    SUGGESTIONS.forEach(function(s) {
+      var btn = document.createElement('button');
+      btn.innerHTML = s.icon + ' ' + s.text;
+      btn.style.cssText = 'background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0;border-radius:20px;padding:5px 12px;font-size:0.72rem;cursor:pointer;font-weight:500;transition:all 0.15s;white-space:nowrap;font-family:inherit;';
+      btn.addEventListener('mouseenter', function() { this.style.background='#0f172a'; this.style.color='#fff'; this.style.borderColor='#0f172a'; });
+      btn.addEventListener('mouseleave', function() { this.style.background='#f1f5f9'; this.style.color='#0f172a'; this.style.borderColor='#e2e8f0'; });
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        INPUT.value = s.text;
+        div.remove();
+        sendMessage();
+      });
+      div.appendChild(btn);
+    });
+    MSGS.appendChild(div);
+    MSGS.scrollTop = MSGS.scrollHeight;
   }
 
   function getCustomerId() {
@@ -422,7 +406,7 @@
     HISTORY = [];
     var welcome = document.createElement('div');
     welcome.className = 'ai-chat-msg assistant';
-    welcome.innerHTML = '<div>' + t('welcome') + '</div>';
+    welcome.innerHTML = '<div>👋 Hi! I\'m <strong>VIKI</strong> — your ERP AI assistant. Ask me <strong>anything</strong>!</div>';
     MSGS.appendChild(welcome);
     INPUT.value = '';
     INPUT.focus();
