@@ -516,5 +516,335 @@ if ("serviceWorker" in navigator) {
 })();
 </script>
 {% include 'ai_chat_widget.html' %}
+
+{% if is_admin %}
+<!-- ══════════════════════════════════════
+     COMMAND PALETTE  (Ctrl+K / Cmd+K)
+══════════════════════════════════════ -->
+<div id="cmdPalette" class="cmd-overlay" role="dialog" aria-modal="true" aria-label="Command palette" style="display:none">
+  <div class="cmd-modal">
+    <div class="cmd-search-row">
+      <svg class="cmd-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/></svg>
+      <input id="cmdInput" class="cmd-input" type="text" placeholder="Search pages, modules, actions…" autocomplete="off" spellcheck="false">
+      <kbd class="cmd-esc-hint">ESC</kbd>
+    </div>
+    <div class="cmd-results" id="cmdResults"></div>
+    <div class="cmd-footer">
+      <span><kbd>↑↓</kbd> navigate</span>
+      <span><kbd>↵</kbd> open</span>
+      <span><kbd>Esc</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     FAB — Floating Action Button
+══════════════════════════════════════ -->
+<div class="erp-fab-wrap" id="erpFabWrap">
+  <div class="erp-fab-actions" id="erpFabActions">
+    <a href="{{ url_for('customer.customer_dashboard') }}?new=1" class="erp-fab-item" data-label="New Invoice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+    </a>
+    <a href="{{ url_for('hr.hr_dashboard') }}?new=1" class="erp-fab-item" data-label="Add Driver / Employee">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+    </a>
+    <a href="{{ url_for('fleet.fleet_dashboard') }}?new=1" class="erp-fab-item" data-label="Fleet Entry">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+    </a>
+    <a href="{{ url_for('supplier.supplier_dashboard') }}?new=1" class="erp-fab-item" data-label="Add Supplier">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><line x1="12" y1="22" x2="12" y2="14"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+    </a>
+  </div>
+  <button class="erp-fab-btn" id="erpFabBtn" title="Quick Actions" aria-label="Quick actions">
+    <svg class="fab-icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <svg class="fab-icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22" style="display:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+</div>
+{% endif %}
+
+<style>
+/* ─── Command Palette ─── */
+.cmd-overlay {
+  position:fixed; inset:0; z-index:10000;
+  background:rgba(10,18,35,0.75);
+  backdrop-filter:blur(6px);
+  display:flex; align-items:flex-start; justify-content:center;
+  padding-top:12vh;
+  animation:cmdFadeIn 0.15s ease;
+}
+@keyframes cmdFadeIn { from{opacity:0} to{opacity:1} }
+.cmd-modal {
+  width:100%; max-width:580px;
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 24px 80px rgba(0,0,0,0.28), 0 0 0 1px rgba(0,0,0,0.06);
+  overflow:hidden;
+  animation:cmdSlideIn 0.18s ease;
+}
+@keyframes cmdSlideIn { from{transform:translateY(-12px);opacity:0} to{transform:translateY(0);opacity:1} }
+.cmd-search-row {
+  display:flex; align-items:center; gap:12px;
+  padding:14px 18px;
+  border-bottom:1px solid #f1f5f9;
+}
+.cmd-search-icon { color:#94a3b8; flex-shrink:0; }
+.cmd-input {
+  flex:1; border:none; outline:none;
+  font-size:1rem; font-family:inherit; font-weight:500;
+  color:#0f172a; background:transparent;
+}
+.cmd-input::placeholder { color:#94a3b8; }
+.cmd-esc-hint {
+  font-size:0.62rem; color:#94a3b8;
+  background:#f1f5f9; border-radius:4px;
+  padding:2px 6px; font-family:inherit;
+}
+.cmd-results { max-height:340px; overflow-y:auto; }
+.cmd-result-group { padding:8px 0 4px; }
+.cmd-result-group-label {
+  font-size:0.6rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.1em; color:#94a3b8;
+  padding:4px 18px 2px;
+}
+.cmd-item {
+  display:flex; align-items:center; gap:12px;
+  padding:10px 18px; cursor:pointer;
+  text-decoration:none; color:#0f172a;
+  transition:background 0.1s;
+}
+.cmd-item:hover, .cmd-item.is-active {
+  background:#f1f5f9;
+}
+.cmd-item-icon {
+  width:30px; height:30px; border-radius:8px;
+  display:grid; place-items:center; flex-shrink:0;
+  font-size:0.85rem;
+}
+.cmd-item-label { font-size:0.85rem; font-weight:500; flex:1; }
+.cmd-item-hint {
+  font-size:0.72rem; color:#94a3b8;
+  background:#f8fafc; padding:2px 8px; border-radius:4px;
+}
+.cmd-footer {
+  display:flex; align-items:center; gap:16px;
+  padding:8px 18px;
+  border-top:1px solid #f1f5f9;
+  background:#fafbfc;
+}
+.cmd-footer span { font-size:0.68rem; color:#94a3b8; display:flex; align-items:center; gap:4px; }
+.cmd-footer kbd {
+  font-size:0.6rem; background:#e2e8f0; border-radius:3px;
+  padding:1px 5px; font-family:inherit; color:#64748b;
+}
+.cmd-no-results { padding:32px; text-align:center; color:#94a3b8; font-size:0.85rem; }
+
+/* dark mode */
+.dark-mode .cmd-modal { background:#0f1e33; box-shadow:0 24px 80px rgba(0,0,0,0.5); }
+.dark-mode .cmd-search-row { border-color:rgba(255,255,255,0.07); }
+.dark-mode .cmd-input { color:#e2e8f0; }
+.dark-mode .cmd-item { color:#e2e8f0; }
+.dark-mode .cmd-item:hover,.dark-mode .cmd-item.is-active { background:rgba(255,255,255,0.06); }
+.dark-mode .cmd-footer { background:#0a1628; border-color:rgba(255,255,255,0.06); }
+.dark-mode .cmd-footer kbd,.dark-mode .cmd-esc-hint { background:rgba(255,255,255,0.08); color:#94a3b8; }
+
+/* ─── FAB ─── */
+.erp-fab-wrap {
+  position:fixed; bottom:28px; right:28px;
+  z-index:5000;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+}
+.erp-fab-btn {
+  width:52px; height:52px; border-radius:50%;
+  background:linear-gradient(135deg,#f7931e,#e07310);
+  border:none; cursor:pointer;
+  display:grid; place-items:center;
+  color:#fff;
+  box-shadow:0 6px 20px rgba(247,147,30,0.42);
+  transition:transform 0.2s ease, box-shadow 0.2s ease;
+}
+.erp-fab-btn:hover { transform:scale(1.08); box-shadow:0 10px 28px rgba(247,147,30,0.5); }
+.erp-fab-btn.is-open { transform:rotate(45deg); }
+.erp-fab-actions {
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  opacity:0; pointer-events:none;
+  transform:translateY(10px);
+  transition:opacity 0.2s ease, transform 0.2s ease;
+}
+.erp-fab-actions.is-open {
+  opacity:1; pointer-events:auto; transform:translateY(0);
+}
+.erp-fab-item {
+  position:relative;
+  width:42px; height:42px; border-radius:50%;
+  background:#fff;
+  display:grid; place-items:center;
+  color:#0f172a; text-decoration:none;
+  box-shadow:0 3px 12px rgba(0,0,0,0.14);
+  transition:transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.erp-fab-item:hover { background:#0f172a; color:#fff; transform:scale(1.08); box-shadow:0 6px 18px rgba(0,0,0,0.2); }
+.erp-fab-item::before {
+  content:attr(data-label);
+  position:absolute; right:calc(100% + 10px);
+  top:50%; transform:translateY(-50%);
+  background:#0f172a; color:#fff;
+  font-size:0.72rem; font-weight:500;
+  padding:4px 10px; border-radius:6px;
+  white-space:nowrap;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.15s;
+}
+.erp-fab-item:hover::before { opacity:1; }
+</style>
+
+<script>
+/* ─── Command Palette Logic ─── */
+(function(){
+  var overlay = document.getElementById('cmdPalette');
+  var input   = document.getElementById('cmdInput');
+  var results = document.getElementById('cmdResults');
+  if (!overlay || !input) return;
+
+  var CMD_PAGES = [
+    {group:'Navigation', items:[
+      {label:'Dashboard',       icon:'🏠', hint:'Home',        url:'{{ url_for("dashboard") }}'},
+      {label:'Fleet',           icon:'🚛', hint:'Operations',  url:'{{ url_for("fleet.fleet_dashboard") }}'},
+      {label:'HR & Employees',  icon:'👥', hint:'Operations',  url:'{{ url_for("hr.hr_dashboard") }}'},
+      {label:'Customers',       icon:'🤝', hint:'Relations',   url:'{{ url_for("customer.customer_dashboard") }}'},
+      {label:'Suppliers',       icon:'🏢', hint:'Relations',   url:'{{ url_for("supplier.supplier_dashboard") }}'},
+      {label:'Supplier Bills',  icon:'🧾', hint:'Finance',     url:'{{ url_for("supplier.supplier_bill_list") }}'},
+      {label:'Accounts',        icon:'📊', hint:'Finance',     url:'{{ url_for("reports_center") }}'},
+      {label:'Owner Fund',      icon:'💰', hint:'Finance',     url:'{{ url_for("owner_fund") }}'},
+      {label:'Loans',           icon:'💳', hint:'Finance',     url:'{{ url_for("loans_center") }}'},
+      {label:'Documents',       icon:'📁', hint:'Core',        url:'{{ url_for("documents.document_hub") }}'},
+      {label:'Invoice Center',  icon:'📄', hint:'Core',        url:'{{ url_for("invoice_center") }}'},
+      {label:'Cheque Report',   icon:'📑', hint:'Finance',     url:'{{ url_for("cheque_report") }}'},
+      {label:'Bank Transactions',icon:'🏦',hint:'Finance',     url:'{{ url_for("bank_transactions") }}'},
+      {label:'ATM Report',      icon:'🏧', hint:'Finance',     url:'{{ url_for("atm_report") }}'},
+      {label:'Annual Fees',     icon:'📅', hint:'Finance',     url:'{{ url_for("annual_fees") }}'},
+      {label:'Settings',        icon:'⚙️', hint:'System',      url:'{{ url_for("core.settings") }}'},
+    ]}
+  ];
+
+  var activeIdx = -1;
+
+  function open() {
+    overlay.style.display = 'flex';
+    input.value = '';
+    render('');
+    setTimeout(function(){ input.focus(); }, 30);
+  }
+  function close() { overlay.style.display = 'none'; }
+
+  function fuzzy(str, q) {
+    if (!q) return true;
+    var s = str.toLowerCase(), p = q.toLowerCase(), si = 0;
+    for (var i = 0; i < p.length; i++) {
+      si = s.indexOf(p[i], si);
+      if (si < 0) return false;
+      si++;
+    }
+    return true;
+  }
+
+  function render(q) {
+    results.innerHTML = '';
+    activeIdx = -1;
+    var all = [];
+    CMD_PAGES.forEach(function(g){ g.items.forEach(function(it){ all.push(it); }); });
+    var filtered = q ? all.filter(function(it){ return fuzzy(it.label, q) || fuzzy(it.hint, q); }) : all;
+    if (!filtered.length) {
+      results.innerHTML = '<div class="cmd-no-results">No results for "' + q + '"</div>';
+      return;
+    }
+    var frag = document.createDocumentFragment();
+    var grp = document.createElement('div');
+    grp.className = 'cmd-result-group';
+    var glabel = document.createElement('div');
+    glabel.className = 'cmd-result-group-label';
+    glabel.textContent = q ? 'Results' : 'All Pages';
+    grp.appendChild(glabel);
+    filtered.forEach(function(it, i){
+      var a = document.createElement('a');
+      a.className = 'cmd-item';
+      a.href = it.url;
+      a.dataset.idx = i;
+      a.innerHTML =
+        '<span class="cmd-item-icon">' + it.icon + '</span>' +
+        '<span class="cmd-item-label">' + it.label + '</span>' +
+        '<span class="cmd-item-hint">' + it.hint + '</span>';
+      a.addEventListener('click', function(){ close(); });
+      grp.appendChild(a);
+    });
+    frag.appendChild(grp);
+    results.appendChild(frag);
+  }
+
+  function getItems() { return results.querySelectorAll('.cmd-item'); }
+  function setActive(idx) {
+    var items = getItems();
+    items.forEach(function(el, i){ el.classList.toggle('is-active', i === idx); });
+    if (items[idx]) items[idx].scrollIntoView({block:'nearest'});
+  }
+
+  input.addEventListener('input', function(){ render(input.value.trim()); });
+  input.addEventListener('keydown', function(e){
+    var items = getItems();
+    if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx+1, items.length-1); setActive(activeIdx); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx-1, 0); setActive(activeIdx); }
+    else if (e.key === 'Enter') { if (items[activeIdx]) { close(); window.location.href = items[activeIdx].href; } }
+    else if (e.key === 'Escape') { close(); }
+  });
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) close(); });
+
+  // Ctrl+K / Cmd+K global shortcut
+  document.addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      overlay.style.display === 'none' ? open() : close();
+    }
+  });
+
+  // Wire up the search bar in the topbar (if Ctrl+K label is clicked)
+  var topSearch = document.getElementById('globalSearch');
+  if (topSearch) {
+    topSearch.addEventListener('focus', function(e){
+      if (topSearch.value === '') { topSearch.blur(); open(); }
+    });
+    topSearch.addEventListener('keydown', function(e){
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); open(); }
+    });
+  }
+})();
+
+/* ─── FAB Logic ─── */
+(function(){
+  var btn     = document.getElementById('erpFabBtn');
+  var wrap    = document.getElementById('erpFabWrap');
+  var actions = document.getElementById('erpFabActions');
+  var iconPlus= btn && btn.querySelector('.fab-icon-plus');
+  var iconX   = btn && btn.querySelector('.fab-icon-x');
+  if (!btn) return;
+  var open = false;
+  btn.addEventListener('click', function(){
+    open = !open;
+    actions.classList.toggle('is-open', open);
+    if (iconPlus) iconPlus.style.display = open ? 'none' : '';
+    if (iconX)    iconX.style.display    = open ? '' : 'none';
+    if (open) btn.style.transform = 'rotate(45deg)';
+    else btn.style.transform = '';
+  });
+  document.addEventListener('click', function(e){
+    if (open && wrap && !wrap.contains(e.target)) {
+      open = false;
+      actions.classList.remove('is-open');
+      if (iconPlus) iconPlus.style.display = '';
+      if (iconX)    iconX.style.display    = 'none';
+      btn.style.transform = '';
+    }
+  });
+})();
+</script>
+
 </body>
 </html>

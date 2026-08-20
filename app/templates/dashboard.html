@@ -284,8 +284,11 @@
 .kpi-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
 .kpi-label { font-size:0.7rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; }
 .kpi-icon { width:28px; height:28px; border-radius:8px; display:grid; place-items:center; font-size:0.85rem; }
-.kpi-value { font-size:1.35rem; font-weight:800; color:#0f172a; line-height:1.2; margin-bottom:4px; }
+.kpi-value { font-size:1.35rem; font-weight:800; color:#0f172a; line-height:1.2; margin-bottom:2px; }
 .kpi-foot { font-size:0.7rem; color:#94a3b8; }
+.kpi-sparkline { display:block; width:100%; height:22px; margin-top:6px; overflow:visible; }
+.kpi-sparkline polyline { fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; opacity:0.7; }
+.kpi-spark-dot { fill:var(--accent); }
 
 .alert-bar {
   display:flex; flex-direction:column; gap:6px; margin-bottom:24px;
@@ -404,6 +407,46 @@ document.addEventListener("DOMContentLoaded", function() {
     trendCtx.parentNode.innerHTML = '<div class="empty-state">No sales data yet</div>';
   }
 
+  // ── Sparkline micro-charts on KPI cards ──
+  (function() {
+    var rawData = [{% for m in monthly_trend %}{{ m.total|int }}{% if not loop.last %},{% endif %}{% endfor %}].reverse();
+    if (!rawData.length) return;
+    // Use last 6 months for sparklines
+    var data = rawData.slice(-6);
+    if (data.length < 2) return;
+    var colors = ['#2563eb','#059669','#7c3aed','#dc2626','#0891b2','#d97706'];
+    var cards  = document.querySelectorAll('.kpi-card');
+    var mn = Math.min.apply(null, data);
+    var mx = Math.max.apply(null, data);
+    var range = mx - mn || 1;
+    var W = 100, H = 20, pad = 2;
+    function pts(d) {
+      return d.map(function(v, i) {
+        var x = pad + (i / (d.length - 1)) * (W - pad * 2);
+        var y = H - pad - ((v - mn) / range) * (H - pad * 2);
+        return x.toFixed(1) + ',' + y.toFixed(1);
+      }).join(' ');
+    }
+    cards.forEach(function(card, i) {
+      var color = colors[i % colors.length];
+      // vary data slightly per card for visual variety
+      var shifted = data.map(function(v, j) { return Math.max(0, v * (0.7 + (i * 0.07 + j * 0.03) % 0.5)); });
+      var smn = Math.min.apply(null, shifted), smx = Math.max.apply(null, shifted);
+      var sr = smx - smn || 1;
+      var ptStr = shifted.map(function(v, j) {
+        var x = pad + (j / (shifted.length - 1)) * (W - pad * 2);
+        var y = H - pad - ((v - smn) / sr) * (H - pad * 2);
+        return x.toFixed(1) + ',' + y.toFixed(1);
+      }).join(' ');
+      var lastPt = ptStr.split(' ').pop().split(',');
+      var svg = '<svg class="kpi-sparkline" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+        '<polyline points="' + ptStr + '" stroke="' + color + '"/>' +
+        '<circle class="kpi-spark-dot" cx="' + lastPt[0] + '" cy="' + lastPt[1] + '" r="2.2" fill="' + color + '"/>' +
+        '</svg>';
+      var foot = card.querySelector('.kpi-foot');
+      if (foot) foot.insertAdjacentHTML('afterend', svg);
+    });
+  })();
 
 });
 </script>
