@@ -2793,8 +2793,11 @@ def vat_pending():
             db.execute("UPDATE maintenance_jobs SET vat_check=NULL WHERE id=?", (job_id,))
             flash(f"Job #{job_id} restored to pending list.", "success")
         db.commit()
-        return redirect(url_for("fleet.vat_pending", show_hidden=request.form.get("show_hidden") or ""))
+        return redirect(url_for("fleet.vat_pending",
+                                show_hidden=request.form.get("show_hidden") or "",
+                                month=request.form.get("month") or ""))
 
+    month = (request.args.get("month") or "").strip()
     show_hidden = (request.args.get("show_hidden") or "").strip()
     hide_clause = "AND (mj.vat_check IS NULL OR mj.vat_check != 'no_vat')"
     if show_hidden:
@@ -2813,18 +2816,36 @@ def vat_pending():
     rows = [dict(r) for r in rows]
     for r in rows:
         r["job_date"] = str(r.get("created_at") or "")[:10]
+    if month:
+        rows = [r for r in rows if (str(r.get("created_at") or "")[:7]) == month]
+
+    month_options = []
+    try:
+        d = datetime.now()
+        for i in range(24):
+            ym = (d.year, d.month)
+            month_options.append(f"{ym[0]:04d}-{ym[1]:02d}")
+            if d.month == 1:
+                d = d.replace(year=d.year - 1, month=12)
+            else:
+                d = d.replace(month=d.month - 1)
+    except Exception:
+        pass
 
     summary = {
         "total": round(sum(float(r["amount"] or 0) for r in rows), 2),
         "count": len(rows),
         "with_photo": sum(1 for r in rows if r["has_attachment"]),
         "hidden": 0,
+        "month": month,
     }
     if not show_hidden:
         hidden_rows = db.execute(
-            "SELECT COUNT(*) AS c FROM maintenance_jobs WHERE status='approved' AND (tax_mode IS NULL OR tax_mode != 'Tax Invoice') AND vat_check='no_vat' AND attachment_data IS NOT NULL AND attachment_data != ''"
-        ).fetchone()["c"]
-        summary["hidden"] = hidden_rows or 0
+            "SELECT created_at FROM maintenance_jobs WHERE status='approved' AND (tax_mode IS NULL OR tax_mode != 'Tax Invoice') AND vat_check='no_vat' AND attachment_data IS NOT NULL AND attachment_data != ''"
+        ).fetchall()
+        if month:
+            hidden_rows = [r for r in hidden_rows if (str(r[0] or "")[:7]) == month]
+        summary["hidden"] = len(hidden_rows)
 
     _ensure_maintenance_suppliers_table(db)
     supplier_suggestions = []
@@ -2845,6 +2866,8 @@ def vat_pending():
         summary=summary,
         supplier_suggestions=supplier_suggestions,
         show_hidden=show_hidden,
+        month=month,
+        month_options=month_options,
     )
 
 

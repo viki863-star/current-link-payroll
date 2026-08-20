@@ -31,12 +31,25 @@
         <p class="vp-hint">Yahan <strong>sirf woh without-VAT jobs</strong> dikh rahe hain <strong>jin ke saath paper/pic attached hai</strong> (bina pic wali kabhi nahi dikhti). <strong>Paper/Photo par click</strong> kar ke kholo: paper mein <strong>TAX hai</strong> → <strong>Add VAT 5%</strong> (job list se hat jayegi, VAT report + vehicle profile update, balance frozen). Paper mein <strong>TAX nahi hai</strong> → <strong>No VAT (hide)</strong> — list se hide ho jayegi, koi change nahi. Hide hui "<strong>Show hidden</strong>" se dobara dekh sakte ho.</p>
     </div>
 
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0">
+        <form method="GET" style="display:flex;gap:8px;align-items:center;margin:0">
+            {% if show_hidden %}<input type="hidden" name="show_hidden" value="1">{% endif %}
+            <label style="font-size:0.78rem;font-weight:600;color:var(--muted)">Month:</label>
+            <select name="month" class="form-control" style="padding:6px 10px;font-size:0.82rem" onchange="this.form.submit()">
+                <option value="">All months</option>
+                {% for m in month_options or [] %}
+                <option value="{{ m }}" {% if month == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+            {% if month %}
+            <a href="{{ url_for('fleet.vat_pending', show_hidden='1' if show_hidden else '') }}" class="btn btn-outline btn-xs" style="white-space:nowrap">Clear month</a>
+            {% endif %}
+        </form>
         <span class="vp-stat"><b>{{ summary.count }}</b><span>Jobs To Check</span></span>
         <span class="vp-stat"><b>AED {{ "{:,.2f}".format(summary.total) }}</b><span>Total Amount</span></span>
         <span class="vp-stat" style="color:#475569"><b>{{ summary.with_photo }}</b><span>With Photo</span></span>
         {% if summary.hidden %}
-        <a href="{{ url_for('fleet.vat_pending', show_hidden='1') }}" class="btn btn-outline btn-sm" style="align-self:center;white-space:nowrap">Show hidden ({{ summary.hidden }}) — No VAT confirmed</a>
+        <a href="{{ url_for('fleet.vat_pending', show_hidden='1', month=month or None) }}" class="btn btn-outline btn-sm" style="align-self:center;white-space:nowrap">Show hidden ({{ summary.hidden }}) — No VAT confirmed</a>
         {% endif %}
     </div>
 
@@ -88,6 +101,7 @@
                                     <input type="hidden" name="action" value="unhide">
                                     <input type="hidden" name="job_id" value="{{ j.id }}">
                                     <input type="hidden" name="show_hidden" value="1">
+                                    <input type="hidden" name="month" value="{{ month or '' }}">
                                     <button type="submit" class="btn btn-xs btn-outline" title="Wapas pending list mein lao">Restore to list</button>
                                 </form>
                             </div>
@@ -99,6 +113,7 @@
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="action" value="no_vat">
                                     <input type="hidden" name="job_id" value="{{ j.id }}">
+                                    <input type="hidden" name="month" value="{{ month or '' }}">
                                     <button type="submit" class="btn btn-xs btn-outline" style="color:#475569;border-color:#cbd5e1" title="Paper mein tax nahi hai — is job ko list se hide karo (koi change nahi)">No VAT (hide)</button>
                                 </form>
                             </div>
@@ -107,6 +122,7 @@
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="action" value="add_vat">
                                 <input type="hidden" name="job_id" value="{{ j.id }}">
+                                <input type="hidden" name="month" value="{{ month or '' }}">
                                 <div class="vp-row">
                                     <input type="number" step="0.01" min="0" name="net_amount" value="{{ "%.2f"|format(j.net_amount) }}" class="form-control" title="Net amount (staff credit)">
                                     <input type="date" name="job_date" value="{{ j.job_date or '' }}" class="form-control" title="Job date update (optional)">
