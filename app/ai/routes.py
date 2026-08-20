@@ -73,7 +73,7 @@ def _execute_sql(sql):
 def _call_llm(messages, max_tokens=4096):
     api_key = os.getenv("AI_API_KEY") or os.getenv("GROQ_API_KEY") or ""
     api_url = os.getenv("AI_API_URL", "https://api.groq.com/openai/v1/chat/completions")
-    api_model = os.getenv("AI_MODEL", "llama-3.3-70b-versatile")
+    api_model = os.getenv("AI_MODEL", "llama3-70b-8192")
 
     if not api_key:
         return None, "AI assistant is not configured yet. Please set AI_API_KEY in .env"
