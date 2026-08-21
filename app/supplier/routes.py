@@ -3281,7 +3281,9 @@ def _supplier_purchase_rows(db, from_filter, to_filter):
                i.invoice_no AS paper_no,
                s.supplier_name,
                i.amount AS net_sale, i.vat_amount, i.total_amount,
-               'Invoice' AS source_type
+               'Invoice' AS source_type,
+               i.id AS record_id,
+               s.id AS supplier_id
         FROM supplier_invoices i
         JOIN suppliers s ON s.id = i.supplier_id
         WHERE 1=1 {inv_where}
@@ -3303,7 +3305,9 @@ def _supplier_purchase_rows(db, from_filter, to_filter):
                p.subtotal AS net_sale,
                p.tax_amount AS vat_amount,
                p.total_amount,
-               'Paper' AS source_type
+               'Paper' AS source_type,
+               p.paper_no AS record_id,
+               NULL AS supplier_id
         FROM maintenance_papers p
         WHERE 1=1 {paper_where}
         ORDER BY p.paper_date DESC, p.id DESC
@@ -3324,7 +3328,9 @@ def _supplier_purchase_rows(db, from_filter, to_filter):
                (mj.amount - mj.tax_amount) AS net_sale,
                mj.tax_amount AS vat_amount,
                mj.amount AS total_amount,
-               'Job' AS source_type
+               'Job' AS source_type,
+               mj.id AS record_id,
+               NULL AS supplier_id
         FROM maintenance_jobs mj
         WHERE 1=1 {job_where}
         ORDER BY paper_date DESC, mj.id DESC
@@ -3339,6 +3345,8 @@ def _supplier_purchase_rows(db, from_filter, to_filter):
             "vat_amount": float(row["vat_amount"] or 0),
             "total_amount": float(row["total_amount"] or 0),
             "source_type": row["source_type"],
+            "record_id": row["record_id"],
+            "supplier_id": row["supplier_id"],
         }
 
     rows = [to_dict(r) for r in list(invoices) + list(papers) + list(jobs)]
