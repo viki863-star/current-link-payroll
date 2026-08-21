@@ -3319,7 +3319,7 @@ def _supplier_purchase_rows(db, from_filter, to_filter):
         job_params.append(to_filter)
     jobs = db.execute(f"""
         SELECT SUBSTR(COALESCE(NULLIF(mj.paper_date, ''), CAST(mj.created_at AS TEXT)), 1, 10) AS invoice_date,
-               ('JOB-' || mj.id) AS paper_no,
+               COALESCE(NULLIF(mj.supplier_bill_no, ''), 'JOB-' || mj.id) AS paper_no,
                COALESCE(NULLIF(mj.supplier_name, ''), '-') AS supplier_name,
                (mj.amount - mj.tax_amount) AS net_sale,
                mj.tax_amount AS vat_amount,
