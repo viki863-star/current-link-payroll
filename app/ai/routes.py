@@ -10,16 +10,9 @@ from app import csrf
 from google import genai
 
 TABLES = [
-    "employees", "drivers", "field_staff", "cash_receipts", "vehicles",
-    "vehicle_assignments", "salary_store", "salary_slips", "salary_payments",
-    "maintenance_jobs", "technicians", "maintenance_staff_advances",
-    "maintenance_papers", "parties", "suppliers", "supplier_invoices",
-    "supplier_bills", "account_invoices", "account_invoice_lines",
-    "account_payments", "fuel_entries",
-    "customers", "customer_invoices", "customer_invoice_items",
-    "customer_payments", "customer_contracts", "customer_quotations",
-    "customer_lpos", "customer_documents", "service_items",
-    "customer_service_orders", "tabreed_tripsheets",
+    "drivers", "employees", "vehicles", "salary_store", "salary_slips",
+    "supplier_invoices", "customer_invoices", "account_invoices",
+    "fuel_entries", "maintenance_jobs", "maintenance_papers",
 ]
 
 
@@ -32,16 +25,16 @@ def _get_schema():
         try:
             if backend == "postgres":
                 cols = db.execute(
-                    "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ? ORDER BY ordinal_position",
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = ? ORDER BY ordinal_position",
                     (table,),
                 ).fetchall()
                 if cols:
-                    names = [f"{c['column_name']}" for c in cols]
+                    names = [c['column_name'] for c in cols]
                     lines.append(f"{table}({', '.join(names)})")
             else:
                 cols = db.execute(f"PRAGMA table_info({table})").fetchall()
                 if cols:
-                    names = [f"{c['name']} {c['type']}" for c in cols]
+                    names = [c['name'] for c in cols]
                     lines.append(f"{table}({', '.join(names)})")
         except Exception:
             pass
@@ -205,6 +198,7 @@ def tripsheet_save():
 
 
 _cached_schema = None
+_schema_fetched = False
 
 @ai_bp.route("/chat", methods=["POST"])
 def chat():
@@ -218,9 +212,10 @@ def chat():
         chat_lang = data.get("lang", "en")
         today = date.today().isoformat()
 
-        global _cached_schema
-        if _cached_schema is None:
+        global _cached_schema, _schema_fetched
+        if not _schema_fetched:
             _cached_schema = _get_schema()
+            _schema_fetched = True
         schema = _cached_schema
 
         lang_instruction = "Respond in English." if chat_lang == "en" else "Urdu mein jawab dein."
