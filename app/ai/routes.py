@@ -1,12 +1,13 @@
 import json
 import re
 import os
-import requests
 from datetime import date
 from flask import request, jsonify, current_app, session
 from . import ai_bp
 from ..database import open_db
 from app import csrf
+
+from google import genai
 
 TABLES = [
     "employees", "drivers", "field_staff", "cash_receipts", "vehicles",
@@ -71,29 +72,35 @@ def _execute_sql(sql):
 
 
 def _call_llm(messages, max_tokens=4096):
-    api_key = os.getenv("AI_API_KEY") or os.getenv("GROQ_API_KEY") or ""
-    api_url = os.getenv("AI_API_URL", "https://api.groq.com/openai/v1/chat/completions")
-    api_model = os.getenv("AI_MODEL", "llama-3.1-8b-instant")
+    api_key = os.getenv("AI_API_KEY") or ""
+    api_model = os.getenv("AI_MODEL", "gemini-2.0-flash")
 
     if not api_key:
         return None, "AI assistant is not configured yet. Please set AI_API_KEY in .env"
 
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {
-        "model": api_model,
-        "messages": messages,
-        "temperature": 0.4,
-        "max_tokens": max_tokens,
-    }
-
     try:
-        resp = requests.post(api_url, json=payload, headers=headers, timeout=30)
-        data = resp.json()
-        if "choices" not in data or not data["choices"]:
-            err = data.get("error", {}).get("message", str(data))
-            return None, f"AI error: {err}"
+        client = genai.Client(api_key=api_key)
 
-        raw = data["choices"][0]["message"]["content"].strip()
+        system_msg = ""
+        user_msgs = []
+        for m in messages:
+            if m["role"] == "system":
+                system_msg += m["content"] + "\n\n"
+            else:
+                user_msgs.append(m["content"])
+
+        full_prompt = system_msg + "\n\n".join(user_msgs)
+
+        response = client.models.generate_content(
+            model=api_model,
+            contents=full_prompt,
+            config=genai.types.GenerateContentConfig(
+                temperature=0.4,
+                max_output_tokens=max_tokens,
+            )
+        )
+
+        raw = response.text.strip()
         raw = re.sub(r'^```(?:json)?\s*', '', raw)
         raw = re.sub(r'\s*```$', '', raw)
         raw = raw.strip()
@@ -111,7 +118,6 @@ def _call_llm(messages, max_tokens=4096):
             except json.JSONDecodeError:
                 pass
 
-        # Plain text reply — wrap as explanation
         return {"explanation": raw, "sql": ""}, None
     except Exception as e:
         return None, str(e)
