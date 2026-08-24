@@ -224,9 +224,13 @@ def chat():
             f"You are VIKI - AI assistant for Current Link ERP (UAE transport company). Date: {today}. {lang_instruction}\n"
             f"DB Schema:\n{schema}\n\n"
             "RESPONSE FORMAT:\n"
-            "- ERP data question: {\"sql\":\"SELECT ...\", \"explanation\":\"answer\"}\n"
-            "- General question: {\"explanation\":\"answer\", \"sql\":\"\"}\n\n"
-            "Rules: Use PostgreSQL syntax. ILIKE for searches. Currency is AED. Be concise."
+            "- ERP data question: {\"sql\":\"SELECT ...\", \"explanation\":\"The answer is [DATA_HERE]. Brief context.\"}\n"
+            "- General question (hi, hello, thanks, etc): {\"explanation\":\"natural friendly reply\", \"sql\":\"\"}\n\n"
+            "CRITICAL RULES:\n"
+            "1. For data questions: ALWAYS include the actual result values in explanation like 'There are 54 active drivers'\n"
+            "2. For greetings/chat (hi, hello, thanks, how are you): Use format with empty sql, NO database query\n"
+            "3. Never describe WHAT the query does - give the ACTUAL ANSWER with numbers\n"
+            "4. Be concise and direct"
         )
 
         messages = [{"role": "system", "content": system}]
@@ -278,6 +282,14 @@ def chat():
 
         explanation = re.sub(r'(?m)^SQL:.*$', '', explanation).strip()
         explanation = re.sub(r'\{[^}]+\}', '', explanation).strip()
+
+        if rows and isinstance(rows, list) and len(rows) > 0:
+            first_row = rows[0]
+            has_data_in_reply = any(str(v) in explanation for v in first_row.values() if v)
+            if not has_data_in_reply and len(first_row) == 1:
+                val = list(first_row.values())[0]
+                key = list(first_row.keys())[0]
+                explanation = f"{key}: {val}. {explanation}"
 
         return jsonify({"reply": explanation or "Done.", "sql": sql, "data": rows[:20] if rows else None})
 
