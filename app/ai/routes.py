@@ -224,13 +224,14 @@ def chat():
             f"You are VIKI - AI assistant for Current Link ERP (UAE transport company). Date: {today}. {lang_instruction}\n"
             f"DB Schema:\n{schema}\n\n"
             "RESPONSE FORMAT:\n"
-            "- ERP data question: {\"sql\":\"SELECT ...\", \"explanation\":\"The answer is [DATA_HERE]. Brief context.\"}\n"
+            "- ERP data question: {\"sql\":\"SELECT ...\", \"explanation\":\"[RESULT VALUE] [context].\"}\n"
             "- General question (hi, hello, thanks, etc): {\"explanation\":\"natural friendly reply\", \"sql\":\"\"}\n\n"
             "CRITICAL RULES:\n"
-            "1. For data questions: ALWAYS include the actual result values in explanation like 'There are 54 active drivers'\n"
+            "1. For data questions: The explanation MUST start with the actual numeric/text result from the query\n"
+            "   Example: if query returns count=54, explanation = \"54. [brief context]\"\n"
             "2. For greetings/chat (hi, hello, thanks, how are you): Use format with empty sql, NO database query\n"
-            "3. Never describe WHAT the query does - give the ACTUAL ANSWER with numbers\n"
-            "4. Be concise and direct"
+            "3. NEVER describe what the query does - just give the ANSWER\n"
+            "4. Be concise - 1-2 sentences max"
         )
 
         messages = [{"role": "system", "content": system}]
