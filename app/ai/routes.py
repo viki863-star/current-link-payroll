@@ -302,6 +302,12 @@ def chat():
         explanation = re.sub(r'(?m)^SQL:.*$', '', explanation).strip()
         explanation = re.sub(r'\{[^}]+\}', '', explanation).strip()
 
+        if rows and isinstance(rows, list) and len(rows) > 0:
+            first_row = rows[0]
+            data_str = ", ".join(f"{k}: {v}" for k, v in first_row.items() if v is not None)
+            if data_str and data_str not in explanation:
+                explanation = f"{explanation}\n\n📊 **{data_str}**"
+
         return jsonify({"reply": explanation or "Done.", "sql": sql, "data": rows[:20] if rows else None})
 
     except Exception as e:
