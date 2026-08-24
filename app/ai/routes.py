@@ -77,7 +77,7 @@ def _get_client():
 
 def _call_llm(messages, max_tokens=1024):
     api_key = os.getenv("AI_API_KEY") or ""
-    api_model = os.getenv("AI_MODEL", "gemini-2.5-flash")
+    api_model = os.getenv("AI_MODEL", "gemini-3.5-flash-lite")
 
     if not api_key:
         return None, "AI assistant is not configured yet. Please set AI_API_KEY in .env"
