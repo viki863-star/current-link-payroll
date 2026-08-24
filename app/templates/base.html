@@ -24,44 +24,50 @@
     {% set tc = company.theme_color if company and company.theme_color else '#37474f' %}
     <style>:root{--primary:{{ tc }};--primary-light:{{ tc }}22;--primary-dark:{{ tc }};}</style>
     <style>
-    /* ─── Header ─── */
-    .md-header { position:fixed; top:0; left:var(--sidebar-w); right:0; z-index:999; background:rgba(255,255,255,0.95); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-bottom:1px solid #e2e8f0; }
-    .md-header-inner { display:flex; align-items:center; height:54px; padding:0 20px; gap:12px; }
+    /* ─── Premium Header ─── */
+    .md-header { position:fixed; top:0; left:var(--sidebar-w); right:0; z-index:999; background:linear-gradient(135deg, #fff 0%, #f8fafc 100%); border-bottom:1px solid #e2e8f0; box-shadow:0 1px 8px rgba(0,0,0,.04); }
+    .md-header-inner { display:flex; align-items:center; height:56px; padding:0 20px; gap:14px; }
     .md-header-left { display:flex; align-items:center; gap:10px; min-width:0; flex-shrink:0; }
-    .md-hamburger { background:none; border:none; width:32px; height:32px; border-radius:8px; display:grid; place-items:center; cursor:pointer; color:#64748b; transition:all .12s; flex-shrink:0; }
-    .md-hamburger:hover { background:#f1f5f9; color:{{ tc }}; }
-    .md-brand { font-size:0.95rem; font-weight:800; color:{{ tc }}; letter-spacing:-0.3px; white-space:nowrap; display:flex; align-items:center; gap:6px; }
+    .md-hamburger { background:none; border:none; width:34px; height:34px; border-radius:10px; display:grid; place-items:center; cursor:pointer; color:#475569; transition:all .15s; flex-shrink:0; }
+    .md-hamburger:hover { background:linear-gradient(135deg, {{ tc }}10, {{ tc }}08); color:{{ tc }}; }
+    .md-brand { font-size:1rem; font-weight:800; color:{{ tc }}; letter-spacing:-0.3px; white-space:nowrap; display:flex; align-items:center; gap:8px; }
+    .md-brand-icon { width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg, {{ tc }}, {{ tc }}dd); color:#fff; display:grid; place-items:center; font-size:0.75rem; font-weight:800; box-shadow:0 2px 8px {{ tc }}40; }
     .md-brand-accent { color:#f7931e; }
-    .md-divider { width:1px; height:20px; background:#e2e8f0; flex-shrink:0; }
+    .md-divider { width:1px; height:24px; background:linear-gradient(180deg, transparent, #e2e8f0, transparent); flex-shrink:0; }
     .md-breadcrumb { font-size:0.78rem; font-weight:500; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px; }
-    .md-breadcrumb .ws-eyebrow { font-size:0.65rem; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; }
-    .md-breadcrumb .ws-eyebrow::after { content:"/"; margin-left:6px; color:#cbd5e1; font-weight:400; }
     .md-breadcrumb .ws-page-title { color:#0f172a; font-weight:600; }
     .md-center { flex:1; display:flex; justify-content:center; min-width:0; }
 
-    /* ─── Search Box ─── */
-    .md-search { position:relative; width:100%; max-width:420px; }
-    .md-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; color:#94a3b8; pointer-events:none; }
-    .md-search input { width:100%; height:36px; border-radius:10px; border:1.5px solid #e2e8f0; background:#f8fafc; padding:0 40px 0 36px; font-size:0.82rem; color:#0f172a; outline:none; transition:all .2s; }
-    .md-search input:focus { border-color:{{ tc }}; background:#fff; box-shadow:0 0 0 3px {{ tc }}15; }
-    .md-search input::placeholder { color:#94a3b8; }
-    .md-search kbd { position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:0.6rem; color:#64748b; background:#e2e8f0; padding:3px 7px; border-radius:4px; font-family:inherit; border:1px solid #d1d5db; pointer-events:none; }
+    /* ─── Premium Search Box ─── */
+    .md-search { position:relative; width:100%; max-width:460px; }
+    .md-search-inner { position:relative; display:flex; align-items:center; }
+    .md-search-glow { position:absolute; inset:-1px; border-radius:12px; background:linear-gradient(135deg, {{ tc }}40, #f7931e40, {{ tc }}40); opacity:0; transition:opacity .3s; z-index:-1; }
+    .md-search input:focus ~ .md-search-glow { opacity:1; }
+    .md-search-icon-wrap { position:absolute; left:4px; top:50%; transform:translateY(-50%); width:32px; height:32px; border-radius:8px; background:linear-gradient(135deg, {{ tc }}, {{ tc }}cc); color:#fff; display:grid; place-items:center; pointer-events:none; box-shadow:0 2px 6px {{ tc }}30; }
+    .md-search-icon-wrap svg { width:14px; height:14px; }
+    .md-search input { width:100%; height:40px; border-radius:12px; border:1.5px solid #e2e8f0; background:#fff; padding:0 70px 0 42px; font-size:0.84rem; color:#0f172a; outline:none; transition:all .25s; box-shadow:0 2px 8px rgba(0,0,0,.04); }
+    .md-search input:focus { border-color:{{ tc }}; background:#fff; box-shadow:0 4px 16px {{ tc }}15; }
+    .md-search input::placeholder { color:#94a3b8; font-weight:400; }
+    .md-search-kbd { position:absolute; right:8px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:4px; }
+    .md-search-kbd kbd { font-size:0.58rem; color:#64748b; background:linear-gradient(180deg, #f8fafc, #f1f5f9); padding:4px 8px; border-radius:6px; font-family:inherit; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgba(0,0,0,.05); pointer-events:none; }
 
-    .md-header-right { display:flex; align-items:center; gap:4px; flex-shrink:0; }
-    .md-icon-btn { position:relative; background:none; border:none; width:34px; height:34px; border-radius:8px; display:grid; place-items:center; cursor:pointer; color:#64748b; transition:all .12s; }
-    .md-icon-btn:hover { background:#f1f5f9; color:{{ tc }}; }
+    .md-header-right { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+    .md-icon-btn { position:relative; background:none; border:none; width:38px; height:38px; border-radius:10px; display:grid; place-items:center; cursor:pointer; color:#64748b; transition:all .15s; }
+    .md-icon-btn:hover { background:linear-gradient(135deg, #f1f5f9, #e2e8f0); color:{{ tc }}; }
     .md-icon-btn svg { width:18px; height:18px; }
-    .md-notif-badge { position:absolute; top:6px; right:6px; min-width:15px; height:15px; border-radius:7.5px; background:#ef4444; color:#fff; font-size:0.5rem; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 3px; border:2px solid #fff; }
-    .md-profile { display:flex; align-items:center; gap:8px; padding:4px 10px 4px 4px; border-radius:8px; cursor:pointer; transition:all .12s; position:relative; }
-    .md-profile:hover { background:#f1f5f9; }
-    .md-avatar { width:30px; height:30px; border-radius:50%; color:#fff; font-size:0.72rem; font-weight:700; display:grid; place-items:center; flex-shrink:0; }
-    .md-profile-name { font-size:0.8rem; font-weight:500; color:#0f172a; white-space:nowrap; }
-    .md-chevron { width:10px; height:10px; color:#94a3b8; transition:transform .15s; }
+    .md-notif-badge { position:absolute; top:5px; right:5px; min-width:16px; height:16px; border-radius:8px; background:linear-gradient(135deg, #ef4444, #dc2626); color:#fff; font-size:0.55rem; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px; border:2px solid #fff; box-shadow:0 2px 4px rgba(239,68,68,.3); }
+    .md-profile { display:flex; align-items:center; gap:8px; padding:5px 12px 5px 5px; border-radius:12px; cursor:pointer; transition:all .15s; position:relative; border:1px solid transparent; }
+    .md-profile:hover { background:#f8fafc; border-color:#e2e8f0; }
+    .md-avatar { width:32px; height:32px; border-radius:10px; background:linear-gradient(135deg, {{ tc }}, {{ tc }}cc); color:#fff; font-size:0.75rem; font-weight:700; display:grid; place-items:center; flex-shrink:0; box-shadow:0 2px 6px {{ tc }}30; }
+    .md-profile-info { display:flex; flex-direction:column; }
+    .md-profile-name { font-size:0.78rem; font-weight:600; color:#0f172a; white-space:nowrap; line-height:1.2; }
+    .md-profile-role { font-size:0.62rem; color:#94a3b8; font-weight:500; }
+    .md-chevron { width:12px; height:12px; color:#94a3b8; transition:transform .15s; margin-left:2px; }
     .md-chevron.is-open { transform:rotate(180deg); }
-    .md-profile-menu { position:absolute; top:calc(100% + 6px); right:0; width:220px; background:#fff; border-radius:12px; border:1px solid #eef2f6; box-shadow:0 8px 30px rgba(0,0,0,.1); z-index:1000; display:none; overflow:hidden; }
+    .md-profile-menu { position:absolute; top:calc(100% + 8px); right:0; width:230px; background:#fff; border-radius:14px; border:1px solid #e2e8f0; box-shadow:0 12px 40px rgba(0,0,0,.12); z-index:1000; display:none; overflow:hidden; }
     .md-profile-menu.is-open { display:block; }
-    @media(max-width:768px){ .md-search { max-width:260px; } }
-    @media(max-width:600px){ .md-center { display:none; } .md-brand { font-size:0.85rem; } .md-profile-name { display:none; } .md-header-inner { padding:0 12px; } }
+    @media(max-width:768px){ .md-search { max-width:280px; } }
+    @media(max-width:600px){ .md-center { display:none; } .md-brand { font-size:0.85rem; } .md-profile-info { display:none; } .md-header-inner { padding:0 12px; } }
 
     .notif-dropdown{position:absolute;top:100%;right:60px;width:340px;max-height:400px;background:#fff;border:1px solid #d8e4f5;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.12);z-index:1000;display:flex;flex-direction:column;overflow:hidden}
     .notif-dropdown-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #eef3fa}
@@ -126,12 +132,12 @@
                         </svg>
                     </button>
                     {% endif %}
-                    <div class="md-brand"></div>
+                    <a href="{{ url_for('dashboard') }}" class="md-brand">
+                        <div class="md-brand-icon">CL</div>
+                        <span>Current<span class="md-brand-accent">Link</span></span>
+                    </a>
                     <div class="md-divider"></div>
                     <div class="md-breadcrumb">
-                        {% if current_workspace_meta %}
-                            <span class="ws-eyebrow">{{ current_workspace_meta.label }}</span>
-                        {% endif %}
                         <span class="ws-page-title">{% block page_title %}Dashboard{% endblock %}</span>
                     </div>
                 </div>
@@ -157,11 +163,16 @@
                 {% else %}
                 <div class="md-center">
                     <div class="md-search">
-                        <svg class="md-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/>
-                        </svg>
-                        <input type="text" placeholder="Search drivers, suppliers, invoices..." id="globalSearch" autocomplete="off">
-                        <kbd>Ctrl+K</kbd>
+                        <div class="md-search-inner">
+                            <div class="md-search-icon-wrap">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/>
+                                </svg>
+                            </div>
+                            <input type="text" placeholder="Search drivers, suppliers, invoices..." id="globalSearch" autocomplete="off">
+                            <div class="md-search-kbd"><kbd>Ctrl+K</kbd></div>
+                            <div class="md-search-glow"></div>
+                        </div>
                         <div class="search-dropdown" id="searchDropdown"></div>
                     </div>
                 </div>
@@ -182,8 +193,11 @@
                         <div class="notif-dropdown-list" id="notifList"></div>
                     </div>
                     <div class="md-profile" id="profileDropdown">
-                        <div class="md-avatar" style="background:{{ tc }}">{{ (current_user_name or 'A')[0]|upper }}</div>
-                        <span class="md-profile-name">{{ current_user_name or "Admin" }}</span>
+                        <div class="md-avatar">{{ (current_user_name or 'A')[0]|upper }}</div>
+                        <div class="md-profile-info">
+                            <span class="md-profile-name">{{ current_user_name or "Admin" }}</span>
+                            <span class="md-profile-role">{{ current_role|capitalize if current_role else "Admin" }}</span>
+                        </div>
                         <svg class="md-chevron" viewBox="0 0 20 20" fill="currentColor">
                             <path d="M5.293 7.293a1 1 0 0 1 1.414 0L10 10.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 0-1.414z"/>
                         </svg>
