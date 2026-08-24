@@ -1453,6 +1453,39 @@ def register_routes(app: Flask) -> None:
         selected_workspace = _set_admin_workspace(workspace_key)
         return redirect(url_for(_workspace_home_endpoint(selected_workspace)))
 
+    @app.route("/api/search")
+    @_login_required("admin")
+    def api_search():
+        from flask import jsonify
+        q = request.args.get("q", "").strip()
+        cat = request.args.get("cat", "all").strip()
+        if not q or len(q) < 2:
+            return jsonify({})
+        db = open_db()
+        results = {}
+        like = f"%{q}%"
+        try:
+            if cat in ("all", "driver"):
+                rows = db.execute("SELECT driver_id, full_name, vehicle_no, status FROM drivers WHERE full_name ILIKE ? OR driver_id ILIKE ? OR vehicle_no ILIKE ? LIMIT 8", (like, like, like)).fetchall()
+                results["driver"] = [{"title": r["full_name"], "meta": f"{r['driver_id']} · {r['vehicle_no']}", "status": r["status"], "url": f"/hr/drivers/{r['driver_id']}"} for r in rows]
+            if cat in ("all", "supplier"):
+                rows = db.execute("SELECT id, supplier_name, supplier_code, status FROM suppliers WHERE supplier_name ILIKE ? OR supplier_code ILIKE ? LIMIT 8", (like, like)).fetchall()
+                results["supplier"] = [{"title": r["supplier_name"], "meta": r["supplier_code"], "status": r["status"], "url": f"/supplier/{r['id']}/invoices"} for r in rows]
+            if cat in ("all", "invoice"):
+                rows = db.execute("""SELECT i.id, i.invoice_no, i.total_amount, s.supplier_name
+                    FROM supplier_invoices i JOIN suppliers s ON s.id = i.supplier_id
+                    WHERE i.invoice_no ILIKE ? OR s.supplier_name ILIKE ? LIMIT 8""", (like, like)).fetchall()
+                results["invoice"] = [{"title": f"Invoice #{r['invoice_no']}", "meta": f"{r['supplier_name']} · AED {r['total_amount']:,.2f}", "url": f"/supplier/{r['id']}/invoices"} for r in rows]
+            if cat in ("all", "vehicle"):
+                rows = db.execute("SELECT plate_no, vehicle_type, status FROM vehicles WHERE plate_no ILIKE ? OR vehicle_type ILIKE ? LIMIT 8", (like, like)).fetchall()
+                results["vehicle"] = [{"title": r["plate_no"], "meta": r["vehicle_type"], "status": r["status"], "url": f"/fleet/vehicles/{r['plate_no']}"} for r in rows]
+            if cat in ("all", "customer"):
+                rows = db.execute("SELECT id, customer_name, company FROM customers WHERE customer_name ILIKE ? OR company ILIKE ? LIMIT 8", (like, like)).fetchall()
+                results["customer"] = [{"title": r["customer_name"], "meta": r["company"] or "", "url": f"/customer/{r['id']}/invoices"} for r in rows]
+        except Exception:
+            pass
+        return jsonify(results)
+
     @app.route("/dashboard")
     @_login_required("admin")
     def dashboard():
