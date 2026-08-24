@@ -30,9 +30,6 @@
     .md-header-left { display:flex; align-items:center; gap:10px; min-width:0; flex-shrink:0; }
     .md-hamburger { background:none; border:none; width:34px; height:34px; border-radius:10px; display:grid; place-items:center; cursor:pointer; color:#475569; transition:all .15s; flex-shrink:0; }
     .md-hamburger:hover { background:linear-gradient(135deg, {{ tc }}10, {{ tc }}08); color:{{ tc }}; }
-    .md-brand { font-size:1rem; font-weight:800; color:{{ tc }}; letter-spacing:-0.3px; white-space:nowrap; display:flex; align-items:center; gap:8px; }
-    .md-brand-icon { width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg, {{ tc }}, {{ tc }}dd); color:#fff; display:grid; place-items:center; font-size:0.75rem; font-weight:800; box-shadow:0 2px 8px {{ tc }}40; }
-    .md-brand-accent { color:#f7931e; }
     .md-divider { width:1px; height:24px; background:linear-gradient(180deg, transparent, #e2e8f0, transparent); flex-shrink:0; }
     .md-breadcrumb { font-size:0.78rem; font-weight:500; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px; }
     .md-breadcrumb .ws-page-title { color:#0f172a; font-weight:600; }
@@ -132,11 +129,6 @@
                         </svg>
                     </button>
                     {% endif %}
-                    <a href="{{ url_for('dashboard') }}" class="md-brand">
-                        <div class="md-brand-icon">CL</div>
-                        <span>Current<span class="md-brand-accent">Link</span></span>
-                    </a>
-                    <div class="md-divider"></div>
                     <div class="md-breadcrumb">
                         <span class="ws-page-title">{% block page_title %}Dashboard{% endblock %}</span>
                     </div>
