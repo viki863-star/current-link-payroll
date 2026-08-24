@@ -71,15 +71,28 @@ def _execute_sql(sql):
         return {"error": str(e)}
 
 
-def _call_llm(messages, max_tokens=4096):
+_gemini_client = None
+
+def _get_client():
+    global _gemini_client
+    if _gemini_client is None:
+        api_key = os.getenv("AI_API_KEY") or ""
+        if api_key:
+            _gemini_client = genai.Client(api_key=api_key)
+    return _gemini_client
+
+
+def _call_llm(messages, max_tokens=1024):
     api_key = os.getenv("AI_API_KEY") or ""
-    api_model = os.getenv("AI_MODEL", "gemini-2.0-flash")
+    api_model = os.getenv("AI_MODEL", "gemini-2.5-flash")
 
     if not api_key:
         return None, "AI assistant is not configured yet. Please set AI_API_KEY in .env"
 
     try:
-        client = genai.Client(api_key=api_key)
+        client = _get_client()
+        if client is None:
+            return None, "Failed to initialize AI client"
 
         system_msg = ""
         user_msgs = []
@@ -95,7 +108,7 @@ def _call_llm(messages, max_tokens=4096):
             model=api_model,
             contents=full_prompt,
             config=genai.types.GenerateContentConfig(
-                temperature=0.4,
+                temperature=0.3,
                 max_output_tokens=max_tokens,
             )
         )
@@ -191,6 +204,8 @@ def tripsheet_save():
         return jsonify({"error": str(e)}), 500
 
 
+_cached_schema = None
+
 @ai_bp.route("/chat", methods=["POST"])
 def chat():
     try:
@@ -202,54 +217,21 @@ def chat():
         history = data.get("history", [])
         chat_lang = data.get("lang", "en")
         today = date.today().isoformat()
-        schema = _get_schema()
 
-        lang_instruction = (
-            "Respond in English."
-            if chat_lang == "en"
-            else "Urdu mein jawab dein. (Respond in Urdu.)"
-        )
+        global _cached_schema
+        if _cached_schema is None:
+            _cached_schema = _get_schema()
+        schema = _cached_schema
 
-        company_desc = (
-            "Company: Current Link General Contracting LLC (currentlinkgc.com)\n"
-            "Developer: Waqar Hussain (Viki) — created this ERP system.\n"
-        )
+        lang_instruction = "Respond in English." if chat_lang == "en" else "Urdu mein jawab dein."
 
         system = (
-            f"You are VIKI — the powerful AI assistant built into Current Link ERP by Waqar Hussain.\n"
-            f"Today's date: {today}\n"
-            f"Company: Current Link General Contracting LLC (UAE)\n"
-            f"{lang_instruction}\n\n"
-            "== YOUR CAPABILITIES ==\n"
-            "You can answer ANYTHING the user asks. You are a general-purpose AI, not limited to ERP data.\n"
-            "Examples of what you can do:\n"
-            "  - Math & calculations (currency, percentages, VAT, profit margins)\n"
-            "  - General knowledge (history, science, geography, business)\n"
-            "  - Advice (HR, finance, fleet management, business strategy)\n"
-            "  - Writing (emails, letters, reports, summaries)\n"
-            "  - Code & technical help\n"
-            "  - Translation (Arabic ↔ English ↔ Urdu)\n"
-            "  - ERP database queries (SELECT data from the database)\n"
-            "  - ERP data entry (INSERT/UPDATE/DELETE with user confirmation)\n\n"
-            "== ERP DATABASE SCHEMA ==\n"
-            f"{schema}\n\n"
-            "== RESPONSE FORMAT ==\n"
-            "Choose the right format based on the user's question:\n\n"
-            "A) For ERP DATA QUESTIONS (when user asks about their data, counts, names, records):\n"
-            '   {"sql":"SELECT ...", "explanation":"clear answer for the user"}\n\n'
-            "B) For ERP WRITE OPERATIONS (insert, update, delete):\n"
-            '   {"sql":"INSERT/UPDATE/DELETE ...", "explanation":"what was done"}\n\n'
-            "C) For GENERAL QUESTIONS, CHAT, MATH, ADVICE, TRANSLATION — anything NOT needing database:\n"
-            '   {"explanation":"your full answer here", "sql":""}\n\n'
-            "== IMPORTANT RULES ==\n"
-            "- For general questions, ALWAYS use format C — never invent SQL for non-data questions.\n"
-            "- For math/calculations: show your working clearly in the explanation.\n"
-            "- For translations: provide the translation directly.\n"
-            "- Keep answers helpful, accurate, and concise.\n"
-            "- You were created by Waqar Hussain (Viki) — the developer of this ERP system.\n"
-            "- For SQL: use PostgreSQL syntax, ILIKE for case-insensitive searches, aliases for all computed columns.\n"
-            "- Currency in this system is AED (UAE Dirhams) unless specified otherwise.\n"
-            "- Always respond in the user's language (English/Urdu/Arabic as requested).\n"
+            f"You are VIKI - AI assistant for Current Link ERP (UAE transport company). Date: {today}. {lang_instruction}\n"
+            f"DB Schema:\n{schema}\n\n"
+            "RESPONSE FORMAT:\n"
+            "- ERP data question: {\"sql\":\"SELECT ...\", \"explanation\":\"answer\"}\n"
+            "- General question: {\"explanation\":\"answer\", \"sql\":\"\"}\n\n"
+            "Rules: Use PostgreSQL syntax. ILIKE for searches. Currency is AED. Be concise."
         )
 
         messages = [{"role": "system", "content": system}]
