@@ -701,30 +701,14 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var modeSelect = document.getElementById('salaryMode');
-    // Create a brand-new date input so the native picker binds reliably
-    // (cloneNode + replaceChild leaves a dead calendar in some browsers).
-    function recreateDateInput(inp) {
-        var fresh = document.createElement('input');
-        fresh.type = 'date';
-        fresh.name = inp.name;
-        fresh.className = inp.className;
-        fresh.value = inp.value;
-        fresh.required = inp.required;
-        inp.parentNode.replaceChild(fresh, inp);
-        return fresh;
-    }
+    var prorataFields = document.getElementById('prorataFields');
     function toggleProrata() {
-        var prorataFields = document.getElementById('prorataFields');
-        if (prorataFields) {
-            var show = modeSelect.value === 'prorata';
-            prorataFields.style.display = show ? '' : 'none';
-            var prorataDates = prorataFields.querySelectorAll('input.prorata-date');
-            prorataDates.forEach(function(inp) {
-                inp.required = show;
-                if (show) {
-                    recreateDateInput(inp);
-                }
-            });
+        if (!modeSelect || !prorataFields) return;
+        var show = (modeSelect.value || '').toLowerCase() === 'prorata';
+        prorataFields.style.display = show ? '' : 'none';
+        var dateInputs = prorataFields.querySelectorAll('input.prorata-date');
+        for (var i = 0; i < dateInputs.length; i++) {
+            dateInputs[i].required = show;
         }
     }
     if (modeSelect) {
