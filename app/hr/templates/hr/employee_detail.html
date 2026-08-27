@@ -256,7 +256,10 @@
                                 <div class="dv2-form-row">
                                     <div class="dv2-form-group">
                                         <label class="dv2-form-label">Salary Mode</label>
-                                        <select name="salary_mode" class="dv2-select" id="salaryMode" onchange="this.form.submit()">
+                                        <select name="salary_mode" class="dv2-select" id="salaryMode" onchange="
+                                            var pf = document.getElementById('prorataFields');
+                                            if(pf) pf.style.display = (this.value==='prorata') ? '' : 'none';
+                                        ">
                                             {% for key, label in salary_mode_options %}
                                             <option value="{{ key }}" {% if (salary_form.salary_mode or 'full') == key %}selected{% endif %}>{{ label }}</option>
                                             {% endfor %}
@@ -702,19 +705,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     var modeSelect = document.getElementById('salaryMode');
     var prorataFields = document.getElementById('prorataFields');
-    function toggleProrata() {
-        if (!modeSelect || !prorataFields) return;
-        var show = (modeSelect.value || '').toLowerCase() === 'prorata';
-        prorataFields.style.display = show ? '' : 'none';
-        var dateInputs = prorataFields.querySelectorAll('input.prorata-date');
-        for (var i = 0; i < dateInputs.length; i++) {
-            dateInputs[i].required = show;
-        }
-    }
-    if (modeSelect) {
-        toggleProrata();
+    if (modeSelect && prorataFields) {
+        prorataFields.style.display = (modeSelect.value === 'prorata') ? '' : 'none';
         modeSelect.addEventListener('change', function() {
-            toggleProrata();
+            prorataFields.style.display = (this.value === 'prorata') ? '' : 'none';
         });
     }
     window.toggleOT = function() {
