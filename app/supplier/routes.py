@@ -2749,8 +2749,9 @@ def supplier_soa(sup_id):
         })
 
     # Expenses — increase balance
+    # Non-fuel expenses: individual lines
     for exp in db.execute(
-        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no, description FROM supplier_expenses WHERE supplier_id = ?",
+        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no, description FROM supplier_expenses WHERE supplier_id = ? AND (earning_type IS NULL OR earning_type != 'Fuel')",
         (sup_id,),
     ).fetchall():
         if exp["description"]:
@@ -2772,6 +2773,26 @@ def supplier_soa(sup_id):
             "description": desc,
             "debit": 0,
             "credit": exp["amt"],
+            "ref": "",
+        })
+
+    # Fuel expenses — group by month, show only monthly total
+    fuel_months = db.execute(
+        """SELECT substr(expense_date, 1, 7) as ym,
+                  SUM(amount) as total_amt,
+                  SUM(quantity) as total_gln
+           FROM supplier_expenses
+           WHERE supplier_id = ? AND earning_type = 'Fuel'
+           GROUP BY ym ORDER BY ym""",
+        (sup_id,),
+    ).fetchall()
+    for fm in fuel_months:
+        ledger.append({
+            "date": f"{fm['ym']}-01",
+            "type": "expense",
+            "description": f"Fuel — {fm['ym']} ({fm['total_gln']:.1f} GLN)",
+            "debit": 0,
+            "credit": fm["total_amt"],
             "ref": "",
         })
 
@@ -2854,8 +2875,10 @@ def supplier_soa_pdf(sup_id):
         if inv['description']:
             parts.append(inv['description'])
         ledger.append({"date": inv["dt"], "type": "Invoice", "ref": " — ".join(parts), "dr": 0, "cr": inv["amt"]})
+
+    # Non-fuel expenses: individual lines
     for exp in db.execute(
-        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no, description FROM supplier_expenses WHERE supplier_id = ?",
+        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no, description FROM supplier_expenses WHERE supplier_id = ? AND (earning_type IS NULL OR earning_type != 'Fuel')",
         (sup_id,),
     ).fetchall():
         if exp["description"]:
@@ -2872,6 +2895,19 @@ def supplier_soa_pdf(sup_id):
             if exp["vehicle_no"]:
                 d += f" [{exp['vehicle_no']}]"
         ledger.append({"date": exp["dt"], "type": "Expense", "ref": d, "dr": 0, "cr": exp["amt"]})
+
+    # Fuel expenses — group by month, show only monthly total
+    fuel_months = db.execute(
+        """SELECT substr(expense_date, 1, 7) as ym,
+                  SUM(amount) as total_amt,
+                  SUM(quantity) as total_gln
+           FROM supplier_expenses
+           WHERE supplier_id = ? AND earning_type = 'Fuel'
+           GROUP BY ym ORDER BY ym""",
+        (sup_id,),
+    ).fetchall()
+    for fm in fuel_months:
+        ledger.append({"date": f"{fm['ym']}-01", "type": "Expense", "ref": f"Fuel — {fm['ym']} ({fm['total_gln']:.1f} GLN)", "dr": 0, "cr": fm["total_amt"]})
     for pay in db.execute(
         "SELECT id, payment_date as dt, payment_method as ref, amount as amt, reference_no, notes, invoice_id FROM supplier_payment_records WHERE supplier_id = ?",
         (sup_id,),
@@ -3352,6 +3388,15 @@ def _supplier_purchase_rows(db, from_filter, to_filter):
     rows = [to_dict(r) for r in list(invoices) + list(papers) + list(jobs)]
     rows.sort(key=lambda r: (r["invoice_date"] or "", r["invoice_no"] or ""), reverse=True)
 
+    from collections import Counter
+    def _valid_inv(no):
+        return bool(no and str(no).strip())
+    combo_counter = Counter(
+        (r["invoice_no"], r["supplier_name"]) for r in rows if _valid_inv(r["invoice_no"])
+    )
+    for r in rows:
+        r["is_duplicate"] = _valid_inv(r["invoice_no"]) and combo_counter[(r["invoice_no"], r["supplier_name"])] > 1
+
     total_net = sum(r["net_sale"] for r in rows)
     total_vat = sum(r["vat_amount"] for r in rows)
     total_gross = sum(r["total_amount"] for r in rows)
@@ -3409,6 +3454,7 @@ def supplier_purchase_report_excel():
     period = f"{from_filter or 'All'} to {to_filter or 'All'}"
     ws.cell(row=2, column=1, value=f"Period: {period}").font = Font(italic=True, color="6b7280", size=10)
 
+    duplicate_fill = PatternFill("solid", fgColor="fff3cd")
     for ri, row in enumerate(rows, 3):
         vals = [row["invoice_date"], row["source_type"], row["invoice_no"],
                 row["supplier_name"], row["net_sale"], row["vat_amount"], row["total_amount"]]
@@ -3417,6 +3463,8 @@ def supplier_purchase_report_excel():
             c.border = border
             if ci >= 5: c.alignment = right; c.number_format = '#,##0.00'
             if ci == 6: c.font = Font(color="f7931e")
+            if row.get("is_duplicate"):
+                c.fill = duplicate_fill
 
     tr = 3 + len(rows)
     totals = ["", "", "", "TOTALS", total_net, total_vat, total_gross]
@@ -3496,7 +3544,7 @@ def supplier_purchase_report_pdf():
 
     col_w = [W*0.10, W*0.08, W*0.13, W*0.29, W*0.13, W*0.13, W*0.14]
     tbl = Table(data, colWidths=col_w, repeatRows=1)
-    tbl.setStyle(TableStyle([
+    style_cmds = [
         ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
         ("FONTSIZE", (0,0), (-1,-1), 7),
         ("BACKGROUND", (0,0), (-1,0), TH),
@@ -3509,7 +3557,11 @@ def supplier_purchase_report_pdf():
         ("TOPPADDING", (0,0), (-1,-1), 4),
         ("BOTTOMPADDING", (0,0), (-1,-1), 4),
         ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#d8e4f5")),
-    ]))
+    ]
+    for i, row in enumerate(rows, 1):
+        if row.get("is_duplicate"):
+            style_cmds.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#fff3cd")))
+    tbl.setStyle(TableStyle(style_cmds))
     els.append(tbl)
 
     doc.build(els)
