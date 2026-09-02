@@ -104,18 +104,16 @@ def document_upload():
             flash("Document name and file are required.", "error")
             return render_template("documents/upload.html", ENTITY_LABELS=ENTITY_LABELS)
 
-        # Normalize empty entity_id to None for storage
+        # Normalize empty entity fields - use 'standalone' for unlinked docs
         if not entity_type:
-            entity_type = None
+            entity_type = "standalone"
         if not entity_id:
-            entity_id = None
+            entity_id = "unlinked"
 
-        existing = None
-        if entity_type and entity_id:
-            existing = db.execute(
-                "SELECT id, expiry_date FROM documents WHERE entity_type=? AND entity_id=? AND doc_category=? ORDER BY uploaded_at DESC LIMIT 1",
-                (entity_type, entity_id, doc_category)
-            ).fetchone()
+        existing = db.execute(
+            "SELECT id, expiry_date FROM documents WHERE entity_type=? AND entity_id=? AND doc_category=? ORDER BY uploaded_at DESC LIMIT 1",
+            (entity_type, entity_id, doc_category)
+        ).fetchone()
 
         if existing and _expiry_status(existing["expiry_date"]) != "expired":
             db.close()
