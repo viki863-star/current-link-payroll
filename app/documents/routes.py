@@ -100,14 +100,22 @@ def document_upload():
         notes = request.form.get("notes", "").strip() or None
         file = request.files.get("file")
 
-        if not entity_type or not entity_id or not doc_name or not file:
-            flash("Entity, document name, and file are required.", "error")
+        if not doc_name or not file:
+            flash("Document name and file are required.", "error")
             return render_template("documents/upload.html", ENTITY_LABELS=ENTITY_LABELS)
 
-        existing = db.execute(
-            "SELECT id, expiry_date FROM documents WHERE entity_type=? AND entity_id=? AND doc_category=? ORDER BY uploaded_at DESC LIMIT 1",
-            (entity_type, entity_id, doc_category)
-        ).fetchone()
+        # Normalize empty entity_id to None for storage
+        if not entity_type:
+            entity_type = None
+        if not entity_id:
+            entity_id = None
+
+        existing = None
+        if entity_type and entity_id:
+            existing = db.execute(
+                "SELECT id, expiry_date FROM documents WHERE entity_type=? AND entity_id=? AND doc_category=? ORDER BY uploaded_at DESC LIMIT 1",
+                (entity_type, entity_id, doc_category)
+            ).fetchone()
 
         if existing and _expiry_status(existing["expiry_date"]) != "expired":
             db.close()
