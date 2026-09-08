@@ -43,6 +43,9 @@ from .pdf_driver_import import load_driver_records_from_pdf, load_driver_records
 from .pdf_vehicle_import import load_vehicle_records_from_pdf_bytes
 from .pdf_service import (
     format_month_label,
+    generate_annual_fee_receipt_pdf,
+    generate_annual_fee_soa_pdf,
+    generate_loan_soa_pdf,
     generate_atm_report_pdf,
     generate_cash_supplier_kata_pdf,
     generate_cash_supplier_manual_pdf,
@@ -89,8 +92,8 @@ SUPPLIER_CASH_KATA_TYPE_OPTIONS = [
     ("debit", "Debits / Loans"),
     ("payment", "Payments"),
 ]
-LOAN_TYPE_OPTIONS = ["Given", "Recovered"]
-FEE_TYPE_OPTIONS = ["Visa", "Vehicle"]
+LOAN_TYPE_OPTIONS = ["Given", "Recovered", "Earning"]
+FEE_TYPE_OPTIONS = ["Visa", "Vehicle", "Mulkia", "Fine", "Insurance", "Other"]
 OWNER_FUND_MOVEMENT_OPTIONS = ["All", "Incoming", "Outgoing"]
 SUPPLIER_RATE_BASIS_OPTIONS = ["Hours", "Days", "Trips", "Monthly", "Fixed"]
 SUPPLIER_VOUCHER_STATUS_OPTIONS = ["Open", "Partially Paid", "Paid"]
@@ -4602,76 +4605,192 @@ def register_routes(app: Flask) -> None:
     def loans_center():
         _touch_admin_workspace("accounts")
         db = open_db()
-        values = _default_loan_form()
-        edit_loan_no = request.args.get("edit_loan", "").strip().upper()
-        if edit_loan_no:
-            row = db.execute("SELECT id, loan_no, party_code, entry_date, loan_type, amount, payment_method, reference, notes, created_at FROM loan_entries WHERE loan_no = ?", (edit_loan_no,)).fetchone()
-            if row is not None:
-                values = _loan_form_from_row(row)
-        if request.method == "POST":
-            values = _loan_form_data(request)
-            try:
-                payload = _prepare_loan_payload(db, values)
-                _ensure_reference_available(db, "loan_entries", "loan_no", values["loan_no"], values["original_loan_no"], "Loan number")
-                if values["original_loan_no"]:
-                    db.execute(
-                        """
-                        UPDATE loan_entries
-                        SET loan_no = ?, party_code = ?, entry_date = ?, loan_type = ?, amount = ?, payment_method = ?, reference = ?, notes = ?
-                        WHERE loan_no = ?
-                        """,
-                        payload + (values["original_loan_no"],),
-                    )
-                    _audit_log(
-                        db,
-                        "loan_entry_updated",
-                        entity_type="loan",
-                        entity_id=values["loan_no"],
-                        details=f"{values['loan_type']} / {values['party_code']} / AED {values['amount']}",
-                    )
-                    message = "Loan entry updated successfully."
-                else:
-                    db.execute(
-                        """
-                        INSERT INTO loan_entries (
-                            loan_no, party_code, entry_date, loan_type, amount, payment_method, reference, notes
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        payload,
-                    )
-                    _audit_log(
-                        db,
-                        "loan_entry_created",
-                        entity_type="loan",
-                        entity_id=values["loan_no"],
-                        details=f"{values['loan_type']} / {values['party_code']} / AED {values['amount']}",
-                    )
-                    message = "Loan entry saved successfully."
-                db.commit()
-                flash(message, "success")
-                return redirect(url_for("loans_center"))
-            except ValidationError as exc:
-                flash(str(exc), "error")
-
+        summary = _loan_summary(db)
+        party_summary = _loan_party_summary(db)
         return render_template(
             "loans.html",
-            values=values,
+            summary=summary,
+            party_summary=party_summary,
+            parties=_all_parties(db),
+            payment_method_options=PAYMENT_METHOD_OPTIONS,
+            loan_type_options=LOAN_TYPE_OPTIONS,
+        )
+
+    @app.post("/loans/register-party")
+    @_login_required("admin")
+    def register_loan_party():
+        db = open_db()
+        party_name = request.form.get("party_name", "").strip()
+        if not party_name:
+            flash("Party name is required.", "error")
+            return redirect(url_for("loans_center"))
+        # check duplicate — if party exists, redirect to their profile
+        existing = db.execute("SELECT party_code FROM parties WHERE LOWER(party_name) = LOWER(?)", (party_name,)).fetchone()
+        if existing:
+            flash(f"Party '{party_name}' already exists — opening their profile.", "info")
+            return redirect(url_for("loan_party_profile", party_code=existing["party_code"]))
+        contact_person = request.form.get("contact_person", "").strip()
+        phone_number = request.form.get("phone_number", "").strip()
+        email = request.form.get("email", "").strip()
+        trn_no = request.form.get("trn_no", "").strip()
+        party_kind = request.form.get("party_kind", "Individual").strip()
+        party_code = _next_reference_code(db, "parties", "party_code", "PTY")
+        db.execute(
+            "INSERT INTO parties (party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (party_code, party_name, party_kind, "Borrower", contact_person, phone_number, email, trn_no),
+        )
+        _audit_log(db, "party_created", entity_type="party", entity_id=party_code, details=f"{party_name} (loan borrower)")
+        db.commit()
+        flash(f"Party '{party_name}' registered successfully.", "success")
+        return redirect(url_for("loan_party_profile", party_code=party_code))
+
+    @app.get("/loans/party/<party_code>")
+    @_login_required("admin")
+    def loan_party_profile(party_code: str):
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        party_code = party_code.strip().upper()
+        party = db.execute(
+            "SELECT party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no, address "
+            "FROM parties WHERE party_code = ?",
+            (party_code,),
+        ).fetchone()
+        if party is None:
+            flash("Party not found.", "error")
+            return redirect(url_for("loans_center"))
+        rows = _loan_rows_for_party(db, party_code)
+        total_given = sum(float(r["amount"]) for r in rows if r["loan_type"] == "Given")
+        total_recovered = sum(float(r["amount"]) for r in rows if r["loan_type"] == "Recovered")
+        total_earned = sum(float(r["amount"]) for r in rows if r["loan_type"] == "Earning")
+        outstanding = max(total_given - total_recovered - total_earned, 0.0)
+        overall = {
+            "given": total_given,
+            "recovered": total_recovered,
+            "earned": total_earned,
+            "balance": outstanding,
+            "entries": len(rows),
+        }
+        return render_template(
+            "loan_party_profile.html",
+            party=party,
+            rows=rows,
+            overall=overall,
             loan_type_options=LOAN_TYPE_OPTIONS,
             payment_method_options=PAYMENT_METHOD_OPTIONS,
-            parties=_all_parties(db),
-            rows=_loan_rows(db),
-            summary=_loan_summary(db),
         )
+
+    @app.post("/loans/party/<party_code>/add")
+    @_login_required("admin")
+    def add_party_loan_entry(party_code: str):
+        db = open_db()
+        party_code = party_code.strip().upper()
+        loan_no = request.form.get("loan_no", "").strip().upper()
+        loan_type = request.form.get("loan_type", "Given").strip() or "Given"
+        entry_date = request.form.get("entry_date", "").strip()
+        amount = request.form.get("amount", "0").strip()
+        payment_method = request.form.get("payment_method", "Cash").strip()
+        reference = request.form.get("reference", "").strip()
+        notes = request.form.get("notes", "").strip()
+        if not entry_date or not amount:
+            flash("Date and amount are required.", "error")
+            return redirect(url_for("loan_party_profile", party_code=party_code))
+        try:
+            if not loan_no:
+                loan_no = _next_reference_code(db, "loan_entries", "loan_no", "LOAN")
+            _ensure_reference_available(db, "loan_entries", "loan_no", loan_no, "", "Loan number")
+            db.execute(
+                "INSERT INTO loan_entries (loan_no, party_code, entry_date, loan_type, amount, payment_method, reference, notes) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (loan_no, party_code, entry_date, loan_type, float(amount), payment_method, reference, notes),
+            )
+            _audit_log(db, "loan_entry_created", entity_type="loan", entity_id=loan_no,
+                        details=f"{loan_type} / {party_code} / AED {amount}")
+            db.commit()
+            flash(f"Loan entry {loan_no} saved.", "success")
+        except ValidationError as exc:
+            flash(str(exc), "error")
+        return redirect(url_for("loan_party_profile", party_code=party_code))
+
+    @app.post("/loans/party/<party_code>/edit/<loan_no>")
+    @_login_required("admin")
+    def edit_party_loan_entry(party_code: str, loan_no: str):
+        db = open_db()
+        party_code = party_code.strip().upper()
+        loan_no = loan_no.strip().upper()
+        entry_date = request.form.get("entry_date", "").strip()
+        loan_type = request.form.get("loan_type", "Given").strip()
+        amount = request.form.get("amount", "0").strip()
+        payment_method = request.form.get("payment_method", "Cash").strip()
+        reference = request.form.get("reference", "").strip()
+        notes = request.form.get("notes", "").strip()
+        if not entry_date or not amount:
+            flash("Date and amount are required.", "error")
+            return redirect(url_for("loan_party_profile", party_code=party_code))
+        db.execute(
+            "UPDATE loan_entries SET entry_date=?, loan_type=?, amount=?, payment_method=?, reference=?, notes=? "
+            "WHERE loan_no=? AND party_code=?",
+            (entry_date, loan_type, float(amount), payment_method, reference, notes, loan_no, party_code),
+        )
+        _audit_log(db, "loan_entry_updated", entity_type="loan", entity_id=loan_no,
+                    details=f"{loan_type} / {party_code} / AED {amount}")
+        db.commit()
+        flash(f"Loan entry {loan_no} updated.", "success")
+        return redirect(url_for("loan_party_profile", party_code=party_code))
 
     @app.post("/loans/<loan_no>/delete")
     @_login_required("admin")
     def delete_loan_entry(loan_no: str):
         db = open_db()
+        row = db.execute("SELECT party_code FROM loan_entries WHERE loan_no = ?", (loan_no,)).fetchone()
+        party_code = row["party_code"] if row else ""
         db.execute("DELETE FROM loan_entries WHERE loan_no = ?", (loan_no,))
         _audit_log(db, "loan_entry_deleted", entity_type="loan", entity_id=loan_no, details=loan_no)
         db.commit()
         flash("Loan entry deleted successfully.", "success")
+        if party_code:
+            return redirect(url_for("loan_party_profile", party_code=party_code))
         return redirect(url_for("loans_center"))
+
+    @app.get("/loans/party/<party_code>/soa/pdf")
+    @_login_required("admin")
+    def loan_party_soa_pdf(party_code: str):
+        """Download SOA PDF for loan party."""
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        party_code = party_code.strip().upper()
+        party = db.execute(
+            "SELECT party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no, address "
+            "FROM parties WHERE party_code = ?",
+            (party_code,),
+        ).fetchone()
+        if party is None:
+            flash("Party not found.", "error")
+            return redirect(url_for("loans_center"))
+        company_profile = _company_profile_row(db)
+        rows = _loan_rows_for_party(db, party_code)
+        total_given = sum(float(r["amount"]) for r in rows if r["loan_type"] == "Given")
+        total_recovered = sum(float(r["amount"]) for r in rows if r["loan_type"] == "Recovered")
+        total_earned = sum(float(r["amount"]) for r in rows if r["loan_type"] == "Earning")
+        outstanding = max(total_given - total_recovered - total_earned, 0.0)
+        overall = {"given": total_given, "recovered": total_recovered, "earned": total_earned, "balance": outstanding, "entries": len(rows)}
+
+        from .pdf_service import generate_loan_soa_pdf
+        output_dir = str(Path(current_app.config["GENERATED_DIR"]) / "loans")
+        assets_dir = current_app.config["STATIC_ASSETS_DIR"]
+        try:
+            pdf_path = generate_loan_soa_pdf(
+                company_profile=company_profile,
+                party=dict(party),
+                rows=[dict(r) for r in rows],
+                overall=overall,
+                output_dir=output_dir,
+                assets_dir=assets_dir,
+            )
+            safe_name = str(party["party_name"]).replace("/", "-").replace(" ", "_")
+            return send_file(pdf_path, as_attachment=True, download_name=f"Loan_SOA_{safe_name}.pdf")
+        except Exception as exc:
+            flash(f"Failed to generate SOA: {exc}", "error")
+            return redirect(url_for("loan_party_profile", party_code=party_code))
 
     @app.route("/annual-fees", methods=["GET", "POST"])
     @_login_required("admin")
@@ -4736,19 +4855,411 @@ def register_routes(app: Flask) -> None:
             values=values,
             fee_type_options=FEE_TYPE_OPTIONS,
             parties=_all_parties(db),
-            rows=_annual_fee_rows(db),
+            rows=_annual_fee_rows(db, limit=500),
             summary=_annual_fee_summary(db),
+            party_summary=_annual_fee_party_summary(db),
         )
 
     @app.post("/annual-fees/<fee_no>/delete")
     @_login_required("admin")
     def delete_annual_fee(fee_no: str):
         db = open_db()
+        row = db.execute("SELECT party_code FROM annual_fee_entries WHERE fee_no = ?", (fee_no,)).fetchone()
+        party_code = row["party_code"] if row else None
         db.execute("DELETE FROM annual_fee_entries WHERE fee_no = ?", (fee_no,))
         _audit_log(db, "annual_fee_deleted", entity_type="annual_fee", entity_id=fee_no, details=fee_no)
         db.commit()
-        flash("Annual fee row deleted successfully.", "success")
+        flash("Annual fee entry deleted successfully.", "success")
+        if party_code:
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
         return redirect(url_for("annual_fees"))
+
+    @app.route("/annual-fees/party/<party_code>")
+    @_login_required("admin")
+    def annual_fee_party_profile(party_code: str):
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        party_code = party_code.strip().upper()
+        party = db.execute("SELECT party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no, address FROM parties WHERE party_code = ?", (party_code,)).fetchone()
+        if party is None:
+            flash("Party not found.", "error")
+            return redirect(url_for("annual_fees"))
+
+        rows = _annual_fee_rows_for_party(db, party_code)
+
+        # Build per-type summary dynamically for all fee types
+        type_summary = {}
+        for ft in FEE_TYPE_OPTIONS:
+            type_summary[ft] = {"annual": 0.0, "received": 0.0, "balance": 0.0, "entries": 0, "due": 0}
+        for r in rows:
+            ft = r["fee_type"] or "Other"
+            if ft not in type_summary:
+                type_summary[ft] = {"annual": 0.0, "received": 0.0, "balance": 0.0, "entries": 0, "due": 0}
+            type_summary[ft]["annual"]   += float(r["annual_amount"])
+            type_summary[ft]["received"] += float(r["received_amount"])
+            type_summary[ft]["balance"]  += float(r["balance_amount"])
+            type_summary[ft]["entries"]  += 1
+            if float(r["balance_amount"]) > 0.009:
+                type_summary[ft]["due"] += 1
+        overall = {"annual": 0.0, "received": 0.0, "balance": 0.0, "entries": 0, "due": 0}
+        for ft in type_summary:
+            for k in overall:
+                overall[k] += type_summary[ft][k]
+
+        # Build SOA rows: combine fees + payments chronologically
+        _ensure_annual_fee_payments_table(db)
+        payments = db.execute(
+            "SELECT receipt_no, fee_no, payment_date, amount, payment_method, reference, notes FROM annual_fee_payments WHERE party_code = ? ORDER BY payment_date ASC, id ASC",
+            (party_code,),
+        ).fetchall()
+
+        soa_rows = []
+        for r in rows:
+            soa_rows.append({
+                "soa_type": "fee",
+                "date": r["due_date"] or r["created_at"][:10] if r["created_at"] else "",
+                "fee_type": r["fee_type"],
+                "description": r["description"],
+                "ref_no": r["fee_no"],
+                "vehicle_no": r["vehicle_no"],
+                "amount": float(r["annual_amount"]),
+                "notes": r["notes"],
+                "receipt_url": None,
+            })
+        for p in payments:
+            receipt_url = url_for("annual_fee_receipt_pdf", party_code=party_code, receipt_no=p["receipt_no"]) if p["receipt_no"] else None
+            soa_rows.append({
+                "soa_type": "payment",
+                "date": p["payment_date"],
+                "fee_type": None,
+                "description": f"{p['payment_method']} payment" + (f" ({p['reference']})" if p["reference"] else ""),
+                "ref_no": p["receipt_no"],
+                "vehicle_no": None,
+                "amount": float(p["amount"]),
+                "notes": p["notes"],
+                "receipt_url": receipt_url,
+            })
+        soa_rows.sort(key=lambda x: x["date"] or "")
+
+        return render_template(
+            "party_annual_fee_profile.html",
+            party=party,
+            rows=rows,
+            type_summary=type_summary,
+            overall=overall,
+            soa_rows=soa_rows,
+            fee_type_options=FEE_TYPE_OPTIONS,
+            parties=_all_parties(db),
+            values=_default_fee_form(db),
+        )
+
+    @app.post("/annual-fees/register-party")
+    @_login_required("admin")
+    def register_annual_fee_party():
+        """Register a new party (party info only — fees added from profile page)."""
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        try:
+            party_name = (request.form.get("party_name") or "").strip()
+            if not party_name:
+                raise ValidationError("Party name is required.")
+
+            contact_person = (request.form.get("contact_person") or "").strip()
+            phone_number = (request.form.get("phone_number") or "").strip()
+            email = (request.form.get("email") or "").strip()
+            trn_no = (request.form.get("trn_no") or "").strip()
+            party_kind = (request.form.get("party_kind") or "Individual").strip() or "Individual"
+
+            # Create new party
+            party_code = _next_reference_code(db, "parties", "party_code", "PTY")
+            db.execute(
+                "INSERT INTO parties (party_code, party_name, party_kind, party_roles, status, contact_person, phone_number, email, trn_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (party_code, party_name, party_kind, "Customer", "Active", contact_person, phone_number, email, trn_no),
+            )
+
+            _audit_log(db, "annual_fee_party_registered", entity_type="party", entity_id=party_code, details=party_name)
+            db.commit()
+            flash(f"Party '{party_name}' registered. Now add their annual fee entries from the profile page.", "success")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+        except ValidationError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("annual_fees"))
+
+    @app.post("/annual-fees/party/<party_code>/add-fee")
+    @_login_required("admin")
+    def add_party_annual_fee(party_code: str):
+        """Add a fee entry for an existing party."""
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        party_code = party_code.strip().upper()
+        try:
+            _validate_party_reference(db, party_code)
+
+            fee_type = (request.form.get("fee_type") or FEE_TYPE_OPTIONS[0]).strip() or FEE_TYPE_OPTIONS[0]
+            description = (request.form.get("description") or "").strip()
+            vehicle_no = (request.form.get("vehicle_no") or "").strip()
+            due_date = _validate_date_text(request.form.get("due_date", ""), "Due date")
+            annual_amount = _parse_decimal(request.form.get("annual_amount", ""), "Annual amount", required=True, minimum=0.01)
+            notes = (request.form.get("notes") or "").strip()
+
+            fee_no = _next_reference_code(db, "annual_fee_entries", "fee_no", "FEE")
+            db.execute(
+                """
+                INSERT INTO annual_fee_entries (
+                    fee_no, party_code, fee_type, description, vehicle_no, due_date,
+                    annual_amount, received_amount, balance_amount, status, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, 'Due', ?)
+                """,
+                (fee_no, party_code, fee_type, description, vehicle_no, due_date, annual_amount, annual_amount, notes),
+            )
+
+            _audit_log(db, "annual_fee_created", entity_type="annual_fee", entity_id=fee_no, details=f"{fee_type} / {party_code} / AED {annual_amount}")
+            db.commit()
+            flash(f"Fee entry {fee_no} added successfully.", "success")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+        except ValidationError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+    @app.post("/annual-fees/party/<party_code>/edit-fee/<fee_no>")
+    @_login_required("admin")
+    def edit_party_annual_fee(party_code: str, fee_no: str):
+        """Edit an existing fee entry."""
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        party_code = party_code.strip().upper()
+        fee_no = fee_no.strip().upper()
+        try:
+            _validate_party_reference(db, party_code)
+            existing = db.execute("SELECT fee_no FROM annual_fee_entries WHERE fee_no = ? AND party_code = ?", (fee_no, party_code)).fetchone()
+            if existing is None:
+                flash("Fee entry not found.", "error")
+                return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+            fee_type = (request.form.get("fee_type") or FEE_TYPE_OPTIONS[0]).strip() or FEE_TYPE_OPTIONS[0]
+            description = (request.form.get("description") or "").strip()
+            vehicle_no = (request.form.get("vehicle_no") or "").strip()
+            due_date = _validate_date_text(request.form.get("due_date", ""), "Due date")
+            annual_amount = _parse_decimal(request.form.get("annual_amount", ""), "Annual amount", required=True, minimum=0.01)
+            notes = (request.form.get("notes") or "").strip()
+
+            # Get current received amount — keep it unchanged
+            cur = db.execute("SELECT received_amount FROM annual_fee_entries WHERE fee_no = ?", (fee_no,)).fetchone()
+            received = float(cur["received_amount"]) if cur else 0.0
+            new_balance = max(round(annual_amount - received, 2), 0.0)
+            status = "Paid" if new_balance <= 0.009 else ("Partially Paid" if received > 0.009 else "Due")
+
+            db.execute(
+                """UPDATE annual_fee_entries
+                   SET fee_type = ?, description = ?, vehicle_no = ?, due_date = ?,
+                       annual_amount = ?, balance_amount = ?, status = ?, notes = ?
+                WHERE fee_no = ?""",
+                (fee_type, description, vehicle_no, due_date, annual_amount, new_balance, status, notes, fee_no),
+            )
+
+            _audit_log(db, "annual_fee_updated", entity_type="annual_fee", entity_id=fee_no, details=f"{fee_type} / AED {annual_amount}")
+            db.commit()
+            flash(f"Fee entry {fee_no} updated successfully.", "success")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+        except ValidationError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+    @app.post("/annual-fees/party/<party_code>/pay")
+    @_login_required("admin")
+    def record_annual_fee_payment(party_code: str):
+        """Record a payment — auto-applied to oldest outstanding fees (FIFO)."""
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        _ensure_annual_fee_payments_table(db)
+        party_code = party_code.strip().upper()
+        try:
+            _validate_party_reference(db, party_code)
+
+            amount = _parse_decimal(request.form.get("amount", ""), "Payment amount", required=True, minimum=0.01)
+            payment_method = (request.form.get("payment_method") or "Cash").strip() or "Cash"
+            payment_date = _validate_date_text(request.form.get("payment_date", ""), "Payment date")
+            reference = (request.form.get("reference") or "").strip()
+            notes = (request.form.get("notes") or "").strip()
+
+            # Find all outstanding fee entries (oldest first)
+            outstanding = db.execute(
+                "SELECT fee_no, annual_amount, received_amount, balance_amount FROM annual_fee_entries WHERE party_code = ? AND balance_amount > 0.009 ORDER BY id ASC",
+                (party_code,),
+            ).fetchall()
+
+            total_outstanding = sum(float(r["balance_amount"]) for r in outstanding)
+            if total_outstanding < 0.009:
+                raise ValidationError("No outstanding balance for this party.")
+
+            # Cap payment to total outstanding
+            actual_amount = min(amount, total_outstanding)
+
+            # Generate receipt number
+            today_str = datetime.now().strftime("%Y%m%d")
+            receipt_seq = db.execute(
+                "SELECT COUNT(*) FROM annual_fee_payments WHERE receipt_no LIKE ?",
+                (f"REC-{today_str}-%",),
+            ).fetchone()[0]
+            receipt_no = f"REC-{today_str}-{receipt_seq + 1:04d}"
+
+            # Store the fee_no(s) we're applying to (for receipt linkage)
+            applied_fee_no = outstanding[0]["fee_no"] if outstanding else "GEN"
+
+            # Insert payment record
+            db.execute(
+                """
+                INSERT INTO annual_fee_payments (
+                    receipt_no, fee_no, party_code, payment_date, amount,
+                    payment_method, reference, notes, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (receipt_no, applied_fee_no, party_code, payment_date, actual_amount, payment_method, reference, notes, session.get("username", "")),
+            )
+
+            # Apply payment across outstanding fees (FIFO)
+            remaining = actual_amount
+            for r in outstanding:
+                if remaining <= 0.009:
+                    break
+                bal = float(r["balance_amount"])
+                apply = min(remaining, bal)
+                new_received = round(float(r["received_amount"]) + apply, 2)
+                new_balance = round(float(r["annual_amount"]) - new_received, 2)
+                new_status = "Paid" if new_balance <= 0.009 else "Partial"
+                db.execute(
+                    "UPDATE annual_fee_entries SET received_amount = ?, balance_amount = ?, status = ? WHERE fee_no = ?",
+                    (new_received, max(new_balance, 0.0), new_status, r["fee_no"]),
+                )
+                remaining = round(remaining - apply, 2)
+
+            _audit_log(db, "annual_fee_payment_recorded", entity_type="annual_fee_payment", entity_id=receipt_no, details=f"{party_code} / AED {actual_amount} / {receipt_no}")
+            db.commit()
+
+            extra = ""
+            if amount > total_outstanding:
+                extra = f" (capped from AED {amount:,.2f} — max outstanding was AED {total_outstanding:,.2f})"
+            flash(f"Payment of AED {actual_amount:,.2f} recorded.{extra} Receipt: {receipt_no}", "success")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+        except ValidationError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+    @app.get("/annual-fees/party/<party_code>/receipt/<receipt_no>")
+    @_login_required("admin")
+    def annual_fee_receipt_pdf(party_code: str, receipt_no: str):
+        """Download annual fee payment receipt PDF."""
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        _ensure_annual_fee_payments_table(db)
+        party_code = party_code.strip().upper()
+
+        payment = db.execute("SELECT * FROM annual_fee_payments WHERE receipt_no = ? AND party_code = ?", (receipt_no, party_code)).fetchone()
+        if payment is None:
+            flash("Payment receipt not found.", "error")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+        fee_row = db.execute("SELECT * FROM annual_fee_entries WHERE fee_no = ?", (payment["fee_no"],)).fetchone()
+        party = db.execute("SELECT party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no, address FROM parties WHERE party_code = ?", (party_code,)).fetchone()
+        company_profile = _company_profile_row(db)
+
+        # Get all fees and payments for pending breakdown
+        all_fees = [dict(r) for r in db.execute("SELECT annual_amount, received_amount FROM annual_fee_entries WHERE party_code = ?", (party_code,)).fetchall()]
+        all_payments = [dict(r) for r in db.execute("SELECT amount FROM annual_fee_payments WHERE party_code = ?", (party_code,)).fetchall()]
+
+        output_dir = str(Path(current_app.config["GENERATED_DIR"]) / "annual_fees")
+        assets_dir = current_app.config["STATIC_ASSETS_DIR"]
+
+        try:
+            pdf_path = generate_annual_fee_receipt_pdf(
+                company_profile=company_profile,
+                party=dict(party),
+                payment=dict(payment),
+                fee_entry=dict(fee_row) if fee_row else {},
+                output_dir=output_dir,
+                assets_dir=assets_dir,
+                all_fees=all_fees,
+                all_payments=all_payments,
+            )
+            return send_file(pdf_path, as_attachment=True, download_name=f"{receipt_no}.pdf")
+        except Exception as exc:
+            flash(f"Failed to generate receipt: {exc}", "error")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+    @app.get("/annual-fees/party/<party_code>/soa")
+    @_login_required("admin")
+    def annual_fee_soa_pdf(party_code: str):
+        """Download full Statement of Account PDF."""
+        _touch_admin_workspace("accounts")
+        db = open_db()
+        _ensure_annual_fee_payments_table(db)
+        party_code = party_code.strip().upper()
+
+        party = db.execute("SELECT party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no, address FROM parties WHERE party_code = ?", (party_code,)).fetchone()
+        if party is None:
+            flash("Party not found.", "error")
+            return redirect(url_for("annual_fees"))
+
+        company_profile = _company_profile_row(db)
+
+        # Rebuild SOA rows
+        rows = _annual_fee_rows_for_party(db, party_code)
+        payments = db.execute(
+            "SELECT receipt_no, fee_no, payment_date, amount, payment_method, reference, notes FROM annual_fee_payments WHERE party_code = ? ORDER BY payment_date ASC, id ASC",
+            (party_code,),
+        ).fetchall()
+
+        soa_rows = []
+        for r in rows:
+            soa_rows.append({
+                "soa_type": "fee",
+                "date": r["due_date"] or (r["created_at"][:10] if r["created_at"] else ""),
+                "fee_type": r["fee_type"],
+                "description": r["description"],
+                "ref_no": r["fee_no"],
+                "amount": float(r["annual_amount"]),
+            })
+        for p in payments:
+            soa_rows.append({
+                "soa_type": "payment",
+                "date": p["payment_date"],
+                "fee_type": None,
+                "description": f"{p['payment_method']} payment" + (f" ({p['reference']})" if p["reference"] else ""),
+                "ref_no": p["receipt_no"],
+                "amount": float(p["amount"]),
+            })
+        soa_rows.sort(key=lambda x: x.get("date") or "")
+
+        overall = {"annual": 0.0, "received": 0.0, "balance": 0.0, "entries": 0, "due": 0}
+        for r in rows:
+            overall["annual"] += float(r["annual_amount"])
+            overall["received"] += float(r["received_amount"])
+            overall["balance"] += float(r["balance_amount"])
+            overall["entries"] += 1
+            if float(r["balance_amount"]) > 0.009:
+                overall["due"] += 1
+
+        output_dir = str(Path(current_app.config["GENERATED_DIR"]) / "annual_fees")
+        assets_dir = current_app.config["STATIC_ASSETS_DIR"]
+
+        try:
+            pdf_path = generate_annual_fee_soa_pdf(
+                company_profile=company_profile,
+                party=dict(party),
+                soa_rows=soa_rows,
+                overall=overall,
+                output_dir=output_dir,
+                assets_dir=assets_dir,
+            )
+            safe_name = str(party["party_name"]).replace("/", "-").replace(" ", "_")
+            return send_file(pdf_path, as_attachment=True, download_name=f"SOA_{safe_name}.pdf")
+        except Exception as exc:
+            flash(f"Failed to generate SOA: {exc}", "error")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
 
     @app.route("/fleet-maintenance", methods=["GET", "POST"])
     @_login_required("admin")
@@ -15875,12 +16386,143 @@ def _loan_summary(db):
     return {"total_given": total_given, "total_recovered": total_recovered, "outstanding": max(total_given - total_recovered, 0.0)}
 
 
+def _loan_rows_for_party(db, party_code: str):
+    """Return all loan entries for a specific party, chronological."""
+    return db.execute(
+        "SELECT loan_no, party_code, entry_date, loan_type, amount, payment_method, reference, notes, created_at "
+        "FROM loan_entries WHERE party_code = ? ORDER BY entry_date ASC, id ASC",
+        (party_code,),
+    ).fetchall()
+
+
+def _loan_party_summary(db):
+    """Return per-party loan summary: total_given, total_recovered, balance, entry_count.
+    Includes ALL parties (even those with no loan entries yet) so cards always appear."""
+    rows = db.execute("""
+        SELECT
+            p.party_code,
+            p.party_name,
+            p.contact_person,
+            p.phone_number,
+            COALESCE(SUM(CASE WHEN l.loan_type = 'Given' THEN l.amount ELSE 0 END), 0) AS total_given,
+            COALESCE(SUM(CASE WHEN l.loan_type = 'Recovered' THEN l.amount ELSE 0 END), 0) AS total_recovered,
+            COUNT(l.id) AS entry_count
+        FROM parties p
+        LEFT JOIN loan_entries l ON l.party_code = p.party_code
+        WHERE p.party_roles LIKE %s OR l.id IS NOT NULL
+        GROUP BY p.party_code, p.party_name, p.contact_person, p.phone_number
+        ORDER BY p.party_name ASC
+    """, ('%Borrower%',)).fetchall()
+
+    result = []
+    for r in rows:
+        given = float(r["total_given"])
+        recovered = float(r["total_recovered"])
+        balance = max(given - recovered, 0.0)
+        result.append({
+            "party_code": r["party_code"],
+            "party_name": r["party_name"] or r["party_code"],
+            "contact_person": r["contact_person"] or "",
+            "phone_number": r["phone_number"] or "",
+            "total_given": given,
+            "total_recovered": recovered,
+            "balance": balance,
+            "entry_count": int(r["entry_count"]),
+            "has_balance": balance > 0.009,
+        })
+    return result
+
+
 def _annual_fee_summary(db):
     total_annual = float(db.execute("SELECT COALESCE(SUM(annual_amount), 0) FROM annual_fee_entries").fetchone()[0])
     total_received = float(db.execute("SELECT COALESCE(SUM(received_amount), 0) FROM annual_fee_entries").fetchone()[0])
     total_balance = float(db.execute("SELECT COALESCE(SUM(balance_amount), 0) FROM annual_fee_entries").fetchone()[0])
     due_count = int(db.execute("SELECT COUNT(*) FROM annual_fee_entries WHERE balance_amount > 0.009").fetchone()[0])
     return {"total_annual": total_annual, "total_received": total_received, "total_balance": total_balance, "due_count": due_count}
+
+
+def _annual_fee_party_summary(db):
+    """Return per-party annual fee breakdown grouped by fee_type."""
+    rows = db.execute("""
+        SELECT
+            f.party_code,
+            p.party_name,
+            f.fee_type,
+            COALESCE(SUM(f.annual_amount), 0) AS total_annual,
+            COALESCE(SUM(f.received_amount), 0) AS total_received,
+            COALESCE(SUM(f.balance_amount), 0) AS total_balance,
+            COUNT(*) AS entry_count,
+            SUM(CASE WHEN f.balance_amount > 0.009 THEN 1 ELSE 0 END) AS due_count
+        FROM annual_fee_entries f
+        LEFT JOIN parties p ON p.party_code = f.party_code
+        GROUP BY f.party_code, p.party_name, f.fee_type
+        ORDER BY p.party_name ASC, f.fee_type ASC
+    """).fetchall()
+
+    # Collapse into party-centric dict with per-type breakdown
+    parties = {}
+    for r in rows:
+        code = r["party_code"]
+        if code not in parties:
+            parties[code] = {
+                "party_code": code,
+                "party_name": r["party_name"] or code,
+                "by_type": {},
+                "overall": {"annual": 0.0, "received": 0.0, "balance": 0.0, "entries": 0, "due": 0},
+            }
+        ft = r["fee_type"] or "Other"
+        if ft not in parties[code]["by_type"]:
+            parties[code]["by_type"][ft] = {"annual": 0.0, "received": 0.0, "balance": 0.0, "entries": 0, "due": 0}
+        bucket = parties[code]["by_type"][ft]
+        bucket["annual"]   += float(r["total_annual"])
+        bucket["received"] += float(r["total_received"])
+        bucket["balance"]  += float(r["total_balance"])
+        bucket["entries"]  += int(r["entry_count"])
+        bucket["due"]      += int(r["due_count"])
+        for k in ("annual", "received", "balance"):
+            parties[code]["overall"][k] += bucket[k]
+        parties[code]["overall"]["entries"] += int(r["entry_count"])
+        parties[code]["overall"]["due"]     += int(r["due_count"])
+
+    return list(parties.values())
+
+
+def _annual_fee_rows_for_party(db, party_code):
+    """Return all fee entries for a specific party."""
+    return db.execute("""
+        SELECT f.fee_no, f.party_code, p.party_name, f.fee_type, f.description, f.vehicle_no,
+               f.due_date, f.annual_amount, f.received_amount, f.balance_amount, f.status, f.notes, f.created_at
+        FROM annual_fee_entries f
+        LEFT JOIN parties p ON p.party_code = f.party_code
+        WHERE f.party_code = ?
+        ORDER BY f.fee_type ASC, f.due_date ASC, f.id DESC
+    """, (party_code,)).fetchall()
+
+
+def _ensure_annual_fee_payments_table(db):
+    """Create annual_fee_payments table if not exists."""
+    try:
+        db.execute("SELECT 1 FROM annual_fee_payments LIMIT 1")
+    except Exception:
+        backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+        autoinc = "id BIGSERIAL PRIMARY KEY" if backend == "postgres" else "id INTEGER PRIMARY KEY AUTOINCREMENT"
+        now = "CURRENT_TIMESTAMP" if backend == "postgres" else "CURRENT_TIMESTAMP"
+        db.executescript(f"""
+            CREATE TABLE IF NOT EXISTS annual_fee_payments (
+                {autoinc},
+                receipt_no TEXT NOT NULL UNIQUE,
+                fee_no TEXT NOT NULL,
+                party_code TEXT NOT NULL,
+                payment_date TEXT NOT NULL,
+                amount REAL NOT NULL DEFAULT 0,
+                payment_method TEXT NOT NULL DEFAULT 'Cash',
+                reference TEXT,
+                notes TEXT,
+                created_by TEXT,
+                created_at TEXT DEFAULT {now}
+            )
+        """)
+        db.commit()
 
 
 def _fleet_maintenance_filter_values(request):
