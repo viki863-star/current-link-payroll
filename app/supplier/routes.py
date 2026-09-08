@@ -1709,22 +1709,64 @@ def supplier_lpo_pdf(sup_id, lpo_id):
 
     sig_style = ParagraphStyle("sg", fontSize=8, alignment=TA_CENTER, leading=11, textColor=DARK, spaceAfter=0)
 
-    sig_data = [[
-        Table([
-            [Spacer(1, 8*mm)],
-            [Paragraph("_" * 30, ParagraphStyle("sl", fontSize=8, textColor=MUTED, alignment=TA_CENTER, leading=4))],
-            [Paragraph("<b>COMPANY SIGNATURE &amp; STAMP</b>", sig_style)],
-            [Paragraph("Name: _______________________", sig_style)],
-            [Paragraph("Date: _______________________", sig_style)],
-        ], colWidths=[70*mm]),
-        Table([
-            [Spacer(1, 8*mm)],
-            [Paragraph("_" * 30, ParagraphStyle("sl", fontSize=8, textColor=MUTED, alignment=TA_CENTER, leading=4))],
-            [Paragraph("<b>SUPPLIER SIGNATURE &amp; STAMP</b>", sig_style)],
-            [Paragraph("Name: _______________________", sig_style)],
-            [Paragraph("Date: _______________________", sig_style)],
-        ], colWidths=[70*mm]),
-    ]]
+    # Load company stamp and signature images
+    import os
+    stamp_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'Stamp.png')
+    sign_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'Sign (1).png')
+    stamp_img = None
+    sign_img = None
+    try:
+        if os.path.exists(stamp_path):
+            stamp_img = RLImage(stamp_path, width=55, height=55)
+        if os.path.exists(sign_path):
+            sign_img = RLImage(sign_path, width=55, height=55)
+    except Exception:
+        pass
+
+    # Company signature column with stamp + sign
+    company_sig_cells = [
+        [Spacer(1, 2*mm)],
+    ]
+    if stamp_img or sign_img:
+        img_row = []
+        if stamp_img:
+            img_row.append(stamp_img)
+        if sign_img:
+            img_row.append(Spacer(1, 3*mm))
+            img_row.append(sign_img)
+        if len(img_row) == 1:
+            company_sig_cells.append(img_row)
+        else:
+            img_tbl = Table([img_row], colWidths=[55, 3*mm, 55])
+            img_tbl.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]))
+            company_sig_cells.append([img_tbl])
+    company_sig_cells.append([Paragraph("_" * 30, ParagraphStyle("sl", fontSize=8, textColor=MUTED, alignment=TA_CENTER, leading=4))])
+    company_sig_cells.append([Paragraph("<b>COMPANY SIGNATURE &amp; STAMP</b>", sig_style)])
+    company_sig_cells.append([Paragraph("Name: _______________________", sig_style)])
+    company_sig_cells.append([Paragraph("Date: _______________________", sig_style)])
+
+    company_sig_col = Table(company_sig_cells, colWidths=[70*mm])
+    company_sig_col.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
+    supplier_sig_col = Table([
+        [Spacer(1, 8*mm)],
+        [Paragraph("_" * 30, ParagraphStyle("sl", fontSize=8, textColor=MUTED, alignment=TA_CENTER, leading=4))],
+        [Paragraph("<b>SUPPLIER SIGNATURE &amp; STAMP</b>", sig_style)],
+        [Paragraph("Name: _______________________", sig_style)],
+        [Paragraph("Date: _______________________", sig_style)],
+    ], colWidths=[70*mm])
+
+    sig_data = [[company_sig_col, supplier_sig_col]]
     sig_tbl = Table(sig_data, colWidths=[avail_w * 0.5, avail_w * 0.5])
     sig_tbl.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -1747,6 +1789,21 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     doc.build(els)
     pdf_data = buf.getvalue()
     buf.close()
+
+    # Encrypt PDF to prevent editing
+    try:
+        from pypdf import PdfReader, PdfWriter
+        reader = PdfReader(BytesIO(pdf_data))
+        writer = PdfWriter()
+        for page in reader.pages:
+            writer.add_page(page)
+        writer.encrypt(user_password="", owner_password="CL2026Secure", permissions_flag=0b0000_0000_0100)
+        encrypted_buf = BytesIO()
+        writer.write(encrypted_buf)
+        pdf_data = encrypted_buf.getvalue()
+        encrypted_buf.close()
+    except Exception:
+        pass
 
     return send_file(
         BytesIO(pdf_data),
