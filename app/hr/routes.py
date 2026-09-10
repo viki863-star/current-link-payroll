@@ -944,6 +944,8 @@ def employee_salary_store_delete(employee_id, store_id):
             slip_ids = db.execute("SELECT id FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (store_id, eid)).fetchall()
             for s in slip_ids:
                 db.execute("DELETE FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?", (s["id"],))
+                db.execute("DELETE FROM driver_transaction_deductions WHERE salary_slip_id = ?", (s["id"],))
+                db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (s["id"],))
             db.execute("DELETE FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (store_id, eid))
             db.execute("DELETE FROM salary_store WHERE id = ? AND driver_id = ?", (store_id, eid))
             _audit_log(db, "employee_salary_store_deleted", entity_type="salary_store", entity_id=f"{eid}:{row['salary_month']}")
@@ -1285,6 +1287,7 @@ def employee_salary_slip_delete(employee_id, store_id):
         )
 
     delete_owner_fund = request.form.get("delete_owner_fund") == "yes"
+    db.execute("DELETE FROM driver_transaction_deductions WHERE salary_slip_id = ?", (slip["id"],))
     db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip["id"],))
     if delete_owner_fund and owner_fund_entry:
         db.execute("DELETE FROM owner_fund_entries WHERE id=?", (owner_fund_entry["id"],))
@@ -1767,6 +1770,8 @@ def employee_delete(employee_id):
 
     try:
         # Clean up related data
+        db.execute("DELETE FROM driver_transaction_deductions WHERE driver_id = ?", (employee_id,))
+        db.execute("DELETE FROM salary_slip_deductions WHERE driver_id = ?", (employee_id,))
         db.execute("DELETE FROM salary_store WHERE driver_id = ?", (employee_id,))
         db.execute("DELETE FROM salary_slips WHERE driver_id = ?", (employee_id,))
         db.execute("DELETE FROM salary_payments WHERE driver_id = ?", (employee_id,))

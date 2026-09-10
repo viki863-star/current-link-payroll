@@ -8621,6 +8621,8 @@ def register_routes(app: Flask) -> None:
         db.execute("DELETE FROM driver_timesheets WHERE driver_id = ?", (driver_id,))
         db.execute("DELETE FROM driver_transactions WHERE driver_id = ?", (driver_id,))
         db.execute("DELETE FROM salary_payments WHERE driver_id = ?", (driver_id,))
+        db.execute("DELETE FROM driver_transaction_deductions WHERE driver_id = ?", (driver_id,))
+        db.execute("DELETE FROM salary_slip_deductions WHERE driver_id = ?", (driver_id,))
         db.execute("DELETE FROM salary_slips WHERE driver_id = ?", (driver_id,))
         db.execute("DELETE FROM salary_store WHERE driver_id = ?", (driver_id,))
         db.execute("DELETE FROM drivers WHERE driver_id = ?", (driver_id,))
@@ -8810,6 +8812,8 @@ def register_routes(app: Flask) -> None:
                 (slip_id, driver_id),
             ).fetchone()
             if existing_slip is not None:
+                db.execute("DELETE FROM driver_transaction_deductions WHERE salary_slip_id = ?", (slip_id,))
+                db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip_id,))
                 db.execute(
                     "DELETE FROM salary_slips WHERE id = ? AND driver_id = ?",
                     (slip_id, driver_id),
@@ -9014,6 +9018,8 @@ def register_routes(app: Flask) -> None:
         slip_ids = db.execute("SELECT id FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (salary_id, driver_id)).fetchall()
         for s in slip_ids:
             db.execute("DELETE FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?", (s["id"],))
+            db.execute("DELETE FROM driver_transaction_deductions WHERE salary_slip_id = ?", (s["id"],))
+            db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (s["id"],))
         db.execute("DELETE FROM owner_fund_entries WHERE source_table='salary_payments' AND source_id IN (SELECT id FROM salary_payments WHERE salary_store_id = ? AND driver_id = ?)", (salary_id, driver_id))
         db.execute("DELETE FROM salary_store WHERE id = ? AND driver_id = ?", (salary_id, driver_id))
         db.execute("DELETE FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (salary_id, driver_id))
