@@ -1797,6 +1797,54 @@ def customer_credit_note_delete(cid, cnid):
     return redirect(url_for("customer.customer_profile", cid=cid, tab="credit_notes"))
 
 
+@customer_bp.route("/<int:cid>/credit-note/<int:cnid>/edit", methods=["GET", "POST"])
+def customer_credit_note_edit(cid, cnid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c: return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+    cn_row = db.execute("SELECT * FROM customer_credit_notes WHERE id=? AND customer_id=?", (cnid, cid)).fetchone()
+    if not cn_row:
+        flash("Credit note not found.", "error")
+        db.close()
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="credit_notes"))
+
+    invoices = db.execute("SELECT id,invoice_no,total_amount,invoice_date FROM customer_invoices WHERE customer_id=? ORDER BY invoice_date DESC", (cid,)).fetchall()
+
+    if request.method == "POST":
+        cn_date = request.form.get("credit_note_date", cn_row["credit_note_date"])
+        cn_no = request.form.get("credit_note_no", "").strip()
+        inv_id = request.form.get("invoice_id") or None
+        amount = float(request.form.get("amount", 0) or 0)
+        vat_pct = float(request.form.get("vat_percent", 0) or 0)
+        reason = request.form.get("reason", "").strip()
+        notes = request.form.get("notes", "").strip()
+
+        if not cn_no:
+            flash("Credit note number is required.", "error")
+            db.close()
+            return render_template("customer/credit_note_edit.html", c=c, cn=cn_row, invoices=invoices)
+        if amount <= 0:
+            flash("Amount must be greater than zero.", "error")
+            db.close()
+            return render_template("customer/credit_note_edit.html", c=c, cn=cn_row, invoices=invoices)
+
+        vat_amt = round(amount * vat_pct / 100, 2)
+        total = round(amount + vat_amt, 2)
+
+        db.execute(
+            "UPDATE customer_credit_notes SET credit_note_date=?, credit_note_no=?, invoice_id=?, amount=?, vat_percent=?, vat_amount=?, total_amount=?, reason=?, notes=? WHERE id=? AND customer_id=?",
+            (cn_date, cn_no, inv_id, amount, vat_pct, vat_amt, total, reason or None, notes or None, cnid, cid),
+        )
+        db.commit()
+        db.close()
+        flash(f"Credit Note {cn_no} updated.", "success")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="credit_notes"))
+
+    db.close()
+    return render_template("customer/credit_note_edit.html", c=c, cn=cn_row, invoices=invoices)
+
+
 @customer_bp.route("/<int:cid>/credit-note/<int:cnid>/pdf")
 def customer_credit_note_pdf(cid, cnid):
     import tempfile, base64
