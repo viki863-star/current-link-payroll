@@ -948,26 +948,28 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     col_w = [left_w, gap, right_w]
 
     # ── LEFT: ADVANCES / TRANSACTIONS TABLE ──
+    # Only show outstanding advances (remaining > 0)
+    outstanding_advances = [a for a in advances if float(a.get("remaining", a.get("amount", 0))) > 0.01]
     left_title = [
-        PlParagraph("<b>Transactions (Advances Received)</b>", F("_ltitle", fontSize=7.5, fontName="Helvetica-Bold", textColor=TH, leading=10)),
-        _UP("<b>لین دین (موصول شدہ پیشگی)</b>"),
+        PlParagraph("<b>Outstanding Advances</b>", F("_ltitle", fontSize=7.5, fontName="Helvetica-Bold", textColor=TH, leading=10)),
+        _UP("<b>باقی پیشگی</b>"),
     ]
     
     txn_colw = [42, left_w - 42 - 42, 42]
     txn_hdr = [
         PlParagraph("<b>Date</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=8)),
         PlParagraph("<b>Details</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, leading=8)),
-        PlParagraph("<b>Amount</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
+        PlParagraph("<b>Remaining</b>", F("_th", fontSize=5.8, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=8)),
     ]
     txn_rows = [txn_hdr]
     txn_total = 0.0
-    for a in advances:
-        amt = float(a.get("amount", 0))
-        txn_total += amt
+    for a in outstanding_advances:
+        rem = float(a.get("remaining", a.get("amount", 0)))
+        txn_total += rem
         txn_rows.append([
             PlParagraph(str(a.get("entry_date", ""))[:10], F("_td", fontSize=6, leading=8)),
             PlParagraph(str(a.get("details", "-"))[:40], F("_tDet", fontSize=5.8, textColor=C5, leading=8)),
-            PlParagraph(f"<b>{format_currency(amt)}</b>", F("_ta", fontSize=6, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=8)),
+            PlParagraph(f"<b>{format_currency(rem)}</b>", F("_ta", fontSize=6, fontName="Helvetica-Bold", textColor="#c62828", alignment=TA_RIGHT, leading=8)),
         ])
     # Total row
     txn_rows.append([

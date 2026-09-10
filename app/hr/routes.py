@@ -1678,9 +1678,8 @@ def employee_kata(employee_id):
         ).fetchall()
 
     pdf_url = None
-    transactions_pdf_url = None
     if selected_month:
-        from ..pdf_service import generate_simple_kata_pdf, generate_transactions_kata_pdf
+        from ..pdf_service import generate_simple_kata_pdf
 
         driver_display = {
             "driver_id": eid,
@@ -1708,17 +1707,6 @@ def employee_kata(employee_id):
             rel = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
             pdf_url = url_for("generated_file", filename=rel)
 
-        outstanding = [a for a in kata_advances if a["status"] != "cleared"]
-        tx_path = generate_transactions_kata_pdf(
-            driver_display, outstanding, selected_month,
-            str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
-            current_app.config["STATIC_ASSETS_DIR"],
-            company_profile=company_profile,
-        )
-        if tx_path:
-            rel = Path(tx_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
-            transactions_pdf_url = url_for("generated_file", filename=rel)
-
     photo_url = _employee_photo_url(current_app._get_current_object(), employee)
 
     return render_template(
@@ -1738,7 +1726,6 @@ def employee_kata(employee_id):
         kata_remaining=kata_remaining,
         kata_deduction_history=deduction_history,
         kata_pdf_url=pdf_url,
-        kata_transactions_pdf_url=transactions_pdf_url,
     )
 
 
