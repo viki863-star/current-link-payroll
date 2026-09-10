@@ -528,6 +528,7 @@
                             {% if slip_existing_slip and slip_existing_slip.pdf_path %}
                             <div class="dv2-slip-actions">
                                 <a href="{{ url_for('generated_file', filename=slip_existing_slip.pdf_path) }}" target="_blank" class="dv2-btn dv2-btn-primary">&#128196; View / Print Salary Slip</a>
+                                <a href="{{ url_for('hr.employee_salary_card', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" target="_blank" class="dv2-btn dv2-btn-outline" style="background:#25D366;color:#fff;border-color:#25D366">&#128241; Salary Card for Driver</a>
                                 <a href="{{ url_for('hr.employee_deduction_statement', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" target="_blank" class="dv2-btn dv2-btn-outline">Download Deduction Statement</a>
                                 <a href="{{ url_for('hr.employee_salary_slip_delete', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" class="dv2-btn dv2-btn-danger">&#128465; Delete</a>
                             </div>

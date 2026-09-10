@@ -1343,6 +1343,103 @@ def employee_salary_slip_delete(employee_id, store_id):
     return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
 
 
+@hr_bp.route("/hr/employees/<employee_id>/salary-slip/<int:store_id>/salary-card")
+@_login_required("admin")
+def employee_salary_card(employee_id, store_id):
+    """Generate a simple visual salary card PDF for sharing with driver via WhatsApp."""
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    employee = _fetch_employee(db, employee_id)
+    if employee is None:
+        flash("Employee not found.", "error")
+        return redirect(url_for("hr.employee_list"))
+    eid = employee["employee_id"]
+
+    slip = db.execute(
+        "SELECT id, driver_id, salary_store_id, salary_month, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?",
+        (store_id, eid),
+    ).fetchone()
+    if slip is None:
+        flash("Salary slip not found.", "error")
+        return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
+
+    salary_row = db.execute(
+        "SELECT * FROM salary_store WHERE driver_id = ? AND id = ?",
+        (eid, store_id),
+    ).fetchone()
+
+    # Fetch advances
+    all_advances = db.execute(
+        "SELECT id, entry_date, salary_month, txn_type, source, given_by, amount, details, remaining_amount, is_fully_deducted FROM driver_transactions WHERE driver_id = ? ORDER BY entry_date ASC, id ASC",
+        (eid,),
+    ).fetchall()
+
+    # Build advance summary with deduction info
+    advances_list = []
+    total_adv = 0.0
+    for a in all_advances:
+        amt = float(a["amount"])
+        rem = float(a["remaining_amount"] or amt)
+        ded = amt - rem
+        total_adv += amt
+        advances_list.append({
+            "entry_date": a["entry_date"],
+            "amount": amt,
+            "deducted": ded,
+            "remaining": rem,
+            "details": a["details"],
+            "source": a["source"],
+        })
+
+    # Previous balance
+    prev_deductions = float(db.execute(
+        "SELECT COALESCE(SUM(total_deductions), 0) FROM salary_slips WHERE driver_id = ? AND salary_month < ?",
+        (eid, slip["salary_month"]),
+    ).fetchone()[0])
+    total_adv_remaining = sum(a["remaining"] for a in advances_list)
+    prev_balance = max(total_adv_remaining - float(slip["total_deductions"] or 0), 0.0)
+
+    basic = float(salary_row["basic_salary"] or 0) if salary_row else 0.0
+    ot = float(salary_row["ot_amount"] or 0) if salary_row else 0.0
+    pv = float(salary_row["personal_vehicle"] or 0) if salary_row else 0.0
+    net_sal = float(salary_row["net_salary"] or 0) if salary_row else 0.0
+    this_ded = float(slip["total_deductions"] or 0)
+    net_paid = float(slip["actual_paid_amount"] or 0)
+    outstanding = float(slip["company_balance_due"] or 0)
+
+    company = db.execute("SELECT company_name, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company_profile = dict(company) if company else None
+
+    from ..pdf_service import generate_driver_salary_card_pdf
+    output_dir = Path(current_app.config["GENERATED_DIR"]) / "salary_cards"
+    pdf_path = generate_driver_salary_card_pdf(
+        driver_name=employee["full_name"],
+        driver_id=eid,
+        month=slip["salary_month"],
+        basic_salary=basic,
+        ot_amount=ot,
+        personal_vehicle=pv,
+        total_salary=net_sal,
+        total_advances=total_adv,
+        total_deducted=this_ded,
+        net_paid=net_paid,
+        outstanding_balance=outstanding,
+        previous_balance=prev_balance,
+        advances_list=advances_list,
+        output_dir=str(output_dir),
+        assets_dir=current_app.config["STATIC_ASSETS_DIR"],
+        company_profile=company_profile,
+    )
+    if pdf_path:
+        rel = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
+        pdf_url = url_for("generated_file", filename=rel)
+        return redirect(pdf_url)
+
+    flash("Error generating salary card.", "error")
+    return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
+
+
 @hr_bp.route("/hr/employees/<employee_id>/salary-slip/<int:store_id>/deduction-statement")
 @_login_required("admin")
 def employee_deduction_statement(employee_id, store_id):
