@@ -5446,7 +5446,7 @@ def generate_loan_soa_pdf(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DRIVER SALARY CARD — Simple Visual Summary for WhatsApp/Screenshot
+#  DRIVER SALARY CARD — Full Detail with Advance History & Deductions
 # ══════════════════════════════════════════════════════════════════════════════
 
 def generate_driver_salary_card_pdf(
@@ -5463,17 +5463,17 @@ def generate_driver_salary_card_pdf(
     outstanding_balance: float = 0.0,
     previous_balance: float = 0.0,
     advances_list: list | None = None,
-    deduction_history: list | None = None,
+    month_deductions: list | None = None,
     output_dir: str = "",
     assets_dir: str = "",
     company_profile: dict | None = None,
 ) -> str:
-    """Generate a simple, visual salary card PDF that uneducated drivers can understand.
-    Designed for WhatsApp sharing / screenshot."""
+    """Generate a full-detail salary card PDF for uneducated drivers.
+    Shows: salary breakdown, ALL advances with per-line deductions, month-wise summary."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
-    from reportlab.lib.colors import HexColor, white, black
-    from reportlab.platypus import SimpleDocTemplate, Paragraph as PlParagraph, Spacer, Table as PlTable, TableStyle as PlTableStyle, Image as PlImage
+    from reportlab.lib.colors import HexColor, white
+    from reportlab.platypus import SimpleDocTemplate, Paragraph as PlParagraph, Spacer, Table as PlTable, TableStyle as PlTableStyle, Image as PlImage, PageBreak
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
     import os, tempfile
@@ -5483,281 +5483,222 @@ def generate_driver_salary_card_pdf(
     output_path = Path(output_dir) / f"{driver_id}_{file_suffix}.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Page setup — compact for mobile-friendly reading
-    LM, RM, TM, BM = 12*mm, 12*mm, 10*mm, 10*mm
+    LM, RM, TM, BM = 10*mm, 10*mm, 8*mm, 8*mm
     doc = SimpleDocTemplate(str(output_path), pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
     W = A4[0] - LM - RM
 
-    # Colors
     cp = dict(company_profile) if company_profile else {}
     tc = cp.get("theme_color") or "#1a3a5c"
     try: TH = HexColor(tc)
     except: TH = HexColor("#1a3a5c")
 
-    GREEN = HexColor("#16a34a")
-    GREEN_BG = HexColor("#dcfce7")
-    GREEN_LIGHT = HexColor("#f0fdf4")
-    ORANGE = HexColor("#ea580c")
-    ORANGE_BG = HexColor("#fff7ed")
-    ORANGE_LIGHT = HexColor("#ffedd5")
-    BLUE = HexColor("#1d4ed8")
-    BLUE_BG = HexColor("#eff6ff")
-    BLUE_LIGHT = HexColor("#dbeafe")
-    RED = HexColor("#dc2626")
-    RED_BG = HexColor("#fef2f2")
-    RED_LIGHT = HexColor("#fee2e2")
-    DARK = HexColor("#1e293b")
-    MUTED = HexColor("#64748b")
-    LIGHT_GRAY = HexColor("#f1f5f9")
-    BORDER = HexColor("#e2e8f0")
+    GREEN = HexColor("#16a34a"); GREEN_L = HexColor("#f0fdf4")
+    ORANGE = HexColor("#ea580c"); ORANGE_L = HexColor("#ffedd5")
+    BLUE = HexColor("#1d4ed8"); BLUE_L = HexColor("#dbeafe")
+    RED = HexColor("#dc2626"); RED_L = HexColor("#fee2e2")
+    DARK = HexColor("#1e293b"); MUTED = HexColor("#64748b")
+    LG = HexColor("#f1f5f9"); BD = HexColor("#e2e8f0")
 
     def S(name, **kw):
         kw.setdefault("fontName", "Helvetica")
         return ParagraphStyle(name, **kw)
-
-    def P(text, style):
-        return PlParagraph(text, style)
+    def P(t, s): return PlParagraph(t, s)
 
     els = []
 
-    # ═══ HEADER — Company + Title ═══
-    company_name = cp.get("company_name", "CURRENT LINK")
-    logo = None
-    LW = 0
+    # ═══ HEADER ═══
+    logo = None; LW = 0
     if cp.get("logo_data"):
         try:
             lb = base64.b64decode(cp["logo_data"])
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
             f.write(lb); f.close()
-            logo = PlImage(f.name, width=36, height=36)
-            LW = 36
+            logo = PlImage(f.name, width=32, height=32); LW = 32
         except: pass
 
-    title_style = S("TITLE", fontSize=16, fontName="Helvetica-Bold", textColor=TH, alignment=TA_CENTER, leading=20)
-    subtitle_style = S("SUB", fontSize=8, textColor=MUTED, alignment=TA_CENTER, leading=11)
-    month_style = S("MONTH", fontSize=11, fontName="Helvetica-Bold", textColor=DARK, alignment=TA_CENTER, leading=14)
+    h_title = S("HT", fontSize=14, fontName="Helvetica-Bold", textColor=TH, alignment=TA_CENTER, leading=17)
+    h_sub = S("HS", fontSize=7.5, textColor=MUTED, alignment=TA_CENTER, leading=10)
+    h_month = S("HM", fontSize=10, fontName="Helvetica-Bold", textColor=DARK, alignment=TA_CENTER, leading=13)
 
-    header_rows = []
+    h_rows = []
     if logo:
-        header_rows.append([logo, P(f"<b>SALARY SLIP</b>", title_style), ""])
+        h_rows.append([logo, P(f"<b>SALARY SLIP</b>", h_title), ""])
     else:
-        header_rows.append(["", P(f"<b>SALARY SLIP</b>", title_style), ""])
-    header_rows.append(["", P(f"{driver_name} ({driver_id})", subtitle_style), ""])
-    header_rows.append(["", P(f"<b>{normalized_month}</b>", month_style), ""])
-
-    col_w = [LW + 5, W - LW - 5 - 60, 60]
-    ht = PlTable(header_rows, colWidths=col_w)
-    ht.setStyle(PlTableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-    ]))
+        h_rows.append(["", P(f"<b>SALARY SLIP</b>", h_title), ""])
+    h_rows.append(["", P(f"{driver_name} ({driver_id})", h_sub), ""])
+    h_rows.append(["", P(f"<b>{normalized_month}</b>", h_month), ""])
+    ht = PlTable(h_rows, colWidths=[LW+5, W-LW-5, 0])
+    ht.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),("TOPPADDING",(0,0),(-1,-1),1),("BOTTOMPADDING",(0,0),(-1,-1),1)]))
     els.append(ht)
-
-    # Colored line
+    els.append(Spacer(1, 2*mm))
+    ln = PlTable([[""]], colWidths=[W], rowHeights=[2.5])
+    ln.setStyle(PlTableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ln)
     els.append(Spacer(1, 3*mm))
-    line = PlTable([[""]], colWidths=[W], rowHeights=[3])
-    line.setStyle(PlTableStyle([("BACKGROUND", (0, 0), (-1, -1), TH), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
-    els.append(line)
-    els.append(Spacer(1, 5*mm))
 
-    # ═══ BIG CARDS — The main visual section ═══
-    card_label = S("CL", fontSize=8, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=10)
-    card_value = S("CV", fontSize=22, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=26)
-    card_sub = S("CS", fontSize=7, alignment=TA_CENTER, leading=9)
-
+    # ═══ BIG CARDS ═══
     def _card(label, value, color, bg, icon=""):
         inner = PlTable(
-            [[P(f"<font size=12>{icon}</font>", S("_ic", fontSize=12, alignment=TA_CENTER, textColor=color, leading=14))],
-             [P(f"<b>{value}</b>", S("_cv", fontSize=20, fontName="Helvetica-Bold", alignment=TA_CENTER, textColor=color, leading=24))],
-             [P(label, S("_cl", fontSize=8, fontName="Helvetica-Bold", alignment=TA_CENTER, textColor=color, leading=10))]],
-            colWidths=[W * 0.46],
-        )
-        inner.setStyle(PlTableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("BACKGROUND", (0, 0), (-1, -1), bg),
-            ("BOX", (0, 0), (-1, -1), 1.5, color),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            ("LEFTPADDING", (0, 0), (-1, -1), 8),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-            ("ROUNDEDCORNERS", [6, 6, 6, 6]),
-        ]))
+            [[P(f"<font size=11>{icon}</font>", S("_ic",fontSize=11,alignment=TA_CENTER,textColor=color,leading=13))],
+             [P(f"<b>{value}</b>", S("_cv",fontSize=18,fontName="Helvetica-Bold",alignment=TA_CENTER,textColor=color,leading=22))],
+             [P(label, S("_cl",fontSize=7,fontName="Helvetica-Bold",alignment=TA_CENTER,textColor=color,leading=9))]],
+            colWidths=[W*0.46])
+        inner.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("ALIGN",(0,0),(-1,-1),"CENTER"),("BACKGROUND",(0,0),(-1,-1),bg),("BOX",(0,0),(-1,-1),1.2,color),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5),("LEFTPADDING",(0,0),(-1,-1),6),("RIGHTPADDING",(0,0),(-1,-1),6)]))
         return inner
 
-    # Row 1: Salary | Deducted
-    salary_card = _card("TOTAL SALARY", f"AED {total_salary:,.0f}", GREEN, GREEN_LIGHT, "\u2705")
-    deducted_card = _card("DEDUCTED", f"AED {total_deducted:,.0f}", ORANGE, ORANGE_LIGHT, "\u2796")
-    row1 = PlTable([[salary_card, deducted_card]], colWidths=[W*0.50, W*0.50])
-    row1.setStyle(PlTableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-    ]))
-    els.append(row1)
+    r1 = PlTable([[_card("TOTAL SALARY",f"AED {total_salary:,.0f}",GREEN,GREEN_L,"\u2705"), _card("DEDUCTED",f"AED {total_deducted:,.0f}",ORANGE,ORANGE_L,"\u2796")]], colWidths=[W*0.50,W*0.50])
+    r1.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),3),("RIGHTPADDING",(0,0),(-1,-1),3)]))
+    els.append(r1)
+    els.append(Spacer(1, 3*mm))
+
+    r2 = PlTable([[_card("NET PAID",f"AED {net_paid:,.0f}",BLUE,BLUE_L,"\U0001f4b3"), _card("OUTSTANDING" if outstanding_balance > 0 else "BALANCE",f"AED {outstanding_balance:,.0f}" if outstanding_balance > 0 else "CLEARED",RED if outstanding_balance > 0 else GREEN,RED_L if outstanding_balance > 0 else GREEN_L,"\u26a0\ufe0f" if outstanding_balance > 0 else "\u2714\ufe0f")]], colWidths=[W*0.50,W*0.50])
+    r2.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),3),("RIGHTPADDING",(0,0),(-1,-1),3)]))
+    els.append(r2)
     els.append(Spacer(1, 4*mm))
 
-    # Row 2: Net Paid | Outstanding
-    paid_card = _card("NET PAID", f"AED {net_paid:,.0f}", BLUE, BLUE_LIGHT, "\U0001f4b3")
+    # ═══ SALARY BREAKDOWN ═══
+    bl = S("BL",fontSize=8,textColor=DARK,leading=11)
+    bv = S("BV",fontSize=8,fontName="Helvetica-Bold",textColor=DARK,alignment=TA_RIGHT,leading=11)
+    bk = [[P("<b>SALARY BREAKDOWN</b>",S("BT",fontSize=9,fontName="Helvetica-Bold",textColor=TH,leading=12)),""]]
+    bk.append([P("Basic Salary",bl),P(f"AED {basic_salary:,.2f}",bv)])
+    if ot_amount > 0: bk.append([P("OT / Extra",bl),P(f"<font color='#16a34a'>+ AED {ot_amount:,.2f}</font>",S("_ot",fontSize=8,fontName="Helvetica-Bold",textColor=GREEN,alignment=TA_RIGHT,leading=11))])
+    if personal_vehicle > 0: bk.append([P("Personal Vehicle",bl),P(f"<font color='#16a34a'>+ AED {personal_vehicle:,.2f}</font>",S("_pv",fontSize=8,fontName="Helvetica-Bold",textColor=GREEN,alignment=TA_RIGHT,leading=11))])
+    bk.append([P("<b>TOTAL SALARY</b>",S("_ts",fontSize=9,fontName="Helvetica-Bold",textColor=DARK,leading=12)),P(f"<b>AED {total_salary:,.2f}</b>",S("_tv",fontSize=9,fontName="Helvetica-Bold",textColor=GREEN,alignment=TA_RIGHT,leading=12))])
+    bk.append([P("Previous Balance",bl),P(f"AED {previous_balance:,.2f}",bv)])
+    bk.append([P("Total Advances",bl),P(f"AED {total_advances:,.2f}",bv)])
+    bk.append([P("<b>This Month Deducted</b>",S("_dl",fontSize=9,fontName="Helvetica-Bold",textColor=ORANGE,leading=12)),P(f"<b>- AED {total_deducted:,.2f}</b>",S("_dv",fontSize=9,fontName="Helvetica-Bold",textColor=ORANGE,alignment=TA_RIGHT,leading=12))])
+    bk.append([P("<b>YOU GET</b>",S("_yg",fontSize=11,fontName="Helvetica-Bold",textColor=BLUE,leading=14)),P(f"<b>AED {net_paid:,.2f}</b>",S("_ygv",fontSize=11,fontName="Helvetica-Bold",textColor=BLUE,alignment=TA_RIGHT,leading=14))])
     if outstanding_balance > 0:
-        outstanding_card = _card("OUTSTANDING", f"AED {outstanding_balance:,.0f}", RED, RED_LIGHT, "\u26a0\ufe0f")
-    else:
-        outstanding_card = _card("BALANCE", "CLEARED", GREEN, GREEN_LIGHT, "\u2714\ufe0f")
-    row2 = PlTable([[paid_card, outstanding_card]], colWidths=[W*0.50, W*0.50])
-    row2.setStyle(PlTableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-    ]))
-    els.append(row2)
-    els.append(Spacer(1, 6*mm))
+        bk.append([P("<b>STILL DUE TO COMPANY</b>",S("_sd",fontSize=8,fontName="Helvetica-Bold",textColor=RED,leading=11)),P(f"<b>AED {outstanding_balance:,.2f}</b>",S("_sdv",fontSize=8,fontName="Helvetica-Bold",textColor=RED,alignment=TA_RIGHT,leading=11))])
+    bkt = PlTable(bk,colWidths=[W*0.55,W*0.45])
+    bkt.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("BACKGROUND",(0,0),(-1,0),LG),("SPAN",(0,0),(1,0)),("BOX",(0,0),(-1,-1),0.8,BD),("LINEBELOW",(0,0),(-1,0),0.8,BD),("TOPPADDING",(0,0),(-1,-1),3),("BOTTOMPADDING",(0,0),(-1,-1),3),("LEFTPADDING",(0,0),(-1,-1),6),("RIGHTPADDING",(0,0),(-1,-1),6)]))
+    els.append(bkt)
+    els.append(Spacer(1, 4*mm))
 
-    # ═══ SIMPLE BREAKDOWN TABLE ═══
-    bk_title = S("BKT", fontSize=10, fontName="Helvetica-Bold", textColor=TH, leading=13)
-    bk_label = S("BKL", fontSize=9, textColor=DARK, leading=12)
-    bk_value = S("BKV", fontSize=9, fontName="Helvetica-Bold", textColor=DARK, alignment=TA_RIGHT, leading=12)
-    bk_green = S("BKG", fontSize=9, fontName="Helvetica-Bold", textColor=GREEN, alignment=TA_RIGHT, leading=12)
-    bk_red = S("BKR", fontSize=9, fontName="Helvetica-Bold", textColor=RED, alignment=TA_RIGHT, leading=12)
+    # ═══ MONTH-WISE DEDUCTION SUMMARY ═══
+    if month_deductions and len(month_deductions) > 0:
+        ms = S("MS",fontSize=8,fontName="Helvetica-Bold",textColor=TH,leading=11)
+        mh = S("MH",fontSize=7,fontName="Helvetica-Bold", textColor=white, leading=9)
+        mc = S("MC",fontSize=7.5,textColor=DARK,leading=10)
+        mcr = S("MCR",fontSize=7.5,textColor=DARK,alignment=TA_RIGHT,leading=10)
+        mcg = S("MCG",fontSize=7.5,fontName="Helvetica-Bold",textColor=GREEN,alignment=TA_RIGHT,leading=10)
 
-    bk_rows = [[P("<b>BREAKDOWN</b>", bk_title), ""]]
+        els.append(P("<b>MONTH-WISE SALARY &amp; DEDUCTION HISTORY</b>", ms))
+        els.append(Spacer(1, 1.5*mm))
+        m_rows = [[P("<b>Month</b>",mh), P("<b>Salary</b>",mh), P("<b>Deducted</b>",mh), P("<b>Paid</b>",mh)]]
+        for m in month_deductions:
+            m_month = format_month_label(m.get("salary_month","")) or m.get("salary_month","")
+            m_ded = float(m.get("total_deductions",0))
+            m_rows.append([
+                P(m_month, mc),
+                P(f"AED {float(m.get('net_salary',0)):,.0f}" if m.get('net_salary') else "-", mcr),
+                P(f"AED {m_ded:,.0f}" if m_ded > 0 else "-", S("_md",fontSize=7.5,textColor=ORANGE if m_ded>0 else DARK,alignment=TA_RIGHT,leading=10)),
+                P(f"AED {float(m.get('actual_paid_amount',0)):,.0f}" if m.get('actual_paid_amount') else "-", mcg),
+            ])
+        mt = PlTable(m_rows,colWidths=[W*0.28,W*0.24,W*0.24,W*0.24])
+        mt.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("BACKGROUND",(0,0),(-1,0),TH),("BOX",(0,0),(-1,-1),0.5,BD),("INNERGRID",(0,0),(-1,-1),0.3,BD),("TOPPADDING",(0,0),(-1,-1),2.5),("BOTTOMPADDING",(0,0),(-1,-1),2.5),("LEFTPADDING",(0,0),(-1,-1),4),("RIGHTPADDING",(0,0),(-1,-1),4),("ROWBACKGROUNDS",(0,1),(-1,-1),[white,LG])]))
+        els.append(mt)
+        els.append(Spacer(1, 4*mm))
 
-    bk_rows.append([P("Basic Salary", bk_label), P(f"AED {basic_salary:,.2f}", bk_value)])
-    if ot_amount > 0:
-        bk_rows.append([P("OT / Extra", bk_label), P(f"<font color='#16a34a'>+ AED {ot_amount:,.2f}</font>", S("_ot", fontSize=9, fontName="Helvetica-Bold", textColor=GREEN, alignment=TA_RIGHT, leading=12))])
-    if personal_vehicle > 0:
-        bk_rows.append([P("Personal Vehicle", bk_label), P(f"<font color='#16a34a'>+ AED {personal_vehicle:,.2f}</font>", S("_pv", fontSize=9, fontName="Helvetica-Bold", textColor=GREEN, alignment=TA_RIGHT, leading=12))])
-
-    bk_rows.append([P("", bk_label), P("", bk_value)])  # spacer
-    bk_rows.append([P("<b>TOTAL SALARY</b>", S("_ts", fontSize=10, fontName="Helvetica-Bold", textColor=DARK, leading=13)),
-                     P(f"<b>AED {total_salary:,.2f}</b>", S("_tsv", fontSize=10, fontName="Helvetica-Bold", textColor=GREEN, alignment=TA_RIGHT, leading=13))])
-
-    bk_rows.append([P("", bk_label), P("", bk_value)])  # spacer
-
-    if previous_balance > 0:
-        bk_rows.append([P("Previous Balance", bk_label), P(f"AED {previous_balance:,.2f}", bk_value)])
-    bk_rows.append([P("Advances Given", bk_label), P(f"AED {total_advances:,.2f}", bk_value)])
-    bk_rows.append([P("<b>DEDUCTED</b>", S("_dl", fontSize=10, fontName="Helvetica-Bold", textColor=ORANGE, leading=13)),
-                     P(f"<b>- AED {total_deducted:,.2f}</b>", S("_dv", fontSize=10, fontName="Helvetica-Bold", textColor=ORANGE, alignment=TA_RIGHT, leading=13))])
-
-    bk_rows.append([P("", bk_label), P("", bk_value)])  # spacer
-    bk_rows.append([P("<b>YOU GET</b>", S("_yg", fontSize=12, fontName="Helvetica-Bold", textColor=BLUE, leading=15)),
-                     P(f"<b>AED {net_paid:,.2f}</b>", S("_ygv", fontSize=12, fontName="Helvetica-Bold", textColor=BLUE, alignment=TA_RIGHT, leading=15))])
-
-    if outstanding_balance > 0:
-        bk_rows.append([P("<b>STILL DUE TO COMPANY</b>", S("_sd", fontSize=9, fontName="Helvetica-Bold", textColor=RED, leading=12)),
-                         P(f"<b>AED {outstanding_balance:,.2f}</b>", S("_sdv", fontSize=9, fontName="Helvetica-Bold", textColor=RED, alignment=TA_RIGHT, leading=12))])
-
-    bk = PlTable(bk_rows, colWidths=[W*0.55, W*0.45])
-    bk.setStyle(PlTableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("BACKGROUND", (0, 0), (-1, 0), LIGHT_GRAY),
-        ("SPAN", (0, 0), (1, 0)),
-        ("BOX", (0, 0), (-1, -1), 1, BORDER),
-        ("LINEBELOW", (0, 0), (-1, 0), 1, BORDER),
-        ("LINEABOVE", (0, 4), (-1, 4), 1, BORDER),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-    ]))
-    els.append(bk)
-    els.append(Spacer(1, 5*mm))
-
-    # ═══ ADVANCES DETAIL (if any) ═══
+    # ═══ ALL ADVANCES DETAIL ═══
     if advances_list and len(advances_list) > 0:
-        adv_title = S("AT", fontSize=9, fontName="Helvetica-Bold", textColor=TH, leading=12)
-        adv_hdr_l = S("AHL", fontSize=7, fontName="Helvetica-Bold", textColor=white, leading=9)
-        adv_hdr_r = S("AHR", fontSize=7, fontName="Helvetica-Bold", textColor=white, alignment=TA_RIGHT, leading=9)
-        adv_cell = S("AC", fontSize=7.5, textColor=DARK, leading=10)
-        adv_cell_r = S("ACR", fontSize=7.5, textColor=DARK, alignment=TA_RIGHT, leading=10)
-        adv_cell_red = S("ACRed", fontSize=7.5, textColor=RED, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=10)
-        adv_cell_green = S("ACGrn", fontSize=7.5, textColor=GREEN, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=10)
+        els.append(PageBreak())
+        at = S("AT",fontSize=9,fontName="Helvetica-Bold",textColor=TH,leading=12)
+        ah = S("AH",fontSize=6.5,fontName="Helvetica-Bold", textColor=white, leading=8)
+        ac = S("AC",fontSize=7,textColor=DARK,leading=9)
+        acr = S("ACR",fontSize=7,textColor=DARK,alignment=TA_RIGHT,leading=9)
+        acb = S("ACB",fontSize=7,fontName="Helvetica-Bold",textColor=DARK,alignment=TA_RIGHT,leading=9)
+        acg = S("ACG",fontSize=7,fontName="Helvetica-Bold",textColor=GREEN,alignment=TA_RIGHT,leading=9)
+        acor = S("ACOr",fontSize=7,fontName="Helvetica-Bold",textColor=ORANGE,alignment=TA_RIGHT,leading=9)
+        acr2 = S("ACR2",fontSize=7,fontName="Helvetica-Bold",textColor=RED,alignment=TA_RIGHT,leading=9)
 
-        els.append(P("<b>ADVANCES DETAIL</b>", adv_title))
-        els.append(Spacer(1, 2*mm))
+        els.append(P("<b>ALL ADVANCES — FULL HISTORY</b>", at))
+        els.append(Spacer(1, 1.5*mm))
 
-        a_rows = [[P("<b>Date</b>", adv_hdr_l), P("<b>Details</b>", adv_hdr_l), P("<b>Given</b>", adv_hdr_r), P("<b>Deducted</b>", adv_hdr_r), P("<b>Left</b>", adv_hdr_r)]]
-        for a in advances_list[:12]:  # max 12 rows to fit one page
-            a_date = str(a.get("entry_date", ""))[:10]
-            a_detail = str(a.get("details", "-"))[:20]
-            a_amt = float(a.get("amount", 0))
-            a_ded = float(a.get("deducted", 0))
-            a_rem = float(a.get("remaining", a_amt - a_ded))
-            rem_style = adv_cell_red if a_rem > 0 else adv_cell_green
+        # Header: Date | Details | Original | This Month Cut | Total Cut | Remaining | Status
+        a_rows = [[
+            P("<b>Date</b>",ah), P("<b>Details</b>",ah), P("<b>Original</b>",ah),
+            P("<b>This Month</b>",ah), P("<b>Total Cut</b>",ah), P("<b>Remaining</b>",ah), P("<b>Status</b>",ah)
+        ]]
+
+        grand_orig = 0.0; grand_this = 0.0; grand_total_cut = 0.0; grand_rem = 0.0
+        for a in advances_list:
+            a_date = str(a.get("entry_date",""))[:10]
+            a_det = str(a.get("details","-"))[:22]
+            a_orig = float(a.get("amount",0))
+            a_this = float(a.get("deducted_this_month",0))
+            a_total = float(a.get("deducted_total",0))
+            a_rem = float(a.get("remaining",0))
+            grand_orig += a_orig; grand_this += a_this; grand_total_cut += a_total; grand_rem += a_rem
+
+            if a_rem <= 0.001: status_txt = "CLEARED"; st_s = S("_s1",fontSize=6,fontName="Helvetica-Bold",textColor=GREEN,alignment=TA_CENTER,leading=8)
+            elif a_this > 0: status_txt = "PARTIAL"; st_s = S("_s2",fontSize=6,fontName="Helvetica-Bold",textColor=ORANGE,alignment=TA_CENTER,leading=8)
+            else: status_txt = "DUE"; st_s = S("_s3",fontSize=6,fontName="Helvetica-Bold",textColor=RED,alignment=TA_CENTER,leading=8)
+
             a_rows.append([
-                P(a_date, adv_cell),
-                P(a_detail, adv_cell),
-                P(f"{a_amt:,.0f}", adv_cell_r),
-                P(f"{a_ded:,.0f}" if a_ded > 0 else "-", adv_cell_red if a_ded > 0 else adv_cell),
-                P(f"{a_rem:,.0f}" if a_rem > 0 else "0", rem_style),
+                P(a_date, ac),
+                P(a_det, ac),
+                P(f"{a_orig:,.0f}", acb),
+                P(f"-{a_this:,.0f}" if a_this > 0 else "-", acor if a_this > 0 else ac),
+                P(f"-{a_total:,.0f}" if a_total > 0 else "-", acor if a_total > 0 else ac),
+                P(f"{a_rem:,.0f}" if a_rem > 0 else "0", acr2 if a_rem > 0 else acg),
+                P(status_txt, st_s),
             ])
 
-        a_col = [58, W - 58 - 52 - 52 - 52, 52, 52, 52]
-        atbl = PlTable(a_rows, colWidths=a_col, repeatRows=1)
+        # Totals row
+        a_rows.append([
+            P("<b>TOTAL</b>",S("_at",fontSize=7,fontName="Helvetica-Bold",textColor=white,leading=9)),
+            P("",S("_x")), P(f"<b>{grand_orig:,.0f}</b>",S("_atv",fontSize=7,fontName="Helvetica-Bold",textColor=white,alignment=TA_RIGHT,leading=9)),
+            P(f"<b>{grand_this:,.0f}</b>",S("_atv",fontSize=7,fontName="Helvetica-Bold",textColor=white,alignment=TA_RIGHT,leading=9)),
+            P(f"<b>{grand_total_cut:,.0f}</b>",S("_atv",fontSize=7,fontName="Helvetica-Bold",textColor=white,alignment=TA_RIGHT,leading=9)),
+            P(f"<b>{grand_rem:,.0f}</b>",S("_atv",fontSize=7,fontName="Helvetica-Bold",textColor=white,alignment=TA_RIGHT,leading=9)),
+            P("",S("_x")),
+        ])
+
+        a_col = [50, W-50-50-50-50-50-50, 50, 50, 50, 50, 50]
+        atbl = PlTable(a_rows,colWidths=a_col,repeatRows=1)
         atbl.setStyle(PlTableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("BACKGROUND", (0, 0), (-1, 0), TH),
-            ("TEXTCOLOR", (0, 0), (-1, 0), white),
-            ("BOX", (0, 0), (-1, -1), 0.5, BORDER),
-            ("INNERGRID", (0, 0), (-1, -1), 0.3, BORDER),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [white, LIGHT_GRAY]),
+            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+            ("BACKGROUND",(0,0),(-1,0),TH),
+            ("BACKGROUND",(0,-1),(-1,-1),TH),
+            ("BOX",(0,0),(-1,-1),0.5,BD),
+            ("INNERGRID",(0,0),(-1,-1),0.3,BD),
+            ("TOPPADDING",(0,0),(-1,-1),2.5),
+            ("BOTTOMPADDING",(0,0),(-1,-1),2.5),
+            ("LEFTPADDING",(0,0),(-1,-1),3),
+            ("RIGHTPADDING",(0,0),(-1,-1),3),
+            ("ROWBACKGROUNDS",(0,1),(-2,-2),[white,LG]),
         ]))
         els.append(atbl)
-        els.append(Spacer(1, 5*mm))
+        els.append(Spacer(1, 3*mm))
+
+        # Legend
+        els.append(P("<font size=6 color='#64748b'><b>This Month</b> = deducted from this salary &nbsp;|&nbsp; <b>Total Cut</b> = lifetime deductions &nbsp;|&nbsp; <b>Remaining</b> = still due to company</font>",
+            S("_lg",fontSize=6,textColor=MUTED,leading=8)))
+        els.append(Spacer(1, 3*mm))
 
     # ═══ STAMP + SIGNATURE ═══
-    s_sg = S("SSG", fontSize=8, alignment=TA_CENTER, leading=12)
+    s_sg = S("SSG",fontSize=7,alignment=TA_CENTER,leading=10)
     stamp_path = os.path.join(assets_dir, 'Stamp.png')
     sign_path = os.path.join(assets_dir, 'Sign (1).png')
-    sig_cells = []
-    sig_cells.append(PlParagraph("_________________________", s_sg))
-    if os.path.exists(stamp_path):
-        sig_cells.append(PlImage(stamp_path, width=35, height=35))
-    if os.path.exists(sign_path):
-        sig_cells.append(PlImage(sign_path, width=35, height=35))
-    sig_cells.append(PlParagraph("<b>Authorized Signatory</b>", s_sg))
-    sig_cell = PlTable([[c] for c in sig_cells], colWidths=[W*0.35])
-    sig_cell.setStyle(PlTableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-    ]))
-    sig_table = PlTable([[
-        sig_cell,
-        "",
-        PlParagraph(f"<font size=6 color='#94a3b8'>Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}</font>", S("_gen", fontSize=6, textColor=MUTED, alignment=TA_RIGHT, leading=8)),
-    ]], colWidths=[W*0.40, W*0.20, W*0.40])
-    sig_table.setStyle(PlTableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LINEABOVE", (0, 0), (0, 0), 0.5, BORDER),
-        ("LINEABOVE", (2, 0), (2, 0), 0.5, BORDER),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-    ]))
-    els.append(sig_table)
-
-    # ═══ FOOTER ═══
-    els.append(Spacer(1, 4*mm))
-    footer_line = PlTable([[""]], colWidths=[W], rowHeights=[0.5])
-    footer_line.setStyle(PlTableStyle([("BACKGROUND", (0, 0), (-1, -1), TH), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
-    els.append(footer_line)
-    els.append(Spacer(1, 1*mm))
-    els.append(PlParagraph(
-        "This is a computer-generated Salary Slip. | Current Link Transport & General Contracting LLC SPC",
-        S("_ft", fontSize=6, textColor=MUTED, alignment=TA_CENTER, leading=8)))
+    sig_cells = [PlParagraph("_________________________",s_sg)]
+    if os.path.exists(stamp_path): sig_cells.append(PlImage(stamp_path,width=30,height=30))
+    if os.path.exists(sign_path): sig_cells.append(PlImage(sign_path,width=30,height=30))
+    sig_cells.append(PlParagraph("<b>Authorized Signatory</b>",s_sg))
+    sig_cell = PlTable([[c] for c in sig_cells],colWidths=[W*0.35])
+    sig_cell.setStyle(PlTableStyle([("ALIGN",(0,0),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
+    sig_tbl = PlTable([[sig_cell,"",PlParagraph(f"<font size=5 color='#94a3b8'>Generated {datetime.now().strftime('%d-%b-%Y %I:%M %p')}</font>",S("_gn",fontSize=5,textColor=MUTED,alignment=TA_RIGHT,leading=7))]],colWidths=[W*0.40,W*0.20,W*0.40])
+    sig_tbl.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LINEABOVE",(0,0),(0,0),0.5,BD),("LINEABOVE",(2,0),(2,0),0.5,BD),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(sig_tbl)
+    els.append(Spacer(1, 3*mm))
+    ft_ln = PlTable([[""]],colWidths=[W],rowHeights=[0.5])
+    ft_ln.setStyle(PlTableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ft_ln)
+    els.append(Spacer(1,1*mm))
+    els.append(PlParagraph("This is a computer-generated Salary Slip. | Current Link Transport & General Contracting LLC SPC",S("_ft",fontSize=5,textColor=MUTED,alignment=TA_CENTER,leading=7)))
 
     doc.build(els)
     try:
-        if logo:
-            os.unlink(logo._file)  # cleanup temp logo file
-    except:
-        pass
+        if logo: os.unlink(logo._file)
+    except: pass
     return str(output_path)

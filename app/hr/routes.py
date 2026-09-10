@@ -1375,30 +1375,54 @@ def employee_salary_card(employee_id, store_id):
         (eid,),
     ).fetchall()
 
+    # Fetch THIS slip's per-transaction deductions
+    this_slip_deductions = db.execute(
+        "SELECT transaction_id, amount_deducted FROM driver_transaction_deductions WHERE salary_slip_id = ?",
+        (slip["id"],),
+    ).fetchall()
+    this_slip_ded_map = {}
+    for d in this_slip_deductions:
+        tid = d["transaction_id"]
+        this_slip_ded_map[tid] = this_slip_ded_map.get(tid, 0.0) + float(d["amount_deducted"])
+
+    # Fetch ALL deduction history per transaction (across all slips)
+    all_deductions = db.execute(
+        "SELECT d.transaction_id, d.amount_deducted, d.salary_month FROM driver_transaction_deductions d JOIN salary_slips ss ON ss.id = d.salary_slip_id WHERE ss.driver_id = ? ORDER BY d.salary_month ASC",
+        (eid,),
+    ).fetchall()
+    all_ded_map = {}
+    for d in all_deductions:
+        tid = d["transaction_id"]
+        if tid not in all_ded_map:
+            all_ded_map[tid] = {"total": 0.0, "months": []}
+        all_ded_map[tid]["total"] += float(d["amount_deducted"])
+        all_ded_map[tid]["months"].append(d["salary_month"])
+
     # Build advance summary with deduction info
     advances_list = []
     total_adv = 0.0
     for a in all_advances:
         amt = float(a["amount"])
         rem = float(a["remaining_amount"] or amt)
-        ded = amt - rem
+        ded_total = all_ded_map.get(a["id"], {}).get("total", 0.0)
+        ded_this_month = this_slip_ded_map.get(a["id"], 0.0)
         total_adv += amt
         advances_list.append({
             "entry_date": a["entry_date"],
             "amount": amt,
-            "deducted": ded,
+            "deducted_total": ded_total,
+            "deducted_this_month": ded_this_month,
             "remaining": rem,
             "details": a["details"],
             "source": a["source"],
+            "deducted_in_months": all_ded_map.get(a["id"], {}).get("months", []),
         })
 
-    # Previous balance
-    prev_deductions = float(db.execute(
-        "SELECT COALESCE(SUM(total_deductions), 0) FROM salary_slips WHERE driver_id = ? AND salary_month < ?",
-        (eid, slip["salary_month"]),
-    ).fetchone()[0])
-    total_adv_remaining = sum(a["remaining"] for a in advances_list)
-    prev_balance = max(total_adv_remaining - float(slip["total_deductions"] or 0), 0.0)
+    # Month-wise deduction summary
+    month_deductions = db.execute(
+        "SELECT ss.salary_month, ss.total_deductions FROM salary_slips ss WHERE ss.driver_id = ? ORDER BY ss.salary_month ASC",
+        (eid,),
+    ).fetchall()
 
     basic = float(salary_row["basic_salary"] or 0) if salary_row else 0.0
     ot = float(salary_row["ot_amount"] or 0) if salary_row else 0.0
@@ -1407,6 +1431,10 @@ def employee_salary_card(employee_id, store_id):
     this_ded = float(slip["total_deductions"] or 0)
     net_paid = float(slip["actual_paid_amount"] or 0)
     outstanding = float(slip["company_balance_due"] or 0)
+
+    # Calculate previous balance (total remaining before this slip)
+    total_remaining_before = sum(a["amount"] for a in advances_list) - sum(a["deducted_total"] for a in advances_list)
+    prev_balance = max(total_remaining_before, 0.0)
 
     company = db.execute("SELECT company_name, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     company_profile = dict(company) if company else None
@@ -1427,6 +1455,7 @@ def employee_salary_card(employee_id, store_id):
         outstanding_balance=outstanding,
         previous_balance=prev_balance,
         advances_list=advances_list,
+        month_deductions=[dict(m) for m in month_deductions],
         output_dir=str(output_dir),
         assets_dir=current_app.config["STATIC_ASSETS_DIR"],
         company_profile=company_profile,
