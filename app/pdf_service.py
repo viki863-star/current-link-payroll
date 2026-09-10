@@ -1252,50 +1252,7 @@ def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: st
         ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
         ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
     ]))
-    els.append(it)
-
-    # ═══ DEDUCTION DETAILS ═══
-    if transaction_deductions and len(transaction_deductions) > 0:
-        els.append(Spacer(1, 5*mm))
-        els.append(PlParagraph("<b>Deduction Details</b>", F("_dd", fontSize=9, fontName="Helvetica-Bold", textColor=TH, leading=12)))
-        els.append(Spacer(1, 2*mm))
-        dd_hdr = [
-            PlParagraph("<b>Date</b>", F("_ddh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
-            PlParagraph("<b>Transaction</b>", F("_ddh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-            PlParagraph("<b>Amount Deducted</b>", F("_ddh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-            PlParagraph("<b>Note</b>", F("_ddh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        ]
-        dd_rws = [dd_hdr]
-        dd_colw = [55, W - 55 - 60 - 120, 60, 120]
-        for ded in transaction_deductions:
-            ded_date = _iso_date_value(ded["deduction_date"]) if ded.get("deduction_date") else "-"
-            txn_ref = str(ded.get("txn_details") or ded.get("note") or "-")
-            ded_amount = float(ded.get("amount_deduction") or 0.0) if ded.get("amount_deduction") else float(ded.get("amount_deducted") or 0.0)
-            ded_note = str(ded.get("note") or "-")
-            dd_rws.append([
-                PlParagraph(ded_date, F("_ddr", fontSize=6.5, leading=9)),
-                PlParagraph(txn_ref, F("_ddr", fontSize=6.2, textColor=C5, leading=9)),
-                PlParagraph(f"<b>{format_currency(ded_amount)}</b>", F("_ddr", fontSize=6.5, fontName="Helvetica-Bold", textColor="#e65100", alignment=TA_RIGHT, leading=9)),
-                PlParagraph(ded_note, F("_ddr", fontSize=6.2, textColor=C5, leading=9)),
-            ])
-        dd_total = sum(float(d.get("amount_deducted") or 0.0) for d in transaction_deductions)
-        dd_rws.append([
-            PlParagraph("<b>Total Deducted</b>", F("_ddt", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
-            PlParagraph("", F("_x")), PlParagraph("", F("_x")),
-            PlParagraph(f"<b>{format_currency(dd_total)}</b>", F("_ddt", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-        ])
-        dd_tbl = PlTable(dd_rws, colWidths=dd_colw, repeatRows=1)
-        dd_tbl.setStyle(PlTableStyle([
-            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-            ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
-            ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-            ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
-            ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
-            ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
-            ("FONTNAME",(0,-1),(-1,-1),"Helvetica-Bold"),
-            ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
-        ]))
-        els.append(dd_tbl)
+    els.append(atbl)
 
     # ═══ SIGNATURES ═══
     els.append(Spacer(1, 8*mm))
