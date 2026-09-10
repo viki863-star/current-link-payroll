@@ -528,7 +528,6 @@
                             {% if slip_existing_slip and slip_existing_slip.pdf_path %}
                             <div class="dv2-slip-actions">
                                 <a href="{{ url_for('generated_file', filename=slip_existing_slip.pdf_path) }}" target="_blank" class="dv2-btn dv2-btn-primary">&#128196; View / Print Salary Slip</a>
-                                <a href="{{ url_for('hr.employee_salary_card', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" target="_blank" class="dv2-btn dv2-btn-outline" style="background:#25D366;color:#fff;border-color:#25D366">&#128241; Salary Card for Driver</a>
                                 <a href="{{ url_for('hr.employee_deduction_statement', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" target="_blank" class="dv2-btn dv2-btn-outline">Download Deduction Statement</a>
                                 <a href="{{ url_for('hr.employee_salary_slip_delete', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" class="dv2-btn dv2-btn-danger">&#128465; Delete</a>
                             </div>
@@ -622,15 +621,16 @@
             </div>
 
             {# ═══ ALL ADVANCES TABLE ═══ #}
+            {% set outstanding_advances = kata_advances|selectattr('remaining', 'gt', 0.01)|list %}
             <div class="dv2-card" style="margin-bottom:1.2rem">
                 <div class="dv2-card-header" style="display:flex;align-items:center;justify-content:space-between">
                     <span style="display:flex;align-items:center;gap:8px">
                         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" style="width:18px;height:18px"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="3" y1="7" x2="17" y2="7"/><line x1="7" y1="11" x2="13" y2="11"/></svg>
-                        All Advances (FIFO Order)
+                        Outstanding Advances
                     </span>
-                    <span style="font-size:.75rem;color:var(--muted)">{{ kata_advances|length }} transactions</span>
+                    <span style="font-size:.75rem;color:var(--muted)">{{ outstanding_advances|length }} of {{ kata_advances|length }}</span>
                 </div>
-                {% if kata_advances %}
+                {% if outstanding_advances %}
                 <div class="dv2-table-wrap" style="max-height:400px;overflow-y:auto">
                     <table class="dv2-table" style="font-size:.82rem">
                         <thead>
@@ -641,37 +641,26 @@
                                 <th style="text-align:right">Original</th>
                                 <th style="text-align:right">Deducted</th>
                                 <th style="text-align:right">Remaining</th>
-                                <th style="text-align:center;width:90px">Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for a in kata_advances %}
-                            <tr style="{% if a.status == 'cleared' %}opacity:.55{% elif a.status == 'partial' %}background:#fffde7{% endif %}">
+                            {% for a in outstanding_advances %}
+                            <tr>
                                 <td data-label="Date" class="dv2-mono" style="font-size:.78rem">{{ a.entry_date[:10] if a.entry_date else '-' }}</td>
                                 <td data-label="Source" style="font-size:.78rem">{{ a.source or a.given_by or '-' }}</td>
                                 <td data-label="Details" style="max-width:140px;white-space:normal;font-size:.75rem;color:var(--muted)">{{ a.details or '-' }}</td>
                                 <td data-label="Original" class="dv2-mono" style="text-align:right;font-weight:600">AED {{ "%.2f"|format(a.amount) }}</td>
                                 <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:{% if a.deducted > 0 %}#e65100{% else %}var(--muted){% endif %};font-weight:{% if a.deducted > 0 %}600{% else %}400{% endif %}">AED {{ "%.2f"|format(a.deducted) }}</td>
-                                <td data-label="Remaining" class="dv2-mono" style="text-align:right;color:{% if a.remaining > 0 %}#c62828{% else %}#2e7d32{% endif %};font-weight:700">AED {{ "%.2f"|format(a.remaining) }}</td>
-                                <td data-label="Status" style="text-align:center">
-                                    {% if a.status == 'cleared' %}
-                                    <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;background:#e8f5e9;color:#2e7d32">CLEARED</span>
-                                    {% elif a.status == 'partial' %}
-                                    <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;background:#fff3e0;color:#e65100">PARTIAL</span>
-                                    {% else %}
-                                    <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;background:#fce4ec;color:#c62828">OUTSTANDING</span>
-                                    {% endif %}
-                                </td>
+                                <td data-label="Remaining" class="dv2-mono" style="text-align:right;color:#c62828;font-weight:700">AED {{ "%.2f"|format(a.remaining) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                         <tfoot>
                             <tr style="background:var(--primary);color:#fff;font-weight:700">
                                 <td colspan="3" style="padding:8px 12px">Totals</td>
-                                <td style="text-align:right;padding:8px 12px">AED {{ "%.2f"|format(kata_advances|map(attribute='amount')|sum) }}</td>
-                                <td style="text-align:right;padding:8px 12px">AED {{ "%.2f"|format(kata_advances|map(attribute='deducted')|sum) }}</td>
-                                <td style="text-align:right;padding:8px 12px">AED {{ "%.2f"|format(kata_advances|map(attribute='remaining')|sum) }}</td>
-                                <td></td>
+                                <td style="text-align:right;padding:8px 12px">AED {{ "%.2f"|format(outstanding_advances|map(attribute='amount')|sum) }}</td>
+                                <td style="text-align:right;padding:8px 12px">AED {{ "%.2f"|format(outstanding_advances|map(attribute='deducted')|sum) }}</td>
+                                <td style="text-align:right;padding:8px 12px">AED {{ "%.2f"|format(outstanding_advances|map(attribute='remaining')|sum) }}</td>
                             </tr>
                         </tfoot>
                     </table>

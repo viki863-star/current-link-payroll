@@ -372,7 +372,8 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         for txn in month_transactions:
             txn_remaining = float(_pdf_row_value(txn, "remaining_amount") or txn["amount"])
             is_fully_deducted = int(_pdf_row_value(txn, "is_fully_deducted") or 0)
-            if is_fully_deducted and txn_remaining <= 0:
+            # Hide fully deducted transactions — only show outstanding lines
+            if is_fully_deducted or txn_remaining <= 0.001:
                 continue
             entries.append(
                 {
@@ -528,7 +529,8 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         for txn in transactions:
             txn_remaining = float(_pdf_row_value(txn, "remaining_amount") or txn["amount"])
             is_fully_deducted = int(_pdf_row_value(txn, "is_fully_deducted") or 0)
-            if is_fully_deducted and txn_remaining <= 0:
+            # Hide fully deducted transactions — only show outstanding lines
+            if is_fully_deducted or txn_remaining <= 0.001:
                 continue
             entries.append(
                 {
