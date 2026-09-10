@@ -1226,6 +1226,8 @@ def employee_salary_slip(employee_id):
                         _audit_log(db, "employee_salary_slip_generated", entity_type="salary_slip",
                                    entity_id=f"{eid}:{selected_salary['salary_month']}",
                                    details=f"Deduction AED {deduction_amount:.2f} / Payable AED {salary_after_deduction:.2f}")
+                        from ..routes import _apply_fifo_deduction
+                        _apply_fifo_deduction(db, eid, slip_id, deduction_amount, selected_salary["salary_month"])
                         db.commit()
                         flash(f"Salary slip generated for {selected_salary['salary_month']}.", "success")
                         return redirect(url_for("hr.employee_salary_slip", employee_id=eid))
