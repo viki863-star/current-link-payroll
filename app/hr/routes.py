@@ -943,6 +943,23 @@ def employee_salary_store_delete(employee_id, store_id):
             db.execute("DELETE FROM salary_payments WHERE salary_store_id = ? AND driver_id = ?", (store_id, eid))
             slip_ids = db.execute("SELECT id FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (store_id, eid)).fetchall()
             for s in slip_ids:
+                deductions_to_reverse = db.execute(
+                    "SELECT id, transaction_id, amount_deducted FROM driver_transaction_deductions WHERE salary_slip_id = ?",
+                    (s["id"],),
+                ).fetchall()
+                for ded in deductions_to_reverse:
+                    txn = db.execute(
+                        "SELECT id, amount, remaining_amount FROM driver_transactions WHERE id = ?",
+                        (ded["transaction_id"],),
+                    ).fetchone()
+                    if txn:
+                        current_remaining = float(txn["remaining_amount"] or txn["amount"])
+                        new_remaining = round(current_remaining + float(ded["amount_deducted"]), 2)
+                        original_amount = float(txn["amount"])
+                        db.execute(
+                            "UPDATE driver_transactions SET remaining_amount = ?, is_fully_deducted = 0 WHERE id = ?",
+                            (min(new_remaining, original_amount), txn["id"]),
+                        )
                 db.execute("DELETE FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?", (s["id"],))
                 db.execute("DELETE FROM driver_transaction_deductions WHERE salary_slip_id = ?", (s["id"],))
                 db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (s["id"],))
@@ -1287,6 +1304,28 @@ def employee_salary_slip_delete(employee_id, store_id):
         )
 
     delete_owner_fund = request.form.get("delete_owner_fund") == "yes"
+
+    # ── Reverse FIFO deductions: restore remaining_amount on transactions ──
+    deductions_to_reverse = db.execute(
+        "SELECT id, transaction_id, amount_deducted FROM driver_transaction_deductions WHERE salary_slip_id = ?",
+        (slip["id"],),
+    ).fetchall()
+    reversed_count = 0
+    for ded in deductions_to_reverse:
+        txn = db.execute(
+            "SELECT id, amount, remaining_amount, is_fully_deducted FROM driver_transactions WHERE id = ?",
+            (ded["transaction_id"],),
+        ).fetchone()
+        if txn:
+            current_remaining = float(txn["remaining_amount"] or txn["amount"])
+            new_remaining = round(current_remaining + float(ded["amount_deducted"]), 2)
+            original_amount = float(txn["amount"])
+            db.execute(
+                "UPDATE driver_transactions SET remaining_amount = ?, is_fully_deducted = ? WHERE id = ?",
+                (min(new_remaining, original_amount), 0 if new_remaining < original_amount else 0, txn["id"]),
+            )
+            reversed_count += 1
+
     db.execute("DELETE FROM driver_transaction_deductions WHERE salary_slip_id = ?", (slip["id"],))
     db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip["id"],))
     if delete_owner_fund and owner_fund_entry:
@@ -1299,7 +1338,8 @@ def employee_salary_slip_delete(employee_id, store_id):
                 entity_id=f"{eid}:{slip['salary_month']}",
                 details=f"store#{store_id}{of_detail}")
     db.commit()
-    flash(f"Salary slip for {slip['salary_month']} deleted.{of_detail}", "success")
+    reversal_note = f" ({reversed_count} deduction(s) reversed)" if reversed_count > 0 else ""
+    flash(f"Salary slip for {slip['salary_month']} deleted.{of_detail}{reversal_note}", "success")
     return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
 
 

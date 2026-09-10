@@ -8812,6 +8812,23 @@ def register_routes(app: Flask) -> None:
                 (slip_id, driver_id),
             ).fetchone()
             if existing_slip is not None:
+                deductions_to_reverse = db.execute(
+                    "SELECT id, transaction_id, amount_deducted FROM driver_transaction_deductions WHERE salary_slip_id = ?",
+                    (slip_id,),
+                ).fetchall()
+                for ded in deductions_to_reverse:
+                    txn = db.execute(
+                        "SELECT id, amount, remaining_amount FROM driver_transactions WHERE id = ?",
+                        (ded["transaction_id"],),
+                    ).fetchone()
+                    if txn:
+                        current_remaining = float(txn["remaining_amount"] or txn["amount"])
+                        new_remaining = round(current_remaining + float(ded["amount_deducted"]), 2)
+                        original_amount = float(txn["amount"])
+                        db.execute(
+                            "UPDATE driver_transactions SET remaining_amount = ?, is_fully_deducted = 0 WHERE id = ?",
+                            (min(new_remaining, original_amount), txn["id"]),
+                        )
                 db.execute("DELETE FROM driver_transaction_deductions WHERE salary_slip_id = ?", (slip_id,))
                 db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip_id,))
                 db.execute(
@@ -9017,6 +9034,23 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("dashboard"))
         slip_ids = db.execute("SELECT id FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?", (salary_id, driver_id)).fetchall()
         for s in slip_ids:
+            deductions_to_reverse = db.execute(
+                "SELECT id, transaction_id, amount_deducted FROM driver_transaction_deductions WHERE salary_slip_id = ?",
+                (s["id"],),
+            ).fetchall()
+            for ded in deductions_to_reverse:
+                txn = db.execute(
+                    "SELECT id, amount, remaining_amount FROM driver_transactions WHERE id = ?",
+                    (ded["transaction_id"],),
+                ).fetchone()
+                if txn:
+                    current_remaining = float(txn["remaining_amount"] or txn["amount"])
+                    new_remaining = round(current_remaining + float(ded["amount_deducted"]), 2)
+                    original_amount = float(txn["amount"])
+                    db.execute(
+                        "UPDATE driver_transactions SET remaining_amount = ?, is_fully_deducted = 0 WHERE id = ?",
+                        (min(new_remaining, original_amount), txn["id"]),
+                    )
             db.execute("DELETE FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?", (s["id"],))
             db.execute("DELETE FROM driver_transaction_deductions WHERE salary_slip_id = ?", (s["id"],))
             db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (s["id"],))
