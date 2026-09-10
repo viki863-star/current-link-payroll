@@ -201,7 +201,7 @@
 
         {# ─── Salary Overview (Premium Chart) ─── #}
         <div class="hr-card" style="margin-bottom:0">
-            <div class="hr-card-title"><span class="hr-tdot" style="background:var(--hr-green)"></span> Salary Overview — {{ today[:7] }}</div>
+            <div class="hr-card-title"><span class="hr-tdot" style="background:var(--hr-green)"></span> Salary Overview — {{ "%04d-%02d"|format(_prev_year, _prev_month) }}</div>
             <div style="display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:center;padding:12px 0">
                 {# ── Left: Donut Gauge ── #}
                 <div style="position:relative;width:240px;height:240px;margin:0 auto">

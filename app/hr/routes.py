@@ -209,8 +209,12 @@ def hr_dashboard():
         ).fetchone()
         payroll_amount = payroll_row["total"] if payroll_row else 0
 
-        # ── Salary Paid vs Unpaid (current month) ──
-        cm = _current_month_value()
+        # ── Salary Paid vs Unpaid (last completed month) ──
+        from datetime import date as _date
+        _today = _date.today()
+        _prev_month = _today.month - 1 if _today.month > 1 else 12
+        _prev_year = _today.year if _today.month > 1 else _today.year - 1
+        cm = f"{_prev_year:04d}-{_prev_month:02d}"
         paid_slips = db.execute(
             "SELECT COUNT(DISTINCT driver_id) AS c, COALESCE(SUM(actual_paid_amount), 0) AS total FROM salary_slips WHERE salary_month = ?",
             (cm,),
@@ -278,6 +282,8 @@ def hr_dashboard():
             paid_trend_months=paid_trend_months,
             paid_trend_paid=paid_trend_paid,
             paid_trend_unpaid=paid_trend_unpaid,
+            _prev_year=_prev_year,
+            _prev_month=_prev_month,
             recent_employees=recent,
             employees=employees,
             today=date.today().isoformat(),
