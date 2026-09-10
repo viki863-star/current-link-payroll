@@ -9409,6 +9409,7 @@ def register_routes(app: Flask) -> None:
                                 entity_id=f"{driver_id}:{selected_salary['salary_month']}",
                                 details=f"deduction AED {deduction_amount:.2f} / paid AED {statement_totals['actual_paid_amount']:.2f} / balance AED {statement_totals['company_balance_due']:.2f}",
                             )
+                            _apply_fifo_deduction(db, driver_id, existing_slip["id"], deduction_amount, selected_salary["salary_month"])
                             db.commit()
                             _archive_driver_statement_record(app, db, driver, selected_salary["salary_month"], "salary_statement_saved", pdf_path=pdf_path)
                             _regenerate_kata_for_driver(app, db, driver)
@@ -17730,6 +17731,73 @@ def _outstanding_advance(db, driver_id: str, exclude_salary_store_id: int | None
     return _advance_summary(db, driver_id, exclude_salary_store_id)["remaining_advance"]
 
 
+def _apply_fifo_deduction(db, driver_id: str, salary_slip_id: int, deduction_amount: float, salary_month: str):
+    """Apply FIFO deduction from transactions. Deducts from oldest transaction first."""
+    if deduction_amount <= 0:
+        return
+
+    transactions = db.execute(
+        """
+        SELECT id, entry_date, amount, details, remaining_amount, is_fully_deducted
+        FROM driver_transactions
+        WHERE driver_id = ? AND (is_fully_deducted = 0 OR is_fully_deducted IS NULL)
+        ORDER BY entry_date ASC, id ASC
+        """,
+        (driver_id,),
+    ).fetchall()
+
+    remaining_to_deduct = deduction_amount
+    for txn in transactions:
+        if remaining_to_deduct <= 0:
+            break
+
+        original_amount = float(txn["amount"])
+        current_remaining = float(txn["remaining_amount"] or original_amount)
+        if current_remaining <= 0:
+            continue
+
+        deduct_from_this = min(current_remaining, remaining_to_deduct)
+        new_remaining = current_remaining - deduct_from_this
+        is_fully_deducted = 1 if new_remaining <= 0.001 else 0
+
+        db.execute(
+            """
+            UPDATE driver_transactions
+            SET remaining_amount = ?, is_fully_deducted = ?
+            WHERE id = ?
+            """,
+            (round(new_remaining, 2), is_fully_deducted, txn["id"]),
+        )
+
+        db.execute(
+            """
+            INSERT INTO driver_transaction_deductions
+            (driver_id, transaction_id, salary_slip_id, amount_deducted, deduction_date, salary_month, note)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                driver_id,
+                txn["id"],
+                salary_slip_id,
+                round(deduct_from_this, 2),
+                txn["entry_date"],
+                salary_month,
+                f"Deducted from: {txn['details'] or txn['entry_date']}",
+            ),
+        )
+
+        remaining_to_deduct -= deduct_from_this
+
+    db.execute(
+        """
+        UPDATE driver_transactions
+        SET remaining_amount = amount, is_fully_deducted = 0
+        WHERE driver_id = ? AND remaining_amount IS NULL
+        """,
+        (driver_id,),
+    )
+
+
 def _owner_fund_totals(db):
     incoming = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM owner_fund_entries WHERE transaction_type = 'IN'").fetchone()[0])
     outgoing_owner_fund = float(db.execute("SELECT COALESCE(SUM(amount), 0) FROM owner_fund_entries WHERE transaction_type = 'OUT'").fetchone()[0])
@@ -19417,16 +19485,29 @@ def _regenerate_kata_for_driver(app: Flask, db, driver, month_value: str | None 
     ).fetchall()
     transactions = db.execute(
         """
-        SELECT entry_date, salary_month, txn_type, source, given_by, amount, details
+        SELECT id, entry_date, salary_month, txn_type, source, given_by, amount, details,
+               remaining_amount, is_fully_deducted
         FROM driver_transactions
         WHERE driver_id = ?
         ORDER BY entry_date ASC, id ASC
         """,
         (driver["driver_id"],),
     ).fetchall()
+    transaction_deductions = db.execute(
+        """
+        SELECT d.id, d.driver_id, d.transaction_id, d.salary_slip_id, d.amount_deducted,
+               d.deduction_date, d.salary_month, d.note,
+               t.entry_date as txn_entry_date, t.details as txn_details
+        FROM driver_transaction_deductions d
+        JOIN driver_transactions t ON t.id = d.transaction_id
+        WHERE d.driver_id = ?
+        ORDER BY d.deduction_date ASC, d.id ASC
+        """,
+        (driver["driver_id"],),
+    ).fetchall()
     salary_slips = db.execute(
         """
-        SELECT generated_at, salary_month, total_deductions, remaining_advance, salary_after_deduction,
+        SELECT id, generated_at, salary_month, total_deductions, remaining_advance, salary_after_deduction,
                actual_paid_amount, company_balance_due, net_payable, payment_source, paid_by
         FROM salary_slips
         WHERE driver_id = ?
@@ -19455,6 +19536,7 @@ def _regenerate_kata_for_driver(app: Flask, db, driver, month_value: str | None 
         str(output_dir),
         app.config["STATIC_ASSETS_DIR"],
         month_value=month_value,
+        transaction_deductions=transaction_deductions,
     )
     _mirror_generated_file(app, pdf_path)
     if month_value:

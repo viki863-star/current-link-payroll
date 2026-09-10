@@ -70,8 +70,25 @@ CREATE TABLE IF NOT EXISTS driver_transactions (
     given_by TEXT,
     amount REAL NOT NULL,
     details TEXT,
+    remaining_amount REAL DEFAULT 0,
+    is_fully_deducted INTEGER DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(driver_id) REFERENCES drivers(driver_id)
+);
+
+CREATE TABLE IF NOT EXISTS driver_transaction_deductions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    driver_id TEXT NOT NULL,
+    transaction_id INTEGER NOT NULL,
+    salary_slip_id INTEGER NOT NULL,
+    amount_deducted REAL NOT NULL,
+    deduction_date TEXT NOT NULL,
+    salary_month TEXT NOT NULL,
+    note TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(driver_id) REFERENCES drivers(driver_id),
+    FOREIGN KEY(transaction_id) REFERENCES driver_transactions(id),
+    FOREIGN KEY(salary_slip_id) REFERENCES salary_slips(id)
 );
 
 CREATE TABLE IF NOT EXISTS driver_timesheets (
@@ -993,8 +1010,25 @@ CREATE TABLE IF NOT EXISTS driver_transactions (
     given_by TEXT,
     amount DOUBLE PRECISION NOT NULL,
     details TEXT,
+    remaining_amount DOUBLE PRECISION DEFAULT 0,
+    is_fully_deducted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(driver_id) REFERENCES drivers(driver_id)
+);
+
+CREATE TABLE IF NOT EXISTS driver_transaction_deductions (
+    id BIGSERIAL PRIMARY KEY,
+    driver_id TEXT NOT NULL,
+    transaction_id BIGINT NOT NULL,
+    salary_slip_id BIGINT NOT NULL,
+    amount_deducted DOUBLE PRECISION NOT NULL,
+    deduction_date TEXT NOT NULL,
+    salary_month TEXT NOT NULL,
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(driver_id) REFERENCES drivers(driver_id),
+    FOREIGN KEY(transaction_id) REFERENCES driver_transactions(id),
+    FOREIGN KEY(salary_slip_id) REFERENCES salary_slips(id)
 );
 
 CREATE TABLE IF NOT EXISTS driver_timesheets (
@@ -1860,6 +1894,8 @@ REQUIRED_COLUMNS = {
     "driver_transactions": {
         "given_by": "TEXT",
         "salary_month": "TEXT",
+        "remaining_amount": "REAL DEFAULT 0",
+        "is_fully_deducted": "INTEGER DEFAULT 0",
     },
     "salary_slips": {
         "available_advance": "DOUBLE PRECISION NOT NULL DEFAULT 0",

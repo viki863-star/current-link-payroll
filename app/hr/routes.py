@@ -1402,11 +1402,11 @@ def employee_kata(employee_id):
         ).fetchone()
 
         all_advances = db.execute(
-            "SELECT id, driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details FROM driver_transactions WHERE driver_id = ? ORDER BY entry_date ASC, id ASC",
+            "SELECT id, driver_id, entry_date, salary_month, txn_type, source, given_by, amount, details, remaining_amount, is_fully_deducted FROM driver_transactions WHERE driver_id = ? ORDER BY entry_date ASC, id ASC",
             (eid,),
         ).fetchall()
 
-        total_advance_amount = sum(float(r["amount"]) for r in all_advances)
+        total_advance_amount = sum(float(r["remaining_amount"] or r["amount"]) for r in all_advances if not r["is_fully_deducted"])
 
         prev_deductions = float(db.execute(
             "SELECT COALESCE(SUM(total_deductions), 0) FROM salary_slips WHERE driver_id = ? AND salary_month < ?",
@@ -1446,9 +1446,11 @@ def employee_kata(employee_id):
 
         for a in all_advances:
             amt = float(a["amount"])
+            remaining_amt = float(a["remaining_amount"] or amt)
+            is_fully_deducted = int(a["is_fully_deducted"] or 0)
             txn_id = a["id"]
             already_deducted = txn_deducted_map.get(txn_id, {}).get("total", 0.0)
-            if already_deducted >= amt - 0.001:
+            if is_fully_deducted or already_deducted >= amt - 0.001:
                 # Fully deducted via actual tracking
                 kata_advances.append({
                     "entry_date": a["entry_date"],
