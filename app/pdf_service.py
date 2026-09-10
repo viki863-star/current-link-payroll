@@ -379,6 +379,8 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
                     "date": _iso_date_value(txn["entry_date"]),
                     "amount": txn_remaining,
                     "original_amount": float(txn["amount"]),
+                    "remaining_amount": txn_remaining,
+                    "is_fully_deducted": bool(is_fully_deducted),
                     "paid_by": (_pdf_row_value(txn, "source") or _pdf_row_value(txn, "given_by") or "-").strip(),
                     "reason": (_pdf_row_value(txn, "details") or _pdf_row_value(txn, "given_by") or txn["txn_type"] or "-").strip(),
                     "balance_after": max(running, 0.0),
@@ -533,6 +535,8 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
                     "date": _iso_date_value(txn["entry_date"]),
                     "amount": txn_remaining,
                     "original_amount": float(txn["amount"]),
+                    "remaining_amount": txn_remaining,
+                    "is_fully_deducted": bool(is_fully_deducted),
                     "paid_by": (_pdf_row_value(txn, "source") or _pdf_row_value(txn, "given_by") or "-").strip(),
                     "reason": (_pdf_row_value(txn, "details") or _pdf_row_value(txn, "given_by") or txn["txn_type"] or "-").strip(),
                     "balance_after": 0.0,
@@ -650,11 +654,13 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
             PlParagraph(f"<b>Remaining</b><br/><font size=10 color='#e65100'>AED {format_currency(remaining_salary)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         ]]
     else:
+        total_original_advance = sum(float(item.get("original_amount", item.get("amount", 0))) for item in entries if item.get("sort_group") == 1)
+        total_remaining_advance = sum(float(item.get("remaining_amount", item.get("amount", 0))) for item in entries if item.get("sort_group") == 1)
         sdata = [[
             PlParagraph(f"<b>Total Salary</b><br/><font size=10 color='#1a7d1a'>AED {format_currency(total_salary)}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-            PlParagraph(f"<b>Transactions</b><br/><font size=10 color='#c62828'>AED {format_currency(total_advance)}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+            PlParagraph(f"<b>Total Advances</b><br/><font size=10 color='#c62828'>AED {format_currency(total_original_advance)}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
             PlParagraph(f"<b>Deducted</b><br/><font size=10 color='#e65100'>AED {format_currency(total_deducted)}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-            PlParagraph(f"<b>Paid</b><br/><font size=10 color='#1a3a5c'>AED {format_currency(total_net_paid)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
+            PlParagraph(f"<b>Outstanding</b><br/><font size=10 color='#1a3a5c'>AED {format_currency(total_remaining_advance)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         ]]
     st = PlTable(sdata, colWidths=[W/4, W/4, W/4, W/4])
     st.setStyle(PlTableStyle([
@@ -675,8 +681,8 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         PlParagraph("<b>Reference</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
         PlParagraph("<b>Type</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
         PlParagraph("<b>Details</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        PlParagraph("<b>In (AED)</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-        PlParagraph("<b>Out (AED)</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        PlParagraph("<b>Original (AED)</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        PlParagraph("<b>Deducted (AED)</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
         PlParagraph("<b>Balance (AED)</b>", F("_h", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
     ]
     rws = [hdr]
@@ -707,14 +713,19 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         total_out += outv
         bal_c = "#c62828" if bal > 0 else "#1a7d1a" if bal < 0 else "#111827"
 
+        original_amount = float(item.get("original_amount", amount))
+        remaining_amount = float(item.get("remaining_amount", amount))
+        is_fully_deducted = item.get("is_fully_deducted", False)
+        deducted_from_line = original_amount - remaining_amount if sg == 1 else 0.0
+
         rws.append([
             PlParagraph(d, F("_d", fontSize=6.5, leading=9)),
             PlParagraph(f"<font color='#6b7280'>{month}</font>", F("_m", fontSize=6, textColor=C5, leading=9)),
             PlParagraph(ref, F("_r", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, leading=9)),
             PlParagraph(f"<font color=\"{'#1a56db' if is_incoming else '#c62828' if sg >= 1 else '#e65100'}\">{etype}</font>", F("_t", fontSize=6.5, alignment=TA_CENTER, leading=9)),
             PlParagraph(det, F("_det", fontSize=6.2, textColor=C5, leading=9)),
-            PlParagraph(f"<b>{inv:,.2f}</b>" if inv else '<font color="#cccccc">—</font>', F("_dr", fontSize=6.5, textColor="#1a7d1a" if inv else C5, alignment=TA_RIGHT, leading=9)),
-            PlParagraph(f"<b>{outv:,.2f}</b>" if outv else '<font color="#cccccc">—</font>', F("_cr", fontSize=6.5, textColor="#c62828" if outv else C5, alignment=TA_RIGHT, leading=9)),
+            PlParagraph(f"<b>{original_amount:,.2f}</b>" if sg == 1 else '<font color="#cccccc">—</font>', F("_dr", fontSize=6.5, textColor=C4 if sg == 1 else C5, alignment=TA_RIGHT, leading=9)),
+            PlParagraph(f"<b>{deducted_from_line:,.2f}</b>" if deducted_from_line > 0 else '<font color="#cccccc">—</font>', F("_cr", fontSize=6.5, textColor="#e65100" if deducted_from_line > 0 else C5, alignment=TA_RIGHT, leading=9)),
             PlParagraph(f"<b>{format_currency(bal)}</b>", F("_bl", fontSize=6.5, fontName="Helvetica-Bold", textColor=bal_c, alignment=TA_RIGHT, leading=9)),
         ])
 
@@ -723,7 +734,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         PlParagraph("<b>Closing Balance</b>", F("_cb", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, leading=10)),
         PlParagraph("", F("_x")), PlParagraph("", F("_x")), PlParagraph("", F("_x")), PlParagraph("", F("_x")),
         PlParagraph(f"<b>{format_currency(total_in)}</b>", F("_ct", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-        PlParagraph(f"<b>{format_currency(total_out)}</b>", F("_ct", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        PlParagraph(f"<b>{format_currency(total_deducted)}</b>", F("_ct", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
         PlParagraph(f"<b>{format_currency(closing_val)}</b>", F("_ccl", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
     ])
 
@@ -1241,7 +1252,50 @@ def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: st
         ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
         ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
     ]))
-    els.append(atbl)
+    els.append(it)
+
+    # ═══ DEDUCTION DETAILS ═══
+    if transaction_deductions and len(transaction_deductions) > 0:
+        els.append(Spacer(1, 5*mm))
+        els.append(PlParagraph("<b>Deduction Details</b>", F("_dd", fontSize=9, fontName="Helvetica-Bold", textColor=TH, leading=12)))
+        els.append(Spacer(1, 2*mm))
+        dd_hdr = [
+            PlParagraph("<b>Date</b>", F("_ddh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+            PlParagraph("<b>Transaction</b>", F("_ddh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+            PlParagraph("<b>Amount Deducted</b>", F("_ddh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+            PlParagraph("<b>Note</b>", F("_ddh", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
+        ]
+        dd_rws = [dd_hdr]
+        dd_colw = [55, W - 55 - 60 - 120, 60, 120]
+        for ded in transaction_deductions:
+            ded_date = _iso_date_value(ded["deduction_date"]) if ded.get("deduction_date") else "-"
+            txn_ref = str(ded.get("txn_details") or ded.get("note") or "-")
+            ded_amount = float(ded.get("amount_deduction") or 0.0) if ded.get("amount_deduction") else float(ded.get("amount_deducted") or 0.0)
+            ded_note = str(ded.get("note") or "-")
+            dd_rws.append([
+                PlParagraph(ded_date, F("_ddr", fontSize=6.5, leading=9)),
+                PlParagraph(txn_ref, F("_ddr", fontSize=6.2, textColor=C5, leading=9)),
+                PlParagraph(f"<b>{format_currency(ded_amount)}</b>", F("_ddr", fontSize=6.5, fontName="Helvetica-Bold", textColor="#e65100", alignment=TA_RIGHT, leading=9)),
+                PlParagraph(ded_note, F("_ddr", fontSize=6.2, textColor=C5, leading=9)),
+            ])
+        dd_total = sum(float(d.get("amount_deducted") or 0.0) for d in transaction_deductions)
+        dd_rws.append([
+            PlParagraph("<b>Total Deducted</b>", F("_ddt", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+            PlParagraph("", F("_x")), PlParagraph("", F("_x")),
+            PlParagraph(f"<b>{format_currency(dd_total)}</b>", F("_ddt", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        ])
+        dd_tbl = PlTable(dd_rws, colWidths=dd_colw, repeatRows=1)
+        dd_tbl.setStyle(PlTableStyle([
+            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+            ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
+            ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
+            ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+            ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
+            ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
+            ("FONTNAME",(0,-1),(-1,-1),"Helvetica-Bold"),
+            ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
+        ]))
+        els.append(dd_tbl)
 
     # ═══ SIGNATURES ═══
     els.append(Spacer(1, 8*mm))
