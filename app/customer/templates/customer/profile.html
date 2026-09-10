@@ -207,6 +207,9 @@ td .mono-sm { font-size:0.75rem; }
                     <td class="mono">{{ "%.0f"|format(cn.vat_amount) }}</td>
                     <td class="mono" style="font-weight:600;color:#c62828">-AED {{ "%.0f"|format(cn.total_amount) }}</td>
                     <td>
+                        <a href="{{ url_for('customer.customer_credit_note_pdf', cid=c.id, cnid=cn.id) }}" class="btn btn-xs btn-outline" target="_blank" title="Download PDF" style="color:#0F2B52;margin-right:4px">
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6l-4-4z"/><path d="M14 2v4h4"/></svg>
+                        </a>
                         <form method="POST" action="{{ url_for('customer.customer_credit_note_delete', cid=c.id, cnid=cn.id) }}" style="display:inline" onsubmit="return confirm('Delete credit note {{ cn.credit_note_no }}?')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>

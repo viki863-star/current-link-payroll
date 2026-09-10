@@ -1796,6 +1796,296 @@ def customer_credit_note_delete(cid, cnid):
     db.close()
     return redirect(url_for("customer.customer_profile", cid=cid, tab="credit_notes"))
 
+
+@customer_bp.route("/<int:cid>/credit-note/<int:cnid>/pdf")
+def customer_credit_note_pdf(cid, cnid):
+    import tempfile, base64
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from io import BytesIO
+
+    _ensure_tables()
+    db = _get_db()
+    c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn FROM customers WHERE id=?", (cid,)).fetchone()
+    cn_row = db.execute("SELECT * FROM customer_credit_notes WHERE id=? AND customer_id=?", (cnid, cid)).fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    db.close()
+
+    if not c or not cn_row:
+        flash("Credit note not found.", "error")
+        return redirect(url_for("customer.customer_dashboard"))
+
+    TH = colors.HexColor((company["theme_color"] or "#0F2B52") if company else "#0F2B52")
+    WH = colors.white
+    BG = colors.HexColor("#fafbfc")
+    C4 = colors.HexColor("#222")
+    C5 = colors.HexColor("#777")
+    C6 = colors.HexColor("#dc2626")
+
+    def S(name, **kw):
+        kw.setdefault("fontSize", 8)
+        kw.setdefault("leading", 12)
+        return ParagraphStyle(name, **kw)
+
+    safe = lambda v, d="\u2014": str(v) if v else d
+    cn_no = cn_row["credit_note_no"] or "\u2014"
+    cn_dt = cn_row["credit_note_date"] or "\u2014"
+    ref_inv_id = cn_row["invoice_id"]
+    ref_inv_no = "\u2014"
+    if ref_inv_id:
+        db2 = _get_db()
+        ref_row = db2.execute("SELECT invoice_no FROM customer_invoices WHERE id=?", (ref_inv_id,)).fetchone()
+        if ref_row: ref_inv_no = ref_row["invoice_no"] or str(ref_inv_id)
+        db2.close()
+
+    LM, RM, TM, BM = 14*mm, 14*mm, 10*mm, 22*mm
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = A4[0] - LM - RM
+    els = []
+
+    _logo_tmp_files = []
+    logo = None; LW = 0
+    if company and company["logo_data"]:
+        try:
+            lb = base64.b64decode(company["logo_data"])
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            f.write(lb); f.close()
+            _logo_tmp_files.append(f.name)
+            from PIL import Image as PILImage
+            with PILImage.open(_logo_tmp_files[-1]) as img:
+                ow, oh = img.size
+            c_ph = (company["phone_number"] or "") if company else ""
+            c_em = (company["email"] or "") if company else ""
+            c_trn = company["trn_no"] or "\u2014" if company else "\u2014"
+            ci_lines_l = []
+            if c_ph: ci_lines_l.append(f'<font size=7 color="#64748b">Phone: {c_ph}</font>')
+            if c_em: ci_lines_l.append(f'<font size=7 color="#64748b">Email: {c_em}</font>')
+            ci_lines_l.append(f"<font size=7 color='#64748b'><b>TRN: {c_trn}</b></font>")
+            cn_name = (company["company_name"] or "CURRENT LINK") if company else "CURRENT LINK"
+            ci_html = f"<font size=14><b>{cn_name}</b></font><br/>" + "<br/>".join(ci_lines_l)
+            co_p = Paragraph(ci_html, S("CO", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=17))
+            from reportlab.pdfgen import canvas as rlcanvas
+            tmp_buf = BytesIO()
+            tmp_c = rlcanvas.Canvas(tmp_buf)
+            ci_width = W*0.65 - 6*mm
+            co_p.wrapOn(tmp_c, ci_width, 1000)
+            text_h = max(co_p.height, 22*mm)
+            tmp_c.save()
+            ratio = text_h / oh
+            logo_w = int(ow * ratio)
+            logo_h = int(text_h)
+            logo = Image(_logo_tmp_files[-1], width=logo_w, height=logo_h)
+            LW = logo_w
+        except: pass
+
+    c_ph2 = (company["phone_number"] or "") if company else ""
+    c_em2 = (company["email"] or "") if company else ""
+    c_trn2 = company["trn_no"] or "\u2014" if company else "\u2014"
+    ci_lines2 = []
+    if c_ph2: ci_lines2.append(f'<font size=7 color="#64748b">Phone: {c_ph2}</font>')
+    if c_em2: ci_lines2.append(f'<font size=7 color="#64748b">Email: {c_em2}</font>')
+    ci_lines2.append(f"<font size=7 color='#64748b'><b>TRN: {c_trn2}</b></font>")
+    cn_name2 = (company["company_name"] or "CURRENT LINK") if company else "CURRENT LINK"
+    ci_html2 = f"<font size=14><b>{cn_name2}</b></font><br/>" + "<br/>".join(ci_lines2)
+    co_p2 = Paragraph(ci_html2, S("CO2", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=17))
+
+    if logo:
+        lh = Table([[logo, Spacer(1, 6*mm), co_p2]], colWidths=[LW, 6*mm, W*0.65 - LW - 6*mm])
+        lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    else:
+        lh = co_p2
+
+    rh = Paragraph(
+        f"<b>CREDIT NOTE</b><br/>"
+        f"<font size=8 color='#64748b'># {cn_no}<br/>{cn_dt}</font>",
+        S("TI", fontSize=16, fontName="Helvetica-Bold", textColor=TH, leading=20, alignment=TA_RIGHT))
+
+    ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
+    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(ht)
+
+    bl = Table([[""]], colWidths=[W], rowHeights=[2])
+    bl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(bl)
+    els.append(Spacer(1, 5*mm))
+
+    def card(title, pairs):
+        cw = W*0.50
+        r = [[Paragraph(f"<b>{title}</b>", S("_ch", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=9)),
+              Paragraph("", S("_cs", fontSize=2, leading=2))]]
+        for a, b in pairs:
+            r.append([Paragraph(a, S("_cl", fontSize=7, textColor=C5, leading=9.5)),
+                      Paragraph(f"{b}", S("_cv", fontSize=7.5, fontName="Helvetica-Bold", textColor=C4, leading=10))])
+        t = Table(r, colWidths=[cw*0.25, cw*0.75])
+        t.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),2.5),("BOTTOMPADDING",(0,0),(-1,-1),2.5),
+                               ("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0"))]))
+        return t
+
+    bd = [("Customer", safe(c["customer_name"])), ("TRN", safe(c["trn"]))]
+    if c["phone"]: bd.append(("Phone", c["phone"]))
+    if c["email"]: bd.append(("Email", c["email"]))
+    if c["address"]:
+        addr_display = c["address"].replace(" , Po Box", "<br/>Po Box").replace(", Po Box", "<br/>Po Box")
+        bd.append(("Address", addr_display))
+
+    id_ = [("Credit Note #", cn_no), ("Date", cn_dt)]
+    if ref_inv_no != "\u2014": id_.append(("Ref. Invoice", ref_inv_no))
+
+    iw = Table([[card("BILL TO", bd), Spacer(1, 3*mm), card("CREDIT NOTE INFO", id_)]], colWidths=[W*0.50, 3*mm, W*0.50])
+    iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(iw)
+    els.append(Spacer(1, 5*mm))
+
+    sub = cn_row["amount"] or 0; vat = cn_row["vat_amount"] or 0; tot = cn_row["total_amount"] or 0; vp = cn_row["vat_percent"] or 0
+
+    cw_t = [9*mm, W - 9*mm - 25*mm - 25*mm, 25*mm, 25*mm]
+    hdr = [
+        Paragraph("<b>#</b>", S("_h0", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=10)),
+        Paragraph("<b>Description</b>", S("_h1", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
+        Paragraph("<b>Amount</b>", S("_h3", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+        Paragraph("<b>Total (incl. VAT)</b>", S("_h7", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
+    ]
+    desc_text = cn_row["reason"] or "Credit Note"
+    if cn_row["notes"]: desc_text += f"<br/><font size=5 color='#64748b'>{cn_row['notes']}</font>"
+    rws = [hdr, [
+        Paragraph("1", S("_r0", fontSize=7, alignment=TA_CENTER, leading=10)),
+        Paragraph(desc_text, S("_r1", fontSize=7, leading=10)),
+        Paragraph(f"AED {sub:,.2f}", S("_r3", fontSize=7, fontName="Helvetica-Bold", textColor=C6, alignment=TA_RIGHT, leading=10)),
+        Paragraph(f"AED {tot:,.2f}", S("_r7", fontSize=7, fontName="Helvetica-Bold", textColor=C6, alignment=TA_RIGHT, leading=10)),
+    ]]
+    itt = Table(rws, colWidths=cw_t, repeatRows=1)
+    itt.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
+        ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")), ("INNERGRID",(0,0),(-1,-1),0.3,colors.HexColor("#e2e8f0")),
+        ("TOPPADDING",(0,0),(-1,-1),3), ("BOTTOMPADDING",(0,0),(-1,-1),3),
+        ("LEFTPADDING",(0,0),(-1,-1),5), ("RIGHTPADDING",(0,0),(-1,-1),5),
+        ("ROWBACKGROUNDS",(0,1),(-1,-1),[WH, BG]),
+    ]))
+    els.append(itt)
+
+    tw = 90*mm
+    trows = [
+        [Paragraph("Sub Total", S("_st", fontSize=9, textColor=C5, leading=12)),
+         Paragraph(f"<b>AED {sub:,.2f}</b>", S("_stv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12, alignment=TA_RIGHT))],
+        [Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=9, textColor=C5, leading=12)),
+         Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=9, fontName="Helvetica-Bold", textColor=C6, leading=12, alignment=TA_RIGHT))],
+        [Paragraph("<b>Total Credit</b>", S("_td", fontSize=12, fontName="Helvetica-Bold", textColor=C6, leading=15)),
+         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=13, fontName="Helvetica-Bold", textColor=C6, leading=16, alignment=TA_RIGHT))],
+    ]
+    tt = Table(trows, colWidths=[tw*0.40, tw*0.60])
+    tt.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
+        ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
+        ("LINEABOVE",(0,2),(-1,2),1.5,TH),
+    ]))
+    ft = Table([["", tt]], colWidths=[W - tw, tw])
+    ft.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(Spacer(1, 2*mm))
+    els.append(ft)
+
+    def n2w(n):
+        if n == 0: return "Zero"
+        o = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve",
+             "Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"]
+        t = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
+        sc = ["","Thousand","Million","Billion"]
+        def h(num):
+            r = ""
+            if num >= 100: r += o[num//100] + " Hundred"; num %= 100
+            if num and r: r += " "
+            if num >= 20: r += t[num//10]; num %= 10
+            if num and r: r += " "
+            if num > 0: r += o[num]
+            return r.strip()
+        ip = int(n)
+        dp = min(int(round((n - ip) * 100)), 99)
+        if ip == 0: w = "Zero"
+        else:
+            w = ""; i = 0
+            while ip > 0:
+                ck = ip % 1000
+                if ck:
+                    cw2 = h(ck)
+                    if sc[i]: cw2 += " " + sc[i]
+                    w = cw2 + (" " + w if w else "")
+                ip //= 1000; i += 1
+        if dp: w += f" and {dp:02d}/100"
+        return "AED " + w + " Only"
+
+    els.append(Spacer(1, 4*mm))
+    ab = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=14))]], colWidths=[W])
+    ab.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
+    els.append(ab)
+
+    reason = cn_row["reason"] or ""
+    notes = cn_row["notes"] or ""
+    display_text = ""
+    if reason: display_text += f"<b>Reason:</b> {reason}"
+    if notes:
+        if display_text: display_text += "<br/>"
+        display_text += f"<b>Notes:</b> {notes}"
+    if display_text:
+        els.append(Spacer(1, 3*mm))
+        nb = Table([[Paragraph(display_text, S("NW", fontSize=7.5, textColor=C4, leading=10))]], colWidths=[W])
+        nb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f8fafc")),("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
+        els.append(nb)
+
+    if company and (company["bank_name"] or company["bank_account_name"] or company["bank_account_number"] or company["iban"]):
+        bk_items = []
+        if company["bank_name"]: bk_items.append(("Bank", company["bank_name"]))
+        if company["bank_account_name"]: bk_items.append(("Account", company["bank_account_name"]))
+        if company["bank_account_number"]: bk_items.append(("A/C No.", company["bank_account_number"]))
+        if company["iban"]: bk_items.append(("IBAN", company["iban"]))
+        if company["swift_code"]: bk_items.append(("Swift", company["swift_code"]))
+        if bk_items:
+            els.append(Spacer(1, 3*mm))
+            els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=9, spaceAfter=2)))
+            bk_rows = [[
+                Paragraph(f"<font color='#64748b'>{lbl}:</font>", S("_bkl", fontSize=7, textColor=C5, leading=9)),
+                Paragraph(f"<b>{val}</b>", S("_bkv", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=9)),
+            ] for lbl, val in bk_items]
+            bkt = Table(bk_rows, colWidths=[20*mm, W - 20*mm])
+            bkt.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
+                                     ("TOPPADDING",(0,0),(-1,-1),1),("BOTTOMPADDING",(0,0),(-1,-1),1)]))
+            els.append(bkt)
+
+    els.append(Spacer(1, 10*mm))
+    sig_text = Paragraph("<b>Authorized Signature</b>", S("SIG", fontSize=8, textColor=C5, alignment=TA_RIGHT, leading=10))
+    sig_t = Table([["", "", sig_text]], colWidths=[W*0.33, W*0.34, W*0.33])
+    sig_t.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"BOTTOM"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
+                               ("LINEBELOW",(2,0),(2,0),0.5,colors.HexColor("#cbd5e1"))]))
+    els.append(sig_t)
+
+    def _footer(canvas, doc2):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 6.5)
+        canvas.setFillColor(colors.HexColor("#94a3b8"))
+        footer = "Current Link \u2014 Transport and General Contracting LLC SPC"
+        if company and company.get("trade_license_no"):
+            footer += f"  |  License: {company['trade_license_no']}"
+        canvas.drawString(LM, 10*mm, footer)
+        canvas.drawRightString(A4[0] - RM, 10*mm, f"Page {canvas.getPageNumber()}")
+        canvas.restoreState()
+
+    doc.build(els, onFirstPage=_footer, onLaterPages=_footer)
+
+    for p in _logo_tmp_files:
+        try: import os; os.unlink(p)
+        except: pass
+
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, mimetype="application/pdf", download_name=f"Credit_Note_{cn_no}.pdf")
+
+
 # â”€â”€â”€ PAYMENTS â”€â”€â”€
 
 @customer_bp.route("/<int:cid>/payment/add", methods=["GET", "POST"])
